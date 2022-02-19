@@ -1,0 +1,78 @@
+# Copyright (c) 2021 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+FROM ghcr.io/oracle/oraclelinux7-instantclient:19 AS base
+
+RUN yum install -y tar gzip
+
+########################### CUDA INSTALLATION ########################################
+
+#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/centos7/10.1/runtime/cudnn7/Dockerfile
+#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/centos7/10.1/runtime/Dockerfile
+#Reference: https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/centos7/10.1/base/Dockerfile
+
+RUN NVIDIA_GPGKEY_SUM=d1be581509378368edeec8c1eb2958702feedf3bc3d17011adbf24efacce4ab5 && \
+curl -fsSL https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/7fa2af80.pub | sed '/^Version/d' > /etc/pki/rpm-gpg/RPM-GPG-KEY-NVIDIA && \
+    echo "$NVIDIA_GPGKEY_SUM  /etc/pki/rpm-gpg/RPM-GPG-KEY-NVIDIA" | sha256sum -c --strict -
+
+COPY docker/cuda.repo /etc/yum.repos.d/cuda.repo
+
+ENV CUDA_VERSION 10.1.243
+
+ENV CUDA_PKG_VERSION 10-1-$CUDA_VERSION-1
+# For libraries in the cuda-compat-* package: https://docs.nvidia.com/cuda/eula/index.html#attachment-a
+RUN yum install -y \
+cuda-cudart-$CUDA_PKG_VERSION \
+cuda-compat-10-1 \
+&& \
+    ln -s cuda-10.1 /usr/local/cuda && \
+    rm -rf /var/cache/yum/*
+
+# nvidia-docker 1.0
+RUN echo "/usr/local/nvidia/lib" >> /etc/ld.so.conf.d/nvidia.conf && \
+    echo "/usr/local/nvidia/lib64" >> /etc/ld.so.conf.d/nvidia.conf
+
+ENV PATH /usr/local/nvidia/bin:/usr/local/cuda/bin:${PATH}
+ENV LD_LIBRARY_PATH /usr/local/nvidia/lib:/usr/local/nvidia/lib64
+
+# nvidia-container-runtime
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+ENV NVIDIA_REQUIRE_CUDA "cuda>=10.1 brand=tesla,driver>=384,driver<385 brand=tesla,driver>=396,driver<397 brand=tesla,driver>=410,driver<411"
+
+ENV CUDNN_VERSION 7.6.5.32
+LABEL com.nvidia.cudnn.version="${CUDNN_VERSION}"
+
+RUN CUDNN_DOWNLOAD_SUM=7eaec8039a2c30ab0bc758d303588767693def6bf49b22485a2c00bf2e136cb3 && \
+    curl -fsSL http://developer.download.nvidia.com/compute/redist/cudnn/v7.6.5/cudnn-10.1-linux-x64-v7.6.5.32.tgz -O && \
+    echo "$CUDNN_DOWNLOAD_SUM  cudnn-10.1-linux-x64-v7.6.5.32.tgz" | sha256sum -c -
+RUN ls -ltr
+RUN tar --no-same-owner -xzf cudnn-10.1-linux-x64-v7.6.5.32.tgz -C /usr/local --wildcards 'cuda/lib64/libcudnn.so.*' && \
+    rm cudnn-10.1-linux-x64-v7.6.5.32.tgz && \
+    ldconfig
+##############################################CUDA  END########################
+
+RUN rm -rf /var/cache/yum/* && yum clean all && yum install -y gcc mesa-libGL vim && rm -rf /var/cache/yum/*
+RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh >> miniconda.sh
+RUN bash ./miniconda.sh -b -p /miniconda; rm ./miniconda.sh;
+ENV PATH="/miniconda/bin:$PATH"
+
+ENV HOME /home/datascience
+RUN mkdir -p /etc/datascience
+WORKDIR /etc/datascience
+
+COPY operators/environment.yaml operators/environment.yaml
+RUN conda env create -f operators/environment.yaml --name op_env && conda clean -afy
+ENV PATH="/miniconda/envs/op_env/bin:$PATH"
+
+RUN /bin/bash -c "source activate op_env"
+COPY operators/run.py operators/run.py
+CMD bash
+
+FROM base
+COPY docker/merge_dependencies.py merge_dependencies.py
+COPY operators/ operators/
+
+RUN pip install pyyaml click && python merge_dependencies.py environment.yaml
+RUN conda env update -f environment.yaml --name op_env && conda clean -afy
+RUN source activate op_env

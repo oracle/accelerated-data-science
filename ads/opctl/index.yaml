@@ -1,0 +1,3 @@
+hello-world:
+  image: hello-world
+  conda_slug: dataexpl_p37_cpu_v2

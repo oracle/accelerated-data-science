@@ -1,0 +1,13 @@
+import sys
+from pyspark import SparkConf, SparkContext
+from pyspark.sql import SQLContext
+
+def main():
+    spark = SparkContext()
+    sql_context = SQLContext(spark)
+
+    # insert your code here:
+    {{script_str}}
+
+if __name__ == '__main__':
+    main()

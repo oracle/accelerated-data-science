@@ -1,0 +1,102 @@
+import json
+import os
+from cloudpickle import cloudpickle
+from functools import lru_cache
+import logging
+import sys
+import automl
+{% for import in misc_imports %}
+import {{import}}
+{% endfor %}
+
+model_name = '{{model_file_name}}'
+
+
+"""
+   Inference script. This script is used for prediction by scoring server when schema is known.
+"""
+
+def init_automl_logger():
+    logger = logging.getLogger("automl")
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setLevel(logging.ERROR)
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    automl.init(engine="local", engine_opts={"n_jobs": 1}, logger=logger)
+
+
+@lru_cache(maxsize=10)
+def load_model(model_file_name=model_name):
+    """
+    Loads model from the serialized format
+
+    Returns
+    -------
+    model:  a model instance on which predict API can be invoked
+    """
+    init_automl_logger()
+    model_dir = os.path.dirname(os.path.realpath(__file__))
+    contents = os.listdir(model_dir)
+    if model_file_name in contents:
+        with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), model_file_name), "rb") as file:
+            return cloudpickle.load(file)
+    else:
+        raise Exception('{0} is not found in model directory {1}'.format(model_file_name, model_dir))
+
+
+def pre_inference(data):
+    """
+    Preprocess data
+
+    Parameters
+    ----------
+    data: Data format as expected by the predict API of the core estimator.
+
+    Returns
+    -------
+    data: Data format after any processing.
+
+    """
+    return data
+
+def post_inference(yhat):
+    """
+    Post-process the model results
+
+    Parameters
+    ----------
+    yhat: Data format after calling model.predict.
+
+    Returns
+    -------
+    yhat: Data format after any processing.
+
+    """
+    return yhat.tolist()
+
+def predict(data, model=load_model()):
+    """
+    Returns prediction given the model and data to predict
+
+    Parameters
+    ----------
+    model: Model instance returned by load_model API
+    data: Data format as expected by the predict API of the core estimator. For eg. in case of sckit models it could be numpy array/List of list/Pandas DataFrame
+
+    Returns
+    -------
+    predictions: Output from scoring server
+        Format: {'prediction': output from model.predict method}
+
+    """
+    from pandas import read_json, DataFrame
+    from io import StringIO
+    X = read_json(StringIO(data)) if isinstance(data, str) else DataFrame.from_dict(data)
+    features = pre_inference(X)
+    yhat = post_inference(
+        model.predict(features)
+    )
+    return {'prediction': yhat}

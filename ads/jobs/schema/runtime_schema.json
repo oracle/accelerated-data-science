@@ -1,0 +1,178 @@
+{
+  "apiVersion": {
+    "nullable": true,
+    "required": false,
+    "type": "string"
+  },
+  "audit": {
+    "required": false,
+    "schema": {
+      "dateCreated": {
+        "required": false
+      }
+    },
+    "type": "dict"
+  },
+  "kind": {
+    "allowed": [
+      "runtime"
+    ],
+    "required": true,
+    "type": "string"
+  },
+  "spec": {
+    "required": true,
+    "schema": {
+      "archiveBucket": {
+        "required": false,
+        "type": "string"
+      },
+      "archiveUri": {
+        "required": false,
+        "type": "string"
+      },
+      "args": {
+        "nullable": true,
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "type": "list"
+      },
+      "branch": {
+        "nullable": true,
+        "required": false,
+        "type": "string"
+      },
+      "cmd": {
+        "required": false,
+        "type": [
+          "string",
+          "list"
+        ]
+      },
+      "codeDir": {
+        "required": false,
+        "type": "string"
+      },
+      "command": {
+        "required": false,
+        "schema": {
+          "type": "string"
+        },
+        "type": "list"
+      },
+      "commit": {
+        "nullable": true,
+        "required": false,
+        "type": "string"
+      },
+      "conda": {
+        "nullable": false,
+        "required": false,
+        "schema": {
+          "slug": {
+            "required": true,
+            "type": "string"
+          },
+          "type": {
+            "allowed": [
+              "service"
+            ],
+            "required": true,
+            "type": "string"
+          }
+        },
+        "type": "dict"
+      },
+      "entryFunction": {
+        "nullable": true,
+        "required": false,
+        "type": "string"
+      },
+      "entrypoint": {
+        "required": false,
+        "type": [
+          "string",
+          "list"
+        ]
+      },
+      "env": {
+        "required": false,
+        "schema": {
+          "type": "dict"
+        },
+        "type": "list"
+      },
+      "excludeTags": {
+        "required": false,
+        "type": "list"
+      },
+      "freeform_tag": {
+        "required": false,
+        "type": "dict"
+      },
+      "image": {
+        "required": false,
+        "type": "string"
+      },
+      "notebookPathURI": {
+        "required": false,
+        "type": "string"
+      },
+      "outputDir": {
+        "required": false,
+        "type": "string"
+      },
+      "outputUri": {
+        "required": false,
+        "type": "string"
+      },
+      "params": {
+        "required": false,
+        "schema": {
+          "dataPath": {
+            "required": false,
+            "type": "string"
+          }
+        },
+        "type": "dict"
+      },
+      "pythonPath": {
+        "nullable": true,
+        "required": false,
+        "type": "list"
+      },
+      "scriptBucket": {
+        "required": false,
+        "type": "string"
+      },
+      "scriptPathURI": {
+        "required": false,
+        "type": "string"
+      },
+      "url": {
+        "required": false,
+        "type": "string"
+      },
+      "workingDir": {
+        "required": false,
+        "type": "string"
+      }
+    },
+    "type": "dict"
+  },
+  "type": {
+    "allowed": [
+      "python",
+      "container",
+      "notebook",
+      "gitPython",
+      "operator",
+      "script",
+      "dataFlow"
+    ],
+    "required": true,
+    "type": "string"
+  }
+}

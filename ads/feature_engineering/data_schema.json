@@ -1,0 +1,52 @@
+{
+  "description": {
+    "nullable": true,
+    "required": false,
+    "type": "string"
+  },
+  "domain": {
+    "nullable": true,
+    "required": false,
+    "schema": {
+      "constraints": {
+        "nullable": true,
+        "required": false,
+        "type": "list"
+      },
+      "stats": {
+        "nullable": true,
+        "required": false,
+        "type": "dict"
+      },
+      "values": {
+        "nullable": true,
+        "required": false,
+        "type": "string"
+      }
+    },
+    "type": "dict"
+  },
+  "dtype": {
+    "nullable": false,
+    "required": true,
+    "type": "string"
+  },
+  "feature_type": {
+    "nullable": true,
+    "required": false,
+    "type": "string"
+  },
+  "name": {
+    "nullable": false,
+    "required": true,
+    "type": [
+      "string",
+      "number"
+    ]
+  },
+  "required": {
+    "nullable": false,
+    "required": true,
+    "type": "boolean"
+  }
+}

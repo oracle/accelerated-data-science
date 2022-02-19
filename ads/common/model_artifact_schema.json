@@ -1,0 +1,107 @@
+{
+  "properties": {
+    "MODEL_ARTIFACT_VERSION": {
+      "type": "string"
+    },
+    "MODEL_DEPLOYMENT": {
+      "properties": {
+        "INFERENCE_CONDA_ENV": {
+          "properties": {
+            "INFERENCE_ENV_PATH": {
+              "type": "string"
+            },
+            "INFERENCE_ENV_SLUG": {
+              "type": "string"
+            },
+            "INFERENCE_ENV_TYPE": {
+              "enum": [
+                "published",
+                "data_science"
+              ],
+              "type": "string"
+            },
+            "INFERENCE_PYTHON_VERSION": {
+              "type": "string"
+            }
+          },
+          "title": "Inference Conda Env",
+          "type": "object"
+        }
+      },
+      "title": "Model Deployment",
+      "type": "object"
+    },
+    "MODEL_PROVENANCE": {
+      "properties": {
+        "PROJECT_OCID": {
+          "type": "string"
+        },
+        "TENANCY_OCID": {
+          "type": "string"
+        },
+        "TRAINING_CODE": {
+          "properties": {
+            "ARTIFACT_DIRECTORY": {
+              "type": "string"
+            },
+            "GIT_BRANCH": {
+              "type": "string"
+            },
+            "GIT_COMMIT": {
+              "type": "string"
+            },
+            "GIT_REMOTE": {
+              "type": "string"
+            },
+            "TRAINING_SCRIPT": {
+              "type": "string"
+            }
+          },
+          "title": "Training Code Info",
+          "type": "object"
+        },
+        "TRAINING_COMPARTMENT_OCID": {
+          "type": "string"
+        },
+        "TRAINING_CONDA_ENV": {
+          "properties": {
+            "TRAINING_ENV_PATH": {
+              "type": "string"
+            },
+            "TRAINING_ENV_SLUG": {
+              "type": "string"
+            },
+            "TRAINING_ENV_TYPE": {
+              "enum": [
+                "published",
+                "data_science"
+              ],
+              "type": "string"
+            },
+            "TRAINING_PYTHON_VERSION": {
+              "type": "string"
+            }
+          },
+          "title": "Training Conda Env",
+          "type": "object"
+        },
+        "TRAINING_REGION": {
+          "type": "string"
+        },
+        "TRAINING_RESOURCE_OCID": {
+          "type": "string"
+        },
+        "USER_OCID": {
+          "type": "string"
+        },
+        "VM_IMAGE_INTERNAL_ID": {
+          "type": "string"
+        }
+      },
+      "title": "Model Provenance",
+      "type": "object"
+    }
+  },
+  "title": "Model Artifact schema",
+  "type": "object"
+}

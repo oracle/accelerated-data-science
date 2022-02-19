@@ -1,0 +1,22 @@
+from __future__ import print_function
+
+import sys
+
+from pyspark.sql import SparkSession
+from pyspark import SparkConf, SparkContext
+
+def main():
+    conf = SparkConf().setAppName("myFirstApp")
+    sc = SparkContext(conf=conf)
+
+    # create a spark session
+    spark = SparkSession \
+        .builder \
+        .appName("Python Spark SQL basic example") \
+        .getOrCreate()
+
+    # insert your code here:
+    {{script_str}}
+
+if __name__ == '__main__':
+    main()

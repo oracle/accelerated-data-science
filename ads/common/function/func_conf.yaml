@@ -1,0 +1,25 @@
+models:
+  onnx:
+    file_name:  'model.onnx'
+    transformer_name: 'onnx_data_transformer.json'
+    input_file: 'score'
+    misc_imports: []
+  default:
+    file_name:  'model.pkl'
+    transformer_name: ''
+    input_file: 'score-pkl'
+    misc_imports: []
+  unknown:
+    file_name:  'model.pkl'
+    transformer_name: ''
+    input_file: 'score-pkl'
+    misc_imports: []
+requires:
+  onnx: ['numpy', 'pandas', 'scikit-learn', 'onnxruntime']
+  default: ['numpy', 'pandas', 'scikit-learn', 'onnxruntime']
+  functions: ['fdk']
+fn_conf:
+  version:  '0.0.1'
+  runtime:  'python3.6'
+  entrypoint: '/python/bin/fdk /function/func.py handler'
+  memory: 1024

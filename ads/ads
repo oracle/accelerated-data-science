@@ -1,0 +1,2 @@
+export OCI_PYTHON_SDK_NO_SERVICE_IMPORTS=1
+python -m ads.cli "$@"
