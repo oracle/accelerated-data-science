@@ -1,5 +1,7 @@
 # Oracle Accelerated Data Science SDK (ADS)
 
+[![PyPI](https://img.shields.io/pypi/v/oracle-ads.svg)](https://pypi.org/project/oracle-ads/)
+
 The [Oracle Accelerated Data Science (ADS) SDK](https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html) is maintained by the [Oracle Cloud Infrastructure Data Science service](https://docs.oracle.com/en-us/iaas/data-science/using/data-science.htm) team. It speeds up common data science activities by providing tools that automate and/or simplify common data science tasks, along with providing a data scientist friendly pythonic interface to Oracle Cloud Infrastructure (OCI) services, most notably OCI Data Science, Data Flow, Object storage, and the Autonomous Database. ADS gives you an interface to manage the lifecycle of machine learning models, from data acquisition to model evaluation, interpretation, and model deployment.  
 
 With ADS you can:
