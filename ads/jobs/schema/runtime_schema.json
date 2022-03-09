@@ -120,6 +120,10 @@
         "required": false,
         "type": "string"
       },
+      "notebookEncoding": {
+        "required": false,
+        "type": "string"
+      },
       "outputDir": {
         "required": false,
         "type": "string"

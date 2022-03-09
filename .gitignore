@@ -1,0 +1,158 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+#  Usually these files are written by a python script from a template
+#  before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+docs/build/
+docs/dask-worker-space/
+
+# PyBuilder
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# dotenv
+.env
+
+# virtualenv
+.venv
+venv/
+ENV/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+
+### Linux ###
+*~
+
+# IntelliJ/Pycharm settings
+*.iml
+.idea
+.vscode/
+
+# Mac OS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# dask related
+dask-worker-space
+
+#sqllite databases
+*.db
+
+Untitled*.ipynb
+*.lock
+*.dirlock
+
+
+# test results
+testresults.xml
+
+# this is a separate repo
+notebooks/stable
+
+# this is a repo for http certs
+tests/sparta-pki
+
+docs/ads-latest.zip
+
+
+# html reports of covered code by pytests and
+# execution data collected by coverage.py
+*coverage_html_report*
+.coverage
+.coverage*
+**.sqlite
+
+extensions/**/node_modules/
+extensions/**/*.tgz
+logs/
+**/node_modules
+
+# side-effects of running notebooks
+**/.mlx_static/**
+
+# vim
+*.swp

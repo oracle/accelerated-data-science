@@ -12,6 +12,8 @@ JOB_RUN_NOTEBOOK:
 NOTEBOOK_EXCLUDE_TAGS:
     Optional, a list of tags serialized to JSON string.
     Notebook cells with one of the tags will be excluded from running.
+NOTEBOOK_ENCODING:
+    Optional, the encoding for opening the notebook.
 OUTPUT_URI:
     Optional, object storage URI for saving files from the output directory.
 """
@@ -189,7 +191,8 @@ def run_notebook(
         Tags for excluding cells, by default None
     """
     # Read the notebook
-    with open(notebook_path) as f:
+    encoding = os.environ.get("NOTEBOOK_ENCODING", 'utf-8')
+    with open(notebook_path, encoding=encoding) as f:
         nb = nbformat.read(f, as_version=4)
 
     # Working/Output directory
@@ -205,11 +208,11 @@ def run_notebook(
         ep.preprocess(nb, {"metadata": {"path": working_dir}})
     except CellExecutionError:
         msg = "Error executing the notebook.\n\n"
-        msg += 'See notebook "%s" for the traceback.' % notebook_filename_out
+        msg += f'See notebook "{notebook_filename_out}" for the traceback.'
         logger.error(msg)
         raise
     finally:
-        with open(notebook_filename_out, mode="w", encoding="utf-8") as f:
+        with open(notebook_filename_out, mode="w", encoding=encoding) as f:
             nbformat.write(nb, f)
 
 

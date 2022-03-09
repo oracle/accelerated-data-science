@@ -330,7 +330,7 @@ class Job(Builder):
         """
         return self.set_spec("name", name)
 
-    def create(self) -> "Job":
+    def create(self, **kwargs) -> "Job":
         """Creates the job on the infrastructure.
 
         Returns
@@ -340,7 +340,7 @@ class Job(Builder):
         """
         infra = self.get_spec("infrastructure")
         infra.name = self.name
-        self.infrastructure.create(self.runtime)
+        self.infrastructure.create(self.runtime, **kwargs)
         self.set_spec("name", self.infrastructure.name)
         return self
 

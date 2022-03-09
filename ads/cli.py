@@ -6,6 +6,7 @@
 
 import click
 import ads.opctl.cli
+import ads.jobs.cli
 import os
 import json
 
@@ -23,6 +24,7 @@ def cli():
 
 
 cli.add_command(ads.opctl.cli.commands)
+cli.add_command(ads.jobs.cli.commands)
 
 
 if __name__ == "__main__":

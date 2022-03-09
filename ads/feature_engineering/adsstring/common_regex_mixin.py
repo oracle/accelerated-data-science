@@ -18,10 +18,10 @@ class CommonRegex(object):
         "time": re.compile(
             r"\d{1,2}:\d{2} ?(?:[ap]\.?m\.?)?|\d[ap]\.?m\.?", re.IGNORECASE
         ),
-        "US_phone_number": re.compile(
+        "phone_number_US": re.compile(
             r"((?:(?<![\d-])(?:\+?\d{1,3}[-.\s*]?)?(?:\(?\d{3}\)?[-.\s*]?)?\d{3}[-.\s*]?\d{4}(?![\d-]))|(?:(?<![\d-])(?:(?:\(\+?\d{2}\))|(?:\+?\d{2}))\s*\d{2}\s*\d{3}\s*\d{4}(?![\d-])))"
         ),
-        "US_phone_with_ext": re.compile(
+        "phone_number_US_with_ext": re.compile(
             r"((?:(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*(?:[2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|(?:[2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?)?(?:[2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?(?:[0-9]{4})(?:\s*(?:#|x\.?|ext\.?|extension)\s*(?:\d+)?))",
             re.IGNORECASE,
         ),
@@ -45,15 +45,13 @@ class CommonRegex(object):
             r"[$]\s?[+-]?[0-9]{1,3}(?:(?:,?[0-9]{3}))*(?:\.[0-9]{1,2})?"
         ),
         "credit_card": re.compile(r"((?:(?:\d{4}[- ]?){3}\d{4}|\d{15,16}))(?![\d])"),
-        "street_address": re.compile(
+        "address": re.compile(
             r"\d{1,5} [\w\s]{1,30}(?:street|st|crescent|avenue|ave|road|rd|highway|hwy|square|sq|trail|trl|drive|dr|court|ct|park|parkway|pkwy|circle|cir|boulevard|blvd)\W?(?=\s|$)",
             re.IGNORECASE,
         ),
         "zip_code": re.compile(r"\b\d{5}(?:[-\s]\d{4})?\b"),
         "po_box": re.compile(r"P\.? ?O\.? Box \d+", re.IGNORECASE),
-        "ssn_number": re.compile(
-            r"(?!666|000|9\d{2})\d{3}[- ](?!00)\d{2}[- ](?!0{4})\d{4}"
-        ),
+        "ssn": re.compile(r"(?!666|000|9\d{2})\d{3}[- ](?!00)\d{2}[- ](?!0{4})\d{4}"),
         "address_with_zip": re.compile(
             r"\d{1,5} [\w\s]{1,30}(?:street|st(?:\s|\.)+|avenue|ave(?:\s|\.)+|road|rd(?:\s|\.)+|highway|hwy(?:\s|\.)+|square|sq(?:\s|\.)+|trail|trl(?:\s|\.)+|drive|dr(?:\s|\.)+|court|ct(?:\s|\.)+|park|parkway|pkwy(?:\s|\.)+|circle|cir(?:\s|\.)+|boulevard|blvd(?:\s|\.)+|island|port|view|parkways)(?:suite\s?\d+|apt\.?\s?\d+|ste\.?\s?\d+)?[\w\s,]{1,30}\d{5}\W?(?=\s|$)",
             re.IGNORECASE,
@@ -91,58 +89,58 @@ class CommonRegexMixin(object):
         self.parsed = CommonRegex(self.string)
 
     @property
-    def dates(self):
+    def date(self):
         return self.parsed.date
 
     @property
-    def times(self):
+    def time(self):
         return self.parsed.time
 
     @property
-    def US_phone_numbers(self):
-        return self.parsed.US_phone_number + self.parsed.US_phone_with_ext
+    def phone_number_US(self):
+        return self.parsed.phone_number_US + self.parsed.phone_number_US_with_ext
 
     @property
-    def links(self):
+    def link(self):
         return self.parsed.link
 
     @property
-    def emails(self):
+    def email(self):
         return self.parsed.email
 
     @property
-    def ips(self):
+    def ip(self):
         return self.parsed.ip + self.parsed.ipv6
 
     @property
-    def prices(self):
+    def price(self):
         return self.parsed.price
 
     @property
-    def credit_cards(self):
+    def credit_card(self):
         return self.parsed.credit_card
 
     @property
-    def street_addresses(self):
-        return self.parsed.street_address + self.parsed.address_with_zip
+    def address(self):
+        return self.parsed.address + self.parsed.address_with_zip
 
     @property
-    def zip_codes(self):
+    def zip_code(self):
         return self.parsed.zip_code
 
     @property
-    def ssn_numbers(self):
-        return self.parsed.ssn_number
+    def ssn(self):
+        return self.parsed.ssn
 
     def redact(self, fields: Union[List[str], Dict[str, str]]) -> str:
         """Remove personal information in a string.
-        For example, "Jane's phone number is 123-456-7890" is turned into "Jane's phone number is [US_PHONE_NUMBER]."
+        For example, "Jane's phone number is 123-456-7890" is turned into "Jane's phone number is [phone_number_US]."
 
         Parameters
         ----------
         fields: (list(str) | dict)
-            either a list of fields to redact, e.g. ['email', 'US_phone_number'], in which case the redacted text is replaced
-            with capitalized word like [EMAIL] or [US_PHONE_NUMBER], or a dictionary where key is a field to redact and value
+            either a list of fields to redact, e.g. ['email', 'phone_number_US'], in which case the redacted text is replaced
+            with capitalized word like [EMAIL] or [PHONE_NUMBER_US_WITH_EXT], or a dictionary where key is a field to redact and value
             is the replacement text, e.g., {'email': 'HIDDEN_EMAIL'}.
 
         Returns

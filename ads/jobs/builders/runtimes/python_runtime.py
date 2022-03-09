@@ -305,6 +305,7 @@ class NotebookRuntime(CondaRuntime):
     """Represents a job runtime with Jupyter notebook"""
 
     CONST_NOTEBOOK_PATH = "notebookPathURI"
+    CONST_NOTEBOOK_ENCODING = "notebookEncoding"
     CONST_OUTPUT_URI = "outputURI"
     EXCLUDE_TAG = "excludeTags"
 
@@ -313,7 +314,12 @@ class NotebookRuntime(CondaRuntime):
         """The URI of the notebook"""
         return self.get_spec(self.CONST_NOTEBOOK_PATH)
 
-    def with_notebook(self, path: str):
+    @property
+    def notebook_encoding(self) -> str:
+        """The encoding of the notebook"""
+        return self.get_spec(self.CONST_NOTEBOOK_ENCODING)
+
+    def with_notebook(self, path: str, encoding='utf-8'):
         """Specifies the notebook to be converted to python script and run as a job.
 
         Parameters
@@ -326,6 +332,7 @@ class NotebookRuntime(CondaRuntime):
         self
             The runtime instance.
         """
+        self.set_spec(self.CONST_NOTEBOOK_ENCODING, encoding)
         return self.set_spec(self.CONST_NOTEBOOK_PATH, path)
 
     @property

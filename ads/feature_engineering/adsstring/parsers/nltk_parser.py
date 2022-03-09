@@ -7,10 +7,12 @@
 import os
 import functools
 import nltk
+import pandas as pd
 from nltk import FreqDist, ngrams, pos_tag
 from nltk.stem import SnowballStemmer
 from nltk.tokenize import sent_tokenize, word_tokenize
 from ads.feature_engineering.adsstring.parsers.base import Parser
+from typing import List
 
 if "CONDA_PREFIX" in os.environ:
     nltk.data.path.append(f"{os.environ['CONDA_PREFIX']}/nltk")
@@ -26,59 +28,69 @@ class NLTKParser(Parser):
 
     @property
     @functools.lru_cache()
-    def parts_of_speech(self):
+    def pos(self) -> pd.DataFrame:
+        return pd.DataFrame(data=self._pos(), columns=["Word", "Label"])
+
+    @functools.lru_cache()
+    def _pos(self):
         return pos_tag(word_tokenize(self.string))
 
     @property
     @functools.lru_cache()
-    def adjectives(self):
-        return [word for (word, pos) in self.parts_of_speech if pos.startswith("JJ")]
+    def adjective(self) -> List[str]:
+        return [word for (word, pos) in self._pos() if pos.startswith("JJ")]
 
     @property
     @functools.lru_cache()
-    def nouns(self):
-        return [word for (word, pos) in self.parts_of_speech if pos.startswith("NN")]
+    def noun(self) -> List[str]:
+        return [word for (word, pos) in self._pos() if pos.startswith("NN")]
 
     @property
     @functools.lru_cache()
-    def adverbs(self):
-        return [word for (word, pos) in self.parts_of_speech if pos.startswith("RB")]
+    def adverb(self) -> List[str]:
+        return [word for (word, pos) in self._pos() if pos.startswith("RB")]
 
     @property
     @functools.lru_cache()
-    def verbs(self):
-        return [word for (word, pos) in self.parts_of_speech if pos.startswith("VB")]
+    def verb(self) -> List[str]:
+        return [word for (word, pos) in self._pos() if pos.startswith("VB")]
 
     @property
     @functools.lru_cache()
-    def sentences(self):
+    def sentence(self) -> List[str]:
         return sent_tokenize(self.string)
 
     @property
     @functools.lru_cache()
-    def tokens(self):
+    def token(self) -> List[str]:
         return word_tokenize(self.string)
 
     @property
-    def words(self):
-        return [word.lower() for word in self.tokens if word.isalpha()]
+    def word(self) -> List[str]:
+        return [word.lower() for word in self.token if word.isalpha()]
 
     @property
     @functools.lru_cache()
-    def histogram(self):
-        return list(FreqDist(self.words).items())
+    def word_count(self) -> pd.DataFrame:
+        word_count = list(FreqDist(self.word).items())
+        df = pd.DataFrame(data=word_count, columns=["Word", "Count"])
+        return df.sort_values(
+            ["Count", "Word"], ascending=[False, True], ignore_index=True
+        )
 
     @property
     @functools.lru_cache()
-    def bigrams(self):
-        return list(ngrams(self.words, 2))
+    def bigram(self) -> pd.DataFrame:
+        res = list(ngrams(self.word, 2))
+        return pd.DataFrame(data=res, columns=["Word 1", "Word 2"])
 
     @property
     @functools.lru_cache()
-    def trigrams(self):
-        return list(ngrams(self.words, 3))
+    def trigram(self) -> pd.DataFrame:
+        res = list(ngrams(self.word, 3))
+        return pd.DataFrame(data=res, columns=["Word 1", "Word 2", "Word 3"])
 
     @property
     @functools.lru_cache()
-    def stems(self):
-        return [NLTKParser.stemmers[self.language].stem(w) for w in self.words]
+    def stem(self) -> List:
+        return [NLTKParser.stemmers[self.language].stem(w) for w in self.word]

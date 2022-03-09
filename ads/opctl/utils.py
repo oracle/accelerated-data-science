@@ -302,7 +302,7 @@ def _run_container(
     container = client.containers.run(
         image=image,
         volumes=bind_volumes,
-        command=shlex.split(command),
+        command=shlex.split(command) if command else None,
         environment=env_vars,
         detach=True,
         entrypoint=entrypoint,

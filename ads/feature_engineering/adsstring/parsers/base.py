@@ -7,41 +7,41 @@
 
 class Parser:
     @property
-    def parts_of_speech(self):
+    def pos(self):
         raise NotImplementedError()
 
     @property
-    def nouns(self):
+    def noun(self):
         raise NotImplementedError()
 
     @property
-    def adjectives(self):
+    def adjective(self):
         raise NotImplementedError()
 
     @property
-    def adverbs(self):
+    def adverb(self):
         raise NotImplementedError()
 
     @property
-    def verbs(self):
+    def verb(self):
         raise NotImplementedError()
 
     @property
-    def words(self):
+    def word(self):
         raise NotImplementedError()
 
     @property
-    def sentences(self):
+    def sentence(self):
         raise NotImplementedError()
 
     @property
-    def histogram(self):
+    def word_count(self):
         raise NotImplementedError()
 
     @property
-    def bigrams(self):
+    def bigram(self):
         raise NotImplementedError()
 
     @property
-    def trigrams(self):
+    def trigram(self):
         raise NotImplementedError()

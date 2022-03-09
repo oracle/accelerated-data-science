@@ -639,11 +639,13 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
     CONST_ENTRYPOINT = "JOB_RUN_ENTRYPOINT"
     CONST_OUTPUT_URI = "OUTPUT_URI"
     CONST_EXCLUDE_TAGS = "NOTEBOOK_EXCLUDE_TAGS"
+    CONST_NOTEBOOK_ENCODING = "NOTEBOOK_ENCODING"
 
     SPEC_MAPPINGS = {
         NotebookRuntime.CONST_NOTEBOOK_PATH: CONST_NOTEBOOK_NAME,
         NotebookRuntime.CONST_OUTPUT_URI: CONST_OUTPUT_URI,
         NotebookRuntime.CONST_TAG: CONST_EXCLUDE_TAGS,
+        NotebookRuntime.CONST_NOTEBOOK_ENCODING: CONST_NOTEBOOK_ENCODING
     }
 
     def _translate_artifact(self, runtime: NotebookRuntime):
@@ -653,6 +655,8 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
         envs = super()._translate_env(runtime)
         envs[self.CONST_NOTEBOOK_NAME] = os.path.basename(runtime.notebook_uri)
         envs[self.CONST_ENTRYPOINT] = NotebookArtifact.CONST_DRIVER_SCRIPT
+        if runtime.notebook_encoding:
+            envs[self.CONST_NOTEBOOK_ENCODING] = runtime.notebook_encoding
         if runtime.exclude_tag:
             envs[self.CONST_EXCLUDE_TAGS] = json.dumps(runtime.exclude_tag)
         if runtime.output_uri:
