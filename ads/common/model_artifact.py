@@ -16,7 +16,7 @@ import textwrap
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Union
+from typing import Union, Any
 from urllib.parse import urlparse
 import fsspec
 import numpy as np
@@ -1258,11 +1258,6 @@ class ModelArtifact(Introspectable):
     def _populate_metadata_custom(self):
         """Extracts custom metadata info from model artifact.
 
-        Parameters
-        ----------
-        None
-            Nothing
-
         Returns
         -------
         None
@@ -1349,16 +1344,17 @@ class ModelArtifact(Introspectable):
         )
         self.metadata_custom._add_many(model_metadata_items, replace=True)
 
-    def populate_metadata(self, model=None, use_case_type=None):
+    def populate_metadata(self, model: Any = None, use_case_type: str = None):
         """Extracts and populate taxonomy metadata from given model.
 
         Parameters
         ----------
-        model: [sklearn, xgboost, lightgbm, automl, keras]
-            The model object
-
-        use_case_type:
-            The use case type of the model
+        model: (Any, optional). Defaults to None.
+            This is an optional model object which is only used to extract taxonomy metadata.
+            Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost.
+            If the model is not under supported frameworks, then extracting taxonomy metadata will be skipped.
+        use_case_type: (str, optional). Default to None.
+            The use case type of the model.
 
         Returns
         -------
@@ -1367,7 +1363,8 @@ class ModelArtifact(Introspectable):
         """
         if model is None and self.metadata_taxonomy["Algorithm"].value is None:
             logger.info(
-                "To auto-extract taxonomy metadata the model must be provided. Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost."
+                "To auto-extract taxonomy metadata the model must be provided. "
+                "Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost."
             )
         if use_case_type is None:
             use_case_type = self.metadata_taxonomy[

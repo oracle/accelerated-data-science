@@ -13,7 +13,7 @@ from ads.feature_engineering.adsstring.common_regex_mixin import (
 from ads.feature_engineering.adsstring.oci_language import OCILanguage
 
 
-def to_ads_string(func: Callable) -> Callable:
+def to_adsstring(func: Callable) -> Callable:
     """Decorator that converts output of a function to `ADSString` if it returns a string.
 
     Parameters
@@ -65,7 +65,7 @@ def wrap_output_string(decorator: Callable) -> Callable:
     return decorate
 
 
-@wrap_output_string(to_ads_string)
+@wrap_output_string(to_adsstring)
 class ADSString(str, CommonRegexMixin):
     """Defines an enhanced string class for the purporse of performing NLP tasks.
     Its functionalities can be extended by registering plugins.
@@ -79,7 +79,7 @@ class ADSString(str, CommonRegexMixin):
 
     Example
     -------
-    >>> ADSString.set_nlp_backend('nltk')
+    >>> ADSString.nlp_backend('nltk')
     >>> s = ADSString("Walking my dog on a breezy day is the best.")
     >>> s.lower() # regular string methods still work
     >>> s.replace("a", "e")
@@ -87,9 +87,9 @@ class ADSString(str, CommonRegexMixin):
     >>> s.parts_of_speech
     >>> s = ADSString("get in touch with my associate at john.smith@gmail.com to schedule")
     >>> s.emails
-    >>> ADSString.register_plugin(OCILanguage)
+    >>> ADSString.plugin_register(OCILanguage)
     >>> s = ADSString("This movie is awesome.")
-    >>> s.sentiment
+    >>> s.absa
     """
 
     plugins = []
@@ -145,7 +145,7 @@ class ADSString(str, CommonRegexMixin):
         return self._string
 
     @classmethod
-    def set_nlp_backend(cls, backend: str = "nltk") -> None:
+    def nlp_backend(cls, backend: str = "nltk") -> None:
         """Set backend for extracting NLP related properties.
 
         Parameters
@@ -173,7 +173,7 @@ class ADSString(str, CommonRegexMixin):
                 SpacyParser,
             )
 
-            cls.register_plugin(SpacyParser)
+            cls.plugin_register(SpacyParser)
         elif backend == "nltk":
             try:
                 import nltk
@@ -183,19 +183,19 @@ class ADSString(str, CommonRegexMixin):
                 NLTKParser,
             )
 
-            cls.register_plugin(NLTKParser)
+            cls.plugin_register(NLTKParser)
         else:
             raise ValueError(
                 "Currently only `nltk` and `spacy` are supported. Default uses `nltk`."
             )
 
     @classmethod
-    def clear_plugins(cls) -> None:
+    def plugin_clear(cls) -> None:
         """Clears plugins."""
         cls.plugins.clear()
 
     @classmethod
-    def register_plugin(cls, plugin: Any) -> None:
+    def plugin_register(cls, plugin: Any) -> None:
         """Register a plugin
 
         Parameters
@@ -210,11 +210,42 @@ class ADSString(str, CommonRegexMixin):
         cls.plugins.append(plugin)
 
     @classmethod
-    def help(cls) -> None:
-        """List available properties."""
-        props = [
-            attr
-            for attr in dir(cls)
-            if not attr.startswith("__") and not attr.startswith("_")
-        ]
-        print(f"{cls.__name__}::Available properties: {', '.join(props)}")
+    def plugin_list(cls) -> None:
+        """List registered plugins."""
+        if not cls.plugins:
+            print("No plugin registered.")
+            return []
+
+        return [plugin.__name__ for plugin in cls.plugins]
+
+    @classmethod
+    def help(cls, plugin: Any = None) -> None:
+        """List available properties.
+
+        Parameters
+        ----------
+        plugin : Any
+            registered plugin
+
+        Returns
+        -------
+        None
+        """
+        if not plugin:
+            props = [
+                attr
+                for attr in dir(cls)
+                if not attr.startswith("__") and not attr.startswith("_")
+            ]
+            print(f"{cls.__name__}::Available properties: {', '.join(props)}")
+
+        else:
+            props = [
+                attr
+                for attr in dir(plugin)
+                if not attr.startswith("__") and not attr.startswith("_")
+            ]
+            print(
+                f"{cls.__name__}::Available properties from plugin, {plugin.__name__}:"
+            )
+            print(props)

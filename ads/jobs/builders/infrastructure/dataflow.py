@@ -17,6 +17,7 @@ import fsspec
 import oci.data_flow
 import ocifs
 import yaml
+from ads import config
 from ads.common.auth import default_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_mixin import OCIModelMixin
@@ -168,11 +169,13 @@ class DataFlowRun(OCIModelMixin, oci.data_flow.models.Run, RunInstance):
         current = self.status
         timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
         logger.info(f"{timestamp} - {self.status}")
+        print(f"{timestamp} - {self.status}")
         while current not in self.TERMINATED_STATES:
             time.sleep(interval)
             if self.status != current:
                 timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
                 logger.info(f"{timestamp} - {self.status}")
+                print(f"{timestamp} - {self.status}")
                 current = self.status
         return self
 
@@ -324,7 +327,11 @@ class DataFlow(Infrastructure):
         if spec is None:
             super(DataFlow, self).__init__(defaults)
         else:
-            spec = {k: v for k, v in spec.items() if f"with_{k}" in self.__dir__()}
+            spec = {
+                k: v
+                for k, v in spec.items()
+                if f"with_{k}" in self.__dir__() and v is not None
+            }
             defaults.update(spec)
             super(DataFlow, self).__init__(defaults)
         self.df_app = DataFlowApp(**self._spec)
@@ -429,6 +436,22 @@ class DataFlow(Infrastructure):
             the Data Flow instance itself
         """
         return self.set_spec("configuration", configs)
+
+    def with_execute(self, exec: str) -> "DataFlow":
+        """
+        Set command for spark-submit.
+
+        Parameters
+        ----------
+        exec: str
+            str of commands
+
+        Returns
+        -------
+        DataFlow
+            the Data Flow instance itself
+        """
+        return self.set_spec("execute", exec)
 
     def with_driver_shape(self, shape: str) -> "DataFlow":
         """
@@ -604,10 +627,13 @@ class DataFlow(Infrastructure):
         payload = copy.deepcopy(self._spec)
         if not runtime.script_uri:
             raise ValueError("script uri must be specified in runtime.")
+        overwrite = kwargs.get("overwrite", False)
         if runtime.script_uri.split(":")[0] != "oci":
             if runtime.script_bucket:
                 runtime.with_script_uri(
-                    self._upload_file(runtime.script_uri, runtime.script_bucket)
+                    self._upload_file(
+                        runtime.script_uri, runtime.script_bucket, overwrite
+                    )
                 )
             else:
                 raise ValueError(
@@ -616,7 +642,9 @@ class DataFlow(Infrastructure):
         if runtime.archive_uri and runtime.archive_uri.split(":")[0] != "oci":
             if runtime.archive_bucket:
                 runtime.with_archive_uri(
-                    self._upload_file(runtime.archive_uri, runtime.archive_bucket)
+                    self._upload_file(
+                        runtime.archive_uri, runtime.archive_bucket, overwrite
+                    )
                 )
             else:
                 raise ValueError(
@@ -630,6 +658,8 @@ class DataFlow(Infrastructure):
                 "archive_uri": runtime.archive_uri,
             }
         )
+        if len(runtime.args) > 0:
+            payload["arguments"] = runtime.args
         if not payload.get("compartment_id", None):
             raise ValueError(
                 "Compartment id is required. Specify compartment id via 'with_compartment_id()'."
@@ -641,7 +671,7 @@ class DataFlow(Infrastructure):
         return self
 
     @staticmethod
-    def _upload_file(local_path, bucket):
+    def _upload_file(local_path, bucket, overwrite=False):
         signer = default_signer()
         os_client = OCIClientFactory(**signer).object_storage
         namespace = os_client.get_namespace().data
@@ -657,6 +687,17 @@ class DataFlow(Infrastructure):
                 urllib.parse.urlparse(local_path).scheme or "file"
             )
             file_size = file_system_clz().info(local_path)["size"]
+
+            if not overwrite:
+                remote_file_system_clz = fsspec.get_filesystem_class(
+                    urllib.parse.urlparse(dst_path).scheme or "file"
+                )
+                remote_file_system = remote_file_system_clz(**default_signer())
+                if remote_file_system.exists(dst_path):
+                    raise FileExistsError(
+                        f"{dst_path} exists. Please use a new file name."
+                    )
+
             with fsspec.open(local_path, mode="rb", encoding=None) as fread:
                 with tqdm.wrapattr(
                     fread,

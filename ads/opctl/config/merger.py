@@ -19,6 +19,8 @@ from ads.opctl.constants import (
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_CONDA_PACK_FOLDER,
     DEFAULT_ADS_CONFIG_FOLDER,
+    ADS_JOBS_CONFIG_FILE_NAME,
+    ADS_CONFIG_FILE_NAME,
 )
 
 
@@ -139,8 +141,10 @@ class ConfigMerger(ConfigProcessor):
     @staticmethod
     def _get_exec_config_from_conf(ads_config_folder: str) -> Dict:
         # fill in oci and conda path
-        if os.path.exists(os.path.join(ads_config_folder, "config.ini")):
-            parser = _read_from_ini(os.path.join(ads_config_folder, "config.ini"))
+        if os.path.exists(os.path.join(ads_config_folder, ADS_CONFIG_FILE_NAME)):
+            parser = _read_from_ini(
+                os.path.join(ads_config_folder, ADS_CONFIG_FILE_NAME)
+            )
             return {
                 "oci_config": parser["OCI"].get("oci_config", None),
                 "oci_profile": parser["OCI"].get("oci_profile", None),
@@ -158,15 +162,15 @@ class ConfigMerger(ConfigProcessor):
     @staticmethod
     def _get_ml_job_config_from_conf(oci_profile: str, ads_config_folder: str) -> Dict:
         # fill in ml job infra spec
-        if os.path.exists(os.path.join(ads_config_folder, "ml_job_config.ini")):
+        if os.path.exists(os.path.join(ads_config_folder, ADS_JOBS_CONFIG_FILE_NAME)):
             parser = _read_from_ini(
-                os.path.join(ads_config_folder, "ml_job_config.ini")
+                os.path.join(ads_config_folder, ADS_JOBS_CONFIG_FILE_NAME)
             )
             if oci_profile in parser:
                 return parser[oci_profile]
         else:
             logger.info(
-                f"{os.path.join(ads_config_folder, 'ml_job_config.ini')} does not exist. No config loaded."
+                f"{os.path.join(ads_config_folder, ADS_JOBS_CONFIG_FILE_NAME)} does not exist. No config loaded."
             )
         return {}
 

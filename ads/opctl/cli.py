@@ -178,7 +178,7 @@ _options = [
         default=None,
     ),
     click.option(
-        "--oci-profile", "-op", help="oci config profile", required=False, default=None
+        "--oci-profile", help="oci config profile", required=False, default=None
     ),
     click.option(
         "--conf-file",

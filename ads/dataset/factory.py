@@ -864,8 +864,8 @@ class CustomFormatReaders:
 
             for name in node.attrib.keys():
                 df.at[i, parent + name] = node.attrib[name]
-            for child in node.getchildren():
-                if len(child.getchildren()) > 0:
+            for child in list(node):
+                if len(list(child)) > 0:
                     get_children(df, child, parent + child.tag + "/", i)
                 else:
                     df.at[i, parent + child.tag] = child.text

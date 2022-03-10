@@ -9,6 +9,7 @@ import os
 import json
 from setuptools import setup, find_packages
 from functools import reduce
+from pathlib import Path
 from setuptools.command.install import install
 from setuptools.command.develop import develop
 
@@ -19,7 +20,6 @@ install_requires = [
     "cloudpickle>=1.6.0",
     "cx-Oracle>=8.0",
     "datefinder>=0.7.1",
-    "fdk>=0.1.18",
     "folium>=0.12.1",
     "fsspec>=0.8.7",
     "geopandas>=0.9.0",
@@ -92,9 +92,6 @@ with open(
 ) as version_file:
     ADS_VERSION = json.load(version_file)["version"]
 
-with open("README.md", "r", encoding="utf-8") as fh:
-    long_description = fh.read()
-
 
 class CustomCommandMixin:
     user_options = [("enable-cli", None, "flag to install ADS cli")]
@@ -116,6 +113,8 @@ class InstallCommand(CustomCommandMixin, install):
 class DevelopCommand(CustomCommandMixin, develop):
     user_options = develop.user_options + CustomCommandMixin.user_options
 
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 setup(
     name="oracle_ads",
@@ -134,15 +133,20 @@ setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
     ],
     keywords="Oracle Cloud Infrastructure, OCI, Machine Learning, ML, Artificial Intelligence, AI, Data Science, Cloud, Oracle",
     include_package_data=True,
     install_requires=install_requires,
-    python_requires=">=3.7",
+    python_requires=">=3.7, <3.10",
     setup_requires=setup_requires,
     extras_require=extras_require,
     tests_require=[
         "pytest",
     ],
+    project_urls={
+        "Github": "https://github.com/oracle/accelerated-data-science",
+        "Documentation": "https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html",
+    },
     cmdclass={"develop": DevelopCommand, "install": InstallCommand},
 )

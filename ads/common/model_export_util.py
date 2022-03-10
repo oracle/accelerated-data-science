@@ -6,38 +6,33 @@
 
 import json
 import logging
+import os
+import sys
+from typing import Union, Any
+
+import cloudpickle
 import numpy as np
 import onnx
 import onnxmltools
-import os
 import pandas as pd
-import sys
-from typing import Union
-
-import cloudpickle
 from ads.common import logger, utils
+from ads.common.data import ADSData
 from ads.common.function.fn_util import (
-    get_function_config,
     generate_fn_artifacts,
+    get_function_config,
     write_score,
 )
-from ads.common.data import ADSData
 from ads.common.model_artifact import ModelArtifact
 from ads.common.model_metadata import UseCaseType
 from ads.feature_engineering.schema import DataSizeTooWide
-from pkg_resources import get_distribution
-from skl2onnx.common.data_types import (
-    FloatTensorType,
-    Int64TensorType,
-    StringTensorType,
-)
+from pkg_resources import get_distribution, DistributionNotFound
 from skl2onnx import convert_sklearn, update_registered_converter
+from skl2onnx.common.data_types import FloatTensorType
 from skl2onnx.common.shape_calculator import (
     calculate_linear_classifier_output_shapes,
     calculate_linear_regressor_output_shapes,
 )
 from sklearn.preprocessing import LabelEncoder
-
 
 pd.options.mode.chained_assignment = None
 
@@ -54,7 +49,7 @@ OnnxConvertibleModels = [
     "keras",
     "mxnet",
 ]
-NoVerifyModels = ["automl", "torch", "mxnet", "lightgbm", "xgboost", "torch"]
+NoVerifyModels = ["automl", "torch", "mxnet", "lightgbm", "xgboost"]
 AlreadyWrittenModels = ["torch", "mxnet", "automl"]
 TransformableData = ["automl"]
 Progress_Steps_W_Fn = 6
@@ -66,7 +61,7 @@ def prepare_generic_model(
     fn_artifact_files_included: bool = False,
     fn_name: str = "model_api",
     force_overwrite: bool = False,
-    model=None,
+    model: Any = None,
     data_sample: ADSData = None,
     use_case_type=None,
     X_sample: Union[
@@ -86,7 +81,8 @@ def prepare_generic_model(
     **kwargs,
 ) -> ModelArtifact:
     """
-    Generates template files to aid model deployment. The model could be accompanied by other artifacts all of which can be dumped at `model_path`.
+    Generates template files to aid model deployment.
+    The model could be accompanied by other artifacts all of which can be dumped at `model_path`.
     Following files are generated:
     * func.yaml
     * func.py
@@ -96,7 +92,8 @@ def prepare_generic_model(
     Parameters
     ----------
     model_path : str
-        Path where the artifacts must be saved. The serialized model object and any other associated files/objects must
+        Path where the artifacts must be saved.
+        The serialized model object and any other associated files/objects must
         be saved in the `model_path` directory
     fn_artifact_files_included : bool
         Default is False, if turned off, function artifacts are not generated.
@@ -104,8 +101,11 @@ def prepare_generic_model(
         Opional parameter to specify the function name
     force_overwrite : bool
         Opional parameter to specify if the model_artifact should overwrite the existing model_path (if it exists)
-    model : [sklearn, xgboost, lightgbm, automl, keras]
-        The model object
+    model : (Any, optional). Defaults to None.
+        This is an optional model object which is only used to extract taxonomy metadata.
+        Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost.
+        If the model is not under supported frameworks, then extracting taxonomy metadata will be skipped.
+        The alternative way is using `atifact.populate_metadata(model=model, usecase_type=UseCaseType.REGRESSION)`.
     data_sample : ADSData
         A sample of the test data that will be provided to predict() API of scoring script
         Used to generate schema_input and schema_output
@@ -161,7 +161,7 @@ def prepare_generic_model(
     ...     cloudpickle.dump(lrmodel, mfile)
     >>> modelartifact = prepare_generic_model(
     ...     model_artifact_location,
-    ...     model = 'model.pkl',
+    ...     model = lrmodel,
     ...     force_overwrite=True,
     ...     inference_conda_env=inference_conda_env,
     ...     ignore_deployment_error=True,
@@ -245,21 +245,33 @@ def prepare_generic_model(
 
         progress.update("Updating requirements.txt")
         if fn_artifact_files_included:
-            required_fn_libs = get_function_config()["requires"]["functions"]
-            [
-                model_libs.update({lib: get_distribution(lib).version})
-                for lib in required_fn_libs
-            ]
-            required_model_libs = get_function_config()["requires"][
-                kwargs.get("serializer", "default")
-            ]
-            [
-                model_libs.update({lib: get_distribution(lib).version})
-                for lib in required_model_libs
-            ]
-            utils.generate_requirement_file(
-                requirements=model_libs, file_path=model_path
-            )
+            # fdk removed from dependency list in setup.py (fn deployments deprecated)
+            # before we request versions we want to check if fdk installed by user
+            # and provide support in error message, if not installed
+            try:
+                get_distribution('fdk')
+            except Exception as e:
+                if isinstance(e, DistributionNotFound):
+                    error_message = "fdk library not installed in current environment, it is required " \
+                                    "for deployment with fn. Install fdk with 'pip install fdk'."
+                    logger.error(str(error_message))
+                    raise
+            else:
+                required_fn_libs = get_function_config()["requires"]["functions"]
+                [
+                    model_libs.update({lib: get_distribution(lib).version})
+                    for lib in required_fn_libs
+                ]
+                required_model_libs = get_function_config()["requires"][
+                    kwargs.get("serializer", "default")
+                ]
+                [
+                    model_libs.update({lib: get_distribution(lib).version})
+                    for lib in required_model_libs
+                ]
+                utils.generate_requirement_file(
+                    requirements=model_libs, file_path=model_path
+                )
 
         model_artifact_args = {}
         if "inference_conda_env" in kwargs:
@@ -474,10 +486,10 @@ def _xgboost_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
         model_est_types = [type(model.est)]
     if xgb.sklearn.XGBClassifier in model_est_types:
 
-        from xgboost import XGBClassifier
         from onnxmltools.convert.xgboost.operator_converters.XGBoost import (
             convert_xgboost,
         )
+        from xgboost import XGBClassifier
 
         update_registered_converter(
             XGBClassifier,
@@ -487,10 +499,10 @@ def _xgboost_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
             options={"nocl": [True, False], "zipmap": [True, False]},
         )
     elif xgb.sklearn.XGBRegressor in model_est_types:
-        from xgboost import XGBRegressor
         from onnxmltools.convert.xgboost.operator_converters.XGBoost import (
             convert_xgboost,
         )
+        from xgboost import XGBRegressor
 
         update_registered_converter(
             XGBRegressor,

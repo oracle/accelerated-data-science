@@ -1477,7 +1477,7 @@ class ADSDataset(PandasDataset):
                 f"for wide dataset ({n_columns} columns)"
             )
             display(HTML(f"<li>{msg}</li>"))
-            return []
+            return None, None
 
         display(HTML(f"<li>detected wide dataset ({n_columns} columns)</li>"))
 
