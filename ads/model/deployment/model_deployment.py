@@ -5,26 +5,143 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from typing import Union, List, Optional
 import collections
 import datetime
 import json
 import time
+from typing import Dict, List, Union
 
 import oci.loggingsearch
 import pandas as pd
 import requests
-
 from ads.common.auth import default_signer
 from ads.common.oci_client import OCIClientFactory
+from ads.common.oci_logging import LOG_INTERVAL, LOG_RECORDS_LIMIT, OCILog
+
 from .common import utils
 from .common.utils import OCIClientManager, State
 from .model_deployment_properties import ModelDeploymentProperties
 
-
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 30
 DEFAULT_WORKFLOW_STEPS = 6
+DEFAULT_RETRYING_REQUEST_ATTEMPTS = 3
+
+
+TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
+
+
+class ModelDeploymentLogType:
+    PREDICT = "predict"
+    ACCESS = "access"
+
+
+class ModelDeploymentLog(OCILog):
+    """The class representing model deployment logs."""
+
+    def __init__(self, model_deployment_id: str, **kwargs) -> None:
+        """Initializes an OCI log model for the model deployment.
+
+        Parameters
+        ----------
+        model_deployment_id: str
+            The OCID of the model deployment.
+            This parameter will be used as a source field to filter the log records.
+        kwargs: dict
+            Keyword arguments for initializing ModelDeploymentLog.
+        """
+        super().__init__(**kwargs)
+        self.model_deployment_id = model_deployment_id
+
+    @staticmethod
+    def _print(logs: List[Dict]) -> None:
+        """Prints the list of provided logs."""
+        for log in logs:
+            timestamp = log.get("time", "")
+            if timestamp:
+                timestamp = timestamp.split(".")[0].replace("T", " ")
+            else:
+                timestamp = ""
+            print(f"{timestamp} - {log.get('message')}")
+
+    def tail(
+        self, limit=LOG_RECORDS_LIMIT, time_start: datetime.datetime = None
+    ) -> None:
+        """Prints the most recent log records.
+
+        Parameters
+        ----------
+        limit: (int, optional). Defaults to 100.
+            Maximum number of records to be returned.
+        time_start: (datetime.datetime, optional)
+            Starting time for the log query.
+            Defaults to None. Logs up to 14 days from now will be returned.
+
+        Returns
+        -------
+        None
+            Nothing
+        """
+        self._print(
+            super().tail(
+                source=self.model_deployment_id, limit=limit, time_start=time_start
+            )
+        )
+
+    def head(
+        self, limit=LOG_RECORDS_LIMIT, time_start: datetime.datetime = None
+    ) -> None:
+        """Prints the preceding log records.
+
+        Parameters
+        ----------
+        limit: (int, optional). Defaults to 100.
+            Maximum number of records to be returned.
+        time_start: (datetime.datetime, optional)
+            Starting time for the log query.
+            Defaults to None. Logs up to 14 days from now will be returned.
+
+        Returns
+        -------
+        None
+            Nothing
+        """
+        self._print(
+            super().head(
+                source=self.model_deployment_id, limit=limit, time_start=time_start
+            )
+        )
+
+    def stream(
+        self,
+        interval: int = LOG_INTERVAL,
+        stop_condition: callable = None,
+        time_start: datetime.datetime = None,
+    ) -> None:
+        """Streams logs to console/terminal until `stop_condition()` returns true.
+
+        Parameters
+        ----------
+        interval: (int, optional). Defaults to 3 seconds.
+            The time interval between sending each request to pull logs from OCI.
+        stop_condition: (callable, optional). Defaults to None.
+            A function to determine if the streaming should stop.
+            The log streaming will stop if the function returns true.
+        time_start: datetime.datetime
+            Starting time for the log query.
+            Defaults to None. Logs up to 14 days from now will be returned.
+
+        Returns
+        -------
+        None
+            Nothing
+        """
+        super().stream(
+            source=self.model_deployment_id,
+            interval=interval,
+            stop_condition=stop_condition,
+            time_start=time_start,
+        )
 
 
 class ModelDeployment:
@@ -33,16 +150,26 @@ class ModelDeployment:
 
     Attributes
     ----------
-    config (dict): Deployment configuration parameters
-    deployment_properties (ModelDeploymentProperties): ModelDeploymentProperties object
-    workflow_state_progress (str): Workflow request id
-    workflow_steps (int): The number of steps in the workflow
-    url (str): The model deployment url endpoint
-    ds_client (DataScienceClient): The data science client used by model deployment
-    ds_composite_client (DataScienceCompositeClient): The composite data science client used by the model deployment
-    workflow_req_id (str): Workflow request id
-    model_deployment_id (str): model deployment id
-    state: Returns the deployment state of the current Model Deployment object
+    config: (dict)
+        Deployment configuration parameters
+    deployment_properties: (ModelDeploymentProperties)
+        ModelDeploymentProperties object
+    workflow_state_progress: (str)
+        Workflow request id
+    workflow_steps: (int)
+        The number of steps in the workflow
+    url: (str)
+        The model deployment url endpoint
+    ds_client: (DataScienceClient)
+        The data science client used by model deployment
+    ds_composite_client: (DataScienceCompositeClient)
+        The composite data science client used by the model deployment
+    workflow_req_id: (str)
+        Workflow request id
+    model_deployment_id: (str)
+        model deployment id
+    state: (State)
+        Returns the deployment state of the current Model Deployment object
 
     Methods
     -------
@@ -50,15 +177,10 @@ class ModelDeployment:
         Deploy the current Model Deployment object
     delete(wait_for_completion, **kwargs)
         Deletes the current Model Deployment object
-    state()
-        Returns the deployment state of the current Model Deployment object
+    update(wait_for_completion, **kwargs)
+        Updates a model deployment
     list_workflow_logs()
         Returns a list of the steps involved in deploying a model
-    wait_for_deletion(max_wait_time, poll_interval)
-        Block until deletion is complete
-    _wait_for_activation(max_wait_time, poll_interval)
-        Block until activation is complete
-
     """
 
     def __init__(
@@ -74,18 +196,18 @@ class ModelDeployment:
 
         Parameters
         ----------
-        properties : ModelDeploymentProperties or dict
+        properties: ModelDeploymentProperties or dict
             Object containing deployment properties.
             properties can be None when kwargs are used for specifying properties.
-        config : dict
+        config: dict
             ADS auth dictionary for OCI authentication.
             This can be generated by calling ads.common.auth.api_keys() or ads.common.auth.resource_principal().
             If this is None, ads.common.default_signer(client_kwargs) will be used.
-        workflow_req_id : str
+        workflow_req_id: str
             Workflow request id. Defaults to ""
-        model_deployment_id : str
+        model_deployment_id: str
             Model deployment OCID. Defaults to ""
-        model_deployment_url : str
+        model_deployment_url: str
             Model deployment url. Defaults to ""
         kwargs:
             Keyword arguments for initializing ModelDeploymentProperties
@@ -143,20 +265,19 @@ class ModelDeployment:
 
         Parameters
         ----------
-        wait_for_completion : bool
+        wait_for_completion: bool
             Flag set for whether to wait for deployment to complete before proceeding.
             Defaults to True.
-        max_wait_time : int
+        max_wait_time: int
             Maximum amount of time to wait in seconds (Defaults to 600).
             Negative implies infinite wait time.
-        poll_interval : int
+        poll_interval: int
             Poll interval in seconds (Defaults to 60).
 
         Returns
         -------
         ModelDeployment
-            Self.
-
+           The instance of ModelDeployment.
         """
         response = self.ds_composite_client.create_model_deployment_and_wait_for_state(
             self.properties.build()
@@ -184,20 +305,19 @@ class ModelDeployment:
 
         Parameters
         ----------
-        wait_for_completion : bool
+        wait_for_completion: bool
             Flag set for whether to wait for deployment to complete before proceeding.
             Defaults to True.
-        max_wait_time : int
+        max_wait_time: int
             Maximum amount of time to wait in seconds (Defaults to 600).
             Negative implies infinite wait time.
-        poll_interval : int
+        poll_interval: int
             Poll interval in seconds (Defaults to 60).
 
         Returns
         -------
         ModelDeployment
-            Self.
-
+            The instance of ModelDeployment.
         """
 
         response = self.ds_composite_client.delete_model_deployment_and_wait_for_state(
@@ -237,25 +357,23 @@ class ModelDeployment:
 
         Parameters
         ----------
-        properties : ModelDeploymentProperties or dict
+        properties: ModelDeploymentProperties or dict
             The properties for updating the deployment.
-        wait_for_completion : bool
+        wait_for_completion: bool
             Flag set for whether to wait for deployment to complete before proceeding.
             Defaults to True.
-        max_wait_time : int
-            Maximum amount of time to wait in seconds (Defaults to 600).
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
-        poll_interval : int
+        poll_interval: int
             Poll interval in seconds (Defaults to 60).
-        kwargs :
+        kwargs:
             dict
-
 
         Returns
         -------
         ModelDeployment
-            Self.
-
+            The instance of ModelDeployment.
         """
         if not isinstance(properties, ModelDeploymentProperties):
             properties = ModelDeploymentProperties(
@@ -283,30 +401,43 @@ class ModelDeployment:
                 self.workflow_req_id = response.headers["opc-work-request-id"]
             # Refresh the properties when model is active
             if wait_for_completion:
-                # # There is a small delay between update process finished and model becomes active
-                # self._wait_for_activation()
                 self.properties = ModelDeploymentProperties(
                     oci_model_deployment=self.ds_client.get_model_deployment(
                         self.model_deployment_id
                     ).data,
                     config=self.config,
                 )
-            return self
         except Exception as e:
             utils.get_logger().error(
                 "Updating model deployment failed with error: %s", format(e)
             )
             raise e
 
+        return self
+
     @property
     def state(self) -> State:
         """Returns the deployment state of the current Model Deployment object"""
-        # Updates and returns self.state
-        oci_state = self.ds_client.get_model_deployment(
-            self.model_deployment_id
-        ).data.lifecycle_state
-        self.current_state = State._from_str(oci_state)
+        request_attempts = 0
+        while request_attempts < DEFAULT_RETRYING_REQUEST_ATTEMPTS:
+            request_attempts += 1
+            try:
+                oci_state = self.ds_client.get_model_deployment(
+                    retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY,
+                    model_deployment_id=self.model_deployment_id,
+                ).data.lifecycle_state
+                self.current_state = State._from_str(oci_state)
+                break
+            except:
+                pass
+            time.sleep(1)
+
         return self.current_state
+
+    @property
+    def status(self) -> State:
+        """Returns the deployment state of the current Model Deployment object"""
+        return self.state
 
     def list_workflow_logs(self) -> list:
         """Returns a list of the steps involved in deploying a model
@@ -314,10 +445,8 @@ class ModelDeployment:
         Returns
         -------
         list
-            List of dictionaries detailing the status of each step in the deployment process
-
+            List of dictionaries detailing the status of each step in the deployment process.
         """
-
         if self.workflow_req_id == "" or self.workflow_req_id == None:
             utils.get_logger().info("Workflow req id not available")
             raise Exception
@@ -328,7 +457,7 @@ class ModelDeployment:
 
         Parameters
         ----------
-        json_input : dict
+        json_input: dict
             JSON payload for the prediction.
 
         Returns
@@ -353,10 +482,10 @@ class ModelDeployment:
 
         Parameters
         ----------
-        max_wait_time : int
-            Maximum amount of time to wait in seconds (Defaults to 600).
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
-        poll_interval : int
+        poll_interval: int
             Poll interval in seconds (Defaults to 60).
         """
 
@@ -378,26 +507,37 @@ class ModelDeployment:
                 utils.get_logger().info("Deployment Inactive")
                 break
             prev_state = self.current_state.name
-            model_deployment_payload = json.loads(
-                str(self.ds_client.get_model_deployment(self.model_deployment_id).data)
-            )
-            self.current_state = (
-                State._from_str(model_deployment_payload["lifecycle_state"])
-                if "lifecycle_state" in model_deployment_payload
-                else State.UNKNOWN
-            )
-            workflow_payload = self.ds_client.list_work_request_logs(
-                self.workflow_req_id
-            ).data
-            if isinstance(workflow_payload, list) and len(workflow_payload) > 0:
-                if prev_message != workflow_payload[-1].message:
-                    prev_message = workflow_payload[-1].message
-            if prev_state != self.current_state.name:
-                if "model_deployment_url" in model_deployment_payload:
-                    self.url = model_deployment_payload["model_deployment_url"]
-                utils.get_logger().info(
-                    f"Status Update: {self.current_state.name} in {utils.seconds_since(start_time)} seconds"
+            try:
+                model_deployment_payload = json.loads(
+                    str(
+                        self.ds_client.get_model_deployment(
+                            self.model_deployment_id
+                        ).data
+                    )
                 )
+                self.current_state = (
+                    State._from_str(model_deployment_payload["lifecycle_state"])
+                    if "lifecycle_state" in model_deployment_payload
+                    else State.UNKNOWN
+                )
+                workflow_payload = self.ds_client.list_work_request_logs(
+                    self.workflow_req_id
+                ).data
+                if isinstance(workflow_payload, list) and len(workflow_payload) > 0:
+                    if prev_message != workflow_payload[-1].message:
+                        prev_message = workflow_payload[-1].message
+                if prev_state != self.current_state.name:
+                    if "model_deployment_url" in model_deployment_payload:
+                        self.url = model_deployment_payload["model_deployment_url"]
+                    utils.get_logger().info(
+                        f"Status Update: {self.current_state.name} in {utils.seconds_since(start_time)} seconds"
+                    )
+            except Exception as e:
+                # utils.get_logger().warning(
+                #     "Unable to update deployment status. Details: %s", format(
+                #         e)
+                # )
+                pass
             time.sleep(poll_interval)
 
     def _wait_for_activation(
@@ -409,10 +549,10 @@ class ModelDeployment:
 
         Parameters
         ----------
-        max_wait_time : int
-            Maximum amount of time to wait in seconds (Defaults to 600).
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
-        poll_interval : int
+        poll_interval: int
             Poll interval in seconds (Defaults to 60).
         """
 
@@ -434,152 +574,173 @@ class ModelDeployment:
                     utils.get_logger().info("Deployment Inactive")
                     break
                 prev_state = self.current_state.name
-                model_deployment_payload = json.loads(
-                    str(
-                        self.ds_client.get_model_deployment(
-                            self.model_deployment_id
-                        ).data
+
+                try:
+                    model_deployment_payload = json.loads(
+                        str(
+                            self.ds_client.get_model_deployment(
+                                self.model_deployment_id
+                            ).data
+                        )
                     )
-                )
-                self.current_state = (
-                    State._from_str(model_deployment_payload["lifecycle_state"])
-                    if "lifecycle_state" in model_deployment_payload
-                    else State.UNKNOWN
-                )
-                workflow_payload = self.ds_client.list_work_request_logs(
-                    self.workflow_req_id
-                ).data
-                if isinstance(workflow_payload, list) and len(workflow_payload) > 0:
-                    if prev_message != workflow_payload[-1].message:
-                        for _ in range(len(workflow_payload) - prev_workflow_stage_len):
-                            progress.update(workflow_payload[-1].message)
-                        prev_workflow_stage_len = len(workflow_payload)
-                        prev_message = workflow_payload[-1].message
-                        prev_workflow_stage_len = len(workflow_payload)
-                if prev_state != self.current_state.name:
-                    if "model_deployment_url" in model_deployment_payload:
-                        self.url = model_deployment_payload["model_deployment_url"]
-                    utils.get_logger().info(
-                        f"Status Update: {self.current_state.name} in {utils.seconds_since(start_time)} seconds"
+                    self.current_state = (
+                        State._from_str(model_deployment_payload["lifecycle_state"])
+                        if "lifecycle_state" in model_deployment_payload
+                        else State.UNKNOWN
                     )
+
+                    workflow_payload = self.ds_client.list_work_request_logs(
+                        self.workflow_req_id
+                    ).data
+                    if isinstance(workflow_payload, list) and len(workflow_payload) > 0:
+                        if prev_message != workflow_payload[-1].message:
+                            for _ in range(
+                                len(workflow_payload) - prev_workflow_stage_len
+                            ):
+                                progress.update(workflow_payload[-1].message)
+                            prev_workflow_stage_len = len(workflow_payload)
+                            prev_message = workflow_payload[-1].message
+                            prev_workflow_stage_len = len(workflow_payload)
+                    if prev_state != self.current_state.name:
+                        if "model_deployment_url" in model_deployment_payload:
+                            self.url = model_deployment_payload["model_deployment_url"]
+                        utils.get_logger().info(
+                            f"Status Update: {self.current_state.name} in {utils.seconds_since(start_time)} seconds"
+                        )
+                except Exception as e:
+                    # utils.get_logger().warning(
+                    #     "Unable to update deployment status. Details: %s", format(
+                    #         e)
+                    # )
+                    pass
+
                 time.sleep(poll_interval)
             progress.update("Done")
 
-    @staticmethod
-    def _format_datetime(dt: datetime.datetime) -> str:
-        """Converts datetime object to RFC3339 date time format in string"""
-        return dt.isoformat()[:-3] + "Z"
+    def _log_details(self, log_type: str = ModelDeploymentLogType.ACCESS):
+        """Gets log details for the provided `log_type`.
 
-    def logs(self, time_start=None, time_end=None, limit=100, log_type="access"):
-        """Gets the access or predict logs.
-
-        Parameters
+        Properties
         ----------
-        time_start : str or datetime.datetime
-            Starting date and time in RFC3339 format string or
-            datetime object for retrieving logs.
-            If this is set to None, the end time will default to the current time.
-        time_end : str or datetime.datetime
-            Ending date and time in RFC3339 format or
-            datetime object for retrieving logs.
-            If this is set to None, the start time will default to 14 days before the current time.
-        limit : int
-            The maximum number of items to return. Defaults to 100.
-        log_type : str
-            "access" or "predict". Defaults to "access".
+        log_type: (str, optional). Defaults to "access".
+            The log type. Can be "access" or "predict".
 
         Returns
         -------
-        list
-            A list of oci.loggingsearch.models.SearchResult
+        oci.datascience_model.CategoryLogDetails
+            Category log details of the ModelDeployment.
 
         Raises
         ------
         AttributeError
-            When deployment does not have logging configured.
+            Deployment doesn't have requested log configuration.
 
         """
-        if not self.log_search_client:
-            raise AttributeError(
-                "Log search is not available. "
-                "It is recommended that you initialize a ModelDeployment object using a DataScienceClient instance."
-            )
         if not self.properties.category_log_details or not getattr(
             self.properties.category_log_details, log_type
         ):
             raise AttributeError(
-                f"Deployment {self.model_deployment_id} has no {log_type} log configuration."
+                f"Deployment `{self.model_deployment_id}` "
+                f"has no `{log_type}` log configuration."
             )
+        return getattr(self.properties.category_log_details, log_type)
 
-        # Default time_start and time_end
-        if time_start is None:
-            time_start = datetime.datetime.utcnow() - datetime.timedelta(days=14)
-        if time_end is None:
-            time_end = datetime.datetime.utcnow()
-
-        # Converts datetime objects to RFC3339 format
-        if isinstance(time_start, datetime.datetime):
-            time_start = self._format_datetime(time_start)
-        if isinstance(time_end, datetime.datetime):
-            time_end = self._format_datetime(time_end)
-
-        log_details = getattr(self.properties.category_log_details, log_type)
-
-        search_details = oci.loggingsearch.models.SearchLogsDetails(
-            # time_start cannot be more than 14 days older
-            time_start=time_start,
-            time_end=time_end,
-            # https://docs.oracle.com/en-us/iaas/Content/Logging/Reference/query_language_specification.htm
-            # Double quotes must be used for "<log_stream>" after search
-            # Single quotes must be used for the string in <where_expression>
-            # source = <OCID> is not allowed but source = *<OCID> works
-            search_query=f'SEARCH "{self.properties.compartment_id}/{log_details.log_group_id}/{log_details.log_id}" '
-            f"| WHERE source = '*{self.model_deployment_id}'",
-            # is_return_field_info=True
-        )
-        return self.log_search_client.search_logs(
-            search_details, limit=limit
-        ).data.results
-
-    def show_logs(self, time_start=None, time_end=None, limit=100, log_type="access"):
-        """Shows deployment logs as a pandas dataframe
-
-        Parameters
-        ----------
-        time_start : str
-            Starting date and time in RFC3339 format for retrieving logs.
-            Defaults to None. Logs will be retrieved 14 days from now.
-        time_end : str
-            Ending date and time in RFC3339 format for retrieving logs.
-            Defaults to None. Logs will be retrieved until now.
-        limit : int
-            The maximum number of items to return. Defaults to 100.
-        log_type : str
-            "access" or "predict". Defaults to "access".
+    @property
+    def predict_log(self) -> ModelDeploymentLog:
+        """Gets the model deployment predict logs object.
 
         Returns
         -------
-            a pandas DataFrame containing logs.
-
+        ModelDeploymentLog
+            The ModelDeploymentLog object containing the predict logs.
         """
+        log_details = self._log_details(log_type=ModelDeploymentLogType.PREDICT)
+        return ModelDeploymentLog(
+            model_deployment_id=self.model_deployment_id,
+            compartment_id=self.properties.compartment_id,
+            id=log_details.log_id,
+            log_group_id=log_details.log_group_id,
+        )
+
+    @property
+    def access_log(self) -> ModelDeploymentLog:
+        """Gets the model deployment predict logs object.
+
+        Returns
+        -------
+        ModelDeploymentLog
+            The ModelDeploymentLog object containing the predict logs.
+        """
+        log_details = self._log_details(log_type=ModelDeploymentLogType.ACCESS)
+        return ModelDeploymentLog(
+            model_deployment_id=self.model_deployment_id,
+            compartment_id=self.properties.compartment_id,
+            id=log_details.log_id,
+            log_group_id=log_details.log_group_id,
+        )
+
+    def logs(self, log_type: str = ModelDeploymentLogType.ACCESS, **kwargs):
+        """Gets the access or predict logs.
+
+        Parameters
+        ----------
+        log_type: (str, optional). Defaults to "access".
+            The log type. Can be "access" or "predict".
+        kwargs: dict
+            Back compatability arguments.
+
+        Returns
+        -------
+        ModelDeploymentLog
+            The ModelDeploymentLog object containing the logs.
+        """
+        if log_type == ModelDeploymentLogType.ACCESS:
+            return self.access_log
+        return self.predict_log
+
+    def show_logs(
+        self,
+        time_start: datetime.datetime = None,
+        time_end: datetime.datetime = None,
+        limit=LOG_RECORDS_LIMIT,
+        log_type=ModelDeploymentLogType.ACCESS,
+    ):
+        """Shows deployment logs as a pandas dataframe.
+
+        Parameters
+        ----------
+        time_start: (datetime.datetime, optional). Defaults to None.
+            Starting date and time in RFC3339 format for retrieving logs.
+            Defaults to None. Logs will be retrieved 14 days from now.
+        time_end: (datetime.datetime, optional). Defaults to None.
+            Ending date and time in RFC3339 format for retrieving logs.
+            Defaults to None. Logs will be retrieved until now.
+        limit: (int, optional). Defaults to 100.
+            The maximum number of items to return.
+        log_type: (str, optional). Defaults to "access".
+            The log type. Can be "access" or "predict".
+
+        Returns
+        -------
+            A pandas DataFrame containing logs.
+        """
+        logging = self.logs(log_type=log_type)
 
         def prepare_log_record(log):
             """Converts a log record to ordered dict"""
+            log_content = log.get("logContent", {})
             return collections.OrderedDict(
                 [
-                    ("id", log.get("id")),
-                    ("time", log.get("time")),
-                    (
-                        "message",
-                        log.get("logContent", {}).get("data", {}).get("message"),
-                    ),
-                    ("subject", log.get("subject")),
-                    ("source", log.get("source")),
+                    ("id", log_content.get("id")),
+                    ("message", log_content.get("data", {}).get("message")),
+                    ("time", log_content.get("time")),
                 ]
             )
 
-        logs = self.logs(
-            time_start=time_start, time_end=time_end, limit=limit, log_type=log_type
+        logs = logging.search(
+            source=self.model_deployment_id,
+            time_start=time_start,
+            time_end=time_end,
+            limit=limit,
         )
-        # log data are stored in the data attribute of oci.loggingsearch.models.SearchResult
         return pd.DataFrame([prepare_log_record(log.data) for log in logs])

@@ -6,7 +6,7 @@
 
 import os
 
-from ads.common.deprecate import deprecated
+from ads.common.decorator.deprecate import deprecated
 from multiprocessing.pool import ThreadPool
 
 try:

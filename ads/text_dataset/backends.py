@@ -10,7 +10,7 @@ import json
 import os
 from typing import Dict, Generator, List, Union
 
-from ads.common.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.text_dataset.utils import PY4JGateway, experimental
 from fsspec.core import OpenFile
 

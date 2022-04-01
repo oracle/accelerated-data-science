@@ -8,24 +8,27 @@ import json
 import os
 import tempfile
 from typing import List, Dict
-import shlex
 
 from docker import errors
 
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend
-from ads.opctl.conda.cmds import _install
 from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.constants import (
     ML_JOB_IMAGE,
     ML_JOB_GPU_IMAGE,
-    OPS_IMAGE_BASE,
-    OPS_IMAGE_GPU_BASE,
     DEFAULT_IMAGE_HOME_DIR,
     DEFAULT_IMAGE_SCRIPT_DIR,
+    DEFAULT_IMAGE_CONDA_DIR,
+    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
+    DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
 )
-from ads.opctl.utils import _get_docker_client
-from ads.opctl.utils import build_image, _run_command, _run_container
+from ads.opctl.utils import get_docker_client, is_in_notebook_session
+from ads.opctl.utils import build_image, run_container, run_command
+from ads.opctl.spark.cmds import (
+    generate_core_site_properties_str,
+    generate_core_site_properties,
+)
 
 
 class CondaPackNotFound(Exception):
@@ -45,11 +48,13 @@ class LocalBackend(Backend):
         self.config = config
 
     def run(self):
-        bind_volumes = {
-            os.path.expanduser(
-                os.path.dirname(self.config["execution"]["oci_config"])
-            ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
-        }
+        bind_volumes = {}
+        if not is_in_notebook_session():
+            bind_volumes = {
+                os.path.expanduser(
+                    os.path.dirname(self.config["execution"]["oci_config"])
+                ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
+            }
         if self.config["execution"].get("conda_slug", None):
             self._run_with_conda_pack(bind_volumes)
         elif self.config["execution"].get("image", None):
@@ -86,8 +91,8 @@ class LocalBackend(Backend):
                 "mounts": [
                     f"source={oci_config_folder},target={os.path.join(DEFAULT_IMAGE_HOME_DIR, '.oci')},type=bind",
                 ],
-                "workspaceMount": f"source={source_folder},target={os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, 'operators', os.path.basename(source_folder))},type=bind",
-                "workspaceFolder": os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, "operators"),
+                "workspaceMount": f"source={source_folder},target={os.path.join(DEFAULT_IMAGE_HOME_DIR, os.path.basename(source_folder))},type=bind",
+                "workspaceFolder": DEFAULT_IMAGE_HOME_DIR,
                 "name": f"{image}-dev-env",
             }
             if image == ML_JOB_IMAGE or image == ML_JOB_GPU_IMAGE:
@@ -95,16 +100,15 @@ class LocalBackend(Backend):
                     self.config["execution"]["conda_pack_folder"]
                 )
                 dev_container["mounts"].append(
-                    f"source={conda_folder},target=/opt/conda/envs/,type=bind"
+                    f"source={conda_folder},target={DEFAULT_IMAGE_CONDA_DIR},type=bind"
                 )
                 dev_container[
                     "postCreateCommand"
                 ] = "conda init bash && source ~/.bashrc"
             else:
-                if not (image == OPS_IMAGE_BASE or image == OPS_IMAGE_GPU_BASE):
-                    raise ValueError(
-                        "`--source-folder` option works with image `ml-job`, `ml-job-gpu`, `ads-operators-base`, `ads-operators-gpu-base` only. Those can be build with `ads opctl build-image`. Please check `ads opctl build-image -h`."
-                    )
+                raise ValueError(
+                    "`--source-folder` option works with image `ml-job`, `ml-job-gpu` only. Those can be build with `ads opctl build-image`. Please check `ads opctl build-image -h`."
+                )
         else:
             image = self.config["execution"].get("image", None)
             if not image:
@@ -123,7 +127,7 @@ class LocalBackend(Backend):
             )
 
         try:
-            client = _get_docker_client()
+            client = get_docker_client()
             client.api.inspect_image(image)
         except errors.ImageNotFound:
             cmd = None
@@ -131,10 +135,6 @@ class LocalBackend(Backend):
                 cmd = "ads opctl build-image job-local"
             elif image == ML_JOB_GPU_IMAGE:
                 cmd = "ads opctl build-image job-local -g"
-            elif image == OPS_IMAGE_BASE:
-                cmd = "ads opctl build-image ads-ops-base"
-            elif image == OPS_IMAGE_GPU_BASE:
-                cmd = "ads opctl build-image ads-ops-base -g"
             if cmd:
                 raise RuntimeError(
                     f"Image {image} not found. Please run `{cmd}` to build the image."
@@ -156,50 +156,82 @@ class LocalBackend(Backend):
         env_vars = self.config["execution"]["env_vars"]
         slug = self.config["execution"]["conda_slug"]
         image = self.config["execution"]["image"]
+
         # bind_volumes is modified in-place and does not need to be returned
         # it is returned just to be explicit that it is changed during this function call
-        bind_volumes = self._check_conda_pack_and_install_if_applicable(
-            slug, bind_volumes
+        bind_volumes, env_vars = self._check_conda_pack_and_install_if_applicable(
+            slug, bind_volumes, env_vars
         )
         bind_volumes = self._mount_source_folder_if_exists(bind_volumes)
-
-        if ConfigResolver(self.config)._is_operator():
-            # running operators
-            command = (
-                f"python {os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, 'operators/run.py')} "
-            )
+        command = self._build_command_for_conda_run()
+        if is_in_notebook_session():
+            run_command(command, shell=True)
         else:
-            # running a user script
-            entry_script = self.config["execution"].get("entrypoint", None)
+            conda_pack_path = os.path.join(
+                os.path.expanduser(self.config["execution"]["conda_pack_folder"]), slug
+            )
+            if os.path.exists(os.path.join(conda_pack_path, "spark-defaults.conf")):
+                env_vars["SPARK_CONF_DIR"] = os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)
+            self._activate_conda_env_and_run(
+                image, slug, command, bind_volumes, env_vars
+            )
+
+    def _build_command_for_conda_run(self) -> str:
+        if ConfigResolver(self.config)._is_ads_operator():
+            if is_in_notebook_session():
+                curr_dir = os.path.dirname(os.path.abspath(__file__))
+                script = os.path.abspath(
+                    os.path.join(curr_dir, "..", "operators", "run.py")
+                )
+            else:
+                script = os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, "operators/run.py")
+            command = f"python {script} "
+            if self.config["execution"]["auth"] == "resource_principal":
+                command += "-r "
+        else:
+            entry_script = self.config["execution"].get("entrypoint")
             if not entry_script:
                 raise ValueError(
                     "An entrypoint script must be specified when running with conda pack. "
                     "Use `--entrypoint`."
                 )
-            mount_path = os.path.join(
-                DEFAULT_IMAGE_SCRIPT_DIR,
-                "operators",
-                os.path.basename(self.config["execution"]["source_folder"]),
-            )
+            if not os.path.exists(
+                os.path.join(self.config["execution"]["source_folder"], entry_script)
+            ):
+                raise FileNotFoundError(
+                    f"{os.path.join(self.config['execution']['source_folder'], entry_script)} is not found."
+                )
+            if is_in_notebook_session():
+                source_folder = os.path.join(self.config["execution"]["source_folder"])
+            else:
+                source_folder = os.path.join(
+                    DEFAULT_IMAGE_SCRIPT_DIR,
+                    "operators",
+                    os.path.basename(self.config["execution"]["source_folder"]),
+                )
             if os.path.splitext(entry_script)[-1] == ".py":
-                command = f"python {os.path.join(mount_path, entry_script)} "
+                command = f"python {os.path.join(source_folder, entry_script)} "
+                if is_in_notebook_session():
+                    command = (
+                        f"source activate {os.path.join(DEFAULT_NOTEBOOK_SESSION_CONDA_DIR, self.config['execution']['conda_slug'])} && "
+                        + command
+                    )
             elif os.path.splitext(entry_script)[-1] == ".sh":
-                command = f"cd {mount_path} && /bin/bash {entry_script} "
+                command = f"cd {source_folder} && /bin/bash {entry_script} "
             else:
                 logger.warn(
                     "ML Job only support .py and .sh files."
                     "If you intend to submit to ML Job later, please update file extension."
                 )
-                command = f"cd {mount_path} && {entry_script} "
-        # append args
-        if self.config["execution"].get("command", None):
+                command = f"cd {source_folder} && {entry_script} "
+        if self.config["execution"].get("command"):
             command += f"{self.config['execution']['command']}"
-        self._activate_conda_env_and_run(image, slug, command, bind_volumes, env_vars)
+        return command
 
     def _run_with_image(self, bind_volumes: Dict) -> None:
         env_vars = self.config["execution"]["env_vars"]
         image = self.config["execution"]["image"]
-        if ConfigResolver(self.config)._is_operator():
+        if ConfigResolver(self.config)._is_ads_operator():
             # running operators
             command = (
                 f"python {os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, 'operators/run.py')} "
@@ -214,32 +246,65 @@ class LocalBackend(Backend):
         if self.config["execution"].get("source_folder", None):
             bind_volumes.update(self._mount_source_folder_if_exists(bind_volumes))
         bind_volumes.update(self.config["execution"]["volumes"])
-        _run_container(image, bind_volumes, env_vars, command, entrypoint)
+        run_container(image, bind_volumes, env_vars, command, entrypoint)
 
     def _check_conda_pack_and_install_if_applicable(
-        self, slug: str, bind_volumes: Dict
+        self, slug: str, bind_volumes: Dict, env_vars: Dict
     ) -> Dict:
         conda_pack_path = os.path.join(
             os.path.expanduser(self.config["execution"]["conda_pack_folder"]), slug
         )
         if not os.path.exists(conda_pack_path):
-            if self.config["execution"].get("conda_uri", None):
-                _install(
-                    self.config["execution"]["conda_uri"],
-                    self.config["execution"]["conda_pack_folder"],
+            raise CondaPackNotFound(
+                f"Conda pack {conda_pack_path} not found. Please run `ads opctl conda create` or `ads opctl conda install`."
+            )
+        if os.path.exists(os.path.join(conda_pack_path, "spark-defaults.conf")):
+            if not is_in_notebook_session():
+                env_vars["SPARK_CONF_DIR"] = os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)
+            # write core_site.xml
+            if self.config["execution"]["auth"] == "api_key":
+                properties = generate_core_site_properties(
+                    "api_key",
                     self.config["execution"]["oci_config"],
                     self.config["execution"]["oci_profile"],
                 )
-            else:
-                raise CondaPackNotFound(
-                    f"Conda pack {conda_pack_path} not found. Please run `ads opctl conda create` or `ads opctl conda install`."
+                # key path cannot have "~/"
+                oci_config_folder = os.path.expanduser(
+                    os.path.dirname(self.config["execution"]["oci_config"])
                 )
+                properties[-1] = (
+                    properties[-1][0],
+                    os.path.join(
+                        DEFAULT_IMAGE_HOME_DIR,
+                        ".oci",
+                        os.path.relpath(
+                            os.path.expanduser(properties[-1][1]), oci_config_folder
+                        ),
+                    ),
+                )
+            else:
+                properties = generate_core_site_properties("resource_principal")
+
+            core_site_str = generate_core_site_properties_str(properties)
+            if is_in_notebook_session():
+                with open(
+                    os.path.join(
+                        DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR, "core-site.xml"
+                    ),
+                    "w",
+                ) as f:
+                    f.write(core_site_str)
+            else:
+                with open(os.path.join(conda_pack_path, "core-site.xml"), "w") as f:
+                    f.write(core_site_str)
         bind_volumes[
             os.path.abspath(
-                os.path.expanduser(self.config["execution"]["conda_pack_folder"])
+                os.path.expanduser(
+                    os.path.join(self.config["execution"]["conda_pack_folder"], slug)
+                )
             )
-        ] = {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "conda")}
-        return bind_volumes
+        ] = {"bind": os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)}
+        return bind_volumes, env_vars
 
     def _mount_source_folder_if_exists(self, bind_volumes: Dict) -> Dict:
         source_folder = os.path.abspath(self.config["execution"]["source_folder"])
@@ -258,7 +323,7 @@ class LocalBackend(Backend):
         image: str, slug: str, command: List[str], bind_volumes: Dict, env_vars: Dict
     ) -> None:
         try:
-            client = _get_docker_client()
+            client = get_docker_client()
             client.api.inspect_image(image)
         except errors.ImageNotFound:
             logger.info(f"Image {image} not found. Attempt building it now....")
@@ -272,7 +337,7 @@ class LocalBackend(Backend):
                 f.write(
                     f"""
 #!/bin/bash
-source {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'conda', slug, 'bin/activate')}
+source {os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug, 'bin/activate')}
 {command}
                         """
                 )
@@ -280,7 +345,7 @@ source {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'conda', slug, 'bin/activate')}
                 "bind": os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, "entryscript.sh")
             }
             env_vars["conda_slug"] = slug
-            _run_container(
+            run_container(
                 image,
                 bind_volumes,
                 env_vars,

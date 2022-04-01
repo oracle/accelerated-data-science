@@ -13,7 +13,7 @@ from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 import math
 from ads.common import logger
-from ads.common.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import runtime_dependency
 import itertools
 from IPython.core.display import display
 import pandas as pd

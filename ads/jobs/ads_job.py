@@ -3,24 +3,22 @@
 
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from copy import deepcopy
 from typing import List, Union
-
-import fsspec
 from urllib.parse import urlparse
 
+import fsspec
 from ads.common.auth import default_signer
-from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.base import Builder
 from ads.jobs.builders.infrastructure.dataflow import DataFlow, DataFlowRun
-from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob, DataScienceJobRun
-from ads.jobs.builders.runtimes.python_runtime import (
-    Runtime,
-    PythonRuntime,
-    NotebookRuntime,
-    GitPythonRuntime,
-    ScriptRuntime,
-    DataFlowRuntime,
-)
+from ads.jobs.builders.infrastructure.dsc_job import (DataScienceJob,
+                                                      DataScienceJobRun)
+from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
+from ads.jobs.builders.runtimes.python_runtime import (DataFlowRuntime,
+                                                       GitPythonRuntime,
+                                                       NotebookRuntime,
+                                                       PythonRuntime, Runtime,
+                                                       ScriptRuntime)
 
 
 class Job(Builder):

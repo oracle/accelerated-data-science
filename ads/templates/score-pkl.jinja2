@@ -26,10 +26,14 @@ def load_model(model_file_name=model_name):
     model_dir = os.path.dirname(os.path.realpath(__file__))
     contents = os.listdir(model_dir)
     if model_file_name in contents:
+        print(f'Start loading {model_file_name} from model directory {model_dir} ...')
         with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), model_file_name), "rb") as file:
-            return cloudpickle.load(file)
+            loaded_model = cloudpickle.load(file)
+
+        print("Model is successfully loaded.")
+        return loaded_model
     else:
-        raise Exception('{0} is not found in model directory {1}'.format(model_file_name, model_dir))
+        raise Exception(f'{model_file_name} is not found in model directory {model_dir}')
 
 
 def pre_inference(data):

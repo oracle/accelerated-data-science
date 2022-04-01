@@ -8,7 +8,7 @@ import copy
 import importlib
 
 from IPython.core.display import display
-from ads.common.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.dataset import logger
 
 

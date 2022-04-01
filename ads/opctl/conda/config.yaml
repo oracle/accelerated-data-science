@@ -1,0 +1,34 @@
+service_pack_prefix: "service_pack"
+bucket_info:
+  default:
+    name: "service-conda-packs"
+    namespace: "id19sfcrra6z"
+    index_path: "service_pack/index.json"
+  ap-chiyoda-1:
+    name: "service-conda-packs"
+    namespace: "axvucm64yaas"
+    index_path: "service_pack/index.json"
+  us-langley-1:
+    name: "service-conda-packs"
+    namespace: "ociodscprodoc2"
+    index_path: "service_pack/index.json"
+  us-luke-1:
+    name: "service-conda-packs"
+    namespace: "ociodscprodoc2"
+    index_path: "service_pack/index.json"
+  us-gov-ashburn-1:
+    name: "service-conda-packs"
+    namespace: "ociodscprodoc3"
+    index_path: "service_pack/index.json"
+  us-gov-phoenix-1:
+    name: "service-conda-packs"
+    namespace: "ociodscprodoc3"
+    index_path: "service_pack/index.json"
+  us-gov-chicago-1:
+    name: "service-conda-packs"
+    namespace: "ociodscprodoc3"
+    index_path: "index.json"
+service_pack_auth: "resource_principal"
+notebook_prefix: "notebooks"
+notebook_location: "/opt/notebooks"
+ip_packages: ["automl", "mlx"]

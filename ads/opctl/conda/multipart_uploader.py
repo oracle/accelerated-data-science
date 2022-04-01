@@ -8,9 +8,7 @@ from typing import Dict, List
 
 from ads.common.oci_client import OCIClientFactory
 from ads.common.auth import get_signer
-from ads.opctl import logger
-from ads.opctl.config.utils import _read_from_ini
-from ads.opctl.utils import _parse_conda_uri
+from ads.opctl.utils import parse_conda_uri
 import oci
 import mmap
 import json
@@ -18,7 +16,6 @@ import time
 from tqdm import tqdm
 from threading import Thread
 import os
-import types
 
 
 class MultiPartUploader:
@@ -53,7 +50,7 @@ class MultiPartUploader:
         self.dst = dst_uri
         self.oci_auth = get_signer(oci_config, oci_profile)
         self.client = OCIClientFactory(**self.oci_auth).object_storage
-        self.ns, self.bucket, self.path, _ = _parse_conda_uri(dst_uri)
+        self.ns, self.bucket, self.path, _ = parse_conda_uri(dst_uri)
         self.file_size = os.path.getsize(self.src)
         # mmap offset arg must be a multiple of the ALLOCATIONGRANULARITY, change chunk_size to control offset value
         self.chunk_size = (

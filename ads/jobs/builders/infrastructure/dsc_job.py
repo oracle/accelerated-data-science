@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import datetime
+import logging
 import os
 import time
 import uuid
@@ -15,6 +16,7 @@ from typing import Dict, List, Optional, Union
 import fsspec
 import oci.data_science
 import yaml
+from oci.data_science.models import JobInfrastructureConfigurationDetails
 from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
@@ -24,6 +26,9 @@ from ads.jobs.builders.infrastructure.utils import get_value
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     DataScienceJobRuntimeManager,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
@@ -72,6 +77,10 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
 
     """
 
+    DEFAULT_INFRA_TYPE = (
+        JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_ME_STANDALONE
+    )
+
     def __init__(self, artifact: Union[str, Artifact] = None, **kwargs) -> None:
         """Initialize a DSCJob object.
 
@@ -85,13 +94,17 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
 
         """
         self._artifact = artifact
-        self.job_configuration_details = {
-            "jobType": "DEFAULT",
-        }
-        self.job_infrastructure_configuration_details = {
-            "jobInfrastructureType": "STANDALONE",
-        }
+
         super().__init__(**kwargs)
+        if not self.job_configuration_details:
+            self.job_configuration_details = {
+                "jobType": "DEFAULT",
+            }
+        if not self.job_infrastructure_configuration_details:
+            self.job_infrastructure_configuration_details = {
+                "jobInfrastructureType": self.DEFAULT_INFRA_TYPE,
+                "blockStorageSize": 50,
+            }
 
     @property
     def artifact(self) -> Union[str, Artifact]:
@@ -115,6 +128,54 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         """Sets the job artifact"""
         self._artifact = artifact
 
+    def _load_infra_from_notebook(self, nb_config):
+        """Loads the infrastructure configuration from notebook configuration."""
+        infra = self.job_infrastructure_configuration_details
+        if isinstance(infra, dict):
+            infra_type = infra.get("jobInfrastructureType", self.DEFAULT_INFRA_TYPE)
+            shape_name = infra.get("shapeName", nb_config.shape)
+            block_storage = infra.get(
+                "blockStorageSizeInGBs", nb_config.block_storage_size_in_gbs
+            )
+            subnet_id = infra.get("subnetId", nb_config.subnet_id)
+        else:
+            infra_type = (
+                infra.job_infrastructure_type
+                if getattr(infra, "job_infrastructure_type", None)
+                else self.DEFAULT_INFRA_TYPE
+            )
+            shape_name = (
+                infra.shape_name
+                if getattr(infra, "shape_name", None)
+                else nb_config.shape
+            )
+            block_storage = (
+                infra.block_storage_size_in_gbs
+                if getattr(infra, "block_storage_size_in_gbs", None)
+                else nb_config.block_storage_size_in_gbs
+            )
+            subnet_id = (
+                infra.subnet_id
+                if getattr(infra, "subnet_id", None)
+                else nb_config.subnet_id
+            )
+
+        self.job_infrastructure_configuration_details = {
+            "jobInfrastructureType": infra_type,
+            "shapeName": shape_name,
+            "blockStorageSizeInGBs": block_storage,
+        }
+        # ADS does not provide explicit API for setting infrastructure type.
+        # If subnet is configured, the type will be set to STANDALONE,
+        # otherwise ME_STANDALONE
+        if subnet_id:
+            self.job_infrastructure_configuration_details.update(
+                {
+                    "subnetId": subnet_id,
+                    "jobInfrastructureType": JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_STANDALONE,
+                }
+            )
+
     def load_properties_from_env(self) -> None:
         """Loads default properties from the environment"""
         if "NB_SESSION_OCID" in os.environ:
@@ -126,43 +187,16 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 # This will skip loadding the default configure.
                 nb_session = None
             if nb_session:
-                nb_config = nb_session.notebook_session_configuration_details
+                nb_config = getattr(
+                    nb_session,
+                    "notebook_session_config_details",
+                    getattr(nb_session, "notebook_session_configuration_details", None),
+                )
 
-                infra = self.job_infrastructure_configuration_details
-                if isinstance(infra, dict):
-                    infra_type = infra.get("jobInfrastructureType", "STANDALONE")
-                    shape_name = infra.get("shapeName", nb_config.shape)
-                    block_storage = infra.get(
-                        "blockStorageSizeInGBs", nb_config.block_storage_size_in_gbs
-                    )
-                    subnet_id = infra.get("subnetId", nb_config.subnet_id)
-                else:
-                    infra_type = (
-                        infra.job_infrastructure_type
-                        if infra.job_infrastructure_type
-                        else "STANDALONE"
-                    )
-                    shape_name = (
-                        infra.shape_name if infra.shape_name else nb_config.shape
-                    )
-                    block_storage = (
-                        infra.block_storage_size_in_gbs
-                        if infra.block_storage_size_in_gbs
-                        else nb_config.block_storage_size_in_gbs
-                    )
-                    subnet_id = (
-                        infra.subnet_id if infra.subnet_id else nb_config.subnet_id
-                    )
-
-                self.job_infrastructure_configuration_details = {
-                    "jobInfrastructureType": infra_type,
-                    "shapeName": shape_name,
-                    "blockStorageSizeInGBs": block_storage,
-                    "subnetId": subnet_id,
-                }
+                if nb_config:
+                    self._load_infra_from_notebook(nb_config)
                 if self.project_id is None:
                     self.project_id = nb_session.project_id
-
         super().load_properties_from_env()
 
     def _create_with_oci_api(self) -> None:
@@ -197,7 +231,12 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             self.display_name = (
                 os.path.basename(str(self.artifact)).split(".")[0] + f"-{timestamp}"
             )
-        self.load_properties_from_env()
+        try:
+            self.load_properties_from_env()
+        except Exception as ex:
+            logger.error(
+                "Failed to load default properties from environment: %s", str(ex)
+            )
         # Check compartment ID and project ID before calling the OCI API
         if not self.compartment_id:
             raise ValueError("Specify compartment ID for data science job.")
@@ -471,20 +510,26 @@ class DataScienceJobRun(
             "message": message,
         }
 
-    def logs(self, limit: int = 100) -> list:
+    def logs(self, limit: int = None) -> list:
         """Gets the logs of the job run.
 
         Parameters
         ----------
         limit : int, optional
-            Limit the number of logs to be returned, by default 100
+            Limit the number of logs to be returned.
+            Defaults to None. All logs will be returned.
 
         Returns
         -------
         list
             A list of log records. Each log record is a dictionary with the following keys: id, time, message.
         """
-        log_messages = self.logging.tail(source=self.id, limit=limit)
+        if self.time_accepted:
+            log_messages = self.logging.tail(
+                source=self.id, limit=limit, time_start=self.time_accepted
+            )
+        else:
+            log_messages = []
         if self.time_started:
             log_messages.insert(
                 0, self._format_log("Job Run STARTED", self.time_started)
@@ -506,11 +551,14 @@ class DataScienceJobRun(
     def _check_and_print_status(self, prev_status) -> str:
         status = self._job_run_status_text()
         if status != prev_status:
-            timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            if self.lifecycle_state in self.TERMINAL_STATES and self.time_finished:
+                timestamp = self.time_finished
+            else:
+                timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - {status}")
         return status
 
-    def watch(self, interval=3) -> DataScienceJobRun:
+    def watch(self, interval: float = 3) -> DataScienceJobRun:
         """Watches the job run until it finishes.
         Before the job start running, this method will output the job run status.
         Once the job start running, the logs will be streamed until the job is success, failed or cancelled.
@@ -518,8 +566,8 @@ class DataScienceJobRun(
         Parameters
         ----------
         interval : int
-             (Default value = 3)
-        Time interval between each request to update the logs.
+            Time interval in seconds between each request to update the logs.
+            Defaults to 3 (seconds).
 
         """
 
@@ -533,6 +581,9 @@ class DataScienceJobRun(
                 "Logging is not configured for the job. Watch() will only show job status."
             )
 
+        print(f"Job OCID: {self.job.id}")
+        print(f"Job Run OCID: {self.id}")
+
         status = ""
         while not stop_condition():
             status = self._check_and_print_status(status)
@@ -542,10 +593,17 @@ class DataScienceJobRun(
                 break
             time.sleep(interval)
 
-        if self.log_id:
-            self.logging.stream(
-                source=self.id, interval=interval, stop_condition=stop_condition
+        if self.log_id and self.time_accepted:
+            count = self.logging.stream(
+                source=self.id,
+                interval=interval,
+                stop_condition=stop_condition,
+                time_start=self.time_accepted,
             )
+            if not count:
+                print(
+                    "No logs in the last 14 days. Please set time_start to see older logs."
+                )
 
         self._check_and_print_status(status)
 
@@ -656,7 +714,7 @@ class DataScienceJob(Infrastructure):
         if not self.job_type:
             self.with_job_type("DEFAULT")
         if not self.job_infrastructure_type:
-            self.with_job_infrastructure_type("STANDALONE")
+            self.with_job_infrastructure_type(DSCJob.DEFAULT_INFRA_TYPE)
         self.dsc_job = DSCJob()
         self.runtime = None
         self._name = None
@@ -986,12 +1044,16 @@ class DataScienceJob(Infrastructure):
             if self.get_spec(snake_attr):
                 if not dsc_job.job_infrastructure_configuration_details:
                     dsc_job.job_infrastructure_configuration_details = {
-                        self.CONST_JOB_INFRA: "STANDALONE",
+                        self.CONST_JOB_INFRA: DSCJob.DEFAULT_INFRA_TYPE,
                         self.CONST_BLOCK_STORAGE: 50,
                     }
                 dsc_job.job_infrastructure_configuration_details[
                     camel_attr
                 ] = self.get_spec(snake_attr)
+        if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
+            dsc_job.job_infrastructure_configuration_details[
+                "jobInfrastructureType"
+            ] = JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_STANDALONE
         return self
 
     def create(self, runtime, **kwargs) -> DataScienceJob:

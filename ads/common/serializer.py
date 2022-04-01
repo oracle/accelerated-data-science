@@ -1,0 +1,454 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+# Copyright (c) 2021, 2022 Oracle and its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+import json
+from abc import ABC, abstractmethod
+import dataclasses
+from typing import Dict, Union, Optional, List
+from enum import Enum
+
+import fsspec
+import yaml
+from ads.common import logger
+
+try:
+    from yaml import CSafeDumper as dumper
+    from yaml import CSafeLoader as loader
+except:
+    from yaml import SafeDumper as dumper
+    from yaml import SafeLoader as loader
+
+
+class SideEffect(Enum):
+    CONVERT_KEYS_TO_LOWER = "lower"
+    CONVERT_KEYS_TO_UPPER = "upper"
+
+
+class Serializable(ABC):
+    """Base class that represents a serializable item.
+
+    Methods
+    -------
+    to_dict(self) -> dict
+        Serializes the object into a dictionary.
+    from_dict(cls, obj_dict) -> cls
+        Returns an instance of the class instantiated from the dictionary provided.
+    _write_to_file(s, uri, **kwargs)
+        Write string s into location specified by uri
+    _read_from_file(uri, **kwargs)
+        Returns contents from location specified by URI
+    to_json(self, uri=None, **kwargs)
+        Returns object serialized as a JSON string
+    from_json(cls, json_string=None, uri=None, **kwargs)
+        Creates an object from JSON string provided or from URI location containing JSON string
+    to_yaml(self, uri=None, **kwargs)
+        Returns object serialized as a YAML string
+    from_yaml(cls, yaml_string=None, uri=None, **kwargs)
+        Creates an object from YAML string provided or from URI location containing YAML string
+    from_string(cls, obj_string=None: str, uri=None, **kwargs)
+        Creates an object from string provided or from URI location containing string
+    """
+
+    @abstractmethod
+    def to_dict(self, **kwargs) -> dict:
+        """Serializes instance of class into a dictionary.
+
+        Returns
+        -------
+        Dict
+            A dictionary.
+        """
+        pass
+
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, obj_dict: dict) -> "Serializable":
+        """Returns an instance of the class instantiated by the dictionary provided.
+
+        Parameters
+        ----------
+        obj_dict: (dict)
+            Dictionary representation of the object.
+
+        Returns
+        -------
+        Serializable
+            A Serializable instance.
+        """
+        pass
+
+    @staticmethod
+    def _write_to_file(s: str, uri: str, **kwargs) -> None:
+        """Write string s into location specified by uri.
+
+        Parameters
+        ----------
+        s: (string)
+            content
+        uri: (string)
+            URI location to save string s
+
+        kwargs
+        ------
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
+
+        Returns
+        -------
+        None
+            Nothing.
+        """
+        with fsspec.open(uri, "w", **kwargs) as f:
+            f.write(s)
+
+    @staticmethod
+    def _read_from_file(uri: str, **kwargs) -> str:
+        """Returns contents from location specified by URI
+
+        Parameters
+        ----------
+        uri: (string)
+            URI location
+
+        kwargs
+        ------
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
+
+        Returns
+        -------
+            string: Contents in file specified by URI
+        """
+        with fsspec.open(uri, "r", **kwargs) as f:
+            return f.read()
+
+    def to_json(
+        self, uri: str = None, encoder: callable = json.JSONEncoder, **kwargs
+    ) -> str:
+        """Returns object serialized as a JSON string
+
+        Parameters
+        ----------
+        uri: (string, optional)
+            URI location to save the JSON string. Defaults to None.
+        encoder: (callable, optional)
+            Encoder for custom data structures. Defaults to JSONEncoder.
+
+        kwargs
+        ------
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
+
+        Returns:
+            string: Serialized version of object
+        """
+        json_string = json.dumps(self.to_dict(**kwargs), cls=encoder)
+        if uri:
+            self._write_to_file(s=json_string, uri=uri, **kwargs)
+        return json_string
+
+    @classmethod
+    def from_json(
+        cls,
+        json_string: str = None,
+        uri: str = None,
+        decoder: callable = json.JSONDecoder,
+        **kwargs,
+    ):
+        """Creates an object from JSON string provided or from URI location containing JSON string
+
+        Parameters
+        ----------
+        json_string: (string, optional)
+            JSON string. Defaults to None.
+        uri: (string, optional)
+            URI location of file containing JSON string. Defaults to None.
+        decoder: (callable, optional)
+            Custom decoder. Defaults to simple JSON decoder.
+        kwargs
+        ------
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
+
+        Raises
+        ------
+        ValueError
+            Raised if neither string nor uri is provided
+
+        Returns
+        -------
+        cls
+            Returns instance of the class
+        """
+        if json_string:
+            return cls.from_dict(json.loads(json_string, cls=decoder))
+        if uri:
+            json_dict = json.loads(cls._read_from_file(uri, **kwargs), cls=decoder)
+            return cls.from_dict(json_dict)
+        raise ValueError("Must provide either JSON string or URI location")
+
+    def to_yaml(self, uri: str = None, dumper: callable = dumper, **kwargs) -> str:
+        """Returns object serialized as a YAML string
+
+        Parameters
+        ----------
+        uri: (string, optional)
+            URI location to save the YAML string. Defaults to None.
+        dumper: (callable, optional)
+            Custom YAML Dumper. Defaults to CDumper/SafeDumper.
+
+        kwargs
+        ------
+        side_effect: Optional[SideEffect]
+            side effect to take on the dictionary. The side effect can be either
+            convert the dictionary keys to "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
+            or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value) cases.
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
+
+        Returns:
+            string: Serialized version of object
+        """
+        yaml_string = yaml.dump(self.to_dict(**kwargs), Dumper=dumper)
+        if uri:
+            self._write_to_file(s=yaml_string, uri=uri, **kwargs)
+        return yaml_string
+
+    @classmethod
+    def from_yaml(
+        cls,
+        yaml_string: str = None,
+        uri: str = None,
+        loader: callable = loader,
+        **kwargs,
+    ):
+        """Creates an object from YAML string provided or from URI location containing YAML string
+
+        Parameters
+        ----------
+            yaml_string (string, optional): YAML string. Defaults to None.
+            uri (string, optional): URI location of file containing YAML string. Defaults to None.
+            loader (callable, optional): Custom YAML loader. Defaults to CLoader/SafeLoader.
+            kwargs (dict): keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+                           For other storage connections consider e.g. host, port, username, password, etc.
+
+        Raises
+        ------
+        ValueError
+            Raised if neither string nor uri is provided
+
+        Returns
+        -------
+        cls
+            Returns instance of the class
+        """
+        if yaml_string:
+            return cls.from_dict(yaml.load(yaml_string, Loader=loader))
+        if uri:
+            yaml_dict = yaml.load(cls._read_from_file(uri=uri, **kwargs), Loader=loader)
+            return cls.from_dict(yaml_dict)
+        raise ValueError("Must provide either YAML string or URI location")
+
+    @classmethod
+    def from_string(
+        cls,
+        obj_string: str = None,
+        uri: str = None,
+        loader: callable = loader,
+        **kwargs,
+    ) -> "Serializable":
+        """Creates an object from string provided or from URI location containing string
+
+        Parameters
+        ----------
+        obj_string: (str, optional)
+            String representing the object
+        uri: (str, optional)
+            URI location of file containing string. Defaults to None.
+        loader: (callable, optional)
+            Custom YAML loader. Defaults to CLoader/SafeLoader.
+        kwargs: (dict)
+            keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
+
+        Returns
+        -------
+        Serializable
+            A Serializable instance
+        """
+        return cls.from_yaml(yaml_string=obj_string, uri=uri, loader=loader, **kwargs)
+
+    def __repr__(self):
+        """Returns printable version of object.
+
+        Parameters
+        ----------
+        string
+            Serialized version of object as a YAML string
+        """
+        return self.to_yaml()
+
+
+class DataClassSerializable(Serializable):
+    """Wrapper class that inherit from Serializable class.
+
+    Methods
+    -------
+    to_dict(self) -> dict
+        Serializes the object into a dictionary.
+    from_dict(cls, obj_dict) -> cls
+        Returns an instance of the class instantiated from the dictionary provided.
+    """
+
+    @staticmethod
+    def _validate_dict(obj_dict: Dict) -> bool:
+        """validate the dictionary.
+
+        Parameters
+        ----------
+        obj_dict: (dict)
+            Dictionary representation of the object
+
+        Returns
+        -------
+        bool
+            True if the validation passed, else False.
+        """
+        pass
+
+    def to_dict(self, **kwargs) -> Dict:
+        """Serializes instance of class into a dictionary
+
+        kwargs
+        ------
+        side_effect: Optional[SideEffect]
+            side effect to take on the dictionary. The side effect can be either
+            convert the dictionary keys to "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
+            or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value) cases.
+
+        Returns
+        -------
+        Dict
+            A dictionary.
+        """
+        obj_dict = dataclasses.asdict(self)
+        if "side_effect" in kwargs and kwargs["side_effect"]:
+            obj_dict = DataClassSerializable._normalize_dict(
+                obj_dict=obj_dict, case=kwargs["side_effect"]
+            )
+        return obj_dict
+
+    @classmethod
+    def from_dict(
+        cls,
+        obj_dict: dict,
+        side_effect: Optional[SideEffect] = SideEffect.CONVERT_KEYS_TO_LOWER.value,
+    ) -> "DataClassSerializable":
+        """Returns an instance of the class instantiated by the dictionary provided.
+
+        Parameters
+        ----------
+        obj_dict: (dict)
+            Dictionary representation of the object
+        side_effect: Optional[SideEffect]
+            side effect to take on the dictionary. The side effect can be either
+            convert the dictionary keys to "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
+            or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value) cases.
+
+        Returns
+        -------
+        DataClassSerializable
+            A DataClassSerializable instance.
+        """
+        assert obj_dict, "`obj_dict` must not be None."
+        if not isinstance(obj_dict, dict):
+            raise TypeError("`obj_dict` must be a dictionary.")
+        # check if dict not is None and not empty and type is dict
+        cls._validate_dict(obj_dict=obj_dict)
+        if side_effect:
+            obj_dict = cls._normalize_dict(obj_dict, case=side_effect)
+
+        allowed_fields = set([f.name for f in dataclasses.fields(cls)])
+        wrong_fields = set(obj_dict.keys()) - allowed_fields
+        if wrong_fields:
+            logger.warning(
+                f"The class {cls.__name__} doesn't contain attributes: `{list(wrong_fields)}`. "
+                "These fields will be ignored."
+            )
+
+        obj = cls(**{key: obj_dict[key] for key in allowed_fields})
+
+        for key, value in obj_dict.items():
+            if isinstance(value, dict) and hasattr(
+                getattr(cls(), key).__class__, "from_dict"
+            ):
+                attribute = getattr(cls(), key).__class__.from_dict(value)
+                setattr(obj, key, attribute)
+        return obj
+
+    @staticmethod
+    def _normalize_dict(
+        obj_dict: Dict, case: str = SideEffect.CONVERT_KEYS_TO_LOWER.value
+    ) -> Dict:
+        """lower all the keys.
+
+        Parameters
+        ----------
+        obj_dict: (Dict)
+            Dictionary representation of the object.
+        case: (optional, str). Defaults to "lower".
+            the case to normalized to. can be either "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
+            or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value).
+
+        Returns
+        -------
+        Dict
+            Dictionary representation of the object.
+        """
+        normalized_obj_dict = {}
+        for key, value in obj_dict.items():
+            if isinstance(value, dict):
+                value = DataClassSerializable._normalize_dict(
+                    value, case=SideEffect.CONVERT_KEYS_TO_UPPER.value
+                )
+            normalized_obj_dict = DataClassSerializable._normalize_key(
+                normalized_obj_dict=normalized_obj_dict, key=key, value=value, case=case
+            )
+        return normalized_obj_dict
+
+    @staticmethod
+    def _normalize_key(
+        normalized_obj_dict: Dict, key: str, value: Union[str, Dict], case: str
+    ) -> Dict:
+        """helper function to normalize the key in the case specified and add it back to the dictionary.
+
+        Paramaters
+        ----------
+        normalized_obj_dict: (Dict)
+            the dictionary to append the key and value to.
+        key: (str)
+            key to be normalized.
+        value: (Union[str, Dict])
+            value to be added.
+        case: (str)
+            the case to normalized to. can be either "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
+            or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value).
+
+        Raises
+        ------
+        NotImplementedError: if case provided is not either "lower" or "upper".
+
+        Returns
+        -------
+        Dict
+            normalized dictionary with the key and value added in the case specified.
+        """
+        if case.lower() == SideEffect.CONVERT_KEYS_TO_LOWER.value:
+            normalized_obj_dict[key.lower()] = value
+        elif case.lower() == SideEffect.CONVERT_KEYS_TO_UPPER.value:
+            normalized_obj_dict[key.upper()] = value
+        else:
+            raise NotImplementedError("`case` is not supported.")
+        return normalized_obj_dict

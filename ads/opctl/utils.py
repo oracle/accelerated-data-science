@@ -32,7 +32,29 @@ from ads.opctl.constants import (
 )
 
 
-def _parse_conda_uri(uri: str) -> Tuple[str, str, str, str]:
+def get_service_pack_prefix() -> Dict:
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
+    service_config_file = os.path.join(curr_dir, "conda", "config.yaml")
+    with open(service_config_file) as f:
+        service_config = yaml.safe_load(f.read())
+    if all(key in os.environ for key in ["CONDA_BUCKET_NS", "CONDA_BUCKET_NAME"]):
+        bucket_info = {
+            "name": os.environ["CONDA_BUCKET_NAME"],
+            "namespace": os.environ["CONDA_BUCKET_NS"],
+        }
+    else:
+        bucket_info = service_config["bucket_info"].get(
+            os.environ.get("NB_REGION", "default"),
+            service_config["bucket_info"]["default"],
+        )
+    return f"oci://{bucket_info['name']}@{bucket_info['namespace']}/{service_config['service_pack_prefix']}"
+
+
+def is_in_notebook_session():
+    return "CONDA_PREFIX" in os.environ and "NB_SESSION_OCID" in os.environ
+
+
+def parse_conda_uri(uri: str) -> Tuple[str, str, str, str]:
     parsed = urllib.parse.urlparse(uri)
     path = parsed.path
     if path.startswith("/"):
@@ -42,26 +64,26 @@ def _parse_conda_uri(uri: str) -> Tuple[str, str, str, str]:
     return ns, bucket, path, slug
 
 
-def _list_ads_operators() -> dict:
+def list_ads_operators() -> dict:
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     with open(os.path.join(curr_dir, "index.yaml"), "r") as f:
         ads_operators = yaml.safe_load(f.read())
     return ads_operators or []
 
 
-def _get_oci_region(auth: dict) -> str:
+def get_oci_region(auth: dict) -> str:
     if len(auth["config"]) > 0:
         return auth["config"]["region"]
     else:
         return auth["signer"].region
 
 
-def _get_namespace(auth: dict) -> str:
+def get_namespace(auth: dict) -> str:
     client = OCIClientFactory(**auth).object_storage
     return client.get_namespace().data
 
 
-def _get_region_key(auth: dict) -> str:
+def get_region_key(auth: dict) -> str:
     if len(auth["config"]) > 0:
         tenancy = auth["config"]["tenancy"]
     else:
@@ -92,14 +114,14 @@ def publish_image(image: str, registry: str = None) -> None:  # pragma: no cover
     None
     """
     if not registry:
-        _run_command(["docker", "push", image])
+        run_command(["docker", "push", image])
         print(f"pushed {image}")
         return image
     else:
-        _run_command(
+        run_command(
             ["docker", "tag", f"{image}", f"{registry}/{os.path.basename(image)}"]
         )
-        _run_command(["docker", "push", f"{registry}/{os.path.basename(image)}"])
+        run_command(["docker", "push", f"{registry}/{os.path.basename(image)}"])
         print(f"pushed {registry}/{os.path.basename(image)}")
         return f"{registry}/{os.path.basename(image)}"
 
@@ -148,7 +170,7 @@ def build_image(
             command += ["--target", target]
         command += [os.path.abspath(curr_dir)]
         logger.info(f"Build image with command {command}")
-        proc = _run_command(command)
+        proc = run_command(command)
     if proc.returncode != 0:
         raise RuntimeError(f"Docker build failed.")
 
@@ -193,10 +215,10 @@ FROM {base_image_name}
 COPY ./{operator} operators/{operator}
                         """
                 )
-        return _run_command(["docker", "build", "-t", f"{dst_image}", "."], td)
+        return run_command(["docker", "build", "-t", f"{dst_image}", "."], td)
 
 
-def _run_command(
+def run_command(
     cmd: Union[str, List[str]], cwd: str = None, shell: bool = False
 ) -> Popen:
     proc = Popen(
@@ -253,7 +275,7 @@ def suppress_traceback(debug: bool = True) -> None:
     return decorator
 
 
-def _get_docker_client() -> docker.client.DockerClient:
+def get_docker_client() -> docker.client.DockerClient:
     process = subprocess.Popen(
         ["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
     )
@@ -263,7 +285,7 @@ def _get_docker_client() -> docker.client.DockerClient:
     return docker.from_env()
 
 
-class _OCIAuthContext:
+class OCIAuthContext:
     def __init__(self, profile: str = None):
         self.profile = profile
         self.prev_rp_mode = ads.resource_principal_mode
@@ -285,7 +307,7 @@ class _OCIAuthContext:
             ads.set_auth(auth="api_key", profile=self.prev_profile)
 
 
-def _run_container(
+def run_container(
     image: str,
     bind_volumes: Dict,
     env_vars: Dict,
@@ -293,12 +315,12 @@ def _run_container(
     entrypoint: str = None,
     verbose: bool = True,
 ):
-    client = _get_docker_client()
+    client = get_docker_client()
     try:
         client.api.inspect_image(image)
     except errors.ImageNotFound:
         logger.info(f"Image {image} not found. Try pulling it now....")
-        _run_command(["docker", "pull", f"{image}"], None)
+        run_command(["docker", "pull", f"{image}"], None)
     container = client.containers.run(
         image=image,
         volumes=bind_volumes,

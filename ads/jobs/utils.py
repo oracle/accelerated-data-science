@@ -10,7 +10,7 @@ import json
 
 from oci.data_flow.models import Application
 
-from ads.opctl.config.utils import _read_from_ini
+from ads.opctl.config.utils import read_from_ini
 from ads.opctl.constants import (
     ADS_DATAFLOW_CONFIG_FILE_NAME,
     DEFAULT_ADS_CONFIG_FOLDER,
@@ -29,7 +29,7 @@ def get_dataflow_config(path=None, oci_profile=None):
         )
     config = {}
     if os.path.exists(dataflow_config_file_path):
-        parser = _read_from_ini(dataflow_config_file_path)
+        parser = read_from_ini(dataflow_config_file_path)
         if not oci_profile:
             oci_profile = oci_key_profile()
         if oci_profile in parser:

@@ -6,7 +6,7 @@
 
 import numpy as np
 import pandas as pd
-from ads.common import utils
+from ads.common import logger
 from ads.explanations.base_explainer import LocalExplainer
 from ads.explanations.mlx_interface import init_lime_explainer
 
@@ -34,6 +34,7 @@ class MLXLocalExplainer(LocalExplainer):
         num_features=None,
         report_fidelity=True,
         validation_percentiles=None,
+        selected_features=None,
     ):
         """
         Explains the sample, row. Returns a local explanation object.
@@ -60,14 +61,17 @@ class MLXLocalExplainer(LocalExplainer):
             1 is very local to the sample to explain, the evaluation dataset at percentile 10 evaluates
             the explanation quality further away from the instance to explain (row). This can be helpful
             to see how the explanation generalizes to nearby samples. By default None ([1, 5, 15]).
+        selected_features: list[int], optional
+            List of the selected features (list of numbers of features). It can be any subset of
+            the original features that are in the dataset provided to the model.
+            Default value is None.
 
         Return
         ------
         LocalExplanation
             Local explanation object.
         """
-        if self.explainer is None:
-            self._init_explainer()
+        self.configure_local_explainer(selected_features=selected_features)
         assert row is not None and isinstance(row, pd.DataFrame) and row.shape[0] == 1
 
         labels = list(range(len(self.class_names)))
@@ -75,15 +79,26 @@ class MLXLocalExplainer(LocalExplainer):
         if num_features is None:
             num_features = len(row.columns.values)
 
-        explanation = self.explainer.compute(
-            row.copy(),
-            y=None if y is None else y.copy(),
-            labels=labels,
-            verbose=False,
-            num_features=num_features,
-            report_fidelity=report_fidelity,
-            validation_percentiles=validation_percentiles,
-        )[0]
+        try:
+            explanation = self.explainer.compute(
+                row.copy(),
+                y=None if y is None else y.copy(),
+                labels=labels,
+                verbose=False,
+                num_features=num_features,
+                report_fidelity=report_fidelity,
+                validation_percentiles=validation_percentiles,
+            )[0]
+        except IndexError as e:
+            if selected_features is not None:
+                raise IndexError(
+                    f"Unable to generate local explanations due to: {e}. "
+                    f"selected_features must be a list of features within the bounds of the existing features "
+                    f"(that were provided to model). Provided selected_features: {selected_features}."
+                )
+        except Exception as e:
+            logger.error(f"Unable to generate local explanations due to: {e}.")
+            raise e
 
         return LocalExplanation(explanation, self.class_names)
 
@@ -93,13 +108,14 @@ class MLXLocalExplainer(LocalExplainer):
         explainer with the provided configuration parameters.
 
         Supported configuration options in kwargs:
-            - **surrogate_model** (str): Surrogate model to use. Can be 'linear' or 'decision_tree'.
-            - **num_samples** (int): Number of generated samples to fit the surrogate model.
-            - **exp_sorting** (str): Feature importance sorting. Can be 'absolute' or 'ordered'.
-            - **scale_weight** (bool): Normalizes the feature importance coefficients from LIME to sum to one.
-            - **client**: Only allowed to be None to disable parallelization.
-            - **batch_size** (int): Number of local explanations per Dask worker.
-            - **random_state** (`None` or `int` or instance of `RandomState`): the random state
+            - `surrogate_model` (str): Surrogate model to use. Can be 'linear' or 'decision_tree'.
+            - `num_samples` (int): Number of generated samples to fit the surrogate model.
+            - `exp_sorting` (str): Feature importance sorting. Can be 'absolute' or 'ordered'.
+            - `scale_weight` (bool): Normalizes the feature importance coefficients from LIME to sum to one.
+            - `client`: Only allowed to be None to disable parallelization.
+            - `batch_size` (int): Number of local explanations per Dask worker.
+            - `random_state` (`None` or `int` or instance of `RandomState`): the random state.
+            - `selected_features` (`None`, or `list`): list of the selected features numbers.
 
         Parameters
         ----------
@@ -118,6 +134,7 @@ class MLXLocalExplainer(LocalExplainer):
             "exp_sorting",
             "scale_weight",
             "batch_size",
+            "selected_features",
         ]
         for k, v in kwargs.items():
             if k not in avail_args:
@@ -133,6 +150,12 @@ class MLXLocalExplainer(LocalExplainer):
             raise ValueError(
                 "Invalid surrogate_model provided. Currently only supports linear or decision_tree"
             )
+        selected_features = kwargs.get("selected_features", None)
+        if selected_features is not None and not isinstance(selected_features, list):
+            raise ValueError(
+                f"selected_features ({selected_features}) value must be a list of features, "
+                f"but it is of type: {type(selected_features)}."
+            )
 
         self._init_explainer(**kwargs)
         return self
@@ -147,7 +170,7 @@ class MLXLocalExplainer(LocalExplainer):
             HTML object representing the explainer summary.
         """
         if self.explainer is None:
-            self._init_explainer()
+            self.configure_local_explainer()
         return self.explainer.show_in_notebook()
 
     def _init_explainer(self, **kwargs):
@@ -168,8 +191,7 @@ class MLXLocalExplainer(LocalExplainer):
             self.y_train,
             self.mode,
             class_names=self.class_names,
-            use_pre_selected_features=True,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -244,7 +266,7 @@ class LocalExplanation:
             labels=labels,
             colormap=colormap,
             return_wordcloud=return_wordcloud,
-            **kwargs
+            **kwargs,
         )
 
     def get_diagnostics(self):

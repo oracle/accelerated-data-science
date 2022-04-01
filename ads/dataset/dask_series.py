@@ -9,7 +9,7 @@ import types
 import uuid
 from functools import partial
 from sklearn.preprocessing import FunctionTransformer
-from ads.common.deprecate import deprecated
+from ads.common.decorator.deprecate import deprecated
 
 try:
     import dask

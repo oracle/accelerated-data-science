@@ -1,0 +1,86 @@
+import os
+import sys
+from functools import lru_cache
+
+model_name = '{{model_file_name}}'
+
+
+"""
+   Inference script. This script is used for prediction by scoring server when schema is known.
+"""
+
+
+@lru_cache(maxsize=10)
+def load_model(model_file_name=model_name):
+    """
+    Loads model from the serialized format
+
+    Returns
+    -------
+    model:  a model instance on which predict API can be invoked
+    """
+    model_dir = os.path.dirname(os.path.realpath(__file__))
+    if model_dir not in sys.path:
+        sys.path.insert(0, model_dir)
+    contents = os.listdir(model_dir)
+    if model_file_name in contents:
+        raise NotImplementedError("You need to implement the `load_model` function")
+    else:
+        raise Exception(f'{model_file_name} is not found in model directory {model_dir}')
+
+
+def pre_inference(data):
+    """
+    Preprocess data
+
+    Parameters
+    ----------
+    data: Data format as expected by the predict API of the core estimator.
+
+    Returns
+    -------
+    data: Data format after any processing.
+
+    """
+    return data
+
+
+def post_inference(yhat):
+    """
+    Post-process the model results
+
+    Parameters
+    ----------
+    yhat: Data format after calling model.predict.
+
+    Returns
+    -------
+    yhat: Data format after any processing.
+
+    """
+    return yhat
+
+
+def predict(data, model=load_model()):
+    """
+    Returns prediction given the model and data to predict
+
+    Parameters
+    ----------
+    model: Model instance returned by load_model API
+    data: Data has to be json serialiable, hence, accepted data type includes
+        only Dict and Str. You need to process the data in order to transform
+        the data from Dict or str format to the type that the model accepts.
+
+    Returns
+    -------
+    predictions: Output from scoring server
+        Format: {'prediction': output from model.predict method}
+
+    """
+
+    features = pre_inference(data)
+    yhat = post_inference(
+        model.predict(features)
+    )
+    return {'prediction': yhat}

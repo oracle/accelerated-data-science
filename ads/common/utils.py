@@ -4,32 +4,42 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, absolute_import
+from __future__ import absolute_import, print_function
 
-import matplotlib as mpl
-from cycler import cycler
+import base64
 import collections
+import contextlib
+import fnmatch
 import json
-from enum import Enum
-from textwrap import fill
-import re
 import os
 import random
+import re
+import shutil
 import string
-from pandas.core.dtypes.common import is_numeric_dtype, is_datetime64_dtype
+import tempfile
+from enum import Enum
+from io import DEFAULT_BUFFER_SIZE, BytesIO
+from pathlib import Path
+from textwrap import fill
+from typing import Dict, List, Optional, Union
+from urllib import request
+from urllib.parse import urlparse
 
+import fsspec
+import matplotlib as mpl
 import numpy as np
 import pandas as pd
+from sqlalchemy import tuple_
+from ads.common import logger
+from ads.common.decorator.deprecate import deprecated
+from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from cycler import cycler
 from IPython import get_ipython
-
+from IPython.core.display import HTML, display
+from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
 
-from IPython.core.display import display, HTML
-
-from ads.common import logger
-from ads.common.deprecate import deprecated
-from ads.dataset.progress import TqdmProgressBar, DummyProgressBar
-from typing import Union
+from . import auth as authutil
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
@@ -43,6 +53,9 @@ MIN_RATIO_FOR_DOWN_SAMPLING = 1 / 20
 
 # Maximum distinct values by cardinality will be used for plotting
 MAX_DISPLAY_VALUES = 10
+
+# par link of the index json file.
+PAR_LINK = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/Ri7zFc_h91sxMdgnza9Qnqw3Ina8hf8wzDvEpAnUXMDOnUR1U1fpsaBUjUfgPgIq/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
 random_state = 42
 test_size = 0.3
@@ -68,6 +81,9 @@ MYSQL_DEFAULT_PORT = "3306"
 
 # Maximum number of columns of data to extract model schema.
 DATA_SCHEMA_MAX_COL_NUM = 2000
+
+# dimention of np array which can be converted to pd dataframe
+DIMENSION = 2
 
 # declare custom exception class
 class FileOverwriteError(Exception):
@@ -710,7 +726,7 @@ def get_sqlalchemy_engine(connection_url, *args, **kwargs):
     The SqlAlchemny docs say to use a single engine per connection_url, this class will take
     care of that.
 
-    Parameters
+    Parameters:
     ----------
 
     connection_url: string
@@ -909,6 +925,10 @@ def to_dataframe(
         pandas DataFrame.
 
     """
+    if isinstance(data, np.ndarray) and len(data.shape) > DIMENSION:
+        raise NotImplementedError(
+            f"Cannot convert a numpy array with size {data.shape} to a pandas DataFrame."
+        )
     if (
         isinstance(data, np.ndarray)
         or isinstance(data, list)
@@ -933,12 +953,6 @@ def to_dataframe(
         raise NotImplementedError(
             f"The data type `{type(data)}` is not supported. Convert it to a pandas DataFrame."
         )
-
-
-class InvalidObjectStoragePath(Exception):
-    """Invalid Object Storage Path."""
-
-    pass
 
 
 def _is_dask_dataframe(ddf):
@@ -1006,7 +1020,7 @@ def is_data_too_wide(
     """
     Returns true if the data has too many columns.
 
-    Parameters
+    Parameters:
     ----------
 
     data: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]
@@ -1034,3 +1048,194 @@ def is_data_too_wide(
         raise TypeError(f"The data type `{type(data)}` is not supported.")
 
     return col_num > max_col_num
+
+
+def _serialize_input_helper(
+    data: Union[
+        Dict,
+        str,
+        List,
+        np.ndarray,
+        pd.core.series.Series,
+        pd.core.frame.DataFrame,
+    ],
+    data_type=None,
+):
+    """Returns serializable input data.
+
+    Parameters
+    ----------
+    data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
+    pd.core.frame.DataFrame]
+        Data expected by the model deployment predict API.
+    data_type: Any, defaults to None.
+        Type of the data. If not provided, it will be checked against data.
+
+    Returns
+    -------
+    Dict
+        A dictionary containing serialized input data and original data type
+        information.
+
+    Raises
+    ------
+    TypeError
+        if provided data type is not supported.
+    """
+    if not data_type:
+        data_type = type(data)
+    if isinstance(data, np.ndarray):
+        np_bytes = BytesIO()
+        np.save(np_bytes, data, allow_pickle=True)
+        data = base64.b64encode(np_bytes.getvalue()).decode("utf-8")
+    elif isinstance(data, pd.core.series.Series):
+        data = data.tolist()
+    elif isinstance(data, pd.core.frame.DataFrame):
+        data = data.to_json()
+    elif isinstance(data, bytes):
+        data = base64.b64encode(data).decode("utf-8")
+    elif (
+        isinstance(data, dict)
+        or isinstance(data, str)
+        or isinstance(data, list)
+        or isinstance(data, tuple)
+    ):
+        pass
+    else:
+        raise TypeError("The provided data type is not json serializable. ")
+
+    data_dict = {"data": data, "data_type": str(data_type)}
+    return data_dict
+
+
+def get_files(directory: str):
+    """List out all the file names under this directory.
+
+    Parameters
+    ----------
+    directory: str
+        The directory to list out all the files from.
+
+    Returns
+    -------
+    List
+        List of the files in the directory.
+    """
+    if os.path.exists(os.path.join(directory, ".model-ignore")):
+        ignore_patterns = (
+            Path(os.path.join(directory), ".model-ignore")
+            .read_text()
+            .strip()
+            .split("\n")
+        )
+    else:
+        ignore_patterns = []
+    file_names = []
+    for root, dirs, files in os.walk(directory):
+        for name in files:
+            file_names.append(os.path.join(root, name))
+        for name in dirs:
+            file_names.append(os.path.join(root, name))
+
+    for ignore in ignore_patterns:
+        if not ignore.startswith("#") and ignore.strip() != "":
+            matches = []
+            for file_name in file_names:
+                if ignore.endswith("/"):
+                    ignore = ignore[:-1] + "*"
+                if not re.search(fnmatch.translate("/%s" % ignore.strip()), file_name):
+                    matches.append(file_name)
+            file_names = matches
+    return [matched_file[len(directory) + 1 :] for matched_file in file_names]
+
+
+def download_from_web(url: str, to_path: str) -> None:
+    """Downloads a single file from http/https/ftp.
+
+    Parameters
+    ----------
+    url : str
+        The URL of the source file.
+    to_path : path-like object
+        Local destination path.
+
+    Returns
+    -------
+    None
+        Nothing
+    """
+    url_response = request.urlopen(url)
+    with contextlib.closing(url_response) as fp:
+        with open(to_path, "wb") as out_file:
+            block_size = DEFAULT_BUFFER_SIZE * 8
+            while True:
+                block = fp.read(block_size)
+                if not block:
+                    break
+                out_file.write(block)
+
+
+def copy_from_uri(
+    uri: str,
+    to_path: str,
+    unpack: Optional[bool] = False,
+    force_overwrite: Optional[bool] = False,
+    auth: Optional[Dict] = None,
+) -> None:
+    """Copies file(s) to local path. Can be a folder, archived folder or a separate file.
+    The source files can be located in a local folder or in OCI Object Storage.
+
+    Parameters
+    ----------
+    uri: str
+        The URI of the source file or directory, which can be local path or
+        OCI object storage URI.
+    to_path: str
+        The local destination path.
+        If this is a directory, the source files will be placed under it.
+    unpack : (bool, optional). Defaults to False.
+        Indicate if zip or tar.gz file specified by the uri should be unpacked.
+        This option has no effect on other files.
+    force_overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite existing files or not.
+    auth: (Dict, optional). Defaults to None.
+        The default authetication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    None
+        Nothing
+
+    Raises
+    ------
+    ValueError
+        If destination path is already exist and `force_overwrite` is set to False.
+    """
+    if os.path.exists(to_path):
+        if not force_overwrite:
+            raise ValueError(
+                "The destination path already exists. "
+                "Set `force_overwrite` to True if you wish to overwrite."
+            )
+        shutil.rmtree(to_path, ignore_errors=True)
+
+    scheme = urlparse(uri).scheme
+    auth = auth or authutil.default_signer()
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        if unpack and str(uri).lower().endswith((".zip", ".tar.gz", ".gztar")):
+            unpack_path = to_path
+            to_path = temp_dir
+        else:
+            unpack_path = None
+        fs = fsspec.filesystem(scheme, **auth)
+        try:
+            fs.get(uri, to_path, recursive=True)
+        except IsADirectoryError:
+            to_path = os.path.join(to_path, os.path.basename(str(uri).rstrip("/")))
+            fs.get(uri, to_path, recursive=True)
+
+        if unpack_path:
+            shutil.unpack_archive(to_path, unpack_path)

@@ -70,7 +70,7 @@ from typing import Any, Dict, Generator, Tuple, Union
 
 import pandas as pd
 from ads.common import auth as authutil
-from ads.common.helper import Serializable
+from ads.common.serializer import Serializable
 from ads.data_labeling.interface.reader import Reader
 from ads.data_labeling.reader.metadata_reader import Metadata, MetadataReader
 from ads.data_labeling.reader.record_reader import RecordReader

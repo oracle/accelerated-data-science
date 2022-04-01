@@ -17,7 +17,7 @@ import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
 import json
 
 import ocifs
-from ads.common.deprecate import deprecated
+from ads.common.decorator.deprecate import deprecated
 from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
 from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
 

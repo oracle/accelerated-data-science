@@ -16,13 +16,13 @@ from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import watch as watch_cmd
-from ads.opctl.utils import _list_ads_operators
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
 from ads.opctl.config.merger import ConfigMerger
 
 import ads.opctl.conda.cli
+import ads.opctl.spark.cli
 
 
 @click.group("opctl")
@@ -39,9 +39,7 @@ def configure(debug):
 
 
 @commands.command()
-@click.argument(
-    "image-type", type=click.Choice(["job-local", "ads-ops-base", "ads-ops-custom"])
-)
+@click.argument("image-type", type=click.Choice(["job-local", "ads-ops-base"]))
 @click.help_option("--help", "-h")
 @click.option(
     "--gpu",
@@ -166,7 +164,7 @@ _options = [
     click.option(
         "--backend",
         "-b",
-        type=click.Choice(["local", "job"]),
+        type=click.Choice(["local", "job", "dataflow"]),
         help="backend to run the operator",
         required=False,
         default=None,
@@ -204,15 +202,18 @@ _options = [
         required=False,
         default=None,
     ),
-    click.option("--job-id", "-j", help="ML Job ocid", required=False, default=None),
-    click.option(
-        "--run-id", "-r", help="ML Job run ocid", required=False, default=None
-    ),
     click.help_option("--help", "-h"),
     click.option(
         "--job-name", help="display name of job", required=False, default=None
     ),
     click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False),
+    click.option(
+        "--auth",
+        "-a",
+        help="authentication method",
+        type=click.Choice(["api_key", "resource_principal"]),
+        default=None,
+    ),
 ]
 
 
@@ -230,14 +231,8 @@ def add_options(options):
 @click.option("--image", "-i", help="image name", required=False, default=None)
 @click.option("--conda-slug", help="slug name", required=False, default=None)
 @click.option(
-    "--conda-uri",
-    help="conda pack uri in object storage",
-    required=False,
-    default=None,
-)
-@click.option(
     "--use-conda",
-    help="whether to use conda pack to run a job",
+    help="whether to use conda pack to run an operator",
     is_flag=True,
     required=False,
     default=None,
@@ -292,14 +287,15 @@ def add_options(options):
     required=False,
     default=None,
 )
-@click.option("--namespace", help="OCI namespace", default=None, required=False)
 @click.option(
-    "--publish-image",
-    "-p",
-    help="whether to rebuild and publish image before submitting a ML Job run",
+    "--overwrite",
+    "-o",
+    help="overwrite object storage files when uploading local files during dataflow run",
     is_flag=True,
-    default=None,
+    default=False,
 )
+@click.option("--archive", help="path to archive zip for dataflow run", default=None)
+@click.option("--exclude-tag", multiple=True, default=None)
 def run(file, **kwargs):
     debug = kwargs["debug"]
     if file:
@@ -336,6 +332,7 @@ def watch(**kwargs):
 
 
 commands.add_command(ads.opctl.conda.cli.commands)
+commands.add_command(ads.opctl.spark.cli.commands)
 
 
 # @commands.command()

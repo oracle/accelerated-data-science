@@ -7,28 +7,24 @@
 import json
 import os
 import shutil
-from unittest.mock import Mock
 import uuid
+from typing import Optional
 from zipfile import ZipFile
 
 import pandas as pd
 import yaml
 from ads.catalog.summary import SummaryList
-from ads.common import auth, oci_client, utils, logger
-from ads.common.model_artifact import (
-    ConflictStrategy,
-    ModelArtifact,
-    OUTPUT_SCHEMA_FILE_NAME,
-)
+from ads.common import auth, logger, oci_client, utils
+from ads.common.decorator.deprecate import deprecated
+from ads.common.model_artifact import ConflictStrategy, ModelArtifact
 from ads.common.model_metadata import (
-    ModelCustomMetadata,
-    ModelTaxonomyMetadata,
     METADATA_SIZE_LIMIT,
     MetadataSizeTooLarge,
+    ModelCustomMetadata,
+    ModelTaxonomyMetadata,
 )
-from ads.common.oci_resource import OCIResource, SEARCH_TYPE
+from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import (
-    OCI_IDENTITY_SERVICE_ENDPOINT,
     NB_SESSION_COMPARTMENT_OCID,
     OCI_ODSC_SERVICE_ENDPOINT,
     PROJECT_OCID,
@@ -43,7 +39,6 @@ from oci.data_science.models.model_provenance import ModelProvenance
 from oci.data_science.models.update_model_details import UpdateModelDetails
 from oci.exceptions import ServiceError
 from oci.identity import IdentityClient
-
 
 _UPDATE_MODEL_DETAILS_ATTRIBUTES = [
     "display_name",
@@ -566,29 +561,27 @@ class ModelCatalog:
 
     def __init__(
         self,
-        compartment_id=None,
-        ds_client_auth=None,
-        identity_client_auth=None,
-        timeout: int = None,
+        compartment_id: Optional[str] = None,
+        ds_client_auth: Optional[dict] = None,
+        identity_client_auth: Optional[dict] = None,
+        timeout: Optional[int] = None,
     ):
         """Initializes model catalog instance.
 
         Parameters
         ----------
-        compartment_id : str, optional
-            OCID of model's compartment
-            If None, the default compartment ID `config.NB_SESSION_COMPARTMENT_OCID` would be used
-        ds_client_auth : dict
-            Default is None. The default authetication is set using `ads.set_auth` API. If you need to override the
+        compartment_id : (str, optional). Defaults to None.
+            Model compartment OCID. If `None`, the `config.NB_SESSION_COMPARTMENT_OCID` would be used.
+        ds_client_auth : (dict, optional). Defaults to None.
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate DataScienceClient object.
-        identity_client_auth : dict
-            Default is None. The default authetication is set using `ads.set_auth` API. If you need to override the
+        identity_client_auth : (dict, optional). Defaults to None.
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
-        timeout: int, optional
+        timeout: (int, optional). Defaults to 10 seconds.
             The connection timeout in seconds for the client.
-            The default value for connection timeout is 10 seconds.
 
         Raises
         ------
@@ -864,6 +857,68 @@ class ModelCatalog:
                 logger.error("Failed to delete the Model.")
                 return False
 
+    def _download_artifacts(
+        self, model_id: str, target_dir: str, force_overwrite: Optional[bool] = False
+    ) -> None:
+        """
+        Downloads the model artifacts from model catalog to target_dir based on model_id.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the model to download.
+        target_dir: str
+            The target location of model after download.
+        force_overwrite: bool
+            Overwrite target_dir if exists.
+
+        Raises
+        ------
+        ValueError
+            If targed dir not exists.
+        KeyError
+            If model id not found.
+
+        Returns
+        -------
+        None
+            Nothing
+        """
+        if os.path.exists(target_dir) and os.listdir(target_dir):
+            if not force_overwrite:
+                raise ValueError(
+                    "Target directory already exists. "
+                    "Set `force_overwrite` to overwrite."
+                )
+            shutil.rmtree(target_dir)
+
+        try:
+            zip_contents = self.ds_client.get_model_artifact_content(
+                model_id
+            ).data.content
+        except ServiceError as ex:
+            if ex.status == 404:
+                raise KeyError(ex.message) from ex
+            else:
+                raise
+        zip_file_path = os.path.join(
+            "/tmp", "saved_model_" + str(uuid.uuid4()) + ".zip"
+        )
+
+        # write contents to zip file
+        with open(zip_file_path, "wb") as zip_file:
+            zip_file.write(zip_contents)
+
+        # Extract all the contents of zip file in target directory
+        with ZipFile(zip_file_path) as zip_file:
+            zip_file.extractall(target_dir)
+
+        os.remove(zip_file_path)
+
+    @deprecated(
+        "2.5.9",
+        details="Instead use `ads.common.model_artifact.ModelArtifact.from_model_catalog()`.",
+    )
     def download_model(
         self,
         model_id: str,
@@ -897,32 +952,8 @@ class ModelCatalog:
         ModelArtifact
             A ModelArtifact instance.
         """
-        if os.path.exists(target_dir) and os.listdir(target_dir):
-            if not force_overwrite:
-                raise ValueError(
-                    "Target directory already exists. Set 'force_overwrite' to overwrite."
-                )
-            shutil.rmtree(target_dir)
+        self._download_artifacts(model_id, target_dir, force_overwrite)
 
-        try:
-            zip_contents = self.ds_client.get_model_artifact_content(
-                model_id
-            ).data.content
-        except ServiceError as se:
-            if se.status == 404:
-                raise KeyError(se.message) from se
-            else:
-                raise
-        zip_file_path = os.path.join(
-            "/tmp", "saved_model_" + str(uuid.uuid4()) + ".zip"
-        )
-        # write contents to zip file
-        with open(zip_file_path, "wb") as zip_file:
-            zip_file.write(zip_contents)
-        # Extract all the contents of zip file in target directory
-        with ZipFile(zip_file_path) as zip_file:
-            zip_file.extractall(target_dir)
-        os.remove(zip_file_path)
         result = ModelArtifact(
             target_dir,
             conflict_strategy=conflict_strategy,

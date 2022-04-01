@@ -34,21 +34,22 @@ install_requires = [
     "numpy>=1.19.2",
     "oci>=2.48.1",
     "ocifs>=0.1.5",
-    "onnx~=1.10.0",
-    "onnxmltools~=1.9.0",
-    "onnxruntime~=1.8.0",
+    "onnx~=1.10.2",
+    "onnxmltools>=1.10.0",
+    "onnxruntime>=1.10.0",
+    "skl2onnx>=1.10.4",
+    "optuna==2.9.0",
     "pandas>1.2.1,<1.4",
-    "psutil>=5.7.2",
     "py-cpuinfo>=7.0.0",
     "python_jsonschema_objects>=0.3.13",
     "scikit-learn>=0.23.2",
     "scipy>=1.5.4",
     "seaborn>=0.11.0",
     "six>=1.14.0",
-    "skl2onnx~=1.9.0",
     "sqlalchemy>=1.4.1",
     "tabulate>=0.8.9",
     "tqdm>=4.59.0",
+    "psutil>=5.7.2",
 ]
 
 extras_require = {
@@ -62,12 +63,21 @@ extras_require = {
     "text": [
         "wordcloud>=1.8.1",
     ],
+    "data_science": [
+        "torch",
+        "tensorflow",
+        "tf2onnx",
+        "onnx~=1.10.2",
+        "onnxruntime>=1.10.0",
+        "onnxmltools>=1.10.0",
+        "skl2onnx>=1.10.4",
+    ],
     "data": [
         "fastavro>=0.24.2",
         "openpyxl>=3.0.7",
         "pandavro>=1.6.0",
     ],
-    "opctl": ["oci-cli", "docker"],
+    "opctl": ["oci-cli", "docker", "conda-pack", "nbconvert", "nbformat"],
     "mysql": ["mysql-connector-python"],
 }
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})

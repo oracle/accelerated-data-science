@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Any
-from ads.common.helper import Serializable
+from ads.common.serializer import Serializable
 
 
 class Reader(ABC):
