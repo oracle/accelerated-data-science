@@ -1,0 +1,6 @@
+autodoc
+nbsphinx
+sphinx
+sphinxcontrib-napoleon
+sphinx-rtd-theme
+pandoc

@@ -7,9 +7,9 @@
 import json
 import logging
 import os
-import re
 import sys
 from abc import ABC, ABCMeta, abstractclassmethod, abstractmethod
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -17,6 +17,10 @@ import ads.dataset.factory as factory
 import fsspec
 import pandas as pd
 import yaml
+from ads.common import logger
+from ads.common.error import ChangesNotCommitted
+from git import Repo
+from oci.data_science.models import ModelProvenance
 
 try:
     from yaml import CDumper as dumper
@@ -1415,8 +1419,8 @@ class ModelTaxonomyMetadata(ModelMetadata):
 
         Parameters
         ----------
-        map: Dict[str, str]
-            The key/value map with model metadata information.
+        metadata_list: List
+            List of oci metadata.
 
         Returns
         -------
@@ -1444,4 +1448,135 @@ class ModelTaxonomyMetadata(ModelMetadata):
             )
             .sort_values(by=[MetadataTaxonomyPrintColumns.KEY])
             .reset_index(drop=True)
+        )
+
+
+@dataclass(repr=True)
+class ModelProvenanceMetadata:
+    """ModelProvenanceMetadata class.
+
+    Examples
+    --------
+    >>> provenance_metadata = ModelProvenanceMetadata.fetch_training_code_details()
+    ModelProvenanceMetadata(repo=<git.repo.base.Repo '/home/datascience/.git'>, git_branch='master', git_commit='99ad04c31803f1d4ffcc3bf4afbd6bcf69a06af2', repository_url='file:///home/datascience', "", "")
+    >>> provenance_metadata.assert_path_not_dirty("your_path", ignore=False)
+    """
+
+    repo: str = None
+    git_branch: str = None
+    git_commit: str = None
+    repository_url: str = None
+    training_script_path: str = None
+    training_id: str = None
+    artifact_dir: str = None
+
+    @classmethod
+    def fetch_training_code_details(
+        cls,
+        training_script_path: str = None,
+        training_id: str = None,
+        artifact_dir: str = None,
+    ):
+        """Fetches the training code details: repo, git_branch, git_commit, repository_url, training_script_path and training_id.
+
+        Parameters
+        ----------
+        training_script_path: (str, optional). Defaults to None.
+            Training script path.
+        training_id: (str, optional). Defaults to None.
+            The training OCID for model.
+        artifact_dir: str
+            artifact directory to store the files needed for deployment.
+
+        Returns
+        -------
+        ModelProvenanceMetadata
+            A ModelProvenanceMetadata instance.
+        """
+        repo = Repo(".", search_parent_directories=True)
+        # get repository url
+        if len(repo.remotes) > 0:
+            repository_url = (
+                repo.remotes.origin.url
+                if repo.remotes.origin in repo.remotes
+                else list(repo.remotes.values())[0].url
+            )
+        else:
+            repository_url = "file://" + repo.working_dir  # no remote repo
+
+        # get git branch
+        git_branch = format(repo.active_branch)
+        # get git commit
+        git_commit = ""
+        try:
+            git_commit = format(str(repo.head.commit.hexsha))
+        except ValueError:
+            # do not set commit if there isn't any
+            logger.warning("No commit found.")
+        if training_script_path is not None and training_script_path != "":
+            if not os.path.exists(training_script_path):
+                logger.warning(
+                    f"Training script {os.path.abspath(training_script_path)} does not exists."
+                )
+            else:
+                training_script_path = os.path.abspath(training_script_path)
+        return cls(
+            repo=repo,
+            git_branch=git_branch,
+            git_commit=git_commit,
+            repository_url=repository_url,
+            training_script_path=training_script_path,
+            training_id=training_id,
+            artifact_dir=artifact_dir,
+        )
+
+    def assert_path_not_dirty(self, path: str, ignore: bool):
+        """Checks if all the changes in this path has been commited.
+
+        Parameters
+        ----------
+        path: (str)
+            path.
+        ignore (bool)
+            whether to ignore the changes or not.
+
+        Raises
+        ------
+        ChangesNotCommitted: if there are changes not being commited.
+
+        Returns
+        -------
+        None
+            Nothing.
+        """
+        if self.repo is not None and not ignore:
+            path_abs = os.path.abspath(path)
+            if (
+                os.path.commonpath([path_abs, self.repo.working_dir])
+                == self.repo.working_dir
+            ):
+                path_relpath = os.path.relpath(path_abs, self.repo.working_dir)
+                if self.repo.is_dirty(path=path_relpath) or any(
+                    [
+                        os.path.commonpath([path_relpath, untracked]) == path_relpath
+                        for untracked in self.repo.untracked_files
+                    ]
+                ):
+                    raise ChangesNotCommitted(path_abs)
+
+    def _to_oci_metadata(self):
+        """Convert to oci model provenance object.
+
+        Returns
+        -------
+        ModelProvenance
+            OCI model provenance object.
+        """
+        return ModelProvenance(
+            repository_url=self.repository_url,
+            git_branch=self.git_branch,
+            git_commit=self.git_commit,
+            script_dir=self.artifact_dir,
+            training_script=self.training_script_path,
+            training_id=self.training_id,
         )

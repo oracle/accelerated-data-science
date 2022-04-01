@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 import yaml
-from ads.common.helper import Serializable
+from ads.common.serializer import DataClassSerializable
 
 try:
     from yaml import CDumper as dumper
@@ -53,7 +53,7 @@ class DataSizeTooWide(ValueError):
 
 
 @dataclass(repr=False)
-class Expression(Serializable):
+class Expression(DataClassSerializable):
     """
     Expression allows specifying string representation of an expression which can be evaluated by the language corresponding to the value provided in `langauge` attribute
 
@@ -106,7 +106,7 @@ class Expression(Serializable):
 
 
 @dataclass(repr=False)
-class Domain(Serializable):
+class Domain(DataClassSerializable):
     """Domain describes the data. It holds following information -
     * stats - Statistics of the data.
     * constraints - List of Expression which defines the constraint for the data.
@@ -133,7 +133,7 @@ class Domain(Serializable):
 
 
 @dataclass(repr=False)
-class Attribute(Serializable):
+class Attribute(DataClassSerializable):
     """
     Attribute describes the column/feature/element. It holds following information -
     * dtype - Type of data - float, int64, etc. Matches with Pandas dtypes
@@ -629,7 +629,7 @@ class Schema:
         str
             The json representation of data schema.
         """
-        return json.dumps(self.to_dict())
+        return json.dumps(self.to_dict()).replace("NaN", "null")
 
     def to_json_file(self, file_path):
         """Saves the data schema into a json file.

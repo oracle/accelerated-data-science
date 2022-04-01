@@ -10,6 +10,8 @@ import os
 from typing import Any, Dict
 
 from ads.jobs.builders.runtimes.base import Runtime
+from ads.common.auth import default_signer
+from ads.opctl.config.utils import convert_notebook
 
 
 class CondaRuntime(Runtime):
@@ -609,3 +611,22 @@ class DataFlowRuntime(Runtime):
     def archive_bucket(self) -> str:
         """Bucket to save archive zip"""
         return self.get_spec(self.CONST_ARCHIVE_BUCKET)
+
+    def convert(self, **kwargs):
+        pass
+
+
+class DataFlowNotebookRuntime(DataFlowRuntime, NotebookRuntime):
+    def convert(self, overwrite=False):
+        if self.output_uri:
+            path = os.path.join(
+                self.output_uri,
+                str(os.path.basename(self.notebook_uri)).replace(".ipynb", ".py"),
+            )
+        else:
+            path = os.path.splitext(self.notebook_uri)[0] + ".py"
+        exclude_tags = self.exclude_tag or {}
+        convert_notebook(
+            self.notebook_uri, default_signer(), exclude_tags, path, overwrite=overwrite
+        )
+        self.set_spec(self.CONST_SCRIPT_PATH, path)

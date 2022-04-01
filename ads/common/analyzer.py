@@ -6,7 +6,7 @@
 
 from bokeh.io import output_notebook
 from IPython import get_ipython
-from ads.common.deprecate import deprecated
+from ads.common.decorator.deprecate import deprecated
 
 try:
     from dask.diagnostics import ResourceProfiler

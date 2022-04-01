@@ -7,7 +7,7 @@
 import datetime
 import logging
 import time
-from typing import Union
+from typing import Union, List
 
 import oci.logging
 import oci.loggingsearch
@@ -15,6 +15,16 @@ from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 from ads.common.oci_resource import OCIResource, ResourceNotFoundError
 
 logger = logging.getLogger(__name__)
+
+# Maximum number of log records to be returned by default.
+LOG_RECORDS_LIMIT = 100
+# The time interval in seconds between sending each request to pull logs
+LOG_INTERVAL = 3
+
+
+class SortOrder:
+    ASC = "ASC"
+    DESC = "DESC"
 
 
 class OCILoggingModelMixin(OCIModelMixin, OCIWorkRequestMixin):
@@ -297,126 +307,319 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         """
         return dt.isoformat()[:-3] + "Z"
 
+    @staticmethod
+    def _to_utc_native(dt: datetime.datetime) -> str:
+        """Converts offset-aware datetime to offset-native UTC time.
+
+        Parameters
+        ----------
+        dt : datetime.datetime
+            A datetime object to be converted.
+            If dt is offset native, it will be returned as is.
+
+        Returns
+        -------
+        datetime.datetime
+            Offset-native datetime
+        """
+        if dt.tzinfo:
+            return dt.astimezone(datetime.timezone.utc).replace(tzinfo=None)
+        return dt
+
+    def _search_logs(
+        self,
+        time_start: datetime.datetime,
+        time_end: datetime.datetime,
+        search_query: str,
+    ) -> List[oci.loggingsearch.models.SearchResult]:
+        """Search logs from OCI logging service
+
+        Due to the limitation on the Log search API.
+        This method cannot return more than 1000 logs within 1000 microseconds.
+
+        Parameters
+        ----------
+        time_start : datetime.datetime
+            Starting UTC time for the log search
+        time_end : datetime.datetime
+            Ending UTC time for the log search
+        search_query : str
+            Search query following the Logging Query Language Specification.
+            https://docs.oracle.com/en-us/iaas/Content/Logging/Reference/query_language_specification.htm
+
+        Returns
+        -------
+        List[oci.loggingsearch.models.SearchResult]
+            A list of SearchResult objects
+        """
+        # The log search API has a default limit of 100 results per request
+        # This limit can be set to 1,000
+        # https://docs.oracle.com/en-us/iaas/api/#/en/logging-search/20190909/SearchResult/SearchLogs
+
+        LIMIT_PER_REQUEST = 1000
+        logger.debug("Requesting logs between %s and %s ...", time_start, time_end)
+        search_details = oci.loggingsearch.models.SearchLogsDetails(
+            time_start=self.format_datetime(time_start),
+            time_end=self.format_datetime(time_end),
+            search_query=search_query,
+        )
+        response = self.search_client.search_logs(
+            search_details, limit=LIMIT_PER_REQUEST
+        )
+        records = response.data.results
+        logger.debug("%d logs received.", len(records))
+        if len(records) >= LIMIT_PER_REQUEST:
+            mid = time_start + (time_end - time_start) / 2
+            # The log search API used RFC3339 time format.
+            # The minimum time unit of RFC3339 format is 1000 microseconds.
+            # In the extreme case, if there are over 1000 logs with a 1k-microsecond interval,
+            # only 1000 logs can be returned.
+            if time_start + datetime.timedelta(microseconds=1000) > mid:
+                return records
+            return self._search_logs(time_start, mid, search_query) + self._search_logs(
+                mid, time_end, search_query
+            )
+        return records
+
     def search(
         self,
         source: str = None,
-        time_start: Union[datetime.datetime, str] = None,
-        time_end: Union[datetime.datetime, str] = None,
-        limit: int = 100,
+        time_start: datetime.datetime = None,
+        time_end: datetime.datetime = None,
+        limit: int = None,
         sort_by: str = "datetime",
         sort_order: str = "DESC",
-    ):
+        log_filter: str = None,
+    ) -> List[oci.loggingsearch.models.SearchResult]:
         """Search logs
 
         Parameters
         ----------
-        source : str
-            Expression to match the "source" field of the OCI log record.
-        time_start : datetime.datetime or str
-            Starting time for the query.
-             (Default value = None)
-        time_end : datetime.datetime or str
-            Ending time for the query.
-             (Default value = None)
-        limit : int
+        source : str, optional
+            Expression or OCID to filter the "source" field of the OCI log record.
+            Defaults to None. No filtering will be performed.
+        time_start : datetime.datetime, optional
+            Starting UTC time for the query.
+            Defaults to None. Logs from the past 24 hours will be returned.
+        time_end : datetime.datetime, optional
+            Ending UTC time for the query.
+            Defaults to None. The current time will be used.
+        limit : int, optional
             Maximum number of records to be returned.
-             (Default value = 100)
-        sort_by : str
+            Defaults to None. All logs will be returned.
+        sort_by : str, optional
             The field for sorting the logs.
-             (Default value = "datetime")
-        sort_order : str
-            Specify how the records should be sorted. Must be ASC or DESC.
-             (Default value = "DESC")
+            Defaults to "datetime"
+        sort_order : str, optional
+            Specify how the records should be sorted. Must be "ASC" or "DESC".
+            Defaults to "DESC".
+        log_filter : str, optional
+            Expression for filtering the logs.
+            This will be the WHERE clause of the query.
+            Defaults to None.
 
         Returns
         -------
+        List[oci.loggingsearch.models.SearchResult]
+            A list of SearchResult objects
 
         """
         # Default time_start and time_end
         if time_start is None:
-            time_start = datetime.datetime.utcnow() - datetime.timedelta(days=14)
+            time_start = datetime.datetime.utcnow() - datetime.timedelta(days=1)
         if time_end is None:
             time_end = datetime.datetime.utcnow()
 
-        # Save original datetime object before conversion
-        orig_time_start = time_start
+        time_start = self._to_utc_native(time_start)
+        time_end = self._to_utc_native(time_end)
 
+        logger.debug("Searching logs between %s and %s ...", time_start, time_end)
+
+        if time_start >= time_end:
+            return []
+
+        # Build search query
         search_query = f'SEARCH "{self.compartment_id}/{self.log_group_id}/{self.id}"'
+        filters = []
         if source:
-            search_query += f" | WHERE source = '*{source}'"
+            # source = <OCID> is not allowed but source = *<OCID> works
+            if source.startswith("ocid1."):
+                source = "*" + source
+            filters = [f"source = '{source}'"] + filters
+
+        if log_filter:
+            filters.append(log_filter)
+
+        if filters:
+            search_query += " | WHERE " + " AND ".join(filters)
 
         if sort_by:
             if not sort_order:
                 sort_order = "DESC"
             search_query += f" | SORT BY {sort_by} {sort_order}"
-        results = []
-        count = 0
-        # From our testing, number larger than total 4 fortnights
-        num_fortnights = 3
-        while len(results) < limit and count < num_fortnights:
-            # Converts datetime objects to RFC3339 format
-            if isinstance(time_start, datetime.datetime):
-                time_start = self.format_datetime(time_start)
-            if isinstance(time_end, datetime.datetime):
-                time_end = self.format_datetime(time_end)
+        logger.debug("Log search query: %s", search_query)
 
-            search_details = oci.loggingsearch.models.SearchLogsDetails(
-                # time_start cannot be more than 14 days older
-                time_start=time_start,
-                time_end=time_end,
-                # https://docs.oracle.com/en-us/iaas/Content/Logging/Reference/query_language_specification.htm
-                # Double quotes must be used for "<log_stream>" after search
-                # Single quotes must be used for the string in <where_expression>
-                # source = <OCID> is not allowed but source = *<OCID> works
-                search_query=search_query,
-                # is_return_field_info=True
-            )
-            results += self.search_client.search_logs(
-                search_details, limit=limit
-            ).data.results
-            time_end = orig_time_start
-            time_start = orig_time_start - datetime.timedelta(days=14)
-            count += 1
-            orig_time_start = time_start
+        # Save original datetime object before conversion
+        orig_time_start = time_start
+        # For each search request, time_start cannot be more than 14 days older
+        if time_start < time_end - datetime.timedelta(days=14):
+            time_start = time_end - datetime.timedelta(days=14)
+
+        results = []
+
+        while not limit or len(results) < limit:
+
+            if limit:
+                logger.debug(
+                    "Requesting logs between %s and %s ...", time_start, time_end
+                )
+                search_details = oci.loggingsearch.models.SearchLogsDetails(
+                    # time_start cannot be more than 14 days older
+                    time_start=self.format_datetime(time_start),
+                    time_end=self.format_datetime(time_end),
+                    # https://docs.oracle.com/en-us/iaas/Content/Logging/Reference/query_language_specification.htm
+                    # Double quotes must be used for "<log_stream>" after search
+                    # Single quotes must be used for the string in <where_expression>
+                    search_query=search_query,
+                    # is_return_field_info=True
+                )
+                response = self.search_client.search_logs(
+                    search_details, limit=(limit - len(results))
+                )
+                records = response.data.results
+                logger.debug("%d logs received.", len(records))
+            else:
+                records = self._search_logs(time_start, time_end, search_query)
+
+            results.extend(records)
+
+            if time_start > orig_time_start:
+                time_end = time_start
+                time_start = time_end - datetime.timedelta(days=14)
+                time_start = max(time_start, orig_time_start)
+            else:
+                break
+
         return results
 
-    def tail(self, source: str = None, limit=100) -> list:
-        """Returns the most recent log records.
+    def _search_and_format(
+        self,
+        source: str = None,
+        time_start: datetime.datetime = None,
+        time_end: datetime.datetime = None,
+        limit: int = LOG_RECORDS_LIMIT,
+        sort_by: str = "datetime",
+        sort_order: str = SortOrder.DESC,
+    ):
+        """Returns the formatted log records.
 
         Parameters
         ----------
-        source : str
+        source: (str, optional). Defaults to None.
             Filter the records by the source field.
-
-        limit : int
+        time_start: (datetime.datetime, optional). Defaults to None.
+            Starting time for the query.
+        time_end: (datetime.datetime, optional). Defaults to None.
+            Ending time for the query.
+        limit: (int, optional). Defaults to 100.
             Maximum number of records to be returned.
-             (Default value = 100)
+        sort_by: (str, optional). Defaults to "datetime"
+            The field for sorting the logs.
+        sort_order: (str, optional). Defaults to "DESC".
+            The sort order for the log records. Can be "ASC" or "DESC".
 
         Returns
         -------
-        list:
-            A list of log records. Each log record is a dictionary with the following keys: id, time, message.
-
+        list
+            A list of log records.
+            Each log record is a dictionary with the following keys: `id`, `time`, `message`.
         """
-        logs = self.search(source, limit=limit, sort_order="DESC")
-        logs = [log.data for log in logs]
-        logs = sorted(logs, key=lambda x: x.get("datetime"))
+        if not time_start:
+            time_start = datetime.datetime.utcnow() - datetime.timedelta(days=14)
+
+        logs = self.search(
+            source=source,
+            time_start=time_start,
+            time_end=time_end,
+            limit=limit,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+        logs = sorted((log.data for log in logs), key=lambda x: x.get("datetime"))
         logs = [log.get("logContent", {}) for log in logs]
         return [
             {
                 "id": log.get("id"),
-                "message": log.get("data").get("message"),
+                "message": log.get("data", {}).get("message"),
                 "time": log.get("time"),
             }
             for log in logs
         ]
 
+    def tail(
+        self,
+        source: str = None,
+        limit=LOG_RECORDS_LIMIT,
+        time_start: datetime.datetime = None,
+    ) -> List[dict]:
+        """Returns the most recent log records.
+
+        Parameters
+        ----------
+        source: (str, optional). Defaults to None.
+            The source field to filter the log records.
+        limit: (int, optional). Defaults to 100.
+            Maximum number of records to be returned.
+            If limit is set to None, all logs from time_start to now will be returned.
+        time_start: (datetime.datetime, optional)
+            Starting time for the log query.
+            Defaults to None. Logs up to 14 days from now will be returned.
+
+        Returns
+        -------
+        list
+            A list of log records.
+            Each log record is a dictionary with the following keys: `id`, `time`, `message`.
+        """
+        return self._search_and_format(
+            source=source, limit=limit, sort_order=SortOrder.DESC, time_start=time_start
+        )
+
+    def head(
+        self,
+        source: str = None,
+        limit=LOG_RECORDS_LIMIT,
+        time_start: datetime.datetime = None,
+    ) -> List[dict]:
+        """Returns the preceding log records.
+
+        Parameters
+        ----------
+        source: (str, optional). Defaults to None.
+            The source field to filter the log records.
+        limit: (int, optional). Defaults to 100.
+            Maximum number of records to be returned.
+            If limit is set to None, all logs from time_start to now will be returned.
+        time_start: (datetime.datetime, optional)
+            Starting time for the log query.
+            Defaults to None. Logs up to 14 days from now will be returned.
+
+        Returns
+        -------
+        list
+            A list of log records.
+            Each log record is a dictionary with the following keys: `id`, `time`, `message`.
+        """
+        return self._search_and_format(
+            source=source, limit=limit, sort_order=SortOrder.ASC, time_start=time_start
+        )
+
     def stream(
         self,
         source: str = None,
-        interval: int = 3,
+        interval: int = LOG_INTERVAL,
         stop_condition: callable = None,
-        batch_size: int = 100,
+        time_start: datetime.datetime = None,
     ):
         """Streams logs to console/terminal until stop_condition() returns true.
 
@@ -428,21 +631,30 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         stop_condition : callable
             A function to determine if the streaming should stop. (Default value = None)
             The log streaming will stop if the function returns true.
-        batch_size : int
-            (Default value = 100)
-            The number of logs to be returned by OCI in each request
-            This basically limits the number logs streamed for each interval
-            This number should be large enough to cover the messages generated during the interval
-            However, Setting this to a large number will decrease the performance
-            This method calls the the tail
+        time_start: datetime.datetime
+            Starting time for the log query.
+            Defaults to None. Logs up to 14 days from now will be returned.
 
+        Returns
+        -------
+        int:
+            The number of logs printed.
         """
         # Use a set to store the IDs of the printed messages
         printed = set()
         exception_count = 0
         while True:
             try:
-                logs = self.tail(source, batch_size)
+                # Tail the logs from time_start until now
+                # Logs may come in after the timestamp.
+                # For the next tail() call,
+                # use the time that's 3 minutes before now so that we can have some overlaps.
+                next_time_start = datetime.datetime.utcnow() - datetime.timedelta(
+                    seconds=180
+                )
+                logs = self.tail(source, limit=None, time_start=time_start)
+                # Update time_start if the tail() is successful
+                time_start = next_time_start
             except Exception:
                 exception_count += 1
                 if exception_count > 20:
@@ -460,5 +672,5 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
                     print(f"{timestamp} - {log.get('message')}")
                     printed.add(log.get("id"))
             if stop_condition and stop_condition():
-                return
+                return len(printed)
             time.sleep(interval)

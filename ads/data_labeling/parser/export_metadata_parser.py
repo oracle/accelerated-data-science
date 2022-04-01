@@ -6,7 +6,7 @@
 
 from typing import Any, Dict
 
-from ads.data_labeling.utils import ObjectStorageDetails
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.data_labeling.interface.parser import Parser
 from ads.data_labeling.metadata import Metadata
 

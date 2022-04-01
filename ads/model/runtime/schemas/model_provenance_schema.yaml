@@ -1,0 +1,36 @@
+PROJECT_OCID:
+  type: string
+  required: true
+  nullable: false
+TENANCY_OCID:
+  type: string
+  required: true
+  nullable: true
+TRAINING_CODE:
+  type: dict
+  required: true
+  nullable: true
+TRAINING_COMPARTMENT_OCID:
+  type: string
+  required: true
+  nullable: false
+TRAINING_CONDA_ENV:
+  type: dict
+  required: true
+  nullable: true
+TRAINING_REGION:
+  type: string
+  required: true
+  nullable: true
+TRAINING_RESOURCE_OCID:
+  type: string
+  required: true
+  nullable: true
+USER_OCID:
+  type: string
+  required: true
+  nullable: true
+VM_IMAGE_INTERNAL_ID:
+  type: string
+  required: true
+  nullable: true

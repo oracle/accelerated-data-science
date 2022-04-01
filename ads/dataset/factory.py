@@ -49,7 +49,7 @@ from ads.type_discovery.typed_feature import (
 from ads.type_discovery.typed_feature import TypedFeature
 from typing import Callable, Tuple
 from ocifs import OCIFileSystem
-from ads.common.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import runtime_dependency
 
 default_snapshots_dir = None
 default_storage_options = None

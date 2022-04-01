@@ -10,31 +10,38 @@ from typing import Dict
 
 import click
 
+from ads.common.oci_datascience import DSCNotebookSession
 from ads.opctl.backend.ads_ml_job import MLJobBackend
 from ads.opctl.backend.local import LocalBackend
+from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.config.resolver import ConfigResolver
-from ads.opctl.config.utils import _read_from_ini
+from ads.opctl.config.utils import read_from_ini
 from ads.opctl.config.validator import ConfigValidator
 from ads.opctl.constants import (
-    OPS_IMAGE_BASE,
-    OPS_IMAGE_GPU_BASE,
-    ML_JOB_IMAGE,
-    ML_JOB_GPU_IMAGE,
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_PROFILE,
     DEFAULT_CONDA_PACK_FOLDER,
-    CONDA_PACK_OS_PREFIX_FORMAT,
     DEFAULT_ADS_CONFIG_FOLDER,
     ADS_CONFIG_FILE_NAME,
     ADS_JOBS_CONFIG_FILE_NAME,
+    ADS_DATAFLOW_CONFIG_FILE_NAME,
+)
+from ads.opctl.utils import (
+    is_in_notebook_session,
+    OCIAuthContext,
+    get_service_pack_prefix,
 )
 
 
 class _BackendFactory:
 
-    BACKENDS_MAP = {"local": LocalBackend, "job": MLJobBackend}
+    BACKENDS_MAP = {
+        "local": LocalBackend,
+        "job": MLJobBackend,
+        "dataflow": DataFlowBackend,
+    }
 
     def __init__(self, config: Dict):
         self.config = config
@@ -79,7 +86,7 @@ def run(config: Dict, **kwargs) -> Dict:
 
 def delete(**kwargs) -> None:
     """
-    Delete a ML Job or a ML Job run.
+    Delete a MLJob/DataFlow run.
 
     Parameters
     ----------
@@ -89,20 +96,25 @@ def delete(**kwargs) -> None:
     -------
     None
     """
-    if "datasciencejobrun" in kwargs["ocid"]:
+    if "datascience" in kwargs["ocid"]:
+        kwargs["backend"] = "job"
+    elif "dataflow" in kwargs["ocid"]:
+        kwargs["backend"] = "dataflow"
+
+    if "datasciencejobrun" in kwargs["ocid"] or "dataflowrun" in kwargs["ocid"]:
         kwargs["run_id"] = kwargs.pop("ocid")
-    elif "datasciencejob" in kwargs["ocid"]:
+    elif "datasciencejob" in kwargs["ocid"] or "dataflowapplication" in kwargs["ocid"]:
         kwargs["job_id"] = kwargs.pop("ocid")
     else:
-        raise ValueError(f"{kwargs['ocid']} is not a job run or job id.")
-    kwargs["backend"] = "job"
+        raise ValueError(f"{kwargs['ocid']} is valid or supported.")
+
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.delete()
 
 
 def cancel(**kwargs) -> None:
     """
-    Cancel a ML Job run.
+    Cancel a MLJob/DataFlow run.
 
     Parameters
     ----------
@@ -112,17 +124,20 @@ def cancel(**kwargs) -> None:
     -------
     None
     """
-    kwargs["run_id"] = kwargs.pop("ocid") or kwargs.pop("run_id")
-    if "datasciencejobrun" not in kwargs["run_id"]:
+    kwargs["run_id"] = kwargs.pop("ocid")
+    if "datasciencejobrun" in kwargs["run_id"]:
+        kwargs["backend"] = "job"
+    elif "dataflowrun" in kwargs["run_id"]:
+        kwargs["backend"] = "dataflow"
+    else:
         raise ValueError("Must provide a job run OCID.")
-    kwargs["backend"] = "job"
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.cancel()
 
 
 def watch(**kwargs) -> None:
     """
-    Watch a ML Job run.
+    Watch a MLJob/DataFlow run.
 
     Parameters
     ----------
@@ -132,10 +147,13 @@ def watch(**kwargs) -> None:
     -------
     None
     """
-    kwargs["run_id"] = kwargs.pop("ocid") or kwargs.pop("run_id")
-    if "datasciencejobrun" not in kwargs["run_id"]:
+    kwargs["run_id"] = kwargs.pop("ocid")
+    if "datasciencejobrun" in kwargs["run_id"]:
+        kwargs["backend"] = "job"
+    elif "dataflowrun" in kwargs["run_id"]:
+        kwargs["backend"] = "dataflow"
+    else:
         raise ValueError("Must provide a job run OCID.")
-    kwargs["backend"] = "job"
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.watch()
 
@@ -155,8 +173,7 @@ def init_vscode(**kwargs) -> None:
     p = ConfigMerger({}).process(**kwargs)
     p = ConfigResolver(p.config)
     p._resolve_env_vars()
-    p._reslve_mounted_volumes()
-    use_gpu = p.config["execution"].get("gpu", False)
+    p._resolve_mounted_volumes()
     LocalBackend(p.config).init_vscode_container()
 
 
@@ -184,12 +201,16 @@ def configure() -> None:
     os.makedirs(os.path.expanduser(folder), exist_ok=True)
 
     if os.path.exists(os.path.join(folder, ADS_CONFIG_FILE_NAME)):
-        config_parser = _read_from_ini(os.path.join(folder, ADS_CONFIG_FILE_NAME))
+        config_parser = read_from_ini(os.path.join(folder, ADS_CONFIG_FILE_NAME))
     else:
         config_parser = configparser.ConfigParser(default_section=None)
         config_parser.optionxform = str
+
     if "OCI" not in config_parser:
         config_parser["OCI"] = {}
+    if "CONDA" not in config_parser:
+        config_parser["CONDA"] = {}
+
     oci_config_path = click.prompt(
         "OCI config path:",
         default=config_parser["OCI"].get("oci_config", DEFAULT_OCI_CONFIG_FILE),
@@ -206,75 +227,156 @@ def configure() -> None:
         "oci_config": oci_config_path,
         "oci_profile": oci_profile,
     }
-    if "CONDA" not in config_parser:
-        config_parser["CONDA"] = {}
     conda_pack_path = click.prompt(
         "Conda pack install folder:",
         default=config_parser["CONDA"].get(
             "conda_pack_folder", DEFAULT_CONDA_PACK_FOLDER
         ),
     )
+    config_parser["CONDA"]["conda_pack_folder"] = os.path.abspath(
+        os.path.expanduser(conda_pack_path)
+    )
+    if is_in_notebook_session():
+        conda_os_prefix_default = config_parser["CONDA"].get(
+            "conda_pack_os_prefix", get_service_pack_prefix()
+        )
+    else:
+        conda_os_prefix_default = config_parser["CONDA"].get("conda_pack_os_prefix", "")
 
-    config_parser["CONDA"] = {
-        "conda_pack_folder": os.path.abspath(os.path.expanduser(conda_pack_path)),
-    }
+    conda_os_prefix = click.prompt(
+        "Object storage Conda Env prefix, in the format oci://<bucket>@<namespace>/<path>",
+        default=conda_os_prefix_default,
+    )
+    config_parser["CONDA"]["conda_pack_os_prefix"] = conda_os_prefix
 
     with open(os.path.join(os.path.expanduser(folder), ADS_CONFIG_FILE_NAME), "w") as f:
         config_parser.write(f)
     print(f"Configuration saved at {os.path.join(folder, ADS_CONFIG_FILE_NAME)}")
 
-    required_fields = [
-        "compartment_id",
-        "project_id",
-        "subnet_id",
-        "shape_name",
-        "block_storage_size_in_GBs",
-    ]
+    print("==== Setting configuration for OCI Jobs ====")
+    if click.confirm(
+        f"Do you want to set up or update OCI Jobs configuration?", default=True
+    ):
+        required_fields = [
+            ("compartment_id", ""),
+            ("project_id", ""),
+            ("subnet_id", ""),
+            ("shape_name", ""),
+            ("block_storage_size_in_GBs", ""),
+        ]
 
-    optional_fields = [
-        "log_group_id",
-        "log_id",
-        "docker_registry",
-    ]
+        optional_fields = [
+            ("log_group_id", ""),
+            ("log_id", ""),
+            ("docker_registry", ""),
+            ("conda_pack_os_prefix", "in the format oci://<bucket>@<namespace>/<path>"),
+        ]
+        _set_service_configurations(
+            ADS_JOBS_CONFIG_FILE_NAME,
+            required_fields,
+            optional_fields,
+            folder,
+            oci_config_path,
+            is_in_notebook_session(),
+        )
 
-    if os.path.exists(os.path.join(folder, ADS_JOBS_CONFIG_FILE_NAME)):
-        infra_parser = _read_from_ini(os.path.join(folder, ADS_JOBS_CONFIG_FILE_NAME))
+    print("==== Setting configuration for OCI DataFlow ====")
+    if click.confirm(
+        f"Do you want to set up or update OCI DataFlow configuration?", default=True
+    ):
+        required_fields = [
+            ("compartment_id", ""),
+            ("driver_shape", ""),
+            ("executor_shape", ""),
+            ("logs_bucket_uri", ""),
+            ("script_bucket", "in the format oci://<bucket>@<namespace>/<path>"),
+        ]
+
+        optional_fields = [
+            ("num_executors", ""),
+            ("spark_version", ""),
+            ("archive_bucket", "in the format oci://<bucket>@<namespace>/<path>"),
+        ]
+        _set_service_configurations(
+            ADS_DATAFLOW_CONFIG_FILE_NAME,
+            required_fields,
+            optional_fields,
+            folder,
+            oci_config_path,
+            is_in_notebook_session(),
+        )
+
+
+def _set_service_configurations(
+    config_file_name,
+    required_fields,
+    optional_fields,
+    config_folder,
+    oci_config_path=None,
+    rp=False,
+):
+    if os.path.exists(os.path.join(config_folder, config_file_name)):
+        infra_parser = read_from_ini(os.path.join(config_folder, config_file_name))
     else:
         infra_parser = configparser.ConfigParser(default_section=None)
         infra_parser.optionxform = str
 
-    if not click.confirm(
-        f"Do you want to set up or update OCI Jobs configuration? \nNeed {required_fields + optional_fields + ['conda_pack_os_prefix']}"
-    ):
-        return
-    print("==== Setting configuration for OCI Jobs ====")
-    parser = _read_from_ini(os.path.abspath(os.path.expanduser(oci_config_path)))
-    for oci_profile in parser:
-        if oci_profile:
-            if click.confirm(
-                f"Do you want to set up or update for profile {oci_profile}?"
-            ):
-                if oci_profile not in infra_parser:
-                    infra_parser[oci_profile] = {}
-                for field in required_fields:
-                    infra_parser[oci_profile][field] = click.prompt(
-                        f"Specify {field}",
-                        default=infra_parser[oci_profile].get(field, None),
-                    )
-                for field in optional_fields:
-                    ans = click.prompt(
-                        f"Specify {field}",
-                        default=infra_parser[oci_profile].get(field, ""),
-                    )
-                    if len(ans) > 0:
-                        infra_parser[oci_profile][field] = ans
-                ans = click.prompt(
-                    "Specify object storage path to publish conda pack e.g. oci://<bucket>@<namespace>/conda-packs/)",
-                    default=infra_parser[oci_profile].get("conda_pack_os_prefix", ""),
-                )
-                if len(ans) > 0:
-                    infra_parser[oci_profile]["conda_pack_os_prefix"] = ans
+    def prompt_for_values(infra_parser, profile):
+        for field, msg in required_fields:
+            prompt = f"Specify {field}" if len(msg) == 0 else f"Specify {field}, {msg}"
+            infra_parser[profile][field] = click.prompt(
+                prompt,
+                default=infra_parser[profile].get(field, None),
+            )
+        for field, msg in optional_fields:
+            prompt = f"Specify {field}" if len(msg) == 0 else f"Specify {field}, {msg}"
+            ans = click.prompt(
+                prompt,
+                default=infra_parser[profile].get(field, ""),
+            )
+            if len(ans) > 0:
+                infra_parser[profile][field] = ans
 
-    with open(os.path.join(folder, ADS_JOBS_CONFIG_FILE_NAME), "w") as f:
+    if rp:
+        if "RESOURCE_PRINCIPAL" not in infra_parser:
+            with OCIAuthContext():
+                notebook_session = DSCNotebookSession.from_ocid(
+                    os.environ["NB_SESSION_OCID"]
+                )
+            default_values = {
+                "compartment_id": notebook_session.compartment_id,
+                "project_id": notebook_session.project_id,
+                "subnet_id": notebook_session.notebook_session_configuration_details.subnet_id,
+                "block_storage_size_in_GBs": notebook_session.notebook_session_configuration_details.block_storage_size_in_gbs,
+                "shape_name": notebook_session.notebook_session_configuration_details.shape,
+                "driver_shape": notebook_session.notebook_session_configuration_details.shape,
+                "executor_shape": notebook_session.notebook_session_configuration_details.shape,
+            }
+            infra_parser["RESOURCE_PRINCIPAL"] = {
+                k: v
+                for k, v in default_values.items()
+                if (
+                    k in [field[0] for field in required_fields]
+                    or k in [field[0] for field in optional_fields]
+                )
+            }
+        if click.confirm(
+            "Do you want to set up or update configuration when using resource principal?",
+            default=True,
+        ):
+            prompt_for_values(infra_parser, "RESOURCE_PRINCIPAL")
+
+    if os.path.exists(os.path.expanduser(oci_config_path)):
+        parser = read_from_ini(os.path.abspath(os.path.expanduser(oci_config_path)))
+        for oci_profile in parser:
+            if oci_profile:
+                if click.confirm(
+                    f"Do you want to set up or update for profile {oci_profile}?"
+                ):
+                    if oci_profile not in infra_parser:
+                        infra_parser[oci_profile] = {}
+                    prompt_for_values(infra_parser, oci_profile)
+
+    with open(os.path.join(config_folder, config_file_name), "w") as f:
         infra_parser.write(f)
-    print(f"Configuration saved at {os.path.join(folder, ADS_JOBS_CONFIG_FILE_NAME)}")
+    print(f"Configuration saved at {os.path.join(config_folder, config_file_name)}")

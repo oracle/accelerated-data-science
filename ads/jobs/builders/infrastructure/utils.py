@@ -86,6 +86,8 @@ def get_value(obj, attr, default=None):
         An object or a dictionary
     attr :
         Attributes as a string seprated by dot(.)
+    default :
+        Default value to be returned if attribute is not found.
 
     Returns
     -------
@@ -101,6 +103,6 @@ def get_value(obj, attr, default=None):
         elif hasattr(obj, "get"):
             val = obj.get(key, default)
         else:
-            break
+            return default
         obj = val
     return copy.deepcopy(val)

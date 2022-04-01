@@ -346,18 +346,19 @@ class ADSModel(object):
                 )
                 return []
 
-    def _onnx_data_transformer(self, X, y, **kwargs):
+    def _onnx_data_transformer(self, X, impute_values={}, **kwargs):
         if self._underlying_model in NoTransformModels:
-            return X, y
+            return X
         try:
             if hasattr(self, "onnx_data_preprocessor") and isinstance(
                 self.onnx_data_preprocessor, ONNXTransformer
             ):
-                return self.onnx_data_preprocessor.transform(X=X, y=y)
-            # These are the only 2 supported types so far
-            task = "classification" if self.is_classifier() else "regression"
-            self.onnx_data_preprocessor = ONNXTransformer(task=task)
-            return self.onnx_data_preprocessor.fit_transform(X=X, y=y)
+                return self.onnx_data_preprocessor.transform(X=X)
+
+            self.onnx_data_preprocessor = ONNXTransformer()
+            return self.onnx_data_preprocessor.fit_transform(
+                X=X, impute_values=impute_values
+            )
         except Exception as e:
             print(f"Warning: Onnx Data Transformation was unsuccessful with error: {e}")
             raise e
@@ -383,6 +384,7 @@ class ADSModel(object):
         ignore_deployment_error=False,
         use_case_type=None,
         inference_python_version=None,
+        imputed_values={},
         **kwargs,
     ):
         """
@@ -486,12 +488,16 @@ class ADSModel(object):
                 if y_sample is None and data_sample is not None
                 else y_sample
             )
-            X_trans, y_trans = self._onnx_data_transformer(X=X_sample, y=y_sample)
+
+            X_trans = self._onnx_data_transformer(
+                X=X_sample, imputed_values=imputed_values
+            )
+
             model_kwargs = serialize_model(
                 model=self,
                 target_dir=target_dir,
                 X=X_trans,
-                y=y_trans,
+                y=y_sample,
                 model_type=self._underlying_model,
             )
             max_col_num = kwargs.get("max_col_num", utils.DATA_SCHEMA_MAX_COL_NUM)

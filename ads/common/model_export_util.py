@@ -4,6 +4,7 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+
 import json
 import logging
 import os
@@ -32,7 +33,7 @@ from skl2onnx.common.shape_calculator import (
     calculate_linear_classifier_output_shapes,
     calculate_linear_regressor_output_shapes,
 )
-from sklearn.preprocessing import LabelEncoder
+from typing import Dict, Union
 
 pd.options.mode.chained_assignment = None
 
@@ -249,11 +250,13 @@ def prepare_generic_model(
             # before we request versions we want to check if fdk installed by user
             # and provide support in error message, if not installed
             try:
-                get_distribution('fdk')
+                get_distribution("fdk")
             except Exception as e:
                 if isinstance(e, DistributionNotFound):
-                    error_message = "fdk library not installed in current environment, it is required " \
-                                    "for deployment with fn. Install fdk with 'pip install fdk'."
+                    error_message = (
+                        "fdk library not installed in current environment, it is required "
+                        "for deployment with fn. Install fdk with 'pip install fdk'."
+                    )
                     logger.error(str(error_message))
                     raise
             else:
@@ -345,9 +348,9 @@ def serialize_model(
         A model to be serialized
     target_dir : str, optional
         directory to output the serialized model
-    X : Union[pandas.DataFrame, dask.DataFrame, numpy.ndarray, scipy.sparse.csr.csr_matrix]
+    X : Union[pandas.DataFrame, pandas.Series]
         The X data
-    y : Union[list, pandas.DataFrame, dask.DataFrame, pandas.Series, dask.Series, numpy.ndarray]
+    y : Union[list, pandas.DataFrame, pandas.Series]
         Tbe Y data
     model_type : str, optional
         A string corresponding to the model type
@@ -619,129 +622,230 @@ def _log_automatic_serialization_keras(e):
 # templates/score.jinja2. We do not yet have an automatic way of doing this.
 class ONNXTransformer(object):
     """
-    This is a transformer to convert X [pandas.Dataframe, dask.Dataframe, equivalent] and y [array like] data into Onnx
+    This is a transformer to convert X [pandas.Dataframe, pd.Series] data into Onnx
     readable dtypes and formats. It is Serializable, so it can be reloaded at another time.
 
-    Parameters
-    ----------
-    task: str
-        Either "classification" or "regression". This determines if y should be label encoded
 
     Examples
     --------
     >>> from ads.common.model_export_util import ONNXTransformer
-    >>> onnx_data_transformer = ONNXTransformer(task="classification")
-    >>> train_transformed = onnx_data_transformer.fit_transform(train.X, train.y)
-    >>> test_transformed = onnx_data_transformer.transform(test.X, test.y)
+    >>> onnx_data_transformer = ONNXTransformer()
+    >>> train_transformed = onnx_data_transformer.fit_transform(train.X, {"column_name1": "impute_value1", "column_name2": "impute_value2"}})
+    >>> test_transformed = onnx_data_transformer.transform(test.X)
     """
 
-    def __init__(self, task=None):
-        assert task in ["classification", "regression"], (
-            "The ONNXTransformer only supports the following task types:"
-            " [regression, classification]."
-        )
-        self.task = task
-        self.cat_impute_values = {}
-        self.cat_unique_values = {}
-        self.label_encoder = None
+    def __init__(self):
+        self.impute_values = {}
         self.dtypes = None
         self._fitted = False
 
-    def _handle_dtypes(self, X):
+    @staticmethod
+    def _handle_dtypes(X: Union[pd.DataFrame, pd.Series, np.ndarray, list]):
+        """Handles the dtypes for pandas dataframe and pandas Series.
+
+        Parameters
+        ----------
+        X : Union[pd.DataFrame, pd.Series, np.ndarray, list]
+            The Dataframe for the training data
+
+        Returns
+        -------
+        Union[pd.DataFrame, pd.Series, np.ndarray, list]
+            The transformed(numerical values are cast to float32) X data
+        """
         # Data type cast could be expensive doing it in a for loop
         # Especially with wide datasets
         # So cast the numerical columns first, without loop
-        # Then impute categorical columns
-        dict_astype = {}
-        for k, v in zip(X.columns, X.dtypes):
-            if "int" in str(v) or "float" in str(v):
-                dict_astype[k] = "float32"
-        _X = X.astype(dict_astype)
-        for k in _X.columns[_X.dtypes != "float32"]:
-            # SimpleImputer is not available for strings in ONNX-ML specifications
-            # Replace NaNs with the most frequent category
-            self.cat_impute_values[k] = _X[k].value_counts().idxmax()
-            _X[k] = _X[k].fillna(self.cat_impute_values[k])
-            # Sklearn's OrdinalEncoder and LabelEncoder don't support unseen categories in test data
-            # Label encode them to identify new categories in test data
-            self.cat_unique_values[k] = _X[k].unique().tolist()
+        # Then impute missing values
+        if isinstance(X, pd.Series):
+            series_name = X.name if X.name else 0
+            _X = X.to_frame()
+            _X = ONNXTransformer._handle_dtypes_dataframe(_X)[series_name]
+        elif isinstance(X, pd.DataFrame):
+            _X = ONNXTransformer._handle_dtypes_dataframe(X)
+        elif isinstance(X, np.ndarray):
+            _X = ONNXTransformer._handle_dtypes_np_array(X)
+        else:
+            # if users convert pandas dataframe with mixed types to numpy array directly
+            # it will turn the whole numpy array into object even though some columns are
+            # numerical and some are not. In that case, we need to do extra work to identify
+            # which columns are really numerical which for now, we only convert to float32
+            # if numpy array is all numerical. else, nothing will be done.
+            _X = X
         return _X
 
-    def fit(self, X, y=None):
+    @staticmethod
+    def _handle_dtypes_dataframe(X: pd.DataFrame):
+        """handle the dtypes for pandas dataframe.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame
+            The Dataframe for the training data
+
+        Returns
+        -------
+        pandas.DataFrame
+            The transformed X data
+        """
+        dict_astype = {}
+        for k, v in zip(X.columns, X.dtypes):
+            if "int" in str(v) or "float" in str(v) or "bool" in str(v):
+                dict_astype[k] = "float32"
+        _X = X.astype(dict_astype)
+        if len(dict_astype) > 0:
+            logging.warning("Numerical values in `X` are cast to float32.")
+        return _X
+
+    @staticmethod
+    def _handle_dtypes_np_array(X: np.ndarray):
+        """handle the dtypes for pandas dataframe.
+
+        Parameters
+        ----------
+        X : np.ndarray
+            The ndarray for the training data
+
+        Returns
+        -------
+        np.ndarray
+            The transformed X data
+        """
+        if "int" in str(X.dtype) or "float" in str(X.dtype) or "bool" in str(X.dtype):
+            _X = X.astype("float32")
+            logging.warning("Numerical values in `X` are cast to float32.")
+        else:
+            _X = X
+        return _X
+
+    def fit(
+        self,
+        X: Union[pd.DataFrame, pd.Series, np.ndarray, list],
+        impute_values: Dict = None,
+    ):
         """
         Fits the OnnxTransformer on the dataset
         Parameters
         ----------
-        X : Union[pandas.DataFrame, dask.DataFrame, numpy.ndarray, scipy.sparse.csr.csr_matrix]
+        X : Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
             The Dataframe for the training data
-        y: Union[list, pandas.DataFrame, dask.DataFrame, pandas.Series, dask.Series, numpy.ndarray]
-            The labels
 
         Returns
         -------
         Self: ads.Model
             The fitted estimator
         """
-        _X = self._handle_dtypes(X)
-        self.dtypes = _X.dtypes
-        if self.task == "classification" and y is not None:
-            # Label encoding is required for SVC's onnx converter
-            self.label_encoder = LabelEncoder()
-            y = self.label_encoder.fit_transform(y)
-
+        _X = ONNXTransformer._handle_dtypes(X)
+        if isinstance(_X, pd.DataFrame):
+            self.dtypes = _X.dtypes
+        elif isinstance(_X, np.ndarray):
+            self.dtypes = _X.dtype
+        self.impute_values = impute_values if impute_values else {}
         self._fitted = True
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X: Union[pd.DataFrame, pd.Series, np.ndarray, list]):
         """
-        Transforms the data for the OnnxTransformer
+        Transforms the data for the OnnxTransformer.
+
+            Parameters
+            ----------
+            X: Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
+                The Dataframe for the training data
+
+            Returns
+            -------
+            Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
+                The transformed X data
+        """
+        assert self._fitted, "Call fit_transform first!"
+        if self.dtypes is not None and len(self.dtypes) > 0:
+            if isinstance(X, list):
+                _X = np.array(X).astype(self.dtypes).tolist()
+            else:
+                _X = X.astype(self.dtypes)
+        else:
+            _X = X
+        _X = ONNXTransformer._handle_missing_value(_X, impute_values=self.impute_values)
+        return _X
+
+    @staticmethod
+    def _handle_missing_value(
+        X: Union[pd.DataFrame, pd.Series, np.ndarray, list], impute_values: Dict
+    ):
+        """Impute missing values in X according to impute_values.
+
         Parameters
         ----------
-        X: Union[pandas.DataFrame, dask.DataFrame, numpy.ndarray, scipy.sparse.csr.csr_matrix]
+        X: Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
             The Dataframe for the training data
-        y: Union[list, pandas.DataFrame, dask.DataFrame, pandas.Series, dask.Series, numpy.ndarray]
-            The labels
+
+        Raises
+        ------
+        Exception if X has only one dim, but imputed_values has multiple values.
+        NotImplemented if X has the data type that is not supported.
 
         Returns
         -------
-        _X: Array
+        Union[pandas.DataFrame, pd.Series, np.ndarray, list]
             The transformed X data
-        y: Array
-            The transformed list of labels
-
         """
-        assert self._fitted, "Call fit_transform first!"
-        _X = X.astype(self.dtypes)
-        for k in _X.columns[_X.dtypes != "float32"]:
-            # Replace unseen categories with NaNs and impute them
-            _X.loc[~_X[k].isin(self.cat_unique_values[k]), k] = np.nan
-            # SimpleImputer is not available for strings in ONNX-ML specifications
-            # Replace NaNs with the most frequent category
-            _X[k] = _X[k].fillna(self.cat_impute_values[k])
+        if isinstance(X, np.ndarray):
+            X = ONNXTransformer._handle_missing_value_dataframe(
+                pd.DataFrame(X), impute_values=impute_values
+            ).values
+        elif isinstance(X, list):
+            X = ONNXTransformer._handle_missing_value_dataframe(
+                pd.DataFrame(X), impute_values=impute_values
+            ).values.tolist()
+        elif isinstance(X, pd.DataFrame):
+            X = ONNXTransformer._handle_missing_value_dataframe(
+                X, impute_values=impute_values
+            )
+        elif isinstance(X, pd.Series):
+            X = X.replace(r"^\s*$", np.NaN, regex=True)
+            if len(impute_values.keys()) == 1:
+                for key, val in impute_values.items():
+                    X = X.fillna(val)
+            else:
+                raise Exception(
+                    "Multiple imputed values are provided, but `X` has only one dim."
+                )
+        else:
+            raise NotImplemented(
+                f"{type(X)} is not supported. Convert `X` to pandas dataframe or numpy array."
+            )
+        return X
 
-        if self.label_encoder is not None and y is not None:
-            y = self.label_encoder.transform(y)
+    @staticmethod
+    def _handle_missing_value_dataframe(X: pd.DataFrame, impute_values: Dict):
+        for idx, val in impute_values.items():
+            if isinstance(idx, int):
+                X.iloc[:, idx] = (
+                    X.iloc[:, idx].replace(r"^\s*$", np.NaN, regex=True).fillna(val)
+                )
+            else:
+                X.loc[:, idx] = (
+                    X.loc[:, idx].replace(r"^\s*$", np.NaN, regex=True).fillna(val)
+                )
+        return X
 
-        return _X, y
-
-    def fit_transform(self, X, y=None):
+    def fit_transform(
+        self, X: Union[pd.DataFrame, pd.Series], impute_values: Dict = None
+    ):
         """
         Fits, then transforms the data
         Parameters
         ----------
-        X: Union[pandas.DataFrame, dask.DataFrame, numpy.ndarray, scipy.sparse.csr.csr_matrix]
+        X: Union[pandas.DataFrame, pandas.Series]
             The Dataframe for the training data
-        y: Union[list, pandas.DataFrame, dask.DataFrame, pandas.Series, dask.Series, numpy.ndarray]
-            The labels
 
         Returns
         -------
-        _X: Array
-            The fitted and transformed X data
-        y: Array
-            The fitted and transformed list of labels
+        Union[pandas.DataFrame, pandas.Series]
+            The transformed X data
         """
-        return self.fit(X, y).transform(X, y)
+        return self.fit(X, impute_values).transform(X)
 
     def save(self, filename, **kwargs):
         """
@@ -757,37 +861,24 @@ class ONNXTransformer(object):
             The filename where the model was saved
         """
         export_dict = {
-            "task": {"value": self.task, "dtype": str(type(self.task))},
-            "cat_impute_values": {
-                "value": self.cat_impute_values,
-                "dtype": str(type(self.cat_impute_values)),
+            "impute_values": {
+                "value": self.impute_values,
+                "dtype": str(type(self.impute_values)),
             },
-            "cat_unique_values": {
-                "value": self.cat_unique_values,
-                "dtype": str(type(self.cat_unique_values)),
-            },
-            "label_encoder": {
-                "value": {
-                    "params": self.label_encoder.get_params()
-                    if hasattr(self.label_encoder, "get_params")
-                    else {},
-                    "classes_": self.label_encoder.classes_.tolist()
-                    if hasattr(self.label_encoder, "classes_")
-                    else [],
-                },
-                "dtype": str(type(self.label_encoder)),
-            },
-            "dtypes": {
+            "dtypes": {}
+            if self.dtypes is None
+            else {
                 "value": {
                     "index": list(self.dtypes.index),
                     "values": [str(val) for val in self.dtypes.values],
                 }
-                if self.dtypes is not None
-                else {},
+                if isinstance(self.dtypes, pd.Series)
+                else str(self.dtypes),
                 "dtype": str(type(self.dtypes)),
             },
             "_fitted": {"value": self._fitted, "dtype": str(type(self._fitted))},
         }
+
         with open(filename, "w") as f:
             json.dump(export_dict, f, sort_keys=True, indent=4, separators=(",", ": "))
         return filename
@@ -809,13 +900,10 @@ class ONNXTransformer(object):
         # Make sure you have  pandas, numpy, and sklearn imported
         with open(filename, "r") as f:
             export_dict = json.load(f)
-        try:
-            onnx_transformer = ONNXTransformer(task=export_dict["task"]["value"])
-        except Exception as e:
-            print(f"No task set in ONNXTransformer at {filename}")
-            raise e
+
+        onnx_transformer = ONNXTransformer()
         for key in export_dict.keys():
-            if key not in ["task", "label_encoder", "dtypes"]:
+            if key not in ["impute_values", "dtypes"]:
                 try:
                     setattr(onnx_transformer, key, export_dict[key]["value"])
                 except Exception as e:
@@ -823,14 +911,20 @@ class ONNXTransformer(object):
                         f"Warning: Failed to reload {key} from {filename} to OnnxTransformer."
                     )
                     raise e
-        onnx_transformer.dtypes = pd.Series(
-            data=[np.dtype(val) for val in export_dict["dtypes"]["value"]["values"]],
-            index=export_dict["dtypes"]["value"]["index"],
-        )
-        le = LabelEncoder()
-        le.set_params(**export_dict["label_encoder"]["value"]["params"])
-        le.classes_ = np.asarray(export_dict["label_encoder"]["value"]["classes_"])
-        onnx_transformer.label_encoder = le
+        if "value" in export_dict["dtypes"]:
+            if "index" in export_dict["dtypes"]["value"]:
+                onnx_transformer.dtypes = pd.Series(
+                    data=[
+                        np.dtype(val)
+                        for val in export_dict["dtypes"]["value"]["values"]
+                    ],
+                    index=export_dict["dtypes"]["value"]["index"],
+                )
+            else:
+                onnx_transformer.dtypes = export_dict["dtypes"]["value"]
+        else:
+            onnx_transformer.dtypes = {}
+        onnx_transformer.impute_values = export_dict["impute_values"]["value"]
         return onnx_transformer
 
 

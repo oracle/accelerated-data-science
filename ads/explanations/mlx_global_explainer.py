@@ -5,11 +5,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import numpy as np
-from collections import Iterable
 from IPython.core.display import display, HTML
 from abc import ABC, abstractmethod
 
-from ads.common import utils
+from ads.common import logger, utils
 from ads.explanations.base_explainer import GlobalExplainer
 from ads.explanations.mlx_interface import check_tabular_or_text
 from ads.explanations.mlx_interface import init_lime_explainer
@@ -44,11 +43,17 @@ class MLXGlobalExplainer(GlobalExplainer):
     def __init__(self):
         super(GlobalExplainer, self).__init__()
         self.explainer = None
+        self.selected_features = None
         self.pdp_explainer = None
         self.ale_explainer = None
 
     def compute_feature_importance(
-        self, n_iter=20, sampling=None, balance=False, scoring_metric=None
+        self,
+        n_iter=20,
+        sampling=None,
+        balance=False,
+        scoring_metric=None,
+        selected_features=None,
     ):
         """
         Generates a global explanation to help understand the general behavior
@@ -107,6 +112,10 @@ class MLXGlobalExplainer(GlobalExplainer):
                 `r2`, `neg_mean_squared_error`, `neg_root_mean_squared_error`, `neg_mean_absolute_error`,
                 `neg_median_absolute_error`, `neg_mean_absolute_percentage_error`,
                 `neg_symmetric_mean_absolute_percentage_error`
+        selected_features: list[str], list[int], optional
+            List of the selected features. It can be any subset of
+            the original features that are in the dataset provided to the model.
+            Default value is None.
 
         Returns
         -------
@@ -114,8 +123,8 @@ class MLXGlobalExplainer(GlobalExplainer):
             `FeaturePermutationImportance` explanation object.
 
         """
-        if self.explainer is None:
-            self._init_feature_importance()
+        self.selected_features = selected_features
+        self.configure_feature_importance(selected_features=self.selected_features)
         if self.explainer.config.type == "text":
             labels = list(range(len(self.class_names)))
             # The requirement to downsample the text datasets should be fixed at somepoint
@@ -175,14 +184,27 @@ class MLXGlobalExplainer(GlobalExplainer):
                 )
             if balance and sampling is None:
                 sampling = {"technique": "random"}
-            explanation = self.explainer.compute(
-                self.X_test,
-                self.y_test,
-                n_iter=n_iter,
-                sampling=sampling,
-                balance=balance,
-                scoring_metric=scoring_metric,
-            )
+            try:
+                explanation = self.explainer.compute(
+                    self.X_test,
+                    self.y_test,
+                    n_iter=n_iter,
+                    sampling=sampling,
+                    balance=balance,
+                    scoring_metric=scoring_metric,
+                )
+            except IndexError as e:
+                if selected_features is not None:
+                    raise IndexError(
+                        f"Unable to calculate permutation importance due to: {e}. "
+                        f"selected_features must be a list of features within the bounds of the existing features "
+                        f"(that were provided to model). Provided selected_features: {selected_features}."
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Unable to calculate permutation importance scores due to: {e}."
+                )
+                raise e
         return FeatureImportance(explanation, self.class_names, self.explainer.config)
 
     def compute_partial_dependence(
@@ -258,23 +280,6 @@ class MLXGlobalExplainer(GlobalExplainer):
         feature_ids = np.where(np.isin(feature_names, features))[0].tolist()
 
         if check_tabular_or_text(self.est, self.X_train) == "tabular":
-            # get the model's selected features and check if feature_ids are part of them
-            if hasattr(self.est, "selected_features_"):
-                selected_features = self.est.selected_features_
-                boolean_list = tuple(x in selected_features for x in feature_ids)
-                filtered_list = [
-                    i
-                    for indx, i in enumerate(feature_ids)
-                    if boolean_list[indx] == False
-                ]
-                if not all(boolean_list):
-                    print(
-                        "Feature:",
-                        self.X_train.columns.values[filtered_list],
-                        "is not selected by the model.",
-                    )
-                    return
-
             if len(feature_ids) > 2:
                 raise ValueError("Maximum number of partial dependency features is 2.")
 
@@ -371,23 +376,6 @@ class MLXGlobalExplainer(GlobalExplainer):
         feature_ids = np.where(np.isin(feature_names, feature))[0].tolist()
 
         if check_tabular_or_text(self.est, self.X_train) == "tabular":
-            # get the model's selected features and check if feature_ids are part of them
-            if hasattr(self.est, "selected_features_"):
-                selected_features = self.est.selected_features_
-                boolean_list = tuple(x in selected_features for x in feature_ids)
-                filtered_list = [
-                    i
-                    for indx, i in enumerate(feature_ids)
-                    if boolean_list[indx] == False
-                ]
-                if not all(boolean_list):
-                    print(
-                        "Feature:",
-                        self.X_train.columns.values[filtered_list],
-                        "is not selected by the model.",
-                    )
-                    return
-
             if len(feature_ids) > 1:
                 raise ValueError(
                     "Maximum number of Accumulated Local Effects features is 1."
@@ -416,7 +404,7 @@ class MLXGlobalExplainer(GlobalExplainer):
         with utils.get_progress_bar(3, description="Model Explanation") as bar:
             bar.update("begin computing")
             bar.update("calculating feature importance")
-            explainer_holder = self.compute_feature_importance()
+            explainer_holder = self.compute_feature_importance(selected_features=self.selected_features)
             plot1 = explainer_holder.show_in_notebook()
             bar.update("calculating partial dependence plot")
             pdp_plot_feature_name = explainer_holder.explanation
@@ -438,6 +426,7 @@ class MLXGlobalExplainer(GlobalExplainer):
 
             - `client`: Currently only allowed to be None to disable parallelization.
             - `random_state`: None, int, or instance of Randomstate.
+            - `selected_features`: None, or list of the selected features.
 
         - For text datasets:
 
@@ -448,6 +437,7 @@ class MLXGlobalExplainer(GlobalExplainer):
             - `client`: Currently only allowed to be None to disable parallelization.
             - `batch_size`: Number of local explanations per Dask worker.
             - `random_state`: None, int, or instance of Randomstate.
+            - `selected_features`: None, or list of the selected features.
 
         Parameters
         ----------
@@ -462,7 +452,7 @@ class MLXGlobalExplainer(GlobalExplainer):
         """
 
         if check_tabular_or_text(self.est, self.X_train) == "tabular":
-            avail_args = ["client", "random_state"]
+            avail_args = ["client", "random_state", "selected_features"]
         else:
             avail_args = [
                 "client",
@@ -472,6 +462,7 @@ class MLXGlobalExplainer(GlobalExplainer):
                 "exp_sorting",
                 "scale_weight",
                 "batch_size",
+                "selected_features",
             ]
 
         for k, _ in kwargs.items():
@@ -490,6 +481,12 @@ class MLXGlobalExplainer(GlobalExplainer):
         if kwargs.get("surrogate_model", None) not in ["linear", "decision_tree", None]:
             raise ValueError(
                 "Invalid surrogate_model provided. Currently only supports linear or decision_tree"
+            )
+        selected_features = kwargs.get("selected_features")
+        if selected_features is not None and not isinstance(selected_features, list):
+            raise ValueError(
+                f"selected_features ({selected_features}) value must be a list of features, "
+                f"but it is of type: {type(selected_features)}."
             )
 
         self._init_feature_importance(**kwargs)
@@ -576,7 +573,7 @@ class MLXGlobalExplainer(GlobalExplainer):
         """
 
         if self.explainer is None:
-            self._init_feature_importance()
+            self.compute_feature_importance(selected_features=self.selected_features)
         return self.explainer.show_in_notebook()
 
     def partial_dependence_summary(self):
@@ -628,8 +625,7 @@ class MLXGlobalExplainer(GlobalExplainer):
                 self.y_train,
                 self.mode,
                 class_names=self.class_names,
-                use_pre_selected_features=True,
-                **kwargs
+                **kwargs,
             )
         else:
             self.explainer = init_lime_explainer(
@@ -639,8 +635,7 @@ class MLXGlobalExplainer(GlobalExplainer):
                 self.y_train,
                 self.mode,
                 class_names=self.class_names,
-                use_pre_selected_features=True,
-                **kwargs
+                **kwargs,
             )
 
     def _init_partial_dependence(self, **kwargs):
@@ -661,7 +656,7 @@ class MLXGlobalExplainer(GlobalExplainer):
             self.y_train,
             self.mode,
             class_names=self.class_names,
-            **kwargs
+            **kwargs,
         )
 
     def _init_accumulated_local_effects(self, **kwargs):
@@ -682,7 +677,7 @@ class MLXGlobalExplainer(GlobalExplainer):
             self.y_train,
             self.mode,
             class_names=self.class_names,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -921,7 +916,7 @@ class FeatureImportance:
         colormap=None,
         return_wordcloud=False,
         n_features=None,
-        **kwargs
+        **kwargs,
     ):
         """
         Generates a visualization for the local explanation. Depending on the type of explanation, different
@@ -1003,7 +998,7 @@ class FeatureImportance:
                     cscale=cscale,
                     colormap=colormap,
                     return_wordcloud=return_wordcloud,
-                    **kwargs
+                    **kwargs,
                 )
         else:
             if labels:

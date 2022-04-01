@@ -1,0 +1,16 @@
+INFERENCE_ENV_PATH:
+  type: string
+  required: true
+  nullable: false
+INFERENCE_ENV_SLUG:
+  type: string
+  required: false
+  nullable: true
+INFERENCE_ENV_TYPE:
+  type: string
+  required: false
+  nullable: true
+INFERENCE_PYTHON_VERSION:
+  type: string
+  required: true
+  nullable: false

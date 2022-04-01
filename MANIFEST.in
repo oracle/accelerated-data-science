@@ -6,11 +6,13 @@ include ads/feature_engineering/*.json
 include ads/templates/*.jinja2
 include ads/common/function/*.yaml
 include ads/common/artifact/*.*
+include ads/model/runtime/schemas/*.yaml
 include ads/jobs/schema/**
 include ads/opctl/index.yaml
 include ads/opctl/operators/**/*.py
 include ads/opctl/docker/**
 include ads/opctl/conda/manifest_template.yaml
+include ads/opctl/conda/config.yaml
 global-exclude tests/**
 global-exclude notebooks/**
 exclude tests/**

@@ -7,7 +7,7 @@
 from mlx import LimeExplainer
 from mlx import FDExplainer, AleExplainer
 from mlx import PermutationImportance
-from ads.common import utils
+from ads.common import logger
 from ads.dataset.helper import is_text_data
 from mlx.whatif import WhatIf
 import pandas as pd
@@ -16,31 +16,6 @@ import pandas as pd
 def _reset_index(x):
     assert isinstance(x, pd.DataFrame) or isinstance(x, pd.Series)
     return x.reset_index(drop=True)
-
-
-def _get_pre_selected_features(est, use_pre_selected_features=False):
-    """
-    If the ML model internal filters out features (e.g., AutoML),
-    provide this information to MLX to skip evaluating these features
-    and to improve performance.
-
-    Parameters
-    ----------
-    est : ADSModel
-        Model to explain.
-    use_pre_selected_features : bool
-        If the model, est, performs internal feature selection, pass
-        the selected feature information to the explainer.
-
-    Return
-    ------
-    list, None
-        list of pre-selected features indices or None.
-    """
-    if use_pre_selected_features and hasattr(est, "selected_features_"):
-        return est.selected_features_
-    else:
-        return None
 
 
 def check_tabular_or_text(est, X):
@@ -69,7 +44,7 @@ def init_lime_explainer(
     y_train,
     mode,
     class_names=None,
-    use_pre_selected_features=False,
+    selected_features=None,
     client=None,
     batch_size=16,
     surrogate_model="linear",
@@ -101,9 +76,8 @@ def init_lime_explainer(
         'classification' or 'regression'.
     class_names : list
         List of target names.
-    use_pre_selected_features : bool
-        If the `est` performs internal feature selection, pass the selected
-        feature information to the explainer.
+    selected_features : list[int], optional
+        Pass the selected features information to the explainer. Defaults value is `None`.
     client : Dask Client
         Specifies that Dask Client object to use in MLX. If None, no parallelization.
     batch_size : int
@@ -153,7 +127,6 @@ def init_lime_explainer(
         exp_sorting=exp_sorting,
         kernel_width="dynamic",
     )
-    selected_features = _get_pre_selected_features(est, use_pre_selected_features)
     exp.fit(
         est,
         X_train,
@@ -171,7 +144,7 @@ def init_permutation_importance_explainer(
     y_train,
     mode,
     class_names=None,
-    use_pre_selected_features=False,
+    selected_features=None,
     client=None,
     random_state=42,
 ):
@@ -199,9 +172,8 @@ def init_permutation_importance_explainer(
         'classification' or 'regression'.
     class_names : list, optional
         List of target names. Default value is `None`
-    use_pre_selected_features : bool, optional
-        If the `est` performs internal feature selection, pass the selected
-        feature information to the explainer. Defaults value is `False`.
+    selected_features : list[str], list[int], optional
+        Pass the selected features list to the explainer. Defaults value is `None`.
     client : Dask Client, optional
         Specifies that Dask Client object to use in MLX. If `None`, no parallelization.
     random_state : int, optional
@@ -226,14 +198,20 @@ def init_permutation_importance_explainer(
             "supported for text datasets."
         )
     exp.set_config(mode=mode, client=client, random_state=random_state)
-    selected_features = _get_pre_selected_features(est, use_pre_selected_features)
-    exp.fit(
-        est,
-        X_train,
-        y=y_train,
-        target_names=class_names,
-        selected_features=selected_features,
-    )
+    try:
+        exp.fit(
+            est,
+            X_train,
+            y=y_train,
+            target_names=class_names,
+            selected_features=selected_features,
+        )
+    except Exception as e:
+        logger.error(
+            f"Unable to construct the PermutationImportance explainer based on the MLX config "
+            f"and fit to the train data due to: {e}."
+        )
+        raise e
     return exp
 
 
@@ -354,7 +332,7 @@ def init_whatif_explainer(
     train=None,
     target_title="target",
     random_state=42,
-    **kwargs
+    **kwargs,
 ):
     if explainer is None:
         width = kwargs.get("width", 1100)

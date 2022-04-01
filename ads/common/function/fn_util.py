@@ -123,7 +123,7 @@ def write_score(path, **kwargs):
     sklearn_model = underlying_model in ["sklearn", "xgboost"]
 
     if underlying_model == "automl":
-        jinja_template_filename = "score-pkl-automl"
+        jinja_template_filename = "score_oracle_automl"
     else:
         jinja_template_filename = kwargs.get(
             "input_file",

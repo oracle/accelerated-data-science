@@ -1,0 +1,141 @@
+import os
+import sys
+from functools import lru_cache
+import torch
+from typing import Dict, List
+import numpy as np
+import pandas as pd
+from io import BytesIO
+import base64
+
+model_name = '{{model_file_name}}'
+
+
+"""
+   Inference script. This script is used for prediction by scoring server when schema is known.
+"""
+
+
+@lru_cache(maxsize=10)
+def load_model(model_file_name=model_name):
+    """
+    Loads model from the serialized format
+
+    Returns
+    -------
+    model:  a model instance on which predict API can be invoked
+    """
+    model_dir = os.path.dirname(os.path.realpath(__file__))
+    if model_dir not in sys.path:
+        sys.path.insert(0, model_dir)
+    contents = os.listdir(model_dir)
+    if model_file_name in contents:
+        print(f'Start loading {model_file_name} from model directory {model_dir} ...')
+        model_state_dict = torch.load(os.path.join(model_dir, model_file_name))
+        print(f"loading {model_file_name} is complete.")
+    else:
+        raise Exception(f'{model_file_name} is not found in model directory {model_dir}')
+
+    # User would need to provide reference to the TheModelClass and
+    # construct the the_model instance first before loading the parameters.
+    # the_model = TheModelClass(*args, **kwargs)
+    try:
+        the_model.load_state_dict(model_state_dict)
+    except NameError as e:
+        raise NotImplementedError("TheModelClass instance must be constructed before loading the parameters. Please modify the load_model() function in score.py." )
+    except Exception as e:
+        raise e
+
+    the_model.eval()
+    print("Model is successfully loaded.")
+
+    return the_model
+
+def deserialize(data):
+    """
+    Deserialize json-serialized data to data in original type when sent to
+predict.
+
+    Parameters
+    ----------
+    data: serialized input data.
+
+    Returns
+    -------
+    data: deserialized input data.
+
+    """
+    json_data = data['data']
+    data_type = data['data_type']
+
+    if "numpy.ndarray" in data_type:
+        load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
+        return np.load(load_bytes, allow_pickle=True)
+    if "pandas.core.series.Series" in data_type:
+        return pd.Series(json_data)
+    if "pandas.core.frame.DataFrame" in data_type:
+        return pd.read_json(json_data)
+    if "torch.Tensor" in data_type:
+        load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
+        return torch.load(load_bytes)
+
+    return json_data
+
+def pre_inference(data):
+    """
+    Preprocess json-serialized data to feed into predict function.
+
+    Parameters
+    ----------
+    data: Data format as expected by the predict API of the core estimator.
+
+    Returns
+    -------
+    data: Data format after any processing.
+    """
+    data = deserialize(data)
+
+    # Add further data preprocessing if needed
+    return data
+
+def post_inference(yhat):
+    """
+    Post-process the model results.
+
+    Parameters
+    ----------
+    yhat: Data format after calling model.predict.
+
+    Returns
+    -------
+    yhat: Data format after any processing.
+
+    """
+    if isinstance(yhat, torch.Tensor):
+        return yhat.tolist()
+
+    # Add further data postprocessing if needed
+    return yhat
+
+def predict(data, model=load_model()):
+    """
+    Returns prediction given the model and data to predict.
+
+    Parameters
+    ----------
+    model: Model instance returned by load_model API
+    data: Data format as expected by the predict API of the core estimator
+
+    Returns
+    -------
+    predictions: Output from scoring server
+        Format: {'prediction': output from model.predict method}
+
+    """
+    inputs = pre_inference(data)
+
+    with torch.no_grad():
+        yhat = post_inference(
+        model(inputs)
+    )
+    return {'prediction': yhat}

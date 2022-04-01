@@ -50,7 +50,7 @@
         "type": "string"
       },
       "jobInfrastructureType": {
-        "default": "STANDALONE",
+        "default": "ME_STANDALONE",
         "required": false,
         "type": "string"
       },

@@ -12,9 +12,12 @@ from urllib.parse import urlparse
 import pandas as pd
 from ads.common import auth, oci_client, utils
 from ads.common.oci_mixin import OCIWorkRequestMixin
-from ads.common.utils import InvalidObjectStoragePath, _snake_to_camel
+from ads.common.utils import _snake_to_camel
 from ads.config import JOB_RUN_COMPARTMENT_OCID, NB_SESSION_COMPARTMENT_OCID
-from ads.data_labeling.utils import ObjectStorageDetails
+from ads.common.object_storage_details import (
+    ObjectStorageDetails,
+    InvalidObjectStoragePath,
+)
 from oci import pagination
 from oci.data_labeling_service.models import (
     ObjectStorageSnapshotExportDetails,

@@ -9,7 +9,6 @@ import click
 from ads.opctl.conda.cmds import create as create_cmd
 from ads.opctl.conda.cmds import install as install_cmd
 from ads.opctl.conda.cmds import publish as publish_cmd
-
 from ads.opctl.constants import DEFAULT_ADS_CONFIG_FOLDER
 from ads.opctl.utils import suppress_traceback
 
@@ -103,6 +102,13 @@ def create(**kwargs):
 )
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(["api_key", "resource_principal"]),
+    default=None,
+)
 def install(**kwargs):
     suppress_traceback(kwargs["debug"])(install_cmd)(**kwargs)
 
@@ -168,5 +174,12 @@ def install(**kwargs):
 )
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(["api_key", "resource_principal"]),
+    default=None,
+)
 def publish(**kwargs):
     suppress_traceback(kwargs["debug"])(publish_cmd)(**kwargs)

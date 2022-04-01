@@ -1,0 +1,16 @@
+TRAINING_ENV_PATH:
+  type: string
+  required: true
+  nullable: true
+TRAINING_ENV_SLUG:
+  type: string
+  required: true
+  nullable: true
+TRAINING_ENV_TYPE:
+  type: string
+  required: true
+  nullable: true
+TRAINING_PYTHON_VERSION:
+  type: string
+  required: true
+  nullable: true

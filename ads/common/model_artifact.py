@@ -4,6 +4,7 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+
 import fnmatch
 import importlib
 import json
@@ -16,8 +17,9 @@ import textwrap
 import uuid
 from enum import Enum
 from pathlib import Path
-from typing import Union, Any
+from typing import Union, Optional, Dict, Any
 from urllib.parse import urlparse
+from ads.common.object_storage_details import ObjectStorageDetails
 import fsspec
 import numpy as np
 import oci.data_science
@@ -26,42 +28,47 @@ import pandas as pd
 import pkg_resources
 import python_jsonschema_objects as pjs
 import yaml
-
-from ads.common import logger, utils
 from ads.common import auth as authutil
-from ads.common import oci_client as oc
+from ads.common import logger
+from ads.common import utils
 from ads.common.data import ADSData
-from ads.common.model_info_extractor_factory import ModelInfoExtractorFactory
+
+from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
 from ads.common.model_introspect import (
     TEST_STATUS,
     Introspectable,
-    ModelIntrospect,
     IntrospectionNotPassed,
+    ModelIntrospect,
 )
 from ads.common.model_metadata import (
     METADATA_SIZE_LIMIT,
-    MetadataSizeTooLarge,
     MetadataCustomCategory,
     MetadataCustomKeys,
+    MetadataSizeTooLarge,
+    MetadataTaxonomyKeys,
     ModelCustomMetadata,
     ModelCustomMetadataItem,
     ModelTaxonomyMetadata,
-    MetadataTaxonomyKeys,
     UseCaseType,
 )
-from ads.common.utils import InvalidObjectStoragePath, DATA_SCHEMA_MAX_COL_NUM
+from ads.common.utils import (
+    DATA_SCHEMA_MAX_COL_NUM,
+)
+from ads.common.object_storage_details import InvalidObjectStoragePath
 from ads.config import (
-    NB_SESSION_OCID,
     JOB_RUN_OCID,
-    PROJECT_OCID,
     NB_SESSION_COMPARTMENT_OCID,
+    NB_SESSION_OCID,
+    PROJECT_OCID,
+    JOB_RUN_COMPARTMENT_OCID,
 )
 import ads.dataset.factory as factory
 from ads.feature_engineering.schema import Schema, SchemaSizeTooLarge, DataSizeTooWide
 
 from git import InvalidGitRepositoryError, Repo
-from oci.data_science.models import ModelProvenance
 from IPython.core.display import display
+from oci.data_science.models import ModelProvenance
+from ads.common.error import ChangesNotCommitted
 
 try:
     from yaml import CDumper as dumper
@@ -75,6 +82,7 @@ INPUT_SCHEMA_FILE_NAME = "input_schema.json"
 OUTPUT_SCHEMA_FILE_NAME = "output_schema.json"
 
 _TRAINING_RESOURCE_OCID = JOB_RUN_OCID or NB_SESSION_OCID
+_COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
 
 
 class InvalidDataType(Exception):
@@ -87,7 +95,7 @@ SAMPLE_RUNTIME_YAML = f"""
 MODEL_ARTIFACT_VERSION: '{MODEL_ARTIFACT_VERSION}'
 MODEL_DEPLOYMENT:
     INFERENCE_CONDA_ENV:
-        INFERENCE_ENV_SLUG: <slug of the conda pack>
+        INFERENCE_ENV_SLUG: <slug of the conda environment>
         INFERENCE_ENV_TYPE: <data_science or published>
         INFERENCE_ENV_PATH: oci://<bucket-name>@<namespace>/<prefix>/<env>.tar.gz
         INFERENCE_PYTHON_VERSION: <python version>
@@ -103,26 +111,6 @@ class ConflictStrategy(object):
 class PACK_TYPE(Enum):
     SERVICE_PACK = "data_science"
     USER_CUSTOM_PACK = "published"
-
-
-class ChangesNotCommitted(Exception):
-    def __init__(self, path):
-        msg = f"""
-            File(s) at {path} are either dirty or untracked.
-            Commit changes and then save the model, or set `ignore_pending_changes=True`.
-        """
-        super().__init__(msg)
-
-
-def _oci_conda_url_breakdown(inference_conda_env):
-    try:
-        url_parse = urlparse(inference_conda_env)
-        bucket_name = url_parse.username
-        namespace = url_parse.hostname
-        object_name = url_parse.path.strip("/")
-        return bucket_name, namespace, object_name
-    except:
-        raise Exception("OCI conda url path not properly configured")
 
 
 class ModelArtifact(Introspectable):
@@ -148,42 +136,42 @@ class ModelArtifact(Introspectable):
         Attributes
         ----------
         artifact_dir: str
-            Path to model artifacts.
+            Path to the model artifacts.
         conflict_strategy: ConflictStrategy, default: IGNORE
-            Determines how to handle version conflicts between the current environment and requirements of
+            How to handle version conflicts between the current environment and the requirements of
             model artifact.
         install_libs: bool
-            Determine whether will re-install the env which the model artifact was trained in.
+            Re-install the environment inwhich the model artifact were trained in.
         reload: bool
-            Determine whether will reload the Model into the env.
+            Reload the model into the environment.
         create: bool
-            Determine whether will generate the run time yaml.
+            Create the `runtime.yaml` file.
         progress:
-            Update the progress bar.
+            Show a progress bar.
         model_file_name: str
-            File to determine model serilization type.
+            Name of the model file.
         inference_conda_env: str
-            The inferred conda env. If provided, the value will be set in the runtime.yaml.
-            This is expected to be full oci URI format - `oci://{bucket}@{namespace}/path/to/condapack`
-        data_science_env: book
-            Determine whether in ODSC conda env.
+            The inference conda environment. If provided, the value will be set in the runtime.yaml.
+            This is expected to be full oci URI format - `oci://{bucket}@{namespace}/path/to/condapack`.
+        data_science_env: bool
+            Is the inference conda environment managed by the Oracle Data Science service?
         ignore_deployment_error: bool
             Determine whether to turn off logging for deployment error.
-            If set to True, the prepare will ignore all the errors that may impact model deployment.
+            If set to True, the `.prepare()` method will ignore errors that impact model deployment.
         inference_python_version: str Optional, default None
-            If provided, the value will be set in the runtime.yaml that is produced for model deployment
+            The version of Python to be used in inference. The value will be set in the `runtime.yaml` file
 
 
         Methods
         -------
         reload(self, model_file_name=None)
-            Reloads files in model artifact directory.
+            Reload the files in the model artifact directory.
         verify(self, input_data)
-            Verifies a model artifact directory to be published to model catalog.
+            Verifies a model artifact directory.
         install_requirements(self, conflict_strategy=ConflictStrategy.IGNORE)
-            Installs missing libraries listed in model artifact.
+            Installs missing libraries listed in the model artifact.
         populate_metadata(self, model=None, use_case_type=None)
-            Extracts and populate taxonomy metadata from given model.
+            Extracts and populate taxonomy metadata from the model.
         save(
             self,
             display_name: str = None,
@@ -238,10 +226,10 @@ class ModelArtifact(Introspectable):
                 )
             self.version = MODEL_ARTIFACT_VERSION
 
-        # This will re-install the env which the model artifact was trained in.
+        # This will re-install the environment inwhich the model artifact was trained in.
         if install_libs:
             self.install_requirements(conflict_strategy=conflict_strategy)
-        # This will reload the Model into the env
+        # This will reload the model into the environment
         if reload:
             self.reload(model_file_name=model_file_name)
 
@@ -301,8 +289,8 @@ class ModelArtifact(Introspectable):
                     pack_namespace = user_config["bucket_info"]["namespace"]
                 else:
                     logger.warning(
-                        f"Cannot resolve the bucket name and namespace details for the conda environment {conda_prefix}. "
-                        f"You can set these values while saving the model or run `odsc init -b *bucket-name* -n *namespace*` from the terminal and then rerun prepare step again."
+                        f"Cannot resolve the bucket name or namespace for the conda environment {conda_prefix}. "
+                        f"You can set these values while saving the model or run `odsc init -b *bucket-name* -n *namespace*` and rerun the prepare step again."
                     )
             if not manifest_type or manifest_type.lower() not in [
                 PACK_TYPE.USER_CUSTOM_PACK.value,
@@ -310,30 +298,37 @@ class ModelArtifact(Introspectable):
             ]:
                 if not self.ignore_deployment_error:
                     raise Exception(
-                        f"Manifest type unknown. Manifest Type: {manifest_type or 'None'}"
+                        f"Unknown manifest type. Manifest Type: {manifest_type or 'None'}"
                     )
             if not pack_name:
                 if manifest_type == PACK_TYPE.USER_CUSTOM_PACK.value:
                     if self.data_science_env:
                         raise Exception(
-                            f"For published environments, assign the path of the environment on \
-                                        object storage to the `inference_conda_env` parameter and False to the `data_science_env` parameter."
+                            f"For Published conda environments, assign the path of the environment in "
+                            + "Object Storage to the `inference_conda_env` parameter and set the "
+                            + "parameter `data_science_env` to `False`."
                         )
-                    error_message = f"Pack destination is not known from the manifest file in {conda_prefix}. If it was cloned from another environment, consider publishing it before preparing the model artifact. If you wish to publish the enviroment later, you may do so and provide the details while saving the model. To publish run odsc publish -s {os.path.basename(conda_prefix)} in the terminal"
+                    error_message = (
+                        f"Pack destination is not known from the manifest file in {conda_prefix}. "
+                        + "If it was cloned from another environment, consider publishing it before "
+                        + "preparing the model artifact."
+                    )
                     if self.ignore_deployment_error:
                         logger.warn(error_message)
                     else:
                         if not self.inference_conda_env:
                             logger.error(error_message)
                             logger.info(
-                                "You may provide oci uri to the conda environment that you wish to use witin model deployment service if you do not want to publish the current training environment."
+                                "Provide a URI to the conda environment that you wish to use with the model "
+                                "deployment service if you do not want to publish the current training environment."
                             )
                             raise Exception(
-                                f"Could not resolve the path in the object storage for the environment: {conda_prefix}"
+                                f"Could not resolve the path in the Object Storage for the conda environment: {conda_prefix}"
                             )
                 else:
                     logger.warn(
-                        f"Could not resolve the object storage destination of {conda_prefix}. You may provide the correct pack name and object storage details during save time."
+                        f"Could not resolve the Object Storage destination of {conda_prefix}. Correct "
+                        "the environment name and Object Storage details when saving."
                     )
         except Exception as e:
             raise e
@@ -372,7 +367,9 @@ class ModelArtifact(Introspectable):
             schema = json.load(schema_file)
 
         if not schema:
-            raise Exception("Cannot load schema file for generating runtime yaml")
+            raise Exception(
+                "Cannot load schema file to generate the runtime.yaml file."
+            )
 
         builder = pjs.ObjectBuilder(schema)
         ns = builder.build_classes()
@@ -386,13 +383,14 @@ class ModelArtifact(Introspectable):
         inference_python_version=None,
     ):
         if self.progress:
-            self.progress.update("Creating runtime.yaml configuration")
+            self.progress.update("Creating runtime.yaml configuration.")
         logger.warning(
-            "Generating runtime.yaml template. This file needs to be updated with valid values before saving to model catalog for a successful deployment"
+            "Generating runtime.yaml template. This file needs to be updated "
+            "before saving it to the model catalog."
         )
         content = yaml.load(SAMPLE_RUNTIME_YAML, Loader=yaml.FullLoader)
         print(
-            f"The conda env info is {inference_conda_env} and {inference_python_version}"
+            f"The inference conda environment is {inference_conda_env} and the Python version is {inference_python_version}."
         )
         if inference_conda_env:
             content["MODEL_DEPLOYMENT"]["INFERENCE_CONDA_ENV"][
@@ -420,7 +418,7 @@ class ModelArtifact(Introspectable):
 
     def _generate_runtime_yaml(self, model_file_name="model.onnx"):
         if self.progress:
-            self.progress.update("Creating runtime.yaml configuration")
+            self.progress.update("Creating runtime.yaml configuration.")
 
         ns = self.__fetch_runtime_schema__()
         training_env_info = self.__fetch_training_env_details(ns.TrainingCondaEnv())
@@ -434,11 +432,12 @@ class ModelArtifact(Introspectable):
 
         if not training_env_info.TRAINING_ENV_PATH:
             logger.warning(
-                "We noticed that you did not publish the conda environment in which you trained the model. Publishing the conda environment you used to train the model is optional when you save the model to the catalog. However, publishing the environment ensures that the exact training environment can be re-used later"
+                "You did not publish the conda environment in which the madel was trained. Publishing the "
+                "conda environment ensures that the exact training environment can be re-used later."
             )
         inference_info = ns.InferenceCondaEnv()
         if not self.inference_conda_env:
-            message = f"We give you the option to specify a different inference conda environment for model deployment purposes. By default it is assumed to be the same as the conda environment used to train the model. If you wish to specify a different environment for inference purposes, assign the path of a published or data science conda environment to the optional parameter `inference_conda_env`. "
+            message = "By default, the inference conda environment is the same as the training conda environment. Use the `inference_conda_env` parameter to override."
             if (
                 training_env_info.TRAINING_ENV_TYPE
                 and training_env_info.TRAINING_ENV_PATH
@@ -456,26 +455,21 @@ class ModelArtifact(Introspectable):
             if self.inference_conda_env.startswith("oci://"):
                 inference_info.INFERENCE_ENV_PATH = self.inference_conda_env
                 try:
-                    bucket_name, namespace, object_name = _oci_conda_url_breakdown(
-                        self.inference_conda_env
-                    )
-                    auth = authutil.default_signer()
-                    oci_client = oc.OCIClientFactory(**auth).object_storage
-                    res = oci_client.get_object(namespace, bucket_name, object_name)
-                    metadata = res.data.headers["opc-meta-manifest"]
-                    metadata_json = json.loads(metadata)
+                    metadata_json = ObjectStorageDetails.from_path(
+                        env_path=self.inference_conda_env
+                    ).fetch_metadata_of_object()
                     inference_info.INFERENCE_PYTHON_VERSION = metadata_json["python"]
                 except:
                     if not self.inference_python_version:
                         if not training_env_info.TRAINING_PYTHON_VERSION:
                             raise Exception(
-                                "The Python version is not specified."
-                                "Pass in the python version when a preparing model."
+                                "The Python version was not specified."
+                                "Pass in the Python version when preparing a model."
                             )
                         else:
                             logger.warning(
-                                "We could not infer python version from conda pack so we are defaulting inference "
-                                "python version to the training python version (which comes from sys.version)."
+                                "The Python version could not be inferred from the conda environment. Defaulting to the Python "
+                                "version that was used in training."
                             )
                             inference_info.INFERENCE_PYTHON_VERSION = (
                                 training_env_info.TRAINING_PYTHON_VERSION
@@ -497,14 +491,21 @@ class ModelArtifact(Introspectable):
             and inference_info.INFERENCE_ENV_TYPE == PACK_TYPE.SERVICE_PACK.value
             and training_env_info.TRAINING_ENV_PATH == inference_info.INFERENCE_ENV_PATH
         ):
-            error_message = f"The inference environment {training_env_info.TRAINING_ENV_SLUG} may have undergone changes over the course of development. You can choose to publish the current environment or set data_science_env to True in the prepare api"
+            error_message = (
+                f"The inference conda environment {training_env_info.TRAINING_ENV_SLUG} may have changed. "
+                + "Publish the current conda environment or set the parameter `data_science_env` to `True` "
+                + "in the `.prepare()` method."
+            )
             if not self.ignore_deployment_error:
                 raise Exception(error_message)
             else:
                 logger.warning(error_message)
 
         if not inference_info.INFERENCE_ENV_PATH and not self.inference_conda_env:
-            error_message = f"Missing information about conda environment to use during inference in model deployment service. You can provide the oci uri of the pack that you wish to use as inference in the paramenter inference_conda_env or publish your environment by following the instruction on Environment Explorer and then run the prepare method again "
+            error_message = (
+                f"The inference conda environment is missing. Set the `inference_conda_env` parameter "
+                + "or publish the conda environment and run the `.prepare()` method."
+            )
             if not self.ignore_deployment_error:
                 raise Exception(error_message)
             else:
@@ -605,19 +606,19 @@ class ModelArtifact(Introspectable):
 
     def verify(self, input_data):
         """
-        Verifies a model artifact directory to be published to model catalog.
+        Verifies the contents of the  model artifact directory.
 
         Parameters
         ----------
         input_data : str, dict, BytesIO stream
             Data to be passed into the deployed model. It can be of type json (str), a dict object, or a BytesIO stream.
             All types get converted into a UTF-8 encoded BytesIO stream and is then sent to the handler.
-            Any data handling past there is done in func.py (which the user can edit). By default it looks for data
-            under the keyword "input", and returns data under teh keyword "prediction"
+            Any data handling past there is done in func.py. By default it looks for data
+            under the keyword "input", and returns data under teh keyword "prediction".
 
         Returns
         -------
-        output_data : the resulting prediction, formatted in the same way as the input
+        output_data : the resulting prediction, formatted in the same way as input_data
 
         Example
          --------
@@ -689,42 +690,41 @@ class ModelArtifact(Introspectable):
         defined_tags=None,
     ):
         """
-        Saves this model artifact in model catalog.
+        Saves the model artifact in the model catalog.
 
         Parameters
         ----------
         display_name : str, optional
-            Model display name
+            Model display name.
         description : str, optional
-            Description for the model
+            Description for the model.
         project_id : str, optional
-            OCID of models' project
-            If None, the default project ID `config.PROJECT_OCID` would be used
+            Model's project OCID.
+            If None, the default project OCID `config.PROJECT_OCID` would be used.
         compartment_id : str, optional
-            OCID of model's compartment
-            If None, the default compartment ID `config.NB_SESSION_COMPARTMENT_OCID` would be used
+            Model's compartment OCID.
+            If None, the default compartment OCID `config.NB_SESSION_COMPARTMENT_OCID` would be used.
         training_script_path : str, optional
             The training script path is either relative to the working directory,
             or an absolute path.
         ignore_pending_changes : bool, default: False
-            If True, ignore uncommitted changes and use the current head commit for provenance metadata
-            This argument is used only when the function is called from a script in git managed directory
+            If True, ignore uncommitted changes and use the current git HEAD commit for provenance metadata.
+            This argument is used only when the function is called from a script in git managed directory.
         auth: dict
-            Default is None. The default authetication is set using `ads.set_auth` API. If you need to override the
-            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-            authentication signer and kwargs required to instantiate DataScienceClient object
+            Default is None. Default authetication is set using the `ads.set_auth()` method.
+            Use the `ads.common.auth.api_keys()` or `ads.common.auth.resource_principal()` to create appropriate
+            authentication signer and kwargs required to instantiate a DataScienceClient object.
         training_id: str, optional
-            The training OCID for model.
-        timeout: int, optional
-            The connection timeout in seconds for the client.
-            The default value for connection timeout is 10 seconds.
+            The training OCID for the model.
+        timeout: int, default: 10
+            The connection timeout in seconds.
         ignore_introspection: bool, optional
-            Determine whether to ignore the result of model introspection or not.
-            If set to True, the save will ignore all model introspection errors.
+            Ignore the result of model introspection .
+            If set to True, the `.save()` will ignore all model introspection errors.
         freeform_tags : dict(str, str), optional
-            Freeform tags for the model, by default None
+            Freeform tags for the model.
         defined_tags : dict(str, dict(str, object)), optional
-            Defined tags for the model, by default None
+            Defined tags for the model.
 
         Examples
         ________
@@ -810,7 +810,7 @@ class ModelArtifact(Introspectable):
                 value=textwrap.shorten(
                     ", ".join(self._get_files()), 255, placeholder="..."
                 ),
-                description="The list of files located in artifacts folder",
+                description="The list of files located in artifacts folder.",
                 category=MetadataCustomCategory.TRAINING_ENV,
             ),
             replace=True,
@@ -839,12 +839,10 @@ class ModelArtifact(Introspectable):
             self._introspect()
             if self._introspect.status == TEST_STATUS.NOT_PASSED:
                 msg = (
-                    "Model introspection not passed. "
-                    "See the table below for "
-                    "more detailed information and follow the messages to fix it, "
-                    "otherwise you might come across errors during model deployment. "
+                    "Model introspection failed. The model was not saved. "
+                    "See the following table for details. "
                     "To save model artifacts ignoring "
-                    "introspection use .save(ignore_introspection=True...)."
+                    "introspection use .save(ignore_introspection=True)."
                 )
                 logger.error(msg)
                 display(self._introspect.to_dataframe())
@@ -869,7 +867,7 @@ class ModelArtifact(Introspectable):
         except oci.exceptions.RequestException as e:
             if "The write operation timed out" in str(e):
                 logger.error(
-                    "The save operation timed out. Try to set a longer timeout(e.g. save(timeout=600, ...))."
+                    "The save operation timed out. Try to set a longer timeout e.g. save(timeout=600, ...)."
                 )
 
     def _validate_schema(self):
@@ -932,15 +930,15 @@ class ModelArtifact(Introspectable):
 
     def install_requirements(self, conflict_strategy=ConflictStrategy.IGNORE):
         """
-        Installs missing libraries listed in model artifact.
+        Installs missing libraries listed in the model artifacts.
 
         Parameters
         ----------
         conflict_strategy : ConflictStrategy, default: IGNORE
             Update the conflicting dependency to the version required by the model artifact.
-            Valid values: "IGNORE" or ConflictStrategy.IGNORE, "UPDATE" or ConflictStrategy.UPDATE
-            IGNORE: Use the installed version in  case of a conflict
-            UPDATE: Force update dependency to the version required by model artifact in case of conflict
+            Valid values: "IGNORE" or ConflictStrategy.IGNORE, "UPDATE" or ConflictStrategy.UPDATE.
+            IGNORE: Use the installed version in  case of a conflict.
+            UPDATE: Force update dependency to the version required by model artifact in case of conflict.
         """
         importlib.reload(pkg_resources)
         from pkg_resources import DistributionNotFound, VersionConflict
@@ -965,8 +963,8 @@ class ModelArtifact(Introspectable):
             )
         else:
             raise FileNotFoundError(
-                "Could not find requirements file. Install necessary libraries and "
-                "re-construct the model artifact with install_libs=False"
+                "Could not find requirements.txt. Install the necessary libraries and "
+                "re-construct the model artifact with install_libs=False."
             )
 
         version_conflicts = {}
@@ -1033,7 +1031,7 @@ class ModelArtifact(Introspectable):
         **kwargs,
     ):
         """
-        Save the data to object storage.
+        Save data to Object Storage.
         return [
             matched_file[len(self.artifact_dir) + 1 :] for matched_file in file_names
         ]
@@ -1041,18 +1039,16 @@ class ModelArtifact(Introspectable):
         Parameters
         ----------
         prefix: str
-            The object storage prefix to store the data.
-            e.g. oci://bucket_name@namespace/folder_name
+            A prefix to append to the Object Storage key.
+            e.g. oci://bucket_name@namespace/prefix
         train_data: Union[pd.DataFrame, list, np.ndarray].
             The training data to be stored.
         validation_data: Union[pd.DataFrame, list, np.ndarray]. Default None
             The validation data to be stored.
         train_data_name: str. Default 'train.csv'.
-            File name for train data to be stored on the cloud. train_data is
-            stored at prefix/train_data_name.
+            Filename used to save the train data. The key is prefix/train_data_name.
         validation_data_name: str. Default 'train.csv'.
-            File name for validation data to be stored on the cloud.
-            validation_data is stored at prefix/validation_data_name.
+            Filename used to save the validation data. The key is prefix/validation_data_name.
         storage_options: dict. Default None
             Parameters passed on to the backend filesystem class.
             Defaults to `storage_options` set using `DatasetFactory.set_default_storage()`.
@@ -1086,7 +1082,7 @@ class ModelArtifact(Introspectable):
         """
         if not re.match(r"oci://*@*", prefix):
             raise InvalidObjectStoragePath(
-                "`prefix` is not valid. It must have the following pattern 'oci://bucket_name@namespace/key'."
+                "`prefix` is not valid. It must have the pattern 'oci://bucket_name@namespace/key'."
             )
         if not storage_options:
             storage_options = factory.default_storage_options
@@ -1116,37 +1112,32 @@ class ModelArtifact(Introspectable):
         **kwargs,
     ):
         """
-        Save the data to object storage.
+        Save the data to Object Storage.
 
         Parameters
         ----------
         prefix: str
-            The object storage prefix to store the data. When `train_data_path` or
+            The Object Storage prefix to store the data. When `train_data_path` or
             `validation_data_path` are provided, they are stored under this prefix
-            with their original file names. If the data are already stored on the object
-            storage, you can provide the path of the If none of the local data path is provided,
+            with their original filenames. If the data are already stored on Object
+            Storage, you can provide the path to the data. If no local data path is provided,
             no data is `prefix` is saved in the custom metadata.
         train_data_path: str. Default None.
-            Local path for training data.
+            Local path for the training data.
         validation_data_path: str. Default None.
-            Local path for validation data.
+            Local path for the validation data.
         storage_options: dict. Default None
             Parameters passed on to the backend filesystem class.
             Defaults to `storage_options` set using `DatasetFactory.set_default_storage()`.
+
         Keyword Arguments
         _________________
         data_type:
-            Can be either `training` or `validation`. Only used when
-            your data are already stored on the cloud and you only want to
-            record the info of the data path under `metadata_custom`.
-            Pass the prefix of your data and `data_type` to indicate whether
-            this data is of `training` type or `validation` type.
-        Note
-        ____
-        In the case when your data are already stored on the cloud and you only want to
-        record the info of the data path under `metadata_custom`, you can pass the
-        path where your data are stored on the cloud to prefix and it records this information
-        to `metadata_custom`. `storage_options` is needed in this case.
+            Either `training` or `validation`. Used when the data are
+            already stored remotely and you want to record the path in
+            `metadata_custom`. Pass the prefix of your data and `data_type`
+            to indicate whether this data is of `training` or `validation` type.
+            The `storage_options` is needed in this case.
 
         Returns
         -------
@@ -1177,7 +1168,7 @@ class ModelArtifact(Introspectable):
         """
         if not re.match(r"oci://*@*", prefix):
             raise InvalidObjectStoragePath(
-                "`prefix` is not valid. It must have the following pattern 'oci://bucket_name@namespace/key'."
+                "`prefix` is not valid. It must have the pattern 'oci://bucket_name@namespace/key'."
             )
         if not storage_options:
             storage_options = factory.default_storage_options
@@ -1211,14 +1202,15 @@ class ModelArtifact(Introspectable):
             self._save_data_path(prefix, data_type=data_type)
 
     def _populate_metadata_taxonomy(self, model=None, use_case_type=None):
-        """Extracts and populate taxonomy metadata from the given model.
+        """Extract and populate the taxonomy metadata from the model.
 
         Parameters
         ----------
         model: [sklearn, xgboost, lightgbm, automl, keras]
             The model object.
         use_case_type: str
-            The use case type of the model
+            The use case type of the model.
+
         Returns
         -------
         None
@@ -1256,7 +1248,7 @@ class ModelArtifact(Introspectable):
                 )
 
     def _populate_metadata_custom(self):
-        """Extracts custom metadata info from model artifact.
+        """Extracts custom metadata from the model artifact.
 
         Returns
         -------
@@ -1269,7 +1261,7 @@ class ModelArtifact(Introspectable):
             ModelCustomMetadataItem(
                 key=MetadataCustomKeys.CONDA_ENVIRONMENT,
                 value=self.conda_env if hasattr(self, "conda_env") else None,
-                description="The conda env where model was trained",
+                description="The conda environment where the model was trained.",
                 category=MetadataCustomCategory.TRAINING_ENV,
             )
         )
@@ -1296,7 +1288,7 @@ class ModelArtifact(Introspectable):
             ModelCustomMetadataItem(
                 key=MetadataCustomKeys.ENVIRONMENT_TYPE,
                 value=env_type,
-                description="The env type, could be published conda or datascience conda",
+                description="The environment type, must be a 'published' or 'data_science'.",
                 category=MetadataCustomCategory.TRAINING_ENV,
             )
         )
@@ -1304,7 +1296,7 @@ class ModelArtifact(Introspectable):
             ModelCustomMetadataItem(
                 key=MetadataCustomKeys.SLUG_NAME,
                 value=slug_name,
-                description="The slug name of the conda env where model was trained",
+                description="The slug name of the training conda environment.",
                 category=MetadataCustomCategory.TRAINING_ENV,
             )
         )
@@ -1312,7 +1304,7 @@ class ModelArtifact(Introspectable):
             ModelCustomMetadataItem(
                 key=MetadataCustomKeys.CONDA_ENVIRONMENT_PATH,
                 value=env_path,
-                description="The oci path of the conda env where model was trained",
+                description="The oci path of the training conda environment.",
                 category=MetadataCustomCategory.TRAINING_ENV,
             )
         )
@@ -1322,7 +1314,7 @@ class ModelArtifact(Introspectable):
                 value=textwrap.shorten(
                     ", ".join(self._get_files()), 255, placeholder="..."
                 ),
-                description="The list of files located in artifacts folder",
+                description="A list of files located in the model artifacts folder.",
                 category=MetadataCustomCategory.TRAINING_ENV,
             )
         )
@@ -1330,7 +1322,7 @@ class ModelArtifact(Introspectable):
             ModelCustomMetadataItem(
                 key=MetadataCustomKeys.MODEL_SERIALIZATION_FORMAT,
                 value=self._serialization_format,
-                description="The model serialization format",
+                description="The model serialization format.",
                 category=MetadataCustomCategory.TRAINING_PROFILE,
             )
         )
@@ -1344,11 +1336,16 @@ class ModelArtifact(Introspectable):
         )
         self.metadata_custom._add_many(model_metadata_items, replace=True)
 
-    def populate_metadata(self, model: Any = None, use_case_type: str = None):
+    def populate_metadata(self, model=None, use_case_type=None):
         """Extracts and populate taxonomy metadata from given model.
 
         Parameters
         ----------
+        model: [sklearn, xgboost, lightgbm, automl, keras]
+            The model object.
+
+        use_case_type:
+            The use case type of the model.
         model: (Any, optional). Defaults to None.
             This is an optional model object which is only used to extract taxonomy metadata.
             Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost.
@@ -1363,8 +1360,7 @@ class ModelArtifact(Introspectable):
         """
         if model is None and self.metadata_taxonomy["Algorithm"].value is None:
             logger.info(
-                "To auto-extract taxonomy metadata the model must be provided. "
-                "Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost."
+                "To auto-extract taxonomy metadata the model must be provided. Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost."
             )
         if use_case_type is None:
             use_case_type = self.metadata_taxonomy[
@@ -1383,7 +1379,7 @@ class ModelArtifact(Introspectable):
         **kwargs,
     ):
         """
-        Save the data to object storage.
+        Save the data to Object Storage.
         """
         oci_storage_path = os.path.join(prefix, data_file_name)
         if isinstance(data, np.ndarray) or isinstance(data, list):
@@ -1396,7 +1392,7 @@ class ModelArtifact(Introspectable):
             data.to_csv(oci_storage_path, storage_options=storage_options, **kwargs)
         else:
             raise NotImplementedError(
-                f"`{type(data)}` is not supported. Use a pandas DataFrame."
+                f"`{type(data)}` is not supported. Use a Pandas DataFrame."
             )
 
         self._save_data_path(oci_storage_path, data_type)
@@ -1405,7 +1401,7 @@ class ModelArtifact(Introspectable):
     def _save_from_local_file(
         self, prefix, file_path, storage_options, data_type="training"
     ):
-        """Save local file to object storage."""
+        """Save local file to Object Storage."""
         file_path = os.path.expanduser(file_path)
         import glob
 
@@ -1439,7 +1435,7 @@ class ModelArtifact(Introspectable):
             ModelCustomMetadataItem(
                 key=key,
                 value=oci_storage_path,
-                description=f"The path where {data_type} dataset path are stored on the object storage.",
+                description=f"The path to where the {data_type} dataset is stored on Object Storage.",
                 category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
             ),
             replace=True,
@@ -1457,7 +1453,7 @@ class ModelArtifact(Introspectable):
                 if data_type == "training"
                 else MetadataCustomKeys.VALIDATION_DATASET_SIZE,
                 value=str(data.shape),
-                description=f"The size of the {data_type} dataset.",
+                description=f"The size of the {data_type} dataset in bytes.",
                 category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
             ),
             replace=True,
@@ -1484,13 +1480,13 @@ class ModelArtifact(Introspectable):
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
     ):
         """
-        Populates input schema and output schema.
-        If the schema exceeds the limit of 32kb, save as json files to the artifact dir.
+        Populate the input and output schema.
+        If the schema exceeds the limit of 32kb, save as json files to the artifact directory.
 
         Parameters
         ----------
         data_sample: ADSData
-            A sample of the data that will be used to generate intput_schema and schema_output.
+            A sample of the data that will be used to generate input_schema and output_schema.
         X_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]
             A sample of input data that will be used to generate input schema.
         y_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]
@@ -1516,20 +1512,28 @@ class ModelArtifact(Introspectable):
             max_col_num=max_col_num,
         )
 
-    def _populate_schema(self, data, schema_file_name, max_col_num):
+    def _populate_schema(
+        self,
+        data: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame],
+        schema_file_name: str,
+        max_col_num: int,
+    ):
         """
-        Populate schema and if the schema exceeds the limit of 32kb, save as a json file to the artifact_dir.
+        Populate schema and if the schema exceeds the limit of 32kb, save as a json file to artifact_dir.
 
         Parameters
         ----------
-        data_sample: ADSData
-            A sample of the data that will be used to generate intput_schema and schema_output.
-        X_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]
+        data: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]
             A sample of input data that will be used to generate input schema.
-        y_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]
-            A sample of output data that will be used to generate output schema.
+        schema_file_name: str
+            schema file name to be saved as.
         max_col_num : int
             The maximum column size of the data that allows to auto generate schema.
+
+        Returns
+        -------
+        Schema
+            The schema.
         """
         result = None
 
@@ -1544,7 +1548,7 @@ class ModelArtifact(Introspectable):
             logger.warning(
                 f"The data has too many columns and "
                 f"the maximum allowable number of columns is `{max_col_num}`. "
-                "The schema was not auto generated. increase allowable number of columns."
+                "The schema was not auto generated. Increase allowable number of columns."
             )
 
         return result or Schema()
@@ -1568,9 +1572,93 @@ class ModelArtifact(Introspectable):
         Returns
         -------
         pd.DataFrame
-           The introspection result in a DataFrame format.
+           The introspection result in a dataframe format.
         """
         return self._introspect()
+
+    @classmethod
+    def from_model_catalog(
+        cls,
+        model_id: str,
+        artifact_dir: str,
+        model_file_name: Optional[str] = "model.onnx",
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        install_libs: Optional[bool] = False,
+        conflict_strategy=ConflictStrategy.IGNORE,
+        **kwargs,
+    ) -> "ModelArtifact":
+        """Download model artifacts from the model catalog to the target artifact directory.
+
+        Parameters
+        ----------
+        model_id: str
+            The model OCID.
+        artifact_dir: str
+            The artifact directory to store the files needed for deployment.
+            Will be created if not exists.
+        model_file_name: (str, optional). Defaults to "model.onnx".
+            The name of the serialized model.
+        auth: (Dict, optional). Defaults to None.
+            Default authetication is set using the `ads.set_auth()` method.
+            Use the `ads.common.auth.api_keys()` or `ads.common.auth.resource_principal()` to create appropriate
+            authentication signer and kwargs required to instantiate a IdentityClient object.
+        force_overwrite: (bool, optional). Defaults to False.
+            Overwrite existing files.
+        install_libs: bool, default: False
+            Install the libraries specified in ds-requirements.txt.
+        conflict_strategy: ConflictStrategy, default: IGNORE
+           Determines how to handle version conflicts between the current environment and requirements of
+           model artifact.
+           Valid values: "IGNORE", "UPDATE" or ConflictStrategy.
+           IGNORE: Use the installed version in  case of conflict
+           UPDATE: Force update dependency to the version required by model artifact in case of conflict
+        kwargs:
+            compartment_id: (str, optional)
+                Compartment OCID. If not specified, the value will be taken from the environment variables.
+            timeout: (int, optional). Defaults to 10 seconds.
+                The connection timeout in seconds for the client.
+
+        Returns
+        -------
+        ModelArtifact
+            An instance of ModelArtifact class.
+        """
+        from ads.catalog.model import ModelCatalog
+
+        auth = auth or authutil.default_signer()
+        artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
+
+        model_catalog = ModelCatalog(
+            compartment_id=kwargs.pop("compartment_id", _COMPARTMENT_OCID),
+            ds_client_auth=auth,
+            identity_client_auth=auth,
+            timeout=kwargs.pop("timeout", None),
+        )
+
+        model_catalog._download_artifacts(model_id, artifact_dir, force_overwrite)
+        oci_model = model_catalog.get_model(model_id)
+
+        result_artifact = cls(
+            artifact_dir=artifact_dir,
+            conflict_strategy=conflict_strategy,
+            install_libs=install_libs,
+            reload=False,
+            model_file_name=model_file_name,
+        )
+
+        result_artifact.metadata_custom = oci_model.metadata_custom
+        result_artifact.metadata_taxonomy = oci_model.metadata_taxonomy
+        result_artifact.schema_input = oci_model.schema_input
+        result_artifact.schema_output = oci_model.schema_output
+
+        if not install_libs:
+            logger.warning(
+                "Libraries in `ds-requirements.txt` were not installed. "
+                "Use `install_requirements()` to install the required dependencies."
+            )
+
+        return result_artifact
 
 
 class VersionConflictWarning(object):
@@ -1606,9 +1694,9 @@ def execute(cmd):
 
 def fetch_manifest_from_conda_location(env_location: str):
     """
-    Convenient method to fetch manifest file from an environment.
+    Convence method to fetch the manifest file from a conda environment.
 
-    :param env_location: Absolute path to the environment
+    :param env_location: Absolute path to the environment.
     :type env_location: str
     """
     manifest_location = None
@@ -1619,7 +1707,7 @@ def fetch_manifest_from_conda_location(env_location: str):
     env = {}
     if not manifest_location:
         raise Exception(
-            f"Could not locate manifest file in the provided environment: {env_location}. Dir Listing - "
+            f"Could not locate manifest file in the provided conda environment: {env_location}. Dir Listing - "
             f"{os.listdir(env_location)}"
         )
 

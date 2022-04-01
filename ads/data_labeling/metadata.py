@@ -8,13 +8,13 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Dict, List
 
 import pandas as pd
-from ads.common.helper import Serializable
-from ads.data_labeling.utils import ObjectStorageDetails
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.serializer import DataClassSerializable
 from oci.data_labeling_service_dataplane.models.dataset import Dataset as OCIDLSDataset
 
 
 @dataclass
-class Metadata(Serializable):
+class Metadata(DataClassSerializable):
     """The class that representing the labeled dataset metadata.
 
     Attributes

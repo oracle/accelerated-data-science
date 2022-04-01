@@ -99,7 +99,9 @@ class ADSData(object):
             str(self.y.shape),
         )
 
-    def to_onnxrt(self, sess, idx_range=None, model=None, **kwargs):  # pragma: no cover
+    def to_onnxrt(
+        self, sess, idx_range=None, model=None, impute_values={}, **kwargs
+    ):  # pragma: no cover
         r"""
         Returns itself formatted as an input for the onnxruntime session inputs passed in.
 
@@ -144,7 +146,9 @@ class ADSData(object):
                 )
             return ret
         elif model._underlying_model in ["automl"]:
-            X_trans, y_trans = model._onnx_data_transformer(self.X, self.y)
+            X_trans = model._onnx_data_transformer(
+                X=self.X, impute_values=impute_values
+            )
             inputs = {}
             for idx, c in enumerate(X_trans.columns):
                 inputs[sess.get_inputs()[idx].name] = (

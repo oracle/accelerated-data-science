@@ -625,6 +625,7 @@ class DataFlow(Infrastructure):
             timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
             self.name = f"dataflow-{timestamp}"
         payload = copy.deepcopy(self._spec)
+        runtime.convert(overwrite=kwargs.get("overwrite", False))
         if not runtime.script_uri:
             raise ValueError("script uri must be specified in runtime.")
         overwrite = kwargs.get("overwrite", False)

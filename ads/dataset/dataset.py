@@ -22,7 +22,7 @@ from typing import Iterable, Union
 
 from ads import set_documentation_mode
 from ads.common import utils
-from ads.common.deprecate import deprecated
+from ads.common.decorator.deprecate import deprecated
 from ads.dataset import helper, logger
 from ads.dataset.dataframe_transformer import DataFrameTransformer
 from ads.dataset.exception import ValidationError
@@ -47,7 +47,7 @@ from ads.dataset.correlation import (
     _get_columns_by_type,
     _validate_correlation_methods,
 )
-from ads.common.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import runtime_dependency
 
 N_Features_Wide_Dataset = 64
 

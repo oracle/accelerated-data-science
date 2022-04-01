@@ -15,6 +15,7 @@ try:
         NotebookRuntime,
         ScriptRuntime,
         DataFlowRuntime,
+        DataFlowNotebookRuntime,
     )
     from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
     from ads.jobs.ads_job import Job

@@ -24,7 +24,7 @@ from ads.evaluations.evaluation_plot import EvaluationPlot
 from ads.evaluations.statistical_metrics import ModelEvaluator
 from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 from ads.common.model import ADSModel
-from ads.common.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import runtime_dependency
 
 
 class ADSEvaluator(object):

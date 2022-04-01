@@ -8,7 +8,7 @@
 import click
 
 from ads.jobs import Job, DataFlowRun, DataScienceJobRun
-from ads.opctl.utils import _OCIAuthContext, suppress_traceback
+from ads.opctl.utils import OCIAuthContext, suppress_traceback
 
 
 @click.group("jobs")
@@ -35,7 +35,7 @@ def run(file, auth, oci_profile, debug):
     def _run(file, auth, oci_profile):
         if auth == "resource_principal":
             oci_profile = None
-        with _OCIAuthContext(profile=oci_profile):
+        with OCIAuthContext(profile=oci_profile):
             job = Job.from_yaml(uri=file)
             job.create()
             print(job.id)
@@ -63,7 +63,7 @@ def watch(ocid, auth, oci_profile, debug):
     def _watch(ocid, auth, oci_profile):
         if auth == "resource_principal":
             oci_profile = None
-        with _OCIAuthContext(profile=oci_profile):
+        with OCIAuthContext(profile=oci_profile):
             if "datasciencejobrun" in ocid:
                 run = DataScienceJobRun.from_ocid(ocid)
             elif "dataflowrun" in ocid:
@@ -93,7 +93,7 @@ def delete(ocid, auth, oci_profile, debug):
     def _delete(ocid, auth, oci_profile):
         if auth == "resource_principal":
             oci_profile = None
-        with _OCIAuthContext(profile=oci_profile):
+        with OCIAuthContext(profile=oci_profile):
             if "datasciencejobrun" in ocid:
                 run = DataScienceJobRun.from_ocid(ocid)
             elif "dataflowrun" in ocid:
