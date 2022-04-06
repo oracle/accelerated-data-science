@@ -1,3 +1,4 @@
+-e .
 autodoc
 nbsphinx
 sphinx
