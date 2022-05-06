@@ -26,6 +26,7 @@ from ads.common.utils import (
     is_notebook,
 )
 from ads.dataset.label_encoder import DataFrameLabelEncoder
+from ads.dataset.helper import is_text_data
 
 from IPython.core.display import display, HTML
 
@@ -533,10 +534,11 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
                             )
 
         self.train_start_time = time.time()
-        if "time_budget" in kwargs:
-            self.time_budget = kwargs.pop("time_budget")
-        else:
-            self.time_budget = 0  # unlimited
+
+        self.time_budget = kwargs.pop("time_budget", 0)  # 0 means unlimited
+
+        self.col_types = kwargs.pop("col_types", None)
+
         self.est = self._decide_estimator(**kwargs)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -546,6 +548,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
                 X_valid=self.X_valid,
                 y_valid=self.y_valid,
                 time_budget=self.time_budget,
+                col_types=self.col_types,
             )
         self.train_end_time = time.time()
         self.print_summary(max_rows=10)
@@ -613,8 +616,20 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
             or self.ml_task_type == ml_task_types.MULTI_CLASS_TEXT_CLASSIFICATION
         ):
             est = self.automl.Pipeline(
-                task="classification", text=True, score_metric=score_metric, **kwargs
+                task="classification", score_metric=score_metric, **kwargs
             )
+            if not self.col_types:
+                if len(self.X_train.columns) == 1:
+                    self.col_types = ['text']
+                elif len(self.X_train.columns) == 2:
+                    self.col_types = ['text', 'text']
+                else:
+                    raise ValueError("We detected a text classification problem. Pass " \
+                        "in `col_types = [<type of column1>, <type of column2>, ...]`." \
+                        " Valid types are: ['categorical', 'numerical', 'text', 'datetime'," \
+                        " 'timedelta']."
+                        )
+
         elif self.ml_task_type == ml_task_types.REGRESSION:
             est = self.automl.Pipeline(
                 task="regression", score_metric=score_metric, **kwargs

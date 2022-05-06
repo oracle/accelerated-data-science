@@ -21,6 +21,8 @@ from oci.secrets import SecretsClient
 from oci.config import from_file
 
 from ads.common import utils
+from ads.common import auth as authutil
+from ads.common import oci_client as oc
 from ads.vault.vault import Vault
 
 
@@ -70,23 +72,10 @@ class Connector:
             if not bool(re.match("^ocid[0-9]?\.vaultsecret.*", secret_id)):
                 raise ValueError(f"{secret_id} is not a valid secret id.")
 
-            if utils.is_resource_principal_mode():
-                rps = oci.auth.signers.get_resource_principals_signer()
-                secret_bundle = SecretsClient({}, signer=rps).get_secret_bundle(
-                    secret_id
-                )
-            else:
-                oci_config_location, oci_config_profile = utils.get_oci_config()
-                self.secrets_client = SecretsClient(
-                    from_file(oci_config_location, oci_config_profile)
-                )
-                try:
-                    secret_bundle = self.secrets_client.get_secret_bundle(secret_id)
-                except ServiceError as se:
-                    if se.status == 404:
-                        raise KeyError(se.message) from se
-                    else:
-                        raise
+            auth = authutil.default_signer()
+            self.secret_client = oc.OCIClientFactory(**auth).secret
+
+            secret_bundle = self.secret_client.get_secret_bundle(secret_id)
             secret_content = ast.literal_eval(
                 Vault._secret_to_dict(secret_bundle.data.secret_bundle_content.content)
             )

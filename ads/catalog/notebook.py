@@ -7,8 +7,6 @@
 from pandas import DataFrame
 from IPython.core.display import display
 import oci
-from oci.config import from_file
-from oci.data_science import DataScienceClient
 from oci.data_science.models import (
     NotebookSessionSummary,
     UpdateNotebookSessionDetails,
@@ -17,11 +15,12 @@ from oci.data_science.models import (
     NotebookSessionConfigurationDetails,
 )
 from oci.exceptions import ServiceError
-from oci.identity import IdentityClient
 from types import MethodType
 
 from ads.catalog.summary import SummaryList
 from ads.common import utils
+from ads.common import auth as authutil
+from ads.common import oci_client as oc
 from ads.config import (
     OCI_IDENTITY_SERVICE_ENDPOINT,
     NB_SESSION_COMPARTMENT_OCID,
@@ -117,36 +116,22 @@ class NotebookCatalog:
         )
         if self.compartment_id is None:
             raise ValueError("compartment_id needs to be specified.")
-        if utils.is_resource_principal_mode():
-            rps = oci.auth.signers.get_resource_principals_signer()
-            if OCI_ODSC_SERVICE_ENDPOINT:
-                self.ds_client = DataScienceClient(
-                    {}, service_endpoint=OCI_ODSC_SERVICE_ENDPOINT, signer=rps
-                )
-                self.identity_client = IdentityClient(
-                    {}, service_endpoint=OCI_IDENTITY_SERVICE_ENDPOINT, signer=rps
-                )
-            else:
-                self.ds_client = DataScienceClient({}, signer=rps)
-                self.identity_client = IdentityClient({}, signer=rps)
+
+        if OCI_ODSC_SERVICE_ENDPOINT:
+            odsc_auth = authutil.default_signer(
+                client_kwargs={"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
+            )
         else:
-            oci_config_location, oci_config_profile = utils.get_oci_config()
-            if OCI_ODSC_SERVICE_ENDPOINT:
-                self.ds_client = DataScienceClient(
-                    config=from_file(oci_config_location, oci_config_profile),
-                    service_endpoint=OCI_ODSC_SERVICE_ENDPOINT,
-                )
-                self.identity_client = IdentityClient(
-                    config=from_file(oci_config_location, oci_config_profile),
-                    service_endpoint=OCI_IDENTITY_SERVICE_ENDPOINT,
-                )
-            else:
-                self.ds_client = DataScienceClient(
-                    config=from_file(oci_config_location, oci_config_profile)
-                )
-                self.identity_client = IdentityClient(
-                    config=from_file(oci_config_location, oci_config_profile)
-                )
+            odsc_auth = authutil.default_signer()
+        self.ds_client = oc.OCIClientFactory(**odsc_auth).data_science
+
+        if OCI_IDENTITY_SERVICE_ENDPOINT:
+            identity_auth = authutil.default_signer(
+                client_kwargs={"service_endpoint": OCI_IDENTITY_SERVICE_ENDPOINT}
+            )
+        else:
+            identity_auth = authutil.default_signer()
+        self.identity_client = oc.OCIClientFactory(**identity_auth).identity
 
         self.short_id_index = {}
 

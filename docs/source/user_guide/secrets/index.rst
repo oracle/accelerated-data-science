@@ -9,6 +9,7 @@ Secrets
 
     overview
     adb
+    bds
     oracle
     mysql
     authtoken

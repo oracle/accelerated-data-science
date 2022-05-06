@@ -20,6 +20,30 @@ ads.secrets.adb module
    :undoc-members:
    :show-inheritance:
 
+ads.secrets.mysqldb module
+--------------------------
+
+.. automodule:: ads.secrets.mysqldb
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.secrets.oracledb module
+--------------------------
+
+.. automodule:: ads.secrets.oracledb
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.secrets.big\_data\_service module
+-------------------------------------
+
+.. automodule:: ads.secrets.big_data_service
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 ads.secrets.auth\_token module
 ------------------------------
 

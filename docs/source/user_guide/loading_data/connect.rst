@@ -19,7 +19,7 @@ To load a dataframe from Object Storage using the API keys, you can use the foll
 
 .. code:: python3
 
-  ads.set_auth(auth="api_key", profile="DEFAULT")
+  ads.set_auth(auth="api_key", oci_config_location="~/.oci/config", profile="DEFAULT")
   bucket_name = <bucket-name>
   file_name = <file-name>
   namespace = <namespace>

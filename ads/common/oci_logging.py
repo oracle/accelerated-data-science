@@ -11,8 +11,10 @@ from typing import Union, List
 
 import oci.logging
 import oci.loggingsearch
+from ads.common.decorator.utils import class_or_instance_method
 from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 from ads.common.oci_resource import OCIResource, ResourceNotFoundError
+
 
 logger = logging.getLogger(__name__)
 
@@ -32,8 +34,8 @@ class OCILoggingModelMixin(OCIModelMixin, OCIWorkRequestMixin):
     This class should not be initialized directly. Use a sub-class (OCILogGroup or OCILog) instead.
     """
 
-    @classmethod
-    def from_name(cls, display_name: str) -> Union["OCILogGroup", "OCILog"]:
+    @class_or_instance_method
+    def from_name(cls, display_name: str, **kwargs) -> Union["OCILogGroup", "OCILog"]:
         """Obtain an existing OCI logging resource by using its display name.
         OCI log group or log resource requires display name to be unique.
 
@@ -47,13 +49,13 @@ class OCILoggingModelMixin(OCIModelMixin, OCIWorkRequestMixin):
         An instance of logging resource, e.g. OCILogGroup, or OCILog.
 
         """
-        items = cls.list_resource()
+        items = cls.list_resource(**kwargs)
         for item in items:
             if item.display_name == display_name:
                 return item
         return None
 
-    @classmethod
+    @class_or_instance_method
     def init_client(cls, **kwargs) -> oci.logging.LoggingManagementClient:
         """Initialize OCI client"""
         return cls._init_client(client=oci.logging.LoggingManagementClient, **kwargs)
@@ -234,7 +236,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
                     return oci_log.log_group_id
         raise ResourceNotFoundError(f"Log not found. OCID={log_ocid}")
 
-    @classmethod
+    @class_or_instance_method
     def _get(cls, ocid) -> oci.logging.models.Log:
         """Gets the OCI Log data (properties)
 
@@ -468,8 +470,13 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         results = []
 
         while not limit or len(results) < limit:
-
-            if limit:
+            if time_start + datetime.timedelta(microseconds=1000) > time_end:
+                # The log search API used RFC3339 time format.
+                # The minimum time unit of RFC3339 format is 1000 microseconds.
+                # If the search interval is less than this,
+                # there will be InvalidParameter error from OCI.
+                records = []
+            elif limit:
                 logger.debug(
                     "Requesting logs between %s and %s ...", time_start, time_end
                 )

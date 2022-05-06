@@ -4,14 +4,10 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
 from numbers import Integral, Number
 
 import numpy as np
-import oci
 import scipy as sp
-from ads.common import utils
-from oci.object_storage import ObjectStorageClient
 from optuna import logging  # NOQA
 from sklearn.utils import _safe_indexing as sklearn_safe_indexing
 
@@ -34,30 +30,6 @@ def _update_space_name(search_space, **kwargs):
         return param_distributions
     else:
         return search_space
-
-
-def _initialize_ociclient():
-    """
-    Creates and initializes oci object storage client.
-    """
-    try:
-        rps = oci.auth.signers.get_resource_principals_signer()
-        oci_client = ObjectStorageClient(
-            {}, signer=rps, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
-        )
-    except:
-        if os.path.exists(utils.oci_config_file()):
-            config = utils.oci_config_file()
-            profile = utils.oci_config_profile()
-            config = oci.config.from_file(config, profile)
-            oci_client = ObjectStorageClient(
-                config, retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY
-            )
-        else:
-            logger.error(
-                f"OCI key configuration was not found at {utils.oci_config_file()}. Either Resource principal or OCI keys are required to access the conda environments"
-            )
-    return oci_client
 
 
 def _extract_uri(file_uri):

@@ -10,6 +10,7 @@ import logging
 import sys
 
 import IPython
+import oci
 from IPython import get_ipython
 from IPython.core.error import UsageError
 
@@ -31,12 +32,13 @@ with open(
 
 debug_mode = os.environ.get("DEBUG_MODE", False)
 documentation_mode = os.environ.get("DOCUMENTATION_MODE", "False") == "True"
+oci_config_path = oci.config.DEFAULT_LOCATION  # "~/.oci/config"
 oci_key_profile = "DEFAULT"
 test_mode = os.environ.get("TEST_MODE", False)
 resource_principal_mode = bool(os.environ.get("RESOURCE_PRINCIPAL_MODE", False))
 
 
-def set_auth(auth="api_key", profile="DEFAULT"):
+def set_auth(auth="api_key", oci_config_location=oci.config.DEFAULT_LOCATION, profile="DEFAULT"):
     """
     Enable/disable resource principal identity or keypair identity in a notebook session.
 
@@ -44,15 +46,25 @@ def set_auth(auth="api_key", profile="DEFAULT"):
     ----------
     auth: {'api_key', 'resource_principal'}, default 'api_key'
          Enable/disable resource principal identity or keypair identity in a notebook session
+    oci_config_location: str, default oci.config.DEFAULT_LOCATION, which is '~/.oci/config'
+        config file location
     profile: str, default 'DEFAULT'
          profile name for api keys config file
     """
     global resource_principal_mode
+    global oci_config_path
     global oci_key_profile
     oci_key_profile = profile
+    if os.path.exists(os.path.expanduser(oci_config_location)):
+        oci_config_path = oci_config_location
+    else:
+        logging.warning(
+            f"{oci_config_location} file not exists, default value oci.config.DEFAULT_LOCATION used instead"
+        )
+        oci_config_path = oci.config.DEFAULT_LOCATION
     if auth == "api_key":
         resource_principal_mode = False
-    if auth == "resource_principal":
+    elif auth == "resource_principal":
         resource_principal_mode = True
 
 

@@ -24,14 +24,22 @@ import subprocess
 from typing import Optional
 from urllib.parse import urlparse
 
-import nbformat
 import oci
-from nbconvert.preprocessors import (
-    CellExecutionError,
-    ExecutePreprocessor,
+
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
 )
 
 logger = logging.getLogger(__name__)
+
+try:
+    from nbconvert.preprocessors import ExecutePreprocessor
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        f"The `nbconvert` module was not found. Please run "
+        f"`pip install {OptionalDependency.OPCTL}`."
+    )
 
 
 class ADSExecutePreprocessor(ExecutePreprocessor):
@@ -173,6 +181,8 @@ class OCIHelper:
                     )
 
 
+@runtime_dependency(module="nbformat", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(module="nbconvert", install_from=OptionalDependency.OPCTL)
 def run_notebook(
     notebook_path: str,
     working_dir: Optional[str] = None,
@@ -191,7 +201,7 @@ def run_notebook(
         Tags for excluding cells, by default None
     """
     # Read the notebook
-    encoding = os.environ.get("NOTEBOOK_ENCODING", 'utf-8')
+    encoding = os.environ.get("NOTEBOOK_ENCODING", "utf-8")
     with open(notebook_path, encoding=encoding) as f:
         nb = nbformat.read(f, as_version=4)
 
@@ -203,6 +213,8 @@ def run_notebook(
     notebook_filename_out = os.path.join(working_dir, os.path.basename(notebook_path))
 
     ep = ADSExecutePreprocessor(exclude_tags=exclude_tags, kernel_name="python")
+
+    from nbconvert.preprocessors import CellExecutionError
 
     try:
         ep.preprocess(nb, {"metadata": {"path": working_dir}})

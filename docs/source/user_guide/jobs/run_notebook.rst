@@ -68,78 +68,78 @@ YAML
 
 You could use the following YAML to create the same job:
 
-.. code:: ipython3
+.. code:: yaml
 
 	kind: job
 	spec:
 	  infrastructure:
 	    kind: infrastructure
+        type: dataScienceJob
 	    spec:
 	      jobInfrastructureType: STANDALONE
 	      jobType: DEFAULT
 	      logGroupId: <log_group_id>
 	      logId: <log.id>
-	    type: dataScienceJob
 	  runtime:
 	    kind: runtime
+        type: notebook
 	    spec:
 	      conda:
-		slug: tensorflow26_p37_cpu_v1
-		type: service
-	      notebookPathURI: {path_to_nb}
-	    type: notebook
+            slug: tensorflow26_p37_cpu_v1
+            type: service
+	      notebookPathURI: /path/to/notebook
 
 **NotebookRuntime Schema**
 
 .. code:: yaml
 
     kind:
-    allowed:
-        - runtime
-    required: true
-    type: string
+        allowed:
+            - runtime
+        required: true
+        type: string
     spec:
-    required: true
-    schema:
-        args:
-        nullable: true
-        required: false
-        schema:
-            type: string
-        type: list
-        conda:
-        nullable: false
-        required: false
-        schema:
-            slug:
-            required: true
-            type: string
-            type:
-            allowed:
-                - service
-            required: true
-            type: string
         type: dict
-        env:
-        required: false
+        required: true
         schema:
+            args:
+            nullable: true
+            required: false
+            schema:
+                type: string
+            type: list
+            conda:
+            nullable: false
+            required: false
+            schema:
+                slug:
+                required: true
+                type: string
+                type:
+                allowed:
+                    - service
+                required: true
+                type: string
             type: dict
-        type: list
-        excludeTags:
-        required: false
-        type: list
-        freeform_tag:
-        required: false
-        type: dict
-        notebookPathURI:
-        required: false
-        type: string
-        outputUri:
-        required: false
-        type: string
-    type: dict
+            env:
+            required: false
+            schema:
+                type: dict
+            type: list
+            excludeTags:
+            required: false
+            type: list
+            freeform_tag:
+            required: false
+            type: dict
+            notebookPathURI:
+            required: false
+            type: string
+            outputUri:
+            required: false
+            type: string
     type:
-    allowed:
-        - notebook
-    required: true
-    type: string
+        allowed:
+            - notebook
+        required: true
+        type: string

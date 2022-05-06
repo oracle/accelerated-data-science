@@ -32,7 +32,7 @@ install_requires = [
     "matplotlib>=3.1.3",
     "numexpr>=2.7.3",
     "numpy>=1.19.2",
-    "oci>=2.48.1",
+    "oci>=2.59.0",
     "ocifs>=0.1.5",
     "onnx~=1.10.2",
     "onnxmltools>=1.10.0",
@@ -79,6 +79,7 @@ extras_require = {
     ],
     "opctl": ["oci-cli", "docker", "conda-pack", "nbconvert", "nbformat"],
     "mysql": ["mysql-connector-python"],
+    "bds": ["ibis-framework[impala]", "pyhive", "hdfs[kerberos]"],
 }
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
 extras_require["all-optional"] = reduce(

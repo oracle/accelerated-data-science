@@ -59,25 +59,25 @@ You could use the following YAML example to create the same job with ``ScriptRun
 
 .. code:: yaml
 
-	kind: job
-	spec:
-	  infrastructure:
-	    kind: infrastructure
-	    spec:
-	      jobInfrastructureType: STANDALONE
-	      jobType: DEFAULT
-	      logGroupId: <log_group_id>
-	      logId: <log_id>
-	    type: dataScienceJob
-	  runtime:
-	    kind: runtime
-	    spec:
+  kind: job
+  spec:
+    infrastructure:
+      kind: infrastructure
+      type: dataScienceJob
+      spec:
+        jobInfrastructureType: STANDALONE
+        jobType: DEFAULT
+        logGroupId: <log_group_id>
+        logId: <log_id>
+    runtime:
+      kind: runtime
+      type: script
+      spec:
         conda:
           slug: pytorch19_p37_cpu_v1
           type: service
-	      entrypoint: zip_or_dir/main.py
-	      scriptPathURI: path/to/zip_or_dir
-	    type: script
+        entrypoint: zip_or_dir/main.py
+        scriptPathURI: path/to/zip_or_dir
 
 
 
@@ -137,30 +137,30 @@ You could use the following YAML to create the same job with ``PythonRuntime``:
 
 .. code:: yaml
 
-	kind: job
-	spec:
-	  infrastructure:
-	    kind: infrastructure
-	    spec:
-	      jobInfrastructureType: STANDALONE
-	      jobType: DEFAULT
-	      logGroupId: <log_group_id>
-	      logId: <log_id>
-	    type: dataScienceJob
-	  runtime:
-	    kind: runtime
-	    spec:
+  kind: job
+  spec:
+    infrastructure:
+      kind: infrastructure
+      type: dataScienceJob
+      spec:
+        jobInfrastructureType: STANDALONE
+        jobType: DEFAULT
+        logGroupId: <log_group_id>
+        logId: <log_id>
+    runtime:
+      kind: runtime
+      type: python
+      spec:
         conda:
           slug: pytorch19_p37_cpu_v1
           type: service
-	      entrypoint: zip_or_dir/my_package/entry.py
-	      scriptPathURI: path/to/zip_or_dir
+        entrypoint: zip_or_dir/my_package/entry.py
+        scriptPathURI: path/to/zip_or_dir
         workingDir: zip_or_dir
         outputDir: zip_or_dir/output
         outputUri: oci://bucket_name@namespace/path/to/dir
         pythonPath:
-        - "zip_or_dir/python_path"
-	    type: python
+          - "zip_or_dir/python_path"
 
 **PythonRuntime YAML Schema**
 

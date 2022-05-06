@@ -59,8 +59,8 @@ def deserialize(data):
     data: deserialized input data.
 
     """
-    json_data = data['data']
-    data_type = data['data_type']
+    data_type = data.get('data_type', '')
+    json_data = data.get('data', data)
 
     if "numpy.ndarray" in data_type:
         load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))

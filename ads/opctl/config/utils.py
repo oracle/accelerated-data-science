@@ -10,9 +10,10 @@ from typing import List
 
 import urllib.parse
 import fsspec
-import nbformat
-from nbconvert.preprocessors import TagRemovePreprocessor
-from nbconvert.exporters import PythonExporter
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class OperatorNotFound(Exception):
@@ -41,6 +42,8 @@ def read_from_ini(path: str) -> configparser.ConfigParser:
     return parser
 
 
+@runtime_dependency(module="nbformat", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(module="nbconvert", install_from=OptionalDependency.OPCTL)
 def convert_notebook(
     input_path,
     auth,
@@ -50,6 +53,9 @@ def convert_notebook(
 ) -> str:
     with fsspec.open(input_path, **auth) as f:
         nb = nbformat.reads(f.read(), nbformat.NO_CONVERT)
+
+    from nbconvert.preprocessors import TagRemovePreprocessor
+    from nbconvert.exporters import PythonExporter
 
     exporter = PythonExporter()
     if exclude_tags:

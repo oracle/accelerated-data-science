@@ -119,7 +119,11 @@ def default_signer(client_kwargs=None):
     if utils.is_resource_principal_mode():
         return resource_principal(client_kwargs)
     else:
-        return api_keys(client_kwargs=client_kwargs, profile=utils.oci_key_profile())
+        return api_keys(
+            oci_config=utils.oci_config_location(),
+            profile=utils.oci_key_profile(),
+            client_kwargs=client_kwargs,
+        )
 
 
 def get_signer(oci_config=None, oci_profile=None, **client_kwargs):

@@ -66,4 +66,4 @@ class AutoMLExtractor(ModelInfoExtractor):
         dict:
            The hyperparameters of the model.
         """
-        return self.model.selected_model_params_
+        return None
