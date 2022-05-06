@@ -149,8 +149,9 @@ def prepare_generic_model(
     >>> import ads
     >>> from ads.common.model_export_util import prepare_generic_model
     >>> import yaml
+    >>> import oci
     >>>
-    >>> ads.set_auth('api_key', profile='DEFAULT')
+    >>> ads.set_auth('api_key', oci_config_location=oci.config.DEFAULT_LOCATION, profile='DEFAULT')
     >>> model_artifact_location = os.path.expanduser('~/myusecase/model/')
     >>> inference_conda_env="oci://my-bucket@namespace/conda_environments/cpu/Data Exploration and Manipulation for CPU Python 3.7/2.0/dataexpl_p37_cpu_v2"
     >>> inference_python_version = "3.7"
@@ -748,15 +749,15 @@ class ONNXTransformer(object):
         """
         Transforms the data for the OnnxTransformer.
 
-            Parameters
-            ----------
-            X: Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
-                The Dataframe for the training data
+        Parameters
+        ----------
+        X: Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
+            The Dataframe for the training data
 
-            Returns
-            -------
-            Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
-                The transformed X data
+        Returns
+        -------
+        Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
+            The transformed X data
         """
         assert self._fitted, "Call fit_transform first!"
         if self.dtypes is not None and len(self.dtypes) > 0:

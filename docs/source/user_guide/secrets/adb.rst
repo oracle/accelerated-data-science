@@ -168,7 +168,7 @@ Using a ``with`` statement:
 .. code:: python3
 
     with ADBSecretKeeper.load_secret('ocid1.vaultsecret.oc1..<unique_ID>') as adwsecret:
-        print(adwsecret['user_name']
+        print(adwsecret['user_name'])
 
 Without using a ``with`` statement:
 

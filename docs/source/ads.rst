@@ -9,6 +9,7 @@ Subpackages
     ads.automl
     ads.catalog
     ads.common
+    ads.bds
     ads.data_labeling
     ads.database
     ads.dataflow

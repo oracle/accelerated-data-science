@@ -29,7 +29,6 @@ import fsspec
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-from sqlalchemy import tuple_
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
@@ -107,6 +106,10 @@ def get_compute_accelerator_ncores():
     return get_cpu_count()
 
 
+@deprecated(
+    "2.5.10",
+    details="Deprecated, use: oci_config_location=oci_config_location(); profile=oci_key_profile()",
+)
 def get_oci_config():
     """
     Returns the OCI config location, and the OCI config profile.
@@ -118,6 +121,7 @@ def get_oci_config():
     return oci_config_location, oci_config_profile
 
 
+@deprecated("2.5.10", details="Deprecated, use: os.path.dirname(oci_config_location())")
 def oci_key_location():
     """
     Returns the OCI key location
@@ -127,6 +131,7 @@ def oci_key_location():
     )
 
 
+@deprecated("2.5.10", details="Deprecated, use: oci_config_location()")
 def oci_config_file():
     """
     Returns the OCI config file location
@@ -134,6 +139,7 @@ def oci_config_file():
     return os.path.join(oci_key_location(), "config")
 
 
+@deprecated("2.5.10", details="Deprecated, use: oci_key_profile()")
 def oci_config_profile():
     """
     Returns the OCI config profile location.
@@ -148,6 +154,10 @@ def numeric_pandas_dtypes():
     return ["int16", "int32", "int64", "float16", "float32", "float64"]
 
 
+@deprecated(
+    "2.5.10",
+    details="Deprecated, use: ads.set_auth(auth='api_key', oci_config_location='~/.oci/config', profile='DEFAULT')",
+)
 def set_oci_config(oci_config_location, oci_config_profile):
     """
     :param oci_config_location: location of the config file, for example, ~/.oci/config
@@ -391,7 +401,19 @@ def is_resource_principal_mode():  # pragma: no cover
     return resource_principal_mode
 
 
-def oci_key_profile():
+def oci_config_location():  # pragma: no cover
+    """
+    Returns oci configuration file location.
+    """
+    from ads import oci_config_path
+
+    return oci_config_path
+
+
+def oci_key_profile():  # pragma: no cover
+    """
+    Returns key profile value specified in oci configuration file.
+    """
     from ads import oci_key_profile
 
     return oci_key_profile
@@ -726,7 +748,7 @@ def get_sqlalchemy_engine(connection_url, *args, **kwargs):
     The SqlAlchemny docs say to use a single engine per connection_url, this class will take
     care of that.
 
-    Parameters:
+    Parameters
     ----------
 
     connection_url: string
@@ -1020,7 +1042,7 @@ def is_data_too_wide(
     """
     Returns true if the data has too many columns.
 
-    Parameters:
+    Parameters
     ----------
 
     data: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]
@@ -1104,7 +1126,10 @@ def _serialize_input_helper(
     else:
         raise TypeError("The provided data type is not json serializable. ")
 
-    data_dict = {"data": data, "data_type": str(data_type)}
+    data_dict = {
+        "data": data,
+        "data_type": str(data_type),
+    }
     return data_dict
 
 

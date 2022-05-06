@@ -253,8 +253,10 @@ Here is an example of a YAML file representing the job defined in the preceding 
 
     kind: job
     spec:
+        name: <job_display_name>
         infrastructure:
-        kind: infrastructure
+            kind: infrastructure
+            type: dataScienceJob
             spec:
                 blockStorageSize: 50
                 compartmentId: <compartment_ocid>
@@ -266,16 +268,14 @@ Here is an example of a YAML file representing the job defined in the preceding 
                 projectId: <project_ocid>
                 shapeName: VM.Standard2.1
                 subnetId: <subnet_ocid>
-            type: dataScienceJob
-        name: <job_display_name>
         runtime:
             kind: runtime
+            type: script
             spec:
                 conda:
                     slug: tensorflow26_p37_cpu_v2
                     type: service
                 scriptPathURI: oci://bucket_name@namespace/path/to/script.py
-            type: script
 
 **ADS Job YAML schema**
 
@@ -286,7 +286,6 @@ Here is an example of a YAML file representing the job defined in the preceding 
         type: string
         allowed:
             - job
-
     spec:
         required: true
         type: dict
@@ -300,6 +299,7 @@ Here is an example of a YAML file representing the job defined in the preceding 
             name:
                 required: false
                 type: string
+
 
 **Data Science Job Infrastructure YAML Schema**
 

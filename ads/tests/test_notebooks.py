@@ -7,13 +7,12 @@
 import os
 import unittest
 
-import nbformat
-from nbconvert.preprocessors import CellExecutionError
-from nbconvert.preprocessors import ExecutePreprocessor
-from nbformat import v4 as nbf
-
 from ads.tests import logger
 from ads.tests import utils as testutils
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 # ref: https://nbconvert.readthedocs.io/en/latest/api/preprocessors.html
@@ -27,7 +26,11 @@ class TestNotebooks(unittest.TestCase):
         # appropriately tagged with the notebook they arise from.
         self.kernel = kernel
 
+    @runtime_dependency(module="nbformat", install_from=OptionalDependency.OPCTL)
+    @runtime_dependency(module="nbconvert", install_from=OptionalDependency.OPCTL)
     def runTest(self):
+        from nbformat import v4 as nbf
+
         error_flag = False
         msg = None
         with open(self.notebook_filename) as f:
@@ -36,10 +39,14 @@ class TestNotebooks(unittest.TestCase):
                 0, nbf.new_code_cell("import ads; ads.set_debug_mode(True)")
             )
             logger.info("Executing " + self.notebook_filename)
+
+            from nbconvert.preprocessors import CellExecutionError, ExecutePreprocessor
+
             if self.kernel:
                 ep = ExecutePreprocessor(timeout=600, kernel_name=self.kernel)
             else:
                 ep = ExecutePreprocessor(timeout=600)
+
             try:
                 ep.log = logger
                 ep.preprocess(

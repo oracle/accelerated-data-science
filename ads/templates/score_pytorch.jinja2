@@ -2,6 +2,7 @@ import os
 import sys
 from functools import lru_cache
 import torch
+import json
 from typing import Dict, List
 import numpy as np
 import pandas as pd
@@ -51,7 +52,32 @@ def load_model(model_file_name=model_name):
 
     return the_model
 
-def deserialize(data):
+
+@lru_cache(maxsize=1)
+def fetch_data_type_from_schema(input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):
+    """
+    Returns data type information fetch from input_schema.json.
+
+    Parameters
+    ----------
+    input_schema_path: path of input schema.
+
+    Returns
+    -------
+    data_type: data type fetch from input_schema.json.
+
+    """
+    data_type = {}
+    if os.path.exists(input_schema_path):
+        schema = json.load(open(input_schema_path))
+        for col in schema['schema']:
+            data_type[col['name']] = col['dtype']
+    else:
+        print("input_schema has to be passed in in order to recover the same data type. pass `X_sample` in `ads.model.framework.pytorch_model.PyTorchModel.prepare` function to generate the input_schema. Otherwise, the data type might be changed after serialization/deserialization.")
+    return data_type
+
+
+def deserialize(data, input_schema_path):
     """
     Deserialize json-serialized data to data in original type when sent to
 predict.
@@ -59,14 +85,15 @@ predict.
     Parameters
     ----------
     data: serialized input data.
+    input_schema_path: path of input schema.
 
     Returns
     -------
     data: deserialized input data.
 
     """
-    json_data = data['data']
-    data_type = data['data_type']
+    data_type = data.get('data_type', '')
+    json_data = data.get('data', data)
 
     if "numpy.ndarray" in data_type:
         load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
@@ -74,26 +101,27 @@ predict.
     if "pandas.core.series.Series" in data_type:
         return pd.Series(json_data)
     if "pandas.core.frame.DataFrame" in data_type:
-        return pd.read_json(json_data)
+        return pd.read_json(json_data, dtype=fetch_data_type_from_schema(input_schema_path))
     if "torch.Tensor" in data_type:
         load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
         return torch.load(load_bytes)
 
     return json_data
 
-def pre_inference(data):
+def pre_inference(data, input_schema_path):
     """
     Preprocess json-serialized data to feed into predict function.
 
     Parameters
     ----------
     data: Data format as expected by the predict API of the core estimator.
+    input_schema_path: path of input schema.
 
     Returns
     -------
     data: Data format after any processing.
     """
-    data = deserialize(data)
+    data = deserialize(data, input_schema_path)
 
     # Add further data preprocessing if needed
     return data
@@ -117,7 +145,7 @@ def post_inference(yhat):
     # Add further data postprocessing if needed
     return yhat
 
-def predict(data, model=load_model()):
+def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):
     """
     Returns prediction given the model and data to predict.
 
@@ -125,6 +153,7 @@ def predict(data, model=load_model()):
     ----------
     model: Model instance returned by load_model API
     data: Data format as expected by the predict API of the core estimator
+    input_schema_path: path of input schema.
 
     Returns
     -------
@@ -132,7 +161,7 @@ def predict(data, model=load_model()):
         Format: {'prediction': output from model.predict method}
 
     """
-    inputs = pre_inference(data)
+    inputs = pre_inference(data, input_schema_path)
 
     with torch.no_grad():
         yhat = post_inference(

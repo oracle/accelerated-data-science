@@ -2,8 +2,26 @@
 Release Notes
 =============
 
-April 1, 2022
-----------------
+May 5, 2022
+-----------
+
+***********
+ADS v2.5.10
+***********
+
+**ADS**
+
+* Added ``BDSSecretKeeper`` to store and save configuration parameters to connect to Big Data service to the vault.
+* Added the ``krbcontext`` and ``refresh_ticket`` functions to configure Kerberos authentication for the Big Data service.
+* Added authentication options to logging APIs to allow you to pass in the OCI API key configuration or signer.
+* Added the configuration file path option to the ``set_auth`` method to allow to change the path of the OCI configuration.
+* Fixed a bug in AutoML for Ttext datasets.
+* Fixed bug in ``import ads.jobs`` to notify users installing ADS optional dependencies.
+* Fixed a bug in the generated ``score.py`` file, where Pandas dataframe's dtypes changed when deserializing. Now you can recover it from the input schema.
+* Updated requirements to oci>=2.59.0.
+
+April 4, 2022
+-------------
 
 **********
 ADS v2.5.9
@@ -12,7 +30,7 @@ ADS v2.5.9
 **ADS**
 
 * Added framework specific model serialization to add more inputs to the generated ``score.py`` file.
-* Added the following framework-specific model classes:
+* Added the following framework-specific classes for fast and easy model deployment:
 
     * ``AutoMLModel``
     * ``SKlearnModel``
@@ -20,20 +38,21 @@ ADS v2.5.9
     * ``LightGBMModel``
     * ``PyTorchModel``
     * ``TensorFlowModel``
-* For any framework not included in the preceding list, added another class:
+* Added the ``GenericModel`` class for frameworks not included in the preceding list:
 
-    * ``GenericModel``
-* These model classes include methods specific to the frameworks that improve deployment speed. Some example methods are:
+* You can now prepare, verify, save and deploy your models using the methods in these new classes:
 
-    * Prepare (the artifacts)
-    * Save (metadata and model to model catalog)
-    * Deploy (the models quickly with this method)
-    * Predict (perform inference operations)
+    * ``.prepare()``: Creates `score.py <https://docs.oracle.com/iaas/data-science/using/model_score_py.htm>`__, runtime.yaml, and schema files for model deployment purpose, and adds the model artifacts to the model catalog.
+    * ``.verify()``: Helps test your model locally, before deploying it from the model catalog to an endpoint.
+    * ``.save()``: Saves the model and model artifacts to the model catalog.
+    * ``.deploy()``: Deploys the model from model catalog to a REST endpoint.
+    * ``.predict()``: Calls the endpoint and creates inferences from the deployed model.
 * Added support to create jobs with managed egress.
-* Shortened the time for streaming large number of logs for job run logging.
+* Fixed bug in jobs, where log entries were being dropped when there were a large number logs in a short period of time. Now you can list all logs with ``jobwatch()``.
+
 
 March 3, 2022
-----------------
+-------------
 
 **********
 ADS v2.5.8
@@ -240,9 +259,9 @@ September 22, 2021
 ADS v2.4.0
 **********
 
-*************
+****
 Jobs
-*************
+****
 
 The Data Science jobs feature is introduced and includes the following:
 
@@ -416,9 +435,9 @@ MLX is upgraded to **MLX v1.1.1** the changes include:
 Janurary 13, 2021
 -----------------
 
-******
+***
 ADS
-******
+***
 
 * A full distribution of this release of ADS is found in the General Machine Learning for CPU and GPU environments. The Classic environments include the previous release of ADS.
 * A distribution of ADS without AutoML and MLX is found in the remaining environments.

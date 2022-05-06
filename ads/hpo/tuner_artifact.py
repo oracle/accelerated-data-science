@@ -18,7 +18,7 @@ from ads.common import auth as authutil
 import sklearn
 from ads.hpo.ads_search_space import model_list
 from ads.hpo.distributions import decode, encode
-from ads.hpo.utils import _extract_uri, _initialize_ociclient
+from ads.hpo.utils import _extract_uri
 from optuna import logging
 
 logger = logging.get_logger(__name__)

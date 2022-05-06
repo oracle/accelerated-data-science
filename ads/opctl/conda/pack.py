@@ -14,10 +14,14 @@ import sys
 import glob
 import stat
 
-import conda_pack
 import yaml
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
+@runtime_dependency(module="conda_pack", install_from=OptionalDependency.OPCTL)
 def main(pack_folder_path):
     slug = os.path.basename(pack_folder_path)
     manifest_path = glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]

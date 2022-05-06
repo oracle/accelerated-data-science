@@ -11,6 +11,7 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 from ads.common import logger
+from ads.common.utils import _serialize_input_helper
 from ads.model.extractor.automl_extractor import AutoMLExtractor
 from ads.model.generic_model import GenericModel
 from ads.model.model_properties import ModelProperties
@@ -261,14 +262,12 @@ class AutoMLModel(GenericModel):
         TypeError
             if provided data type is not supported.
         """
-
-        if isinstance(data, np.ndarray) or isinstance(data, pd.core.series.Series):
-            data = data.tolist()
-        elif isinstance(data, pd.core.frame.DataFrame):
-            data = data.to_json()
-        elif isinstance(data, Dict) or isinstance(data, str) or isinstance(data, List):
-            pass
-        else:
-            raise TypeError("The provided data type is not json serializable. ")
-
-        return data
+        try:
+            return _serialize_input_helper(data)
+        except:
+            raise TypeError(
+                "The supported data types are Dict, str, list, "
+                "numpy.ndarray, pd.core.series.Series, "
+                "pd.core.frame.DataFrame. Please "
+                "convert to the supported data types first. "
+            )

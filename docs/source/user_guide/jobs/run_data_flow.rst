@@ -31,7 +31,8 @@ Update ``oci_profile`` if you're not using the default:
 .. code:: ipython3
 
     oci_profile = "DEFAULT"
-    ads.set_auth(auth="api_key", profile=oci_profile)
+    config_location = "~/.oci/config"
+    ads.set_auth(auth="api_key", oci_config_location=config_location, profile=oci_profile)
 
 To create a Data Flow application you need two components: 
 
@@ -382,104 +383,104 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
 .. code:: yaml
 
     kind:
-    allowed:
-        - infrastructure
-    required: true
-    type: string
+        allowed:
+            - infrastructure
+        required: true
+        type: string
     spec:
-    required: true
-    schema:
-        compartmentId:
-        required: false
-        type: string
-        displayName:
-        required: false
-        type: string
-        driverShape:
-        required: false
-        type: string
-        executorShape:
-        required: false
-        type: string
-        id:
-        required: false
-        type: string
-        language:
-        required: false
-        type: string
-        logsBucketUri:
-        required: false
-        type: string
-        metastoreId:
-        required: false
-        type: string
-        numExecutors:
-        required: false
-        type: integer
-        sparkVersion:
-        required: false
-        type: string
-    type: dict
+        required: true
+        type: dict
+        schema:
+            compartmentId:
+                required: false
+                type: string
+            displayName:
+                required: false
+                type: string
+            driverShape:
+                required: false
+                type: string
+            executorShape:
+                required: false
+                type: string
+            id:
+                required: false
+                type: string
+            language:
+                required: false
+                type: string
+            logsBucketUri:
+                required: false
+                type: string
+            metastoreId:
+                required: false
+                type: string
+            numExecutors:
+                required: false
+                type: integer
+            sparkVersion:
+                required: false
+                type: string
     type:
-    allowed:
-        - dataFlow
-    required: true
-    type: string
+        allowed:
+            - dataFlow
+        required: true
+        type: string
 
 **Data Flow Runtime YAML Schema**
 
 .. code:: yaml
 
     kind:
-    allowed:
-        - runtime
-    required: true
-    type: string
+        allowed:
+            - runtime
+        required: true
+        type: string
     spec:
-    required: true
-    schema:
-        archiveBucket:
-        required: false
-        type: string
-        archiveUri:
-        required: false
-        type: string
-        args:
-        nullable: true
-        required: false
-        schema:
-            type: string
-        type: list
-        conda:
-        nullable: false
-        required: false
-        schema:
-            slug:
-            required: true
-            type: string
-            type:
-            allowed:
-                - service
-            required: true
-            type: string
+        required: true
         type: dict
-        env:
-        required: false
         schema:
-            type: dict
-        type: list
-        freeform_tag:
-        required: false
-        type: dict
-        scriptBucket:
-        required: false
-        type: string
-        scriptPathURI:
-        required: false
-        type: string
-    type: dict
+            archiveBucket:
+                required: false
+                type: string
+            archiveUri:
+                required: false
+                type: string
+            args:
+                nullable: true
+                required: false
+                schema:
+                    type: string
+                type: list
+            conda:
+                nullable: false
+                required: false
+                type: dict
+                schema:
+                    slug:
+                        required: true
+                        type: string
+                    type:
+                        allowed:
+                            - service
+                        required: true
+                        type: string
+            env:
+                type: list
+                required: false
+                schema:
+                    type: dict
+            freeform_tag:
+                required: false
+                type: dict
+            scriptBucket:
+                required: false
+                type: string
+            scriptPathURI:
+                required: false
+                type: string
     type:
-    allowed:
-        - dataFlow
-    required: true
-    type: string
+        allowed:
+            - dataFlow
+        required: true
+        type: string

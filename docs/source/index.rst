@@ -9,6 +9,7 @@ Oracle Accelerated Data Science SDK (ADS)
   user_guide/overview/overview
   user_guide/quickstart/quickstart
   user_guide/configuration/configuration
+  user_guide/big_data_service/index
   user_guide/data_labeling/index
   user_guide/data_flow/dataflow
   user_guide/data_transformation/data_transformation
@@ -21,8 +22,8 @@ Oracle Accelerated Data Science SDK (ADS)
   user_guide/model_deployment/index
   user_guide/model_evaluation/index
   user_guide/model_explainability/mlx
-  user_guide/model_training/automl
   user_guide/model_serialization/index
+  user_guide/model_training/automl
   user_guide/profile/profile
   user_guide/project/project
   user_guide/secrets/index

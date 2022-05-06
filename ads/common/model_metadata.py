@@ -42,6 +42,10 @@ _METADATA_EMPTY_VALUE = "NA"
 
 
 class MetadataSizeTooLarge(ValueError):
+    """Maximum allowed size for model metadata has been exceeded.
+    See https://docs.oracle.com/en-us/iaas/data-science/using/models_saving_catalog.htm for more details.
+    """
+
     def __init__(self, size: int):
         super().__init__(
             f"The metadata is `{size}` bytes and exceeds "
@@ -51,6 +55,10 @@ class MetadataSizeTooLarge(ValueError):
 
 
 class MetadataValueTooLong(ValueError):
+    """Maximum allowed length of metadata value has been exceeded.
+    See https://docs.oracle.com/en-us/iaas/data-science/using/models_saving_catalog.htm for more details.
+    """
+
     def __init__(self, key: str, length: int):
         super().__init__(
             f"The custom metadata value of `{key}` is `{length}` characters and exceeds "
@@ -59,6 +67,10 @@ class MetadataValueTooLong(ValueError):
 
 
 class MetadataDescriptionTooLong(ValueError):
+    """Maximum allowed length of metadata description has been exceeded.
+    See https://docs.oracle.com/en-us/iaas/data-science/using/models_saving_catalog.htm for more details.
+    """
+
     def __init__(self, key: str, length: int):
         super().__init__(
             f"The custom metadata description of `{key}` is `{length}` characters and exceeds "
@@ -316,7 +328,7 @@ class ModelMetadataItem(ABC):
         if not dict["value"]:
             return OciMetadataItem(**dict)
         if isinstance(dict["value"], (str, int, float)):
-            dict["value"] = str(dict["value"])
+            dict["value"] = str(dict["value"]).replace("NaN", "null")
         else:
             dict["value"] = json.dumps(dict["value"]).replace("NaN", "null")
         return OciMetadataItem(**dict)

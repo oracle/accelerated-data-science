@@ -220,3 +220,61 @@ Auth Tokens
         print(f"Credentials inside `authtoken` object:  {authtoken}")
 
 ``Credentials inside `authtoken` object:  {'auth_token': '<your_auth_token>'}``
+
+
+
+Big Data Service
+++++++++++++++++
+
+**Saving Credentials**
+
+.. code:: python3
+
+    import ads
+    import fsspec
+    import os
+    
+    from ads.secrets.big_data_service import BDSSecretKeeper
+    from ads.bds.auth import has_kerberos_ticket, refresh_ticket, krbcontext
+    
+    ads.set_auth('resource_principal')
+
+    principal = "<your_principal>"
+    hdfs_host = "<your_hdfs_host>"
+    hive_host = "<your_hive_host>"
+    hdfs_port = <your_hdfs_port>
+    hive_port = <your_hive_port>
+    vault_id = "ocid1.vault.oc1.iad.*********"
+    key_id = "ocid1.key.oc1.iad.*********"
+
+    secret = BDSSecretKeeper(
+                vault_id=vault_id,
+                key_id=key_id,
+                principal=principal,
+                hdfs_host=hdfs_host,
+                hive_host=hive_host,
+                hdfs_port=hdfs_port,
+                hive_port=hive_port,
+                keytab_path=keytab_path,
+                kerb5_path=kerb5_path
+               )
+
+    saved_secret = secret.save(name="your_bds_config_secret_name",
+                            description="your bds credentials",
+                            freeform_tags={"schema":"emp"},
+                            defined_tags={},
+                            save_files=True)
+
+**Loading Credentials**
+
+.. code:: python3
+
+    from ads.secrets.big_data_service import BDSSecretKeeper
+    from pyhive import hive
+
+    with BDSSecretKeeper.load_secret(saved_secret.secret_id, keytab_dir="~/path/to/save/keytab_file/") as cred:
+        with krbcontext(principal=cred["principal"], keytab_path=cred['keytab_path']):
+            hive_cursor = hive.connect(host=cred["hive_host"],
+                                       port=cred["hive_port"],
+                                       auth='KERBEROS',
+                                       kerberos_service_name="hive").cursor()

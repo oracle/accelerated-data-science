@@ -47,12 +47,13 @@ The default authentication that is used by ADS is set with the ``set_auth()`` me
 
 Most ADS methods do not require a signer to be explicitly given. By default, ADS uses the API keys to sign requests to OCI resources. The ``set_auth()`` method is used to explicitly set a default signing method. This method accepts one of two strings ``"api_key"`` or ``"resource_principal"``.
 
-The ``~/.oci/config`` configuration allow for multiple configurations to be stored in the same file. Each configuration is called a profile, and the default profile is ``DEFAULT``. The ``set_auth()`` method takes in a parameter ``profile``. It specifies which profile in the ``~/.oci/config`` configuration file to use. In this context, the ``profile`` parameter is only used when API keys are being used. If no value for ``profile`` is specified, then the ``DEFAULT`` profile section is used.
+The ``~/.oci/config`` configuration allow for multiple configurations to be stored in the same file. The ``set_auth()`` method takes is ``oci_config_location`` parameter that specifies the location of the configuration, and the default is ``"~/.oci/config"``. Each configuration is called a profile, and the default profile is ``DEFAULT``. The ``set_auth()`` method takes in a parameter ``profile``. It specifies which profile in the ``~/.oci/config`` configuration file to use. In this context, the ``profile`` parameter is only used when API keys are being used. If no value for ``profile`` is specified, then the ``DEFAULT`` profile section is used.
 
 .. code-block:: python
 
   ads.set_auth("api_key") # default signer is set to API Keys
   ads.set_auth("api_key", profile = "TEST") # default signer is set to API Keys and to use TEST profile
+  ads.set_auth("api_key", oci_config_location = "~/.test_oci/config") # default signer is set to API Keys and to use non-default oci_config_location
 
 
 The ``authutil`` module has helper functions that return a signer which is used for authentication. The ``api_keys()`` method returns a signer that uses the API keys in the ``.oci`` configuration directory. There are optional parameters to specify the location of the API keys and the profile section. The ``resource_principal()`` method returns a signer that uses resource principals. The method ``default_signer()`` returns either a signer for API Keys or resource principals depending on the defaults that have been set. The ``set_auth()`` method determines which signer type is the default. If nothing is set then API keys are the default.

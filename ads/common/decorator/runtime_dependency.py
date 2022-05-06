@@ -49,6 +49,17 @@ MODULE_NOT_FOUND_ERROR = (
 IMPORT_ERROR = "Cannot import name `{object}` from `{module}`."
 
 
+class OptionalDependency:
+    LABS = "oracle-ads[labs]"
+    BOOSTED = "oracle-ads[boosted]"
+    NOTEBOOK = "oracle-ads[notebook]"
+    TEXT = "oracle-ads[text]"
+    MACHINE_LEARNING = "oracle-ads[machine_learning]"
+    DATA = "oracle-ads[data]"
+    OPCTL = "oracle-ads[opctl]"
+    MYSQL = "oracle-ads[mysql]"
+
+
 def runtime_dependency(
     module: str,
     short_name: str = "",

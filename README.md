@@ -74,8 +74,9 @@ Multiple extra dependencies can be installed together. For example:
 ```python
   import ads
   from ads.common.auth import default_signer
+  import oci
 
-  ads.set_auth(auth="api_key", profile="DEFAULT")
+  ads.set_auth(auth="api_key", oci_config_location=oci.config.DEFAULT_LOCATION, profile="DEFAULT")
   bucket_name = <bucket-name>
   file_name = <file-name>
   namespace = <namespace>
