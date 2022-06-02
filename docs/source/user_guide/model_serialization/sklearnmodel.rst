@@ -1,3 +1,5 @@
+.. SklearnModel:
+
 SklearnModel
 ============
 

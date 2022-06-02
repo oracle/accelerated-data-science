@@ -24,22 +24,12 @@ import subprocess
 from typing import Optional
 from urllib.parse import urlparse
 
+import nbformat
 import oci
+from nbconvert.preprocessors import ExecutePreprocessor
 
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 
 logger = logging.getLogger(__name__)
-
-try:
-    from nbconvert.preprocessors import ExecutePreprocessor
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(
-        f"The `nbconvert` module was not found. Please run "
-        f"`pip install {OptionalDependency.OPCTL}`."
-    )
 
 
 class ADSExecutePreprocessor(ExecutePreprocessor):
@@ -181,8 +171,6 @@ class OCIHelper:
                     )
 
 
-@runtime_dependency(module="nbformat", install_from=OptionalDependency.OPCTL)
-@runtime_dependency(module="nbconvert", install_from=OptionalDependency.OPCTL)
 def run_notebook(
     notebook_path: str,
     working_dir: Optional[str] = None,

@@ -3,6 +3,7 @@
 
 # Copyright (c) 2021 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from typing import Union
 from ads.jobs.builders.runtimes.base import Runtime
 
 
@@ -12,14 +13,14 @@ class ContainerRuntime(Runtime):
     To define container runtime:
     >>> ContainerRuntime()
     >>> .with_image(
-    >>>     "iad.ocir.io/ociodscdev/qq-repo/ubuntu",
+    >>>     "iad.ocir.io/<your_tenancy>/<your_image>",
     >>>     entrypoint=["/bin/sh", -c],
     >>>     cmd="sleep 5 && echo Hello World",
     >>> )
     >>> .with_environment_variable(MY_ENV="MY_VALUE")
     or
     >>> ContainerRuntime()
-    >>> .with_image("iad.ocir.io/ociodscdev/qq-repo/ubuntu")
+    >>> .with_image("iad.ocir.io/<your_tenancy>/<your_image>")
     >>> .with_cmd("sleep 5 && echo Hello World")
     >>> .with_entrypoint(["/bin/sh", "-c"])
     >>> .with_environment_variable(MY_ENV="MY_VALUE")
@@ -47,14 +48,14 @@ class ContainerRuntime(Runtime):
         """The container image"""
         return self.get_spec(self.CONST_IMAGE)
 
-    def with_image(self, image: str, entrypoint: str = None, cmd: str = None):
+    def with_image(self, image: str, entrypoint: Union[str, list, None] = None, cmd: str = None):
         """Specify the image for the container job.
 
         Parameters
         ----------
         image : str
-            The container image, e.g. iad.ocir.io/your_tenancy/your_repo/your_image:your_tag
-        entrypoint : str, optional
+            The container image, e.g. iad.ocir.io/<your_tenancy>/<your_image>:<your_tag>
+        entrypoint : str or list, optional
             Entrypoint for the job, by default None (the entrypoint defined in the image will be used).
         cmd : str, optional
             Command for the job, by default None.
@@ -73,12 +74,12 @@ class ContainerRuntime(Runtime):
         """Entrypoint of the container job"""
         return self.get_spec(self.CONST_ENTRYPOINT)
 
-    def with_entrypoint(self, entrypoint: str):
+    def with_entrypoint(self, entrypoint: Union[str, list]):
         """Specifies the entrypoint for the container job.
 
         Parameters
         ----------
-        entrypoint : str
+        entrypoint : str or list
             Entrypoint for the container job
 
         Returns

@@ -6,7 +6,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import yaml
 from ads.common.serializer import DataClassSerializable
@@ -141,7 +141,8 @@ class Attribute(DataClassSerializable):
     * name - Name of the feature
     * domain - Represented by the Domain class
     * required - Boolean - True of False
-    * description - Description about the colum/feature
+    * description - Description about the column/feature
+    * order - order of the column/feature in the data
 
     Examples
     --------
@@ -152,7 +153,8 @@ class Attribute(DataClassSerializable):
     ...     name = "fruits",
     ...     domain = Domain(values="Apple, Orange, Grapes", stats={"mode": "Orange"}, constraints=[Expression("in ['Apple', 'Orange', 'Grapes']")]),
     ...     required = True,
-    ...     description = "Names of fruits"
+    ...     description = "Names of fruits",
+    ...     order = 0
     ... )
     >>> attr_fruits
     description: Names of fruits
@@ -166,6 +168,7 @@ class Attribute(DataClassSerializable):
     dtype: category
     feature_type: category
     name: fruits
+    order: 0
     required: true
     >>> attr_fruits.key
     'fruits'
@@ -177,6 +180,7 @@ class Attribute(DataClassSerializable):
     domain: Domain
     required: bool
     description: str
+    order: Optional[int] = None
 
     @property
     def key(self):
@@ -448,7 +452,8 @@ class Schema:
     ...     name = "fruits",
     ...     domain = Domain(values="Apple, Orange, Grapes", stats={"mode": "Orange"}, constraints=[Expression("in ['Apple', 'Orange', 'Grapes']")]),
     ...     required = True,
-    ...     description = "Names of fruits"
+    ...     description = "Names of fruits",
+    ...     order = 0,
     ... )
     >>> attr_animals = Attribute(
     ...     dtype = "category",
@@ -456,13 +461,14 @@ class Schema:
     ...     name = "animals",
     ...     domain = Domain(values="Dog, Cat, Python", stats={"mode": "Dog"}, constraints=[Expression("in ['Dog', 'Cat', 'Python']")]),
     ...     required = True,
-    ...     description = "Names of animals"
+    ...     description = "Names of animals",
+    ...     order = 1,
     ... )
     >>> schema = Schema()
     >>> schema.add(attr_fruits)
     >>> schema.add(attr_animals)
     >>> schema
-    Schema:
+    schema:
     - description: Names of fruits
     domain:
         constraints:
@@ -474,6 +480,7 @@ class Schema:
     dtype: category
     feature_type: category
     name: fruits
+    order: 0
     required: true
     - description: Names of animals
     domain:
@@ -486,26 +493,29 @@ class Schema:
     dtype: category
     feature_type: category
     name: animals
+    order: 1
     required: true
     >>> schema.to_dict()
-        {'Schema': [{'dtype': 'category',
-    'feature_type': 'category',
-    'name': 'fruits',
-    'domain': {'values': 'Apple, Orange, Grapes',
-        'stats': {'mode': 'Orange'},
-        'constraints': [{'expression': "in ['Apple', 'Orange', 'Grapes']",
-        'language': 'python'}]},
-    'required': True,
-    'description': 'Names of fruits'},
-    {'dtype': 'category',
-    'feature_type': 'category',
-    'name': 'animals',
-    'domain': {'values': 'Dog, Cat, Python',
-        'stats': {'mode': 'Dog'},
-        'constraints': [{'expression': "in ['Dog', 'Cat', 'Python']",
-        'language': 'python'}]},
-    'required': True,
-    'description': 'Names of animals'}]}
+        {'schema': [{'dtype': 'category',
+        'feature_type': 'category',
+        'name': 'fruits',
+        'domain': {'values': 'Apple, Orange, Grapes',
+            'stats': {'mode': 'Orange'},
+            'constraints': [{'expression': "in ['Apple', 'Orange', 'Grapes']",
+            'language': 'python'}]},
+        'required': True,
+        'description': 'Names of fruits',
+        'order': 0},
+        {'dtype': 'category',
+        'feature_type': 'category',
+        'name': 'animals',
+        'domain': {'values': 'Dog, Cat, Python',
+            'stats': {'mode': 'Dog'},
+            'constraints': [{'expression': "in ['Dog', 'Cat', 'Python']",
+            'language': 'python'}]},
+        'required': True,
+        'description': 'Names of animals',
+        'order': 1}]}
 
     """
 

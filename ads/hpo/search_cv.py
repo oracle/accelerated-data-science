@@ -1431,7 +1431,7 @@ class ADSTuner(BaseEstimator):
                 plt.figure()
                 plt.title("Intermediate Values Plot")
                 plt.xlabel("Step")
-                plt.ylabel("Intermediate Valuel")
+                plt.ylabel("Intermediate Value")
                 plt.show()
 
             ntrials = len(self.trials[~self.trials["value"].isnull()])

@@ -14,8 +14,8 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code:: python3
 
-    import tempfile
     import logging
+    import tempfile
     import warnings
     from ads.automl.driver import AutoML
     from ads.automl.provider import OracleAutoMLProvider

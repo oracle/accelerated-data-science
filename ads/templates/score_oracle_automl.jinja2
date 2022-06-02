@@ -69,16 +69,19 @@ def deserialize(data, input_schema_path):
     data: deserialized input data.
 
     """
-    data_type = data.get('data_type', '')
-    json_data = data.get('data') if 'data' in data else data
+    data_type = data.get('data_type', '') if isinstance(data, dict) else ''
+    json_data = data.get('data', data) if isinstance(data, dict) else data
 
     if "numpy.ndarray" in data_type:
         load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
         return np.load(load_bytes, allow_pickle=True)
     if "pandas.core.series.Series" in data_type:
         return pd.Series(json_data)
-    if "pandas.core.frame.DataFrame" in data_type:
+    if "pandas.core.frame.DataFrame" in data_type or isinstance(json_data, str):
         return pd.read_json(json_data, dtype=fetch_data_type_from_schema(input_schema_path))
+    if isinstance(json_data, dict):
+        return pd.DataFrame.from_dict(json_data)
+
 
     return json_data
 

@@ -797,9 +797,9 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
 class ContainerRuntimeHandler(RuntimeHandler):
     RUNTIME_CLASS = ContainerRuntime
     CMD_DELIMITER = ","
-    CONST_CONTAINER_IMAGE = "DOCKER_CUSTOM_IMAGE"
-    CONST_CONTAINER_ENTRYPOINT = "DOCKER_ENTRYPOINT"
-    CONST_CONTAINER_CMD = "DOCKER_CMD"
+    CONST_CONTAINER_IMAGE = "CONTAINER_CUSTOM_IMAGE"
+    CONST_CONTAINER_ENTRYPOINT = "CONTAINER_ENTRYPOINT"
+    CONST_CONTAINER_CMD = "CONTAINER_CMD"
 
     def _translate_artifact(self, runtime: Runtime):
         """Specifies a dummy script as the job artifact.

@@ -1,3 +1,5 @@
+.. PyTorchModel:
+
 PyTorchModel
 ============
 

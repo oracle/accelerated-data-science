@@ -44,6 +44,11 @@
       "number"
     ]
   },
+  "order": {
+    "nullable": true,
+    "required": false,
+    "type": "integer"
+  },
   "required": {
     "nullable": false,
     "required": true,

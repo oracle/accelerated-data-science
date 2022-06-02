@@ -4,30 +4,29 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from __future__ import print_function, absolute_import, division
+from __future__ import absolute_import, division, print_function
 
+import numpy as np
+import pandas as pd
+import scipy
 import copy
-
+from ads.common import logger, utils
 from ads.common.model import ADSModel
-from ads.common import logger
 from ads.dataset import helper
-from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 from ads.dataset.classification_dataset import (
     BinaryClassificationDataset,
+    BinaryTextClassificationDataset,
     MultiClassClassificationDataset,
     MultiClassTextClassificationDataset,
-    BinaryTextClassificationDataset,
 )
-from ads.dataset.regression_dataset import RegressionDataset
-
+from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 from ads.dataset.pipeline import TransformerPipeline
+from ads.dataset.regression_dataset import RegressionDataset
 from ads.type_discovery.type_discovery_driver import TypeDiscoveryDriver
 from ads.type_discovery.typed_feature import (
     ContinuousTypedFeature,
     DiscreteTypedFeature,
 )
-from ads.common import utils
-
 
 dataset_task_map = {
     BinaryClassificationDataset: utils.ml_task_types.BINARY_CLASSIFICATION,
@@ -114,7 +113,7 @@ class AutoML:
         >>> olabs_automl = OracleAutoMLProvider()
         >>> model, baseline = AutoML(train, provider=olabs_automl).train()
         """
-        from ads.automl.provider import OracleAutoMLProvider, BaselineAutoMLProvider
+        from ads.automl.provider import BaselineAutoMLProvider, OracleAutoMLProvider
 
         if hasattr(training_data, "transformer_pipeline"):
             self.transformer_pipeline = training_data.transformer_pipeline
@@ -154,7 +153,23 @@ class AutoML:
                 or utils._is_dask_series(training_data.y)
                 else training_data.y
             )
-        self.target_name = y.name
+
+        if isinstance(y, pd.DataFrame):
+            if len(y.columns) != 1:
+                raise ValueError("Data must be 1-dimensional.")
+            y = y.squeeze()
+        elif isinstance(y, np.ndarray):
+            y = pd.Series(y)
+        if y.name:
+            self.target_name = str(y.name)
+        else:
+            y.name = str(0)
+            self.target_name = str(0)
+
+        if isinstance(X, np.ndarray):
+            X = pd.DataFrame(X)
+        elif isinstance(X, scipy.sparse.csr.csr_matrix):
+            X = pd.DataFrame(X.todense())
         self.feature_names = X.columns.values
         self.client = client
         class_names = y.unique()
@@ -256,8 +271,8 @@ class AutoML:
         avail_n_cores = utils.get_cpu_count()
 
         warn_params = [
-            (10 ** 5, 4, "VM.Standard.E2.4"),
-            (10 ** 6, 16, "VM.Standard.2.16"),
+            (10**5, 4, "VM.Standard.E2.4"),
+            (10**6, 16, "VM.Standard.2.16"),
         ]
 
         # train using automl and baseline

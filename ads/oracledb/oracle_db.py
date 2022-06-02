@@ -6,7 +6,7 @@
 
 import ads
 from ads.common.utils import ORACLE_DEFAULT_PORT
-import cx_Oracle
+
 import logging
 import numpy as np
 import os
@@ -15,6 +15,18 @@ import tempfile
 from time import time
 from typing import Dict, Optional, List, Union, Iterator
 import zipfile
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
+
+try:
+    import cx_Oracle
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        f"The `cx_Oracle` module was not found. Please run "
+        f"`pip install {OptionalDependency.DATA}`."
+    )
 
 logger = logging.getLogger("ads.oracle_connector")
 

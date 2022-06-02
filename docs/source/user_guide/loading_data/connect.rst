@@ -317,6 +317,151 @@ The resulting data types (if the table was created by ADS as opposed to insertin
    * - string
      - VARCHAR (Maximum length of the actual data.)
 
+BDS Hive
+--------
+
+Available with ADS v2.6.0 and greater. To load a dataframe from BDS
+Hive, you must set ``engine="hive"`` in ``pd.DataFrame.ads.read_sql``.
+
+Connection Parameters
+~~~~~~~~~~~~~~~~~~~~~
+
+**Work with BDS with Kerberos authentication**
+
+If you are working with BDS that requires Kerberos authentication, you can 
+follow :ref:`here <BDS Connect>` to get connection parameters required 
+to connect with BDS, and then follow :ref:`here <secretbds>` to save 
+the connection parameters as well as the files needed to configure the 
+kerberos authentication into vault. The ``connection_parameters`` can be set as:
+
+.. code:: ipython3
+
+    connection_parameters = {
+        "host": "<hive host name>",
+        "port": "<hive port number>",
+    }
+
+**Work with unsecure BDS**
+
+If you are working with unsecure BDS, you can set ``connection_parameters`` as:
+
+.. code:: ipython3
+
+    connection_parameters = {
+        "host": "<hive host name>",
+        "port": "<hive port number>",
+        "auth_mechanism": "PLAIN" # for connection with unsecure BDS
+    }
+
+**Example**
+
+.. code:: ipython3
+
+    connection_parameters = {
+        "host": "<database host name>",
+        "port": "<database port number>",
+    }
+    import pandas as pd
+    import ads
+    
+    # simple read of a SQL query into a dataframe with no bind variables
+    df = pd.DataFrame.ads.read_sql(
+        "SELECT * FROM EMPLOYEE",
+        connection_parameters=connection_parameters,
+        engine="hive"
+    )
+    
+    # read of a SQL query into a dataframe with a bind variable. Use bind variables
+    # rather than string substitution to avoid the SQL injection attack vector.
+    df = pd.DataFrame.ads.read_sql(
+        """
+        SELECT
+        *
+        FROM
+        EMPLOYEE
+        WHERE
+            `emp_no` <= ?
+        """,
+        bind_variables=(1000,)
+        ,
+        connection_parameters=connection_parameters,
+        engine="hive"
+    )
+
+To save the dataframe ``df`` to BDS Hive, use ``df.ads.to_sql`` API with
+``engine="hive"``.
+
+.. code:: ipython3
+
+    df.ads.to_sql(
+        "MY_TABLE",
+        connection_parameters=connection_parameters,
+        if_exists="replace",
+        engine="hive"
+    )
+
+Partition
+~~~~~~~~~
+
+You can create table with partition, and then use ``df.ads.to_sql`` API
+with ``engine="hive"``, ``if_exists="append"`` to insert data into the
+table.
+
+.. code:: ipython3
+
+    create_table_sql = f'''
+                        CREATE TABLE {table_name} (col1_name datatype, ...)
+                        partitioned by (col_name datatype, ...)
+                        '''
+    
+    df.ads.to_sql(
+        "MY_TABLE",
+        connection_parameters=connection_parameters,
+        if_exists="append",
+        engine="hive"
+    )
+
+Large size dataframe
+~~~~~~~~~~~~~~~~~~~~
+
+If the dataframe waiting to be uploaded has too many rows, and the
+to_sql takes too long to finish, you have other options. The simplest is
+to use a larger client shape, along with increased compute performance
+because larger shapes come with more RAM. If that’s not an option, then
+you can follow these steps:
+
+.. code:: ipython3
+
+    # Step1: Save your df as csv
+    df.to_csv(f"my_data.csv")
+    
+    # Step2: Upload the csv to hdfs
+    hdfs_host = "<hdfs host name>"
+    hdfs_port = "<hdfs port number>"
+    hdfs_config = {"host": hdfs_host, "port": hdfs_port, "protocol": "webhdfs"}
+    fs = fsspec.filesystem(**hdfs_config)
+    fs.upload(
+        lpath="./my_data.csv",
+        rpath="/user/hive/iris.csv"
+    )
+    
+    # Step3: Create table
+    sql = f"""
+    CREATE TABLE IF NOT EXISTS {table_name} (col1_name datatype, ...)
+    ROW FORMAT DELIMITED
+    FIELDS TERMINATED BY ','
+    STORED AS TEXTFILE
+    """
+    cursor.execute(sql)
+    
+    # Step4: Load data into Hive table from hdfs
+    hdfs_path = "./my_data.csv"
+    sql = f"LOAD DATA INPATH '{hdfs_path}' INTO TABLE {table_name}"
+    cursor.execute(sql)
+
+
+
+
 HTTP(S) Sources
 ---------------
 

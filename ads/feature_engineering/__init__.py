@@ -11,6 +11,8 @@ from ads.feature_engineering.feature_type_manager import (
 )
 from ads.feature_engineering.feature_type.base import FeatureType
 from ads.feature_engineering.feature_type.base import Tag
+from ads.feature_engineering.adsimage.image import ADSImage
+from ads.feature_engineering.adsimage.image_reader import ADSImageReader
 
 feature_type = feature_type_manager.feature_type_registered
 

@@ -39,9 +39,10 @@ class ConfigMerger(ConfigProcessor):
     def process(self, **kwargs) -> None:
         config_string = Template(json.dumps(self.config)).substitute(os.environ)
         self.config = json.loads(config_string)
-
         # 1. merge and overwrite values from command line args
         self._merge_config_with_cmd_args(kwargs)
+        # 1.5 merge environment variables
+        # TODO
 
         # 2. fill in values from conf file
         self._fill_config_from_conf()

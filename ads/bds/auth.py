@@ -119,6 +119,7 @@ def refresh_ticket(
     ...                    auth='KERBEROS',
     ...                    kerberos_service_name="hive").cursor()
     """
+    keytab_path = os.path.abspath(os.path.expanduser(keytab_path))
     os.environ[KRB5_CONFIG] = os.path.abspath(os.path.expanduser(kerb5_path))
     if not os.path.exists(os.environ[KRB5_CONFIG]):
         raise FileNotFoundError(f"krb5 config file not found in {kerb5_path}.")

@@ -1,3 +1,5 @@
+.. AutoMLModel:
+
 AutoMLModel
 ===========
 

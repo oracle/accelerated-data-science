@@ -253,107 +253,95 @@ Here is an example of a YAML file representing the job defined in the preceding 
 
     kind: job
     spec:
-        name: <job_display_name>
-        infrastructure:
-            kind: infrastructure
-            type: dataScienceJob
-            spec:
-                blockStorageSize: 50
-                compartmentId: <compartment_ocid>
-                displayName: <job_display_name>
-                jobInfrastructureType: STANDALONE
-                jobType: DEFAULT
-                logGroupId: <log_group_ocid>
-                logId: <log_ocid>
-                projectId: <project_ocid>
-                shapeName: VM.Standard2.1
-                subnetId: <subnet_ocid>
-        runtime:
-            kind: runtime
-            type: script
-            spec:
-                conda:
-                    slug: tensorflow26_p37_cpu_v2
-                    type: service
-                scriptPathURI: oci://bucket_name@namespace/path/to/script.py
+      name: <job_display_name>
+      infrastructure:
+        kind: infrastructure
+        type: dataScienceJob
+        spec:
+          logGroupId: <log_group_ocid>
+          logId: <log_ocid>
+          compartmentId: <compartment_ocid>
+          projectId: <project_ocid>
+          subnetId: <subnet_ocid>
+          shapeName: VM.Standard2.1
+          blockStorageSize: 50
+      runtime:
+        kind: runtime
+        type: script
+        spec:
+          conda:
+            slug: tensorflow26_p37_cpu_v2
+            type: service
+          scriptPathURI: oci://bucket_name@namespace/path/to/script.py
 
 **ADS Job YAML schema**
 
 .. code-block:: yaml
 
     kind:
-        required: true
-        type: string
-        allowed:
-            - job
+      required: true
+      type: string
+      allowed:
+        - job
     spec:
-        required: true
-        type: dict
-        schema:
-            id:
-                required: false
-            infrastructure:
-                required: false
-            runtime:
-                required: false
-            name:
-                required: false
-                type: string
+      required: true
+      type: dict
+      schema:
+        id:
+          required: false
+        infrastructure:
+          required: false
+        runtime:
+          required: false
+        name:
+          required: false
+          type: string
 
 
 **Data Science Job Infrastructure YAML Schema**
 
 .. code-block:: yaml
 
-    kind: 
-        allowed: 
-            - "infrastructure"
-        required: true
-        type: "string"
-    spec: 
-        required: true
-        schema: 
-            blockStorageSize: 
-                default: 50
-                min: 50
-                required: false
-                type: "float"
-            compartmentId: 
-                required: false
-                type: "string"
-            displayName: 
-                required: false
-                type: "string"
-            id: 
-                required: false
-                type: "string"
-            jobInfrastructureType: 
-                default: "STANDALONE"
-                required: false
-                type: "string"
-            jobType: 
-                allowed: 
-                    - "DEFAULT"
-                required: false
-                type: "string"
-            logGroupId: 
-                required: false
-                type: "string"
-            logId: 
-                required: false
-                type: "string"
-            projectId: 
-                required: false
-                type: "string"
-            shapeName: 
-                required: false
-                type: "string"
-            subnetId: 
-                required: false
-                type: "string"
-        type: "dict"
-    type: 
-        allowed: 
-            - "dataScienceJob"
-        required: true
-        type: "string"
+    kind:
+      required: true
+      type: "string"
+      allowed:
+        - "infrastructure"
+    type:
+      required: true
+      type: "string"
+      allowed:
+        - "dataScienceJob"
+    spec:
+      required: true
+      type: "dict"
+      schema:
+        blockStorageSize:
+          default: 50
+          min: 50
+          required: false
+          type: "integer"
+        compartmentId:
+          required: false
+          type: "string"
+        displayName:
+          required: false
+          type: "string"
+        id:
+          required: false
+          type: "string"
+        logGroupId:
+          required: false
+          type: "string"
+        logId:
+          required: false
+          type: "string"
+        projectId:
+          required: false
+          type: "string"
+        shapeName:
+          required: false
+          type: "string"
+        subnetId:
+          required: false
+          type: "string"

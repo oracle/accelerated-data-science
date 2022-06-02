@@ -1,0 +1,36 @@
+schema.yaml
+
+kind:
+  allowed:
+    - distributed
+  required: true
+  type: string
+type:
+  allowed:
+    - dask_cluster
+  required: true
+  type: string
+version:
+  allowed:
+    - 1.0
+  required: true
+  type: string
+spec:
+  type: dict
+  required: true
+  schema:
+    infrastructure:
+      kind:
+        allowed:
+          - infrastructure
+        required: True
+        type: string
+      type:
+        allowed:
+          - DataScienceJob
+        required: true
+        type: string
+      spec:
+        type: dict
+        required: true
+        schema:

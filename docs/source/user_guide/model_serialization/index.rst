@@ -1,4 +1,4 @@
-.. _model_serialization-1:
+.. _model serialization:
 
 *******************
 Model Serialization
