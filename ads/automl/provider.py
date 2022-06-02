@@ -304,7 +304,9 @@ class BaselineAutoMLProvider(AutoMLProvider):
 
 # An installation of oracle labs automl is required only for this class
 class OracleAutoMLProvider(AutoMLProvider, ABC):
-    def __init__(self, n_jobs=-1, loglevel=None, logger_override=None):
+    def __init__(
+        self, n_jobs=-1, loglevel=None, logger_override=None, model_n_jobs: int = 1
+    ):
         """
         The Oracle AutoML Provider automatically provides a tuned ML pipeline that best models the given a training
         dataset and a prediction task at hand.
@@ -317,6 +319,9 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
         loglevel : int
             The verbosity of output for Oracle AutoML. Can be specified using the Python logging module
             (https://docs.python.org/3/library/logging.html#logging-levels).
+        model_n_jobs: (optional, int). Defaults to 1.
+            Specifies the model parallelism used by AutoML.
+            This will be passed to the underlying model it is training.
         """
         try:
             self.automl = __import__("automl")
@@ -327,24 +332,13 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
         super(OracleAutoMLProvider, self).__init__()
         if loglevel is None:
             loglevel = logging.DEBUG if ads.debug_mode else logging.ERROR
-        else:
-            loglevel = loglevel
-        if logger_override:
-            logr = logger_override
-        else:
-            logr = logging.getLogger(__name__)
-        if "AMD" in self.cpuinfo.get_cpu_info().get("brand", "UNKNOWN-BRAND"):
-            # Disable intra-model parallelism for LightGBM and XGBoost libraries
-            # which seem to be unstable currently on AMD shapes
-            self.automl.init(
-                engine="local",
-                engine_opts={"n_jobs": n_jobs, "model_n_jobs": 1},
-                loglevel=loglevel,
-            )
-        else:
-            self.automl.init(
-                engine="local", engine_opts={"n_jobs": n_jobs}, logger=logr
-            )
+
+        self.automl.init(
+            engine="local",
+            engine_opts={"n_jobs": n_jobs, "model_n_jobs": model_n_jobs},
+            logger=logger_override,
+            loglevel=loglevel,
+        )
 
     def __repr__(self):
         super(OracleAutoMLProvider, self).__repr__()
@@ -620,15 +614,16 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
             )
             if not self.col_types:
                 if len(self.X_train.columns) == 1:
-                    self.col_types = ['text']
+                    self.col_types = ["text"]
                 elif len(self.X_train.columns) == 2:
-                    self.col_types = ['text', 'text']
+                    self.col_types = ["text", "text"]
                 else:
-                    raise ValueError("We detected a text classification problem. Pass " \
-                        "in `col_types = [<type of column1>, <type of column2>, ...]`." \
-                        " Valid types are: ['categorical', 'numerical', 'text', 'datetime'," \
+                    raise ValueError(
+                        "We detected a text classification problem. Pass "
+                        "in `col_types = [<type of column1>, <type of column2>, ...]`."
+                        " Valid types are: ['categorical', 'numerical', 'text', 'datetime',"
                         " 'timedelta']."
-                        )
+                    )
 
         elif self.ml_task_type == ml_task_types.REGRESSION:
             est = self.automl.Pipeline(

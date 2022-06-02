@@ -1,3 +1,5 @@
+.. _secretbds:
+
 Oracle Big Data Service
 =======================
 

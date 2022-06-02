@@ -18,7 +18,6 @@ install_requires = [
     "bokeh>=2.3.0",
     "cerberus>=1.3.4",
     "cloudpickle>=1.6.0",
-    "cx-Oracle>=8.0",
     "datefinder>=0.7.1",
     "folium>=0.12.1",
     "fsspec>=0.8.7",
@@ -40,6 +39,7 @@ install_requires = [
     "skl2onnx>=1.10.4",
     "optuna==2.9.0",
     "pandas>1.2.1,<1.4",
+    "protobuf<=3.20",
     "py-cpuinfo>=7.0.0",
     "python_jsonschema_objects>=0.3.13",
     "scikit-learn>=0.23.2",
@@ -76,10 +76,11 @@ extras_require = {
         "fastavro>=0.24.2",
         "openpyxl>=3.0.7",
         "pandavro>=1.6.0",
+        "cx-Oracle>=8.0",
     ],
     "opctl": ["oci-cli", "docker", "conda-pack", "nbconvert", "nbformat"],
     "mysql": ["mysql-connector-python"],
-    "bds": ["ibis-framework[impala]", "pyhive", "hdfs[kerberos]"],
+    "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
 }
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
 extras_require["all-optional"] = reduce(

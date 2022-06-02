@@ -1,5 +1,5 @@
-Run a ZIP file or folder
-------------------------
+Run Python Code in ZIP or Folder
+--------------------------------
 
 ScriptRuntime
 ~~~~~~~~~~~~~
@@ -33,23 +33,29 @@ name of the directory, since the directory itself is also zipped as the job arti
   job = (
     Job()
     .with_infrastructure(
-        DataScienceJob()
-        .with_log_id("<log_id>")
-        .with_log_group_id("<log_group_id>")
+      DataScienceJob()
+      .with_log_group_id("<log_group_ocid>")
+      .with_log_id("<log_ocid>")
+      # The following infrastructure configurations are optional
+      # if you are in an OCI data science notebook session.
+      # The configurations of the notebook session will be used as defaults
+      .with_compartment_id("<compartment_ocid>")
+      .with_project_id("<project_ocid>")
+      .with_subnet_id("<subnet_ocid>")
+      .with_shape_name("VM.Standard2.1")
+      .with_block_storage_size(50)
     )
     .with_runtime(
-        ScriptRuntime()
-        .with_source("path/to/zip_or_dir", entrypoint="zip_or_dir/main.py")
-        .with_service_conda("pytorch19_p37_cpu_v1")
+      ScriptRuntime()
+      .with_source("path/to/zip_or_dir", entrypoint="zip_or_dir/main.py")
+      .with_service_conda("pytorch19_p37_cpu_v1")
     )
   )
 
-.. code:: ipython3
-
-	# Create the job with OCI
-	job.create()
-	# Run the job and stream the outputs
-	job_run = job.run().watch()
+  # Create the job with OCI
+  job.create()
+  # Run the job and stream the outputs
+  job_run = job.run().watch()
 
 
 YAML
@@ -65,10 +71,13 @@ You could use the following YAML example to create the same job with ``ScriptRun
       kind: infrastructure
       type: dataScienceJob
       spec:
-        jobInfrastructureType: STANDALONE
-        jobType: DEFAULT
-        logGroupId: <log_group_id>
-        logId: <log_id>
+        logGroupId: <log_group_ocid>
+        logId: <log_ocid>
+        compartmentId: <compartment_ocid>
+        projectId: <project_ocid>
+        subnetId: <subnet_ocid>
+        shapeName: VM.Standard2.1
+        blockStorageSize: 50
     runtime:
       kind: runtime
       type: script
@@ -109,8 +118,16 @@ Following is an example of creating a job with ``PythonRuntime``:
     Job()
     .with_infrastructure(
       DataScienceJob()
-      .with_log_id(<"log_id">)
-      .with_log_group_id(<"log_group_id">)
+      .with_log_group_id("<log_group_ocid>")
+      .with_log_id("<log_ocid>")
+      # The following infrastructure configurations are optional
+      # if you are in an OCI data science notebook session.
+      # The configurations of the notebook session will be used as defaults
+      .with_compartment_id("<compartment_ocid>")
+      .with_project_id("<project_ocid>")
+      .with_subnet_id("<subnet_ocid>")
+      .with_shape_name("VM.Standard2.1")
+      .with_block_storage_size(50)
     )
     .with_runtime(
       PythonRuntime()
@@ -143,10 +160,13 @@ You could use the following YAML to create the same job with ``PythonRuntime``:
       kind: infrastructure
       type: dataScienceJob
       spec:
-        jobInfrastructureType: STANDALONE
-        jobType: DEFAULT
-        logGroupId: <log_group_id>
-        logId: <log_id>
+        logGroupId: <log_group_ocid>
+        logId: <log_ocid>
+        compartmentId: <compartment_ocid>
+        projectId: <project_ocid>
+        subnetId: <subnet_ocid>
+        shapeName: VM.Standard2.1
+        blockStorageSize: 50
     runtime:
       kind: runtime
       type: python
@@ -167,22 +187,29 @@ You could use the following YAML to create the same job with ``PythonRuntime``:
 .. code:: yaml
 
   kind:
-    allowed:
-      - runtime
     required: true
     type: string
+    allowed:
+      - runtime
+  type:
+    required: true
+    type: string
+    allowed:
+      - script
   spec:
     required: true
+    type: dict
     schema:
       args:
         nullable: true
         required: false
+        type: list
         schema:
           type: string
-        type: list
       conda:
         nullable: false
         required: false
+        type: dict
         schema:
           slug:
             required: true
@@ -192,15 +219,19 @@ You could use the following YAML to create the same job with ``PythonRuntime``:
               - service
             required: true
             type: string
-        type: dict
       env:
+        nullable: true
         required: false
+        type: list
         schema:
           type: dict
-        type: list
-      freeform_tag:
-        required: false
-        type: dict
+          schema:
+          name:
+            type: string
+          value:
+            type:
+              - number
+              - string
       scriptPathURI:
         required: true
         type: string
@@ -219,9 +250,3 @@ You could use the following YAML to create the same job with ``PythonRuntime``:
       pythonPath:
         required: false
         type: list
-    type: dict
-  type:
-    allowed:
-      - script
-    required: true
-    type: string

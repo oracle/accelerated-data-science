@@ -33,8 +33,16 @@ you can specify them using the methods from the ``DataScienceJob`` class:
 
   job.with_infrastructure(
     DataScienceJob()
-    .with_log_id("<log_id>")
-    .with_log_group_id("<log_group_id>")
+    .with_log_group_id("<log_group_ocid>")
+    .with_log_id("<log_ocid>")
+    # The following infrastructure configurations are optional
+    # if you are in an OCI data science notebook session.
+    # The configurations of the notebook session will be used as defaults
+    .with_compartment_id("<compartment_ocid>")
+    .with_project_id("<project_ocid>")
+    .with_subnet_id("<subnet_ocid>")
+    .with_shape_name("VM.Standard2.1")
+    .with_block_storage_size(50)
   )
 
 In this example, it is a Python script so the ``ScriptRuntime()`` class is used to define the
@@ -85,18 +93,21 @@ could simply run the following:
   spec:
     infrastructure:
       kind: infrastructure
-      spec:
-        jobInfrastructureType: STANDALONE
-        jobType: DEFAULT
-        logGroupId: <log_group_id>
-        logId: <log_id>
       type: dataScienceJob
+      spec:
+        logGroupId: <log_group_ocid>
+        logId: <log_ocid>
+        compartmentId: <compartment_ocid>
+        projectId: <project_ocid>
+        subnetId: <subnet_ocid>
+        shapeName: VM.Standard2.1
+        blockStorageSize: 50
     name: <resource_name>
     runtime:
       kind: runtime
+      type: python
       spec:
         scriptPathURI: job_script.py
-      type: python
   """)
 
 
@@ -149,31 +160,31 @@ This job run prints out ``Hello <first_argument> and <second_argument>``.
 YAML
 ++++
 
-You can define a job with a YAML string. In order to define a job identical
-to the preceding job, you could use the following before running ``job.create()`` and ``job.run()``:
+You could create the preceding example job with the following YAML file:
 
-.. code:: ipython3
+.. code:: yaml
 
-	job = Job.from_yaml(f"""
 	kind: job
 	spec:
 	  infrastructure:
-	    kind: infrastructure
-	    spec:
-	      jobInfrastructureType: STANDALONE
-	      jobType: DEFAULT
-	      logGroupId: <log_group_id>
-	      logId: <log_id>
-	    type: dataScienceJob
+      kind: infrastructure
+      type: dataScienceJob
+      spec:
+        logGroupId: <log_group_ocid>
+        logId: <log_ocid>
+        compartmentId: <compartment_ocid>
+        projectId: <project_ocid>
+        subnetId: <subnet_ocid>
+        shapeName: VM.Standard2.1
+        blockStorageSize: 50
 	  runtime:
 	    kind: runtime
+      type: python
 	    spec:
 	      args:
 	      - <first_argument>
 	      - <second_argument>
 	      scriptPathURI: job_script_argument.py
-	    type: python
-	""")
 
 
 Environment Variables
@@ -203,8 +214,16 @@ This example runs a job with environment variables:
   job = Job()
   job.with_infrastructure(
     DataScienceJob()
-    .with_log_group_id(<"log_group_id">)
-    .with_log_id(<"log_id">)
+    .with_log_group_id("<log_group_ocid>")
+    .with_log_id("<log_ocid>")
+    # The following infrastructure configurations are optional
+    # if you are in an OCI data science notebook session.
+    # The configurations of the notebook session will be used as defaults
+    .with_compartment_id("<compartment_ocid>")
+    .with_project_id("<project_ocid>")
+    .with_subnet_id("<subnet_ocid>")
+    .with_shape_name("VM.Standard2.1")
+    .with_block_storage_size(50)
   )
 
   job.with_runtime(
@@ -221,29 +240,31 @@ You can watch the progress of the job run using the ``.watch()`` method:
 
   job_run.watch()
 
-This job run print sout ``Hello <first_value> and <second_value>``.
+This job run prints out ``Hello <first_value> and <second_value>``.
 
 YAML
 ++++
 
-The next example shows the equivalent way to create a job from a YAML string:
+You could create the preceding example job with the following YAML file:
 
-.. code:: ipython3
-	
-	job = Job.from_yaml(f"""
+.. code:: yaml
+
 	kind: job
 	spec:
 	  infrastructure:
 	    kind: infrastructure
+      type: dataScienceJob
 	    spec:
-	      jobInfrastructureType: STANDALONE
-	      jobType: DEFAULT
-	      logGroupId: <log_group_id>
-	      logId: <log_id>
-	    type: dataScienceJob
-	  name: null
+        logGroupId: <log_group_ocid>
+        logId: <log_ocid>
+        compartmentId: <compartment_ocid>
+        projectId: <project_ocid>
+        subnetId: <subnet_ocid>
+        shapeName: VM.Standard2.1
+        blockStorageSize: 50
 	  runtime:
 	    kind: runtime
+      type: python
 	    spec:
 	      env:
 	      - name: KEY1
@@ -251,30 +272,37 @@ The next example shows the equivalent way to create a job from a YAML string:
 	      - name: KEY2
 		      value: <second_value>
 	      scriptPathURI: job_script_env.py
-	    type: python
-	""")
+
+
 
 **ScriptRuntime YAML Schema**
 
 .. code:: yaml
 
   kind:
-    allowed:
-      - runtime
     required: true
     type: string
+    allowed:
+      - runtime
+  type:
+    required: true
+    type: string
+    allowed:
+      - script
   spec:
     required: true
+    type: dict
     schema:
       args:
         nullable: true
         required: false
+        type: list
         schema:
           type: string
-        type: list
       conda:
         nullable: false
         required: false
+        type: dict
         schema:
           slug:
             required: true
@@ -284,24 +312,22 @@ The next example shows the equivalent way to create a job from a YAML string:
               - service
             required: true
             type: string
-        type: dict
       env:
+        nullable: true
         required: false
+        type: list
         schema:
           type: dict
-        type: list
-      freeform_tag:
-        required: false
-        type: dict
+          schema:
+          name:
+            type: string
+          value:
+            type:
+              - number
+              - string
       scriptPathURI:
         required: true
         type: string
       entrypoint:
         required: false
         type: string
-    type: dict
-  type:
-    allowed:
-      - script
-    required: true
-    type: string

@@ -16,6 +16,7 @@ from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import watch as watch_cmd
+from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
@@ -23,6 +24,7 @@ from ads.opctl.config.merger import ConfigMerger
 
 import ads.opctl.conda.cli
 import ads.opctl.spark.cli
+import ads.opctl.distributed.cli
 
 
 @click.group("opctl")
@@ -150,6 +152,9 @@ def publish_image(**kwargs):
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def init_vscode(**kwargs):
+    """
+    Generates devcontainer.json with docker details to setup a development environment for OCI Data Science Jobs
+    """
     # kwargs["use_conda"] = True
     suppress_traceback(kwargs["debug"])(init_vscode_cmd)(**kwargs)
 
@@ -296,7 +301,17 @@ def add_options(options):
 )
 @click.option("--archive", help="path to archive zip for dataflow run", default=None)
 @click.option("--exclude-tag", multiple=True, default=None)
+@click.option(
+    "--dry-run",
+    "-r",
+    default=False,
+    is_flag=True,
+    help="During dry run, the actual operation is not performed, only the steps are enumerated.",
+)
 def run(file, **kwargs):
+    """
+    Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science Jobs
+    """
     debug = kwargs["debug"]
     if file:
         if os.path.exists(file):
@@ -306,8 +321,22 @@ def run(file, **kwargs):
             raise FileNotFoundError(f"{file} is not found")
     else:
         config = {}
-
     suppress_traceback(debug)(run_cmd)(config, **kwargs)
+
+
+@commands.command()
+@click.argument("operator_slug", nargs=1)
+@click.option(
+    "--folder_path",
+    "-fp",
+    help="the name of the folder wherein to put the operator code",
+    multiple=True,
+    required=False,
+    default=None,
+)
+@add_options(_options)
+def init_operator(**kwargs):
+    suppress_traceback(kwargs["debug"])(init_operator_cmd)(**kwargs)
 
 
 @commands.command()
@@ -328,11 +357,15 @@ def cancel(**kwargs):
 @click.argument("ocid", nargs=1)
 @add_options(_options)
 def watch(**kwargs):
+    """
+    ``tail`` logs form a job run or dataflow run. Connects to the logging service that was configured with the JobRun or the Application Run and streams the logs.
+    """
     suppress_traceback(kwargs["debug"])(watch_cmd)(**kwargs)
 
 
 commands.add_command(ads.opctl.conda.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
+commands.add_command(ads.opctl.distributed.cli.commands)
 
 
 # @commands.command()

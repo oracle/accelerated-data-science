@@ -168,6 +168,12 @@ def build_image(
         ]
         if target:
             command += ["--target", target]
+        if os.environ.get("no_proxy"):
+            command += ["--build-arg", f"no_proxy={os.environ['no_proxy']}"]
+        if os.environ.get("http_proxy"):
+            command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
+        if os.environ.get("https_proxy"):
+            command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
         command += [os.path.abspath(curr_dir)]
         logger.info(f"Build image with command {command}")
         proc = run_command(command)
@@ -315,12 +321,20 @@ def run_container(
     entrypoint: str = None,
     verbose: bool = True,
 ):
+    print("All ready to create a docker image. Recap:\n")
+    print(f"image: {image}")
+    print(f"bind_volumes: {bind_volumes}")
+    print(f"env_vars: {env_vars}")
+    print(f"command: {command}")
+    print(f"entrypoint: {entrypoint}")
+
     client = get_docker_client()
     try:
         client.api.inspect_image(image)
     except errors.ImageNotFound:
         logger.info(f"Image {image} not found. Try pulling it now....")
         run_command(["docker", "pull", f"{image}"], None)
+    print("Now running container")
     container = client.containers.run(
         image=image,
         volumes=bind_volumes,
@@ -331,11 +345,13 @@ def run_container(
         user=0,
         # auto_remove=True,
     )
+    print("Return from container")
     # auto_remove sometimes throws errors such as
     # docker.errors.NotFound: 404 Client Error for
     # http+docker://localhost/v1.41/containers/37b32d02b8ebccfb081952798123db714ccf8648bf0d00c1baa68ae3badaaf58/json:
     # Not Found ("No such container: 37b32d02b8ebccfb081952798123db714ccf8648bf0d00c1baa68ae3badaaf58")
-    if verbose:
-        for line in container.logs(stream=True):
-            print(line.decode("utf-8").strip())
-    container.remove()
+
+    # if verbose:
+    #     for line in container.logs(stream=True):
+    #         print(line.decode("utf-8").strip())
+    # container.remove()

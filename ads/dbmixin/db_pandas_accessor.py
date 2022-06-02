@@ -4,16 +4,21 @@
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.oracledb.oracle_db import OracleRDBMSConnection
+from ads.bds.big_data_service import ADSHiveConnection
+from ads.common.decorator.runtime_dependency import OptionalDependency
 from typing import Dict, Optional, Union, Iterator
 from pandas import DataFrame
 
 
 class ConnectionFactory:
+    connectionprovider = {"hive": ADSHiveConnection}
 
-    connectionprovider = {
-        "oracle": OracleRDBMSConnection,
-    }
+    try:
+        from ads.oracledb.oracle_db import OracleRDBMSConnection
+
+        connectionprovider["oracle"] = OracleRDBMSConnection
+    except:
+        pass
 
     try:
         from ads.mysqldb.mysql_db import MySQLRDBMSConnection
@@ -22,9 +27,22 @@ class ConnectionFactory:
     except:
         pass
 
-    @staticmethod
-    def get(engine="oracle"):
-        return ConnectionFactory.connectionprovider.get(engine)
+    @classmethod
+    def get(cls, engine="oracle"):
+        Connection = cls.connectionprovider.get(engine, None)
+
+        if not Connection:
+            if engine == "mysql":
+                print("Requires mysql-connection-python package to use mysql engine")
+            elif engine == "oracle":
+                print(
+                    f"The `cx_Oracle` module was not found. Please run "
+                    f"`pip install {OptionalDependency.DATA}`."
+                )
+            raise Exception(
+                f"Engine {engine} does not have either required depeendency or is not supported."
+            )
+        return Connection
 
 
 class DBAccessMixin:
@@ -48,8 +66,8 @@ class DBAccessMixin:
             Key value of pair of bind variables and corresponding values
         chunksize: Optional[int], default None
             If specified, return an iterator where `chunksize` is the number of rows to include in each chunk.
-        engine: {'oracle', 'mysql'}, default 'oracle'
-            Select the database type - MySQL or Oracle to store the data
+        engine: {'oracle', 'mysql', 'hive'}, default 'oracle'
+            Select the database type - MySQL/Oracle/Hive to store the data
 
         Returns
         -------
@@ -73,13 +91,6 @@ class DBAccessMixin:
         """
         Connection = ConnectionFactory.get(engine)
 
-        if not Connection:
-            if engine == "mysql":
-                print("Requires mysql-connection-python package to use mysql engine")
-            raise Exception(
-                f"Engine {engine} does not have either required depeendency or is not supported."
-            )
-
         return Connection(**connection_parameters).query(
             sql, bind_variables=bind_variables, chunksize=chunksize
         )
@@ -92,7 +103,7 @@ class DBAccessMixin:
         batch_size=100000,
         engine="oracle",
     ):
-        """.
+        """To save the dataframe df to database.
 
         Parameters
         ----------

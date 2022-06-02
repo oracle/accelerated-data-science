@@ -37,8 +37,6 @@ import logging
 from functools import wraps
 from typing import Any, Callable
 
-from ads.common import utils
-
 from .utils import _get_original_func
 
 logger = logging.getLogger(__name__)
@@ -58,6 +56,7 @@ class OptionalDependency:
     DATA = "oracle-ads[data]"
     OPCTL = "oracle-ads[opctl]"
     MYSQL = "oracle-ads[mysql]"
+    BDS = "oracle-ads[bds]"
 
 
 def runtime_dependency(
@@ -122,7 +121,9 @@ def runtime_dependency(
     def decorator(func: Callable):
         @wraps(func)
         def wrapper(*args, **kwargs) -> Any:
-            if not is_for_notebook_only or utils.is_notebook():
+            from ads.common.utils import is_notebook
+
+            if not is_for_notebook_only or is_notebook():
                 assert module, "The parameter `module` must be provided."
                 assert isinstance(
                     module, str

@@ -17,6 +17,7 @@ import fsspec
 import oci.data_science
 import yaml
 from oci.data_science.models import JobInfrastructureConfigurationDetails
+from oci.exceptions import ServiceError
 from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
@@ -117,10 +118,13 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             When loading the job from OCI, this will be the filename of the job artifact.
         """
         if self.id and self._artifact is None:
-            res = self.client.head_job_artifact(self.id)
-            content = res.headers.get("content-disposition")
-            if content and "filename=" in content:
-                self._artifact = content.split("filename=", 1)[-1]
+            try:
+                res = self.client.head_job_artifact(self.id)
+                content = res.headers.get("content-disposition")
+                if content and "filename=" in content:
+                    self._artifact = content.split("filename=", 1)[-1]
+            except ServiceError:
+                self._artifact = ""
         return self._artifact
 
     @artifact.setter
@@ -203,8 +207,10 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
         res = self.client.create_job(
             self.to_oci_model(oci.data_science.models.CreateJobDetails)
         )
+        self.update_from_oci_model(res.data)
+        if self.lifecycle_state == 'ACTIVE':
+            return
         try:
-            self.update_from_oci_model(res.data)
             if issubclass(self.artifact.__class__, Artifact):
                 with self.artifact as artifact:
                     self.upload_artifact(artifact.path)
@@ -409,26 +415,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             An instance of DSCJob.
 
         """
-        instance = super().from_ocid(ocid)
-        res = instance.client.get_job_artifact_content(instance.id)
-        # {
-        # 'Date': 'Wed, 02 Jun 2021 20:19:06 GMT',
-        # 'opc-request-id': 'x',
-        # 'Accept-Ranges': 'bytes',
-        # 'ETag': 'f320fd3d-fddb-4703-9d74-9736b23c875a--gzip',
-        # 'Content-Disposition': 'attachment; filename=ads_my_script.py',
-        # 'Content-Encoding': 'gzip',
-        # 'Vary': 'Accept-Encoding',
-        # 'Last-Modified': 'Wed, 02 Jun 2021 19:55:57 GMT',
-        # 'Content-Type': 'application/octet-stream',
-        # 'Content-MD5': 'dDE6hVW0wIScavVYqzPnTw==',
-        # 'X-Content-Type-Options': 'nosniff',
-        # 'Content-Length': '3562'}
-        content_disposition = res.headers.get("Content-Disposition", "")
-        instance.artifact = str(content_disposition).replace(
-            "attachment; filename=", ""
-        )
-        return instance
+        return super().from_ocid(ocid)
 
 
 class DataScienceJobRun(
@@ -699,6 +686,17 @@ class DataScienceJob(Infrastructure):
         CONST_LOG_GROUP_ID: "job_log_configuration_details.log_group_id",
     }
 
+    snake_to_camel_map = {v.split(".", maxsplit=1)[-1]: k for k, v in attribute_map.items()}
+
+    @staticmethod
+    def standardize_spec(spec):
+        if not spec:
+            return {}
+        for key in list(spec.keys()):
+            if key not in DataScienceJob.attribute_map and key in DataScienceJob.snake_to_camel_map:
+                spec[DataScienceJob.snake_to_camel_map[key]] = spec.pop(key)
+        return spec
+
     def __init__(self, spec: Dict = None, **kwargs) -> None:
         """Initializes a data science job infrastructure
 
@@ -710,6 +708,8 @@ class DataScienceJob(Infrastructure):
             Specification as keyword arguments.
             If spec contains the same key as the one in kwargs, the value from kwargs will be used.
         """
+        self.standardize_spec(spec)
+        self.standardize_spec(kwargs)
         super().__init__(spec=spec, **kwargs)
         if not self.job_type:
             self.with_job_type("DEFAULT")

@@ -5,13 +5,13 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import configparser
-import os
-from typing import Dict
-
 import click
 
+import os
+from typing import Dict, List
+
 from ads.common.oci_datascience import DSCNotebookSession
-from ads.opctl.backend.ads_ml_job import MLJobBackend
+from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.local import LocalBackend
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.config.base import ConfigProcessor
@@ -19,6 +19,8 @@ from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.config.utils import read_from_ini
 from ads.opctl.config.validator import ConfigValidator
+from ads.opctl.config.yaml_parsers import YamlSpecParser
+
 from ads.opctl.constants import (
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_PROFILE,
@@ -33,6 +35,7 @@ from ads.opctl.utils import (
     OCIAuthContext,
     get_service_pack_prefix,
 )
+import yaml
 
 
 class _BackendFactory:
@@ -73,15 +76,70 @@ def run(config: Dict, **kwargs) -> Dict:
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
-    if p.config["execution"].get("job_id", None):
-        p.config["execution"]["backend"] = "job"
+    if config.get("kind") == "distributed":  # TODO: add kind factory
+
+        cluster_def = YamlSpecParser.parse_content(config)
+
+        backend = MLJobDistributedBackend(p.config)
+
+        # Define job first,
+        # Then Run
+        cluster_run_info = backend.run(
+            cluster_info=cluster_def, dry_run=p.config["execution"].get("dry_run")
+        )
+        if cluster_run_info:
+            cluster_run = {}
+            cluster_run["jobId"] = cluster_run_info[0].id
+            cluster_run["workDir"] = cluster_def.cluster.work_dir
+            cluster_run["mainJobRunId"] = cluster_run_info[1].id
+            cluster_run["workerJobRunIds"] = [wj.id for wj in cluster_run_info[2]]
+            yamlContent = yaml.dump(cluster_run)
+            print(yamlContent)
+        return cluster_run_info
+    else:
+        if p.config["execution"].get("job_id", None):
+            p.config["execution"]["backend"] = "job"
+            return _BackendFactory(p.config).backend.run()
+        p.step(ConfigResolver).step(ConfigValidator)
+        # spec may have changed during validation step (e.g. defaults filled in)
+        # thus command need to be updated since it encodes spec
+        p = ConfigResolver(p.config)
+        p._resolve_command()
         return _BackendFactory(p.config).backend.run()
-    p.step(ConfigResolver).step(ConfigValidator)
-    # spec may have changed during validation step (e.g. defaults filled in)
-    # thus command need to be updated since it encodes spec
-    p = ConfigResolver(p.config)
-    p._resolve_command()
-    return _BackendFactory(p.config).backend.run()
+
+
+def _update_env_vars(config, env_vars: List):
+    """
+    env_vars: List, should be formatted as [{"name": "OCI__XXX", "value": YYY},]
+    """
+    # TODO move this to a class which checks the version, kind, type, etc.
+    config["spec"]["Runtime"]["spec"]["environmentVariables"].extend(env_vars)
+    return config
+
+
+def init_operator(**kwargs) -> str:
+    """
+    Initialize the resources for an operator
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+    Returns
+    -------
+    folder_path: str
+        a path to the folder with all of the resources
+    """
+    # TODO: confirm that operator slug is in the set of valid operator slugs
+    assert kwargs["operator_slug"] == "dask_cluster"
+
+    if kwargs.get("folder_path"):
+        kwargs["operator_folder_path"] = kwargs.pop("folder_path")[0]
+    else:
+        kwargs["operator_folder_path"] = kwargs["operator_slug"]
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    print(f"config check: {p.config}")
+    return _BackendFactory(p.config).backend.init_operator()
 
 
 def delete(**kwargs) -> None:
@@ -125,12 +183,13 @@ def cancel(**kwargs) -> None:
     None
     """
     kwargs["run_id"] = kwargs.pop("ocid")
-    if "datasciencejobrun" in kwargs["run_id"]:
-        kwargs["backend"] = "job"
-    elif "dataflowrun" in kwargs["run_id"]:
-        kwargs["backend"] = "dataflow"
-    else:
-        raise ValueError("Must provide a job run OCID.")
+    if not kwargs.get("backend"):
+        if "datasciencejobrun" in kwargs["run_id"]:
+            kwargs["backend"] = "job"
+        elif "dataflowrun" in kwargs["run_id"]:
+            kwargs["backend"] = "dataflow"
+        else:
+            raise ValueError("Must provide a job run OCID.")
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.cancel()
 
@@ -148,12 +207,13 @@ def watch(**kwargs) -> None:
     None
     """
     kwargs["run_id"] = kwargs.pop("ocid")
-    if "datasciencejobrun" in kwargs["run_id"]:
-        kwargs["backend"] = "job"
-    elif "dataflowrun" in kwargs["run_id"]:
-        kwargs["backend"] = "dataflow"
-    else:
-        raise ValueError("Must provide a job run OCID.")
+    if not kwargs.get("backend"):
+        if "datasciencejobrun" in kwargs["run_id"]:
+            kwargs["backend"] = "job"
+        elif "dataflowrun" in kwargs["run_id"]:
+            kwargs["backend"] = "dataflow"
+        else:
+            raise ValueError("Must provide a job run OCID.")
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.watch()
 

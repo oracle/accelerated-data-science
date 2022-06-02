@@ -485,7 +485,7 @@ class ADSDataFrameAccessor(
             )
 
         sc = schema.Schema()
-        for col in self._obj.columns:
+        for i, col in enumerate(self._obj.columns):
             domain = schema.Domain()
             try:
                 domain = self._obj[col].ads.feature_domain()
@@ -500,6 +500,7 @@ class ADSDataFrameAccessor(
                     domain=domain,
                     description=str(col),
                     required=bool(~self._obj[col].isnull().any()),
+                    order=i,
                 )
             )
 

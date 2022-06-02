@@ -10,14 +10,13 @@ import logging
 import sys
 
 import IPython
-import oci
 from IPython import get_ipython
 from IPython.core.error import UsageError
-
 import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
 import json
 
 import ocifs
+import oci
 from ads.common.decorator.deprecate import deprecated
 from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
 from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor

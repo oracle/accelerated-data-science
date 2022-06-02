@@ -20,15 +20,28 @@ Python
         Job()
         .with_infrastructure(
             DataScienceJob()
-            .with_log_id("<log_id>")
-            .with_log_group_id("<log_group_id>")
+            .with_log_group_id("<log_group_ocid>")
+            .with_log_id("<log_ocid>")
+            # The following infrastructure configurations are optional
+            # if you are in an OCI data science notebook session.
+            # The configurations of the notebook session will be used as defaults
+            .with_compartment_id("<compartment_ocid>")
+            .with_project_id("<project_ocid>")
+            .with_subnet_id("<subnet_ocid>")
+            .with_shape_name("VM.Standard2.1")
+            .with_block_storage_size(50)
         )
         .with_runtime(
             NotebookRuntime()
-            .with_notebook(path="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb")
+            .with_notebook(
+                path="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb",
+                encoding='utf-8'
+            )
             .with_service_conda(tensorflow26_p37_cpu_v2")
+            .with_environment_variable(GREETINGS="Welcome to OCI Data Science")
             .with_output("oci://bucket_name@namespace/path/to/dir")
         )
+    )
 
     job.create()
     run = job.run().watch()
@@ -66,7 +79,7 @@ in a notebook, see `Adding tags using notebook interfaces <https://jupyterbook.o
 YAML
 ~~~~
 
-You could use the following YAML to create the same job:
+You could use the following YAML to create the job:
 
 .. code:: yaml
 
@@ -84,62 +97,71 @@ You could use the following YAML to create the same job:
 	    kind: runtime
         type: notebook
 	    spec:
+          notebookPathURI: /path/to/notebook
 	      conda:
             slug: tensorflow26_p37_cpu_v1
             type: service
-	      notebookPathURI: /path/to/notebook
+
 
 **NotebookRuntime Schema**
 
 .. code:: yaml
 
     kind:
-        allowed:
-            - runtime
-        required: true
-        type: string
-    spec:
-        type: dict
-        required: true
-        schema:
-            args:
-            nullable: true
-            required: false
-            schema:
-                type: string
-            type: list
-            conda:
-            nullable: false
-            required: false
-            schema:
-                slug:
-                required: true
-                type: string
-                type:
-                allowed:
-                    - service
-                required: true
-                type: string
-            type: dict
-            env:
-            required: false
-            schema:
-                type: dict
-            type: list
-            excludeTags:
-            required: false
-            type: list
-            freeform_tag:
-            required: false
-            type: dict
-            notebookPathURI:
-            required: false
-            type: string
-            outputUri:
-            required: false
-            type: string
+      required: true
+      type: string
+      allowed:
+        - runtime
     type:
-        allowed:
-            - notebook
-        required: true
-        type: string
+      required: true
+      type: string
+      allowed:
+        - notebook
+    spec:
+      required: true
+      type: dict
+      schema:
+        excludeTags:
+          required: false
+          type: list
+        notebookPathURI:
+          required: false
+          type: string
+        notebookEncoding:
+          required: false
+          type: string
+        outputUri:
+          required: false
+          type: string
+        args:
+          nullable: true
+          required: false
+          type: list
+          schema:
+            type: string
+        conda:
+          nullable: false
+          required: false
+          type: dict
+          schema:
+            slug:
+              required: true
+              type: string
+            type:
+              required: true
+              type: string
+              allowed:
+                - service
+        env:
+          nullable: true
+          required: false
+          type: list
+          schema:
+            type: dict
+            schema:
+            name:
+              type: string
+            value:
+              type:
+                - number
+                - string

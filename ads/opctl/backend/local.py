@@ -48,20 +48,31 @@ class LocalBackend(Backend):
         self.config = config
 
     def run(self):
-        bind_volumes = {}
-        if not is_in_notebook_session():
+        if self.config.get('version') == "v1.0":
+            docker_image = self.config['spec']['Infrastructure']['spec']['dockerImage']
+            # TODO: don't hard code api keys
             bind_volumes = {
-                os.path.expanduser(
-                    os.path.dirname(self.config["execution"]["oci_config"])
-                ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
-            }
-        if self.config["execution"].get("conda_slug", None):
-            self._run_with_conda_pack(bind_volumes)
-        elif self.config["execution"].get("image", None):
-            self._run_with_image(bind_volumes)
+                    os.path.expanduser(
+                        "~/.oci"
+                    ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci"), 'mode': 'ro'}
+                }
+            self._run_with_image_v1(bind_volumes)
+
         else:
-            raise ValueError("Either conda pack info or image should be specified.")
-        return {}
+            bind_volumes = {}
+            if not is_in_notebook_session():
+                bind_volumes = {
+                    os.path.expanduser(
+                        os.path.dirname(self.config["execution"]["oci_config"])
+                    ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
+                }
+            if self.config["execution"].get("conda_slug", None):
+                self._run_with_conda_pack(bind_volumes)
+            elif self.config['execution'].get("image"):
+                self._run_with_image(bind_volumes)
+            else:
+                raise ValueError("Either conda pack info or image should be specified.")
+            return {}
 
     def init_vscode_container(self) -> None:
         """
@@ -247,6 +258,18 @@ class LocalBackend(Backend):
             bind_volumes.update(self._mount_source_folder_if_exists(bind_volumes))
         bind_volumes.update(self.config["execution"]["volumes"])
         run_container(image, bind_volumes, env_vars, command, entrypoint)
+
+    def _run_with_image_v1(self, bind_volumes: Dict) -> None:
+        env_vars = [str(d['name']) + '=' + str(d['value']) for d in \
+            self.config["spec"]["Runtime"]["spec"]["environmentVariables"]]
+        image = self.config['spec']['Infrastructure']['spec']['dockerImage']
+        command = self.config["spec"]["Runtime"]["spec"]["entrypoint"]
+        entrypoint = "python /etc/datascience/operator/cluster_helper.py"
+
+        print("looking to bind volume")
+        bind_volumes.update(self.config["spec"]["Framework"]["spec"]["bindVolumes"])
+        run_container(image=image, bind_volumes=bind_volumes, env_vars=env_vars, command=command, entrypoint=entrypoint)
+
 
     def _check_conda_pack_and_install_if_applicable(
         self, slug: str, bind_volumes: Dict, env_vars: Dict
