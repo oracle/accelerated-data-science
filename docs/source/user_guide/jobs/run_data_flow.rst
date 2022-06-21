@@ -1,24 +1,21 @@
-Run a Data Flow Application
----------------------------
+.. _Jobs Dataflow:
 
-Oracle Cloud Infrastructure (OCI) `Data Flow <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm>`__
-is a service for creating and running Spark applications. The following examples 
-demonstrate how to create and run Data Flow applications using ADS.
+Run a Data Flow Application
+***************************
+
+Oracle Cloud Infrastructure (OCI) `Data Flow <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm>`__ is a service for creating and running Spark applications. The following examples demonstrate how to create and run Data Flow applications using ADS.
 
 Python
-~~~~~~
+======
 
-To create and run a Data Flow application, you must specify a 
-compartment and a bucket for storing logs under the same 
-compartment:
+To create and run a Data Flow application, you must specify a compartment and a bucket for storing logs under the same compartment:
 
-.. code:: ipython3
+.. code-block:: python3
 
     compartment_id = "<compartment_id>"
     logs_bucket_uri = "<logs_bucket_uri>"
 
-Ensure that you set up the correct policies. For instance, for
-Data Flow to access logs bucket, use a policy like:
+Ensure that you set up the correct policies. For instance, for Data Flow to access logs bucket, use a policy like:
 
 ::
 
@@ -28,7 +25,7 @@ For more information, see the `Data Flow documentation <https://docs.oracle.com/
 
 Update ``oci_profile`` if you're not using the default:
 
-.. code:: ipython3
+.. code-block:: python3
 
     oci_profile = "DEFAULT"
     config_location = "~/.oci/config"
@@ -36,56 +33,38 @@ Update ``oci_profile`` if you're not using the default:
 
 To create a Data Flow application you need two components: 
 
-- ``DataFlow``, a subclass of ``Infrastructure``.
-- ``DataFlowRuntime``, a subclass of ``Runtime``.
+* ``DataFlow``, a subclass of ``Infrastructure``.
+* ``DataFlowRuntime``, a subclass of ``Runtime``.
 
-``DataFlow`` stores properties specific to Data Flow service, such as
-compartment_id, logs_bucket_uri, and so on. 
-You can set them using the ``with_{property}`` functions:
+``DataFlow`` stores properties specific to Data Flow service, such as compartment_id, logs_bucket_uri, and so on.  You can set them using the ``with_{property}`` functions:
 
-- ``with_compartment_id``
-- ``with_configuration``
-- ``with_driver_shape``
-- ``with_executor_shape``
-- ``with_language``
-- ``with_logs_bucket_uri``
-- ``with_metastore_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/hive-metastore.htm>`__)
-- ``with_num_executors``
-- ``with_spark_version``
-- ``with_warehouse_bucket_uri``
+* ``with_compartment_id``
+* ``with_configuration``
+* ``with_driver_shape``
+* ``with_executor_shape``
+* ``with_language``
+* ``with_logs_bucket_uri``
+* ``with_metastore_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/hive-metastore.htm>`__)
+* ``with_num_executors``
+* ``with_spark_version``
+* ``with_warehouse_bucket_uri``
 
 For more details, see ```DataFlow`` class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
 
-``DataFlowRuntime`` stores properties related to the script to be run, such as the path to the script and
-CLI arguments. Likewise all properties can be set using ``with_{property}``. 
-The ``DataFlowRuntime`` properties are:
+``DataFlowRuntime`` stores properties related to the script to be run, such as the path to the script and CLI arguments. Likewise all properties can be set using ``with_{property}``.  The ``DataFlowRuntime`` properties are:
 
-- ``with_script_uri``
-- ``with_script_bucket``
-- ``with_archive_uri`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__)
-- ``with_archive_bucket``
+* ``with_archive_bucket``
+* ``with_archive_uri`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__)
+* ``with_script_bucket``
+* ``with_script_uri``
 
 For more details, see the `runtime class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.runtimes.python_runtime>`__.
 
-Since service configurations remain mostly unchanged across multiple experiments, a ``DataFlow``
-object can be reused and combined with various ``DataFlowRuntime`` parameters to 
-create applications.
+Since service configurations remain mostly unchanged across multiple experiments, a ``DataFlow`` object can be reused and combined with various ``DataFlowRuntime`` parameters to create applications.
 
-In the following "hello-world" example, ``DataFlow`` is populated with ``compartment_id``,
-``driver_shape``, ``executor_shape``, and ``spark_version``.
-``DataFlowRuntime`` is populated with ``script_uri`` and
-``script_bucket``. The ``script_uri`` specifies the path to the script. It can be
-local or remote (an Object Storage path). If the path is local, then
-``script_bucket`` must be specified additionally because Data Flow
-requires a script to be available in Object Storage. ADS 
-performs the upload step for you, as long as you give the bucket name
-or the Object Storage path prefix to upload the script. Either can be
-given to ``script_bucket``. For example,  either
-``with_script_bucket("<bucket_name>")`` or
-``with_script_bucket("oci://<bucket_name>@<namespace>/<prefix>")`` is
-accepted. In the next example, the prefix is given for ``script_bucket``.
+In the following "hello-world" example, ``DataFlow`` is populated with ``compartment_id``, ``driver_shape``, ``executor_shape``, and ``spark_version``.  ``DataFlowRuntime`` is populated with ``script_uri`` and ``script_bucket``. The ``script_uri`` specifies the path to the script. It can be local or remote (an Object Storage path). If the path is local, then ``script_bucket`` must be specified additionally because Data Flow requires a script to be available in Object Storage. ADS performs the upload step for you, as long as you give the bucket name or the Object Storage path prefix to upload the script. Either can be given to ``script_bucket``. For example,  either ``with_script_bucket("<bucket_name>")`` or ``with_script_bucket("oci://<bucket_name>@<namespace>/<prefix>")`` is accepted. In the next example, the prefix is given for ``script_bucket``.
 
-.. code:: ipython3
+.. code-block:: python3
     
     from ads.jobs import DataFlow, DataFlowRun, DataFlowRuntime 
     from uuid import uuid4
@@ -117,30 +96,26 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
 
 To run this application, you could use:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df_run = df.run()
 
 After the run completes, check the ``stdout`` log from the application by running:
 
-.. code:: ipython3
+.. code-block:: python3
 
     print(df_run.logs.application.stdout)
 
 You should this in the log:
 
-.. code:: ipython3
+.. code-block:: python3
     
     Hello World
     Spark version is 3.0.2
 
+Data Flow supports adding third-party libraries using a ZIP file, usually called ``archive.zip``, see the `Data Flow documentation <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__ about how to create ZIP files. Similar to scripts, you can specify an archive ZIP for a Data Flow application using ``with_archive_uri``.  In the next example, ``archive_uri`` is given as an Object Storage location.  ``archive_uri`` can also be local so you must specify ``with_archive_bucket`` and follow the same rule as ``with_script_bucket``.
 
-Data Flow supports adding third-party libraries using a ZIP file, usually called ``archive.zip``, see the `Data Flow documentation <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__ 
-about how to create ZIP files. Similar to scripts, you can specify an archive ZIP for a Data Flow application using ``with_archive_uri``. 
-In the next example, ``archive_uri`` is given as an Object Storage location.
-``archive_uri`` can also be local so you must specify ``with_archive_bucket`` and follow the same rule as ``with_script_bucket``.
-
-.. code:: ipython3
+.. code-block:: python3
 	
     from ads.jobs import DataFlow, DataFlowRun, DataFlowRuntime 
     from uuid import uuid4
@@ -213,76 +188,71 @@ In the next example, ``archive_uri`` is given as an Object Storage location.
 
 You can pass arguments to a Data Flow run as a list of strings:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df_run = df.run(args=["run-test", "-v", "-l", "5"])
 
-You can save the application specification into a YAML file for future
-reuse. You could also use the ``json`` format.
+You can save the application specification into a YAML file for future reuse. You could also use the ``json`` format.
 
-.. code:: ipython3
+.. code-block:: python3
 
     print(df.to_yaml("sample-df.yaml"))
 
-You can also load a Data Flow application directly from the YAML file saved in the
-previous example:
+You can also load a Data Flow application directly from the YAML file saved in the previous example:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df2 = Job.from_yaml(uri="sample-df.yaml")
 
-Creating a new job and a run:
+Create a new job and a run:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df_run2 = df2.create().run()
 
 Deleting a job cancels associated runs:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df2.delete()
     df_run2.status
 
 You can also load a Data Flow application from an OCID:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df3 = Job.from_dataflow_job(df.id)
 
 Creating a run under the same application:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df_run3 = df3.run()
 
-Now there are 2 runs under the ``df`` application:
+Now, there are 2 runs under the ``df`` application:
 
-.. code:: ipython3
+.. code-block:: python3
 
     assert len(df.run_list()) == 2
 
-When you run a Data Flow application, a ``DataFlowRun`` object is created.
-You can check the status, wait for a run to finish, check its logs
-afterwards, or cancel a run in progress. For example:
+When you run a Data Flow application, a ``DataFlowRun`` object is created.  You can check the status, wait for a run to finish, check its logs afterwards, or cancel a run in progress. For example:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df_run.status
     df_run.wait()
 
-``watch`` is an alias of ``wait``, so you can also call ``df_run.watch()``.
+Note that ``watch`` is an alias of ``wait``, so you can also call ``df_run.watch()``.
 
 There are three types of logs for a run: 
 
-- application log 
-- driver log 
-- executor log 
+* application log 
+* driver log 
+* executor log 
 
-Each log consists of ``stdout`` and ``stderr``. For example, to access ``stdout`` 
-from application log, you could use:
+Each log consists of ``stdout`` and ``stderr``. For example, to access ``stdout`` from application log, you could use:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df_run.logs.application.stdout
 
@@ -296,17 +266,16 @@ Then you could check it with:
 
 You can also examine ``head`` or ``tail`` of the log, or download it to a local path. For example,
 
-.. code:: ipython3
+.. code-block:: python3
 
     log = df_run.logs.application.stdout
     log.head(n=1)
     log.tail(n=1)
     log.download(<local-path>)
 
-For the sample script, the log prints first five rows of a sample dataframe in JSON 
-and it looks like:
+For the sample script, the log prints first five rows of a sample dataframe in JSON and it looks like:
 
-.. code:: ipython3
+.. code-block:: python3
     
     record 0
     {"city":"Berlin","zipcode":"10119","lat_long":"52.53453732241747,13.402556926822387"}
@@ -321,39 +290,35 @@ and it looks like:
 
 Calling ``log.head(n=1)`` returns this:
 
-.. code:: ipython3
+.. code-block:: python3
     
     'record 0'
 
 Calling ``log.tail(n=1)`` returns this:
 
-.. code:: ipython3
+.. code-block:: python3
 
     {"city":"Berlin","zipcode":"10437","lat_long":"52.5431572633131,13.415091104515707"}
 
 
-A link to run the page in the OCI Console is given using the ``run_details_link``
-property:
+A link to run the page in the OCI Console is given using the ``run_details_link`` property:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df_run.run_details_link
 
-To list Data Flow applications, a compartment id must be given 
-with any optional filtering criteria. For example, you can filter by
-name of the application:
+To list Data Flow applications, a compartment id must be given with any optional filtering criteria. For example, you can filter by name of the application:
 
-.. code:: ipython3
+.. code-block:: python3
 
     Job.dataflow_job(compartment_id=compartment_id, display_name=name)
 
 YAML
-~~~~
+====
 
-You can create a Data Flow job directly from a YAML string. You can pass a YAML string 
-into the ``Job.from_yaml()`` function to build a Data Flow job:
+You can create a Data Flow job directly from a YAML string. You can pass a YAML string into the ``Job.from_yaml()`` function to build a Data Flow job:
 
-.. code:: yaml
+.. code-block:: yaml
 
   kind: job
   spec:
@@ -380,7 +345,7 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
 
 **Data Flow Infrastructure YAML Schema**
 
-.. code:: yaml
+.. code-block:: yaml
 
     kind:
         allowed:
@@ -429,7 +394,7 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
 
 **Data Flow Runtime YAML Schema**
 
-.. code:: yaml
+.. code-block:: yaml
 
     kind:
         allowed:
@@ -484,3 +449,4 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
             - dataFlow
         required: true
         type: string
+

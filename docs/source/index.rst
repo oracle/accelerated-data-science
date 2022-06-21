@@ -11,11 +11,11 @@ Oracle Accelerated Data Science SDK (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Installation and Configuration:
+   :caption: Configuration:
 
    user_guide/overview/overview
-   user_guide/quickstart/quickstart
-   user_guide/configuration/configuration
+   user_guide/quick_start/quick_start
+   user_guide/configuration/index
 
 .. toctree::
    :hidden:
@@ -23,14 +23,15 @@ Oracle Accelerated Data Science SDK (ADS)
    :caption: Tasks:
 
    user_guide/loading_data/index
-   user_guide/data_visualization/visualization
+   user_guide/data_catalog_metastore/index
    user_guide/data_transformation/data_transformation
+   user_guide/data_visualization/visualization
    user_guide/model_training/automl
 
 .. toctree::
    :hidden:
    :maxdepth: 5
-   :caption: Features:
+   :caption: Components:
 
    user_guide/ADSString/index
    user_guide/big_data_service/index
@@ -38,11 +39,11 @@ Oracle Accelerated Data Science SDK (ADS)
    user_guide/data_labeling/index
    user_guide/feature_type/index
    user_guide/jobs/index
-   user_guide/logging/logging
+   user_guide/logs/logs
    user_guide/model_catalog/model_catalog
    user_guide/model_deployment/index
    user_guide/model_evaluation/index
-   user_guide/model_explainability/mlx
+   user_guide/model_explainability/index
    user_guide/model_serialization/index
    user_guide/secrets/index
    user_guide/text_extraction/text_dataset

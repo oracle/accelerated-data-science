@@ -20,6 +20,7 @@ except:
 
 import json
 import os
+import asteval
 from os import path
 
 import fsspec
@@ -27,7 +28,6 @@ import yaml
 from cerberus import Validator
 import sys
 from string import Template
-from asteval import Interpreter
 
 
 SCHEMA_VALIDATOR_NAME = "data_schema.json"
@@ -95,7 +95,7 @@ class Expression(DataClassSerializable):
             raise Exception(
                 "Error substituting the value into the expression. Check if the variable in the expression matches the parameter names passed to evaluate method"
             )
-        aeval = Interpreter()
+        aeval = asteval.Interpreter()
         return aeval(final_expression)
 
     def __post_init__(self):

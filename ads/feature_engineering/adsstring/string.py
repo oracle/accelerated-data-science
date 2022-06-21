@@ -11,6 +11,7 @@ from ads.feature_engineering.adsstring.common_regex_mixin import (
     CommonRegexMixin,
 )
 from ads.feature_engineering.adsstring.oci_language import OCILanguage
+from ads.common.decorator.runtime_dependency import OptionalDependency
 
 
 def to_adsstring(func: Callable) -> Callable:
@@ -168,7 +169,10 @@ class ADSString(str, CommonRegexMixin):
             try:
                 import spacy
             except:
-                raise ModuleNotFoundError("spacy must be installed.")
+                raise ModuleNotFoundError(
+                    f"The `spacy` module was not found. Please run "
+                    f"`pip install {OptionalDependency.TEXT}`."
+                )
             from ads.feature_engineering.adsstring.parsers.spacy_parser import (
                 SpacyParser,
             )

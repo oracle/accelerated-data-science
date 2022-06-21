@@ -33,12 +33,15 @@ from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
 from cycler import cycler
-from IPython import get_ipython
-from IPython.core.display import HTML, display
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
 
 from . import auth as authutil
+
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
@@ -90,13 +93,12 @@ class FileOverwriteError(Exception):
 
 
 # get number of core count
+@runtime_dependency(module="psutil", install_from=OptionalDependency.VIZ)
 def get_cpu_count():
     """
     Returns the number of CPUs available on this machine
     """
-    from cpuinfo import get_cpu_info
-
-    return get_cpu_info()["count"]
+    return psutil.cpu_count()
 
 
 @deprecated(
@@ -366,6 +368,8 @@ def is_notebook():
     Returns true if the environment is a jupyter notebook.
     """
     try:
+        from IPython import get_ipython
+
         shell = get_ipython().__class__.__name__
         if shell == "ZMQInteractiveShell":  # pragma: no cover
             return True  # Jupyter notebook or qtconsole
@@ -373,7 +377,7 @@ def is_notebook():
             return False  # Terminal running IPython
         else:
             return False  # Other type (?)
-    except NameError:
+    except ModuleNotFoundError or NameError:
         return False  # Probably standard Python interpreter
 
 
@@ -438,6 +442,7 @@ def is_debug_mode():  # pragma: no cover
 
 
 @deprecated("2.3.1")
+@runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
 def print_user_message(
     msg, display_type="tip", see_also_links=None, title="Tip"
 ):  # pragma: no cover
@@ -487,6 +492,8 @@ def print_user_message(
                 )
             else:
                 user_message = "{}".format(msg.strip().replace("\n", "<br>"))
+
+            from IPython.core.display import HTML, display
 
             display(
                 HTML(
@@ -743,6 +750,7 @@ def split_data(X, y, random_state=random_state, test_size=test_size):
     )
 
 
+@runtime_dependency(module="sqlalchemy", install_from=OptionalDependency.DATA)
 def get_sqlalchemy_engine(connection_url, *args, **kwargs):
     """
     The SqlAlchemny docs say to use a single engine per connection_url, this class will take
@@ -759,9 +767,6 @@ def get_sqlalchemy_engine(connection_url, *args, **kwargs):
     engine: SqlAlchemny engine
         The engine from which SqlAlchemny commands can be ran on
     """
-
-    from sqlalchemy import create_engine
-
     global _engines
     if connection_url not in _engines:
         #
@@ -770,7 +775,7 @@ def get_sqlalchemy_engine(connection_url, *args, **kwargs):
         # need them.
         #
         # DAR: note: use echo=True to log engine output
-        _engines[connection_url] = create_engine(
+        _engines[connection_url] = sqlalchemy.create_engine(
             connection_url, pool_recycle=10, *args, **kwargs
         )
 

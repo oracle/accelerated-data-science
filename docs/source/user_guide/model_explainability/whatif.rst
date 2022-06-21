@@ -1,21 +1,22 @@
 WhatIf Explainer
-===============================================================
+****************
 
 Description
------------
+===========
+
 The WhatIf explainer tool helps to understand how changes in an observation affect a model's prediction. Use it to explore a model's behavior on a single observation or the entire dataset by asking "what if" questions.
 
 The WhatIf explainer has the following methods:
 
-- ``explore_predictions``: Explore the relationship between feature values and the model predictions.
-- ``explore_sample``: Modify the values in an observation and see how the prediction changes.
+* ``explore_predictions``: Explore the relationship between feature values and the model predictions.
+* ``explore_sample``: Modify the values in an observation and see how the prediction changes.
 
 Example
---------
+========
 
 In this example, a WhatIf explainer is created, and then the ``explore_predictions()``, and ``explore_sample()`` methods are demonstrated. A tree-based model is used to make predictions on the Boston housing dataset.
 
-.. code-block:: python
+.. code-block:: python3
 
     from ads.common.model import ADSModel
     from ads.dataset.dataset_browser import DatasetBrowser
@@ -55,8 +56,7 @@ The Sample Explorer method, ``explore_sample()``, opens a GUI that has a single 
 
 The following command opens the Sample Explorer. Change the values then click **Run Inference** to see how the prediction changes.
 
-
-.. code-block:: python
+.. code-block:: python3
 
     whatif_explainer.explore_sample()
 
@@ -67,15 +67,15 @@ The Predictions Explorer method, ``explore_predictions()``, allows the explorati
 
 The method ``explore_predictions()`` has several optional parameters including:
 
-- ``x``: (str, optional) Feature column on x-axis. The default is None.
-- ``y``: (str, optional) Feature column or model prediction column on the y-axis, by default it is the target.
-- ``label``: (str or int, optional) Target label or target class name to explore only for classification problems. The default is None.
-- ``plot_type``: (str, optional) Type of plot. For classification problems the valid options are 'scatter', 'box', or 'bar'. For a regression problem, the valid options are 'scatter' or 'box'. The default is 'scatter'.
-- ``discretization``: (str, optional) Discretization method applies the x-axis if the feature ``x`` is continuous. The valid options are 'quartile', 'decile', or 'percentile'. The default is None.
+* ``discretization``: (str, optional) Discretization method applies the x-axis if the feature ``x`` is continuous. The valid options are 'quartile', 'decile', or 'percentile'. The default is None.
+* ``label``: (str or int, optional) Target label or target class name to explore only for classification problems. The default is None.
+* ``plot_type``: (str, optional) Type of plot. For classification problems the valid options are 'scatter', 'box', or 'bar'. For a regression problem, the valid options are 'scatter' or 'box'. The default is 'scatter'.
+* ``x``: (str, optional) Feature column on x-axis. The default is None.
+* ``y``: (str, optional) Feature column or model prediction column on the y-axis, by default it is the target.
 
 When only ``x`` is set, the chart shows the relationship between the features ``x`` and the target ``y``.
 
-.. code-block:: python
+.. code-block:: python3
 
     whatif_explainer.explore_predictions(x='AGE')
 
@@ -83,14 +83,15 @@ When only ``x`` is set, the chart shows the relationship between the features ``
 
 If features are specified for both ``x`` and ``y``, the plot uses color to indicate the value of the target.
 
-.. code-block:: python
+.. code-block:: python3
 
     whatif_explainer.explore_predictions(x='AGE', y='CRIM')
 
 .. image:: figures/ads_mlx_boston_whatif_explore_predictions_2.png
 
-.. code-block:: python
+.. code-block:: python3
 
     whatif_explainer.explore_predictions(x='RAD', plot_type='box', discretization='decile')
 
 .. image:: figures/ads_mlx_boston_whatif_explore_predictions_3.png
+

@@ -7,8 +7,10 @@
 import copy
 import importlib
 
-from IPython.core.display import display
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.dataset import logger
 
 
@@ -30,7 +32,7 @@ class Recommendation:
         "Fix imbalance in dataset",
     ]
 
-    @runtime_dependency(module="ipywidgets", install_from="oracle-ads[notebook]")
+    @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
     def __init__(self, ds, recommendation_transformer):
         self.recommendation_transformer = recommendation_transformer
         self.reco_dict = recommendation_transformer.reco_dict_
@@ -68,6 +70,8 @@ class Recommendation:
 
         return on_action_change
 
+    @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def _show_constant_fill_widget(self, column):
         if column in self.ds.numeric_columns:
             text = ipywidgets.widgets.FloatText(
@@ -87,6 +91,9 @@ class Recommendation:
         if column in self.fill_nan_dict:
             text.value = self.fill_nan_dict[column].value
         self.fill_nan_dict[column] = text
+
+        from IPython.core.display import display
+
         display(text)
         if self.control_buttons is not None:
             # self.control_buttons.close()
@@ -141,7 +148,12 @@ class Recommendation:
 
         self._display()
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
+    @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
     def _display(self):
+
+        from IPython.core.display import display
+
         if self.recommendation_type_index != len(self.recommendation_types):
             if (
                 self.recommendation_types[self.recommendation_type_index]

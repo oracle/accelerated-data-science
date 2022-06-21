@@ -2,6 +2,30 @@
 Release Notes
 =============
 
+2.6.2
+-----
+
+Release date: June 21, 2022
+
+* Added ``from_model_deployment()`` method to the ``GenericModel`` class. Now you can load a model directly from an existing model deployment.
+* Moved dependencies from being default into optional installation groups:
+
+    * ``all-optional``
+    * ``bds``
+    * ``boosted``
+    * ``data``
+    * ``geo``
+    * ``notebook``
+    * ``onnx``
+    * ``opctl``
+    * ``optuna``
+    * ``tensorflow``
+    * ``text``
+    * ``torch``
+    * ``viz``
+
+  Use ``python3 -m pip install oracle-ads[XXX]`` where XXX are the group names.
+
 2.6.1
 -----
 

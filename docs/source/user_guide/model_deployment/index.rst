@@ -1,13 +1,13 @@
-****************
+################
 Model Deployment
-****************
+################
 
 
 .. toctree::
     :maxdepth: 1
 
     overview
-    accessing
+    access_a_model_deployment
     attributes
     delete
     deploy

@@ -277,7 +277,7 @@ class OCISerializableMixin(OCIClientMixin):
         try:
             value = cls(data)
         except UnicodeEncodeError:
-            value = six.u(data)
+            value = data
         except TypeError:
             value = data
         return value

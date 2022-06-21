@@ -1,13 +1,13 @@
 .. _loading-data-10:
 
-************
-Loading Data
-************
+#########
+Load Data
+#########
 
 .. toctree::
-    :maxdepth: 1
+   :maxdepth: 1
 
-    connect
-    connect_legacy
-    format_type
-    supported_format
+   connect
+   connect_legacy
+   format_type
+   supported_format

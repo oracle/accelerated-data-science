@@ -15,11 +15,12 @@ from typing import Dict, List, Tuple
 
 import ads.dataset.factory as factory
 import fsspec
+import git
 import pandas as pd
 import yaml
 from ads.common import logger
 from ads.common.error import ChangesNotCommitted
-from git import Repo
+from ads.common.serializer import DataClassSerializable
 from oci.data_science.models import ModelProvenance
 
 try:
@@ -1464,7 +1465,7 @@ class ModelTaxonomyMetadata(ModelMetadata):
 
 
 @dataclass(repr=True)
-class ModelProvenanceMetadata:
+class ModelProvenanceMetadata(DataClassSerializable):
     """ModelProvenanceMetadata class.
 
     Examples
@@ -1505,7 +1506,7 @@ class ModelProvenanceMetadata:
         ModelProvenanceMetadata
             A ModelProvenanceMetadata instance.
         """
-        repo = Repo(".", search_parent_directories=True)
+        repo = git.Repo(".", search_parent_directories=True)
         # get repository url
         if len(repo.remotes) > 0:
             repository_url = (
@@ -1592,3 +1593,34 @@ class ModelProvenanceMetadata:
             training_script=self.training_script_path,
             training_id=self.training_id,
         )
+
+    @classmethod
+    def _from_oci_metadata(
+        cls, model_provenance: ModelProvenance
+    ) -> "ModelProvenanceMetadata":
+        """Creates a new model provenance metadata item from the OCI object.
+
+        Returns
+        -------
+        ModelProvenanceMetadata
+            Model provenance metadata object.
+        """
+        return ModelProvenanceMetadata(
+            repo=model_provenance.repository_url,
+            git_branch=model_provenance.git_branch,
+            git_commit=model_provenance.git_commit,
+            repository_url=model_provenance.repository_url,
+            training_script_path=model_provenance.training_script,
+            training_id=model_provenance.training_id,
+            artifact_dir=model_provenance.script_dir,
+        )
+
+    def __repr__(self):
+        """Returns printable version of object.
+
+        Parameters
+        ----------
+        string
+            Serialized version of object as a YAML string
+        """
+        return self.to_yaml()

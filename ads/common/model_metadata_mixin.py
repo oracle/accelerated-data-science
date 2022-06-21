@@ -11,6 +11,7 @@ import sys
 import textwrap
 from typing import List, Tuple, Union
 
+import git
 import numpy as np
 import pandas as pd
 from ads.common import logger, utils
@@ -20,13 +21,11 @@ from ads.common.model_metadata import (
     MetadataCustomKeys,
     MetadataTaxonomyKeys,
     ModelCustomMetadataItem,
-    UseCaseType,
     ModelProvenanceMetadata,
+    UseCaseType,
 )
 from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
 from ads.feature_engineering.schema import DataSizeTooWide, Schema, SchemaSizeTooLarge
-from git import InvalidGitRepositoryError
-
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ADS")
@@ -222,7 +221,7 @@ class MetadataMixin:
                     artifact_dir=self.artifact_dir,
                 )
             )
-        except InvalidGitRepositoryError:
+        except git.InvalidGitRepositoryError:
             self.metadata_provenance = ModelProvenanceMetadata()
 
         if training_script_path is not None:

@@ -13,43 +13,25 @@ from pathlib import Path
 from setuptools.command.install import install
 from setuptools.command.develop import develop
 
+
 install_requires = [
     "asteval>=0.9.25",
-    "bokeh>=2.3.0",
     "cerberus>=1.3.4",
     "cloudpickle>=1.6.0",
-    "datefinder>=0.7.1",
-    "folium>=0.12.1",
     "fsspec>=0.8.7",
-    "geopandas>=0.9.0",
-    "gitpython>=3.1.2",
-    "graphviz<0.17",
-    "htmllistparse>=0.6.0",
-    "ipython>=7.23.1,< 8.0",
     "jinja2>=2.11.2",
-    "jsonschema<4.0",
+    "gitpython>=3.1.2",
     "matplotlib>=3.1.3",
-    "numexpr>=2.7.3",
     "numpy>=1.19.2",
     "oci>=2.59.0",
     "ocifs>=0.1.5",
-    "onnx~=1.10.2",
-    "onnxmltools>=1.10.0",
-    "onnxruntime>=1.10.0",
-    "skl2onnx>=1.10.4",
-    "optuna==2.9.0",
     "pandas>1.2.1,<1.4",
-    "protobuf<=3.20",
-    "py-cpuinfo>=7.0.0",
     "python_jsonschema_objects>=0.3.13",
+    "PyYAML>=5.4,<6",
+    "requests",
     "scikit-learn>=0.23.2",
-    "scipy>=1.5.4",
-    "seaborn>=0.11.0",
-    "six>=1.14.0",
-    "sqlalchemy>=1.4.1",
     "tabulate>=0.8.9",
     "tqdm>=4.59.0",
-    "psutil>=5.7.2",
 ]
 
 extras_require = {
@@ -59,39 +41,88 @@ extras_require = {
     ],
     "notebook": [
         "ipywidgets~=7.6.3",
+        "ipython>=7.23.1, <8.0",
     ],
-    "text": [
-        "wordcloud>=1.8.1",
-    ],
-    "data_science": [
-        "torch",
-        "tensorflow",
-        "tf2onnx",
-        "onnx~=1.10.2",
-        "onnxruntime>=1.10.0",
-        "onnxmltools>=1.10.0",
-        "skl2onnx>=1.10.4",
+    "text": ["wordcloud>=1.8.1", "spacy"],
+    "viz": [
+        "bokeh>=2.3.0",
+        "folium>=0.12.1",
+        "graphviz<0.17",
+        "scipy>=1.5.4",
+        "seaborn>=0.11.0",
+        "psutil>=5.7.2",
     ],
     "data": [
         "fastavro>=0.24.2",
         "openpyxl>=3.0.7",
         "pandavro>=1.6.0",
+        "datefinder>=0.7.1",
+        "htmllistparse>=0.6.0",
+        "sqlalchemy>=1.4.1",
         "cx-Oracle>=8.0",
     ],
-    "opctl": ["oci-cli", "docker", "conda-pack", "nbconvert", "nbformat"],
+    "opctl": [
+        "oci-cli",
+        "docker",
+        "conda-pack",
+        "nbconvert",
+        "nbformat",
+        "inflection",
+    ],
     "mysql": ["mysql-connector-python"],
     "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
 }
+
+this_directory = Path(__file__).parent
+
+
+def update_extra_with_internal_packages():
+    loaded_dep = {}
+    internal_deps = os.path.join(this_directory, "internal_extra_dependency.json")
+    print(f"looking for {internal_deps}")
+    if os.path.exists(internal_deps):
+        with open(internal_deps) as idf:
+            loaded_dep = json.load(idf)
+            print(f"Found: {loaded_dep}")
+    return loaded_dep
+
+
+extras_require.update(update_extra_with_internal_packages())
+
+extras_require["torch"] = extras_require["viz"] + ["torch"]
+extras_require["tensorflow"] = extras_require["viz"] + [
+    "tensorflow",
+]
+extras_require["geo"] = extras_require["viz"] + ["geopandas"]
+extras_require["onnx"] = extras_require["viz"] + [
+    "protobuf<=3.20",
+    "onnx~=1.10.2",
+    "onnxruntime>=1.10.0",
+    "onnxmltools>=1.10.0",
+    "skl2onnx>=1.10.4",
+    "tf2onnx",
+    "xgboost==1.5.1",
+    "lightgbm==3.3.1",
+]
+extras_require["optuna"] = extras_require["viz"] + ["optuna==2.9.0"]
+
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
 extras_require["all-optional"] = reduce(
     list.__add__,
     [
         extras_require[k]
         for k in extras_require
-        if k not in ["labs", "boosted", "opctl"]
+        if k not in ["labs", "boosted", "opctl", "complete"]
     ],
 )
-
+extras_require["all-public"] = reduce(
+    list.__add__,
+    [
+        extras_require[k]
+        for k in extras_require
+        if k not in ["labs", "all-optional", "complete"]
+    ],
+)
 # Only include pytest-runner in setup_requires if we're invoking tests
 if {"pytest", "test", "ptr"}.intersection(sys.argv):
     setup_requires = ["pytest-runner"]
@@ -125,9 +156,8 @@ class InstallCommand(CustomCommandMixin, install):
 class DevelopCommand(CustomCommandMixin, develop):
     user_options = develop.user_options + CustomCommandMixin.user_options
 
-this_directory = Path(__file__).parent
-long_description = (this_directory / "README.md").read_text()
 
+long_description = (this_directory / "README.md").read_text()
 setup(
     name="oracle_ads",
     version=ADS_VERSION,

@@ -22,6 +22,10 @@ import fsspec
 from oci.data_science.models import CreateModelDetails
 from ads.common.auth import default_signer
 from ads.common.oci_client import OCIClientFactory
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from .progress_bar import TqdmProgressBar, DummyProgressBar
 
 
@@ -60,6 +64,7 @@ def seconds_since(t):
     return time.time() - t
 
 
+@runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
 def is_notebook():
     """is_notebook returns True if the environment is a Jupyter notebook and
     False otherwise

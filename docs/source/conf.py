@@ -15,7 +15,7 @@ sys.path.insert(0, os.path.abspath("../../advanced-ds"))
 project = "ADS"
 copyright = f"2020, {datetime.datetime.now().year} Oracle and/or its affiliates. " \
             f"Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/"
-author = "Oracle Datascience"
+author = "Oracle Data Science"
 
 version = release = __import__("ads").__version__
 
@@ -49,7 +49,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -125,7 +125,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "ADS.tex", "ADS Documentation", "the Oracle ADS team", "manual"),
+    (master_doc, "ADS.tex", "ADS Documentation", author, "manual"),
 ]
 
 

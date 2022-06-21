@@ -1,32 +1,16 @@
 .. _model-catalog-8:
 
-=============
+#############
 Model Catalog
-=============
+#############
 
-The model catalog provides a method to track, and immutably store models.
-The model catalog allows organizations to maintain the provenance of models
-during all phases of a model's lifecycle. This documentation demonstrates CRUD
-(create, read, update, delete) operations on models. It contains details
-on how to prepare model artifacts, and save models into the model catalog.
-It also showcases methods used to list, load, and delete models from the model
-catalog.
+The model catalog provides a method to track, and immutably store models.  The model catalog allows you to maintain the provenance of models during all phases of a model's life cycle.
 
-A model artifact includes the model, metadata about the model, input, and
-output schema, and a script to load the model and make predictions.
-These model artifacts can be shared among data scientists, tracked for
+A model artifact includes the model, metadata about the model, input, and output schema, and a script to load the model and make predictions. You can share model artifacts among data scientists, tracked for
 provenance, reproduced, and deployed.
 
---------------
 
-Datasets are provided as a convenience. Datasets are considered third party content
-and are not considered materials under your agreement with Oracle applicable to
-the services. The ``oracle_classification_dataset1`` dataset is distributed
-under the [UPL license](oracle_data/UPL.txt)
-
-First, import the needed libraries:
-
-.. code:: ipython3
+.. code-block:: python3
 
     import ads
     import logging
@@ -48,105 +32,68 @@ First, import the needed libraries:
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.ERROR)
     warnings.filterwarnings('ignore')
 
-Introduction to the Model Catalog
-_________________________________
+Introduction 
+************
 
-The purpose of the model catalog is to provide a managed and centralized
-storage space for models. It ensures that model artifacts are immutable
-and allows data scientists to share models, and reproduce them as
-needed.
+The purpose of the model catalog is to provide a managed and centralized storage space for models. It ensures that model artifacts are immutable and allows data scientists to share models, and reproduce them as needed.
 
-The model catalog can be accessed directly in a notebook session with
-ADS. Alternatively, the Oracle Cloud Infrastructure (OCI) Console can be
-used by going to the Data Science Projects page and selecting the
-project, then click on the **Models** link. The Models page shows the
-model artifacts that are in the model catalog for a given project.
+The model catalog is accessed directly in a notebook session with ADS. Alternatively, the Oracle Cloud Infrastructure (OCI) Console can be used by going to the Data Science projects page, selecting a project, then click **Models**. The models page shows the model artifacts that are in the model catalog for a given project.
 
-After a model and its artifacts are stored in the model catalog, they
-become available for other data scientists if they have the correct
+After a model and its artifacts are stored in the model catalog, they become available for other data scientists if they have the correct
 permissions.
 
 Data scientists can:
 
--  List, read, download, and load models from the catalog to their own notebook sessions.
--  Download the model artifact from the catalog, and run the model on their laptop or some other machine.
--  Deploy the model artifact as a `model deployment <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm>`_.
--  Document the model use case and algorithm using taxonomy metadata.
--  Add custom metadata that describe the model.
--  Document the model provenance including the resources and tags used to create the model (notebook session), and the code used in training.
--  Document the input data schema, and the returned inference schema.
--  Run introspection tests on the model artifact to ensure that common model artifact errors are flagged. Thus, they can be remediated before the model is saved to the catalog.
+*  List, read, download, and load models from the catalog to their own notebook sessions.
+*  Download the model artifact from the catalog, and run the model on their laptop or some other machine.
+*  Deploy the model artifact as a `model deployment <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm>`_.
+*  Document the model use case and algorithm using taxonomy metadata.
+*  Add custom metadata that describes the model.
+*  Document the model provenance including the resources and tags used to create the model (notebook session), and the code used in training.
+*  Document the input data schema, and the returned inference schema.
+*  Run introspection tests on the model artifact to ensure that common model artifact errors are flagged. Thus, they can be remediated before the model is saved to the catalog.
 
-The ADS SDK automatically captures some of the metadata for you.
-It captures provenance, taxonomy, and some custom metadata. It also
-runs the model introspection tests.
+The ADS SDK automatically captures some of the metadata for you.  It captures provenance, taxonomy, and some custom metadata. It also runs the model introspection tests.
 
-A model can be saved to the model catalog using the generic
-approach or the ``ADSModel`` approach:
+A model can be saved to the model catalog using the generic approach or the ``ADSModel`` approach:
 
--  The generic approach creates a Generic Model artifact using
-   ``.prepare_generic_model()``, and saves it to the model catalog.
--  The ``ADSModel`` approach prepares an artifact from the ``ADSModel`` object,
-   and saves it to the model catalog using the ``.prepare()`` method.
-   ``ADSModel`` objects are typically created from the AutoML engine.
-   Data scientists can also convert models trained with other machine learning
-   libraries into an ``ADSModel`` object (using the ``.from_estimator()`` method).
+*  The generic approach creates a generic model artifact using ``.prepare_generic_model()``, and saves it to the model catalog.
+*  The ``ADSModel`` approach prepares an artifact from the ``ADSModel`` object, and saves it to the model catalog using the ``.prepare()`` method.  ``ADSModel`` objects are typically created from the AutoML engine.  Data scientists can also convert models trained with other machine learning libraries into an ``ADSModel`` object (using the ``.from_estimator()`` method).
 
 **Notes:**
 
 1. ``ADS`` and ``ADSModel`` can only be used within the OCI family of services. If you want to use the model outside of those services, then use the generic approach to create a model artifact.
-2. The generic model approach is agnostic to the type of model, and deployment method. The ``ADSModel`` artifact only supports the most common model libraries. For information on the supported libraries supported, see the `ADS documentation <https://docs.cloud.oracle.com/iaas/tools/ads-sdk/latest/>`_ .
+2. The generic model approach is agnostic to the type of model, and deployment method. The ``ADSModel`` artifact only supports the most common model libraries, see the `ADS documentation <https://docs.cloud.oracle.com/iaas/tools/ads-sdk/latest/>`_ .
 3. The ``ADSModel`` model artifact allows access to the full suite of ADS features.
 4. The model catalog is agnostic as to which approach was used to create the model artifact.
 
-Preparing a Model Artifact
-__________________________
+Prepare
+*******
 
-A model artifact is a ZIP archive that contains the ``score.py``, ``runtime.yaml`` files, and other files
-needed to load and run the model in a different notebook session.
+A model artifact is a ZIP archive that contains the ``score.py``, ``runtime.yaml`` files, and other files needed to load and run the model in a different notebook session.
 
-There are two approaches to prepare a model artifact. The approach you take
-depends on where the model is to be deployed and if the model class is supported
-by ``ADSModel``. The following diagram outlines the decision making process to use
-to determine which approach is best for your use case.
+There are two approaches to prepare a model artifact. The approach you take depends on where the model is to be deployed, and if the model class is supported by ``ADSModel``. The following diagram outlines the decision making process to use to determine which approach is best for your use case.
 
-If you choose the ``ADSModel`` approach, then the ``.prepare()`` method is used
-to create the template model artifacts. For most use cases, the template
-files don't need to be modified and are sufficient for model deployment.
-This allows for rapid development though there are a few constraints.
+If you choose the ``ADSModel`` approach, then use the ``.prepare()`` method to create the template model artifacts. For most use cases, the template files don't need to be modified and are sufficient for model deployment.  This allows for rapid development though there are a few constraints.
 
-The generic model approach allows for the most flexibility in deploying a
-model and the supported models. You use the ``.prepare_generic_model()`` method
-to create a model artifact template. This template must be customized for each
-model.
+The generic model approach allows for the most flexibility in deploying a model and the supported models. You use the ``.prepare_generic_model()`` method to create a model artifact template. This template must be customized for each model.
 
-No matter which approach you choose, the end result is a model artifact
-that can be stored in the model catalog.
+No matter which approach you choose, the end result is a model artifact that can be stored in the model catalog.
 
 .. image:: figures/diagram_model.png
 
-Preparing an ADSModel
------------------------
+ADSModel
+========
 
-The steps to prepare an ``ADSModel`` model include training an ``ADSModel``,
-and then preparing the model artifacts. Optionally, the model artifacts can
-be customized and reloaded from disk. After you complete these steps, the
-model artifacts are ready to be stored in the model catalog.
+The steps to prepare an ``ADSModel`` model include training an ``ADSModel``, and then preparing the model artifacts. Optionally, the model artifacts can be customized and reloaded from disk. After you complete these steps, the model artifacts are ready to be stored in the model catalog.
 
 **Train an ADSModel**
 
-The ``oracle_classification_dataset1`` dataset is used to build a Random Forest
-classifier using the ``RandomForestClassifier`` class. This class is supported
-by the ``ADSModel`` class. The specifics of the dataset features are not important
-for this example. The feature engineering is done automatically using
-the ``.auto_transform()`` method. The value to predict, that is the target,
-is ``class``. The data is also split into training and test sets. The test set
-is used to make predictions.
+The ``oracle_classification_dataset1`` dataset is used to build a Random Forest classifier using the ``RandomForestClassifier`` class. This class is supported by the ``ADSModel`` class. The specifics of the dataset features are not important for this example. The feature engineering is done automatically using the ``.auto_transform()`` method. The value to predict, the target, is ``class``. The data is also split into training and test sets. The test set is used to make predictions.
 
-The ``RandomForestClassifier`` object is converted to into an
-``ADSModel`` using the ``.from_estimator()`` method.
+The ``RandomForestClassifier`` object is converted to into an ``ADSModel`` using the ``.from_estimator()`` method.
 
-.. code:: ipython3
+.. code-block:: python3
 
     # Load the dataset
     ds_path = path.join("/", "opt", "notebooks", "ads-examples", "oracle_data", "oracle_classification_dataset1_150K.csv")
@@ -161,24 +108,19 @@ The ``RandomForestClassifier`` object is converted to into an
     rf_clf = RandomForestClassifier(n_estimators=10).fit(train.X.values, train.y.values)
     rf_model = ADSModel.from_estimator(rf_clf)
 
-
 **Prepare the Model Artifact**
 
-To prepare the model artifact, the ``.prepare()`` method is used.
-This method returns a ``ModelArtifact`` object, and also writes a
-number of model artifact files to disk. The only required argument
-to the ``.prepare()`` method is the local path to store the model artifact files in.
+To prepare the model artifact, the ``.prepare()`` method is used.  This method returns a ``ModelArtifact`` object, and also writes a number of model artifact files to disk. The only required argument to the ``.prepare()`` method is the local path to store the model artifact files in.
 
-The output of the next example lists the temporary directory used for the
-model artifacts, and the files that compose the artifact.
+The output of the next example lists the temporary directory used for the model artifacts, and the files that compose the artifact.
 
 **Note**:
 
--  ADS automatically captures the provenance metadata, most of the taxonomy metadata, and a series of custom metadata.
--  ``UseCaseType`` in ``metadata_taxonomy`` can't be automatically populated. One way to populate the use case is to pass ``use_case_type`` to the ``prepare`` method.
--  Model introspection is automatically triggered.
+*  ADS automatically captures the provenance metadata, most of the taxonomy metadata, and a series of custom metadata.
+*  ``UseCaseType`` in ``metadata_taxonomy`` can't be automatically populated. One way to populate the use case is to pass ``use_case_type`` to the ``prepare`` method.
+*  Model introspection is automatically triggered.
 
-.. code:: ipython3
+.. code-block:: python3
 
     # Prepare the model artifacts
     path_to_ADS_model_artifact = tempfile.mkdtemp()
@@ -203,47 +145,29 @@ model artifacts, and the files that compose the artifact.
 
 **Data Schema**
 
+The data schema provides a definition of the format and nature of the data that the model expects. It also defines the output data from the model inference. The ``.populate_schema()`` method accepts the parameters, ``data_sample`` or ``X_sample``, and ``y_sample``. When using these parameters, the model artifact gets populates the input and output data schemas.
 
-The data schema provides a definition of the format and nature of the data
-that the model expects. It also defines the output data from the model
-inference. The ``.populate_schema()`` method accepts the parameters,
-``data_sample`` or ``X_sample``, and ``y_sample``. When using these parameters,
-the model artifact gets populates the input and output data schemas.
+The ``.schema_input`` and ``.schema_output`` properties are ``Schema`` objects that define the schema of each input column and the output.  The ``Schema`` object contains these fields:
 
-The ``.schema_input`` and ``.schema_output`` properties are ``Schema`` objects
-that define the schema of each input column and the output.
-The ``Schema`` object contains these fields:
+*  ``description``: Description of the data in the column.
+*  ``domain``: A data structure that defines the domain of the data.  The restrictions on the data and summary statistics of its distribution.
 
--  ``description``: Description of the data in the column.
--  ``domain``: A data structure that defines the domain of the data.
-   That is, what are the restrictions on the data and summary statistics
-   of its distribution.
+   -  ``constraints``: A data structure that is a list of expression objects that defines the constraints of the data.
 
-   -  ``constraints``: A data structure that is a list of expression
-      objects that defines the constraints of the data.
+      -  ``expression``: A string representation of an expression that can be evaluated by the language corresponding to the value provided in ``language`` attribute. The default value for language is ``python``.
 
-      -  ``expression``: A string representation of an expression that
-         can be evaluated by the language corresponding to the value
-         provided in ``language`` attribute. The default value for
-         language is Python.
+         -  ``expression``: Required. Use the ``string.Template`` format for specifying the expression. ``$x`` is used to represent the variable.
+         -  ``language``: The default value is ``python``. Only ``python`` is supported.
 
-         -  ``expression``: A must use ``string.Template`` format for
-            specifying the expression. ``$x`` is used to represent the
-            variable.
-         -  ``language``: The default value is ``python``. Only ``python``
-            is supported.
-
-   -  ``stats``: A set of summary statistics that defines the
-      distribution of the data. These are determined using the feature
-      type statistics as defined in ADS.
+   -  ``stats``: A set of summary statistics that defines the distribution of the data. These are determined using the feature type statistics as defined in ADS.
    -  ``values``: A description of the values of the data.
 
--  ``dtype``: Pandas data type
--  ``feature_type``: The primary feature type as defined by ADS.
--  ``name``: Name of the column.
--  ``required``: Boolean value indicating if a value is always required.
+*  ``dtype``: Pandas data type
+*  ``feature_type``: The primary feature type as defined by ADS.
+*  ``name``: Name of the column.
+*  ``required``: Boolean value indicating if a value is always required.
 
-.. code:: yaml
+.. code-block:: yaml
 
    - description: Number of matching socks in your dresser drawer.
      domain:
@@ -267,13 +191,11 @@ The ``Schema`` object contains these fields:
      name: sock_count
      required: true
 
-Calling ``.schema_input`` or ``.schema_output`` shows the schema in a
-YAML format.
+Calling ``.schema_input`` or ``.schema_output`` shows the schema in a YAML format.
 
-Alternatively, you can check the ``output_schema.json`` file for the
-content of the schema_output:
+Alternatively, you can check the ``output_schema.json`` file for the content of the schema_output:
 
-.. code:: ipython3
+.. code-block:: python3
 
     with open(path.join(path_to_ADS_model_artifact, "output_schema.json"), 'r') as f:
         print(f.read())
@@ -283,20 +205,17 @@ content of the schema_output:
 
     {"schema": [{"dtype": "int64", "feature_type": "Integer", "name": "class", "domain": {"values": "Integer", "stats": {"count": 465.0, "mean": 0.5225806451612903, "standard deviation": 0.5000278079030275, "sample minimum": 0.0, "lower quartile": 0.0, "median": 1.0, "upper quartile": 1.0, "sample maximum": 1.0}, "constraints": []}, "required": true, "description": "class"}]}
 
-
 **Alternative Ways of Generating the Schema**
 
+You can directly populate the schema by calling ``populate_schema()``:
 
-You can directly populate the schema by calling
-``populate_schema()``:
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.populate_schema(X_sample=test.X, y_sample=test.y)
 
 You can also load your schema from a JSON or YAML file:
 
-.. code:: ipython3
+.. code-block:: python3
 
     tempdir = tempfile.mkdtemp()
     schema = '''
@@ -320,16 +239,15 @@ You can also load your schema from a JSON or YAML file:
         f.write(schema)
 
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.schema_output = Schema.from_file(os.path.join(tempdir, 'schema.json'))
 
 **Update the Schema**
 
-
 You can update the fields in the schema:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.schema_output['class'].description = 'target variable'
     rf_model_artifact.schema_output['class'].feature_type = 'Category'
@@ -337,38 +255,25 @@ You can update the fields in the schema:
 You can specify a constraint for your data using ``Expression``, and call
 ``evaluate`` to check if the data satisfies the constraint:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.schema_input['col01'].domain.constraints.append(Expression('($x < 20) and ($x > -20)'))
 
 0 is between -20 and 20, so ``evaluate`` should return ``True``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.schema_input['col01'].domain.constraints[0].evaluate(x=0)
-
-
-
 
 .. parsed-literal::
 
     True
 
-
 **Taxonomy Metadata**
 
+Taxonomy metadata includes the type of the model, use case type, libraries, framework, and so on. This metadata provides a way of documenting the schema of the model.  The ``UseCaseType``, ``FrameWork``, ``FrameWorkVersion``, ``Algorithm``, and ``Hyperparameters`` are fixed taxonomy metadata. These fields are automatically populated when the ``.prepare()`` method is called. You can also manually update the values of those fields.
 
-Taxonomy metadata includes the type of the model, use case type, libraries,
-framework, and so on. This metadata provides a way of documenting the schema
-of the model.
-The ``UseCaseType``, ``FrameWork``, ``FrameWorkVersion``, ``Algorithm``,
-and ``Hyperparameters`` are fixed taxonomy metadata. These fields are automatically
-populated when the ``.prepare()`` method is called. You can also manually update the
-values of those fields.
-
--  ``UseCaseType``: The machine learning problem associated with the
-   Estimator class.  The ``UseCaseType.values()`` method returns
-   the most current list. This is a list of allowed values.:
+*  ``UseCaseType``: The machine learning problem associated with the Estimator class.  The ``UseCaseType.values()`` method returns the most current list. This is a list of allowed values.:
 
    -  ``UseCaseType.ANOMALY_DETECTION``
    -  ``UseCaseType.BINARY_CLASSIFICATION``
@@ -385,8 +290,7 @@ values of those fields.
    -  ``UseCaseType.TIME_SERIES_FORECASTING``
    -  ``UseCaseType.TOPIC_MODELING``
 
--  ``FrameWork``: The FrameWork of the ``estimator`` object.
-   You can get the list of allowed values using ``Framework.values()``:
+*  ``FrameWork``: The FrameWork of the ``estimator`` object.  You can get the list of allowed values using ``Framework.values()``:
 
    -  ``FrameWork.BERT``
    -  ``FrameWork.CUML``
@@ -415,17 +319,15 @@ values of those fields.
    -  ``FrameWork.WORD2VEC``
    -  ``FrameWork.XGBOOST``
 
--  ``FrameWorkVersion``: The framework version of the estimator object.
-   For example, ``2.3.1``.
--  ``Algorithm``: The model class.
--  ``Hyperparameters``: The hyperparameters of the estimator object.
+*  ``FrameWorkVersion``: The framework version of the estimator object.  For example, ``2.3.1``.
+*  ``Algorithm``: The model class.
+*  ``Hyperparameters``: The hyperparameters of the estimator object.
 
-You can't add or delete any of the fields, or mutate the key of those fields.
+You can't add or delete any of the fields, or change the key of those fields.
 
-You can populate the ``use_case_type`` by passing it in the ``.prepare()``
-method. Or you can set and update it directly.
+You can populate the ``use_case_type`` by passing it in the ``.prepare()`` method. Or you can set and update it directly.
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_taxonomy['UseCaseType'].value = UseCaseType.BINARY_CLASSIFICATION
 
@@ -434,7 +336,7 @@ method. Or you can set and update it directly.
 
 Update any of the taxonomy fields with allowed values:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_taxonomy['FrameworkVersion'].value = '0.24.2'
     rf_model_artifact.metadata_taxonomy['UseCaseType'].update(value=UseCaseType.BINARY_CLASSIFICATION)
@@ -442,22 +344,17 @@ Update any of the taxonomy fields with allowed values:
 You can view the ``metadata_taxonomy`` in the dataframe format by
 calling ``to_dataframe``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_taxonomy.to_dataframe()
 
-
 .. image:: figures/metadata_taxonomy.png
 
+Alternatively, you can view it directly in a YAML format:
 
-Or you can view it directly in a YAML format:
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_taxonomy
-
-
-
 
 .. parsed-literal::
 
@@ -584,29 +481,23 @@ Or you can view it directly in a YAML format:
         verbose: 0
         warm_start: false
 
-
-
 **Custom Metadata**
 
-
-Update your custom metadata using the ``key``, ``value``,
-``category``, and ``description`` fields. The ``key``, and ``value`` fields are
-required.
+Update your custom metadata using the ``key``, ``value``, ``category``, and ``description`` fields. The ``key``, and ``value`` fields are required.
 
 You can see the allowed values for custom metadata category using ``MetadataCustomCategory.values()``:
 
-- ``MetadataCustomCategory.PERFORMANCE``
-- ``MetadataCustomCategory.TRAINING_PROFILE``
-- ``MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS``
-- ``MetadataCustomCategory.TRAINING_ENVIRONMENT``
-- ``MetadataCustomCategory.OTHER``
+* ``MetadataCustomCategory.PERFORMANCE``
+* ``MetadataCustomCategory.TRAINING_PROFILE``
+* ``MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS``
+* ``MetadataCustomCategory.TRAINING_ENVIRONMENT``
+* ``MetadataCustomCategory.OTHER``
 
 **Add New Custom Metadata**
 
-
 To add a new custom metadata, call ``.add()``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_custom.add(key='test', value='test', category=MetadataCustomCategory.OTHER, description='test', replace=True)
 
@@ -615,13 +506,13 @@ To add a new custom metadata, call ``.add()``:
 Use the ``.update()`` method to update the fields of a specific key ensuring that
 you pass all the values you need in the ``update``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_custom['test'].update(value='test1', description=None, category=MetadataCustomCategory.TRAINING_ENV)
 
-Or you can set it directly:
+Alternatively, you can set it directly:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_custom['test'].value = 'test1'
     rf_model_artifact.metadata_custom['test'].description = None
@@ -630,19 +521,15 @@ Or you can set it directly:
 You can view the custom metadata in the dataframe by calling
 ``.to_dataframe()``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_custom.to_dataframe()
 
-
 .. image:: figures/custom_metadata.png
 
+Alternatively, you can view the custom metadata in YAML format by calling ``.metadata_custom``:
 
-
-Or you can view the custom metadata in YAML format by calling
-``.metadata_custom``:
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_custom
 
@@ -682,60 +569,40 @@ Or you can view the custom metadata in YAML format by calling
       key: ModelSerializationFormat
       value: onnx
 
+When the combined total size of ``metadata_custom`` and ``metadata_taxonomy`` exceeds 32000 bytes, an error occurs when you save the model to the model catalog. You can save the ``metadata_custom`` and ``metadata_taxonomy`` to the artifacts folder:
 
-
-When the combined total size of ``metadata_custom`` and
-``metadata_taxonomy`` exceeds 32000 bytes, an error occurs when
-you save the model to the model catalog. You can save the
-``metadata_custom`` and ``metadata_taxonomy`` to the artifacts folder:
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_custom.to_json_file(path_to_ADS_model_artifact)
 
 You can also save individual items from the custom and taxonomy
 metadata:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_taxonomy['Hyperparameters'].to_json_file(path_to_ADS_model_artifact)
 
-If you already have the training or validation dataset saved in
-Object Storage and want to document this information in this model
-artifact object, you can add that information into ``metadata_custom``:
+If you already have the training or validation dataset saved in Object Storage and want to document this information in this model artifact object, you can add that information into ``metadata_custom``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_custom.set_training_data(path='oci://bucket_name@namespace/train_data_filename', data_size='(200,100)')
     rf_model_artifact.metadata_custom.set_validation_data(path='oci://bucket_name@namespace/validation_data_filename', data_size='(100,100)')
 
-
 **Modify the Model Artifact Files**
 
-
-With ``ADSModel`` approach, the model is saved in ONNX format as ``model.onnx``.
-There are a number of other files that typically don't need to be modified though you could.
+With ``ADSModel`` approach, the model is saved in ONNX format as ``model.onnx``.  There are a number of other files that typically don't need to be modified though you could.
 
 **Update score.py**
 
-
-The ``score.py`` file has two methods, ``.load_model()`` and
-``.predict()``. The ``.load_model()`` method deserializes the model and
-returns it. The ``.predict()`` method accepts data and a model
-(optional), and returns a dictionary of predicted results. The most
-common use case for changing the ``score.py`` file is to add preprocessing and
-postprocessing steps to the ``predict()`` method. The model artifact
-files that are on disk are decoupled from the ``ModelArtifact`` object
-that is returned by the ``.prepare()`` method. If changes are made to
-the model artifact files, you must run the ``.reload()`` method to get the changes.
+The ``score.py`` file has two methods, ``.load_model()`` and ``.predict()``. The ``.load_model()`` method deserializes the model and returns it. The ``.predict()`` method accepts data and a model (optional), and returns a dictionary of predicted results. The most common use case for changing the ``score.py`` file is to add preprocessing and postprocessing steps to the ``predict()`` method. The model artifact files that are on disk are decoupled from the ``ModelArtifact`` object that is returned by the ``.prepare()`` method. If changes are made to the model artifact files, you must run the ``.reload()`` method to get the changes.
 
 The next example retrieves the contents of the ``score.py`` file.
 
-.. code:: ipython3
+.. code-block:: python3
 
     with open(path.join(path_to_ADS_model_artifact, "score.py"), 'r') as f:
         print(f.read())
-
 
 .. parsed-literal::
 
@@ -929,77 +796,45 @@ The next example retrieves the contents of the ``score.py`` file.
 
 **Update the requirements.txt File**
 
-The ``.prepare()`` method automatically encapsulates the notebook’s
-Python libraries and their versions in the ``requirements.txt`` file. This
-ensures that the model’s dependencies can be reproduced. Generally, this
-file doesn't need to be modified.
+The ``.prepare()`` method automatically encapsulates the notebook’s Python libraries and their versions in the ``requirements.txt`` file. This ensures that the model’s dependencies can be reproduced. Typically, this file doesn't need to be modified.
 
-If you install custom libraries in a notebook, then you must update the ``requirements.txt``
-file. You can update the file by calling ``pip freeze``, and
-storing the output into the file. The command in the next example captures all
-of the packages that are installed. It is likely that only a few
-of them are required by the model. However, using the command ensures that all of
-the required packages are present on the system to run the model. We recommend
-that you update this list to include only what is required if the model is going
-into a production environment. Generally, you don't need to modify the ``requirements.txt`` file.
+If you install custom libraries in a notebook, then you must update the ``requirements.txt`` file. You can update the file by calling ``pip freeze``, and storing the output into the file. The command in the next example captures all of the packages that are installed. It is likely that only a few of them are required by the model. However, using the command ensures that all of the required packages are present on the system to run the model. We recommend that you update this list to include only what is required if the model is going into a production environment. Typically, you don't need to modify the ``requirements.txt`` file.
 
-.. code:: ipython3
+.. code-block:: python3
 
     os.system("pip freeze > '{}'".format(path.join(path_to_ADS_model_artifact, "backup-requirements.txt")))
 
 **Reloading the Model Artifact**
 
+The model artifacts on disk are decoupled from the ``ModelArtifact`` object. Any changes made on disk must be incorporated back into the ``ModelArtifact`` object using the ``.reload()`` method:
 
-The model artifacts on disk are decoupled from the ``ModelArtifact`` object. Any changes
-made on disk must be incorporated back into the ``ModelArtifact`` object using the ``.reload()`` method:
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.reload()
-
 
 .. parsed-literal::
 
     ['output_schema.json', 'score.py', 'runtime.yaml', 'onnx_data_transformer.json', 'Hyperparameters.json', 'test_json_output.json', 'backup-requirements.txt', 'model.onnx', '.model-ignore', 'input_schema.json', 'ModelCustomMetadata.json']
 
+After the changes made to the model artifacts and those artifacts are incorporated back into the ``ModelArtifact`` object, you can use it to make predictions.  If there weren't any changes made to the model artifacts on disk, then you can use the ``ModelArtifact`` object directly.
 
-After the changes made to the model artifacts and those artifacts are incorporated
-back into the ``ModelArtifact`` object, you can use it to make predictions.
-If there weren't any changes made to the model artifacts on disk, then the
-``ModelArtifact`` object can be used directly.
+This example problem is a binary classification problem. Therefore, the ``predict()`` function returns a one if the observation is predicted to be in the class that is defined as true. Otherwise, it returns a zero. The next example uses the ``.predict()`` method on the ``ModelArtifact`` object to make predictions on the test data.
 
-This example problem is a binary classification problem. Therefore, the ``predict()``
-function returns a 1 if the observation is predicted to be in the class that is defined
-as true. Otherwise, it returns a zero. The next example uses the ``.predict()`` method on the
-``ModelArtifact`` object to make predictions on the test data.
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.predict(data=test.X.iloc[:10, :], model=rf_model_artifact.load_model())
-
-
-
 
 .. parsed-literal::
 
     {'prediction': [1, 0, 1, 1, 0, 0, 0, 1, 1, 0]}
 
-
-
 **Model Introspection**
 
+The ``.intropect()`` method runs some sanity checks on the ``runtime.yaml``, and ``score.py`` files. This is to help you identify potential errors that might occur during model deployment. It checks fields such as environment path, validates the path's existence on the Object Storage, checks if the ``.load_model()``, and ``.predict()`` functions are defined in ``score.py``, and so on. The result of model introspection is automatically saved to the taxonomy metadata and model artifacts.
 
-The ``.intropect()`` method runs some sanity checks on the ``runtime.yaml``, and
-``score.py`` files. This is to help you identify potential errors that might occur
-during model deployment. It checks fields such as environment path, validates
-the path's existence on the Object Storage, checks if the ``.load_model()``, and ``.predict()``
-functions are defined in ``score.py``, and so on. The result of model introspection
-is automatically saved to the taxonomy metadata and model artifacts.
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.introspect()
-
 
 .. parsed-literal::
 
@@ -1007,20 +842,13 @@ is automatically saved to the taxonomy metadata and model artifacts.
 
 .. image:: figures/introspection.png
 
+Reloading model artifacts automatically invokes model introspection.  However, you can invoke introspection manually by calling ``rf_model_artifact.introspect()``:
 
+The ``ArtifactTestResults`` field is populated in ``metadata_taxonomy`` when ``instrospect`` is triggered:
 
-Reloading model artifacts automatically invokes model introspection.
-However, you can invoke introspection manually by calling ``rf_model_artifact.introspect()``:
-
-The ``ArtifactTestResults`` field is populated in ``metadata_taxonomy`` when
-``instrospect`` is triggered:
-
-.. code:: ipython3
+.. code-block:: python3
 
     rf_model_artifact.metadata_taxonomy['ArtifactTestResults']
-
-
-
 
 .. parsed-literal::
 
@@ -1031,26 +859,16 @@ The ``ArtifactTestResults`` field is populated in ``metadata_taxonomy`` when
         description: Check that field MODEL_DEPLOYMENT.INFERENCE_ENV_PATH is set
       ...
 
+Generic Model
+=============
 
-Preparing a Generic Model
--------------------------
-
-The steps to prepare a generic model are basically the same as those for the
-``ADSModel`` approach. However, there are a few more details that you have to specify.
-The first step is to train a model. It doesn't have to be based on the ``ADSModel``
-class. Next, the model has to be serialized and the model artifacts prepared.
-Preparing the model artifacts includes running the ``.prepare_generic_model()`` method,
-then editing the ``score.py`` file, and optionally the requirements file. Then you
-load it back from disk with the ``.reload()`` command. After you complete these steps,
-the model artifacts are ready to be stored in the model catalog.
+The steps to prepare a generic model are basically the same as those for the ``ADSModel`` approach. However, there are a few more details that you have to specify.  The first step is to train a model. It doesn't have to be based on the ``ADSModel`` class. Next, the model has to be serialized and the model artifacts prepared.  Preparing the model artifacts includes running the ``.prepare_generic_model()`` method, then editing the ``score.py`` file, and optionally the requirements file. Then you load it back from disk with the ``.reload()`` command. After you complete these steps, the model artifacts are ready to be stored in the model catalog.
 
 **Train a Generic Model**
 
-The next example uses a Gamma Regressor Model (Generalized Linear Model with a Gamma
-distribution and a log link function) from sklearn. ``ADSModel`` doesn't support
-this class of model so the generic model approach is used.
+The next example uses a Gamma Regressor Model (Generalized Linear Model with a Gamma distribution and a log link function) from sklearn. ``ADSModel`` doesn't support this class of model so the generic model approach is used.
 
-.. code:: ipython3
+.. code-block:: python3
 
     from sklearn import linear_model
     gamma_reg_model = linear_model.GammaRegressor()
@@ -1058,64 +876,38 @@ this class of model so the generic model approach is used.
     train_y = [19, 26, 33, 30]
     gamma_reg_model.fit(train_X, train_y)
 
-
-
-
 .. parsed-literal::
 
     GammaRegressor()
 
-
-
-.. code:: ipython3
+.. code-block:: python3
 
     gamma_reg_model.score(train_X, train_y)
-
-
-
 
 .. parsed-literal::
 
     0.7731843906027439
 
-
-
-.. code:: ipython3
+.. code-block:: python3
 
     test_X = [[1, 0], [2, 8]]
     gamma_reg_model.predict(test_X)
-
-
-
 
 .. parsed-literal::
 
     array([19.483558  , 35.79588532])
 
-
 **Serialize the Model and Prepare the Model Artifact**
 
-To prepare the model artifact, the model must be serialized. In this
-example, the ``joblib`` serializer is used to write the file
-``model.onnx``. The ``.prepare_generic_model()`` method is used to
-create the model artifacts in the specified folder. This consists of a
-set of template files, some of which need to be customized.
+To prepare the model artifact, the model must be serialized. In this example, the ``joblib`` serializer is used to write the file ``model.onnx``. The ``.prepare_generic_model()`` method is used to create the model artifacts in the specified folder. This consists of a set of template files, some of which need to be customized.
 
-The call to ``.prepare_generic_model()`` returns a ``ModelArtifact``
-object. This is the object that is used to bundle the model, and model
-artifacts together. It is also used to interact with the model catalog.
+The call to ``.prepare_generic_model()`` returns a ``ModelArtifact`` object. This is the object that is used to bundle the model, and model artifacts together. It is also used to interact with the model catalog.
 
-The next example serializes the model and prepares the model artifacts. The
-output is a listing of the temporary directory used for the model
-artifacts, and the files that comprise the artifact.
+The next example serializes the model and prepares the model artifacts. The output is a listing of the temporary directory used for the model artifacts, and the files that comprise the artifact.
 
-The ``.prepare_generic_model()`` and ``.prepare()`` methods allow you to
-set some of the metadata. When you pass in sample data using ``data_sample``
-or ``X_sample`` and ``y_sample``, the ``schema_input``, ``schema_output`` are automatically
-populated. The ``metadata_taxonomy`` is populated when the variable ``model`` is passed.
-You can define the use case type with the ``use_case_type`` parameter.
+The ``.prepare_generic_model()`` and ``.prepare()`` methods allow you to set some of the metadata. When you pass in sample data using ``data_sample`` or ``X_sample`` and ``y_sample``, the ``schema_input``, ``schema_output`` are automatically populated. The ``metadata_taxonomy`` is populated when the variable ``model`` is passed.  You can define the use case type with the ``use_case_type`` parameter.
 
-.. code:: ipython3
+.. code-block:: python3
 
     # prepare the model artifact template
     path_to_generic_model_artifact = tempfile.mkdtemp()
@@ -1142,8 +934,6 @@ You can define the use case type with the ``use_case_type`` parameter.
         else:
             print(file)
 
-
-
 .. parsed-literal::
 
     Model Artifact Path: /tmp/tmpesx7aa_f
@@ -1155,58 +945,38 @@ You can define the use case type with the ``use_case_type`` parameter.
     model.pkl
     input_schema.json
 
+The ``metadata_taxonomy``, ``metadata_custom``, ``schema_input`` and ``schema_output`` are popuated:
 
-The ``metadata_taxonomy``, ``metadata_custom``, ``schema_input`` and
-``schema_output`` are popuated:
-
-.. code:: ipython3
+.. code-block:: python3
 
     generic_model_artifact.metadata_taxonomy.to_dataframe()
 
 .. image:: figures/generic_taxonomy.png
 
-.. code:: ipython3
+.. code-block:: python3
 
     generic_model_artifact.metadata_custom.to_dataframe()
 
 .. image:: figures/generic_custom.png
 
-
-
 **Modify the Model Artifact Files**
 
-The generic model approach provides a template that you must customize for
-your specific use case. Specifically, the ``score.py`` and ``requirements.txt``
-files must be updated.
+The generic model approach provides a template that you must customize for your specific use case. Specifically, the ``score.py`` and ``requirements.txt`` files must be updated.
 
 **Update score.py**
 
+Since the generic model approach is agnostic to the model and the serialization method being used, you must provide information about the model. The ``score.py`` file provides the ``load_model()`` and ``predict()`` functions that you have to update.
 
-Since the generic model approach is agnostic to the model and
-the serialization method being used, you must provide information
-about the model. The ``score.py`` file provides the ``load_model()``
-and ``predict()`` functions that you have to update.
+The ``load_model()`` function takes no parameters and returns the deserialized model object. The template code gives an example of how to do this for the most common serialization method. However, the deserialization method that you use must complement the serialization method used..
 
-The ``load_model()`` function takes no parameters and returns the deserialized
-model object. The template code gives an example of how to do this for the most
-common serialization method. However, the deserialization method that you use must
-complement the serialization method used..
-
-The ``score.py`` file also contains a templated function called
-``predict()``. This method takes any arbitrary data object and an
-optional model and returns a dictionary of predictions. The role of this
-method is to make predictions based on new data. The method can be
-written to perform any pre-prediction and post-prediction operations
-that are needed. These would be tasks such as feature engineering the
-raw input data and logging predictions results.
+The ``score.py`` file also contains a templated function called ``predict()``. This method takes any arbitrary data object and an optional model and returns a dictionary of predictions. The role of this method is to make predictions based on new data. The method can be written to perform any pre-prediction and post-prediction operations that are needed. These would be tasks such as feature engineering the raw input data and logging predictions results.
 
 The next example prints out the contents of the ``score.py`` file:
 
-.. code:: ipython3
+.. code-block:: python3
 
     with open(path.join(path_to_generic_model_artifact, "score.py"), 'r') as f:
         print(f.read())
-
 
 .. parsed-literal::
 
@@ -1301,7 +1071,7 @@ The next example prints out the contents of the ``score.py`` file:
         ``_handle_output()`` methods. This allows the ``.predict()`` method to do
         arbitrary operations before and after the prediction.
 
-.. code:: ipython3
+.. code-block:: python3
 
     score = '''
     import json
@@ -1353,84 +1123,43 @@ The next example prints out the contents of the ``score.py`` file:
     with open(path.join(path_to_generic_model_artifact, "score.py"), 'w') as f:
         f.write(score)
 
-
-
 **Reloading the Model Artifact**
 
+The model artifacts on disk are decoupled from the ``ModelArtifact`` object.  Any changes you make on disk must be incorporated back into the ``ModelArtifact`` object using the ``.reload()`` method.
 
-The model artifacts on disk are decoupled from the ``ModelArtifact`` object.
-Any changes you make on disk must be incorporated back into the ``ModelArtifact``
-object using the ``.reload()`` method.
+**Note**: ``ModelSerializationFormat`` in ``metadata_custom`` is populated when ``model_file_name`` is passed in to ``.reload()``.
 
-**Note**: ``ModelSerializationFormat`` in ``metadata_custom`` is populated when
-``model_file_name`` is passed in to ``.reload()``.
-
-.. code:: ipython3
+.. code-block:: python3
 
     generic_model_artifact.reload(model_file_name='model.pkl')
 
-After the changes are made to the model artifacts, and those changes have been
-incorporated back into the ``ModelArtifact`` object, it can be used to
-make predictions. When the ``.predict()`` method is used, there is no need for
-the preprocessing to be done before calling ``.predict()``. This is because the
-preprocessing steps have been coded into the ``score.py`` file. The advantage of
-this is that the preprocessing is coupled with the model and not the code that
-is calling the ``.predict()`` method so the code is more maintainable.
+After the changes are made to the model artifacts, and those changes have been incorporated back into the ``ModelArtifact`` object, it can be used to make predictions. When the ``.predict()`` method is used, there is no need for the preprocessing to be done before calling ``.predict()``. This is because the preprocessing steps have been coded into the ``score.py`` file. The advantage of this is that the preprocessing is coupled with the model and not the code that is calling the ``.predict()`` method so the code is more maintainable.
 
-.. code:: ipython3
+.. code-block:: python3
 
     data =  [[3, 4], [4, 5]]
     generic_model_artifact.model.predict(data).tolist()
-
-
 
 .. parsed-literal::
 
     [29.462982553823185, 33.88604047807801]
 
+Save 
+*****
 
+You use the ``ModelArtifact`` object to store the model artifacts in the model catalog.  Saving the model artifact requires the `OCID <https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm>`_ for the compartment and project that you want to store it in. Model artifacts can be stored in any project that you have access to. However, the most common use case is to store the model artifacts in the same compartment and project that the notebook session belongs to. There are environmental variables in the notebook session that contain this information. The ``NB_SESSION_COMPARTMENT_OCID`` and ``PROJECT_OCID`` environment variables contain both compartment and project OCIDs that are associated with the notebook session.
 
-Save the Model Artifact to the Model Catalog
-____________________________________________
+Metadata can also be stored with the model artifacts. If the notebook is under Git version control, then the ``.save()`` method automatically captures the relevant information so that there is a link between the code used to create the model and the model artifacts.  The ``.save()`` method doesn't save the notebook or commit any changes. You have to save it before storing the model in the model catalog. Use the ``ignore_pending_changes`` parameter to control changes. The model catalog also accepts a description, display name, a path to the notebook used to train the model, tags, and more.
 
-You use the ``ModelArtifact`` object to store the model artifacts in the model catalog.
-Saving the model artifact requires the `OCID <https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm>`_
-for the compartment and project that you want to store it in. Model artifacts can be
-stored in any project that you have access to. However, the most common use case is to
-store the model artifacts in the same compartment and project that the notebook session
-belongs to. There are environmental variables in the notebook session that contain this
-information. The ``NB_SESSION_COMPARTMENT_OCID`` and ``PROJECT_OCID`` environment variables
-contain both compartment and project OCIDs that are associated with the notebook session.
+The ``.save()`` method returns a ``Model`` object that is a connection to the model catalog for the model that was just saved. It contains information about the model catalog entry such as the OCID, the metadata provided to the catalog, the user that stored the model, and so on.
 
-Metadata can also be stored with the model artifacts. If the notebook is under Git
-version control, then the ``.save()`` method automatically captures the relevant information
-so that there is a link between the code used to create the model and the model artifacts.
-The ``.save()`` method doesn't save the notebook or commit any changes. You have to save it
-before storing the model in the model catalog. Use the ``ignore_pending_changes`` parameter
-to control changes. The model catalog also accepts a description, display name, a path to
-the notebook used to train the model, tags, and more.
+You can use the ``auth`` optional parameter to specify the preferred authentication method.
 
-The ``.save()`` method returns a ``Model`` object that is a connection
-to the model catalog for the model that was just saved. It contains
-information about the model catalog entry such as the OCID, the metadata
-provided to the catalog, the user that stored the model, and so on.
+You can save the notebook session OCID to the provenance metadata by specifying the ``training_id`` in the ``.save()`` method. This validates the existence of the notebook session in the project and the compartment. The ``timeout`` optional parameter controls both connection and read timeout for the client and the value is returned in seconds. By default, the ``.save()`` method doesn't perform a model introspection because this is normally done during the model artifact debugging stage. However, setting ``ignore_introspection`` to ``False`` causes model introspection to be performed during the save operation.
 
-You can use the ``auth`` optional parameter to specify the preferred
-authentication method.
+You can also save model tags by specifying optional ``freeform_tags`` and ``defined_tags`` parameters in the ``.save()`` method.  The ``defined_tags`` is automatically populated with oracle-tags by default. You can also `create and manage your own tags <https://docs.oracle.com/en-us/iaas/Content/Tagging/Tasks/managingtagsandtagnamespaces.htm>`_.
 
-You can save the notebook session OCID to the provenance metadata by specifying the
-``training_id`` in the ``.save()`` method. This validates the existence of the notebook session
-in the project and the compartment. The ``timeout`` optional parameter controls both connection and
-read timeout for the client and the value is returned in seconds. By default, the ``.save()`` method
-doesn't perform a model introspection because this is normally done during the model artifact
-debugging stage. However, setting ``ignore_introspection`` to ``False`` causes model introspection to be
-performed during the save operation.
-
-You can also save model tags by specifying optional ``freeform_tags`` and ``defined_tags`` parameters in the ``.save()`` method.
-The ``defined_tags`` is automatically populated with oracle-tags by default. You can also `create and manage your own tags
-<https://docs.oracle.com/en-us/iaas/Content/Tagging/Tasks/managingtagsandtagnamespaces.htm>`_.
-
-.. code:: ipython3
+.. code-block:: python3
 
     # Saving the model artifact to the model catalog:
     mc_model = rf_model_artifact.save(project_id=os.environ['PROJECT_OCID'],
@@ -1450,79 +1179,49 @@ The ``defined_tags`` is automatically populated with oracle-tags by default. You
 
     ['output_schema.json', 'score.py', 'runtime.yaml', 'onnx_data_transformer.json', 'Hyperparameters.json', 'test_json_output.json', 'backup-requirements.txt', 'model.onnx', '.model-ignore', 'input_schema.json', 'ModelCustomMetadata.json']
 
-
-
 .. parsed-literal::
 
     artifact:/tmp/saved_model_7869b70a-b59c-4ce2-b0e5-86f533cad0f3.zip
 
-
 .. image:: figures/save.png
 
-
-Information about the model can also be found in the Console on the Projects page in the Models section.
-It should look similar to this:
+Information about the model can also be found in the Console on the Projects page in the Models section.  It should look similar to this:
 
 .. image:: figures/model_catalog_save.png
 
-List Models in the Model Catalog
-________________________________
+List Models 
+***********
 
-The ``ModelCatalog`` object is used to interact with the model catalog. This
-class allows access to all models in a compartment. Using this class, entries
-in the model catalog can be listed, deleted, and downloaded. It also provides
-access to specific models so that the metadata can be updated, and the model
-can be activated and deactivated.
+The ``ModelCatalog`` object is used to interact with the model catalog. This class allows access to all models in a compartment. Using this class, entries in the model catalog can be listed, deleted, and downloaded. It also provides access to specific models so that the metadata can be updated, and the model can be activated and deactivated.
 
+When model artifacts are saved to the model catalog, they are associated with a compartment and a project. The ``ModelCatalog`` provides access across projects and all model catalog entries in a compartment are accessible. When creating a ``ModelCatalog`` object, the compartment OCID must be provided. For most use cases, you can access the model catalog associated with the compartment that the notebook is in. The ``NB_SESSION_COMPARTMENT_OCID`` environment variable provides the compartment OCID associated with the current notebook. The ``compartment_id`` parameter is optional. When it is not specified, the compartment for the current notebook is used.
 
-When model artifacts are saved to the model catalog, they are associated with
-a compartment and a project. The ``ModelCatalog`` provides access across projects
-and all model catalog entries in a compartment are accessible. When creating a
-``ModelCatalog`` object, the compartment OCID must be provided. For most use cases,
-you will want to access the model catalog associated with the compartment that the
-notebook is in. The ``NB_SESSION_COMPARTMENT_OCID`` environment variable provides the
-compartment OCID associated with the current notebook. The ``compartment_id`` parameter
-is optional. When it is not specified, the compartment for the current notebook is used.
+The ``.list_models()`` method returns a list of entries in the model catalog as a ``ModelSummaryList`` object. By default, it only returns the entries that are active.  The parameter ``include_deleted=True`` can override this behavior and return all entries.  Use the ``model_version_set_name`` parameter to get all models associated with a model version set.
 
+.. code-block:: python3
 
-The ``.list_models()`` method returns a list of entries in the model catalog as
-a ``ModelSummaryList`` object. By default, it only returns the entries that are active.
-The parameter ``include_deleted=True`` can override this behaviour and return all entries.
-
-
-.. code:: ipython3
+    from ads.catalog.model import ModelCatalog
 
     # Create a connection to the current compartment's model catalog
     mc = ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID'])
 
     # Get a list of the entries in the model catalog
-    mc_list = mc.list_models(include_deleted=False)
+    mc_list = mc.list_models(include_deleted=False, model_version_set_name="test24")
     mc_list
-
 
 .. image:: figures/list_model.png
 
-The ``.filter()`` method accepts a boolean vector and returns a ``ModelSummaryList``
-object that has only the selected entries. You can combine it with a lambda function
-to provide an arbitrary selection of models based on the properties of the ``ModelSummaryList``.
-The next example uses this approach to select only entries that are in the current notebook's project:
+The ``.filter()`` method accepts a boolean vector and returns a ``ModelSummaryList`` object that has only the selected entries. You can combine it with a lambda function to provide an arbitrary selection of models based on the properties of the ``ModelSummaryList``.  The next example uses this approach to select only entries that are in the current notebook's project:
 
-
-.. code:: ipython3
+.. code-block:: python3
 
     mc_list.filter(lambda x: x.project_id == os.environ['PROJECT_OCID'])
 
 .. image:: figures/list_model.png
 
+The ``ModelSummaryList`` object can be treated as a list of ``Model`` objects.  An individual compartment can be accessed by providing an index value. In addition, the components of the ``Model`` object can be accessed as attributes of the object.  The next example iterates over the list of models, and prints the model name if the model is in an active state. If the model is not active, an error occurs.
 
-
-The ``ModelSummaryList`` object can be treated as a list of ``Model`` objects.
-An individual compartment can be accessed by providing an index value. In addition,
-the components of the ``Model`` object can be accessed as attributes of the object.
-The next example iterates over the list of models, and prints the model name if the
-model is in an active state. If the model is not active, an error occurs.
-
-.. code:: ipython3
+.. code-block:: python3
 
     for i in range(len(mc_list)):
         try:
@@ -1530,17 +1229,14 @@ model is in an active state. If the model is not active, an error occurs.
         except:
             pass
 
-
 .. parsed-literal::
 
     RF Classifier
     ...
 
-A Pandas dataframe representation of a ``ModelSummaryList`` object can be accessed
-with the ``df`` attribute. Using the dataframe representation standard Pandas operations
-can be used. The next example sorts entries by the creation time in ascending order.
+A Pandas dataframe representation of a ``ModelSummaryList`` object can be accessed with the ``df`` attribute. Using the dataframe representation standard Pandas operations can be used. The next example sorts entries by the creation time in ascending order.
 
-.. code:: ipython3
+.. code-block:: python3
 
     df = mc_list.df
     df.sort_values('time_created', axis=0)
@@ -1548,40 +1244,22 @@ can be used. The next example sorts entries by the creation time in ascending or
 
 .. image:: figures/sorted_model.png
 
+The ``.list_model_deployment()`` method returns a list of ``oci.resource_search.models.resource_summary.ResourceSummary`` objects.  The ``model_id`` optional parameter is used to return only the details of the specified model.
 
-
-The ``.list_model_deployment()`` method returns a list of
-``oci.resource_search.models.resource_summary.ResourceSummary`` objects.
-The ``model_id`` optional parameter is used to return only the details
-of the specified model.
-
-.. code:: ipython3
+.. code-block:: python3
 
     mc.list_model_deployment(model_id=mc_model.id)
 
+Download
+********
 
-Download a Model Artifact
-_________________________
+Use ``.download_model()`` of the ``ModelCatalog`` to retrieve a model artifact from the model catalog. You can use the process to change the model artifacts, or make the model accessible for predictions. While some of the model artifact metadata is mutable, the model and scripts are immutable. When you make changes, you must save the model artifacts back to the model catalog as a new entry.
 
-Use ``.download_model()`` of the ``ModelCatalog`` to retrieve a model artifact from
-the model catalog. You can use the process to change the model artifacts, or make
-the model accessible for predictions. While some of the model artifact metadata is mutable,
-the model and scripts are immutable. When you make changes, you must save the model artifacts
-back to the model catalog as a new entry.
+The ``.download_model()`` method requires a model OCID value and a target directory for the artifact files. This method returns a ``ModelArtifact`` object. You can use it to make predictions by calling the ``.predict()`` method. If you update the model artifact, you have to call the ``.reload()`` method to synchronize the changes on disk with the ``ModelArtifact`` object. Then you can save the model artifact can as a new entry into the model catalog with the ``.save()`` method.
 
+In the next example, the model that was stored in the model catalog is downloaded.  The resulting ``ModelArtifact`` object is then used to make predictions.
 
-The ``.download_model()`` method requires a model OCID value and a target directory
-for the artifact files. This method returns a ``ModelArtifact`` object. You can use it
-to make predictions by calling the ``.predict()`` method. If you update the model artifact,
-you have to call the ``.reload()`` method to synchronize the changes on disk with the
-``ModelArtifact`` object. Then you can save the model artifact can as a new entry into
-the model catalog with the ``.save()`` method.
-
-
-In the next example, the model that was stored in the model catalog is downloaded.
-The resulting ``ModelArtifact`` object is then used to make predictions.
-
-.. code:: ipython3
+.. code-block:: python3
 
     # Download the model that was saved to the model catalog, if it exists
     if mc.list_models().filter(lambda x: x.id == mc_model.id) is not None:
@@ -1590,30 +1268,19 @@ The resulting ``ModelArtifact`` object is then used to make predictions.
         dl_model_artifact.reload(model_file_name='model.onnx')
         print(dl_model_artifact.predict(data=test.X, model=dl_model_artifact.load_model()))
 
-
-
 .. parsed-literal::
 
     ['output_schema.json', 'score.py', 'runtime.yaml', 'onnx_data_transformer.json', 'Hyperparameters.json', 'test_json_output.json', 'backup-requirements.txt', 'model.onnx', '.model-ignore', 'input_schema.json', 'ModelCustomMetadata.json']
     {'prediction': [1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0]}
 
+Retrieve a Model 
+****************
 
-Retrieve a Model from the Model Catalog
-_______________________________________
+The ``.get_model()`` method of the ``ModelCatalog`` class allows for an entry in the model catalog to be retrieved. The returned object is a ``Model`` object.  The difference between ``.get_model()`` and ``.download_model()`` is that the ``.download_model()`` returns a ``ModelArtifact`` object, and the ``.get_model()`` returns the ``Model`` object.  The ``Model`` object allows for interaction with the entry in the model catalog where the ``ModelArtifact`` allows interaction with the model and its artifacts.
 
-The ``.get_model()`` method of the ``ModelCatalog`` class allows for an entry
-in the model catalog to be retrieved. The returned object is a ``Model`` object.
-The difference between ``.get_model()`` and ``.download_model()`` is that the ``.download_model()``
-returns a ``ModelArtifact`` object, and the ``.get_model()`` returns the ``Model`` object.
-The ``Model`` object allows for interaction with the entry in the model catalog where the
-``ModelArtifact`` allows interaction with the model and its artifacts.
+In the next example, the model that was stored in the model catalog is retrieved. The ``.get_model()`` method requires the OCID of the entry in the model catalog.
 
-
-In the next example, the model that was stored in the model catalog is
-retrieved. The ``.get_model()`` method requires the OCID of the entry in
-the model catalog.
-
-.. code:: ipython3
+.. code-block:: python3
 
     if mc.list_models().filter(lambda x: x.id == mc_model.id) is not None:
         retrieved_model = mc.get_model(mc_model.id)
@@ -1621,16 +1288,9 @@ the model catalog.
 
 .. image:: figures/retrieved.png
 
+Models can also be retrieved from the model catalog by indexing the results from the ``.list_models()`` method. In the next example, the code iterates through all of the entries in the model catalog and looks for the entry that has an OCID that matches the model that was previously stored in the model catalog the this notebook. If it finds it, the model catalog information is displayed.
 
-
-Models can also be retrieved from the model catalog by indexing the
-results from the ``.list_models()`` method. In the next example,
-the code iterates through all of the entries in the model catalog and
-looks for the entry that has an OCID that matches the model that was
-previously stored in the model catalog the this notebook. If it finds
-it, the model catalog information is displayed.
-
-.. code:: ipython3
+.. code-block:: python3
 
     is_found = False
     for i in range(len(mc_list)):
@@ -1645,62 +1305,49 @@ it, the model catalog information is displayed.
 
 .. image:: figures/retrieved.png
 
+Metadata
+********
 
-Working with Metadata
-_____________________
-
-Metadata is stored with the model artifacts and this data can be
-accessed using the ``Model`` object.
+Metadata is stored with the model artifacts and this data can be accessed using the ``Model`` object.
 
 These are the metadata attributes:
 
--  ``id``: Model OCID
--  ``compartment_id``: Compartment OCID. It's possible to move a model
-   catalog entry to a new compartment.
--  ``project_id``: Project OCID. Each model catalog entry belongs to a
-   compartment and project.
--  ``display_name``: Name to be displayed on the Models page. Names don't have to be unique.
--  ``description``: A detailed description of the model artifact.
--  ``lifecycle_state``: The state of the model. It can be ``ACTIVE`` or
-   ``INACTIVE``.
--  ``time_created``: The date and time that the model artifacts were
-   stored in the model catalog.
--  ``created_by``: The OCID of the account that created the model
-   artifact.
--  ``freeform_tags``: User applied tags.
--  ``defined_tags``: Tags created by the infrastructure.
--  ``user_name``: User name of the account that created the entry.
--  ``provenance_metadata``: Information about the:
+*  ``compartment_id``: Compartment OCID. It's possible to move a model catalog entry to a new compartment.
+*  ``created_by``: The OCID of the account that created the model artifact.
+*  ``defined_tags``: Tags created by the infrastructure.
+*  ``description``: A detailed description of the model artifact.
+*  ``display_name``: Name to be displayed on the Models page. Names don't have to be unique.
+*  ``freeform_tags``: User applied tags.
+*  ``id``: Model OCID
+*  ``lifecycle_state``: The state of the model. It can be ``ACTIVE`` or ``INACTIVE``.
+*  ``metadata_custom``: Customizable metadata.
+*  ``metadata_taxonomy``: Model taxonomy metadata.
+* ``model_version_set_id``: The Model Version Set OCID.
+*  ``project_id``: Project OCID. Each model catalog entry belongs to a compartment and project.
+*  ``provenance_metadata``: Information about the:
 
-   -  ``git_branch``: Git branch.
-   -  ``git_commit``: Git commit hash.
-   -  ``repository_url``: URL of the git repository.
-   -  ``script_dir``: The directory of the training script.
-   -  ``training_script``: The filename of the training script.
+   *  ``git_branch``: Git branch.
+   *  ``git_commit``: Git commit hash.
+   *  ``repository_url``: URL of the git repository.
+   *  ``script_dir``: The directory of the training script.
+   *  ``training_script``: The filename of the training script.
 
--  ``metadata_taxonomy``: Model taxonomy metadata.
--  ``metadata_custom``: Customizable metadata.
--  ``schema_input``: Input schema. However, this field can't be
-   updated.
--  ``schema_output``: Output schema. However, this field can't be
-   updated.
+*  ``schema_input``: Input schema. However, this field can't be updated.
+*  ``schema_output``: Output schema. However, this field can't be updated.
+*  ``time_created``: The date and time that the model artifacts were stored in the model catalog.
+*  ``user_name``: User name of the account that created the entry.
+*  ``version_label``: The version label to be associated with the model when the model is part of a model version set.
 
-The ``provenance_metadata`` attribute returns a
-`ModelProvenance <https://oracle-cloud-infrastructure-python-sdk.readthedocs.io/en/latest/api/data_science/models/oci.data_science.models.ModelProvenance.html#oci.data_science.models.ModelProvenance>`__
-object. This object has the attributes to access the metadata.
+The ``provenance_metadata`` attribute returns a `ModelProvenance <https://oracle-cloud-infrastructure-python-sdk.readthedocs.io/en/latest/api/data_science/models/oci.data_science.models.ModelProvenance.html#oci.data_science.models.ModelProvenance>`__ object. This object has the attributes to access the metadata.
 
 Access Metadata
----------------
+===============
 
-The ``.show_in_notebook()`` method prints a table of the metadata.
-Individual metadata can be accessed as an attribute of the ``Model``
-object. For example, the model description can be accessed with the
-``description`` attribute.
+The ``.show_in_notebook()`` method prints a table of the metadata.  Individual metadata can be accessed as an attribute of the ``Model`` object. For example, the model description can be accessed with the ``description`` attribute.
 
-The next example accesses and prints several attributes and also displays the
-``.show_in_notebook()`` output:
+The next example accesses and prints several attributes and also displays the ``.show_in_notebook()`` output:
 
-.. code:: ipython3
+.. code-block:: python3
 
     # Print the defined tags in a nice format
     print("defined tags attribute")
@@ -1724,7 +1371,6 @@ The next example accesses and prints several attributes and also displays the
     # Show in notebook
     mc_model.show_in_notebook()
 
-
 .. parsed-literal::
 
     defined tags attribute
@@ -1735,51 +1381,37 @@ The next example accesses and prints several attributes and also displays the
 
 .. image:: figures/retrieved.png
 
+The ``metadata_custom`` attribute of the ``Model`` object is of the same of type as the one in ``ModelArtifact`` object. A call to ``.to_dataframe()`` allows you to view it in dataframe format or in YAML :.
 
-
-The ``metadata_custom`` attribute of the ``Model`` object is of the same
-of type as the one in ``ModelArtifact`` object. A call to
-``.to_dataframe()`` allows you to view it in dataframe format or in YAML :.
-
-.. code:: ipython3
+.. code-block:: python3
 
     mc_model.metadata_custom.to_dataframe()
 
 .. image:: figures/custom_metadata.png
 
-
 It works the same way for ``metadata_taxonomy``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     mc_model.metadata_taxonomy.to_dataframe()
 
 .. image:: figures/metadata_taxonomy.png
 
-
-
 Update Metadata
 ---------------
 
-Model artifacts are immutable but the metadata is mutable.
-Metadata attributes can be updated in the ``Model`` object. However,
-those changes aren't made to the model catalog until you call the ``.commit()`` method.
+Model artifacts are immutable but the metadata is mutable.  Metadata attributes can be updated in the ``Model`` object. However, those changes aren't made to the model catalog until you call the ``.commit()`` method.
 
+In the next example, the model’s display name and description are updated.  These changes are committed, and then the model is retrieved from the model catalog. The metadata is displayed to demonstrate that it was changed.
 
-In the next example, the model’s display name and description are updated.
-These changes are committed, and then the model is retrieved from the
-model catalog. The metadata is displayed to demonstrate that it was
-changed.
+Only the ``display_name``, ``description``, ``freeform_tags``, ``defined_tags``, ``metadata_custom``, and ``metadata_taxonomy`` can be updated.
 
-Only the ``display_name``, ``description``, ``freeform_tags``,
-``defined_tags``, ``metadata_custom``, and ``metadata_taxonomy`` can be
-updated.
-
-.. code:: ipython3
+.. code-block:: python3
 
     # Update some metadata
     mc_model.display_name = "Update Display Name"
     mc_model.description = "This description has been updated"
+    mc_model.version_label = "This is a version"
     mc_model.freeform_tags = {'isUpdated': 'True'}
     if 'CondaEnvironmentPath' in mc_model.metadata_custom.keys:
         mc_model.metadata_custom.remove('CondaEnvironmentPath')
@@ -1811,23 +1443,16 @@ updated.
 .. image:: figures/updated.png
 
 
-Activating and Deactivating a Model Catalog Entry
-_________________________________________________
+Activate and Deactivate 
+***********************
 
-Entries in the model catalog can be set as active or inactive. An inactive model
-is similar to archiving it. The model artifacts aren't deleted, but deactivated entries
-aren't returned in default queries. The ``.deactivate()`` method of a ``Model`` object sets
-a flag in the ``Model`` object that it's inactive. However, you have to call the ``.commit()``
-method to update the model catalog to deactivate the entry.
+Entries in the model catalog can be set as active or inactive. An inactive model is similar to archiving it. The model artifacts aren't deleted, but deactivated entries aren't returned in default queries. The ``.deactivate()`` method of a ``Model`` object sets a flag in the ``Model`` object that it's inactive. However, you have to call the ``.commit()`` method to update the model catalog to deactivate the entry.
 
-The opposite of ``.deactivate()`` is the ``.activate()`` method. It flags a ``Model``
-object as active, and you have to call the ``.commit()`` method to update the model catalog.
+The opposite of ``.deactivate()`` is the ``.activate()`` method. It flags a ``Model`` object as active, and you have to call the ``.commit()`` method to update the model catalog.
 
-In the next example, the model that was stored in the model catalog
-in this notebook is set as inactive. The ``lifecycle_state`` shows it as
-``INACTIVE``.
+In the next example, the model that was stored in the model catalog in this notebook is set as inactive. The ``lifecycle_state`` shows it as ``INACTIVE``.
 
-.. code:: ipython3
+.. code-block:: python3
 
     mc_model.deactivate()
     mc_model.commit()
@@ -1835,15 +1460,12 @@ in this notebook is set as inactive. The ``lifecycle_state`` shows it as
         retrieved_model = mc.get_model(mc_model.id)
         retrieved_model.show_in_notebook()
 
-
 .. image:: figures/updated.png
 
-
-You can activate the model by calling the ``.activate()`` method
-followed by ``.commit()``. In this example, the ``lifecycle_state`` is
+You can activate the model by calling the ``.activate()`` method followed by ``.commit()``. In this example, the ``lifecycle_state`` is
 now ``ACTIVE``:
 
-.. code:: ipython3
+.. code-block:: python3
 
     mc_model.activate()
     mc_model.commit()
@@ -1851,31 +1473,21 @@ now ``ACTIVE``:
         retrieved_model = mc.get_model(mc_model.id)
         retrieved_model.show_in_notebook()
 
-
 .. image:: figures/updated.png
 
+Delete
+******
 
-Deleting a Model Catalog Entry
-______________________________
+The ``.delete_model()`` method of the ``ModelCatalog`` class is used to delete entries from the model catalog. It takes the model artifact's OCID as a parameter. After you delete a model catalog entry, you can't restore it. You can only download the model artifact to store it as a backup.
 
-The ``.delete_model()`` method of the ``ModelCatalog`` class is used to delete entries
-from the model catalog. It takes the model artifact's OCID as a parameter. After you
-delete a model catalog entry, you can't restore it. You can only download the model
-artifact to store it as a backup.
+The ``.delete_model()`` method returns ``True`` if the model was deleted. Repeated calls to ``.delete_model()`` also return ``True``. If the supplied OCID is invalid or the system fails to delete the model catalog entry, it returns ``False``.
 
-The ``.delete_model()`` method returns ``True`` if the model was
-deleted. Repeated calls to ``.delete_model()`` also return ``True``. If the
-supplied OCID is invalid or the system fails to delete the model catalog
-entry, it returns ``False``.
+The difference between ``.deactive()`` and ``.delete()`` is that ``.deactivate()`` doesn't remove the model artifacts. It marks them as inactive, and the models aren't listed when the ``.list_models()`` method is called. The ``.delete()`` method permanently deletes the model artifact.
 
-The difference between ``.deactive()`` and ``.delete()`` is that ``.deactivate()``
-doesn't remove the model artifacts. It marks them as inactive, and the models
-aren't listed when the ``.list_models()`` method is called. The ``.delete()``
-method permanently deletes the model artifact.
+In the next example, the model that was stored in the model catalog as part of this notebook is deleted.
 
-In the next example, the model that was stored in the model catalog as part
-of this notebook is deleted.
-
-.. code:: ipython3
+.. code-block:: python3
 
     mc.delete_model(mc_model.id)
+
+

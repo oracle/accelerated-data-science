@@ -26,8 +26,6 @@ from urllib.parse import urlparse
 import numpy as np
 import pandas as pd
 
-from IPython.core.display import display, SVG
-from graphviz import Digraph, Source
 from pandas.core.dtypes.common import (
     is_numeric_dtype,
     is_bool_dtype,
@@ -36,6 +34,10 @@ from pandas.core.dtypes.common import (
     is_float_dtype,
 )
 
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common import utils
 from ads.dataset import logger
 from ads.type_discovery.type_discovery_driver import TypeDiscoveryDriver
@@ -493,7 +495,7 @@ def calculate_sample_size(
 
     Z = confidence_level_constant.get(confidence_level, 99)
 
-    n_0 = ((Z ** 2) * p * (1 - p)) / (e ** 2)
+    n_0 = ((Z**2) * p * (1 - p)) / (e**2)
     n = n_0 / (1 + ((n_0 - 1) / float(N)))
 
     sample_size = max(int(math.ceil(n)), min_size_to_sample)
@@ -516,8 +518,10 @@ def map_types(types):
     return types
 
 
+@runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
+@runtime_dependency(module="graphviz", install_from=OptionalDependency.VIZ)
 def visualize_transformation(transformer_pipeline, text=None):
-    dot = Digraph()
+    dot = graphviz.Digraph()
 
     # show a single node for paritions
     dot.attr(
@@ -582,7 +586,10 @@ def visualize_transformation(transformer_pipeline, text=None):
     dot.node("terminus", "", shape="terminator", fillcolor="white")
     dot.edge(edges[-1], "terminus", len="1.00", label=format_label(len(edges) - 1))
 
-    graph = Source(dot)
+    graph = graphviz.Source(dot)
+
+    from IPython.core.display import display, SVG
+
     display(SVG(graph.pipe(format="svg")))
 
 

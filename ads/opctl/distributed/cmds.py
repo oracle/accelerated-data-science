@@ -4,7 +4,7 @@
 # Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
+import copy
 import os
 import fsspec
 import subprocess
@@ -163,30 +163,40 @@ def generate_docker_compose_yaml(config: dict, output: str, **kwargs):
         oci_config_path = "~/.oci"
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     backend = MLJobDistributedBackend(p.config)
+    cluster_info = YamlSpecParser.parse_content(config)
     main_jobrun_conf, worker_jobrun_conf_list = backend.prepare_job_config(
-        cluster_info=YamlSpecParser.parse_content(config)
+        cluster_info=cluster_info
     )
 
     services = dict()
-    envs = dict(OCI_IAM_TYPE="api_key")
-    main_env = dict(envs)
+    envs = dict(
+        OCI_IAM_TYPE="api_key",
+        SHAPE=cluster_info.infrastructure["spec"]["shapeName"]
+    )
+    volumes = [
+        "~/.oci:/home/datascience/.oci",
+        "~/.oci:/root/.oci",
+        "./work_dir:/work_dir",
+        "./artifacts:/opt/ml"
+    ]
+    main_env = copy.deepcopy(envs)
     main_env.update(backend.job.runtime.envs)
     main_env.update(main_jobrun_conf.get("envVars", {}))
     services[main_jobrun_conf["name"]] = {
         "image": backend.job.runtime.image,
         "environment": main_env,
         "network_mode": "host",
-        "volumes": ["~/.oci:/home/datascience/.oci"],
+        "volumes": volumes.copy(),
     }
     for i, worker_jobrun_conf in enumerate(worker_jobrun_conf_list):
-        worker_env = dict(envs)
+        worker_env = copy.deepcopy(envs)
         worker_env.update(backend.job.runtime.envs)
         worker_env.update(worker_jobrun_conf.get("envVars", {}))
         services[backend.generate_worker_name(worker_jobrun_conf, i)] = {
             "image": backend.job.runtime.image,
             "environment": worker_env,
             "network_mode": "host",
-            "volumes": ["~/.oci:/home/datascience/.oci"],
+            "volumes": volumes.copy(),
         }
     compose = dict(services=services)
     if output:

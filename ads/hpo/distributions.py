@@ -5,13 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
-from optuna import distributions, type_checking
-
-if type_checking.TYPE_CHECKING:
-    from typing import Union  # NOQA
-
-    CategoricalChoiceType = Union[None, bool, int, float, str]
 from typing import Any, Dict, Sequence, Union
 
 CategoricalChoiceType = Union[None, bool, int, float, str]
@@ -57,11 +55,14 @@ class DiscreteUniformDistribution(Distribution):
             A discretization step.
     """
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def __init__(self, low: float, high: float, step: float):
         self.low = low
         self.high = high
         self.q = step
-        dist = distributions.DiscreteUniformDistribution(low=low, high=high, q=step)
+        dist = optuna.distributions.DiscreteUniformDistribution(
+            low=low, high=high, q=step
+        )
         super().__init__(dist)
 
     def __repr__(self) -> str:
@@ -90,9 +91,10 @@ class CategoricalDistribution(Distribution):
         and :class:`str`.
     """
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def __init__(self, choices: Sequence[CategoricalChoiceType]):
         self.choices = choices
-        dist = distributions.CategoricalDistribution(choices=choices)
+        dist = optuna.distributions.CategoricalDistribution(choices=choices)
         super().__init__(dist)
 
 
@@ -109,11 +111,14 @@ class IntLogUniformDistribution(Distribution):
             A step for spacing between values.
     """
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def __init__(self, low: float, high: float, step: float = 1):
         self.low = low
         self.high = high
         self.step = step
-        dist = distributions.IntLogUniformDistribution(low=low, high=high, step=step)
+        dist = optuna.distributions.IntLogUniformDistribution(
+            low=low, high=high, step=step
+        )
         super().__init__(dist)
 
     def __repr__(self) -> str:
@@ -145,11 +150,14 @@ class IntUniformDistribution(Distribution):
             A step for spacing between values.
     """
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def __init__(self, low: float, high: float, step: float = 1):
         self.low = low
         self.high = high
         self.step = step
-        dist = distributions.IntUniformDistribution(low=low, high=high, step=step)
+        dist = optuna.distributions.IntUniformDistribution(
+            low=low, high=high, step=step
+        )
         super().__init__(dist)
 
     def __repr__(self) -> str:
@@ -173,11 +181,12 @@ class LogUniformDistribution(Distribution):
             Upper endpoint of the range of the distribution. `high` is excluded from the range.
     """
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def __init__(self, low: float, high: float):
         self.low = low
         self.high = high
 
-        dist = distributions.LogUniformDistribution(low=low, high=high)
+        dist = optuna.distributions.LogUniformDistribution(low=low, high=high)
         super().__init__(dist)
 
 
@@ -193,11 +202,12 @@ class UniformDistribution(Distribution):
             Upper endpoint of the range of the distribution. `high` is excluded from the range.
     """
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def __init__(self, low: float, high: float):
         self.low = low
         self.high = high
 
-        dist = distributions.UniformDistribution(low=low, high=high)
+        dist = optuna.distributions.UniformDistribution(low=low, high=high)
         super().__init__(dist)
 
 

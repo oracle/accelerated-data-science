@@ -4,17 +4,18 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
 import fnmatch
 import importlib
 import json
 import os
 import re
+import git
 import shutil
 import subprocess
 import sys
 import textwrap
 import uuid
+import python_jsonschema_objects as pjs
 from enum import Enum
 from pathlib import Path
 from typing import Union, Optional, Dict, Any
@@ -26,11 +27,14 @@ import oci.data_science
 import oci.exceptions
 import pandas as pd
 import pkg_resources
-import python_jsonschema_objects as pjs
 import yaml
+
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
+from ads.common import logger, utils
 from ads.common import auth as authutil
-from ads.common import logger
-from ads.common import utils
 from ads.common.data import ADSData
 
 from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
@@ -65,8 +69,6 @@ from ads.config import (
 import ads.dataset.factory as factory
 from ads.feature_engineering.schema import Schema, SchemaSizeTooLarge, DataSizeTooWide
 
-from git import InvalidGitRepositoryError, Repo
-from IPython.core.display import display
 from oci.data_science.models import ModelProvenance
 from ads.common.error import ChangesNotCommitted
 
@@ -242,7 +244,7 @@ class ModelArtifact(Introspectable):
         return getattr(self.score, item)
 
     def __fetch_repo_details(self, training_code_info):
-        repo = Repo(".", search_parent_directories=True)
+        repo = git.Repo(".", search_parent_directories=True)
         # get repository url
         if len(repo.remotes) > 0:
             repository_url = (
@@ -427,7 +429,7 @@ class ModelArtifact(Introspectable):
         try:
             _, training_code_info = self.__fetch_repo_details(ns.TrainingCodeInfo())
             model_provenance.TRAINING_CODE = training_code_info
-        except InvalidGitRepositoryError:
+        except git.InvalidGitRepositoryError:
             pass
 
         if not training_env_info.TRAINING_ENV_PATH:
@@ -674,6 +676,7 @@ class ModelArtifact(Introspectable):
 
             return load(output_bstream)
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def save(
         self,
         display_name: str = None,
@@ -845,6 +848,9 @@ class ModelArtifact(Introspectable):
                     "introspection use .save(ignore_introspection=True)."
                 )
                 logger.error(msg)
+
+                from IPython.core.display import display
+
                 display(self._introspect.to_dataframe())
                 raise (IntrospectionNotPassed())
 
@@ -895,7 +901,7 @@ class ModelArtifact(Introspectable):
     ):
         try:
             repo, training_code_info = self.__fetch_repo_details(ns.TrainingCodeInfo())
-        except InvalidGitRepositoryError:
+        except git.InvalidGitRepositoryError:
             repo = None
             training_code_info = ns.TrainingCodeInfo()
         if training_script_path is not None:

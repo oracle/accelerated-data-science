@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -20,7 +20,6 @@ Functions:
 import matplotlib.pyplot as plt
 import pandas as pd
 import re
-import seaborn as sns
 from ads.feature_engineering.feature_type.string import String
 from ads.feature_engineering.utils import (
     assign_issuer,
@@ -29,6 +28,10 @@ from ads.feature_engineering.utils import (
     SchemeTeal,
 )
 from ads.feature_engineering import schema
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 _max_sample_size_to_luhn_check = 1000
@@ -201,6 +204,7 @@ class CreditCard(String):
         return pd.concat([df_stat, value_counts.to_frame()])
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows the counts of observations in each credit card type using bar chart.
@@ -243,7 +247,7 @@ class CreditCard(String):
         df = card_types.value_counts().to_frame()
         if len(df.index):
             _set_seaborn_theme()
-            ax = sns.barplot(
+            ax = seaborn.barplot(
                 y=df.index, x=list(df.iloc[:, 0]), color=SchemeTeal.AREA_DARK
             )
             ax.set(xlabel="Count")

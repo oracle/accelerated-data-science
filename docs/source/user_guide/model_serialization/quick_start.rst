@@ -1,18 +1,17 @@
 Quick Start
------------
-
+***********
 
 Deployment Examples
-+++++++++++++++++++
+===================
 
 The following sections provide sample code to create and deploy a model.
 
 AutoMLModel
-~~~~~~~~~~~
+-----------
 
 Create a model, prepare it, verify that it works, save it to the model catalog, deploy it, make a prediction, and then delete the deployment.
 
-.. code:: python3
+.. code-block:: python3
 
     import logging
     import tempfile
@@ -49,13 +48,12 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     automl_model.delete_deployment(wait_for_completion=True)
     ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
 
-
 GenericModel
-~~~~~~~~~~~~
+------------
 
 Create a model, prepare it, verify that it works, save it to the model catalog, deploy it, make a prediction, and then delete the deployment.
 
-.. code:: python3
+.. code-block:: python3
 
     import tempfile
     from ads.catalog.model import ModelCatalog
@@ -78,11 +76,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
 LightGBMModel
-~~~~~~~~~~~~~
+-------------
 
 Create a model, prepare it, verify that it works, save it to the model catalog, deploy it, make a prediction, and then delete the deployment.
 
-.. code:: python3
+.. code-block:: python3
 
     import lightgbm as lgb
     import tempfile
@@ -111,11 +109,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
 PyTorchModel
-~~~~~~~~~~~~
+------------
 
 Create a model, prepare it, verify that it works, save it to the model catalog, deploy it, make a prediction, and then delete the deployment.
 
-.. code:: python3
+.. code-block:: python3
 
 
     import tempfile
@@ -154,11 +152,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
 SklearnModel
-~~~~~~~~~~~~
+------------
 
 Create a model, prepare it, verify that it works, save it to the model catalog, deploy it, make a prediction, and then delete the deployment.
 
-.. code:: python3
+.. code-block:: python3
 
     import tempfile
     from ads.catalog.model import ModelCatalog
@@ -184,11 +182,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
 TensorFlowModel
-~~~~~~~~~~~~~~~
+---------------
 
 Create a model, prepare it, verify that it works, save it to the model catalog, deploy it, make a prediction, and then delete the deployment.
 
-.. code:: python3
+.. code-block:: python3
 
     from ads.catalog.model import ModelCatalog
     from ads.model.framework.tensorflow_model import TensorFlowModel
@@ -222,11 +220,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
 XGBoostModel
-~~~~~~~~~~~~
+------------
 
 Create a model, prepare it, verify that it works, save it to the model catalog, deploy it, make a prediction, and then delete the deployment.
 
-.. code:: python3
+.. code-block:: python3
 
     import tempfile
     import xgboost as xgb
@@ -253,7 +251,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
 Logging
-+++++++
+=======
 
 Model deployments have the option to log access and prediction traffic. The access log, logs requests to the model deployment endpoint. The prediction logs record the predictions that the model endpoint made. Logs must belong to a log group. 
 
@@ -261,7 +259,7 @@ The following example uses the ``OCILogGroup`` class to create a log group and t
 
 There are several methods to access the logs. These include command-line tools, such as ``oci``. Or they can be accessed in the OCI Console. The following example uses the ``.show_logs()`` method and also uses the access and predict log objects in the ``model_deployment`` module to access them.
 
-.. code:: python3
+.. code-block:: python3
 
     import tempfile
     from ads.common.oci_logging import OCILogGroup

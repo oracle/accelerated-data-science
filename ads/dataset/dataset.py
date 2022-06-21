@@ -12,11 +12,9 @@ import fsspec
 import numpy as np
 import os
 import pandas as pd
-import six
 import uuid
 
 from collections import Counter
-from IPython.core.display import display, HTML
 from sklearn.preprocessing import FunctionTransformer
 from typing import Iterable, Union
 
@@ -47,7 +45,10 @@ from ads.dataset.correlation import (
     _get_columns_by_type,
     _validate_correlation_methods,
 )
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 N_Features_Wide_Dataset = 64
 
@@ -147,9 +148,12 @@ class ADSDataset(PandasDataset):
         return self.df
 
     @runtime_dependency(
-        module="ipywidgets", object="HTML", install_from="oracle-ads[notebook]"
+        module="ipywidgets", object="HTML", install_from=OptionalDependency.NOTEBOOK
     )
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def _repr_html_(self):
+        from IPython.core.display import display, HTML
+
         display(
             HTML(
                 utils.horizontal_scrollable_div(
@@ -198,8 +202,17 @@ class ADSDataset(PandasDataset):
             def _constructor(self):
                 return FormattedDataFrame
 
-            @runtime_dependency(module="ipywidgets", object="HTML")
+            @runtime_dependency(
+                module="ipywidgets",
+                object="HTML",
+                install_from=OptionalDependency.NOTEBOOK,
+            )
+            @runtime_dependency(
+                module="IPython", install_from=OptionalDependency.NOTEBOOK
+            )
             def _repr_html_(self):
+                from IPython.core.display import display, HTML
+
                 display(
                     HTML(
                         utils.horizontal_scrollable_div(
@@ -495,7 +508,7 @@ class ADSDataset(PandasDataset):
             include_transformer_pipeline=include_transformer_pipeline,
         )
 
-    @runtime_dependency(module="xgboost", install_from="oracle-ads[boosted]")
+    @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
     def to_xgb(self, filter=None, frac=None, include_transformer_pipeline=False):
         """
         Returns a copy of the data as xgboost.DMatrix, and a sklearn pipeline optionally that holds the
@@ -939,7 +952,7 @@ class ADSDataset(PandasDataset):
 
         return new_path
 
-    @runtime_dependency(module="fastavro", install_from="oracle-ads[data]")
+    @runtime_dependency(module="fastavro", install_from=OptionalDependency.DATA)
     def to_avro(self, path, schema=None, storage_options=None, **kwargs):
         """
         Save data to Avro files.
@@ -1087,7 +1100,7 @@ class ADSDataset(PandasDataset):
             return attr
 
     def __getitem__(self, key):
-        if isinstance(key, str) or isinstance(key, (tuple, six.string_types)):
+        if isinstance(key, str) or isinstance(key, (tuple, str)):
             return self.df[key]
         else:
             return self._build_new_dataset(self.df[key])
@@ -1466,11 +1479,15 @@ class ADSDataset(PandasDataset):
             else:
                 raise ValueError(f"The {method} method is not supported.")
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def _reduce_dim_for_wide_dataset(
         self, corr_df: pd.DataFrame, feature_types_df: pd.DataFrame, include_n_features
     ):
         min_cores_for_correlation = 2
         n_rows, n_columns = self.shape
+
+        from IPython.core.display import display, HTML
+
         if utils.get_cpu_count() <= min_cores_for_correlation:
             msg = (
                 f"Not attempting to calculate correlations, too few cores ({utils.get_cpu_count()}) "
@@ -1636,9 +1653,8 @@ class ADSDataset(PandasDataset):
             **kwargs,
         )
 
-    @runtime_dependency(
-        module="ipywidgets.widgets", install_from="oracle-ads[notebook]"
-    )
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
+    @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
     def show_in_notebook(
         self,
         correlation_threshold=-1,
@@ -1745,6 +1761,8 @@ class ADSDataset(PandasDataset):
 
         html_summary += "</UL>"
 
+        from ipywidgets import widgets
+
         summary = widgets.HTML(html_summary)
 
         features = widgets.HTML()
@@ -1825,6 +1843,8 @@ class ADSDataset(PandasDataset):
                 correlation_methods=correlation_methods,
                 **kwargs,
             )
+
+        from IPython.core.display import display
 
         display(accordion)
 

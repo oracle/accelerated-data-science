@@ -1,14 +1,14 @@
 .. _string_quick_start:
 
 Quick Start
------------
+***********
 
 NLP Parse
-~~~~~~~~~
+=========
 
 The following example parses a text corpus using the `NTLK <https://www.nltk.org/>`__ and `spaCy <https://spacy.io/>`__ engines.
 
-.. code:: python3
+.. code-block:: python3
 
     from ads.feature_engineering.adsstring.string import ADSString
     
@@ -37,14 +37,14 @@ The following example parses a text corpus using the `NTLK <https://www.nltk.org
     pos = s.pos # Parts of Speech 
 
 Plugin
-~~~~~~
+======
 
 Custom Plugin
-+++++++++++++
+-------------
 
 This example demonstrates how to create a custom plugin that will take a string, detect the credit card numbers, and return a list of the  last four digits of the credit card number.
 
-.. code:: python3
+.. code-block:: python3
 
     from ads.feature_engineering.adsstring.string import ADSString
     
@@ -61,11 +61,11 @@ This example demonstrates how to create a custom plugin that will take a string,
 
 
 OCI Language Services Plugin
-++++++++++++++++++++++++++++
+----------------------------
 
 This example uses the `OCI Language service <https://docs.oracle.com/iaas/language/using/overview.htm>`__ to perform an aspect-based sentiment analysis, language detection, key phrase extraction, and a named entity recognition.
 
-.. code:: python3
+.. code-block:: python3
 
     from ads.feature_engineering.adsstring.oci_language import OCILanguage
     from ads.feature_engineering.adsstring.string import ADSString
@@ -99,11 +99,11 @@ This example uses the `OCI Language service <https://docs.oracle.com/iaas/langua
     classification = s.text_classification
 
 RegEx Match
-~~~~~~~~~~~
+===========
 
 In this example, the dates and prices are extracted from the text using regular expression matching.
 
-.. code:: python3
+.. code-block:: python3
 
     from ads.feature_engineering.adsstring.string import ADSString
     
@@ -120,3 +120,5 @@ In this example, the dates and prices are extracted from the text using regular 
     
     dates = s.date
     prices = s.price
+
+

@@ -12,7 +12,6 @@ from abc import ABC, abstractmethod, abstractproperty
 import math
 import pandas as pd
 import numpy as np
-from scipy.stats import sem
 from sklearn import set_config
 from sklearn.dummy import DummyClassifier, DummyRegressor
 
@@ -25,10 +24,12 @@ from ads.common.utils import (
     is_documentation_mode,
     is_notebook,
 )
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.dataset.helper import is_text_data
-
-from IPython.core.display import display, HTML
 
 from ads.common import logger, utils
 
@@ -371,6 +372,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
         """
         return self.est.selected_model_
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def print_summary(
         self,
         max_rows=None,
@@ -462,6 +464,8 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
             sorted_summary_df.insert(
                 0, "Rank based on Performance", np.arange(2, len(sorted_summary_df) + 2)
             )
+
+            from IPython.core.display import display, HTML
 
             with pd.option_context(
                 "display.max_colwidth",
@@ -643,6 +647,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
             score_label = self.est.inferred_score_metric
         return score_label
 
+    @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def visualize_algorithm_selection_trials(self, ylabel=None):
         """
         Plot the scores predicted by Algorithm Selection for each algorithm. The
@@ -687,7 +692,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
         ax.set_ylabel(ylabel)
         ax.set_xlabel("Algorithm")
         for f in mean_scores_ser.keys():
-            se = sem(scores_ser[f], ddof=1)
+            se = scipy.stats.sem(scores_ser[f], ddof=1)
             y_error.append(se)
             if f == "{}_AS".format(self.est.selected_model_):
                 colors.append("orange")

@@ -14,15 +14,17 @@ from os import listdir
 from os.path import isfile, isdir, join, getsize
 from typing import List, Set, Tuple, Dict
 
-import htmllistparse
 import requests
 
 import pandas as pd
-import seaborn as sns
 import sklearn.datasets as sk_datasets
 
 from ads.dataset.factory import DatasetFactory
 from ads.common.utils import inject_and_copy_kwargs
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class DatasetBrowser(ABC):
@@ -247,6 +249,7 @@ class LocalFilesystemDatasets(DatasetBrowser):
 
 
 class WebDatasets(DatasetBrowser):
+    @runtime_dependency(module="htmllistparse", install_from=OptionalDependency.DATA)
     def __init__(self, index_url: str):  # pragma: no cover
 
         self.index_url = index_url
@@ -293,17 +296,19 @@ class WebDatasets(DatasetBrowser):
 
 
 class SeabornDatasets(DatasetBrowser):
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def __init__(self):
         super(DatasetBrowser, self).__init__()
-        self.dataset_names = list(sns.get_dataset_names())
+        self.dataset_names = list(seaborn.get_dataset_names())
 
     def list(self, filter_pattern: str = ".*") -> List[str]:
         return super().filter_list(self.dataset_names, filter_pattern)
 
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def open(self, name: str, **kwargs):
         if name in self.dataset_names:
             return DatasetFactory.open(
-                sns.load_dataset(name), name=name, description="from seaborn"
+                seaborn.load_dataset(name), name=name, description="from seaborn"
             )
         else:
             raise ValueError(

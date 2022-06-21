@@ -95,6 +95,8 @@ def run(config: Dict, **kwargs) -> Dict:
             cluster_run["workerJobRunIds"] = [wj.id for wj in cluster_run_info[2]]
             yamlContent = yaml.dump(cluster_run)
             print(yamlContent)
+            print(f"# \u2b50 To stream the logs of the main job run:")
+            print(f"# \u0024 ads opctl watch {cluster_run['mainJobRunId']}")
         return cluster_run_info
     else:
         if p.config["execution"].get("job_id", None):

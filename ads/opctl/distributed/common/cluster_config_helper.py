@@ -35,6 +35,24 @@ class ClusterConfigToJobSpecConverter:
             ] = self.cluster_info.runtime.kwargs
         job["envVars"].update(self.cluster_info.runtime.envVars)
         job["envVars"] = {k: str(job["envVars"][k]) for k in job["envVars"]}
+
+        if self.cluster_info.cluster.certificate:
+            job["envVars"][
+                "OCI__CERTIFICATE_OCID"
+            ] = self.cluster_info.cluster.certificate.cert_ocid
+            job["envVars"][
+                "OCI__CERTIFICATE_KEY_DOWNLOAD_LOCATION"
+            ] = self.cluster_info.cluster.certificate.key_download_location
+            job["envVars"][
+                "OCI__CERTIFICATE_DOWNLOAD_LOCATION"
+            ] = self.cluster_info.cluster.certificate.cert_download_location
+            job["envVars"][
+                "OCI__CERTIFICATE_AUTHORITY_OCID"
+            ] = self.cluster_info.cluster.certificate.ca_ocid
+            job["envVars"][
+                "OCI__CA_DOWNLOAD_LOCATION"
+            ] = self.cluster_info.cluster.certificate.ca_download_location
+
         return job
 
     def job_run_info(self, jobType):
@@ -43,9 +61,7 @@ class ClusterConfigToJobSpecConverter:
         jobrun["name"] = jobTypeConfig.name or jobType
         jobrun["envVars"] = jobTypeConfig.config.envVars
         if jobTypeConfig.config.cmd_args:
-            jobrun["envVars"][
-                "OCI__START_ARGS"
-            ] = jobTypeConfig.config.cmd_args.strip()
+            jobrun["envVars"]["OCI__START_ARGS"] = jobTypeConfig.config.cmd_args.strip()
 
         jobrun["envVars"]["OCI__MODE"] = jobType.upper()
         jobrun["envVars"] = {k: str(jobrun["envVars"][k]) for k in jobrun["envVars"]}

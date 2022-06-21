@@ -16,6 +16,10 @@ import yaml
 from ads.catalog.summary import SummaryList
 from ads.common import auth, logger, oci_client, utils
 from ads.common.decorator.deprecate import deprecated
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common.model_artifact import ConflictStrategy, ModelArtifact
 from ads.common.model_metadata import (
     METADATA_SIZE_LIMIT,
@@ -30,7 +34,6 @@ from ads.config import (
     PROJECT_OCID,
 )
 from ads.feature_engineering.schema import Schema
-from IPython.core.display import display
 from oci.data_science.data_science_client import DataScienceClient
 from oci.data_science.models import CreateModelDetails
 from oci.data_science.models import Model as OCIModel
@@ -331,6 +334,7 @@ class Model:
         df = pd.DataFrame.from_dict(attributes, orient="index", columns=[""]).dropna()
         return df
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def show_in_notebook(self, display_format: str = "dataframe") -> None:
         """Shows model in dataframe or yaml format.
         Supported formats: `dataframe` and `yaml`. Defaults to dataframe format.
@@ -341,6 +345,9 @@ class Model:
             Nothing.
         """
         if display_format == "dataframe":
+
+            from IPython.core.display import display
+
             display(self.to_dataframe())
         elif display_format == "yaml":
             print(self._to_yaml())

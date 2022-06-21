@@ -8,15 +8,17 @@ from __future__ import print_function, absolute_import
 
 import abc
 import ads.common.utils as utils
-import six
-from IPython.core.display import display
 from oci.util import to_dict
 from pandas import DataFrame
 import pandas as pd
+from abc import ABCMeta
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
-@six.add_metaclass(abc.ABCMeta)
-class SummaryList(list):
+class SummaryList(list, metaclass=ABCMeta):
     def __init__(self, entity_list, datetime_format=utils.date_format):
         if isinstance(entity_list, filter):
             entity_list = list(entity_list)
@@ -105,6 +107,7 @@ class SummaryList(list):
             )
         return df
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def show_in_notebook(self, datetime_format=None):
 
         """
@@ -118,6 +121,7 @@ class SummaryList(list):
         -------
         None
         """
+        from IPython.core.display import display
 
         display(
             self.to_dataframe(datetime_format=datetime_format).style.applymap(

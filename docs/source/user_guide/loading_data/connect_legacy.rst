@@ -1,11 +1,11 @@
-Connecting to Data Sources With Legacy ``DatasetFactory``
-=========================================================
+Connect with ``DatasetFactory``
+*******************************
 
 You can load data into ADS in several different ways from Oracle Cloud Infrastructure Object Storage, cx_Oracle, or S3.  Following are some examples.
 
 Begin by loading the required libraries and modules:
 
-.. code:: python3
+.. code-block:: python3
 
     import ads
     import numpy as np
@@ -14,14 +14,12 @@ Begin by loading the required libraries and modules:
     from ads.dataset.dataset_browser import DatasetBrowser
     from ads.dataset.factory import DatasetFactory
 
-
-
 Object Storage
---------------
+==============
 
 To open a dataset from Object Storage using the resource principal method, you can use the following example, replacing the angle bracketed content with the location and name of your file:
 
-.. code:: python3
+.. code-block:: python3
 
   import ads
   import os
@@ -38,13 +36,12 @@ To open a dataset from Object Storage using the resource principal method, you c
 
 To open a dataset from Object Storage using the Oracle Cloud Infrastructure configuration file method, include the location of the file using this format ``oci://<bucket_name>@<namespace>/<file_name>`` and modify the optional parameter ``storage_options``. Insert:
 
-- the path to your `Oracle Cloud Infrastructure configuration file <https://docs.cloud.oracle.com/en-us/iaas/Content/API/SDKDocs/cliconfigure.htm>`_,
-
-- and the profile name you want to use.
+* The path to your `Oracle Cloud Infrastructure configuration file <https://docs.cloud.oracle.com/en-us/iaas/Content/API/SDKDocs/cliconfigure.htm>`_,
+* The profile name you want to use.
 
 For example:
 
-.. code:: python3
+.. code-block:: python3
 
   ds = DatasetFactory.open("oci://<bucket_name>@<namespace>/<file_name>", storage_options = {
      "config": "~/.oci/config",
@@ -52,11 +49,11 @@ For example:
   })
 
 Local Storage
--------------
+=============
 
 To open a dataset from a local source, use ``DatasetFactory.open`` and specify the path of the data file:
 
-.. code:: python3
+.. code-block:: python3
 
   ds = DatasetFactory.open("/path/to/data.data", format='csv', delimiter=" ")
 
@@ -82,7 +79,7 @@ You must have the client credentials and connection information to connect to th
 In this example a Python dictionary, ``creds`` is used to store the creditionals. However, it is poor security practice to store this
 information in a notebook. The notebook ``ads-examples/ADB_working_with.ipynb`` gives an example of how to store them in Block Storage.
 
-  .. code-block:: python3
+.. code-block:: python3
 
      creds = {}
      creds['tns_admin'] = <path_to_wallet_folder>
@@ -117,26 +114,20 @@ You can also use ``cx_Oracle`` within ADS by creating a connection string:
   ds = DatasetFactory.open(uri, format="sql", table=table, index_col=index_col)
 
 Autonomous Database
--------------------
+===================
 
 .. image:: images/adw.png
   :height: 100
   :alt: Oracle ADB Logo
 
-Oracle has two configurations of Autonomous Databases. They are the Autonomous Data Warehouse (ADW) and the Autonomous Transaction Processsing (ATP) database. Both are fully autonomous databases that scale elastically, deliver fast query performance, and require minimal database administration.
+Oracle has two configurations of Autonomous Databases. They are the Autonomous Data Warehouse (ADW) and the Autonomous Transaction Processing (ATP) database. Both are fully autonomous databases that scale elastically, deliver fast query performance, and require minimal database administration.
 
 .. note::
-   To access `ADW <https://www.oracle.com/database/adw-cloud.html>`_, review **Setup for ADB** in :ref:`Configuration <configuration-8>`. It shows you how to get the client credentials (wallet) and set up the proper environment variable.
 
-After the notebook environment has been configured to access ADW, you can use ADS to:
+   To access `ADW <https://www.oracle.com/database/adw-cloud.html>`_, review the :ref:`Autonomous Database configuration <configuration-autonomous_database>` section. It shows you how to get the client credentials (wallet) and set up the proper environment variable.
 
-- `Loading Data from ADB`_
-- `Querying Data from ADB`_
-- `Training Models with ADB`_
-- `Updating ADB Tables with Model Predictions`_
-
-Loading Data from ADB
-~~~~~~~~~~~~~~~~~~~~~
+Load from ADB
+-------------
 
 After you have stored the ADB username, password, and database name (SID) as variables, you can build the URI as your connection source.
 
@@ -152,14 +143,14 @@ When you open ``DatasetFactory``, specify the name of the table you want to pull
     os.environ['TNS_ADMIN'] = creds['tns_admin']
     ds = DatasetFactory.open(uri, format="sql", table=table, target='label')
 
-Querying Data from ADB
-~~~~~~~~~~~~~~~~~~~~~~
+Query ADB
+---------
 
 - **Query using Pandas**
 
   This example shows you how to query data using ``Pandas`` and `sqlalchemy <https://www.sqlalchemy.org/>`_ to read data from ADB:
 
-  .. code-block:: python3
+.. code-block:: python3
 
       from sqlalchemy import create_engine
       import os
@@ -168,27 +159,27 @@ Querying Data from ADB
       engine = create_engine(uri)
       df = pd.read_sql('SELECT * from <TABLENAME>', con=engine)
 
-  You can convert the ``pd.DataFrame`` into ``ADSDataset`` using the `DatasetFactory.from_dataframe()` function.
+You can convert the ``pd.DataFrame`` into ``ADSDataset`` using the ``DatasetFactory.from_dataframe()`` function.
 
-  .. code-block:: python3
+.. code-block:: python3
 
       ds = DatasetFactory.from_dataframe(df)
 
-  These two examples run a simple query on ADW data. With ``read_sql_query`` you can use SQL expressions not just for tables, but also to limit the number of rows and to apply conditions with filters, such as (``where``).
+These two examples run a simple query on ADW data. With ``read_sql_query`` you can use SQL expressions not just for tables, but also to limit the number of rows and to apply conditions with filters, such as (``where``).
 
-  .. code-block:: python3
+.. code-block:: python3
 
       ds = pd.read_sql_query('SELECT * from <TABLENAME>', uri)
 
-  .. code-block:: python3
+.. code-block:: python3
 
       ds = pd.read_sql_query('SELECT * FROM emp WHERE ROWNUM <= 5', uri)
 
 - **Query using cx_Oracle**
 
-  You can also query data from ADW using cx_Oracle. Use the cx_Oracle 7.0.0 version with ADS. Ensure that you change the dummy ``<TABLENAME>`` placeholder to the actual table name you want to query data from, and the dummy ``<COLNAME>`` placeholder to the column name that you want to select:
+You can also query data from ADW using cx_Oracle. Use the cx_Oracle 7.0.0 version with ADS. Ensure that you change the dummy ``<TABLENAME>`` placeholder to the actual table name you want to query data from, and the dummy ``<COLNAME>`` placeholder to the column name that you want to select:
 
-  .. code-block:: python3
+.. code-block:: python3
 
       import
       import pandas as pd
@@ -205,20 +196,20 @@ Querying Data from ADB
 
       ds = DatasetFactory.from_dataframe(df)
 
-  .. code-block:: python3
+.. code-block:: python3
 
       results = cursor.execute('SELECT <COLNAME> from <TABLENAME>').fetchall()
 
-Don't forget to close the cursor and connection using the ``close`` method:
+Close the cursor and connection using the ``.close()`` method:
 
-  .. code-block:: python3
+.. code-block:: python3
 
      cursor.close()
      connection.close()
 
 
-Training Models with ADB
-~~~~~~~~~~~~~~~~~~~~~~~~
+Train a Models with ADB
+========================
 
 After you load your data from ADB, the ``ADSDataset`` object is created, which allows you to build models using AutoML.
 
@@ -231,8 +222,8 @@ After you load your data from ADB, the ``ADSDataset`` object is created, which a
     model, baseline = AutoML(train, provider= OracleAutoMLProvider()).train(model_list=["LGBMClassifier"])
 
 
-Updating ADB Tables with Model Predictions
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Update ADB Tables
+=================
 
 To add predictions to a table, you can either update an existing table, or create a new table with the added predictions. There are many ways to do this. One way is to use the model to update a CSV file, and then use Oracle SQL\*Loader or SQL\*Plus.
 
@@ -273,11 +264,11 @@ This example adds predictions programmatically using cx_Oracle. It uses ``execut
 For some models, you could also use ``predict_proba`` to get an array of predictions and their confidence probability.
 
 Amazon S3
----------
+=========
 
 You can open Amazon S3 public or private files in ADS. For private files, you must pass the right credentials through the ADS ``storage_options`` dictionary.If you have large S3 files, then you benefit from an increased ``blocksize``.
 
-.. code:: python3
+.. code-block:: python3
 
   ds = DatasetFactory.open("s3://bucket_name/iris.csv", storage_options = {
       'key': 'aws key',
@@ -290,21 +281,21 @@ You can open Amazon S3 public or private files in ADS. For private files, you mu
 
 
 HTTP(S) Sources
----------------
+===============
 
 To open a dataset from a remote web server source, use ``DatasetFactory.open()`` and specify the URL of the data:
 
-.. code:: python3
+.. code-block:: python3
 
    ds = DatasetFactory.open('https://example.com/path/to/data.csv', target='label')
 
 
-DatasetBrowser
---------------
+``DatasetBrowser``
+==================
 
 ``DatasetBrower`` allows easy access to datasets from reference libraries and index websites, such as scikit-learn. To see the supported libraries, use the ``list()`` function:
 
-.. code:: python3
+.. code-block:: python3
 
     DatasetBrowser.list()
 
@@ -315,7 +306,7 @@ DatasetBrowser
 
 To see which dataset is available from scikit-learn, use:
 
-.. code:: python3
+.. code-block:: python3
 
   sklearn = DatasetBrowser.sklearn()
   sklearn.list()
@@ -328,7 +319,7 @@ Datasets are provided as a convenience.  Datasets are considered Third Party Con
 
 To explore one of the datasets, use ``open()`` specifying the name of the dataset:
 
-.. code:: python3
+.. code-block:: python3
 
   ds = sklearn.open('wine')
 

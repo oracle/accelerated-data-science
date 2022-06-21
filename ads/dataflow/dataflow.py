@@ -17,11 +17,14 @@ from pathlib import Path
 from pandas import DataFrame
 from ast import literal_eval
 
-from IPython.display import display
 from jinja2 import Environment, PackageLoader
 
 from ads.common import oci_client, auth, logger
 from ads.common.utils import FileOverwriteError
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 from oci.data_flow.models import (
     CreateApplicationDetails,
@@ -149,10 +152,13 @@ class DataFlow:
             )
             return df
 
+        @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
         def show_in_notebook(app_self):
             """
             Describe the project by showing its properties
             """
+            from IPython.display import display
+
             display(app_self)
 
         def _repr_html_(app_self):
@@ -975,10 +981,13 @@ class DataFlowApp(DataFlow):
             )
             return df
 
+        @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
         def show_in_notebook(run_self):
             """
             Describe the project by showing it's properties
             """
+            from IPython.display import display
+
             display(run_self)
 
         def _repr_html_(run_self):

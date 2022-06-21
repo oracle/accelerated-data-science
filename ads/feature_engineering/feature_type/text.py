@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -17,6 +17,10 @@ from ads.feature_engineering.feature_type.string import String
 from ads.feature_engineering.utils import random_color_func, SchemeNeutral
 
 from ads.common import utils, logger
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class Text(String):
@@ -41,6 +45,7 @@ class Text(String):
     """
 
     @staticmethod
+    @runtime_dependency(module="wordcloud", install_from=OptionalDependency.TEXT)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows distributions of datasets using wordcloud.
@@ -61,21 +66,19 @@ class Text(String):
         df = x.to_frame(col_name)
         words = df[col_name].dropna().to_list()
         words = " ".join([s for s in words if isinstance(s, str)])
-        if words:
-            try:
-                from wordcloud import WordCloud
-                wc = WordCloud(
-                    background_color=SchemeNeutral.BACKGROUND_LIGHT,
-                    color_func=random_color_func,
-                ).generate(words)
-                _, ax = plt.subplots(facecolor=SchemeNeutral.BACKGROUND_LIGHT)
-                ax.imshow(wc)
-                plt.axis("off")
-                return ax
-            except ModuleNotFoundError as e:
-                utils._log_missing_module("wordcloud", "oracle-ads[text]")
-                logger.info("The text word cloud is not plotted due to missing dependency wordcloud.")
+        if not words:
+            return
 
+        from wordcloud import WordCloud
+
+        wc = WordCloud(
+            background_color=SchemeNeutral.BACKGROUND_LIGHT,
+            color_func=random_color_func,
+        ).generate(words)
+        _, ax = plt.subplots(facecolor=SchemeNeutral.BACKGROUND_LIGHT)
+        ax.imshow(wc)
+        plt.axis("off")
+        return ax
 
     description = "Type representing text values."
 

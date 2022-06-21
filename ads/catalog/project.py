@@ -4,10 +4,13 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from IPython.core.display import display
 from ads.catalog.summary import SummaryList
 from ads.common import oci_client, auth
 from ads.common import utils
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.config import (
     OCI_ODSC_SERVICE_ENDPOINT,
     OCI_IDENTITY_SERVICE_ENDPOINT,
@@ -211,10 +214,13 @@ class ProjectCatalog(Mapping):
             )
             return df
 
+        @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
         def show_in_notebook(project_self):
             """
             Describe the project by showing it's properties
             """
+            from IPython.core.display import display
+
             display(project_self)
 
         def _repr_html_(project_self):

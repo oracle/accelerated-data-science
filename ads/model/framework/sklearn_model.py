@@ -10,7 +10,10 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 from ads.common import logger
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.model.extractor.sklearn_extractor import SklearnExtractor
 from ads.common.utils import _serialize_input_helper
 from ads.model.generic_model import GenericModel
@@ -290,20 +293,20 @@ class SklearnModel(GenericModel):
             else:
                 dump(self.estimator, model_path)
 
-    @runtime_dependency(module="onnx", install_from="oracle-ads[data_science]")
-    @runtime_dependency(module="xgboost", install_from="oracle-ads[boosted]")
-    @runtime_dependency(module="lightgbm", install_from="oracle-ads[boosted]")
-    @runtime_dependency(module="skl2onnx", install_from="oracle-ads[data_science]")
-    @runtime_dependency(module="onnxmltools", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
+    @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
+    @runtime_dependency(module="lightgbm", install_from=OptionalDependency.BOOSTED)
+    @runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
+    @runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
     @runtime_dependency(
         module="onnxmltools.convert.xgboost.operator_converters.XGBoost",
         object="convert_xgboost",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     @runtime_dependency(
         module="onnxmltools.convert.lightgbm.operator_converters.LightGbm",
         object="convert_lightgbm",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     def to_onnx(
         self,
@@ -440,7 +443,7 @@ class SklearnModel(GenericModel):
                         "`initial_types` can not be detected. Please directly pass initial_types."
                     )
 
-    @runtime_dependency(module="skl2onnx", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
     def generate_initial_types(self, X_sample: Any) -> List:
         """Auto generate intial types.
 

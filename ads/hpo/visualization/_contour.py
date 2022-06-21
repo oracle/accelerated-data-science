@@ -7,12 +7,17 @@
 from typing import Any, Dict, List, Optional
 
 import matplotlib.pyplot as plt
-from optuna.study import Study
-from optuna.visualization.matplotlib import plot_contour
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
+@runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
 def _get_contour_plot(
-    study: Study, fig_size: tuple, params: Optional[List[str]] = None
+    study: "optuna.study.Study", fig_size: tuple, params: Optional[List[str]] = None
 ):
+    from optuna.visualization.matplotlib import plot_contour
+
     plot_contour(study=study, params=params)
-    plt.show()
+    plt.show(block=False)

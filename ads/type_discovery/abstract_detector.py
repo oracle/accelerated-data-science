@@ -8,18 +8,14 @@ from __future__ import print_function, absolute_import
 
 import abc
 
-import six
 
-
-@six.add_metaclass(abc.ABCMeta)
-class AbstractTypeDiscoveryDetector:
+class AbstractTypeDiscoveryDetector(metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def discover(self, name, series):
         return
 
 
-@six.add_metaclass(abc.ABCMeta)
-class DiscreteDiscoveryDetector(AbstractTypeDiscoveryDetector):
+class DiscreteDiscoveryDetector(AbstractTypeDiscoveryDetector, metaclass=abc.ABCMeta):
     @abc.abstractmethod
     def discover(self, name, series):
         return

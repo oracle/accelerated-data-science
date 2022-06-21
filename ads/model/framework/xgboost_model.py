@@ -10,7 +10,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import pandas as pd
 from ads.common import logger
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common.utils import _serialize_input_helper
 from ads.model.extractor.xgboost_extractor import XgboostExtractor
 from ads.model.generic_model import GenericModel
@@ -118,7 +121,7 @@ class XGBoostModel(GenericModel):
     >>> xgboost_model.predict(X_test)
     """
 
-    @runtime_dependency(module="xgboost", install_from="oracle-ads[boosted]")
+    @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
     def __init__(
         self,
         estimator: callable,
@@ -235,7 +238,7 @@ class XGBoostModel(GenericModel):
                 )
         return model_file_name
 
-    @runtime_dependency(module="xgboost", install_from="oracle-ads[boosted]")
+    @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
     def serialize_model(
         self,
         as_onnx: bool = False,
@@ -297,38 +300,38 @@ class XGBoostModel(GenericModel):
             else:
                 self.estimator.save_model(model_path)
 
-    @runtime_dependency(module="onnx", install_from="oracle-ads[data_science]")
-    @runtime_dependency(module="xgboost", install_from="oracle-ads[boosted]")
+    @runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
+    @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
     @runtime_dependency(
         module="skl2onnx",
         object="convert_sklearn",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     @runtime_dependency(
         module="skl2onnx",
         object="update_registered_converter",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     @runtime_dependency(
         module="skl2onnx.common.data_types",
         object="FloatTensorType",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     @runtime_dependency(
         module="skl2onnx.common.shape_calculator",
         object="calculate_linear_classifier_output_shapes",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     @runtime_dependency(
         module="skl2onnx.common.shape_calculator",
         object="calculate_linear_regressor_output_shapes",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
-    @runtime_dependency(module="onnxmltools", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
     @runtime_dependency(
         module="onnxmltools.convert.xgboost.operator_converters.XGBoost",
         object="convert_xgboost",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     def to_onnx(
         self,
@@ -418,7 +421,7 @@ class XGBoostModel(GenericModel):
     @runtime_dependency(
         module="skl2onnx.common.data_types",
         object="FloatTensorType",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     def generate_initial_types(self, X_sample: Any) -> List:
         """Auto generate intial types.

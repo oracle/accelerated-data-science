@@ -15,13 +15,14 @@ Classes
 """
 import inspect
 from typing import Union
+
 import pandas as pd
-from tabulate import tabulate
+import tabulate
+from ads.feature_engineering.feature_type.base import FeatureType
 from ads.feature_engineering.feature_type_manager import (
     FeatureTypeManager as feature_type_manager,
 )
 from ads.feature_engineering.feature_type_manager import _feature_type_by_dtype
-from ads.feature_engineering.feature_type.base import FeatureType
 
 
 class ADSFeatureTypesMixin:
@@ -207,4 +208,4 @@ class ADSFeatureTypesMixin:
 
         get_attr(self)
         props = sorted(list(methods) + list(attrs))
-        print(tabulate(props, headers=("Property", "Description")))
+        print(tabulate.tabulate(props, headers=("Property", "Description")))

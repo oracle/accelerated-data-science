@@ -1,11 +1,11 @@
 .. _string-still_a_string:
 
 Still a String
---------------
+**************
 
 While ``ADSString`` expands your feature engineering capabilities, it can still be treated as a ``str`` object. Any standard operation on ``str`` is preserved in ``ADSString``. For instance, you can convert it to lowercase:
 
-.. code:: ipython3
+.. code-block:: python3
 
     hello_world = "HELLO WORLD"
     s = ADSString(hello_world)
@@ -17,7 +17,7 @@ While ``ADSString`` expands your feature engineering capabilities, it can still 
 
 You could split a text string.
 
-.. code:: ipython3
+.. code-block:: python3
 
     s.split()
 
@@ -27,7 +27,7 @@ You could split a text string.
 
 You can use all the ``str`` methods, such as the ``.replace()`` method, to replace text.
 
-.. code:: ipython3
+.. code-block:: python3
 
     s.replace("L", "N")
 
@@ -37,7 +37,7 @@ You can use all the ``str`` methods, such as the ``.replace()`` method, to repla
 
 You can perform a number of ``str`` manipulation operations, such as ``.lower()`` and ``.upper()`` to get an ``ADSString`` object back.
 
-.. code:: ipython3
+.. code-block:: python3
 
     isinstance(s.lower().upper(), ADSString)
 
@@ -47,7 +47,7 @@ You can perform a number of ``str`` manipulation operations, such as ``.lower()`
 
 While a new ``ADSString`` object is created with ``str`` manipulation operations, the equality operation holds.
 
-.. code:: ipython3
+.. code-block:: python3
 
     s.lower().upper() == s
 
@@ -57,7 +57,7 @@ While a new ``ADSString`` object is created with ``str`` manipulation operations
 
 The equality operation even holds between ``ADSString`` objects (``s``) and ``str`` objects (``hello_world``).
 
-.. code:: ipython3
+.. code-block:: python3
 
     s == hello_world
 

@@ -1,32 +1,26 @@
-Building a Classifier using OracleAutoMLProvider
-================================================
+Using ``OracleAutoMLProvider``
+******************************
 
-To demonstrate the ``OracleAutoMLProvider`` API, this example builds a classifier using the ``OracleAutoMLProvider`` tool for the public Census Income dataset. The
-dataset is a binary classification dataset and more details about the dataset are found at https://archive.ics.uci.edu/ml/datasets/Adult.
-Various options provided by the Oracle AutoML tool are explored allowing you to exercise control over the AutoML training process. The different models trained by Oracle AutoML 
-are then evaluated.
+To demonstrate the ``OracleAutoMLProvider`` API, this example builds a classifier using the ``OracleAutoMLProvider`` tool for the public Census Income dataset. The dataset is a binary classification dataset and more details about the dataset are found at https://archive.ics.uci.edu/ml/datasets/Adult.  Various options provided by the Oracle AutoML tool are explored allowing you to exercise control over the AutoML training process. The different models trained by Oracle AutoML are then evaluated.
 
 Setup
------
+=====
 
 Load the necessary modules:
 
-.. code:: ipython3
+.. code-block:: python3
 
-    %matplotlib inline
-    %load_ext autoreload
-    %autoreload 2
-
-    import gzip
+    import seaborn as sns
     import pickle
-    import logging
     import pandas as pd
     import matplotlib.pyplot as plt
-    import seaborn as sns
+    import logging
+    import gzip
+
+    from ads.evaluations.evaluator import ADSEvaluator
     from ads.dataset.factory import DatasetFactory
     from ads.automl.provider import OracleAutoMLProvider
     from ads.automl.driver import AutoML
-    from ads.evaluations.evaluator import ADSEvaluator
 
     plt.rcParams['figure.figsize'] = [10, 7]
     plt.rcParams['font.size'] = 15
@@ -35,14 +29,12 @@ Load the necessary modules:
     sns.set_palette("bright")
     sns.set_style("whitegrid")
 
-Load the Census Income Dataset
-------------------------------
+Dataset
+=======
 
-Start by reading in the dataset from UCI. The dataset is not properly formatted, the separators have spaces between them, and the test set has a corrupt row at the top. These options are specified to 
-the Pandas CSV reader. The dataset has already been pre-split into training and test sets. The training set is used to create a
-Machine Learning model using Oracle AutoML, and the test set is used to evaluate the model’s performance on unseen data.
+Start by reading in the dataset from UCI. The dataset is not properly formatted, the separators have spaces between them, and the test set has a corrupt row at the top. These options are specified to the Pandas CSV reader. The dataset has already been pre-split into training and test sets. The training set is used to create a machine learning model using Oracle AutoML, and the test set is used to evaluate the model’s performance on unseen data.
 
-.. code:: ipython3
+.. code-block:: python3
 
     column_names = [
         'age',
@@ -69,7 +61,7 @@ Machine Learning model using Oracle AutoML, and the test set is used to evaluate
 
 Retrieve some of the values in the data:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df.head()
 
@@ -87,7 +79,7 @@ Retrieve some of the values in the data:
 
 The Adult dataset contains a mix of numerical and string data, making it a challenging problem to train machine learning models on.
 
-.. code:: ipython3
+.. code-block:: python3
 
     pd.DataFrame({'Data type': df.dtypes}).T
 
@@ -101,7 +93,7 @@ The Adult dataset contains a mix of numerical and string data, making it a chall
 The dataset is also missing many values, further adding to its complexity. The Oracle AutoML solution automatically handles missing
 values by intelligently dropping features with too many missing values, and filling in the remaining missing values based on the feature type.
 
-.. code:: ipython3
+.. code-block:: python3
 
     pd.DataFrame({'% missing values': df.isnull().sum() * 100 / len(df)}).T
 
@@ -114,7 +106,7 @@ values by intelligently dropping features with too many missing values, and fill
 
 Visualize the distribution of the target variable in the training data.
 
-.. code:: ipython3
+.. code-block:: python3
 
     target_col = 'income'
     sns.countplot(x="income", data=df)
@@ -123,7 +115,7 @@ Visualize the distribution of the target variable in the training data.
 
 The test set has a different set of labels from the training set. The test set labels have an extra period (.) at the end causing incorrect scoring.
 
-.. code:: ipython3
+.. code-block:: python3
 
     print(df[target_col].unique())
     print(test_df[target_col].unique())
@@ -135,7 +127,7 @@ The test set has a different set of labels from the training set. The test set l
 
 Remove the trailing period (.) from the test set labels.
 
-.. code:: ipython3
+.. code-block:: python3
 
     test_df[target_col] = test_df[target_col].str.rstrip('.')
     print(test_df[target_col].unique())
@@ -146,21 +138,21 @@ Remove the trailing period (.) from the test set labels.
 
 Convert the Pandas dataframes to ``ADSDataset`` to use with ADS APIs.
 
-.. code:: ipython3
+.. code-block:: python3
 
     train = DatasetFactory.open(df).set_target(target_col)
     test = DatasetFactory.open(test_df).set_target(target_col)
 
 If the data is not already pre-split into train and test sets, you can split it with the ``train_test_split()`` or ``train_validation_test_split()`` method. This example of loading the data and splitting it into an 80%/20% train and test set.
 
-.. code:: ipython3
+.. code-block:: python3
 
     ds = DatasetFactory.open("path/data.csv").set_target('target')
     train, test = ds.train_test_split(test_size=0.2)
 
 Splitting the data into train, validation, and test returns three data subsets. If you don't specify the test and validation sizes, the data is split 80%/10%/10%. This example assigns a 70%/15%/15% split:
 
-.. code:: ipython3
+.. code-block:: python3
 
     data_split = ds.train_validation_test_split(
         test_size=0.15,
@@ -169,11 +161,10 @@ Splitting the data into train, validation, and test returns three data subsets. 
     train, validation, test = data_split
     print(data_split)   # print out shape of train, validation, test sets in split
 
-Create an instance of OracleAutoMLProvider
-------------------------------------------
+``OracleAutoMLProvider``
+========================
 
-The Oracle AutoML solution automatically provides a tuned machine learning pipeline that best models the given a training dataset and prediction task at hand. The dataset can be any supervised prediction 
-task. For example, classification or regression where the target can be a simple binary or a multi-class value or a real valued column in a table, respectively.
+The Oracle AutoML solution automatically provides a tuned machine learning pipeline that best models the given a training dataset and prediction task at hand. The dataset can be any supervised prediction task. For example, classification or regression where the target can be a simple binary or a multinomial value or a real valued column in a table, respectively.
 
 The Oracle AutoML solution is selected using the ``OracleAutoMLProvider`` object that delegates model training to the AutoML package.
 
@@ -181,36 +172,34 @@ AutoML consists four main modules:
 
 #. **Algorithm Selection** - Identify the right algorithm for a given dataset, choosing from:
 
-   - AdaBoostClassifier
-   - DecisionTreeClassifier
-   - ExtraTreesClassifier
-   - KNeighborsClassifier
-   - LGBMClassifier
-   - LinearSVC
-   - LogisticRegression
-   - RandomForestClassifier
-   - SVC
-   - XGBClassifier
+   * AdaBoostClassifier
+   * DecisionTreeClassifier
+   * ExtraTreesClassifier
+   * KNeighborsClassifier
+   * LGBMClassifier
+   * LinearSVC
+   * LogisticRegression
+   * RandomForestClassifier
+   * SVC
+   * XGBClassifier
 
 #. **Adaptive Sampling** - Choose the right subset of samples for evaluation while trying to balance classes at the same time.
 #. **Feature Selection** - Choose the right set of features that maximize score for the chosen algorithm.
 #. **Hyperparameter Tuning** - Find the right model parameters that maximize score for the given dataset.
 
-All these modules are readily combined into a simple AutoML pipeline that automates the entire machine learning process with minimal user input and interaction.
-
-The ``OracleAutoMLProvider`` class supports two arguments:
+All these modules are readily combined into a simple AutoML pipeline that automates the entire machine learning process with minimal user input and interaction. The ``OracleAutoMLProvider`` class supports two arguments:
 
 #. **n_jobs**: Specifies the degree of parallelism for Oracle AutoML. -1 (the default) means that AutoML uses all available cores.
-#. **loglevel**: The verbosity of output for Oracle AutoML. Can be specified using the Python logging module, see https://docs.python.org/3/library/logging.html#logging-levels.
+#. **loglevel**: The verbosity of output for Oracle AutoML. Can be specified using the Python `logging module <https://docs.python.org/3/library/logging.html#logging-levels>`_.
 
 Create an ``OracleAutoMLProvider`` object that uses all available cores and disable any logging.
 
-.. code:: ipython3
+.. code-block:: python3
 
     ml_engine = OracleAutoMLProvider(n_jobs=-1, loglevel=logging.ERROR)
 
-Train a model
--------------
+Train 
+=====
 
 The AutoML API is quite simple to work with. Create an instance of Oracle AutoML (``oracle_automl``). Then the training data is passed to the ``fit()`` function that does the following:
 
@@ -221,7 +210,7 @@ The AutoML API is quite simple to work with. Create an instance of Oracle AutoML
 
 A model is then generated that can be used for prediction tasks. ADS uses the ``roc_auc`` scoring metric to evaluate the performance of this model on unseen data (``X_test``).
 
-.. code:: ipython3
+.. code-block:: python3
 
     oracle_automl = AutoML(train, provider=ml_engine)
     automl_model1, baseline = oracle_automl.train()
@@ -348,14 +337,14 @@ all the different trials performed by Oracle AutoML. The API has two arguments:
 #. **max_rows**: Specifies the total number of trials that are printed. By default, all trials are printed.
 #. **sort_column**: Column to sort results by. Must be one of:
 
-   - Algorithm
-   - #Samples
-   - #Features
-   - Mean Validation Score
-   - Hyperparameters
-   - CPU Time
+   * Algorithm
+   * #Samples
+   * #Features
+   * Mean Validation Score
+   * Hyperparameters
+   * CPU Time
 
-.. code:: ipython3
+.. code-block:: python3
 
     oracle_automl.print_trials(max_rows=20, sort_column='Mean Validation Score')
 
@@ -378,21 +367,19 @@ all the different trials performed by Oracle AutoML. The API has two arguments:
 
 ADS also provides the ability to visualize the results of each stage of the AutoML pipeline. The following plot shows the scores predicted by algorithm selection for each algorithm. The horizontal line shows the average score across all algorithms. Algorithms below the line are colored turquoise, whereas those with a score higher than the mean are colored teal. You can see that the LightGBM classifier achieved the highest predicted score (orange bar) and is chosen for subsequent stages of the pipeline.
 
-.. code:: ipython3
+.. code-block:: python3
 
     oracle_automl.visualize_algorithm_selection_trials()
 
 .. image:: figures/output_30_0.png
 
 
-After algorithm selection, adaptive sampling aims to find the smallest dataset sample that can be created without compromising
-validation set score for the algorithm chosen (LightGBM).
+After algorithm selection, adaptive sampling aims to find the smallest dataset sample that can be created without compromising validation set score for the algorithm chosen (LightGBM).
 
 .. note::
-  If you have fewer than 1000 datapoints in your dataset, adaptive sampling is not ran and visualizations are not generated.
+  If you have fewer than 1000 data points in your dataset, adaptive sampling is not run and visualizations are not generated.
 
-
-.. code:: ipython3
+.. code-block:: python3
 
     oracle_automl.visualize_adaptive_sampling_trials()
 
@@ -400,7 +387,7 @@ validation set score for the algorithm chosen (LightGBM).
 
 After finding a sample subset, the next goal of Oracle AutoML is to find a relevant feature subset that maximizes score for the chosen algorithm. Oracle AutoML feature selection follows an intelligent search strategy. It looks at various possible feature rankings and subsets, and identifies that smallest feature subset that does not compromise on score for the chosen algorithm  ``ExtraTreesClassifier``). The orange line shows the optimal number of features chosen by feature selection (9 features - [age, workclass, education, education-num, occupation, relationship, capital-gain, capital-loss, hours-per-week]).
 
-.. code:: ipython3
+.. code-block:: python3
 
     oracle_automl.visualize_feature_selection_trials()
 
@@ -409,49 +396,47 @@ After finding a sample subset, the next goal of Oracle AutoML is to find a relev
 
 Hyperparameter tuning is the last stage of the Oracle AutoML pipeline It focuses on improving the chosen algorithm’s score on the reduced dataset (given by adaptive sampling and feature selection). ADS uses a novel algorithm to search across many hyperparamter dimensions. Convergence is automatic when optimal hyperparameters are identified. Each trial in the following graph represents a particular hyperparamter combination for the selected model.
 
-.. code:: ipython3
+.. code-block:: python3
 
     oracle_automl.visualize_tuning_trials()
 
 .. image:: figures/output_36_0.png
 
-
-Provide a Specific Model List
------------------------------
+Model List
+==========
 
 The Oracle AutoML solution also has a ``model_list`` argument, allowing you to control the what algorithms AutoML considers during
 its optimization process. ``model_list`` is specified as a list of strings, which can be any combination of the following:
 
-
 For classification:
 
-  - AdaBoostClassifier
-  - DecisionTreeClassifier
-  - ExtraTreesClassifier
-  - KNeighborsClassifier
-  - LGBMClassifier
-  - LinearSVC
-  - LogisticRegression
-  - RandomForestClassifier
-  - SVC
-  - XGBClassifier
+* AdaBoostClassifier
+* DecisionTreeClassifier
+* ExtraTreesClassifier
+* KNeighborsClassifier
+* LGBMClassifier
+* LinearSVC
+* LogisticRegression
+* RandomForestClassifier
+* SVC
+* XGBClassifier
 
 For regression:
 
-  - AdaBoostRegressor
-  - DecisionTreeRegressor
-  - ExtraTreesRegressor
-  - KNeighborsRegressor
-  - LGBMRegressor
-  - LinearSVR
-  - LinearRegression
-  - RandomForestRegressor
-  - SVR
-  - XGBRegressor
+* AdaBoostRegressor
+* DecisionTreeRegressor
+* ExtraTreesRegressor
+* KNeighborsRegressor
+* LGBMRegressor
+* LinearSVR
+* LinearRegression
+* RandomForestRegressor
+* SVR
+* XGBRegressor
 
 This example specifies that AutoML only consider the ``LogisticRegression`` classifier because it is a good algorithm for this dataset.
 
-.. code:: ipython3
+.. code-block:: python3
 
     automl_model2, _ = oracle_automl.train(model_list=['LogisticRegression'])
 
@@ -565,27 +550,23 @@ This example specifies that AutoML only consider the ``LogisticRegression`` clas
   74,LogisticRegression_AdaBoostRanking_FS,32561,1,0.5348,"{'C': 1.0, 'class_weight': 'balanced', 'solver': 'liblinear', 'random_state': 12345}",0.2380
   75,LogisticRegression_RFRanking_FS,32561,1,0.5080,"{'C': 1.0, 'class_weight': 'balanced', 'solver': 'liblinear', 'random_state': 12345}",0.2132
 
-Specify a Different Scoring Metric
-----------------------------------
+Built-in Scoring Metric
+=======================
 
-The Oracle AutoML
-tool tries to maximize a given scoring metric, by looking at different algorithms, features, and hyperparameter choices. By default, the score metric is set to ``roc_auc`` for binary classifcation, ``recall_macro`` for multiclass classification, and ``neg_mean_squared_error`` for regression. You can also provide your own scoring metric using the ``score_metric`` argument, allowing AutoML to maximize using that metric. The scoring metric can be specified as a string 
+The Oracle AutoML tool tries to maximize a given scoring metric, by looking at different algorithms, features, and hyperparameter choices. By default, the score metric is set to ``roc_auc`` for binary classification, ``recall_macro`` for multinomial classification, and ``neg_mean_squared_error`` for regression. You can also provide your own scoring metric using the ``score_metric`` argument, allowing AutoML to maximize using that metric. The scoring metric can be specified as a string.
 
-- For binary classification, one of:
-  ‘roc_auc’, ‘accuracy’, ‘f1’, ‘precision’, ‘recall’, ‘f1_micro’, ‘f1_macro’, ‘f1_weighted’, ‘f1_samples’,
-  ‘recall_micro’, ‘recall_macro’, ‘recall_weighted’, ‘recall_samples’, ‘precision_micro’, ‘precision_macro’, ‘precision_weighted’, ‘precision_samples’ 
+- For binary classification, the supported metrics are ‘roc_auc’, ‘accuracy’, ‘f1’, ‘precision’, ‘recall’, ‘f1_micro’, ‘f1_macro’, ‘f1_weighted’, ‘f1_samples’, ‘recall_micro’, ‘recall_macro’, ‘recall_weighted’, ‘recall_samples’, ‘precision_micro’, ‘precision_macro’, ‘precision_weighted’, and ‘precision_samples’.
 
-- For multiclass classification, one of: 
-  ‘recall_macro’, ‘accuracy’, ‘f1_micro’, ‘f1_macro’, ‘f1_weighted’, ‘f1_samples’, ‘recall_micro’, ‘recall_weighted’, ‘recall_samples’, ‘precision_micro’, ‘precision_macro’, ‘precision_weighted’, ‘precision_samples’ - For regression, one of ‘neg_mean_squared_error’, ‘r2’, ‘neg_mean_absolute_error’, ‘neg_mean_squared_log_error’, ‘neg_median_absolute_error’
+- For multinomial classification, the supported metrics are ‘recall_macro’, ‘accuracy’, ‘f1_micro’, ‘f1_macro’, ‘f1_weighted’, ‘f1_samples’, ‘recall_micro’, ‘recall_weighted’, ‘recall_samples’, ‘precision_micro’, ‘precision_macro’, ‘precision_weighted’, ‘precision_samples’ - For regression, one of ‘neg_mean_squared_error’, ‘r2’, ‘neg_mean_absolute_error’, ‘neg_mean_squared_log_error’, and ‘neg_median_absolute_error’.
 
-- This example specifices AutoML to optimize for the ‘f1_macro’ scoring metric:
+- In this example,  AutoML will optimize on the ‘f1_macro’ scoring metric:
 
-.. code:: ipython3
+.. code-block:: python3
 
     automl_model3, _ = oracle_automl.train(score_metric='f1_macro')
 
-Specify a User Defined Scoring Function
----------------------------------------
+Custom Scoring Metric
+=====================
 
 Alternatively, the ``score_metric`` can be specified as a user-defined function of the form.
 
@@ -595,12 +576,11 @@ Alternatively, the ``score_metric`` can be specified as a user-defined function 
        logic here
        return score
 
-The scoring function needs to the be encapsulated as a scikit-learn scorer using the ``make_scorer`` function , see 
-https://scikit-learn.org/stable/modules/generated/sklearn.metrics.make_scorer.html#sklearn.metrics.make_scorer.
+The scoring function needs to the be encapsulated as a scikit-learn scorer using the `make_scorer function <https://scikit-learn.org/stable/modules/generated/sklearn.metrics.make_scorer.html#sklearn.metrics.make_scorer>`_.
 
 This example leverages the scikit-learn’s implementation of the balanced accuracy scoring function. Then a scorer function is created (``score_fn``) and passed to the ``score_metric argument`` of train.
 
-.. code:: ipython3
+.. code-block:: python3
 
     import numpy as np
     from sklearn.metrics import make_scorer, f1_score
@@ -719,11 +699,10 @@ This example leverages the scikit-learn’s implementation of the balanced accur
   186,LGBMClassifier_RFRanking_FS,32561,1,0.4782,"{'boosting_type': 'gbdt', 'learning_rate': 0.1, 'max_depth': -1, 'min_child_weight': 0.001, 'n_estimators': 100, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 1, 'class_weight': 'balanced'}",1.9353
 
 
-Specify a Time Budget
----------------------
+Time Budget
+===========
 
-The Oracle AutoML tool also supports a user given time budget in seconds. This time budget works as a hint, and AutoML tries
-to terminate computation as soon as the time budget is exhausted by returning the current best model. The model returned depends on the stage that AutoML was in when the time budget was exhausted.
+The Oracle AutoML tool also supports a user given time budget in seconds. This time budget works as a hint, and AutoML tries to terminate computation as soon as the time budget is exhausted by returning the current best model. The model returned depends on the stage that AutoML was in when the time budget was exhausted.
 
 If the time budget is exhausted before:
 
@@ -733,7 +712,7 @@ If the time budget is exhausted before:
 
 Given the small size of this dataset, a small time budget of 10 seconds is specified using the ``time_budget`` argument. The time budget in this case is exhausted during algorithm selection, and the currently known best model (``LGBMClassifier``) is returned.
 
-.. code:: ipython3
+.. code-block:: python3
 
     automl_model5, _ = oracle_automl.train(time_budget=10)
 
@@ -847,20 +826,18 @@ Given the small size of this dataset, a small time budget of 10 seconds is speci
   186,LGBMClassifier_RFRanking_FS,32561,1,0.4782,"{'boosting_type': 'gbdt', 'learning_rate': 0.1, 'max_depth': -1, 'min_child_weight': 0.001, 'n_estimators': 100, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 1, 'class_weight': 'balanced'}",1.9353
 
 
-Specify a Minimum Feature List
-------------------------------
+Minimum Feature List
+====================
 
 The Oracle AutoML Pipeline also supports a ``min_features`` argument. AutoML ensures that these features are part of the final model that it creates, and these are not dropped during the feature selection phase. 
 
 It can take three possible types of values: 
 
-- If int, 0 < min_features <= n_features 
+* If int, 0 < min_features <= n_features 
+* If float, 0 < min_features <= 1.0 
+* If list, names of features to keep. For example, [‘a’, ‘b’] means keep features ‘a’ and ‘b’.
 
-- If float, 0 < min_features <= 1.0 
-
-- If list, names of features to keep. For example, [‘a’, ‘b’] means keep features ‘a’ and ‘b’.
-
-.. code:: ipython3
+.. code-block:: python3
 
     automl_model6, _ = oracle_automl.train(min_features=['fnlwgt', 'native-country'])
 
@@ -959,12 +936,12 @@ It can take three possible types of values:
 
 |
 
-Compare Different Models
-------------------------
+Compare Models
+==============
 
 A model trained using AutoML can easily be deployed into production because it behaves similar to any standard Machine Learning model. This example evaluates the model on unseen data stored in test. Each of the generated AutoML models is renamed making them easier to visualize. ADS uses ``ADSEvaluator`` to visualize behavior for each of the models on the test set, including the baseline.
 
-.. code:: ipython3
+.. code-block:: python3
 
     automl_model1.rename('AutoML_Default')
     automl_model2.rename('AutoML_ModelList')
@@ -980,3 +957,4 @@ A model trained using AutoML can easily be deployed into production because it b
 .. image:: figures/output_48_4.png
 
 .. image:: figures/output_48_5.png
+

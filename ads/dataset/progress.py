@@ -7,9 +7,12 @@
 import time
 from abc import abstractmethod
 
-import six
-from IPython.core.display import display
+from oci._vendor import six
 from tqdm import tqdm_notebook
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class ProgressBar(object):
@@ -27,18 +30,13 @@ class ProgressBar(object):
 
 
 class IpythonProgressBar(ProgressBar):
+    @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
     def __init__(self, max_progress=100, description="Running", verbose=False):
         self.max_progress = max_progress
 
         from ads.common import logger
 
-        try:
-            from ipywidgets import Label, IntProgress
-        except ModuleNotFoundError as e:
-            logger.error(
-                f"The ipywidgets module was not found. Install oracle-ads[notebook]."
-            )
-            raise e
+        from ipywidgets import Label, IntProgress
 
         self.progress_label = Label(description)
         self.progress_bar = IntProgress(min=0, max=max_progress)
@@ -46,7 +44,10 @@ class IpythonProgressBar(ProgressBar):
         if self.verbose:
             self.start_time = time.time()
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def __enter__(self):
+        from IPython.core.display import display
+
         display(self.progress_label)
         display(self.progress_bar)
         return self
@@ -77,18 +78,11 @@ class TqdmProgressBar(ProgressBar):
     def __enter__(self):
         return self
 
+    @runtime_dependency(module="ipywidgets", install_from=OptionalDependency.NOTEBOOK)
     def __init__(self, max_progress=100, description="Running", verbose=False):
         self.max_progress = max_progress
 
         from ads.common import logger
-
-        try:
-            import ipywidgets
-        except ModuleNotFoundError as e:
-            logger.error(
-                f"The ipywidgets module was not found. Install oracle-ads[notebook]."
-            )
-            raise e
 
         self.progress_bar = tqdm_notebook(
             range(max_progress), desc="loop1", mininterval=0, leave=False

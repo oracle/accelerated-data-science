@@ -14,7 +14,6 @@ corresponding lists of feature types per column.
 
 import collections
 import pandas as pd
-import seaborn as sns
 import matplotlib.pyplot as plt
 from ads.feature_engineering.accessor.mixin.correlation import (
     cat_vs_cat,
@@ -25,6 +24,10 @@ from ads.feature_engineering.accessor.mixin.utils import (
     _continuous_columns,
     _categorical_columns,
     _sienna_light_to_dark_color_palette,
+)
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
 )
 
 
@@ -139,6 +142,7 @@ class EDAMixin:
         continuous_cols = _continuous_columns(self._obj.ads.feature_type)
         return cont_vs_cont(self._obj[continuous_cols])
 
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def pearson_plot(self) -> plt.Axes:
         """Generate a heatmap of the Pearson correlation for all continuous variable pairs.
 
@@ -155,7 +159,7 @@ class EDAMixin:
             .rename_axis("", axis="columns")
         )
         ax.set_title("Pearson's Correlation")
-        return sns.heatmap(df, cmap=_sienna_light_to_dark_color_palette(), ax=ax)
+        return seaborn.heatmap(df, cmap=_sienna_light_to_dark_color_palette(), ax=ax)
 
     def cramersv(self) -> pd.DataFrame:
         """Generate a Cramer's V correlation data frame for all categorical variable pairs.
@@ -176,6 +180,7 @@ class EDAMixin:
         categorical_cols = _categorical_columns(self._obj.ads.feature_type)
         return cat_vs_cat(self._obj[categorical_cols])
 
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def cramersv_plot(self) -> plt.Axes:
         """Generate a heatmap of the Cramer's V correlation for all categorical variable pairs.
 
@@ -194,7 +199,7 @@ class EDAMixin:
             .rename_axis("", axis="columns")
         )
         ax.set_title("Cramer's V")
-        return sns.heatmap(df, cmap=_sienna_light_to_dark_color_palette(), ax=ax)
+        return seaborn.heatmap(df, cmap=_sienna_light_to_dark_color_palette(), ax=ax)
 
     def correlation_ratio(self) -> pd.DataFrame:
         """Generate a Correlation Ratio data frame for all categorical-continuous variable pairs.
@@ -215,6 +220,7 @@ class EDAMixin:
         continuous_cols = _continuous_columns(self._obj.ads.feature_type)
         return cat_vs_cont(self._obj, categorical_cols, continuous_cols)
 
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def correlation_ratio_plot(self) -> plt.Axes:
         """Generate a heatmap of the Correlation Ratio correlation for all categorical-continuous variable
         pairs.
@@ -232,7 +238,7 @@ class EDAMixin:
             .rename_axis("", axis="columns")
         )
         ax.set_title("Correlation Ratio")
-        return sns.heatmap(df, cmap=_sienna_light_to_dark_color_palette(), ax=ax)
+        return seaborn.heatmap(df, cmap=_sienna_light_to_dark_color_palette(), ax=ax)
 
     def warning(self) -> pd.DataFrame:
         """Generates a data frame that lists feature specific warnings.

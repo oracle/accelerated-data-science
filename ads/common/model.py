@@ -19,15 +19,13 @@ from ads.common.model_export_util import (
     prepare_generic_model,
     serialize_model,
 )
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common.utils import is_notebook
 from ads.dataset.pipeline import TransformerPipeline
 from distutils import dir_util
-from IPython.core.display import HTML, display
-from skl2onnx.common.data_types import (
-    FloatTensorType,
-    Int64TensorType,
-    StringTensorType,
-)
 from sklearn.pipeline import Pipeline
 
 
@@ -565,6 +563,7 @@ class ADSModel(object):
         """
         self.transformer_pipeline.visualize()
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def show_in_notebook(self):
         """
         Describe the model by showing it's properties
@@ -618,18 +617,31 @@ class ADSModel(object):
                 "display.precision",
                 4,
             ):
+                from IPython.core.display import HTML, display
+
                 display(HTML(info_df.to_html(index=False, header=False)))
         return info
 
     @staticmethod
+    @runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
     def get_init_types(df, underlying_model=None):
+
+        from skl2onnx.common.data_types import FloatTensorType
+
         if underlying_model == "sklearn":
             n_cols = len(df.columns)
             return [("input", FloatTensorType([None, n_cols]))], {"type": np.float32}
         return [], {}
 
     @staticmethod
+    @runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
     def convert_dataframe_schema(df, drop=None):
+        from skl2onnx.common.data_types import (
+            FloatTensorType,
+            Int64TensorType,
+            StringTensorType,
+        )
+
         inputs = []
         for k, v in zip(df.columns, df.dtypes):
             if drop is not None and k in drop:

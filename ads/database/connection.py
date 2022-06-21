@@ -11,7 +11,6 @@ import os
 import pathlib
 import re
 import shutil
-import sqlalchemy
 
 from oci.exceptions import ServiceError
 from tempfile import NamedTemporaryFile
@@ -20,6 +19,10 @@ from zipfile import ZipFile
 from oci.secrets import SecretsClient
 from oci.config import from_file
 
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common import utils
 from ads.common import auth as authutil
 from ads.common import oci_client as oc
@@ -138,6 +141,7 @@ class Connector:
 
 
 class OracleConnector:
+    @runtime_dependency(module="sqlalchemy", install_from=OptionalDependency.DATA)
     def __init__(self, oracle_connection_config):
         self.config = oracle_connection_config
 

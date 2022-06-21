@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -11,7 +11,6 @@ Classes:
     GIS
         The GIS feature type.
 """
-import geopandas
 import matplotlib.pyplot as plt
 import pandas as pd
 import re
@@ -23,7 +22,10 @@ from ads.feature_engineering.utils import (
     SchemeTeal,
 )
 from ads.feature_engineering import schema
-
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 PATTERN = re.compile(r"^[(]?(\-?\d+\.\d+?),\s*(\-?\d+\.\d+?)[)]?$", re.VERBOSE)
 
@@ -144,6 +146,7 @@ class GIS(FeatureType):
         return _count_unique_missing(x)
 
     @staticmethod
+    @runtime_dependency(module="geopandas", install_from=OptionalDependency.GEO)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows the location of given address on map base on longitude and latitute.

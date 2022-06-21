@@ -15,14 +15,16 @@ from time import time
 
 import numpy as np
 import pandas as pd
-import scipy as sp
-from six import string_types
 from sklearn.utils import Bunch
 from sklearn.feature_extraction.text import CountVectorizer
 
 from ads.common import utils, logger
 from ads.common.card_identifier import card_identify
 from ads.common.utils import JsonConverter
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class TypedFeature(Bunch):
@@ -48,6 +50,7 @@ class ContinuousTypedFeature(TypedFeature):
         TypedFeature.__init__(self, name, meta_data)
 
     @staticmethod
+    @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def build(name, series):
         series = series.astype("float")
 
@@ -60,7 +63,7 @@ class ContinuousTypedFeature(TypedFeature):
             "variance": series.var(),
             "skewness": series.skew(),
             "outlier_percentage": 100
-            * np.count_nonzero(np.abs(sp.stats.zscore(non_null_series) >= 2.999))
+            * np.count_nonzero(np.abs(scipy.stats.zscore(non_null_series) >= 2.999))
             / series.size,
         }
         stats.update({k: v for k, v in desc.items()})
@@ -131,7 +134,7 @@ class CategoricalTypedFeature(DiscreteTypedFeature):
     def build(name, series):
         desc = series.astype("category").loc[~series.isnull()].describe(include="all")
         value_counts = series.value_counts(ascending=False)
-        if isinstance(desc["top"], string_types):
+        if isinstance(desc["top"], str):
             mode = desc["top"] if len(desc["top"]) < 30 else desc["top"][:24] + "..."
         else:
             mode = desc["top"]
@@ -294,6 +297,7 @@ class DocumentTypedFeature(TypedFeature):
         TypedFeature.__init__(self, name, meta_data)
 
     @staticmethod
+    @runtime_dependency(module="wordcloud", install_from=OptionalDependency.TEXT)
     def corpus_processor(series):
         pat_punct = re.compile(r"[^a-zA-Z]", re.UNICODE + re.MULTILINE)
         pat_tags = re.compile(r"<.*?>", re.UNICODE + re.MULTILINE)
@@ -309,16 +313,9 @@ class DocumentTypedFeature(TypedFeature):
             # remove special characters and digits
             text = pat_digits.sub(" ", text)
 
-            stop_words = []
-            try:
-                from wordcloud import STOPWORDS
+            from wordcloud import STOPWORDS
 
-                stop_words = STOPWORDS
-            except ModuleNotFoundError as e:
-                utils._log_missing_module("wordcloud", "oracle-ads[text]")
-                logger.info(
-                    "The stop words are ignored due to missing dependency wordcloud."
-                )
+            stop_words = STOPWORDS
 
             # Convert to list from string and return a generator expression
             yield " ".join(

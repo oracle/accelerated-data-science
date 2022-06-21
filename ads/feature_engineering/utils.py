@@ -11,13 +11,15 @@ Functions:
     is_boolean(value: Any) -> bool
         Checks if value type is boolean.
 """
-import geopandas
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import re
-import seaborn as sns
 from ads.common.card_identifier import card_identify
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.feature_engineering.dataset.zip_code_data import zip_code_dict
 from functools import lru_cache
 from typing import Any
@@ -166,6 +168,7 @@ def _str_lat_long_to_point(s):
     return np.NaN
 
 
+@runtime_dependency(module="geopandas", install_from=OptionalDependency.GEO)
 def _plot_gis_scatter(df: pd.DataFrame, lon: str, lat: str):
     """
     Parameters
@@ -221,12 +224,13 @@ def _to_lat_long(x: pd.Series, zipcode: pd.DataFrame):
     return df
 
 
+@runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
 def _set_seaborn_theme():
     """
     Sets seaborn figure & axes facecolor
     """
     plt.figure(facecolor=SchemeNeutral.BACKGROUND_LIGHT)
-    sns.set(
+    seaborn.set(
         rc={
             "axes.facecolor": SchemeNeutral.BACKGROUND_LIGHT,
             "figure.facecolor": SchemeNeutral.BACKGROUND_LIGHT,

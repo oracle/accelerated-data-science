@@ -15,14 +15,13 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import seaborn as sns
-from IPython.core.display import display
-from folium import folium
-from folium.plugins import HeatMap
 from matplotlib import colors as mcolors
-from scipy.stats import gaussian_kde
 from ads.dataset.helper import _log_yscale_not_set
 
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common.utils import _log_plot_high_cardinality_warning, MAX_DISPLAY_VALUES
 from ads.type_discovery.latlon_detector import LatLonDetector
 from ads.type_discovery.typed_feature import (
@@ -122,6 +121,7 @@ class Plotting:
         return x_type.__name__ + "," + y_type.__name__
 
     @staticmethod
+    @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def _gaussian_heatmap(x, y, data, s=10, edgecolor="white", cmap=plt.cm.jet):
         """
         Generate a scatter plot and assign a color to each data point based on the local density (gaussian kernel) of
@@ -155,7 +155,7 @@ class Plotting:
             _x = np.array(data[x])
             _y = np.array(data[y])
             xy = np.vstack([_x, _y])
-            z = gaussian_kde(xy)(xy)
+            z = scipy.stats.gaussian_kde(xy)(xy)
             sc = plt.scatter(_x, _y, c=z, s=s, edgecolor=edgecolor, cmap=cmap)
             plt.xlabel(x)
             plt.ylabel(y)
@@ -164,6 +164,7 @@ class Plotting:
             return plt.scatter(_x, _y)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _categorical_vs_continuous_violin_plot(x, y, data):
         # when x is categorical, we set the order based on counts of each category
         vc = data[x].value_counts()
@@ -172,9 +173,10 @@ class Plotting:
             idxes = vc[:10].index
         else:
             idxes = vc.index
-        sns.violinplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
+        seaborn.violinplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _ordinal_vs_continuous_violin_plot(x, y, data):
         # when x is ordinal, we want to get a natural order to x values
         vals = np.array(data[x].values)
@@ -188,9 +190,10 @@ class Plotting:
             idxes = list(freq.keys())[:10]
         else:
             idxes = freq.keys()
-        sns.violinplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
+        seaborn.violinplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _categorical_vs_continuous_horizontal_violin_plot(x, y, data):
         vc = data[x].value_counts()
         if len(vc.keys()) > 10:
@@ -198,11 +201,12 @@ class Plotting:
             idxes = vc[:10].index
         else:
             idxes = vc.index
-        sns.violinplot(
+        seaborn.violinplot(
             x=y, y=x, data=data[data[x].isin(idxes)], order=idxes, orient="h"
         )
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _ordinal_vs_continuous_horizontal_violin_plot(x, y, data):
         # when x is ordinal, we want to get a natural order to x values
         vals = np.array(data[x].values)
@@ -216,11 +220,12 @@ class Plotting:
             idxes = list(freq.keys())[:10]
         else:
             idxes = freq.keys()
-        sns.violinplot(
+        seaborn.violinplot(
             x=y, y=x, data=data[data[x].isin(idxes)], order=idxes, orient="h"
         )
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _categorical_vs_continuous_box_plot(x, y, data):
         vc = data[x].value_counts()
         if len(vc.keys()) > 10:
@@ -228,9 +233,10 @@ class Plotting:
             idxes = vc[:10].index
         else:
             idxes = vc.index
-        sns.boxplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
+        seaborn.boxplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _ordinal_vs_continuous_box_plot(x, y, data):
         # when x is ordinal, we want to get a natural order to x values
         vals = np.array(data[x].values)
@@ -244,9 +250,10 @@ class Plotting:
             idxes = list(freq.keys())[:10]
         else:
             idxes = freq.keys()
-        sns.boxplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
+        seaborn.boxplot(x=x, y=y, data=data[data[x].isin(idxes)], order=idxes)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _ordinal_vs_continuous_horizontal_box_plot(x, y, data):
         # when x is ordinal, we want to get a natural order to x values
         vals = np.array(data[x].values)
@@ -260,9 +267,12 @@ class Plotting:
             idxes = list(freq.keys())[:10]
         else:
             idxes = freq.keys()
-        sns.boxplot(x=y, y=x, data=data[data[x].isin(idxes)], order=idxes, orient="h")
+        seaborn.boxplot(
+            x=y, y=x, data=data[data[x].isin(idxes)], order=idxes, orient="h"
+        )
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _count_plot(x, hue, data, yscale=None):
         if not yscale:
             _log_yscale_not_set()
@@ -286,11 +296,12 @@ class Plotting:
             # bin the values and sort from small to large
             data[x] = pd.cut(data[x], 10, precision=0)
             data[x] = data[x].apply(lambda k: pd.Interval(int(k.left), int(k.right)))
-        g = sns.countplot(x=x, hue=hue, data=data, hue_order=cat_index)
+        g = seaborn.countplot(x=x, hue=hue, data=data, hue_order=cat_index)
         if yscale:
             g.set_yscale(yscale)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _ordinal_count_plot(x, data, yscale=None):
         if not yscale:
             _log_yscale_not_set()
@@ -303,31 +314,35 @@ class Plotting:
             )
         else:
             intervals = data[x]
-        g = sns.countplot(x=intervals, color="#1f77b4")
+        g = seaborn.countplot(x=intervals, color="#1f77b4")
         if yscale:
             g.set_yscale(yscale)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _ordinal_vs_constant_count_plot(x, hue, data, yscale=None):
         if not yscale:
             _log_yscale_not_set()
         data = data.copy()
         intervals = pd.cut(data[x], 20, precision=0)
         intervals = intervals.apply(lambda k: pd.Interval(int(k.left), int(k.right)))
-        g = sns.countplot(x=intervals, hue=hue, data=data)
+        g = seaborn.countplot(x=intervals, hue=hue, data=data)
         if yscale:
             g.set_yscale(yscale)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _single_column_count_plot(x, data, yscale=None):
         if not yscale:
             _log_yscale_not_set()
         order = data[x].value_counts().iloc[:24].index
-        g = sns.countplot(x=x, data=data, order=order)
+        g = seaborn.countplot(x=x, data=data, order=order)
         if yscale:
             g.set_yscale(yscale)
 
     @staticmethod
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
+    @runtime_dependency(module="folium", install_from=OptionalDependency.VIZ)
     def _folium_map(x, data):
         df = LatLonDetector.extract_x_y(data[x])
         lat_min, lat_max, long_min, long_max = (
@@ -338,15 +353,20 @@ class Plotting:
         )
         m = folium.Map(tiles="Stamen Terrain", zoom_control=False)
 
-        HeatMap(df[["Y", "X"]]).add_to(m)
+        folium.plugins.HeatMap(df[["Y", "X"]]).add_to(m)
         m.fit_bounds([[lat_min, long_min], [lat_max, long_max]])
+
+        from IPython.core.display import display
+
         display(m)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _single_pdf(x, y, data):
-        sns.kdeplot(data[x], shade=True, shade_lowest=False)
+        seaborn.kdeplot(data[x], shade=True, shade_lowest=False)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _multiple_pdf(x, y, data):
         colors = dict(mcolors.BASE_COLORS, **mcolors.CSS4_COLORS)
         hues = [
@@ -358,10 +378,11 @@ class Plotting:
         for i, cat in enumerate(list(data[y].unique())):
             s = data.loc[data[y] == cat][x]
             color = random.choice(hues)
-            sns.kdeplot(s, color=color, shade=True, shade_lowest=False, label=cat)
+            seaborn.kdeplot(s, color=color, shade=True, shade_lowest=False, label=cat)
         plt.xlabel(x)
         plt.ylabel(y)
 
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _matplot(self, plot_method, figsize=(4, 3), **kwargs):
 
         plt.style.use("seaborn-white")
@@ -422,7 +443,7 @@ class Plotting:
                 )
             )
         # override y-axis label as "count" when plot type is _count_plot or countplot
-        if plot_method is Plotting._count_plot or plot_method is sns.countplot:
+        if plot_method is Plotting._count_plot or plot_method is seaborn.countplot:
             plt.ylabel("count")
 
         plt.xticks(rotation=90)
@@ -430,6 +451,7 @@ class Plotting:
     def _generic_plot(self, plot_method, **kwargs):
         plot_method(**kwargs, data=self.df)
 
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def _get_plot_method(self):
 
         #
@@ -487,12 +509,12 @@ class Plotting:
         ] = [(self._matplot, Plotting._multiple_pdf, {"x": self.x, "y": self.y})]
         combos[
             Plotting._build_plot_key(ConstantTypedFeature, ContinuousTypedFeature)
-        ] = [(self._matplot, sns.barplot, {"x": self.x, "y": self.y})]
+        ] = [(self._matplot, seaborn.barplot, {"x": self.x, "y": self.y})]
         combos[
             Plotting._build_plot_key(ContinuousTypedFeature, ConstantTypedFeature)
         ] = [(self._matplot, Plotting._single_pdf, {"x": self.x, "y": self.y})]
         combos[Plotting._build_plot_key(ConstantTypedFeature, DiscreteTypedFeature)] = [
-            (self._matplot, sns.barplot, {"x": self.x, "y": self.y})
+            (self._matplot, seaborn.barplot, {"x": self.x, "y": self.y})
         ]
         combos[Plotting._build_plot_key(DiscreteTypedFeature, ConstantTypedFeature)] = [
             (
@@ -544,7 +566,7 @@ class Plotting:
         combos[Plotting._build_plot_key(OrdinalTypedFeature, OrdinalTypedFeature)] = [
             (
                 self._matplot,
-                sns.scatterplot,
+                seaborn.scatterplot,
                 {
                     "x": self.x,
                     "y": self.y,
@@ -555,7 +577,7 @@ class Plotting:
             )
         ]
         combos[Plotting._build_plot_key(OrdinalTypedFeature, DiscreteTypedFeature)] = [
-            (self._matplot, sns.countplot, {"x": self.x, "hue": self.y})
+            (self._matplot, seaborn.countplot, {"x": self.x, "hue": self.y})
         ]
         combos[
             Plotting._build_plot_key(OrdinalTypedFeature, CategoricalTypedFeature)
@@ -578,7 +600,7 @@ class Plotting:
         combos[Plotting._build_plot_key(DiscreteTypedFeature, OrdinalTypedFeature)] = [
             (
                 self._matplot,
-                sns.countplot,
+                seaborn.countplot,
                 {
                     "x": self.x,
                     "hue": self.y,
@@ -594,7 +616,7 @@ class Plotting:
         ] = [
             (
                 self._matplot,
-                sns.countplot,
+                seaborn.countplot,
                 {
                     "x": self.x,
                     "hue": self.y,
@@ -634,7 +656,7 @@ class Plotting:
             )
         ]
         combos[Plotting._build_plot_key(ConstantTypedFeature, None)] = [
-            (self._matplot, sns.countplot, {"x": self.x})
+            (self._matplot, seaborn.countplot, {"x": self.x})
         ]
         combos[Plotting._build_plot_key(DateTimeTypedFeature, None)] = [
             (self._matplot, plt.hist, {"x": self.x, "bins": 10, "color": "#1f77b4"})

@@ -12,7 +12,10 @@ import numpy as np
 import pandas as pd
 from ads.common import logger
 from ads.model.extractor.lightgbm_extractor import LightgbmExtractor
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common.utils import _serialize_input_helper
 from ads.model.generic_model import GenericModel
 from ads.model.model_properties import ModelProperties
@@ -324,12 +327,12 @@ class LightGBMModel(GenericModel):
     @runtime_dependency(
         module="skl2onnx.common.data_types",
         object="FloatTensorType",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     @runtime_dependency(
         module="onnxmltools.convert",
         object="convert_lightgbm",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     def to_onnx(
         self,
@@ -387,7 +390,7 @@ class LightGBMModel(GenericModel):
     @runtime_dependency(
         module="skl2onnx.common.data_types",
         object="FloatTensorType",
-        install_from="oracle-ads[data_science]",
+        install_from=OptionalDependency.ONNX,
     )
     def generate_initial_types(self, X_sample: Any) -> List:
         """Auto generate intial types.

@@ -52,11 +52,16 @@ class OptionalDependency:
     BOOSTED = "oracle-ads[boosted]"
     NOTEBOOK = "oracle-ads[notebook]"
     TEXT = "oracle-ads[text]"
-    MACHINE_LEARNING = "oracle-ads[machine_learning]"
+    VIZ = "oracle-ads[viz]"
     DATA = "oracle-ads[data]"
     OPCTL = "oracle-ads[opctl]"
     MYSQL = "oracle-ads[mysql]"
     BDS = "oracle-ads[bds]"
+    PYTORCH = "oracle-ads[torch]"
+    TENSORFLOW = "oracle-ads[tensorflow]"
+    GEO = "oracle-ads[geo]"
+    ONNX = "oracle-ads[onnx]"
+    OPTUNA = "oracle-ads[optuna]"
 
 
 def runtime_dependency(

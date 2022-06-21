@@ -5,7 +5,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from pandas import DataFrame
-from IPython.core.display import display
 import oci
 from oci.data_science.models import (
     NotebookSessionSummary,
@@ -19,6 +18,10 @@ from types import MethodType
 
 from ads.catalog.summary import SummaryList
 from ads.common import utils
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common import auth as authutil
 from ads.common import oci_client as oc
 from ads.config import (
@@ -192,10 +195,13 @@ class NotebookCatalog:
             )
             return df
 
+        @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
         def show_in_notebook(notebook_self):
             """
             Describe the project by showing it's properties
             """
+            from IPython.core.display import display
+
             display(notebook_self)
 
         def _repr_html_(notebook_self):

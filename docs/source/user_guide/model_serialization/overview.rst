@@ -1,5 +1,5 @@
 Overview
---------
+========
 
 Training a great model can take a lot of work. Getting that model into production should be quick and easy. ADS has a set of classes that take your model and push it to production with a few quick steps.
 
@@ -11,6 +11,6 @@ If you make changes to the ``score.py`` file, call the ``.verify()`` method to c
 
 The ``.save()`` method is then used to store the model in the model catalog. A call to the ``.deploy()`` method creates a load balancer and the instances needed to have an HTTPS access point to perform inference on the model. Using the ``.predict()`` method, you can send data to the model deployment endpoint and it will return the predictions.
 
-.. figure:: figure/flow.png
+.. figure:: figures/flow.png
    :align: center
 

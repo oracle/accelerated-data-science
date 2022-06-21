@@ -1,13 +1,12 @@
 .. _data-transformations-8:
 
-*******************************
 Data Transformations
-*******************************
+####################
 
 When datasets are loaded with DatasetFactory, they can be transformed and manipulated easily with the built-in functions. Underlying, an ``ADSDataset`` object is a Pandas dataframe. Any operation that can be performed to a `Pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`_ can also be applied to an ADS Dataset.
 
 Loading the Dataset
-====================
+********************
 
 You can load a ``pandas`` dataframe into an ``ADSDataset`` by calling.
 
@@ -18,12 +17,10 @@ You can load a ``pandas`` dataframe into an ``ADSDataset`` by calling.
    ds = DatasetFactory.from_dataframe(df)
 
 
-Applying Automated Transformations to the Dataset
-=================================================
+Automated Transformations
+*************************
 
-ADS has built in automatic transform tools for datasets. When the ``get_recommendations()`` tool is applied to an ``ADSDataset`` object, it shows the user detected issues with the data and recommends changes to apply to the dataset.  You can accept the changes
-is as easy as clicking a button in the drop down menu.  After all the changes are applied, the transformed dataset can be retrieved by
-calling ``get_transformed_dataset()``.
+ADS has built in automatic transform tools for datasets. When the ``get_recommendations()`` tool is applied to an ``ADSDataset`` object, it shows the user detected issues with the data and recommends changes to apply to the dataset.  You can accept the changes is as easy as clicking a button in the drop down menu.  After all the changes are applied, the transformed dataset can be retrieved by calling ``get_transformed_dataset()``.
 
 .. code-block:: python3
 
@@ -31,10 +28,10 @@ calling ``get_transformed_dataset()``.
 
 Alternatively, you can use ``auto_transform()`` to apply all the recommended transformations at once. ``auto_transform()`` returns a transformed dataset with several optimizations applied automatically. The optimizations include:
 
-    * Dropping constant and primary key columns, which has no predictive quality.
-    * Imputation to fill in missing values in noisy data.
-    * Dropping strongly co-correlated columns that tend to produce less generalizable models.
-    * Balancing a dataset using up or down sampling.
+* Dropping constant and primary key columns, which has no predictive quality.
+* Imputation to fill in missing values in noisy data.
+* Dropping strongly co-correlated columns that tend to produce less generalizable models.
+* Balancing a dataset using up or down sampling.
 
 One optional argument to ``auto_transform()`` is ``fix_imbalance``, which is set to ``True`` by default. When ``True``, ``auto_transform()`` corrects any imbalance between the classes. ADS downsamples the dominant class first unless there are too few data points. In that case, ADS upsamples the minority class.
 
@@ -45,6 +42,7 @@ One optional argument to ``auto_transform()`` is ``fix_imbalance``, which is set
 You can visualize the transformation that has been performed on a dataset by calling ``visualize_transforms()``.
 
 .. note::
+
   ``visualize_transforms()`` is only applied to the automated transformations and does not capture any custom transformations that you may have applied to the dataset.
 
 .. code-block:: python3
@@ -54,14 +52,14 @@ You can visualize the transformation that has been performed on a dataset by cal
 .. image:: images/visual_transform.png
 
 Row Operations
-===============
+***************
 
 The operations that can be applied to a Pandas dataframe can be applied to an ``ADSDataset`` object.
 
 Examples of some of the most common row operations you can apply on an ``ADSDataset`` object follow.
 
-Deleting rows
---------------
+Delete Rows
+===========
 
 Rows within a dataset can be filtered out by row numbers.  The index of the new dataset can be reset accordingly.
 
@@ -73,11 +71,10 @@ Rows within a dataset can be filtered out by row numbers.  The index of the new 
 
 Do not try to insert index into dataset columns.
 
-Reseting index
---------------
+Reset Index
+============
 
-Reset the index to the default index.
-When you reset index, the old index is added as a column ``index`` and a new sequential index is used. You can use the ``drop`` parameter to avoid the old index being added as a column:
+Reset the index to the default index.  When you reset index, the old index is added as a column ``index`` and a new sequential index is used. You can use the ``drop`` parameter to avoid the old index being added as a column:
 
 .. code-block:: python3
 
@@ -87,8 +84,8 @@ When you reset index, the old index is added as a column ``index`` and a new seq
 
 The index restarts at zero for each partition. This is due to the inability to statically know the full length of the index.
 
-Appending rows
----------------
+Append Rows
+============
 
 New rows can be added to an existing dataset:
 
@@ -109,8 +106,8 @@ Alternatively, you can use the ``append()`` method of a Pandas dataframe to achi
 
 The ``ds2`` is created as a Pandas DataFrame object.
 
-Row Filtering based on Column Values
-------------------------------------
+Row Filtering
+=============
 
 Columns can be filtered out by the values:
 
@@ -121,7 +118,7 @@ Columns can be filtered out by the values:
 
 
 Removing Duplicated Rows
-------------------------
+========================
 
 Duplicate rows can removed using the  ``drop_duplicates`` function:
 
@@ -130,14 +127,14 @@ Duplicate rows can removed using the  ``drop_duplicates`` function:
   ds_without_dup = ds.drop_duplicates()
 
 Column Operations
-==================
+******************
 
 The column operations that can be applied to a Pandas dataframe can be applied to an ADS dataset as in the following examples.
 
-Deleting a Column
-------------------
-To delete specific columns from the dataset, the ``drop_columns`` function can be used along with names of the columns to be deleted
-from the dataset. The ``ravel`` Pandas command returns the flattened underlying data as an ndarray. The ``name_of_df.columns[:].ravel()`` command returns the name of all the columns in a dataframe as an array.
+Delete a Column
+===============
+
+To delete specific columns from the dataset, the ``drop_columns`` function can be used along with names of the columns to be deleted from the dataset. The ``ravel`` Pandas command returns the flattened underlying data as an ndarray. The ``name_of_df.columns[:].ravel()`` command returns the name of all the columns in a dataframe as an array.
 
 .. code-block:: python3
 
@@ -151,8 +148,8 @@ from the dataset. The ``ravel`` Pandas command returns the flattened underlying 
        'color_intensity', 'hue', 'od280/od315_of_diluted_wines',
        'proline', 'target'], dtype=object)
 
-Renaming a Column
-------------------
+Rename a Column
+===============
 
 Columns can be renamed with the ``rename_columns()`` method:
 
@@ -169,8 +166,8 @@ Columns can be renamed with the ``rename_columns()`` method:
        'proanthocyanins', 'color_intensity', 'hue',
        'od280/od315_of_diluted_wines', 'proline', 'target'], dtype=object)
 
-Obtaining the Counts of Unique Values in a Column
--------------------------------------------------
+Counts of Unique Values
+=======================
 
 The count per unique value can be obtained with the ``value_counts()`` method:
 
@@ -185,8 +182,8 @@ The count per unique value can be obtained with the ``value_counts()`` method:
    class_2    48
    Name: target, dtype: int64
 
-Normalizing a Column
---------------------
+Normalize a Column
+==================
 
 You can apply a variety of normalization techniques to numerical columns (both continuous and discrete). You can leverage the built in ``max()`` and ``min()`` methods to perform a minmax normalization:
 
@@ -197,9 +194,8 @@ You can apply a variety of normalization techniques to numerical columns (both c
     alcohol_range = max_alcohol  - min_alcohol
     wine_ds.df['norm_alcohol'] = (wine_ds['alcohol'] / alcohol_range)
 
-
-Creating a Column by Combining Other Columns
----------------------------------------------
+Combine Columns
+===============
 
 This example creates a new column by performing operations to combine two or more columns together:
 
@@ -231,8 +227,8 @@ To add new column, use a new name for it. You can add anew column and change it 
 The resulting column is renamed with dict-like mapper.
 
 
-Changing a Column by Values Derived from a Function
----------------------------------------------------
+Apply a Function to a Column
+============================
 
 You can apply functions to update column values in existing column. This example updates the column in place using lambda expression:
 
@@ -243,12 +239,10 @@ You can apply functions to update column values in existing column. This example
 
 .. _data-transformations-change-dtype:
 
-Changing Data Types of Columns
-------------------------------
+Change Data Type
+================
 
-You can change the data type columns with the ``astype()`` method. ADS uses the Pandas method, ``astype()``, on dataframe objects. For specifics, see `astype for a Pandas Dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.astype.html>`_,
-`using numpy.dtype <https://docs.scipy.org/doc/numpy/reference/generated/numpy.dtype.html#numpy.dtype>`_, or
-`Pandas dtypes <https://pandas.pydata.org/pandas-docs/stable/getting_started/basics.html#dtypes>`_.
+You can change the data type columns with the ``astype()`` method. ADS uses the Pandas method, ``astype()``, on dataframe objects. For specifics, see `astype for a Pandas Dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.astype.html>`_, `using numpy.dtype <https://docs.scipy.org/doc/numpy/reference/generated/numpy.dtype.html#numpy.dtype>`_, or `Pandas dtypes <https://pandas.pydata.org/pandas-docs/stable/getting_started/basics.html#dtypes>`_.
 
 When you change the type of a column, ADS updates its semantic type to categorical, continuous, datetime, or ordinal. For example, if you update a column type to integer, its semantic type updates to ordinal.  For data type details, see ref:`loading-data-specify-dtype`.
 
@@ -302,12 +296,12 @@ The low-level type of the converted column is category:
     Categories (5, int64): [0, 1, 2, 3, 4]
 
 Dataset Manipulation
-=====================
+*********************
 
 ADS has built in functions that support categorical encoding, null values and imputation.
 
 Categorical Encoding
---------------------
+====================
 
 ADS has a built in categorical encoder that can be accessed by calling ``from ads.dataset.label_encoder import DataFrameLabelEncoder``. This example encodes the three classes of wine that make up the dataset:
 
@@ -324,7 +318,7 @@ ADS has a built in categorical encoder that can be accessed by calling ``from ad
     2    48
 
 One-Hot Encoding
-----------------
+================
 
 One-hot encoding transforms one categorical column with *n* categories into *n* or *n-1* columns with indicator variables. You can prepare one of the columns to be categorical with categories low, medium, and high:
 
@@ -379,8 +373,8 @@ To drop the initial categorical column that you transformed into one-hot, use on
     # or
     ds_encoded = ds_encoded.drop(columns='alcohol') # after ``fit_transform()`` method
 
-Extracting Null Values from Datasets
-------------------------------------
+Extract Null Values
+===================
 
 To detect all nulls in a dataset, use the ``isnull`` function to return a boolean dataset matching the dimension of our input:
 
@@ -408,7 +402,7 @@ To detect all nulls in a dataset, use the ``isnull`` function to return a boolea
 
 
 Imputation
-------------
+==========
 
 The ``fillna`` function ia used to replace null values with specific values. Generate a null value by replacing the entry below a certain value with null, and then imputing it with a value:
 
@@ -440,20 +434,20 @@ The ``fillna`` function ia used to replace null values with specific values. Gen
     4    2.59
     Name: malic_acid, dtype: float64
 
-Combining Datasets
-------------------
+Combine Datasets
+================
 
 ADS datasets can be merged and combined together to form a new dataset.
 
-Joining Datasets
-^^^^^^^^^^^^^^^^
+Join Datasets
+-------------
 
 You can merge two datasets together with a database-styled join on columns or indexes by specifying the type of join ``left``, ``right``, ``outer``, or ``inner``. These type are defined by:
 
-    * ``left``:  Use only keys from the left dataset, similar to SQL left outer join.
-    * ``right``: Use only keys from the right dataset, similar to SQL right outer join.
-    * ``inner``: Intersection of keys from both datasets, similar to SQL inner join.
-    * ``outer``: Union of keys from both datasets, similar to SQL outer join.
+* ``left``:  Use only keys from the left dataset, similar to SQL left outer join.
+* ``right``: Use only keys from the right dataset, similar to SQL right outer join.
+* ``inner``: Intersection of keys from both datasets, similar to SQL inner join.
+* ``outer``: Union of keys from both datasets, similar to SQL outer join.
 
 This is an example of performing an outer join on two datasets.  The datasets are subsets of the wine dataset, and each dataset contains only one class of wine.
 
@@ -471,8 +465,8 @@ This is an example of performing an outer join on two datasets.  The datasets ar
     class_0     0
     Name: target, dtype: int64
 
-Concatenating Datasets
-^^^^^^^^^^^^^^^^^^^^^^^
+Concatenate Datasets
+--------------------
 
 Two datasets can be concatenated along a particular axis (vertical or horizontal) with the option of performing set logic (union or intersection) of the indexes on the other axes.  You can stack two datasets vertically with:
 
@@ -488,8 +482,8 @@ Two datasets can be concatenated along a particular axis (vertical or horizontal
     class_0     0
     Name: target, dtype: int64
 
-Split Dataset into Train, Validation, Test Data
-===============================================
+Train/Test Datasets
+*******************
 
 After all data transformations are complete, you can split the data into a train and test or train, test, and validation set. To split data into a train and test set with a train size of 80% and test size of 20%:
 
@@ -525,3 +519,4 @@ You can split the dataset right after the ``DatasetFactory.open()`` statement:
 
     ds = DatasetFactory.open("path/data.csv").set_target('target')
     train, test = ds.train_test_split(test_size=0.25)
+

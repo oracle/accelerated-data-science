@@ -7,11 +7,10 @@
 
 # Standard lib
 import time
-
 # Third party
 from abc import abstractmethod
 from tqdm import tqdm_notebook
-import six
+from oci._vendor import six
 
 
 class ProgressBar(object):
