@@ -8,8 +8,10 @@ from typing import Dict, List
 from ads.common import auth as authutil
 from ads.data_labeling.reader.dataset_reader import LabeledDatasetReader
 from ads.data_labeling.visualizer import image_visualizer, text_visualizer
-from IPython.core.display import HTML, Markdown, display
-
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 ROWS_TO_RENDER_LIMIT = 50
 
@@ -179,6 +181,7 @@ class DataLabelingAccessMixin:
         )
         image_visualizer.render(items, options=options, path=path)
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def render_ner(
         self,
         options: Dict = None,
@@ -220,4 +223,7 @@ class DataLabelingAccessMixin:
             annotations_column=annotations_column,
         )
         result_html = text_visualizer.render(items=items, options=options)
+
+        from IPython.core.display import HTML, Markdown, display
+
         display(Markdown(result_html))

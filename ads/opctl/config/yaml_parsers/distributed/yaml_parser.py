@@ -44,6 +44,7 @@ class DistributedSpecParser(YamlSpecParser):
                 "main",
                 "worker",
                 "ephemeral",
+                "certificate",
             ],
         )
         cluster_spec = cluster_def["spec"]
@@ -56,6 +57,7 @@ class DistributedSpecParser(YamlSpecParser):
         main = self.parse_main(cluster_spec.get("main"))
         worker = self.parse_worker(cluster_spec.get("worker"))
         translated_config = self.translate_config(cluster_default_config)
+        certificate = self.parse_certificate(cluster_spec.get("certificate"))
         logger.debug(
             f"Cluster: [name: {name}, type: {cluster_type}, image: {image}, work_dir: {work_dir}, config: {translated_config}, main: {main}, worker: {worker}]"
         )
@@ -68,6 +70,7 @@ class DistributedSpecParser(YamlSpecParser):
             main=main,
             worker=worker,
             ephemeral=ephemeral,
+            certificate=certificate,
         )
 
     def parse_main(self, main):
@@ -118,3 +121,47 @@ class DistributedSpecParser(YamlSpecParser):
             kwargs=python_spec.get("kwargs"),
             envVars=envVars,
         )
+
+    def parse_certificate(self, certificate):
+        """
+        Expected yaml schema:
+            cluster:
+                spec:
+                    certificate:
+                        caCert:
+                            id: oci.xxxx.<ca_cert_ocid>
+                            downloadLocation:  /code/ca.pem
+                            cert:
+                                id: oci.xxxx.<cert_ocid>
+                                certDownloadLocation: /code/cert.pem
+                                keyDownloadLocation: /code/key.pem
+        """
+        if certificate and certificate.get("caCert") and certificate.get("cert"):
+            Certificate = namedtuple(
+                "Certificate",
+                field_names=[
+                    "ca_ocid",
+                    "ca_download_location",
+                    "cert_ocid",
+                    "cert_download_location",
+                    "key_download_location",
+                ],
+            )
+            ca_ocid = certificate["caCert"]["id"]
+            ca_download_location = certificate["caCert"].get(
+                "downloadLocation", "ca-cert.pem"
+            )
+            cert_ocid = certificate["cert"]["id"]
+            cert_download_location = certificate["cert"].get(
+                "certDownloadLocation", "cert.pem"
+            )
+            key_download_location = certificate["cert"].get(
+                "keyDownloadLocation", "key.pem"
+            )
+            return Certificate(
+                ca_ocid=ca_ocid,
+                ca_download_location=ca_download_location,
+                cert_ocid=cert_ocid,
+                cert_download_location=cert_download_location,
+                key_download_location=key_download_location,
+            )

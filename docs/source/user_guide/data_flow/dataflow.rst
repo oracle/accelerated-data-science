@@ -1,140 +1,21 @@
 .. _data-flow-8:
 
-=========
+#########
 Data Flow
-=========
+#########
 
 Data Flow is an OCI service for creating and running Spark applications.
 ADS can be used to to create and run PySpark Data Flow applications directly from a notebook session.
-There are conda environments for Spark v2.4 and v3.0 that align with the versions available in the Data Flow service.
-These conda environments are identical except for the version of Spark that they support.
 
-These are the feature highlights of Spark 3.0:
+Prerequisite
+************
 
--adaptive query execution
-- dynamic partition pruning
-- ANSI SQL compliance
-- significant improvements in Pandas APIs
-- new UI for structured streaming
-- up to 40x speedups for calling R user defined functions
-- accelerator-aware scheduler
-- SQL reference documentation
+To access Data Flow, there are a number of steps that are needed to be completed.
 
-Spark 3 is roughly two times faster than Spark 2.4.
-
-- `Getting Started with Data Flow`_
-- `Configuring core-site.xml`_
-- `Create a Data Flow Instance`_
-- `Generate a Script Using a Template`_
-- `Create a Data Flow Application`_
-- `Load an Existing Data Flow Application`_
-- `Listing Data Flow Applications`_
-- `Create a Data Flow Run`_
-- `Fetching Logs`_
-- `Edit and Synchronize PySpark Script`_
-- `Arguments and Parameters`_
-- `Add Third-Party Libraries`_
-- `Fetching PySpark Output`_
-- `Frequently Asked Questions`_
-
-
-Getting Started with Data Flow
-------------------------------
-
-.. note::
-    We recommend that you use one of the Data Science service ``PySpark`` conda environments for Data Flow code development.
-
-
-- Before running applications in Data Flow, there are two storage buckets that are required in Object Store. Data Flow requires a bucket to store the logs, and a data warehouse bucket for Spark SQL application, see `set up storage <https://docs.cloud.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm#set_up_storage>`_.
-- Data Flow requires policies to be set in IAM to access resources in order to manage and run applications, see `policy set up <https://docs.cloud.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm#policy_set_up>`_.
-- `Data Flow documentation <https://docs.cloud.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow.htm>`_
-- To access Object Storage from the notebook session, the `core-site.xml` file must be configured.
-
-Configuring core-site.xml
--------------------------
-When the conda environment is installed, a templated version of `core-site.xml` is also installed. You can update the `core-site.xml` file using an automated configuration or manually.
-
-Authentication with Resource Principals
-=======================================
-
-Authentication to Object Storage can be done with a resource principal.
-
-For automated configuration, run the following command in a terminal ``odsc core-site config -a resource_principal``.  This command will populate the file ``~/spark_conf_dir/core-site.xml`` with the values needed to connect to Object Storage.
-
-The following command line options are available:
-
-- `-a`, `--authentication` Authentication mode. Supports `resource_principal` and `api_key` (default).
-- `-r`, `--region` Name of the region.
-- `-o`, `--overwrite` Overwrite `core-site.xml`.
-- `-O`, `--output` Output path for `core-site.xml`.
-- `-q`, `--quiet` Suppress non-error output.
-- `-h`, `--help` Show help message and exit.
-
-To manually configure the ``core-site.xml`` file, you edit the file, and then specify these values:
-
-``fs.oci.client.hostname``: The address of Object Storage. For example, `https://objectstorage.us-ashburn-1.oraclecloud.com` You have to replace `us-ashburn-1` with the region you are in.
-
-``fs.oci.client.custom.authenticator``: Set the value to `com.oracle.bmc.hdfs.auth.ResourcePrincipalsCustomAuthenticator`.
-
-When using resource principals, these properties don't need to be configured:
-
-- ``fs.oci.client.auth.tenantId``
-- ``fs.oci.client.auth.userId``
-- ``fs.oci.client.auth.fingerprint``
-- ``fs.oci.client.auth.pemfilepath``
-
-The following example `core-site.xml` file illustrates using resource principals for authentication to access Object Storage:
-
-::
-
-  <?xml version="1.0"?>
-  <configuration>
-    <property>
-      <name>fs.oci.client.hostname</name>
-      <value>https://objectstorage.us-ashburn-1.oraclecloud.com</value>
-    </property>
-    <property>
-      <name>fs.oci.client.custom.authenticator</name>
-      <value>com.oracle.bmc.hdfs.auth.ResourcePrincipalsCustomAuthenticator</value>
-    </property>
-  </configuration>
-
-For details, see `HDFS connector for Object Storage #using resource principals for authentication <https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/hdfsconnector.htm#hdfs_using_resource_principals_for_authentication>`_.
-
-
-
-Authentication with API Keys
-============================
-
-When using authentication with **API keys**, the `core-site.xml` file is be updated in two ways, automated or manual configuration.
-
-For automated configuration, you use the `odsc` command line tool. With an OCI configuration file, you can run ``odsc core-site config -o``.
-By default, this command uses the OCI configuration file stored in ``~/.oci/config``, automatically populates the ``core-site.xml`` file,
-and then saves it to ``~/spark_conf_dir/core-site.xml``.
-
-The following command line options are available:
-
-- `-a`, `--authentication` Authentication mode. Supports `resource_principal` and `api_key` (default).
-- `-c`, `--configuration` Path to the OCI configuration file.
-- `-p`, `--profile` Name of the profile.
-- `-r`, `--region` Name of the region.
-- `-o`, `--overwrite` Overwrite `core-site.xml`.
-- `-O`, `--output` Output path for `core-site.xml`.
-- `-q`, `--quiet` Suppress non-error output.
-- `-h, \--help` Show help message and exit.
-
-To manually configure the ``core-site.xml`` file, you must specify these parameters:
-
-``fs.oci.client.hostname``:  Address of Object Storage. For example, `https://objectstorage.us-ashburn-1.oraclecloud.com`. You must replace us-ashburn-1 with the region you are in.
-``fs.oci.client.auth.tenantId``: OCID of your tenancy.
-``fs.oci.client.auth.userId``: Your user OCID.
-``fs.oci.client.auth.fingerprint``: Fingerprint for the key pair.
-``fs.oci.client.auth.pemfilepath``: The fully qualified file name of the private key used for authentication.
-
-The values of these parameters are found in the OCI configuration file.
+.. include:: ../_template/prerequisite/data_flow.rst
 
 Create a Data Flow Instance
----------------------------
+***************************
 
 First, you create a ``DataFlow`` object instance.
 
@@ -144,7 +25,7 @@ In each application directory, artifacts generated by separate Data Flow runs ar
 
 Also, you can choose to use a specific compartment using the optional ``compartment_id`` argument when creating the dataflow instance. Otherwise, it uses the **same** compartment as **your notebook session** to create the instance.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     from ads.dataflow.dataflow import DataFlow
     data_flow = DataFlow(
@@ -153,7 +34,7 @@ Also, you can choose to use a specific compartment using the optional ``compartm
     )
 
 Generate a Script Using a Template
-----------------------------------
+**********************************
 
 We provide simple ``PySpark`` or ``sparksql`` templates for you to get started with Data Flow. You can use ``data_flow.template()`` to generate a pre-written template.
 
@@ -163,7 +44,7 @@ The ``standard_pyspark`` template is used for standard PySpark jobs.
 
 The ``sparksql`` template is used for sparksql jobs.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     from ads.dataflow.dataflow import DataFlow
     data_flow = DataFlow()
@@ -172,31 +53,31 @@ The ``sparksql`` template is used for sparksql jobs.
 ``data_flow.template()`` returns the local path to the script you have generated.
 
 Create a Data Flow Application
-------------------------------
+******************************
 
 The application creation process has two stages, preparation and creation.
 
 In the preparation stage, you prepare the configuration object necessary to create a Data Flow application. You must provide values for these three parameters:
 
-- ``display_name``: The name you give your application.
-- ``script_bucket``: The bucket used to read/write the ``PySpark`` script in Object Storage.
-- ``pyspark_file_path``: The local path to your ``PySpark`` script.
+* ``display_name``: The name you give your application.
+* ``pyspark_file_path``: The local path to your ``PySpark`` script.
+* ``script_bucket``: The bucket used to read/write the ``PySpark`` script in Object Storage.
 
 ADS checks that the bucket exists, and that you can write to it from your notebook sesssion. Optionally, you can change values for these parameters:
 
-- ``compartment_id``: The OCID of the compartment to create a Data Flow application. If it's not provided, the **same** compartment as **your dataflow object** is used by default.
-- ``logs_bucket``: The bucket used to store run logs in Object Storage. The default value is ``"dataflow-logs"``.
-- ``driver_shape``: The driver shape used to create the application. The default value is ``"VM.Standard2.4"``.
-- ``executor_shape``: The executor shape to create the application. The default value is ``"VM.Standard2.4"``.
-- ``num_executors``: The number of executor VMs requested. The default value is ``1``.
+* ``compartment_id``: The OCID of the compartment to create a Data Flow application. If it's not provided, the same compartment as your dataflow object is used.
+* ``driver_shape``: The driver shape used to create the application. The default value is ``"VM.Standard2.4"``.
+* ``executor_shape``: The executor shape to create the application. The default value is ``"VM.Standard2.4"``.
+* ``logs_bucket``: The bucket used to store run logs in Object Storage. The default value is ``"dataflow-logs"``.
+* ``num_executors``: The number of executor VMs requested. The default value is ``1``.
 
 .. note::
 
-  If you want to use a **private** bucket as the ``logs_bucket``, ensure that you add a corresponding Data Flow service policy using `Data Flow Identity: Policy Set Up <https://docs.cloud.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm#policy_set_up>`_.
+  If you want to use a private bucket as the ``logs_bucket``, ensure that you add a corresponding Data Flow service policy using `Data Flow Identity: Policy Set Up <https://docs.cloud.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm#policy_set_up>`_.
 
 Then you can use ``prepare_app()`` to create the configuration object necessary to create the application.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     from ads.dataflow.dataflow import DataFlow
 
@@ -209,42 +90,39 @@ Then you can use ``prepare_app()`` to create the configuration object necessary 
 
 After you have the application configured, you can create a Data Flow application using ``create_app``:
 
-  .. code-block:: python3
+.. code-block:: python3
 
     app = data_flow.create_app(app_config)
 
-  Your local script is uploaded to the script bucket in this application creation step. Object Storage supports file versioning that creates an object version when the content changes, or the object is deleted. You can enable ``Object Versioning`` in your bucket in the OCI Console to prevent overwriting of existing files in Object Storage.
+Your local script is uploaded to the script bucket in this application creation step. Object Storage supports file versioning that creates an object version when the content changes, or the object is deleted. You can enable ``Object Versioning`` in your bucket in the OCI Console to prevent overwriting of existing files in Object Storage.
 
-  You can create an application with a script file that exists in Object Storage by setting ``overwrite_script=True`` in ``create_app``. Similarly, you can set ``overwrite_archive=True`` to create an application with an archive file that exists in Object Storage. By default, the ``overwrite_script`` and ``overwrite_archive`` options are set to ``false``.
+You can create an application with a script file that exists in Object Storage by setting ``overwrite_script=True`` in ``create_app``. Similarly, you can set ``overwrite_archive=True`` to create an application with an archive file that exists in Object Storage. By default, the ``overwrite_script`` and ``overwrite_archive`` options are set to ``false``.
 
-    .. code-block:: python3
+.. code-block:: python3
 
       app = data_flow.create_app(app_config, overwrite_script=True, overwrite_archive=True)
-
 
 You can explore a few attributes of the ``DataFlowApp`` object.
 
 First , you can look at the configuration of the application.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     app.config
 
 Next, you could get a URL link to the OCI Console Application Details page.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     app.oci_link
 
 
 Load an Existing Data Flow Application
---------------------------------------
+======================================
 
-As an alternative to creating applications in ADS, you can load existing applications created elsewhere.
-These Data Flow applications must be Python applications. To load an existing applications, you need the
-applications's OCID.
+As an alternative to creating applications in ADS, you can load existing applications created elsewhere.  These Data Flow applications must be Python applications. To load an existing applications, you need the application's OCID.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     existing_app = data_flow.load_app(app_id, target_folder)
 
@@ -253,35 +131,35 @@ You can find the ``app_id`` in the the OCI Console or by listing existing applic
 Optionally, you could assign a value to the parameter ``target_folder``. This parameter is the directory you want to store the local artifacts of this application in. If ``target_folder`` is not provided, then the local artifacts of this application are stored in the ``dataflow_base_folder`` folder defined by the ``dataflow`` object instance.
 
 Listing Data Flow Applications
-------------------------------
+==============================
 
-From ADS you can list applications, that are returned a as a list of dicts, with a function to
+From ADS you can list applications, that are returned a as a list of dictionaries, with a function to
 provide the data in a Pandas dataframe. The default sort order is the most recent run first.
 
 For example, to list the most recent five applications use this code:
 
-  .. code-block:: python3
+.. code-block:: python3
 
     from ads.dataflow.dataflow import DataFlow
     data_flow = DataFlow()
     data_flow.list_apps().to_dataframe().head(5)
 
-  .. image:: images/list_apps.png
+.. image:: images/list_apps.png
     :height: 200
     :alt: Listing of data flow apps
 
 Create a Data Flow Run
-----------------------
+======================
 
 After an application is created or loaded in your notebook session, the next logical step is to execute a run of that application. The process of running (or creating) a run is similar to creating an application.
 
 First, you configure the run using the ``prepare_run()`` method of the ``DataFlowApp`` object. You only need to provide a value for the name of your run using ``run_display_name``:
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run_config = app.prepare_run(run_display_name="<run-display-name>")
 
-You could use a compartment **different** from your application to create a run by specifying the ``compartment_id`` in ``prepare_run``. By default, it uses the **same** compartment as **your dataflow application** to create the run.
+You could use a compartment different from your application to create a run by specifying the ``compartment_id`` in ``prepare_run``. By default, it uses the same compartment as your Data Flow application to create the run.
 
 Optionally, you can specify the ``logs_bucket`` to store the logs of your run. By default, the run inherits the ``logs_bucket`` from the parent application, but you can overwrite that option.
 
@@ -289,7 +167,7 @@ Every time the Data Flow application launches a run, a local folder representing
 
 Then, you can create a Data Flow run using the ``run_config`` generated in the preparation stage. During this process, you can monitor the Data Flow run while the job is running. You can also pull logs into your local directories by setting, ``save_log_to_local=True``.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run = app.run(run_config, save_log_to_local=True)
 
@@ -297,34 +175,34 @@ The ``DataFlowRun`` object has some useful attributes similar to the ``DataFlowA
 
 You can check the status of the run with:
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run.status
 
 You can get the configuration file that created this run. The run configuration and the PySpark script used in this run are also saved in the corresponding run directory in your notebook environment.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run.config
 
 You can get the run directory where the artifacts are stored in your notebook environment with:
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run.local_dir
 
-Similarily, you can get a clickable link to the OCI Console Run Details page with:
+Similarly, you can get a clickable link to the OCI Console Run Details page with:
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run.oci_link
 
 Fetching Logs
--------------
+=============
 
 After a Data Flow run has completed, you can examine the logs using ADS. There are two types of logs, ``stdout`` and ``stderr``.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run.log_stdout.head()   # show first rows of stdout
     run.log_stdout.tail()   # show last lines of stdout
@@ -338,7 +216,7 @@ After a Data Flow run has completed, you can examine the logs using ADS. There a
 
 If ``save_log_to_local`` is set to ``False`` during ``app.run(...)``, you can fetch logs by calling the ``fetch_log(...).save()`` method on the ``DataFlowRun`` object with the correct logs type.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run.fetch_log("stdout").save()
     run.fetch_log("stderr").save()
@@ -348,7 +226,7 @@ If ``save_log_to_local`` is set to ``False`` during ``app.run(...)``, you can fe
   Due to a limitation of ``PySpark`` (specifically Python applications in Spark), both ``stdout`` and ``stderr`` are merged into the ``stdout`` stream.
 
 Edit and Synchronize PySpark Script
------------------------------------
+===================================
 
 The Data Flow integration with ADS supports the edit-run-edit cycle, so the local
 PySpark script can be edited, and is automatically synchronized to Object Storage
@@ -358,20 +236,20 @@ Data Flow obtains the PySpark script from Object Storage
 so the local files in the notebook session are not visible to Data Flow. The
 ``app.run(...)`` method compares the content hash of the local file with the remote copy
 on Object Storage. If any change is detected, the new local version is copied over to the remote. For
-the first run the syncronization creates the remote file and generates a fully qualified
+the first run the synchronization creates the remote file and generates a fully qualified
 URL with namespace that's required for Data Flow.
 
 Synchronizing is the default setting in ``app.run(...)``. If you don't want the application to sync with the local modified files, you need to include ``sync=False`` as an argument parameter in ``app.run(...)``.
 
 Arguments and Parameters
-------------------------
+========================
 
 Passing arguments to PySpark scripts is done with the ``arguments`` value in ``prepare_app``. Additional to the arguments Data Flow
 supports, is a parameter dictionary that you can use to interpolate arguments. To just pass arguments, the ``script_parameter`` section
-may be ignored. However, any key-value pair defined in ``script_parameter`` can be referened in arguments using the ``${key}`` syntax, and
+may be ignored. However, any key-value pair defined in ``script_parameter`` can be referenced in arguments using the ``${key}`` syntax, and
 the value of that key is passed as the argument value.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     from ads.dataflow.dataflow import DataFlow
 
@@ -397,25 +275,26 @@ the value of that key is passed as the argument value.
 
 You can override the values of some or all script parameters in each run by passing different values to ``prepare_run()``.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     run_config = app.prepare_run(run_display_name="test-run", foo='val3')
     run = app.run(run_config)
 
 
 Add Third-Party Libraries
---------------------------
+==========================
+
 Your PySpark applications might have custom dependencies in the form of Python wheels or virtual environments, see `Adding Third-Party Libraries to Data Flow Applications <https://docs.cloud.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`_.
 
 Pass the archive file to your Data Flow applications with ``archive_path`` and ``archive_bucket`` values in ``prepare_app``.
 
-- ``archive_path``: The local path to archive file.
+* ``archive_path``: The local path to archive file.
 
-- ``archive_bucket``: The bucket used to read and write the archive file in Object Storage; if not provided, ``archive_bucket`` will use the bucket for PySpark bucket by default.
+* ``archive_bucket``: The bucket used to read and write the archive file in Object Storage; if not provided, ``archive_bucket`` will use the bucket for PySpark bucket by default.
 
 Use ``prepare_app()`` to create the configuration object necessary to create the application.
 
-  .. code-block:: python3
+.. code-block:: python3
 
     from ads.dataflow.dataflow import DataFlow
 
@@ -430,27 +309,18 @@ Use ``prepare_app()`` to create the configuration object necessary to create the
 
 The behavior of the archive file is very similar to the PySpark script when creating:
 
-- An application, the local archive file is uploaded to the specified bucket Object Storage.
-
-- A run, the latest local archive file is synchronized to the remote file in Object Storage. The ``sync`` parameter controls this behavior.
-
-- Loading an existing application created with ``archive_uri``, the archive file is obtained from Object Storage, and saved in the local directory.
-
+* An application, the local archive file is uploaded to the specified bucket Object Storage.
+* A run, the latest local archive file is synchronized to the remote file in Object Storage. The ``sync`` parameter controls this behavior.
+* Loading an existing application created with ``archive_uri``, the archive file is obtained from Object Storage, and saved in the local directory.
 
 Fetching PySpark Output
------------------------
+=======================
 
-After the application has run and any ``stdout`` captured in the log file, the PySpark
-script likely produces some form of output. Usually a PySpark script batch processes
-something. For example, sampling data, aggregating data, preprocessing data. You can load the resulting
-output as an ``ADSDataset.open()`` using the ``ocis://`` protocol handler.
+After the application has run and any ``stdout`` captured in the log file, the PySpark script likely produces some form of output. Usually a PySpark script batch processes something. For example, sampling data, aggregating data, preprocessing data. You can load the resulting output as an ``ADSDataset.open()`` using the ``ocis://`` protocol handler.
 
-The only way to get output from PySpark back into the notebook session is to create files
-in Object Storage that is read into the notebook, or use the ``stdout`` stream.
+The only way to get output from PySpark back into the notebook session is to create files in Object Storage that is read into the notebook, or use the ``stdout`` stream.
 
-Following is a simple example of a PySpark script producing output printed in a portable JSON-L
-format, though CSV works too. This method, while convenient as an example,
-is not a recommended for large data.
+Following is a simple example of a PySpark script producing output printed in a portable JSON-L format, though CSV works too. This method, while convenient as an example, is not a recommended for large data.
 
 .. code-block:: python3
 
@@ -485,7 +355,7 @@ is not a recommended for large data.
                             berlin"""
                         )
 
-        # Convert the filtered Spark DataFrame into json format
+        # Convert the filtered Spark DataFrame into JSON format
         # Note: we are writing to the spark stdout log so that we can retrieve the log later at the end of the notebook.
 
         print('\n'\
@@ -497,8 +367,7 @@ is not a recommended for large data.
         main()
 
 
-After you run the stdout stream (which contains CSV formatted data), it can be
-interpreted as a string using ``Pandas``
+After you run the stdout stream (which contains CSV formatted data), it can be interpreted as a string using ``Pandas``.
 
 .. code-block:: python3
 
@@ -511,40 +380,20 @@ interpreted as a string using ``Pandas``
     df.head()
 
 
-**Example Notebook: Develop Pyspark jobs locally - from local to remote workflows**
-------------------------------------------------------------------------------------
+Example Notebook: Develop Pyspark jobs locally - from local to remote workflows
+*******************************************************************************
 
-This notebook provides spark operations for customers by bridging the
-existing local spark workflows with cloud based capabilities. Data
-scientists can use their familiar local environments with JupyterLab, and
-work with remote data and remote clusters simply by selecting a kernel.
-The operations demonstrated are, how to:
+This notebook provides spark operations for customers by bridging the existing local spark workflows with cloud based capabilities. Data scientists can use their familiar local environments with JupyterLab, and work with remote data and remote clusters simply by selecting a kernel.  The operations demonstrated are, how to:
 
-- Use the interactive spark environment and produce a spark script,
-- Prepare and create an application,
-- Prepare and create a run,
-- List existing dataflow applications,
-- Retrieve and display the logs,
+* Use the interactive spark environment and produce a spark script,
+* Prepare and create an application,
+* Prepare and create a run,
+* List existing dataflow applications,
+* Retrieve and display the logs,
 
-The purpose of the dataflow module is to provide an efficient and
-convenient way for you to launch a Spark application, and run Spark
-jobs. The interactive Spark kernel provides a simple and efficient way
-to edit and build your Spark script, and easy access to read from an OCI
-filesystem.
+The purpose of the dataflow module is to provide an efficient and convenient way for you to launch a Spark application, and run Spark jobs. The interactive Spark kernel provides a simple and efficient way to edit and build your Spark script, and easy access to read from an OCI filesystem.
 
-**Prerequisites:**
-
-1. Before accessing OCI filesystem from your local Spark environment,
-   ensure that you have the ``core-site.xml`` in
-   ``spark_conf_dir`` configured properly, because it sets the connector
-   properties that are used to connect to OCI.
-
-2. Before creating applications in the OCI Data
-   Flow service, ensure that you have configured your tenancy for the
-   service. Follow the steps in `Getting Started with Data Flow
-   <https://docs.cloud.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm#getting_started/>`__.
-
-.. code:: ipython3
+.. code-block:: python3
 
     import io
     import matplotlib.pyplot as plt
@@ -562,7 +411,7 @@ filesystem.
 
 Set up spark session in your PySPark conda environment:
 
-.. code:: ipython3
+.. code-block:: python3
 
     # create a spark session
     spark = SparkSession \
@@ -572,10 +421,9 @@ Set up spark session in your PySPark conda environment:
         .config("spark.executor.cores", "4") \
         .getOrCreate()
 
-Load the Employee Attrition data file from OCI
-Object Storage into a Spark DataFrame:
+Load the Employee Attrition data file from OCI Object Storage into a Spark DataFrame:
 
-.. code:: ipython3
+.. code-block:: python3
 
     emp_attrition = spark\
           .read\
@@ -589,7 +437,7 @@ Object Storage into a Spark DataFrame:
 
 Next, explore the dataframe:
 
-.. code:: ipython3
+.. code-block:: python3
 
     spark.sql('select * from emp_attrition limit 5').toPandas()
 
@@ -666,10 +514,9 @@ Next, explore the dataframe:
     <p>5 rows × 36 columns</p>
     </div>
 
-Visualize how monthly income and age relate to one another in the
-context of years in industry:
+Visualize how monthly income and age relate to one another in the context of years in industry:
 
-.. code:: ipython3
+.. code-block:: python3
 
     fig, ax = plt.subplots()
     plot = spark.sql("""
@@ -685,23 +532,15 @@ context of years in industry:
     plot.set_ylabel("Monthly Income")
     plot
 
-
-
-
 .. parsed-literal::
 
     <AxesSubplot:title={'center':'Age vs Monthly Income'}, xlabel='Age', ylabel='Monthly Income'>
 
-
-
-
-
 View all of the columns in the table:
 
-.. code:: ipython3
+.. code-block:: python3
 
     spark.sql("show columns from emp_attrition").show()
-
 
 .. parsed-literal::
 
@@ -731,11 +570,9 @@ View all of the columns in the table:
     +--------------------+
     only showing top 20 rows
 
-
-
 Select a few columns using Spark, and convert it into a Pandas dataframe:
 
-.. code:: ipython3
+.. code-block:: python3
 
     df = spark.sql("""
              SELECT
@@ -746,9 +583,6 @@ Select a few columns using Spark, and convert it into a Pandas dataframe:
                 emp_attrition """).limit(10).toPandas()
     df
 
-
-
-
 .. raw:: html
 
     <div>
@@ -839,20 +673,14 @@ Select a few columns using Spark, and convert it into a Pandas dataframe:
     </table>
     </div>
 
+You can work with different compression formats within Data Flow. For example, snappy Parquet:
 
-
-Ypi can work with different compression formats within Data Flow. For
-example, snappy Parquet:
-
-.. code:: ipython3
+.. code-block:: python3
 
     # Writing to a snappy parquet file
     df.to_parquet('emp_attrition.parquet.snappy', compression='snappy')
     pd.read_parquet('emp_attrition.parquet.snappy')
 
-
-
-
 .. raw:: html
 
     <div>
@@ -943,9 +771,7 @@ example, snappy Parquet:
     </table>
     </div>
 
-
-
-.. code:: ipython3
+.. code-block:: python3
 
     # We are able to read in this snappy parquet file to a spark dataframe
     read_snappy_df = SparkSession \
@@ -959,35 +785,25 @@ example, snappy Parquet:
 
     read_snappy_df.first()
 
-
-
-
 .. parsed-literal::
 
     Row(Age=42, MonthlyIncome=5993, YearsInIndustry=8)
 
+Other compression formats that Data Flow supports include snappy Parquet, and Gzip on both CSV and Parquet.
 
+You might have query that you want to run in Data Flow from previous explorations, review the `dataflow.ipynb` notebook example that shows you how to submit a job to Data Flow.
 
-Other compression formats that Data Flow supports include snappy
-Parquet, and Gzip on both CSV and Parquet.
-
-You might have query that you want to run in Data Flow from previous
-explorations, review the `dataflow.ipynb` notebook example that shows you how to submit a job
-to Data Flow.
-
-.. code:: ipython3
+.. code-block:: python3
 
     dataflow_base_folder = tempfile.mkdtemp()
     data_flow = DataFlow(dataflow_base_folder=dataflow_base_folder)
     print("Data flow directory: {}".format(dataflow_base_folder))
 
-
 .. parsed-literal::
 
     Data flow directory: /tmp/tmpe18x_qbr
 
-
-.. code:: ipython3
+.. code-block:: python3
 
     pyspark_file_path = path.join(dataflow_base_folder, "example-{}.py".format(str(uuid.uuid4())[-6:]))
     script = '''
@@ -1032,13 +848,11 @@ to Data Flow.
 
     print("Script path: {}".format(pyspark_file_path))
 
-
 .. parsed-literal::
 
-    Script path: /tmp/tmpe18x_qbr/example-0054ed.py
+    Script path: /tmp/example.py
 
-
-.. code:: ipython3
+.. code-block:: python3
 
     script_bucket = "test"                     # Update the value
     logs_bucket = "dataflow-log"               # Update the value
@@ -1056,42 +870,21 @@ to Data Flow.
 
     run = app.run(run_config, save_log_to_local=True)
 
-
-
-.. parsed-literal::
-
-    loop1:   0%|          | 0/2 [00:00<?, ?it/s]
-
-
-
-.. parsed-literal::
-
-    loop1:   0%|          | 0/3 [00:00<?, ?it/s]
-
-
-.. code:: ipython3
+.. code-block:: python3
 
     run.status
-
-
-
 
 .. parsed-literal::
 
     'SUCCEEDED'
 
-
-
-.. code:: ipython3
+.. code-block:: python3
 
     run.config
 
-
-
-
 .. parsed-literal::
 
-    {'compartment_id': 'ocid1.compartment.oc1..aaaaaaaadc2etahffn5oknckm7wufgnnszvexxcd2zc2ou4dwcjorxrgx2cq',
+    {'compartment_id': 'ocid1.compartment..<unique_ID>',
      'script_bucket': 'test',
      'pyspark_file_path': '/tmp/tmpe18x_qbr/example-0054ed.py',
      'archive_path': None,
@@ -1103,32 +896,22 @@ to Data Flow.
      'executor_shape': 'VM.Standard2.4',
      'num_executors': 1}
 
-
-
-.. code:: ipython3
+.. code-block:: python3
 
     run.oci_link
 
 .. parsed-literal::
 
-    Saving processed data to jdbc:oracle:thin:@db201910031555_high?TNS_ADMIN=/tmp/tmpwtot3jsx
+    Saving processed data to jdbc:oracle:thin:@database_high?TNS_ADMIN=/tmp/
 
 
 **Read from the Database Using PySpark**
 
-PySpark can be used to load data from an Oracle Autonomous Database (ADB) into a
-Spark application. The next cell makes a JDBC connection to the database
-defined using the ``adb_url`` variable, and accesses the table defined
-with ``table_name``. The credentials stored in the vault and previously
-read into memory are used. After this command is run, you can
-perform Spark operations on it.
+PySpark can be used to load data from an Oracle Autonomous Database (ADB) into a Spark application. The next cell makes a JDBC connection to the database defined using the ``adb_url`` variable, and accesses the table defined with ``table_name``. The credentials stored in the vault and previously read into memory are used. After this command is run, you can perform Spark operations on it.
 
-The table is relatively small so the notebook uses PySpark in the
-notebook session. However, for larger jobs, we recommended that you use
-the `Oracle Data Flow <https://www.oracle.com/big-data/data-flow/>`__
-service.
+The table is relatively small so the notebook uses PySpark in the notebook session. However, for larger jobs, we recommended that you use the `Oracle Data Flow <https://www.oracle.com/big-data/data-flow/>`__ service.
 
-.. code:: ipython3
+.. code-block:: python3
 
     if "adb_url" in globals():
         output_dataframe = sc.read \
@@ -1141,12 +924,9 @@ service.
     else:
         print("Skipping as it appears that you do not have adb_url configured.")
 
-The database table is loaded into Spark so that you can perform
-operations to transform, model, and more. In the next cell, the
-notebook prints the table demonstrating that it was successfully loaded
-into Spark from the ADB.
+The database table is loaded into Spark so that you can perform operations to transform, model, and more. In the next cell, the notebook prints the table demonstrating that it was successfully loaded into Spark from the ADB.
 
-.. code:: ipython3
+.. code-block:: python3
 
     if "adb_url" in globals():
         output_dataframe.show()
@@ -1182,15 +962,11 @@ into Spark from the ADB.
     +----+----------+--------------+------------+-------------------+-------------+-----------------+---------------+--------+---------------+------------------------+-------+-----------+---------------+---------+---------------------+---------------+--------------+--------------+------------+-------------------+-------+---------+------------------+------------------+-------------------------+------------------+-----------------+----------------+----------------------+----------------+-----------+--------------------+------------------------+---------------------+------------------+
     only showing top 20 rows
 
-
-
 **Cleaning Up Artifacts**
 
-This example created a number of artifacts, such as unzipping the wallet
-file, creating a database table, and starting a Spark cluster. Next, you
-remove these resources.
+This example created a number of artifacts, such as unzipping the wallet file, creating a database table, and starting a Spark cluster. Next, you remove these resources.
 
-.. code:: ipython3
+.. code-block:: python3
 
     if wallet_path != "<wallet_path>":
         connection.update_repository(key="pyspark_adb", value=adb_creds)
@@ -1208,36 +984,12 @@ remove these resources.
 
     sc.stop()
 
-**References**
+Example Notebook: Using the ADB with PySpark
+********************************************
 
--  `PySpark
-   Documentation <https://spark.apache.org/docs/latest/api/python/>`__
--  `Using sqlnet.ora file with
-   JDBC <https://stackoverflow.com/questions/63696611/can-the-oracle-jdbc-thin-driver-use-a-sqlnet-ora-file-for-configuration>`__
--  `Connecting to an Autonomous
-   Database <https://docs.oracle.com/en-us/iaas/Content/Database/Tasks/adbconnecting.htm>`__
+This notebook demonstrates how to use PySpark to process data in Object Storage, and save the results to an ADB. It also demonstrates how to query data from an ADB using a local PySpark session.
 
-**Example Notebook: Using the ADB with PySpark**
-----------------------------------------------------------------
-
-This notebook demonstrates how to use PySpark to process data in
-Object Storage, and save the results to an ADB. It also demonstrates how to query data from
-an ADB using a local PySpark session.
-
-**Important:**
-
-Placeholder text for required values are surrounded by angle brackets
-that must be removed when adding the indicated content. For example,
-when adding a database name to ``database_name = "<database_name>"``
-would become ``database_name = "production"``.
-
-This notebook covers the following topics: - Introduction - Setup the
-Required Variables - Obtain Credentials from the Vault - Setup the
-Wallet - Reading Data from Object Storage - Save the Data to the
-Database - Read from the Database using PySpark - Clean Up Artifacts -
-References
-
-.. code:: ipython3
+.. code-block:: python3
 
     import base64
     import cx_Oracle
@@ -1255,40 +1007,13 @@ References
 
 **Introduction**
 
-It has become a common practice to store structured and semi-structured
-data using services such as Object Storage. This provides a scalable
-solution to store vast quantities of data that can be post-processed.
-However, using a relational database management system (RDMS) such as
-the Oracle ADB provides advantages like ACID compliance,
-rapid relational joins, support for complex business logic, and more. It
-is important to be able to access information stored in Object Storage,
-process that information, and load it into an RBMS. This notebook
-demonstrates how to use PySpark, a Python interface to Apache Spark, to
-perform these operations.
+It has become a common practice to store structured and semi-structured data using services such as Object Storage. This provides a scalable solution to store vast quantities of data that can be post-processed.  However, using a relational database management system (RDMS) such as the Oracle ADB provides advantages like ACID compliance, rapid relational joins, support for complex business logic, and more. It is important to be able to access information stored in Object Storage, process that information, and load it into an RBMS. This notebook demonstrates how to use PySpark, a Python interface to Apache Spark, to perform these operations.
 
-This notebook uses a publically accessible Object Storage location to
-read from. However, an ADB needs to be configured with
-permissions to create a table, write to that table, and read from it. It
-also assumes that the credentials to access the database are stored in
-the Vault. This is the best practice as it prevents the credentials from
-being stored locally or in the notebook where they may be accessible to
-others. If you do not have credentials stored in the Vault, see the
-``vault.ipynb`` example notebook to guide you through the process of
-storing the credentials. Once credentials to the database, are stored in
-the Vault, you need the OCIDs for the Vault, encryption key, and the
-secret.
+This notebook uses a publicly accessible Object Storage location to read from. However, an ADB needs to be configured with permissions to create a table, write to that table, and read from it. It also assumes that the credentials to access the database are stored in the Vault. This is the best practice as it prevents the credentials from being stored locally or in the notebook where they may be accessible to others. If you do not have credentials stored in the Vault. Once credentials to the database, are stored in the Vault, you need the OCIDs for the Vault, encryption key, and the secret.
 
-ADBs have an additional level of security that is needed
-to access them and are wallet file. You can obtain the wallet file from
-your account administrator or download it using the steps that are
-outlined in the [downloading a
-wallet(https://docs.oracle.com/en-us/iaas/Content/Database/Tasks/adbconnecting.htm#access).
-The wallet file is a ZIP file. This notebook unzips the wallet and
-updates the configuration settings so you don’t have to.
+ADBs have an additional level of security that is needed to access them and are wallet file. You can obtain the wallet file from your account administrator or download it using the steps that are outlined in the [downloading a wallet(https://docs.oracle.com/en-us/iaas/Content/Database/Tasks/adbconnecting.htm#access).  The wallet file is a ZIP file. This notebook unzips the wallet and updates the configuration settings so you don’t have to.
 
-The database connection also needs the TNS name of the database. Your
-database administrator can give you the TNS name of the database that
-you have access to.
+The database connection also needs the TNS name of the database. Your database administrator can give you the TNS name of the database that you have access to.
 
 **Setup the Required Variables**
 
@@ -1307,7 +1032,7 @@ The required variables to set up are:
    ``autonomous_database.ipynb`` example notebook for instructions on
    accessing the wallet file.
 
-.. code:: ipython3
+.. code-block:: python3
 
     secret_ocid = "secret_ocid"
     tnsname = "tnsname"
@@ -1317,13 +1042,9 @@ The required variables to set up are:
 
 **Obtain Credentials from the Vault**
 
-If the ``vault_id``, ``key_id``, and ``secret_id`` have been updated,
-then the notebook obtains a handle to the vault with a variable called
-``vault``. This uses the ``get_secret()`` method to return a dictionary
-with the user credentials. The approach assumes that the Accelerated
-Data Science (ADS) library was used to store the secret.
+If the ``vault_id``, ``key_id``, and ``secret_id`` have been updated, then the notebook obtains a handle to the vault with a variable called ``vault``. This uses the ``get_secret()`` method to return a dictionary with the user credentials. The approach assumes that the Accelerated Data Science (ADS) library was used to store the secret.
 
-.. code:: ipython3
+.. code-block:: python3
 
     if vault_id != "<vault_id>" and key_id != "<key_id>" and secret_ocid != "<secret_ocid>":
         print("Getting wallet username and password")
@@ -1334,20 +1055,15 @@ Data Science (ADS) library was used to store the secret.
     else:
         print("Skipping as it appears that you do not have vault, key, and secret ocid specified.")
 
-
 .. parsed-literal::
 
     Getting wallet username and password
 
-
 **Setup the Wallet**
 
-An ADB requires a wallet file to access the database.
-The ``wallet_path`` variable defines the location of this file. The next
-cell prepares the wallet file to make a connection to the database. It
-also creates the ADB connection string, ``adb_url``.
+An ADB requires a wallet file to access the database.  The ``wallet_path`` variable defines the location of this file. The next cell prepares the wallet file to make a connection to the database. It also creates the ADB connection string, ``adb_url``.
 
-.. code:: ipython3
+.. code-block:: python3
 
     def setup_wallet(wallet_path):
         """
@@ -1369,13 +1085,11 @@ also creates the ADB connection string, ``adb_url``.
     else:
         print("Skipping as it appears that you do not have wallet_path specified.")
 
-
 .. parsed-literal::
 
     Setting up wallet
 
-
-.. code:: ipython3
+.. code-block:: python3
 
     if "tns_path" in globals() and tnsname != "<tnsname>":
         adb_url = f"jdbc:oracle:thin:@{tnsname}?TNS_ADMIN={tns_path}"
@@ -1384,19 +1098,11 @@ also creates the ADB connection string, ``adb_url``.
 
 **Reading Data from Object Storage**
 
-This notebook uses PySpark to access the Object Storage file. The next
-cell creates a Spark application called “Python Spark SQL Example” and
-returns a SparkContext. The ``SparkContext``, normally called ``sc``, is
-a handle to the Spark application.
+This notebook uses PySpark to access the Object Storage file. The next cell creates a Spark application called “Python Spark SQL Example” and returns a SparkContext. The ``SparkContext``, normally called ``sc``, is a handle to the Spark application.
 
-The data file that is used is relatively small so the notebook uses
-PySpark by running a version of Spark in local mode. That means, it is
-running in the notebook session. For larger jobs, we recommended that
-you use the `Oracle Data
-Flow <https://www.oracle.com/big-data/data-flow/>`__ service, which is
-an Oracle managed Spark service.
+The data file that is used is relatively small so the notebook uses PySpark by running a version of Spark in local mode. That means, it is running in the notebook session. For larger jobs, we recommended that you use the `Oracle Data Flow <https://www.oracle.com/big-data/data-flow/>`__ service, which is an Oracle managed Spark service.
 
-.. code:: ipython3
+.. code-block:: python3
 
     # create a spark session
     sc = SparkSession \
@@ -1404,24 +1110,18 @@ an Oracle managed Spark service.
         .appName("Python Spark SQL Example") \
         .getOrCreate()
 
-This notebook reads in a data file that is stored in an Oracle Object
-Storage file. This is defined with the ``file_path`` variable. The
-``SparkContext`` with the ``read.option().csv()`` methods is used to
-read in the CSV file from Object Storage into a data frame.
+This notebook reads in a data file that is stored in an Oracle Object Storage file. This is defined with the ``file_path`` variable. The ``SparkContext`` with the ``read.option().csv()`` methods is used to read in the CSV file from Object Storage into a data frame.
 
-.. code:: ipython3
+.. code-block:: python3
 
     file_path = "oci://hosted-ds-datasets@bigdatadatasciencelarge/synthetic/orcl_attrition.csv"
     input_dataframe = sc.read.option("header", "true").csv(file_path)
 
 **Save the Data to the Database**
 
-This notebook creates a table in your database with the name specified
-with ``table_name``. The name that is defined should be unique so that
-it does not interfere with any existing table in your database. If it
-does, change the value to something that is unique.
+This notebook creates a table in your database with the name specified with ``table_name``. The name that is defined should be unique so that it does not interfere with any existing table in your database. If it does, change the value to something that is unique.
 
-.. code:: ipython3
+.. code-block:: python3
 
     table_name = "ODSC_PYSPARK_ADB_DEMO"
 
@@ -1438,13 +1138,3 @@ does, change the value to something that is unique.
     else:
         print("Skipping as it appears that you do not have tnsname specified.")
 
-Frequently Asked Questions
---------------------------
-1. Can I connect to an ADB (ADB) from a PySpark environment?
-
-   Yes, you can load data from ADB into the ODSC PySpark environment. The OCI Data Flow service and a local PySpark
-   instance can both access the ADB, see the example notebook, ``pyspack_adb.ipynb`` in the PySpark conda.
-
-2. Can I load snappy compressed files into the PySpark environment?
-
-   Yes, the PySpark conda package works with different compression algorithms. These include snappy, lz4, and gzip.

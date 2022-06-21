@@ -7,6 +7,10 @@
 import logging
 from ads.common.model_metadata import Framework
 from ads.model.extractor.model_info_extractor import ModelInfoExtractor
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class LightgbmExtractor(ModelInfoExtractor):
@@ -57,6 +61,7 @@ class LightgbmExtractor(ModelInfoExtractor):
         return self.model.__class__.__name__
 
     @property
+    @runtime_dependency(module="lightgbm", install_from=OptionalDependency.BOOSTED)
     def version(self):
         """Extracts the framework version of the model.
 
@@ -65,7 +70,6 @@ class LightgbmExtractor(ModelInfoExtractor):
         str:
            The framework version of the model.
         """
-        import lightgbm
 
         return lightgbm.__version__
 

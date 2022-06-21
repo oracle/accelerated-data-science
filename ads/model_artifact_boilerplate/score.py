@@ -9,7 +9,7 @@
 """
 import json
 import os
-from cloudpickle import cloudpickle
+
 
 model_name = "model.pkl"
 
@@ -24,6 +24,8 @@ def load_model(model_file_name=model_name):
     model_dir = os.path.dirname(os.path.realpath(__file__))
     contents = os.listdir(model_dir)
     if model_file_name in contents:
+        from cloudpickle import cloudpickle
+
         with open(
             os.path.join(os.path.dirname(os.path.realpath(__file__)), model_file_name),
             "rb",

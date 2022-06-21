@@ -10,7 +10,6 @@ import os
 from typing import Dict
 from typing import Tuple
 
-import inflection
 import yaml
 import glob
 
@@ -27,6 +26,10 @@ from ads.opctl.utils import (
     parse_conda_uri,
     get_region_key,
     get_namespace,
+)
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
 )
 
 
@@ -113,6 +116,7 @@ class ConfigResolver(ConfigProcessor):
             "operator_name"
         ) or self.config.get("name")
 
+    @runtime_dependency(module="inflection", install_from=OptionalDependency.OPCTL)
     def _resolve_source_folder_path(self) -> None:
         # this should be run after resolve_operator_name()
         # resolve ADS operator source folder path

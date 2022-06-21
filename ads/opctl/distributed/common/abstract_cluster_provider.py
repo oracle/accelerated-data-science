@@ -107,7 +107,13 @@ class ClusterProvider:
         return (self.end_time - self.start_time) <= 0
 
     def get_oci_auth(self):
-        ads.set_auth(os.environ.get("OCI_IAM_TYPE", "resource_principal"))
+        profile = os.environ.get("OCI_CONFIG_PROFILE") or os.environ.get(
+            "OCIFS_CONFIG_PROFILE"
+        )
+        ads.set_auth(
+            os.environ.get("OCI_IAM_TYPE", "resource_principal"),
+            profile=profile or "DEFAULT",
+        )
         authinfo = ads.common.auth.default_signer()
         return authinfo
 
@@ -131,16 +137,13 @@ class ClusterProvider:
                     return ip
             print("IP ADDRESS NOT FOUND!!")
             return None
-        elif os.environ.get("OCI__BACKEND") == "local":
+        else:
             import socket
+
             hostname = socket.gethostname()
             ip = socket.gethostbyname(hostname)
             print(f"IP address: {ip}")
             return ip
-        else:
-            raise ValueError(
-                f"JOB_OCID Not found or Unknown backend: {os.environ.get('OCI__BACKEND')}, from environment variable: `OCI__BACKEND`"
-            )
 
     def basic_configuration(
         self,

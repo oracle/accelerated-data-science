@@ -19,9 +19,12 @@ import sklearn
 from ads.hpo.ads_search_space import model_list
 from ads.hpo.distributions import decode, encode
 from ads.hpo.utils import _extract_uri
-from optuna import logging
 
-logger = logging.get_logger(__name__)
+from ads.common import logger
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class NotPickableError(Exception):
@@ -378,9 +381,9 @@ class DownloadTunerArtifact:
         return scoring
 
 
+@runtime_dependency(module="lightgbm", install_from=OptionalDependency.BOOSTED)
+@runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
 def get_supported_model_mappings():
-    import lightgbm
-    import xgboost
 
     supported_model_mapping = {
         "Ridge": sklearn.linear_model._ridge.Ridge,

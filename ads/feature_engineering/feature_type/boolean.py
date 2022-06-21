@@ -17,7 +17,6 @@ Functions:
 """
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 from ads.feature_engineering.feature_type.base import FeatureType
 from ads.feature_engineering.utils import (
     _count_unique_missing,
@@ -26,6 +25,10 @@ from ads.feature_engineering.utils import (
     SchemeTeal,
 )
 from ads.feature_engineering import schema
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 def default_handler(data: pd.Series, *args, **kwargs) -> pd.Series:
@@ -114,6 +117,7 @@ class Boolean(FeatureType):
         return _count_unique_missing(x)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows the counts of observations in True/False using bars.
@@ -140,7 +144,7 @@ class Boolean(FeatureType):
         df = df[df["validation"] == True]
         if len(df.index):
             _set_seaborn_theme()
-            ax = sns.countplot(y=col_name, data=df, color=SchemeTeal.AREA_DARK)
+            ax = seaborn.countplot(y=col_name, data=df, color=SchemeTeal.AREA_DARK)
             ax.set(xlabel="Count")
             return ax
 

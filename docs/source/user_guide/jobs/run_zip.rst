@@ -1,32 +1,21 @@
-Run Python Code in ZIP or Folder
---------------------------------
+Run Code in ZIP or Folder
+*************************
 
 ScriptRuntime
-~~~~~~~~~~~~~
+=============
 
-The ``ScriptRuntime`` class is designed for you to define job artifacts and configurations supported by OCI Data Science jobs natively.
-It can be used with any script types that is supported by the OCI Data Science jobs, including a ZIP or compressed tar file or folder.
-See `Preparing Job Artifacts <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-artifact.htm>`__ for more details.
-In the job run, the working directory is the user's home directory. For example ``/home/datascience``.
+The ``ScriptRuntime`` class is designed for you to define job artifacts and configurations supported by OCI Data Science jobs natively.  It can be used with any script types that is supported by the OCI Data Science jobs, including a ZIP or compressed tar file or folder.  See `Preparing Job Artifacts <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-artifact.htm>`__ for more details.  In the job run, the working directory is the user's home directory. For example ``/home/datascience``.
 
 Python
-++++++
+------
 
-If you are in a notebook session, ADS can automatically fetch the
-infrastructure configurations, and use them in the job. If you aren't
-in a notebook session or you want to customize the infrastructure,
-you can specify them using the methods in the ``DataScienceJob`` class.
+If you are in a notebook session, ADS can automatically fetch the infrastructure configurations, and use them in the job. If you aren't in a notebook session or you want to customize the infrastructure, you can specify them using the methods in the ``DataScienceJob`` class.
 
-With the ``ScriptRuntime``, you can pass in a path to a ZIP file or directory.
-For a ZIP file, the path can be any URI supported by
-`fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__,
-including OCI Object Storage.
+With the ``ScriptRuntime``, you can pass in a path to a ZIP file or directory.  For a ZIP file, the path can be any URI supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including OCI Object Storage.
 
-You must specify the ``entrypoint``, which is the relative path from the ZIP file or
-directory to the script starting your program. Note that the ``entrypoint`` contains the
-name of the directory, since the directory itself is also zipped as the job artifact.
+You must specify the ``entrypoint``, which is the relative path from the ZIP file or directory to the script starting your program. Note that the ``entrypoint`` contains the name of the directory, since the directory itself is also zipped as the job artifact.
 
-.. code:: ipython3
+.. code-block:: python3
 
   from ads.jobs import Job, DataScienceJob, ScriptRuntime
 
@@ -59,11 +48,11 @@ name of the directory, since the directory itself is also zipped as the job arti
 
 
 YAML
-++++
+----
 
 You could use the following YAML example to create the same job with ``ScriptRuntime``:
 
-.. code:: yaml
+.. code-block:: yaml
 
   kind: job
   spec:
@@ -91,16 +80,14 @@ You could use the following YAML example to create the same job with ``ScriptRun
 
 
 PythonRuntime
-~~~~~~~~~~~~~
+=============
 
-The ``PythonRuntime`` class allows you to run Python code with ADS enhanced features like configuring the working directory and Python path.
-It also allows you to copy the output files to OCI Object Storage. This is especially useful for Python code involving multiple files and packages in the job artifact.
+The ``PythonRuntime`` class allows you to run Python code with ADS enhanced features like configuring the working directory and Python path.  It also allows you to copy the output files to OCI Object Storage. This is especially useful for Python code involving multiple files and packages in the job artifact.
 
-The ``PythonRuntime`` uses an ADS generated driver script as the entry point for the job run. It performs additional
-operations before and after invoking your code. You can examine the driver script by downloading the job artifact from the OCI Console.
+The ``PythonRuntime`` uses an ADS generated driver script as the entry point for the job run. It performs additional operations before and after invoking your code. You can examine the driver script by downloading the job artifact from the OCI Console.
 
 Python
-++++++
+------
 
 Relative to ``ScriptRunTime`` the ``PythonRuntime`` has 3 additional methods:
 
@@ -110,7 +97,7 @@ Relative to ``ScriptRunTime`` the ``PythonRuntime`` has 3 additional methods:
 
 Following is an example of creating a job with ``PythonRuntime``:
 
-.. code:: ipython3
+.. code-block:: python3
 
   from ads.jobs import Job, DataScienceJOb, PythonRuntime
 
@@ -148,11 +135,11 @@ Following is an example of creating a job with ``PythonRuntime``:
   )
 
 YAML
-++++
+----
 
 You could use the following YAML to create the same job with ``PythonRuntime``:
 
-.. code:: yaml
+.. code-block:: yaml
 
   kind: job
   spec:
@@ -184,7 +171,7 @@ You could use the following YAML to create the same job with ``PythonRuntime``:
 
 **PythonRuntime YAML Schema**
 
-.. code:: yaml
+.. code-block:: yaml
 
   kind:
     required: true
@@ -250,3 +237,4 @@ You could use the following YAML to create the same job with ``PythonRuntime``:
       pythonPath:
         required: false
         type: list
+

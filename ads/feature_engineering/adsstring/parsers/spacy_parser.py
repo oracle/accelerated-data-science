@@ -10,13 +10,17 @@ from typing import List, Sequence, Tuple
 import os
 import functools
 import pandas as pd
-import spacy
 
 from ads.feature_engineering.adsstring.parsers.base import Parser
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 # This module is only used when user installed spacy. spacy has conflicts with oci-cli.
 class SpacyParser(Parser):  # pragma: no cover
+    @runtime_dependency(module="spacy", install_from=OptionalDependency.TEXT)
     def __init__(self):
         try:
             # for ADS conda packs, spacy files are located under $CONDA_PREFIX/spacy

@@ -59,7 +59,6 @@ import requests
 from oci.data_science import DataScienceClient
 from oci.object_storage import ObjectStorageClient
 
-
 SSH_KEY_FILE_PATH = "~/.ssh/id_rsa"
 
 

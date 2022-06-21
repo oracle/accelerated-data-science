@@ -7,11 +7,13 @@
 from numbers import Integral, Number
 
 import numpy as np
-import scipy as sp
-from optuna import logging  # NOQA
-from sklearn.utils import _safe_indexing as sklearn_safe_indexing
 
-logger = logging.get_logger(__name__)
+from sklearn.utils import _safe_indexing as sklearn_safe_indexing
+from ads.common import logger
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 def _update_space_name(search_space, **kwargs):
@@ -51,11 +53,12 @@ def _is_arraylike(x):
 # NOTE Original implementation:
 # https://github.com/scikit-learn/scikit-learn/blob/ \
 # 8caa93889f85254fc3ca84caa0a24a1640eebdd1/sklearn/utils/validation.py#L217-L234
+@runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
 def _make_indexable(iterable):  # pragma: no cover
     # type: (IterableType) -> (IndexableType)
 
     tocsr_func = getattr(iterable, "tocsr", None)
-    if tocsr_func is not None and sp.sparse.issparse(iterable):
+    if tocsr_func is not None and scipy.sparse.issparse(iterable):
         return tocsr_func(iterable)
     elif (
         hasattr(iterable, "__getitem__")

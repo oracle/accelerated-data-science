@@ -13,13 +13,16 @@ from time import time, sleep
 
 import matplotlib.pyplot as plt
 import numpy as np
-import optuna
 import pandas as pd
-import psutil
-from scipy.spatial.qhull import QhullError
 
+import logging
+from ads.common import logger
 from ads.common import utils
 from ads.common.data import ADSData
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.hpo._imports import try_import
 from ads.hpo.ads_search_space import get_model2searchspace
 from ads.hpo.distributions import *
@@ -36,14 +39,7 @@ from ads.hpo.validation import (
     validate_search_space,
     validate_params_for_plot,
 )
-from IPython.display import clear_output, display
-from optuna import distributions  # NOQA
-from optuna import logging  # NOQA
-from optuna import samplers  # NOQA
-from optuna import type_checking  # NOQA
-from optuna import study as study_module  # NOQA
 
-import sklearn
 
 with try_import() as _imports:
     from sklearn.base import BaseEstimator, clone, is_classifier
@@ -59,28 +55,7 @@ with try_import() as _imports:
         from sklearn.metrics.scorer import check_scoring
 
 
-if type_checking.TYPE_CHECKING:  # pragma: no cover
-    from typing import Any  # NOQA
-    from typing import Callable  # NOQA
-    from typing import Dict  # NOQA
-    from typing import Iterable  # NOQA
-    from typing import List  # NOQA
-    from typing import Mapping  # NOQA
-    from typing import Optional  # NOQA
-    from typing import Union  # NOQA
-
-    from scipy.sparse import spmatrix  # NOQA
-
-    ArrayLikeType = Union[List, np.ndarray, pd.Series, spmatrix]
-    OneDimArrayLikeType = Union[List[float], np.ndarray, pd.Series]
-    TwoDimArrayLikeType = Union[
-        List[List[float]], np.ndarray, pd.DataFrame, spmatrix, ADSData
-    ]
-    IterableType = Union[List, pd.DataFrame, np.ndarray, pd.Series, spmatrix, None]
-    IndexableType = Union[Iterable, None]
-
-
-logger = logging.get_logger(__name__)
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union  # NOQA
 
 
 class State(Enum):
@@ -256,10 +231,11 @@ class ADSTuner(BaseEstimator):
         trials_dataframe = self._study.trials_dataframe().copy()
         return trials_dataframe
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def __init__(
         self,
         model,  # type: Union[BaseEstimator, Pipeline]
-        strategy="perfunctory",  # type: Union[str, Mapping[str, distributions.BaseDistribution]]
+        strategy="perfunctory",  # type: Union[str, Mapping[str, optuna.distributions.BaseDistribution]]
         scoring=None,  # type: Optional[Union[Callable[..., float], str]]
         cv=5,  # type: Optional[int]
         study_name=None,  # type: Optional[str]
@@ -268,7 +244,7 @@ class ADSTuner(BaseEstimator):
         random_state=None,  # type: Optional[int]
         loglevel=logging.INFO,  # type: Optional[int]
         n_jobs=1,  # type: Optional[int]
-        X=None,  # type: TwoDimArrayLikeType
+        X=None,  # type: Union[List[List[float]], np.ndarray, pd.DataFrame, spmatrix, ADSData]
         y=None,  # type: Optional[Union[OneDimArrayLikeType, TwoDimArrayLikeType]]
     ):
         # type: (...) -> None
@@ -315,9 +291,12 @@ class ADSTuner(BaseEstimator):
                 loglevel. can be logging.NOTSET, logging.INFO, logging.DEBUG, logging.WARNING
             n_jobs: int
                 Number of parallel jobs. :obj:`-1` means using all processors.
-            X: TwoDimArrayLikeType
+            X: TwoDimArrayLikeType, Union[List[List[float]], np.ndarray,
+            pd.DataFrame, spmatrix, ADSData]
                 Training data.
             y: Union[OneDimArrayLikeType, TwoDimArrayLikeType], optional
+            OneDimArrayLikeType: Union[List[float], np.ndarray, pd.Series]
+            TwoDimArrayLikeType: Union[List[List[float]], np.ndarray, pd.DataFrame, spmatrix, ADSData]
                 Target.
 
         Example::
@@ -378,7 +357,7 @@ class ADSTuner(BaseEstimator):
 
         seed = np.random.randint(0, np.iinfo("int32").max)
 
-        self.sampler = samplers.TPESampler(seed=seed)
+        self.sampler = optuna.samplers.TPESampler(seed=seed)
         self.median_pruner = self._pruner(
             class_name="median_pruner",
             n_startup_trials=5,
@@ -387,7 +366,7 @@ class ADSTuner(BaseEstimator):
         )
         self.load_if_exists = load_if_exists
         try:
-            self._study = study_module.create_study(
+            self._study = optuna.study.create_study(
                 study_name=self.study_name,
                 direction="maximize",
                 pruner=self.median_pruner,
@@ -544,9 +523,13 @@ class ADSTuner(BaseEstimator):
 
         Parameters
         ----------
-        X: TwoDimArrayLikeType
+        X: TwoDimArrayLikeType, Union[List[List[float]], np.ndarray, pd.DataFrame, spmatrix, ADSData]
+
             Training data.
         y: Union[OneDimArrayLikeType, TwoDimArrayLikeType], optional
+        OneDimArrayLikeType: Union[List[float], np.ndarray, pd.Series]
+        TwoDimArrayLikeType: Union[List[List[float]], np.ndarray, pd.DataFrame, spmatrix, ADSData]
+
             Target.
         exit_criterion: list, optional
             A list of ads stopping criterion. Can be `ScoreValue()`, `NTrials()`, `TimeBudget()`.
@@ -631,6 +614,7 @@ class ADSTuner(BaseEstimator):
                 self.X = X
                 self.y = y
 
+    @runtime_dependency(module="psutil", install_from=OptionalDependency.VIZ)
     def halt(self):
         """
         Halt the current running tuning process.
@@ -672,6 +656,7 @@ class ADSTuner(BaseEstimator):
                 "No running process found. Do you need to call tune()?"
             )
 
+    @runtime_dependency(module="psutil", install_from=OptionalDependency.VIZ)
     def resume(self):
         """
         Resume the current halted tuning process.
@@ -776,6 +761,7 @@ class ADSTuner(BaseEstimator):
         else:
             raise RuntimeError("No running process found. Do you need to call tune()?")
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def _update_failed_trial_state(self):
         from optuna.trial import TrialState
 
@@ -1059,6 +1045,7 @@ class ADSTuner(BaseEstimator):
             else:
                 return "r2"
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def _set_logger(self, loglevel, class_name):
         if loglevel is not None:
             self.loglevel = loglevel
@@ -1100,6 +1087,7 @@ class ADSTuner(BaseEstimator):
                 "There was no model specified or the model is not supported."
             )
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def _tune(
         self,
         X,  # type: TwoDimArrayLikeType
@@ -1136,7 +1124,7 @@ class ADSTuner(BaseEstimator):
         # scoring
         self._scorer = check_scoring(self.estimator, scoring=self.scoring)
 
-        self._study = study_module.create_study(
+        self._study = optuna.study.create_study(
             study_name=self.study_name,
             direction="maximize",
             pruner=self.median_pruner,
@@ -1200,6 +1188,7 @@ class ADSTuner(BaseEstimator):
         logger.setLevel(old_level)
 
     @staticmethod
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def optimizer(
         study_name,
         pruner,
@@ -1249,7 +1238,7 @@ class ADSTuner(BaseEstimator):
         """
         import traceback
 
-        study = study_module.create_study(
+        study = optuna.study.create_study(
             study_name=study_name,
             direction="maximize",
             pruner=pruner,
@@ -1274,6 +1263,7 @@ class ADSTuner(BaseEstimator):
         )
 
     @staticmethod
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def _pruner(class_name, **kwargs):
         if class_name == "median_pruner":
             return optuna.pruners.MedianPruner(**kwargs)
@@ -1381,6 +1371,7 @@ class ADSTuner(BaseEstimator):
         ).extract_tuner_args(delete_zip_file=delete_zip_file)
         return cls(**tuner_args)
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def _plot(
         self,  # type: ADSTuner
         plot_module,  # type: str
@@ -1412,6 +1403,7 @@ class ADSTuner(BaseEstimator):
             print("Waiting for more trials before evaluating the param importance.")
         while self.status == State.RUNNING:
             import time
+            from IPython.display import clear_output
 
             time.sleep(time_interval)
             if len(self.trials[~self.trials["value"].isnull()]) > ntrials:
@@ -1432,7 +1424,7 @@ class ADSTuner(BaseEstimator):
                 plt.title("Intermediate Values Plot")
                 plt.xlabel("Step")
                 plt.ylabel("Intermediate Value")
-                plt.show()
+                plt.show(block=False)
 
             ntrials = len(self.trials[~self.trials["value"].isnull()])
         getattr(plot, plot_func)(study=self._study, fig_size=fig_size, **kwargs)
@@ -1471,6 +1463,7 @@ class ADSTuner(BaseEstimator):
             inferior=inferior,
         )
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def plot_param_importance(
         self,
         importance_evaluator="Fanova",  # type: str

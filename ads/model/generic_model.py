@@ -8,10 +8,10 @@ import json
 import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-import cloudpickle
 import numpy as np
 import pandas as pd
 import requests
+import cloudpickle
 from ads.catalog.model import ModelCatalog
 from ads.common import auth as authutil
 from ads.common import logger, oci_client
@@ -30,6 +30,10 @@ from ads.common.model_metadata import (
 )
 from ads.common.model_metadata_mixin import MetadataMixin
 from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.config import (
     CONDA_BUCKET_NS,
     JOB_RUN_COMPARTMENT_OCID,
@@ -52,7 +56,6 @@ from ads.model.deployment.common.utils import State as ModelDeploymentState
 from ads.model.model_properties import ModelProperties
 from ads.model.runtime.env_info import DEFAULT_CONDA_BUCKET_NAME
 from ads.model.runtime.runtime_info import RuntimeInfo
-from IPython.core.display import display
 from enum import Enum, auto
 
 
@@ -148,6 +151,8 @@ class GenericModel(MetadataMixin, Introspectable):
         Loads model from the specified folder, or zip/tar archive.
     from_model_catalog(model_id, model_file_name, artifact_dir, ..., **kwargs)
         Loads model from model catalog.
+    from_model_deployment(model_deployment_id, model_file_name, artifact_dir, ..., **kwargs)
+        Loads model from model deployment.
     introspect(...)
         Runs model introspection.
     predict(data, ...)
@@ -780,7 +785,9 @@ class GenericModel(MetadataMixin, Introspectable):
         result_model.metadata_taxonomy = oci_model.metadata_taxonomy
         result_model.schema_input = oci_model.schema_input
         result_model.schema_output = oci_model.schema_output
-        result_model.metadata_provenance = oci_model.provenance_metadata
+        result_model.metadata_provenance = ModelProvenanceMetadata._from_oci_metadata(
+            oci_model.provenance_metadata
+        )
         result_model.model_catalog = model_catalog
         result_model._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
@@ -789,7 +796,85 @@ class GenericModel(MetadataMixin, Introspectable):
         result_model._summary_status.update_action(
             detail="Populated metadata(Custom, Taxonomy and Provenance)", action=""
         )
+        result_model._summary_status.update_status(
+            detail="Local tested .predict from score.py",
+            status=ModelState.AVAILABLE.value,
+        )
+        result_model._summary_status.update_status(
+            detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
+        )
+
         return result_model
+
+    @classmethod
+    def from_model_deployment(
+        cls,
+        model_deployment_id: str,
+        model_file_name: str,
+        artifact_dir: str,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        properties: Optional[Union[ModelProperties, Dict]] = None,
+        **kwargs,
+    ) -> "GenericModel":
+        """Loads model from model deployment.
+
+        Parameters
+        ----------
+        model_deployment_id: str
+            The model deployment OCID.
+        model_file_name: (str)
+            The name of the serialized model.
+        artifact_dir: str
+            The artifact directory to store the files needed for deployment.
+            Will be created if not exists.
+        auth: (Dict, optional). Defaults to None.
+            The default authetication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
+        force_overwrite: (bool, optional). Defaults to False.
+            Whether to overwrite existing files or not.
+        properties: (ModelProperties, optional). Defaults to None.
+            ModelProperties object required to save and deploy model.
+        kwargs:
+            compartment_id : (str, optional)
+                Compartment OCID. If not specified, the value will be taken from the environment variables.
+            timeout : (int, optional). Defaults to 10 seconds.
+                The connection timeout in seconds for the client.
+
+        Returns
+        -------
+        GenericModel
+            An instance of GenericModel class.
+        """
+        model_deployment = ModelDeployer(config=auth).get_model_deployment(
+            model_deployment_id=model_deployment_id
+        )
+
+        current_state = model_deployment.state.name.upper()
+        if current_state != ModelDeploymentState.ACTIVE.name:
+            raise NotActiveDeploymentError(current_state)
+
+        model = cls.from_model_catalog(
+            model_id=model_deployment.properties.model_id,
+            model_file_name=model_file_name,
+            artifact_dir=artifact_dir,
+            auth=auth,
+            force_overwrite=force_overwrite,
+            properties=properties,
+            **kwargs,
+        )
+        model._summary_status.update_status(
+            detail="Uploaded artifact to model catalog",
+            status=ModelState.AVAILABLE.value,
+        )
+
+        model.model_deployment = model_deployment
+        model._summary_status.update_status(
+            detail="Deployed the model",
+            status=model.model_deployment.state.name.upper(),
+        )
+        return model
 
     def reload(self) -> None:
         """Reloads the model artifact files: `score.py` and the `runtime.yaml`.
@@ -811,6 +896,7 @@ class GenericModel(MetadataMixin, Introspectable):
             )
         self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def save(
         self,
         display_name: Optional[str] = None,
@@ -886,6 +972,9 @@ class GenericModel(MetadataMixin, Introspectable):
                     "introspection use .save(ignore_introspection=True...)."
                 )
                 logger.error(msg)
+
+                from IPython.core.display import display
+
                 display(self._introspect.to_dataframe())
 
                 self._summary_status.update_status(
@@ -928,6 +1017,7 @@ class GenericModel(MetadataMixin, Introspectable):
         self._summary_status.update_status(
             detail="Deployed the model", status=ModelState.AVAILABLE.value
         )
+        self.model_deployment = None
 
         return self.model_id
 

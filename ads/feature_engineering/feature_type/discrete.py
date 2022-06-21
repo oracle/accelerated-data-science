@@ -13,7 +13,6 @@ Classes:
 """
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 from ads.feature_engineering.feature_type.base import FeatureType
 from ads.feature_engineering.utils import (
     _count_unique_missing,
@@ -21,6 +20,10 @@ from ads.feature_engineering.utils import (
     SchemeTeal,
 )
 from ads.feature_engineering import schema
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class Discrete(FeatureType):
@@ -72,6 +75,7 @@ class Discrete(FeatureType):
         return _count_unique_missing(x)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows distributions of datasets using box plot.
@@ -96,7 +100,7 @@ class Discrete(FeatureType):
         df = df.dropna()
         if len(df.index):
             _set_seaborn_theme()
-            ax = sns.countplot(y=col_name, data=df, color=SchemeTeal.AREA_DARK)
+            ax = seaborn.countplot(y=col_name, data=df, color=SchemeTeal.AREA_DARK)
             ax.set(xlabel="Count")
             return ax
 

@@ -11,24 +11,12 @@ import matplotlib.cm as cm
 import numpy as np
 import pandas as pd
 from ads.common import utils as au
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.dataset.correlation import _validate_correlation_methods
 from ads.dataset.helper import deprecate_default_value
-from bokeh.io import output_notebook, show
-from bokeh.models import (
-    BasicTicker,
-    ColorBar,
-    ColumnDataSource,
-    FactorRange,
-    HoverTool,
-    LabelSet,
-    LinearColorMapper,
-    Panel,
-    PrintfTickFormatter,
-    Tabs,
-)
-from bokeh.palettes import BuPu
-from bokeh.plotting import figure
-from bokeh.transform import factor_cmap, linear_cmap
 
 
 class BokehHeatMap(object):
@@ -36,7 +24,11 @@ class BokehHeatMap(object):
     Generate a HeatMap or horizontal bar plot to compare features.
     """
 
+    @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
     def __init__(self, ds):
+
+        from bokeh.io import output_notebook
+        from bokeh.palettes import BuPu
 
         output_notebook()
 
@@ -76,6 +68,7 @@ class BokehHeatMap(object):
         )
         return corr_flatten
 
+    @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
     def plot_heat_map(
         self,
         matrix,
@@ -114,8 +107,12 @@ class BokehHeatMap(object):
         """
         if self.debug():
             print(matrix)
-        mapper = LinearColorMapper(palette=self.bokehpalette, low=low, high=high)
-        source = ColumnDataSource(matrix)
+        mapper = bokeh.models.LinearColorMapper(
+            palette=self.bokehpalette, low=low, high=high
+        )
+        source = bokeh.models.ColumnDataSource(matrix)
+
+        from bokeh.plotting import figure
 
         p = figure(
             title=title,
@@ -139,13 +136,13 @@ class BokehHeatMap(object):
         p.xaxis.major_label_orientation = "vertical"
 
         if tool_tips:
-            p.add_tools(HoverTool(tooltips=tool_tips))
+            p.add_tools(bokeh.models.HoverTool(tooltips=tool_tips))
 
-        color_bar = ColorBar(
+        color_bar = bokeh.models.ColorBar(
             color_mapper=mapper,
             major_label_text_font_size="5pt",
-            ticker=BasicTicker(desired_num_ticks=8),
-            formatter=PrintfTickFormatter(format="%0.2f"),
+            ticker=bokeh.models.BasicTicker(desired_num_ticks=8),
+            formatter=bokeh.models.PrintfTickFormatter(format="%0.2f"),
             label_standoff=6,
             border_line_color=None,
             location=(0, 0),
@@ -153,6 +150,7 @@ class BokehHeatMap(object):
         p.add_layout(color_bar, "right")
         return p
 
+    @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
     def plot_hbar(
         self,
         matrix,
@@ -185,8 +183,12 @@ class BokehHeatMap(object):
         fig: matplotlib Figure
             A matplotlib heatmap figure object.
         """
-        mapper = LinearColorMapper(palette=self.bokehpalette, low=low, high=high)
-        source = ColumnDataSource(matrix)
+        mapper = bokeh.models.LinearColorMapper(
+            palette=self.bokehpalette, low=low, high=high
+        )
+        source = bokeh.models.ColumnDataSource(matrix)
+
+        from bokeh.plotting import figure
 
         p = figure(
             title=f"{title} ({column_name})",
@@ -208,19 +210,19 @@ class BokehHeatMap(object):
             line_color=None,
         )
 
-        p.add_tools(HoverTool(tooltips=tool_tips))
+        p.add_tools(bokeh.models.HoverTool(tooltips=tool_tips))
 
-        color_bar = ColorBar(
+        color_bar = bokeh.models.ColorBar(
             color_mapper=mapper,
             major_label_text_font_size="5pt",
-            ticker=BasicTicker(desired_num_ticks=8),
-            formatter=PrintfTickFormatter(format="%0.2f"),
+            ticker=bokeh.models.BasicTicker(desired_num_ticks=8),
+            formatter=bokeh.models.PrintfTickFormatter(format="%0.2f"),
             label_standoff=6,
             border_line_color=None,
             location=(0, 0),
         )
 
-        labels = LabelSet(
+        labels = bokeh.models.LabelSet(
             x="label",
             y="Y",
             text="X",
@@ -234,6 +236,7 @@ class BokehHeatMap(object):
         p.add_layout(labels)
         return p
 
+    @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
     def generate_heatmap(
         self, corr_matrix, title: str, msg: str, correlation_threshold: float
     ):
@@ -258,8 +261,13 @@ class BokehHeatMap(object):
             A matplotlib Panel object which includes a plotted heatmap
 
         """
+        from bokeh.plotting import figure
+
         if len(corr_matrix) == 0:
-            tab = Panel(child=figure(title=msg + ", nothing to display"), title=title)
+            tab = bokeh.models.Panel(
+                child=figure(title=msg + ", nothing to display"),
+                title=title,
+            )
             return tab
         corr_matrix = _corr_filter(correlation_threshold, corr_matrix)
         corr_flatten = self.flatten_corr_matrix(corr_matrix)
@@ -278,9 +286,10 @@ class BokehHeatMap(object):
             tool_tips=[("X", "@x"), ("Y", "@y"), ("Corr", "@corr")],
         )
 
-        tab = Panel(child=p, title=title)
+        tab = bokeh.models.Panel(child=p, title=title)
         return tab
 
+    @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
     def generate_target_heatmap(
         self,
         corr_matrix,
@@ -311,15 +320,22 @@ class BokehHeatMap(object):
         tab: matplotlib Panel
             A matplotlib Panel object which includes a plotted heatmap.
         """
+        from bokeh.plotting import figure
+
         if len(corr_matrix) == 0:
-            tab = Panel(child=figure(title=msg + ", nothing to display"), title=title)
+            tab = bokeh.models.Panel(
+                child=figure(title=msg + ", nothing to display"),
+                title=title,
+            )
             return tab
 
         corr_matrix = _corr_filter(correlation_threshold, corr_matrix)
 
         assert correlation_target, "Correlation target is required for this plot"
         if correlation_target not in corr_matrix.columns:
-            tab = Panel(child=figure(title="No Data to display"), title=title)
+            tab = bokeh.models.Panel(
+                child=figure(title="No Data to display"), title=title
+            )
             return tab
 
         corr_flatten = {}
@@ -366,9 +382,10 @@ class BokehHeatMap(object):
             column_name=correlation_target,
         )
 
-        tab = Panel(child=p, title=title)
+        tab = bokeh.models.Panel(child=p, title=title)
         return tab
 
+    @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
     def plot_correlation_heatmap(
         self,
         ds,
@@ -487,7 +504,10 @@ class BokehHeatMap(object):
         else:
             raise ValueError("Only supported plot types are heatmap and bar")
 
-        bokeh_tabs = Tabs(tabs=tabs)
+        bokeh_tabs = bokeh.models.Tabs(tabs=tabs)
+
+        from bokeh.io import show
+
         show(bokeh_tabs)
 
 

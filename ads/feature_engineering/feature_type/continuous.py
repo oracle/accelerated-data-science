@@ -13,7 +13,6 @@ Classes:
 """
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 from ads.feature_engineering.feature_type.base import FeatureType
 from ads.feature_engineering.utils import (
     _add_missing,
@@ -22,6 +21,10 @@ from ads.feature_engineering.utils import (
     _format_stat,
 )
 from ads.feature_engineering import schema
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class Continuous(FeatureType):
@@ -88,6 +91,7 @@ class Continuous(FeatureType):
         return df_stat
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows distributions of datasets using box plot.
@@ -109,7 +113,9 @@ class Continuous(FeatureType):
         df = df[pd.to_numeric(df[col_name], errors="coerce").notnull()]
         if len(df.index):
             _set_seaborn_theme()
-            return sns.boxplot(x=df[col_name], width=0.2, color=SchemeTeal.AREA_DARK)
+            return seaborn.boxplot(
+                x=df[col_name], width=0.2, color=SchemeTeal.AREA_DARK
+            )
 
     @classmethod
     def feature_domain(cls, x: pd.Series) -> schema.Domain:

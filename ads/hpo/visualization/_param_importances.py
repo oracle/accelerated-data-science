@@ -7,17 +7,20 @@
 from typing import List, Optional
 
 import matplotlib.pyplot as plt
-from optuna.importance._base import BaseImportanceEvaluator
-from optuna.study import Study
-from optuna.visualization.matplotlib import plot_param_importances
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
+@runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
 def _plot_param_importances(
-    study: Study,
+    study: "optuna.study.Study",
     fig_size: tuple,
-    evaluator: Optional[BaseImportanceEvaluator] = None,
+    evaluator: Optional["optuna.importance._base.BaseImportanceEvaluator"] = None,
     params: Optional[List[str]] = None,
 ):
+    from optuna.visualization.matplotlib import plot_param_importances
 
     plot_param_importances(study, evaluator, params)
-    plt.show()
+    plt.show(block=False)

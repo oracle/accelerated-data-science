@@ -29,7 +29,7 @@ ads.secrets.mysqldb module
    :show-inheritance:
 
 ads.secrets.oracledb module
---------------------------
+---------------------------
 
 .. automodule:: ads.secrets.oracledb
    :members:

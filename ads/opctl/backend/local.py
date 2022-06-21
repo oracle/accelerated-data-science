@@ -9,8 +9,6 @@ import os
 import tempfile
 from typing import List, Dict
 
-from docker import errors
-
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend
 from ads.opctl.config.resolver import ConfigResolver
@@ -28,6 +26,10 @@ from ads.opctl.utils import build_image, run_container, run_command
 from ads.opctl.spark.cmds import (
     generate_core_site_properties_str,
     generate_core_site_properties,
+)
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
 )
 
 
@@ -48,14 +50,15 @@ class LocalBackend(Backend):
         self.config = config
 
     def run(self):
-        if self.config.get('version') == "v1.0":
-            docker_image = self.config['spec']['Infrastructure']['spec']['dockerImage']
+        if self.config.get("version") == "v1.0":
+            docker_image = self.config["spec"]["Infrastructure"]["spec"]["dockerImage"]
             # TODO: don't hard code api keys
             bind_volumes = {
-                    os.path.expanduser(
-                        "~/.oci"
-                    ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci"), 'mode': 'ro'}
+                os.path.expanduser("~/.oci"): {
+                    "bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci"),
+                    "mode": "ro",
                 }
+            }
             self._run_with_image_v1(bind_volumes)
 
         else:
@@ -68,12 +71,13 @@ class LocalBackend(Backend):
                 }
             if self.config["execution"].get("conda_slug", None):
                 self._run_with_conda_pack(bind_volumes)
-            elif self.config['execution'].get("image"):
+            elif self.config["execution"].get("image"):
                 self._run_with_image(bind_volumes)
             else:
                 raise ValueError("Either conda pack info or image should be specified.")
             return {}
 
+    @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
     def init_vscode_container(self) -> None:
         """
         Create a .devcontainer.json file for development with VSCode.
@@ -140,7 +144,7 @@ class LocalBackend(Backend):
         try:
             client = get_docker_client()
             client.api.inspect_image(image)
-        except errors.ImageNotFound:
+        except docker.errors.ImageNotFound:
             cmd = None
             if image == ML_JOB_IMAGE:
                 cmd = "ads opctl build-image job-local"
@@ -260,16 +264,23 @@ class LocalBackend(Backend):
         run_container(image, bind_volumes, env_vars, command, entrypoint)
 
     def _run_with_image_v1(self, bind_volumes: Dict) -> None:
-        env_vars = [str(d['name']) + '=' + str(d['value']) for d in \
-            self.config["spec"]["Runtime"]["spec"]["environmentVariables"]]
-        image = self.config['spec']['Infrastructure']['spec']['dockerImage']
+        env_vars = [
+            str(d["name"]) + "=" + str(d["value"])
+            for d in self.config["spec"]["Runtime"]["spec"]["environmentVariables"]
+        ]
+        image = self.config["spec"]["Infrastructure"]["spec"]["dockerImage"]
         command = self.config["spec"]["Runtime"]["spec"]["entrypoint"]
         entrypoint = "python /etc/datascience/operator/cluster_helper.py"
 
         print("looking to bind volume")
         bind_volumes.update(self.config["spec"]["Framework"]["spec"]["bindVolumes"])
-        run_container(image=image, bind_volumes=bind_volumes, env_vars=env_vars, command=command, entrypoint=entrypoint)
-
+        run_container(
+            image=image,
+            bind_volumes=bind_volumes,
+            env_vars=env_vars,
+            command=command,
+            entrypoint=entrypoint,
+        )
 
     def _check_conda_pack_and_install_if_applicable(
         self, slug: str, bind_volumes: Dict, env_vars: Dict
@@ -342,13 +353,14 @@ class LocalBackend(Backend):
         return bind_volumes
 
     @staticmethod
+    @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
     def _activate_conda_env_and_run(
         image: str, slug: str, command: List[str], bind_volumes: Dict, env_vars: Dict
     ) -> None:
         try:
             client = get_docker_client()
             client.api.inspect_image(image)
-        except errors.ImageNotFound:
+        except docker.errors.ImageNotFound:
             logger.info(f"Image {image} not found. Attempt building it now....")
             if image == ML_JOB_IMAGE:
                 build_image("job-local", gpu=False)

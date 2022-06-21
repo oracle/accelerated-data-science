@@ -25,7 +25,6 @@ from ads.config import OCI_REGION_METADATA
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
 from ads.jobs.builders.infrastructure.utils import batch_convert_case, normalize_config
 from ads.jobs.builders.runtimes.python_runtime import DataFlowRuntime
-from IPython.display import HTML, display
 from oci.data_flow.models import CreateApplicationDetails, CreateRunDetails
 from tqdm import tqdm
 

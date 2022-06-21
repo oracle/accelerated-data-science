@@ -50,11 +50,11 @@ class RidgeSearchSpace(ModelSearchSpace):
         super(RidgeSearchSpace, self).__init__(strategy)
 
     def suggest_space(self, **kwargs):
-        space = {"alpha": LogUniformDistribution(10 ** -4, 10 ** -1)}
+        space = {"alpha": LogUniformDistribution(10**-4, 10**-1)}
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "alpha": LogUniformDistribution(10 ** -5, 10 ** 1),
+                    "alpha": LogUniformDistribution(10**-5, 10**1),
                     "fit_intercept": CategoricalDistribution([True, False]),
                     "normalize": CategoricalDistribution([True, False]),
                 }
@@ -76,13 +76,13 @@ class ElasticNetSearchSpace(ModelSearchSpace):
 
     def suggest_space(self, **kwargs):
         space = {
-            "alpha": LogUniformDistribution(10 ** -4, 10 ** -1),
+            "alpha": LogUniformDistribution(10**-4, 10**-1),
             "l1_ratio": UniformDistribution(0, 1),
         }
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "alpha": LogUniformDistribution(10 ** -5, 10),
+                    "alpha": LogUniformDistribution(10**-5, 10),
                     "fit_intercept": CategoricalDistribution([True, False]),
                     "l1_ratio": UniformDistribution(0, 1),
                     "normalize": CategoricalDistribution([True, False]),
@@ -97,7 +97,7 @@ class LogisticRegressionSearchSpace(ModelSearchSpace):
 
     def suggest_space(self, **kwargs):
         space = {
-            "C": LogUniformDistribution(10 ** -4, 10 ** -1),
+            "C": LogUniformDistribution(10**-4, 10**-1),
             "dual": CategoricalDistribution([False]),
             "penalty": CategoricalDistribution(["l1", "l2"]),
             "solver": CategoricalDistribution(["saga"]),
@@ -106,7 +106,7 @@ class LogisticRegressionSearchSpace(ModelSearchSpace):
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "C": LogUniformDistribution(10 ** -5, 10),
+                    "C": LogUniformDistribution(10**-5, 10),
                     "l1_ratio": UniformDistribution(0, 1),
                     "penalty": CategoricalDistribution(["elasticnet"]),
                 }
@@ -120,13 +120,13 @@ class SGDClassifierSearchSpace(ModelSearchSpace):
 
     def suggest_space(self, **kwargs):
         space = {
-            "alpha": LogUniformDistribution(10 ** -4, 10 ** -1),
+            "alpha": LogUniformDistribution(10**-4, 10**-1),
             "penalty": CategoricalDistribution(["l1", "l2", "none"]),
         }
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "alpha": LogUniformDistribution(10 ** -5, 10 ** 1),
+                    "alpha": LogUniformDistribution(10**-5, 10**1),
                     "l1_ratio": UniformDistribution(0, 1),
                     "penalty": CategoricalDistribution(["elasticnet"]),
                 }
@@ -146,13 +146,13 @@ class SVCSearchSpace(ModelSearchSpace):
     def suggest_space(self, **kwargs):
 
         space = {
-            "C": LogUniformDistribution(10 ** -4, 10 ** -1),
+            "C": LogUniformDistribution(10**-4, 10**-1),
             "max_iter": CategoricalDistribution([1000]),
         }
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "C": LogUniformDistribution(10 ** -5, 5),
+                    "C": LogUniformDistribution(10**-5, 5),
                     "gamma": CategoricalDistribution(["scale", "auto"]),
                     "kernel": CategoricalDistribution(
                         ["linear", "poly", "rbf", "sigmoid"]
@@ -174,13 +174,13 @@ class LinearSVCSearchSpace(ModelSearchSpace):
     def suggest_space(self, **kwargs):
 
         space = {
-            "C": LogUniformDistribution(10 ** -4, 10 ** -1),
+            "C": LogUniformDistribution(10**-4, 10**-1),
             "dual": CategoricalDistribution([False]),
         }
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "C": LogUniformDistribution(10 ** -5, 5),
+                    "C": LogUniformDistribution(10**-5, 5),
                     "class_weight": CategoricalDistribution(
                         ["balanced", None]
                     ),  # max_iter defaults to 1000
@@ -198,12 +198,12 @@ class LinearSVRSearchSpace(ModelSearchSpace):
 
     def suggest_space(self, **kwargs):
 
-        space = {"C": LogUniformDistribution(10 ** -4, 10 ** -1)}
+        space = {"C": LogUniformDistribution(10**-4, 10**-1)}
 
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "C": LogUniformDistribution(10 ** -5, 10 ** 1),
+                    "C": LogUniformDistribution(10**-5, 10**1),
                     "dual": CategoricalDistribution([False]),
                     "fit_intercept": CategoricalDistribution([True, False]),
                     "loss": CategoricalDistribution(["squared_epsilon_insensitive"]),
@@ -285,8 +285,8 @@ class XGBClassifierSearchSpace(ModelSearchSpace):
                     "n_estimators": IntUniformDistribution(50, 500),
                     # 'scale_pos_weight': LogUniformDistribution(10 ** -5, 1),
                     "subsample": UniformDistribution(0.25, 1),
-                    "reg_alpha": LogUniformDistribution(10 ** -5, 1),
-                    "reg_lambda": LogUniformDistribution(10 ** -5, 1),
+                    "reg_alpha": LogUniformDistribution(10**-5, 1),
+                    "reg_lambda": LogUniformDistribution(10**-5, 1),
                 }
             )
         return _update_space_name(space, **kwargs)
@@ -318,8 +318,8 @@ class LGBMClassifierSearchSpace(ModelSearchSpace):
                     "min_child_weight": IntUniformDistribution(0, 20),
                     "n_estimators": IntUniformDistribution(50, 500),
                     "num_leaves": IntLogUniformDistribution(7, 40),
-                    "reg_alpha": LogUniformDistribution(10 ** -5, 1),
-                    "reg_lambda": LogUniformDistribution(10 ** -5, 1),
+                    "reg_alpha": LogUniformDistribution(10**-5, 1),
+                    "reg_lambda": LogUniformDistribution(10**-5, 1),
                 }
             )
 

@@ -12,7 +12,6 @@ import warnings
 import oci
 import datetime
 import pandas as pd
-from IPython.core.display import display
 from fsspec.utils import infer_storage_options
 import inspect
 import fsspec
@@ -49,7 +48,10 @@ from ads.type_discovery.typed_feature import (
 from ads.type_discovery.typed_feature import TypedFeature
 from typing import Callable, Tuple
 from ocifs import OCIFileSystem
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 default_snapshots_dir = None
 default_storage_options = None
@@ -251,11 +253,12 @@ class DatasetFactory:
         return DatasetFactory.open(df, target=target, **kwargs)
 
     @staticmethod
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     @runtime_dependency(
         module="ipywidgets",
         object="HTML",
         is_for_notebook_only=True,
-        install_from="oracle-ads[notebook]",
+        install_from=OptionalDependency.NOTEBOOK,
     )
     def list_snapshots(snapshot_dir=None, name="", storage_options=None, **kwargs):
         """
@@ -338,6 +341,8 @@ class DatasetFactory:
 
         # display in HTML format if sdk is run in notebook mode
         if utils.is_notebook():
+            from IPython.core.display import display
+
             display(
                 HTML(
                     list_df.style.set_table_attributes("class=table")
@@ -709,7 +714,7 @@ class CustomFormatReaders:
 
     @staticmethod
     @runtime_dependency(
-        module="pandavro", object="read_avro", install_from="oracle-ads[data]"
+        module="pandavro", object="read_avro", install_from=OptionalDependency.DATA
     )
     def read_avro(path: str, **kwargs) -> pd.DataFrame:
         return read_avro(path, **kwargs)
@@ -827,6 +832,7 @@ class CustomFormatReaders:
             return pd.read_html(path, **kwargs)[html_table_index]
 
     @staticmethod
+    @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def read_arff(path, **kwargs):
         from scipy.io import arff
         import requests

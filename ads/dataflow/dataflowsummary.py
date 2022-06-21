@@ -8,14 +8,13 @@ from __future__ import print_function, absolute_import
 
 import abc
 import ads.common.utils as utils
-import six
 from oci.util import to_dict
 from pandas import DataFrame
 import pandas as pd
+from abc import ABCMeta
 
 
-@six.add_metaclass(abc.ABCMeta)
-class SummaryList(list):
+class SummaryList(list, metaclass=ABCMeta):
     def __init__(self, entity_list, datetime_format=utils.date_format):
         if isinstance(entity_list, filter):
             entity_list = list(entity_list)

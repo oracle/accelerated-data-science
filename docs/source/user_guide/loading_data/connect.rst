@@ -1,23 +1,23 @@
 Connecting to Data Sources
-==========================
+**************************
 
 You can load data into ADS in several different ways from Oracle Cloud Infrastructure Object Storage, cx_Oracle, or S3.  Following are some examples.
 
 Begin by loading the required libraries and modules:
 
-.. code:: python3
+.. code-block:: python3
 
     import ads
     import numpy as np
     import pandas as pd
     from ads.common.auth import default_signer
 
-
 Object Storage
---------------
+==============
+
 To load a dataframe from Object Storage using the API keys, you can use the following example, replacing the angle bracketed content with the location and name of your file:
 
-.. code:: python3
+.. code-block:: python3
 
   ads.set_auth(auth="api_key", oci_config_location="~/.oci/config", profile="DEFAULT")
   bucket_name = <bucket-name>
@@ -25,13 +25,11 @@ To load a dataframe from Object Storage using the API keys, you can use the foll
   namespace = <namespace>
   df = pd.read_csv(f"oci://{bucket_name}@{namespace}/{file_name}", storage_options=default_signer())
 
-
 For a list of ``pandas`` functions to read different file format, please refer to `the Pandas documentation <https://pandas.pydata.org/pandas-docs/stable/user_guide/io.html>`_.
-
 
 To load a dataframe from Object Storage using the resource principal method, you can use the following example, replacing the angle bracketed content with the location and name of your file:
 
-.. code:: python3
+.. code-block:: python3
 
   ads.set_auth(auth='resource_principal')
   bucket_name = <bucket-name>
@@ -39,18 +37,17 @@ To load a dataframe from Object Storage using the resource principal method, you
   namespace = <namespace>
   df = pd.read_csv(f"oci://{bucket_name}@{namespace}/{file_name}", storage_options=default_signer())
 
-
 Local Storage
--------------
+=============
 
 To load a dataframe from a local source, use functions from ``pandas`` directly:
 
-.. code:: python3
+.. code-block:: python3
 
   df = pd.read_csv("/path/to/data.data")
 
 Oracle Database
----------------
+===============
 
 .. image:: images/cx_Oracle.jpeg
   :height: 150
@@ -59,7 +56,7 @@ Oracle Database
 When using the `Oracle ADB <https://www.oracle.com/database/>`_ with Python the most common representation of tabular data is  a `Pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`_. When you're in a dataframe, you can perform many operations from visualization to persisting in a variety of formats.
 
 Oracle ADB to Pandas
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 The Pandas ``read_sql(...)`` function is a general, database independent approach that uses the `SQLAlchemy - Object Relational Mapper <https://www.sqlalchemy.org/>`_ to arbitrate between specific database types and Pandas.
 
@@ -68,9 +65,6 @@ The Pandas ``read_sql(...)`` function is a general, database independent approac
    Read SQL query or database table into a dataframe.
 
    This function is a convenience wrapper around read_sql_table and ``read_sql_query`` (for backward compatibility). It delegates to the specific function depending on the provided input. A SQL query is routed to read_sql_query, while a database table name is routed to ``read_sql_table``.
-
-
-ADS (2.3.1+) (found in the *"Data Exploration and Manipulation for CPU V2"*\ conda environment) recommends using the **ADS provided drop-in alternative**\. This can be up to 15 times faster than ``Pandas.read_sql()`` because it bypasses the ORM, and is written to take advantage of being specific for the Oracle ADB.
 
 Use the Pandas ADS accessor drop-in replacement, ``pd.DataFrame.ads.read_sql(...)``, instead of using ``pd.read_sql``.
 
@@ -111,22 +105,22 @@ Use the Pandas ADS accessor drop-in replacement, ``pd.DataFrame.ads.read_sql(...
             connection_parameters=connection_parameters,
         )
 
-Oracle Database to Pandas (Connecting Without Wallet File)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Oracle Database to Pandas - No Wallet
+-------------------------------------
 
-Available with ADS v2.5.6 and greater
+.. versionadded:: 2.5.6.
 
 If your database connection doesn't require a wallet file, you can connect to the database by specifying ``host/port/sid/service name``.
 
 **Example**
 
-  .. code-block:: python3 
+.. code-block:: python3 
 
         connection_parameters = {
             "user_name": "<username>",
             "password": "<password>",
             "service_name": "<service_name>",
-            "host": "<database host name>",
+            "host": "<database hostname>",
             "port": "<database port number>""
         }
         import pandas as pd
@@ -156,22 +150,19 @@ If your database connection doesn't require a wallet file, you can connect to th
             connection_parameters=connection_parameters,
         )
 
-
 Performance
-~~~~~~~~~~~
+-----------
 
 The performance is limited by three things:
 
-- Generational latency: How long the database takes to return rows, use of indexes and writing efficient SQL mitigates this performance bottleneck.
+* Generational latency: How long the database takes to return rows, use of indexes and writing efficient SQL mitigates this performance bottleneck.
+* Network saturation: Once the network is saturated, data can't be delivered between the database and notebook environment any faster. OCI networking is very fast and this isn't usually a concern. One exception is when the network path goes over VPN or other more complex routing topologies.
+* CPU latency in the notebook: Python has to collect the byte stream delivered by the database into Python data types before being promoted to Numpy objects for Pandas. Additionally, there is a cryptographic CPU overhead because the data in transit is secured with public key infrastructure (PKI).
 
-- Network saturation: Once the network is saturated, data can't be delivered between the database and notebook environment any faster. OCI networking is very fast and this isn't usually a concern. One exception is when the network path goes over VPN or other more complex routing topologies.
+Large Result Set
+----------------
 
-- CPU latency in the notebook: Python has to collect the byte stream delivered by the database into Python data types before being promoted to Numpy objects for Pandas. Additionally, there is a cryptographic CPU overhead because the data in transit is secured with public key infrastructure (PKI).
-
-Large result sets
-~~~~~~~~~~~~~~~~~
-
-If a database query returns more rows than the memory of the client permits, you have a a couple of easy options. The simplest is to use a larger client shape, along with increased compute performance because larger shapes come with more RAM. If that's not an option, then you can use the ``pd.DataFrame.ads.read_sql`` mixin in chunk mode, where the result is no longer a Pandas dataframe it is an iterator over a sequence of dataframes. You could use this read a large data set and write it to Object storage or a local file system with the following example:
+If a database query returns more rows than the memory of the client permits, you have a couple of options. The simplest is to use a larger client shape, along with increased compute performance because larger shapes come with more RAM. If that's not an option, then you can use the ``pd.DataFrame.ads.read_sql`` mixin in chunk mode, where the result is no longer a Pandas dataframe it is an iterator over a sequence of dataframes. You could use this read a large data set and write it to Object storage or a local file system with the following example:
 
   .. code-block:: python3 
 
@@ -184,20 +175,19 @@ If a database query returns more rows than the memory of the client permits, you
           # to write the data to object storage use oci://bucket#namespace/part_{i}.csv"
           df.to_csv(f"part_{i}.csv")
 
-Very large result sets
-~~~~~~~~~~~~~~~~~~~~~~
+Very Large Result Set
+---------------------
 
 If the data exceeds what's practical in a notebook, then the next step is to use the `Data Flow service <https://www.oracle.com/big-data/data-flow/>`_ to partition the data across multiple nodes and handle data of any size up to the size of the cluster.
    
-
 Pandas to Oracle Database
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 Typically, you would do this using ``df.to_sql``\. However, this uses Oracle Resource Manager to collect data and is less efficient than code that has been optimized for a specific database.
 
 Instead, use the Pandas ADS accessor mixin.
 
-With a \ ``df``\ dataframe, writing this to the database is as simple as:
+With a ``df`` dataframe, writing this to the database is as simple as:
 
 .. code-block:: python3
 
@@ -237,8 +227,9 @@ The resulting data types (if the table was created by ADS as opposed to insertin
 When a table is created, the length of any ``VARCHAR2`` column is computed from the longest string in the column. The ORM defaults to ``CLOB`` data, which is not correct or efficient. CLOBS are stored efficiently by the database, but the c API to query them works differently. The non-LOB columns are returned to the client through a cursor, but LOBs are handled differently resulting in an additional network fetch per row, per LOB column. ADS deals with this by creating the correct data type, and setting the correct ``VARCHAR2`` length.
 
 MySQL
------
-Available with ADS v2.5.6 and greater
+=====
+
+.. versionadded:: 2.5.6.
 
 To load a dataframe from a MySQL database, you must set ``engine=mysql`` in ``pd.DataFrame.ads.read_sql``.
 
@@ -249,7 +240,7 @@ To load a dataframe from a MySQL database, you must set ``engine=mysql`` in ``pd
         connection_parameters = {
             "user_name": "<username>",
             "password": "<password>",
-            "host": "<database host name>",
+            "host": "<database hostname>",
             "port": "<database port number>",
             "database": "<database name>"
         }
@@ -280,7 +271,7 @@ To load a dataframe from a MySQL database, you must set ``engine=mysql`` in ``pd
             engine="mysql"
         )
 
-To save the dataframe \ ``df``\ to MySQL, use ``df.ads.to_sql`` API with ``engine=mysql``
+To save the dataframe ``df`` to MySQL, use ``df.ads.to_sql`` API with ``engine=mysql``
 
 .. code-block:: python3
 
@@ -318,26 +309,24 @@ The resulting data types (if the table was created by ADS as opposed to insertin
      - VARCHAR (Maximum length of the actual data.)
 
 BDS Hive
---------
+========
 
-Available with ADS v2.6.0 and greater. To load a dataframe from BDS
-Hive, you must set ``engine="hive"`` in ``pd.DataFrame.ads.read_sql``.
+.. versionadded:: 2.6.1.
+
+To load a dataframe from BDS Hive, set ``engine="hive"`` in ``pd.DataFrame.ads.read_sql``.
 
 Connection Parameters
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 **Work with BDS with Kerberos authentication**
 
-If you are working with BDS that requires Kerberos authentication, you can 
-follow :ref:`here <BDS Connect>` to get connection parameters required 
-to connect with BDS, and then follow :ref:`here <secretbds>` to save 
-the connection parameters as well as the files needed to configure the 
+If you are working with BDS that requires Kerberos authentication, you can follow :ref:`here <BDS Connect>` to get connection parameters required to connect with BDS, and then follow :ref:`here <secretbds>` to save the connection parameters as well as the files needed to configure the 
 kerberos authentication into vault. The ``connection_parameters`` can be set as:
 
-.. code:: ipython3
+.. code-block:: python3
 
     connection_parameters = {
-        "host": "<hive host name>",
+        "host": "<hive hostname>",
         "port": "<hive port number>",
     }
 
@@ -345,20 +334,20 @@ kerberos authentication into vault. The ``connection_parameters`` can be set as:
 
 If you are working with unsecure BDS, you can set ``connection_parameters`` as:
 
-.. code:: ipython3
+.. code-block:: python3
 
     connection_parameters = {
-        "host": "<hive host name>",
+        "host": "<hive hostname>",
         "port": "<hive port number>",
         "auth_mechanism": "PLAIN" # for connection with unsecure BDS
     }
 
 **Example**
 
-.. code:: ipython3
+.. code-block:: python3
 
     connection_parameters = {
-        "host": "<database host name>",
+        "host": "<database hostname>",
         "port": "<database port number>",
     }
     import pandas as pd
@@ -388,10 +377,9 @@ If you are working with unsecure BDS, you can set ``connection_parameters`` as:
         engine="hive"
     )
 
-To save the dataframe ``df`` to BDS Hive, use ``df.ads.to_sql`` API with
-``engine="hive"``.
+To save the dataframe ``df`` to BDS Hive, use ``df.ads.to_sql`` API with ``engine="hive"``.
 
-.. code:: ipython3
+.. code-block:: python3
 
     df.ads.to_sql(
         "MY_TABLE",
@@ -401,13 +389,11 @@ To save the dataframe ``df`` to BDS Hive, use ``df.ads.to_sql`` API with
     )
 
 Partition
-~~~~~~~~~
+---------
 
-You can create table with partition, and then use ``df.ads.to_sql`` API
-with ``engine="hive"``, ``if_exists="append"`` to insert data into the
-table.
+You can create table with partition, and then use ``df.ads.to_sql`` API with ``engine="hive"``, ``if_exists="append"`` to insert data into the table.
 
-.. code:: ipython3
+.. code-block:: python3
 
     create_table_sql = f'''
                         CREATE TABLE {table_name} (col1_name datatype, ...)
@@ -421,22 +407,19 @@ table.
         engine="hive"
     )
 
-Large size dataframe
-~~~~~~~~~~~~~~~~~~~~
+Large Dataframe
+---------------
 
-If the dataframe waiting to be uploaded has too many rows, and the
-to_sql takes too long to finish, you have other options. The simplest is
-to use a larger client shape, along with increased compute performance
-because larger shapes come with more RAM. If that’s not an option, then
-you can follow these steps:
+If the dataframe waiting to be uploaded has many rows, and the ``.to_sql()`` method is slow, you have other options. The simplest is
+to use a larger client shape, along with increased compute performance because larger shapes come with more RAM. If that’s not an option, then you can follow these steps:
 
-.. code:: ipython3
+.. code-block:: python3
 
     # Step1: Save your df as csv
     df.to_csv(f"my_data.csv")
     
     # Step2: Upload the csv to hdfs
-    hdfs_host = "<hdfs host name>"
+    hdfs_host = "<hdfs hostname>"
     hdfs_port = "<hdfs port number>"
     hdfs_config = {"host": hdfs_host, "port": hdfs_port, "protocol": "webhdfs"}
     fs = fsspec.filesystem(**hdfs_config)
@@ -459,21 +442,19 @@ you can follow these steps:
     sql = f"LOAD DATA INPATH '{hdfs_path}' INTO TABLE {table_name}"
     cursor.execute(sql)
 
-
-
-
 HTTP(S) Sources
----------------
+===============
 
 To load a dataframe from a remote web server source, use ``pandas`` directly and specify the URL of the data:
 
-.. code:: python3
+.. code-block:: python3
 
   df = pd.read_csv('https://example.com/path/to/data.csv')
 
-Converting Pandas DataFrame to ``ADSDataset``
----------------------------------------------
-To convert a pandas dataframe to ``ADSDataset``, pass the ``pandas.DataFrame`` object directly into the ADS ``DatasetFactory.open`` method:
+Convert Pandas DataFrame to ``ADSDataset``
+==========================================
+
+To convert a Pandas dataframe to ``ADSDataset``, pass the ``pandas.DataFrame`` object directly into the ADS ``DatasetFactory.open`` method:
 
 .. code-block:: python3
 
@@ -504,10 +485,11 @@ To convert a pandas dataframe to ``ADSDataset``, pass the ``pandas.DataFrame`` o
 
 
 Using ``PyArrow``
------------------
+=================
+
 ADS supports reading files into ``PyArrow`` dataset directly via ``ocifs``. ``ocifs`` is installed as ADS dependencies.
 
-.. code:: python3
+.. code-block:: python3
 
   import ocifs
   import pyarrow.dataset as ds

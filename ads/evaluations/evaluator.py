@@ -7,7 +7,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from IPython.core.display import display
 
 from cycler import cycler
 import matplotlib as mpl
@@ -24,7 +23,10 @@ from ads.evaluations.evaluation_plot import EvaluationPlot
 from ads.evaluations.statistical_metrics import ModelEvaluator
 from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 from ads.common.model import ADSModel
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class ADSEvaluator(object):
@@ -594,7 +596,12 @@ class ADSEvaluator(object):
                 return df
 
             @runtime_dependency(
-                module="ipywidgets", object="HTML", install_from="oracle-ads[notebook]"
+                module="IPython", install_from=OptionalDependency.NOTEBOOK
+            )
+            @runtime_dependency(
+                module="ipywidgets",
+                object="HTML",
+                install_from=OptionalDependency.NOTEBOOK,
             )
             def _display_metrics(df, data_name, labels, precision):
                 """
@@ -615,6 +622,8 @@ class ADSEvaluator(object):
                 -------
                 Nothing
                 """
+                from IPython.core.display import display, HTML
+
                 display(
                     HTML(
                         _pretty_label(df, labels)

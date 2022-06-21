@@ -13,9 +13,11 @@ from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 import math
 from ads.common import logger
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 import itertools
-from IPython.core.display import display
 import pandas as pd
 
 MAX_TITLE_LEN = 20
@@ -188,14 +190,16 @@ class EvaluationPlot:
         EvaluationPlot.get_legend_labels({'class_0': 'green', 'class_1': 'yellow', 'class_2': 'red'})
         """
 
+        @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
         @runtime_dependency(
-            module="ipywidgets", object="HTML", install_from="oracle-ads[notebook]"
+            module="ipywidgets", object="HTML", install_from=OptionalDependency.NOTEBOOK
         )
         def render_legend_labels(label_dict):
             encodings = pd.DataFrame(
                 pd.Series(label_dict, index=label_dict.keys()),
                 columns=["Shortened labels"],
             )
+            from IPython.core.display import display
 
             display(
                 HTML(

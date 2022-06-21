@@ -9,17 +9,17 @@ import os
 import logging
 import sys
 
-import IPython
-from IPython import get_ipython
-from IPython.core.error import UsageError
+import oci
+
 import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
 import json
 
 import ocifs
-import oci
 from ads.common.decorator.deprecate import deprecated
+from ads.common.ipython import configure_plotting, _log_traceback
 from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
 from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
+
 
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
@@ -35,9 +35,12 @@ oci_config_path = oci.config.DEFAULT_LOCATION  # "~/.oci/config"
 oci_key_profile = "DEFAULT"
 test_mode = os.environ.get("TEST_MODE", False)
 resource_principal_mode = bool(os.environ.get("RESOURCE_PRINCIPAL_MODE", False))
+orig_ipython_traceback = None
 
 
-def set_auth(auth="api_key", oci_config_location=oci.config.DEFAULT_LOCATION, profile="DEFAULT"):
+def set_auth(
+    auth="api_key", oci_config_location=oci.config.DEFAULT_LOCATION, profile="DEFAULT"
+):
     """
     Enable/disable resource principal identity or keypair identity in a notebook session.
 
@@ -92,7 +95,11 @@ def set_debug_mode(mode=True):
     """
     global debug_mode
     debug_mode = mode
+    import IPython
+
     if debug_mode:
+        from ads.common.ipython import orig_ipython_traceback
+
         IPython.core.interactiveshell.InteractiveShell.showtraceback = (
             orig_ipython_traceback
         )
@@ -169,37 +176,4 @@ Debug mode: {debug_mode}
     )
 
 
-def _log_traceback(self, exc_tuple=None, **kwargs):
-    try:
-        etype, value, tb = self._get_exc_info(exc_tuple)
-    except ValueError:
-        print("No traceback available to show.", file=sys.stderr)
-        return
-    msg = etype.__name__, str(value)
-    logger.error("ADS Exception", exc_info=(etype, value, tb))
-    sys.stderr.write("{0}: {1}".format(*msg))
-
-
-if IPython.core.interactiveshell.InteractiveShell.showtraceback != _log_traceback:
-    orig_ipython_traceback = (
-        IPython.core.interactiveshell.InteractiveShell.showtraceback
-    )
-
-# Override the default showtraceback behavior of ipython, to show only the error message and log the stacktrace
-IPython.core.interactiveshell.InteractiveShell.showtraceback = _log_traceback
-
-ipy = get_ipython()
-if ipy is not None:
-    try:
-        # show matplotlib plots inline
-        ipy.run_line_magic("matplotlib", "inline")
-    except UsageError:
-        #  ignore error and use the default matplotlib mode
-        pass
-else:
-    import matplotlib as mpl
-
-    mpl.rcParams["backend"] = "agg"
-    import matplotlib.pyplot as plt
-
-    plt.switch_backend("agg")
+configure_plotting()

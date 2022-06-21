@@ -4,14 +4,12 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import geopandas
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import itertools
 
-import six
 from matplotlib.patches import BoxStyle
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
@@ -44,6 +42,10 @@ from ads.type_discovery.typed_feature import (
     DocumentTypedFeature,
     AddressTypedFeature,
 )
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class PandasDataset(object):
@@ -51,6 +53,7 @@ class PandasDataset(object):
     This class provides APIs that can work on a sampled dataset.
     """
 
+    @runtime_dependency(module="geopandas", install_from=OptionalDependency.GEO)
     def __init__(
         self,
         sampled_df,
@@ -535,6 +538,7 @@ class PandasDataset(object):
                 logger.info(f"Downsampling from dataset for graphing.")
         return plot
 
+    @runtime_dependency(module="geopandas", install_from=OptionalDependency.GEO)
     def plot_gis_scatter(self, lon="longitude", lat="latitude", ax=None):
         """
         Supports plotting Choropleth maps
@@ -584,6 +588,7 @@ class PandasDataset(object):
                 column, self.sampled_df[column]
             )
 
+    @runtime_dependency(module="geopandas", install_from=OptionalDependency.GEO)
     def _visualize_feature_distribution(self, html_widget):
         """
         This function is called once per dataset to generate html for feature distribution plots.
@@ -824,9 +829,13 @@ class PandasDataset(object):
 
                 else:
                     if high_cardinality:
-                        text += "\n\n  NOTE: plot has been capped\n  from %d to show only most\n  common top %d " "categories" % (
-                            feature_metadata["internal"]["unique"],
-                            len(feature_metadata["internal"]["counts"].keys()),
+                        text += (
+                            "\n\n  NOTE: plot has been capped\n  from %d to show only most\n  common top %d "
+                            "categories"
+                            % (
+                                feature_metadata["internal"]["unique"],
+                                len(feature_metadata["internal"]["counts"].keys()),
+                            )
                         )
 
                     if feature_metadata["internal"]["unique"] < 24:
@@ -975,7 +984,7 @@ class PandasDataset(object):
                         plt.imshow(wordcloud, interpolation="bilinear")
                         plt.axis("off")
                     except ModuleNotFoundError as e:
-                        utils._log_missing_module("wordcloud", "oracle-ads[text]")
+                        utils._log_missing_module("wordcloud", OptionalDependency.TEXT)
                         logger.info(
                             "The text word cloud is not plotted due to missing dependency wordcloud."
                         )
@@ -1020,7 +1029,7 @@ class PandasDataset(object):
     @staticmethod
     def _format_stats(feature_type_name, stats):
         text = "\n  - %s statistics:" % (feature_type_name)
-        for k in six.iterkeys(stats):
+        for k in list(stats.keys()):
             if "percentage" in k:
                 text += "\n    - {}: {:.3f}%".format(k, stats[k])
             elif isinstance(stats[k], (int, np.int64)) or (

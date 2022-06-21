@@ -9,13 +9,21 @@ from typing import Callable, DefaultDict, List, Optional, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
-from optuna.logging import get_logger
-from optuna.study import Study
-from optuna.study._study_direction import StudyDirection
-from optuna.trial import FrozenTrial, TrialState
-from optuna.visualization._utils import _check_plot_args
-from optuna.visualization.matplotlib._matplotlib_imports import _imports
-from optuna.visualization.matplotlib._utils import _is_categorical, _is_log_scale
+from ads.common import logger
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
+
+try:
+    from optuna.visualization.matplotlib._matplotlib_imports import _imports
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        f"The `optuna` module was not found. Please run `pip install "
+        f"{OptionalDependency.OPTUNA}`."
+    )
+except Exception as e:
+    raise
 
 if _imports.is_successful():
     from optuna.visualization.matplotlib._matplotlib_imports import (
@@ -24,38 +32,40 @@ if _imports.is_successful():
         plt,
     )
 
-_logger = get_logger(__name__)
 
-
+@runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
 def plot_parallel_coordinate(
-    study: Study,
+    study: "optuna.study.Study",
     params: Optional[List[str]] = None,
     *,
-    target: Optional[Callable[[FrozenTrial], float]] = None,
+    target: Optional[Callable[["optuna.trial.FrozenTrial"], float]] = None,
     target_name: str = "Objective Value",
 ) -> "Axes":
     """Plot the high-dimensional parameter relationships in a study with Matplotlib."""
 
     _imports.check()
-    _check_plot_args(study, target, target_name)
+    optuna.visualization._utils._check_plot_args(study, target, target_name)
     return _get_parallel_coordinate_plot(study, params, target, target_name)
 
 
+@runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
 def _get_parallel_coordinate_plot(
-    study: Study,
+    study: "optuna.study.Study",
     params: Optional[List[str]] = None,
-    target: Optional[Callable[[FrozenTrial], float]] = None,
+    target: Optional[Callable[["optuna.trial.FrozenTrial"], float]] = None,
     target_name: str = "Objective Value",
     fig_size=None,
 ) -> "Axes":
 
     if target is None:
 
-        def _target(t: FrozenTrial) -> float:
+        def _target(t: "optuna.trial.FrozenTrial") -> float:
             return cast(float, t.value)
 
         target = _target
-        reversescale = study.direction == StudyDirection.MINIMIZE
+        reversescale = (
+            study.direction == optuna.study._study_direction.StudyDirection.MINIMIZE
+        )
     else:
         reversescale = True
 
@@ -67,10 +77,14 @@ def _get_parallel_coordinate_plot(
     ax.spines["bottom"].set_visible(False)
 
     # Prepare data for plotting.
-    trials = [trial for trial in study.trials if trial.state == TrialState.COMPLETE]
+    trials = [
+        trial
+        for trial in study.trials
+        if trial.state == optuna.trial.TrialState.COMPLETE
+    ]
 
     if len(trials) == 0:
-        _logger.warning("Your study does not have any completed trials.")
+        logger.warning("Your study does not have any completed trials.")
         return ax
 
     all_params = {p_name for t in trials for p_name in t.params.keys()}
@@ -96,6 +110,8 @@ def _get_parallel_coordinate_plot(
     var_names = [target_name]
     for p_name in sorted_params:
         values = [t.params[p_name] if p_name in t.params else np.nan for t in trials]
+
+        from optuna.visualization.matplotlib._utils import _is_categorical
 
         if _is_categorical(trials, p_name):
             vocab = defaultdict(lambda: len(vocab))  # type: DefaultDict[str, int]
@@ -149,4 +165,4 @@ def _get_parallel_coordinate_plot(
             ax2.set_yticklabels(tick_labels)
 
     ax.add_collection(lc)
-    plt.show()
+    plt.show(block=False)

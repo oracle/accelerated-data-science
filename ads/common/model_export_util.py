@@ -9,15 +9,17 @@ import json
 import logging
 import os
 import sys
-from typing import Union, Any
+from typing import Any, Dict, Union
 
 import cloudpickle
 import numpy as np
-import onnx
-import onnxmltools
 import pandas as pd
 from ads.common import logger, utils
 from ads.common.data import ADSData
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.function.fn_util import (
     generate_fn_artifacts,
     get_function_config,
@@ -26,14 +28,7 @@ from ads.common.function.fn_util import (
 from ads.common.model_artifact import ModelArtifact
 from ads.common.model_metadata import UseCaseType
 from ads.feature_engineering.schema import DataSizeTooWide
-from pkg_resources import get_distribution, DistributionNotFound
-from skl2onnx import convert_sklearn, update_registered_converter
-from skl2onnx.common.data_types import FloatTensorType
-from skl2onnx.common.shape_calculator import (
-    calculate_linear_classifier_output_shapes,
-    calculate_linear_regressor_output_shapes,
-)
-from typing import Dict, Union
+from pkg_resources import DistributionNotFound, get_distribution
 
 pd.options.mode.chained_assignment = None
 
@@ -410,7 +405,12 @@ def serialize_model(
     return model_kwargs
 
 
+@runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
+@runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
+@runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
 def _sklearn_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
+    from skl2onnx.common.data_types import FloatTensorType
+
     n_cols = model.est.n_features_in_
     initial_types = [("input", FloatTensorType([None, n_cols]))]
     return onnxmltools.convert_sklearn(
@@ -431,36 +431,46 @@ def _automl_to_pkl(model=None, target_dir=None, **kwargs):
         cloudpickle.dump(model, outfile)
 
 
+@runtime_dependency(module="lightgbm", install_from=OptionalDependency.BOOSTED)
+@runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
+@runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
+@runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
 def _lightgbm_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
+    from skl2onnx.common.data_types import FloatTensorType
+
     in_types = [("input", FloatTensorType([None, len(X.columns)]))]
-    import lightgbm as lgb
 
     if str(type(model.est)) == "<class 'sklearn.pipeline.Pipeline'>":
         model_est_types = [type(val[1]) for val in model.est.steps]
     else:
         model_est_types = [type(model.est)]
 
-    if lgb.sklearn.LGBMClassifier in model_est_types:
-        from lightgbm import LGBMClassifier
+    if lightgbm.sklearn.LGBMClassifier in model_est_types:
         from onnxmltools.convert.lightgbm.operator_converters.LightGbm import (
             convert_lightgbm,
         )
+        from skl2onnx.common.shape_calculator import (
+            calculate_linear_classifier_output_shapes,
+        )
 
-        update_registered_converter(
-            LGBMClassifier,
+        skl2onnx.update_registered_converter(
+            lightgbm.LGBMClassifier,
             "LightGbmLGBMClassifier",
             calculate_linear_classifier_output_shapes,
             convert_lightgbm,
             options={"nocl": [True, False], "zipmap": [True, False]},
         )
-    elif lgb.sklearn.LGBMRegressor in model_est_types:
-        from lightgbm import LGBMRegressor
+    elif lightgbm.sklearn.LGBMRegressor in model_est_types:
+
         from onnxmltools.convert.lightgbm.operator_converters.LightGbm import (
             convert_lightgbm,
         )
+        from skl2onnx.common.shape_calculator import (
+            calculate_linear_regressor_output_shapes,
+        )
 
-        update_registered_converter(
-            LGBMRegressor,
+        skl2onnx.update_registered_converter(
+            lightgbm.LGBMRegressor,
             "LightGbmLGBMRegressor",
             calculate_linear_regressor_output_shapes,
             convert_lightgbm,
@@ -477,39 +487,48 @@ def _lightgbm_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
             custom_conversion_functions=None,
             custom_shape_calculators=None,
         )
-    return convert_sklearn(model.est, initial_types=in_types)
+    return skl2onnx.convert_sklearn(model.est, initial_types=in_types)
 
 
+@runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
+@runtime_dependency(module="skl2onnx", install_from=OptionalDependency.ONNX)
+@runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
+@runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
 def _xgboost_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
+    from skl2onnx.common.data_types import FloatTensorType
+
     in_types = [("input", FloatTensorType([None, len(X.columns)]))]
-    import xgboost as xgb
 
     if str(type(model.est)) == "<class 'sklearn.pipeline.Pipeline'>":
         model_est_types = [type(val[1]) for val in model.est.steps]
     else:
         model_est_types = [type(model.est)]
-    if xgb.sklearn.XGBClassifier in model_est_types:
+    if xgboost.sklearn.XGBClassifier in model_est_types:
 
         from onnxmltools.convert.xgboost.operator_converters.XGBoost import (
             convert_xgboost,
         )
-        from xgboost import XGBClassifier
+        from skl2onnx.common.shape_calculator import (
+            calculate_linear_classifier_output_shapes,
+        )
 
-        update_registered_converter(
-            XGBClassifier,
+        skl2onnx.update_registered_converter(
+            xgboost.XGBClassifier,
             "XGBoostXGBClassifier",
             calculate_linear_classifier_output_shapes,
             convert_xgboost,
             options={"nocl": [True, False], "zipmap": [True, False]},
         )
-    elif xgb.sklearn.XGBRegressor in model_est_types:
+    elif xgboost.sklearn.XGBRegressor in model_est_types:
         from onnxmltools.convert.xgboost.operator_converters.XGBoost import (
             convert_xgboost,
         )
-        from xgboost import XGBRegressor
+        from skl2onnx.common.shape_calculator import (
+            calculate_linear_regressor_output_shapes,
+        )
 
-        update_registered_converter(
-            XGBRegressor,
+        skl2onnx.update_registered_converter(
+            xgboost.XGBRegressor,
             "XGBoostXGBRegressor",
             calculate_linear_regressor_output_shapes,
             convert_xgboost,
@@ -528,9 +547,11 @@ def _xgboost_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
             custom_conversion_functions=None,
             custom_shape_calculators=None,
         )
-    return convert_sklearn(model.est, initial_types=in_types)
+    return skl2onnx.convert_sklearn(model.est, initial_types=in_types)
 
 
+@runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
+@runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
 def _torch_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
     import torch
 
@@ -550,6 +571,7 @@ def _torch_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
     )
 
 
+@runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
 def _tf_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
     try:
         from onnxmltools.convert import convert_tensorflow
@@ -569,6 +591,8 @@ def _tf_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
         _log_automatic_serialization_keras(e)
 
 
+@runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
+@runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
 def _keras_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
     try:
         from onnxmltools.convert import convert_keras
@@ -589,6 +613,7 @@ def _keras_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
         _log_automatic_serialization_keras(e)
 
 
+@runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
 def _mxnet_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
     assert onnx.__version__ == "1.3.0", "Mxnet can only export to onnx version 1.3.0"
     from mxnet.contrib import onnx as onnx_mxnet

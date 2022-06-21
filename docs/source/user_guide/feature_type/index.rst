@@ -1,8 +1,8 @@
 .. _feature-engineering-8:
 
-************
+############
 Feature Type
-************
+############
 
 .. toctree::
     :maxdepth: 1

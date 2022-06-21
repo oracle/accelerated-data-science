@@ -8,6 +8,10 @@ import logging
 
 from ads.model.extractor.model_info_extractor import ModelInfoExtractor
 from ads.common.model_metadata import Framework
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 import json
 
 
@@ -59,6 +63,7 @@ class XgboostExtractor(ModelInfoExtractor):
         return self.model.__class__.__name__
 
     @property
+    @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
     def version(self):
         """Extracts the framework version of the model.
 
@@ -67,8 +72,6 @@ class XgboostExtractor(ModelInfoExtractor):
         str:
            The framework version of the model.
         """
-        import xgboost
-
         return xgboost.__version__
 
     @property

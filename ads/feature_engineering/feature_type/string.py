@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -21,6 +21,10 @@ from ads.feature_engineering.utils import (
 )
 from ads.feature_engineering import schema
 from ads.common import utils, logger
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 def default_handler(data: pd.Series, *args, **kwargs) -> pd.Series:
@@ -101,6 +105,7 @@ class String(FeatureType):
         return _count_unique_missing(x)
 
     @staticmethod
+    @runtime_dependency(module="wordcloud", install_from=OptionalDependency.TEXT)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows distributions of datasets using wordcloud.
@@ -122,21 +127,19 @@ class String(FeatureType):
         df["validation"] = default_handler(x)
         df = df[df["validation"] == True]
         words = " ".join(df[col_name].dropna().to_list())
-        if words:
-            try:
-                from wordcloud import WordCloud
-                wc = WordCloud(
-                    background_color=SchemeNeutral.BACKGROUND_LIGHT,
-                    color_func=random_color_func,
-                ).generate(words)
-                _, ax = plt.subplots(facecolor=SchemeNeutral.BACKGROUND_LIGHT)
-                ax.imshow(wc)
-                plt.axis("off")
-                return ax
-            except ModuleNotFoundError as e:
-                utils._log_missing_module("wordcloud", "oracle-ads[text]")
-                logger.info("The text word cloud is not plotted due to missing dependency wordcloud.")
+        if not words:
+            return
 
+        from wordcloud import WordCloud
+
+        wc = WordCloud(
+            background_color=SchemeNeutral.BACKGROUND_LIGHT,
+            color_func=random_color_func,
+        ).generate(words)
+        _, ax = plt.subplots(facecolor=SchemeNeutral.BACKGROUND_LIGHT)
+        ax.imshow(wc)
+        plt.axis("off")
+        return ax
 
     @classmethod
     def feature_domain(cls, x: pd.Series) -> schema.Domain:

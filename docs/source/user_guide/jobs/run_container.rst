@@ -1,17 +1,16 @@
 Run a Container
----------------
+***************
 
 The ADS ``ContainerRuntime`` class allows you to run a container image using OCI data science jobs.
 
 To use the ``ContainerRuntime``, you need to first push the image to `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_. See `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ and `Pushing Images Using the Docker CLI <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ for more details.
 
-
 Python
-~~~~~~
+======
 
 To configure ``ContainerRuntime``, you must specify the container ``image``. Similar to other runtime, you can add environment variables. You can optionally specify the `entrypoint` and `cmd` for running the container (See `Understand how CMD and ENTRYPOINT interact <https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact>`_).
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.jobs import Job, DataScienceJob, ContainerRuntime
 
@@ -44,13 +43,12 @@ To configure ``ContainerRuntime``, you must specify the container ``image``. Sim
     # Run the job and stream the outputs
     job_run = job.run().watch()
 
-
 YAML
-~~~~
+====
 
 You could use the following YAML to create the same job:
 
-.. code:: yaml
+.. code-block:: yaml
 
     kind: job
     spec:
@@ -82,7 +80,7 @@ You could use the following YAML to create the same job:
 
 **ContainerRuntime Schema**
 
-.. code:: yaml
+.. code-block:: yaml
 
     kind:
       required: true
@@ -124,3 +122,4 @@ You could use the following YAML to create the same job:
                 type:
                 - number
                 - string
+

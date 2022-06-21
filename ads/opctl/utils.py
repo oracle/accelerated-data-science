@@ -16,10 +16,7 @@ from distutils import dir_util
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union, List, Tuple, Dict
 import shlex
-
-import docker
 import yaml
-from docker import errors
 
 import ads
 from ads.common.oci_client import OCIClientFactory
@@ -29,6 +26,10 @@ from ads.opctl.constants import (
     OPS_IMAGE_BASE,
     ML_JOB_GPU_IMAGE,
     OPS_IMAGE_GPU_BASE,
+)
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
 )
 
 
@@ -191,6 +192,7 @@ def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
     return look_up[(type, gpu)]
 
 
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def _build_custom_operator_image(
     gpu: bool, source_folder: str, dst_image: str
 ) -> None:  # pragma: no cover
@@ -199,7 +201,7 @@ def _build_custom_operator_image(
     try:
         client = docker.from_env()
         client.api.inspect_image(base_image_name)
-    except errors.ImageNotFound:
+    except docker.errors.ImageNotFound:
         build_image("ads-ops-base", gpu)
     with tempfile.TemporaryDirectory() as td:
         dir_util.copy_tree(source_folder, os.path.join(td, operator))
@@ -281,7 +283,8 @@ def suppress_traceback(debug: bool = True) -> None:
     return decorator
 
 
-def get_docker_client() -> docker.client.DockerClient:
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+def get_docker_client() -> "docker.client.DockerClient":
     process = subprocess.Popen(
         ["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
     )
@@ -313,6 +316,7 @@ class OCIAuthContext:
             ads.set_auth(auth="api_key", profile=self.prev_profile)
 
 
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def run_container(
     image: str,
     bind_volumes: Dict,
@@ -331,7 +335,7 @@ def run_container(
     client = get_docker_client()
     try:
         client.api.inspect_image(image)
-    except errors.ImageNotFound:
+    except docker.errors.ImageNotFound:
         logger.info(f"Image {image} not found. Try pulling it now....")
         run_command(["docker", "pull", f"{image}"], None)
     print("Now running container")

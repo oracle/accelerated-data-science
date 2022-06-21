@@ -1,21 +1,16 @@
 Data Science Job
-----------------
+****************
 
-This section shows how you can use the ADS jobs APIs to run OCI Data Science jobs.
-You can use similar APIs to `Run a OCI DataFlow Application <run_data_flow.html>`__.
+This section shows how you can use the ADS jobs APIs to run OCI Data Science jobs.  You can use similar APIs to `Run a OCI DataFlow Application <run_data_flow.html>`__.
 
-Before creating a job, ensure that you have policies configured for Data Science resources, see
-`About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`__.
+Before creating a job, ensure that you have policies configured for Data Science resources, see `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`__.
 
-Job Infrastructure
-~~~~~~~~~~~~~~~~~~
+Infrastructure
+==============
 
-The Data Science job *infrastructure* is defined by a ``DataScienceJob`` instance.
-When creating a job, you specify the compartment ID, project ID, subnet ID, Compute shape,
-Block Storage size, log group ID, and log ID in the ``DataScienceJob`` instance. 
-For example:
+The Data Science job infrastructure is defined by a ``DataScienceJob`` instance.  When creating a job, you specify the compartment ID, project ID, subnet ID, Compute shape, Block Storage size, log group ID, and log ID in the ``DataScienceJob`` instance.  For example:
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.jobs import DataScienceJob
 
@@ -30,12 +25,9 @@ For example:
         .with_log_id("<log_ocid>")
     )
 
-If you are using these API calls in a Data Science
-`Notebook Session <https://docs.oracle.com/en-us/iaas/data-science/using/manage-notebook-sessions.htm>`__,
-and you want to use the same infrastructure configurations as the notebook session,
-you can initialize the ``DataScienceJob`` with only the logging configurations:
+If you are using these API calls in a Data Science `Notebook Session <https://docs.oracle.com/en-us/iaas/data-science/using/manage-notebook-sessions.htm>`__, and you want to use the same infrastructure configurations as the notebook session, you can initialize the ``DataScienceJob`` with only the logging configurations:
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.jobs import DataScienceJob
 
@@ -45,10 +37,9 @@ you can initialize the ``DataScienceJob`` with only the logging configurations:
         .with_log_id("<log_ocid>")
     )
 
-In some cases, you may want to override the shape and block storage size. 
-For example, if you are testing your code in a CPU notebook session, but want to run the job in a GPU VM:
+In some cases, you may want to override the shape and block storage size.  For example, if you are testing your code in a CPU notebook session, but want to run the job in a GPU VM:
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.jobs import DataScienceJob
 
@@ -78,32 +69,26 @@ VM.GPU3.4         24          360
 
 You can get a list of currently supported shapes by calling ``DataScienceJob.instance_shapes()``.
 
-Job Logging
-~~~~~~~~~~~
+Logs
+====
 
-In the preceding examples, both the log OCID and corresponding log group OCID
-are specified in the ``DataScienceJob`` instance.
-If your administrator configured the permission for you to search for logging resources,
-you can skip specifying the log group OCID because ADS automatically retrieves it.
+In the preceding examples, both the log OCID and corresponding log group OCID are specified in the ``DataScienceJob`` instance.  If your administrator configured the permission for you to search for logging resources, you can skip specifying the log group OCID because ADS automatically retrieves it.
 
-If you specify only the log group OCID and no log OCID,
-a new Log resource is automatically created within the log group to store the logs, 
-see `ADS Logging <../logging/logging.html>`__.
+If you specify only the log group OCID and no log OCID, a new Log resource is automatically created within the log group to store the logs, see `ADS Logging <../logging/logging.html>`__.
 
-Job Runtime
-~~~~~~~~~~~
+Runtime
+=======
 
 A job can have different types of *runtime* depending on the source code you want to run:
 
-- ``ScriptRuntime`` allows you to run Python, Bash, and Java scripts from a single source file (``.zip`` or ``.tar.gz``) or code directory, see `Run a Script <run_script.html>`__ and `Run a ZIP file or folder <run_zip.html>`__.
-- ``PythonRuntime`` allows you to run Python code with additional options, including setting a working directory, adding python paths, and copying output files, see `Run a ZIP file or folder <run_zip.html>`__.
-- ``NotebookRuntime`` allows you to run a JupyterLab Python notebook, see `Run a Notebook <run_notebook.html>`__.
-- ``GitPythonRuntime`` allows you to run source code from a Git repository, see `Run from Git <run_git.html>`__.
+* ``ScriptRuntime`` allows you to run Python, Bash, and Java scripts from a single source file (``.zip`` or ``.tar.gz``) or code directory, see `Run a Script <run_script.html>`__ and `Run a ZIP file or folder <run_zip.html>`__.
+* ``PythonRuntime`` allows you to run Python code with additional options, including setting a working directory, adding python paths, and copying output files, see `Run a ZIP file or folder <run_zip.html>`__.
+* ``NotebookRuntime`` allows you to run a JupyterLab Python notebook, see `Run a Notebook <run_notebook.html>`__.
+* ``GitPythonRuntime`` allows you to run source code from a Git repository, see `Run from Git <run_git.html>`__.
 
-All of these runtime options allow you to configure a `Data Science Conda Environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm>`__ 
-for running your code. For example, to define a python script as a job runtime with a TensorFlow conda environment you could use:
+All of these runtime options allow you to configure a `Data Science Conda Environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm>`__ for running your code. For example, to define a python script as a job runtime with a TensorFlow conda environment you could use:
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.jobs import ScriptRuntime
 
@@ -113,12 +98,11 @@ for running your code. For example, to define a python script as a job runtime w
         .with_service_conda("tensorflow26_p37_cpu_v2")
     )
 
-You can store your source code in a local file path or location supported by
-`fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including OCI Object Storage.
+You can store your source code in a local file path or location supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including OCI Object Storage.
 
 You can also use a custom conda environment published to OCI Object Storage by passing the ``uri`` to the ``with_custom_conda()`` method, for example:
 
-.. code:: ipython3
+.. code-block:: python3
 
     runtime = (
         ScriptRuntime()
@@ -126,12 +110,11 @@ You can also use a custom conda environment published to OCI Object Storage by p
         .with_custom_conda("oci://bucket@namespace/conda_pack/pack_name")
     )
 
-For more details on custom conda environment, see
-`Publishing a Conda Environment to an Object Storage Bucket in Your Tenancy <https://docs.oracle.com/en-us/iaas/data-science/using/conda_publishs_object.htm>`__.
+For more details on custom conda environment, see `Publishing a Conda Environment to an Object Storage Bucket in Your Tenancy <https://docs.oracle.com/en-us/iaas/data-science/using/conda_publishs_object.htm>`__.
 
 You can also configure the environment variables, command line arguments, and free form tags for runtime:
 
-.. code:: ipython3
+.. code-block:: python3
 
     runtime = (
         ScriptRuntime()
@@ -145,11 +128,11 @@ You can also configure the environment variables, command line arguments, and fr
 With the preceding arguments, the script is started as ``python script.py argument --key value``.
 
 Define a Job
-~~~~~~~~~~~~
+============
 
 With ``runtime`` and ``infrastructure``, you can define a job and give it a name:
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.jobs import Job
 
@@ -159,12 +142,11 @@ With ``runtime`` and ``infrastructure``, you can define a job and give it a name
         .with_runtime(runtime)
     )
 
-If the job name is not specified,
-a name is generated automatically based on the name of the job artifact and a time stamp.
+If the job name is not specified, a name is generated automatically based on the name of the job artifact and a time stamp.
 
 Alternatively, a job can also be defined with keyword arguments:
 
-.. code:: ipython3
+.. code-block:: python3
 
     job = Job(
         name="<job_display_name>",
@@ -172,14 +154,12 @@ Alternatively, a job can also be defined with keyword arguments:
         runtime=runtime
     )
 
-Create and Run a Job
-~~~~~~~~~~~~~~~~~~~~
-You can call the ``create()`` method of a job instance to create a job.
-After the job is created, you can call the ``run()`` method to create and start a job run.
-The ``run()`` method returns a ``DataScienceJobRun``. 
-You can monitor the job run output by calling the ``watch()`` method of the ``DataScienceJobRun`` instance:
+Create and Run
+==============
 
-.. code:: ipython3
+You can call the ``create()`` method of a job instance to create a job.  After the job is created, you can call the ``run()`` method to create and start a job run.  The ``run()`` method returns a ``DataScienceJobRun``.  You can monitor the job run output by calling the ``watch()`` method of the ``DataScienceJobRun`` instance:
+
+.. code-block:: python3
 
     # Create a job
     job.create()
@@ -200,16 +180,12 @@ You can monitor the job run output by calling the ``watch()`` method of the ``Da
     2021-10-28 17:23:50 - <Log Message>
     2021-10-28 17:23:50 - ...
 
-Override Default Job Configurations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Override Configuration
+======================
 
-When you run ``job.run()``, the job is run with the
-default configuration. You may want to override this default
-configuration with custom variables.
-You can specify a custom job run display name, override command line argument,
-add additional environment variables, or free form tags as in this example:
+When you run ``job.run()``, the job is run with the default configuration. You may want to override this default configuration with custom variables.  You can specify a custom job run display name, override command line argument, add additional environment variables, or free form tags as in this example:
 
-.. code:: ipython3
+.. code-block:: python3
 
   job_run = job.run(
     name="<my_job_run_name>",
@@ -219,15 +195,11 @@ add additional environment variables, or free form tags as in this example:
   )
 
 YAML Serialization
-~~~~~~~~~~~~~~~~~~
-A job instance can be serialized to a YAML file by calling ``to_yaml()``, which returns the YAML as a string.
-You can easily share the YAML with others, and reload the configurations by calling ``from_yaml()``.
-The ``to_yaml()`` and ``from_yaml()`` methods also take an optional ``uri`` argument for saving and loading the YAML file. 
-This argument can be any URI to the file location supported by
-`fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__,
-including Object Storage. For example:
+==================
 
-.. code:: ipython3
+A job instance can be serialized to a YAML file by calling ``to_yaml()``, which returns the YAML as a string.  You can easily share the YAML with others, and reload the configurations by calling ``from_yaml()``.  The ``to_yaml()`` and ``from_yaml()`` methods also take an optional ``uri`` argument for saving and loading the YAML file.  This argument can be any URI to the file location supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including Object Storage. For example:
+
+.. code-block:: python3
 
     # Save the job configurations to YAML file
     job.to_yaml(uri="oci://bucket_name@namespace/path/to/job.yaml")
@@ -297,7 +269,6 @@ Here is an example of a YAML file representing the job defined in the preceding 
           required: false
           type: string
 
-
 **Data Science Job Infrastructure YAML Schema**
 
 .. code-block:: yaml
@@ -345,3 +316,4 @@ Here is an example of a YAML file representing the job defined in the preceding 
         subnetId:
           required: false
           type: "string"
+

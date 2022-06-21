@@ -11,8 +11,11 @@ import numpy as np
 import pandas as pd
 from sklearn import metrics
 from sklearn.preprocessing import LabelEncoder
-import scipy.stats as st
 from ads.common import utils, logger
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 __all__ = ["ModelEvaluator"]
 
@@ -421,6 +424,7 @@ class ModelEvaluator:
                     self.metrics["precision_values"][i][pr_best_idx],
                 )
 
+    @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def _get_regression_metrics(self):
         self.y_true = np.array(self.y_true)
         self.y_pred = np.array(np.squeeze(self.y_pred))
@@ -443,11 +447,11 @@ class ModelEvaluator:
         # For QQ Plot:
         portions = min(len(self.metrics["residuals"]), 100) + 1
         norm_quantiles = (np.arange(portions) / portions)[1:]
-        self.metrics["norm_quantiles"] = st.norm.ppf(norm_quantiles)
+        self.metrics["norm_quantiles"] = scipy.stats.norm.ppf(norm_quantiles)
         resid_quant = [
             np.quantile(self.metrics["residuals"], p) for p in norm_quantiles
         ]
-        self.metrics["residual_quantiles"] = st.zscore(resid_quant)
+        self.metrics["residual_quantiles"] = scipy.stats.zscore(resid_quant)
 
     def safe_metrics_call(self, scoring_functions, *args):
         """Applies the sklearn function in `scoring_functions` to parameters in `args`.

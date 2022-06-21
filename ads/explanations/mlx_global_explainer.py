@@ -5,7 +5,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import numpy as np
-from IPython.core.display import display, HTML
 from abc import ABC, abstractmethod
 
 from ads.common import logger, utils
@@ -16,6 +15,10 @@ from ads.explanations.mlx_interface import init_permutation_importance_explainer
 from ads.explanations.mlx_interface import (
     init_partial_dependence_explainer,
     init_ale_explainer,
+)
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
 )
 
 
@@ -397,6 +400,7 @@ class MLXGlobalExplainer(GlobalExplainer):
                 "Accumulated Local Effects Plot is not supported for text classification dataset."
             )
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def show_in_notebook(self):  # pragma: no cover
         """
         Generates and visualizes the global feature importance explanation.
@@ -404,13 +408,18 @@ class MLXGlobalExplainer(GlobalExplainer):
         with utils.get_progress_bar(3, description="Model Explanation") as bar:
             bar.update("begin computing")
             bar.update("calculating feature importance")
-            explainer_holder = self.compute_feature_importance(selected_features=self.selected_features)
+            explainer_holder = self.compute_feature_importance(
+                selected_features=self.selected_features
+            )
             plot1 = explainer_holder.show_in_notebook()
             bar.update("calculating partial dependence plot")
             pdp_plot_feature_name = explainer_holder.explanation
             # pdp_plot_feature_name = explainer_holder.explanation.get_global_explanation().index[0]
             pdp_plot = self.compute_partial_dependence([pdp_plot_feature_name])
             # plot2 = pdp_plot.show_in_notebook()
+
+        from IPython.core.display import display, HTML
+
         display(HTML(plot1.data))
         # display(HTML(plot1.data + plot2.data))
 

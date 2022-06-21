@@ -17,11 +17,14 @@ import click
 import yaml
 
 from datetime import datetime
-from docker import errors
 import ocifs
 
 from ads.common.oci_client import OCIClientFactory
 from ads.common.auth import get_signer
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 from ads.opctl.constants import (
     ML_JOB_GPU_IMAGE,
@@ -53,6 +56,7 @@ def _fetch_manifest_template() -> Dict:
     return manifest_template
 
 
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def _check_job_image_exists(gpu: bool) -> None:
     if gpu:
         image = ML_JOB_GPU_IMAGE
@@ -61,7 +65,7 @@ def _check_job_image_exists(gpu: bool) -> None:
     try:
         client = get_docker_client()
         client.api.inspect_image(image)
-    except errors.ImageNotFound:
+    except docker.errors.ImageNotFound:
         if gpu:
             cmd = "`ads opctl build-image -g job-local`"
         else:
@@ -584,7 +588,7 @@ def _publish(
     pack_file = os.path.join(pack_folder_path, f"{conda_slug}.tar.gz")
     if not os.path.exists(pack_file):
         raise RuntimeError(f"Pack {pack_file} was not created.")
-    pack_size = round(os.path.getsize(pack_file) / 2 ** 20, 2)
+    pack_size = round(os.path.getsize(pack_file) / 2**20, 2)
 
     with open(manifest_location) as mlf:
         env = yaml.safe_load(mlf.read())

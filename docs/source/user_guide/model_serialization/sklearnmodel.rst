@@ -1,22 +1,20 @@
 .. SklearnModel:
 
 SklearnModel
-============
+************
 
 Overview
---------
+========
 
 The ``SklearnModel`` class in ADS is designed to allow you to rapidly get a Scikit-learn model into production. The ``.prepare()`` method creates the model artifacts that are needed to deploy a functioning model without you having to configure it or write code. However, you can customize the required ``score.py`` file.
 
-
-.. include:: boilerplate/overview.rst
-
+.. include:: _template/overview.rst
 
 The following steps take your trained ``scikit-learn`` model and deploy it into production with a few lines of code.
 
 **Create a Scikit-learn Model**
 
-.. code:: python3
+.. code-block:: python3
 
     import pandas as pd
     import os
@@ -70,31 +68,30 @@ The following steps take your trained ``scikit-learn`` model and deploy it into 
 
 
 Initialize
-----------
+==========
 
 Instantiate a ``SklearnModel()`` object with an Scikit-learn model. Each instance accepts the following parameters:
 
-- ``artifact_dir: str``: Artifact directory to store the files needed for deployment.
-- ``auth: (Dict, optional)``: Defaults to ``None``. The default authentication is set using the ``ads.set_auth`` API. To override the default, use ``ads.common.auth.api_keys()`` or ``ads.common.auth.resource_principal()`` and create the appropriate authentication signer and the ``**kwargs`` required to instantiate the ``IdentityClient`` object.
-- ``estimator: (Callable)``: Trained Scikit-learn model or Scikit-learn pipeline.
-- ``properties: (ModelProperties, optional)``: Defaults to ``None``. The ``ModelProperties`` object required to save and deploy a  model.
+* ``artifact_dir: str``: Artifact directory to store the files needed for deployment.
+* ``auth: (Dict, optional)``: Defaults to ``None``. The default authentication is set using the ``ads.set_auth`` API. To override the default, use ``ads.common.auth.api_keys()`` or ``ads.common.auth.resource_principal()`` and create the appropriate authentication signer and the ``**kwargs`` required to instantiate the ``IdentityClient`` object.
+* ``estimator: (Callable)``: Trained Scikit-learn model or Scikit-learn pipeline.
+* ``properties: (ModelProperties, optional)``: Defaults to ``None``. The ``ModelProperties`` object required to save and deploy a  model.
 
-
-.. include:: boilerplate/initialize.rst
-
+.. include:: _template/initialize.rst
 
 Summary Status
---------------
+==============
 
+.. include:: _template/summary_status.rst
 
-.. include:: boilerplate/summary_status.rst
-
+.. figure:: figures/summary_status.png
+   :align: center
 
 Model Deployment
-----------------
+================
 
 Prepare
-~~~~~~~
+-------
 
 The prepare step is performed by the ``.prepare()`` method. It creates several customized files used to run the model after it is deployed. These files include:
 
@@ -104,59 +101,44 @@ The prepare step is performed by the ``.prepare()`` method. It creates several c
 * ``runtime.yaml``: This file contains information that is needed to set up the runtime environment on the deployment server. It has information about which conda environment was used to train the model, and what environment should be used to deploy the model. The file also specifies what version of Python should be used.
 * ``score.py``: This script contains the ``load_model()`` and ``predict()`` functions. The ``load_model()`` function understands the format the model file was saved in and loads it into memory. The ``.predict()`` method is used to make inferences in a deployed model. There are also hooks that allow you to perform operations before and after inference. You can modify this script to fit your specific needs.
 
-
-.. include:: boilerplate/prepare.rst
-
+.. include:: _template/prepare.rst
 
 Verify
-~~~~~~
+------
 
+.. include:: _template/verify.rst
 
-.. include:: boilerplate/verify.rst
+* ``data: Any``: Data used to test if deployment works in local environment.
 
-
-- ``data: Any``: Data used to test if deployment works in local environment.
-
-
-In ``SklearnModel``, data serialization is supported for JSON serializable objects. Plus, there is support for a dictionary, string, list, ``np.ndarray``, ``pd.core.series.Series``, and ``pd.core.frame.DataFrame``. Not all these objects are JSON serializable, however, support to automatically serializes and deserialized is provided. 
+In ``SklearnModel``, data serialization is supported for JSON serializable objects. Plus, there is support for a dictionary, string, list, ``np.ndarray``, ``pd.core.series.Series``, and ``pd.core.frame.DataFrame``. Not all these objects are JSON serializable, however, support to automatically serializes and deserialized is provided.
 
 Save
-~~~~
+----
 
-
-.. include:: boilerplate/save.rst
-
+.. include:: _template/save.rst
 
 Deploy
-~~~~~~
+------
 
-
-.. include:: boilerplate/deploy.rst
-
+.. include:: _template/deploy.rst
 
 Predict
-~~~~~~~
-
-
-.. include:: boilerplate/predict.rst
-
-
-
-- ``data: Any``: JSON serializable data used for making inferences.
-
-In ``SklearnModel``, data serialization is supported for JSON serializable objects. Plus, there is support for a dictionary, string, list, ``np.ndarray``, ``pd.core.series.Series``, and ``pd.core.frame.DataFrame``. Not all these objects are JSON serializable, however, support to automatically serializes and deserialized is provided. 
-
-
-Loading
 -------
 
-You can restore serialization models either from model artifacts or from models in the model catalog. This section provides details on how to restore serialization models.
+.. include:: _template/predict.rst
 
+* ``data: Any``: JSON serializable data used for making inferences.
 
-.. include:: boilerplate/loading_model_artifact.rst
+In ``SklearnModel``, data serialization is supported for JSON serializable objects. Plus, there is support for a dictionary, string, list, ``np.ndarray``, ``pd.core.series.Series``, and ``pd.core.frame.DataFrame``. Not all these objects are JSON serializable, however, support to automatically serializes and deserialized is provided.
 
+Load
+====
 
-.. code:: python3
+You can restore serialization models from model artifacts, from model deployments or from models in the model catalog. This section provides details on how to restore serialization models.
+
+.. include:: _template/loading_model_artifact.rst
+
+.. code-block:: python3
 
     from ads.model.framework.sklearn_model import SklearnModel
 
@@ -166,29 +148,37 @@ You can restore serialization models either from model artifacts or from models 
                     artifact_dir="/folder_store_artifact"
                 )
 
-.. include:: boilerplate/loading_model_catalog.rst
+.. include:: _template/loading_model_catalog.rst
 
 
-.. code:: python3
+.. code-block:: python3
 
     from ads.model.framework.sklearn_model import SklearnModel
 
-    model = SklearnModel.from_model_catalog(model_id="ocid1.datasciencemodel.oc1.iad.amaaaa....",
+    model = SklearnModel.from_model_catalog(model_id="<model_id>",
                                             model_file_name="model.pkl",
                                             artifact_dir=tempfile.mkdtemp())
 
+.. include:: _template/loading_model_deployment.rst
+
+.. code-block:: python3
+
+    from ads.model.generic_model import SklearnModel
+
+    model = SklearnModel.from_model_deployment(
+        model_deployment_id="<model_deployment_id>",
+        model_file_name="model.pkl",
+        artifact_dir=tempfile.mkdtemp())
 
 Delete a Deployment
--------------------
+===================
 
-
-.. include:: boilerplate/delete_deployment.rst
-
+.. include:: _template/delete_deployment.rst
 
 Examples
---------
+========
 
-.. code:: python3
+.. code-block:: python3
 
     import pandas as pd
     import os
@@ -261,3 +251,4 @@ Examples
     sklearn_model.predict(X_test.head(2))
     sklearn_model.delete_deployment(wait_for_completion=True)
     ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+

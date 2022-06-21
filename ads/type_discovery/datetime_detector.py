@@ -7,15 +7,19 @@
 
 from __future__ import print_function, absolute_import, division
 
-import datefinder
 import pandas as pd
 
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.type_discovery import logger
 from ads.type_discovery.abstract_detector import AbstractTypeDiscoveryDetector
 from ads.type_discovery.typed_feature import DateTimeTypedFeature
 
 
 class DateTimeDetector(AbstractTypeDiscoveryDetector):
+    @runtime_dependency(module="datefinder", install_from=OptionalDependency.DATA)
     def _is_date_time(self, name, values, low_level_type_name):
         if low_level_type_name.startswith("datetime64"):
             return lambda x: x

@@ -7,11 +7,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 from sklearn import preprocessing
 from sklearn.feature_selection import f_regression, f_classif, SelectKBest
 
 from ads.type_discovery.typed_feature import ContinuousTypedFeature
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class FeatureImportance:
@@ -83,6 +86,7 @@ class FeatureImportance:
     def __repr__(self):
         return str(self.feature_ranking)
 
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def show_in_notebook(self, fig_size=(10, 10)):
         """
         Shows selected features in the notebook with matplotlib.
@@ -92,9 +96,9 @@ class FeatureImportance:
             print("show_in_notebook called but not in notebook environment")
             return
 
-        with sns.axes_style(style="whitegrid"):
+        with seaborn.axes_style(style="whitegrid"):
             plt.figure(figsize=fig_size)
-            sns.barplot(
+            seaborn.barplot(
                 x="scores",
                 y="features",
                 data=self.feature_ranking,

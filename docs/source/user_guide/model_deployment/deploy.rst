@@ -1,23 +1,20 @@
 Deploy
-======
+******
 
-The ``.deploy()`` method of the ``ModelDeployer`` class is used to create a model deployment. 
-It has the following parameters:
+The ``.deploy()`` method of the ``ModelDeployer`` class is used to create a model deployment.  It has the following parameters:
 
 * ``max_wait_time``: The timeout limit, in seconds, for the deployment process to wait until it is active. Defaults to 1200 seconds.
 * ``poll_interval``: The interval between checks of the deployment status in seconds. Defaults to 30 seconds.
 * ``wait_for_completion``: Blocked process until the deployment has been completed. Defaults to ``True``.
 
-There are two ways to use the ``.deploy()`` method. You can create a ``ModelDeploymentProperties`` object and 
-pass that in, or you can define the model deployment properties using the ``.deploy()`` method.
+There are two ways to use the ``.deploy()`` method. You can create a ``ModelDeploymentProperties`` object and pass that in, or you can define the model deployment properties using the ``.deploy()`` method.
 
-Using ``ModelDeploymentProperties``
------------------------------------
+With ``ModelDeploymentProperties``
+==================================
 
-After a ``ModelDeploymentProperties`` object is created, then you use ``model_deployment_properties`` 
-to deploy a model as in this example:
+After a ``ModelDeploymentProperties`` object is created, then you use ``model_deployment_properties`` to deploy a model as in this example:
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.model.deployment import ModelDeployer, ModelDeploymentProperties
 
@@ -38,15 +35,10 @@ to deploy a model as in this example:
     deployment = deployer.deploy(model_deployment_properties)
 
 
-Without Using ``ModelDeploymentProperties``
--------------------------------------------
+Without ``ModelDeploymentProperties``
+=====================================
 
-Depending on your use case, it might be more convenient to skip the
-creation of a ``ModelDeploymentProperties`` object and create the model
-deployment directly using the ``.deploy()`` method. You can do this by
-passing the using keyword arguments instead of
-``ModelDeploymentProperties``. You specify the model deployment
-properties as parameters in the ``.deploy()`` method.
+Depending on your use case, it might be more convenient to skip the creation of a ``ModelDeploymentProperties`` object and create the model deployment directly using the ``.deploy()`` method. You can do this by passing the using keyword arguments instead of ``ModelDeploymentProperties``. You specify the model deployment properties as parameters in the ``.deploy()`` method.
 
 You define the model deployment properties using the following parameters:
 
@@ -65,7 +57,7 @@ You define the model deployment properties using the following parameters:
 * ``predict_log_id``: Custom logger OCID for the predict logs. Required when ``predict_log_group_id`` is specified.
 * ``project_id``: Project OCID that the model deployment will belong to.
 
-.. code:: ipython3
+.. code-block:: python3
 
     from ads.model.deployment import ModelDeployer
 

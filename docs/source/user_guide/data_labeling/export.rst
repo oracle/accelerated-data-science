@@ -14,7 +14,7 @@ There is also a record JSONL file that stores the image, text, or document file 
 The ``export()`` method returns the path to the metadata file that was created in the export operation.
 
 
-.. code:: ipython3
+.. code-block:: python3
 
    from ads.data_labeling import DataLabeling
    dls = DataLabeling()

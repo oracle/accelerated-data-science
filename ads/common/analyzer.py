@@ -4,17 +4,38 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from bokeh.io import output_notebook
-from IPython import get_ipython
 from ads.common.decorator.deprecate import deprecated
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 try:
     from dask.diagnostics import ResourceProfiler
 except ImportError as e:
     raise ModuleNotFoundError("Install dask to use the analyzer class.") from e
 
-if get_ipython():
-    output_notebook()
+try:
+    from IPython import get_ipython
+
+    if get_ipython():
+        try:
+            from bokeh.io import output_notebook
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                f"The `bokeh` module was not found. Please run "
+                f"`pip install {OptionalDependency.VIZ}`."
+            )
+        except Exception as e:
+            raise
+
+        output_notebook()
+
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        f"The `IPython` module was not found. Please run "
+        f"`pip install {OptionalDependency.NOTEBOOK}`."
+    )
 
 
 @deprecated("2.5.2")

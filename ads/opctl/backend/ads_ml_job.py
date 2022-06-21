@@ -4,6 +4,7 @@
 # Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import copy
 import os
 import shutil
 import tempfile
@@ -313,7 +314,7 @@ class MLJobDistributedBackend(MLJobBackend):
         worker_jobrun_conf = job_conf_helper.job_run_info("worker")
         worker_jobrun_conf_list = []
         for i in range(cluster_info.cluster.worker.replicas):
-            conf = dict(worker_jobrun_conf)
+            conf = copy.deepcopy(worker_jobrun_conf)
             conf["envVars"]["RANK"] = str(i + 1)
             conf["name"] = conf.get("name", "worker")
             worker_jobrun_conf_list.append(conf)
@@ -373,6 +374,7 @@ class MLJobDistributedBackend(MLJobBackend):
                 main_jobrun = job.run(
                     conf["name"],
                     env_var=conf["envVars"],
+                    freeform_tags={"distributed_training": "oracle-ads"},
                 )
 
                 # Start worker job

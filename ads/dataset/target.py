@@ -5,9 +5,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import numpy as np
-from scipy.stats import skew
 from sklearn import preprocessing
 
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common import utils
 from ads.type_discovery.typed_feature import CategoricalTypedFeature
 from ads.type_discovery.typed_feature import ContinuousTypedFeature
@@ -19,7 +22,10 @@ class TargetVariable:
     This class provides target specific APIs.
     """
 
+    @runtime_dependency(module="scipy", install_from=OptionalDependency.VIZ)
     def __init__(self, sampled_ds, target, target_type):
+        from scipy.stats import skew
+
         self.sampled_ds = sampled_ds
         self.name = target
         self.type = target_type

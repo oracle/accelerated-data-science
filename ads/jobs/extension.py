@@ -17,6 +17,10 @@ from ads.opctl.constants import (
 )
 from ads.jobs import Job, DataFlow, DataFlowRuntime, DataFlowRun
 from ads.jobs.utils import get_dataflow_config
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 def dataflow(line, cell=None):
@@ -148,5 +152,6 @@ Options:
         print(df_run.logs.executor.stdout.tail(n=n))
 
 
+@runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
 def load_ipython_extension(ipython):
     ipython.register_magic_function(dataflow, "line_cell")

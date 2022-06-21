@@ -14,7 +14,6 @@ Classes:
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import seaborn as sns
 import pandas.api.types as pdtypes
 from ads.feature_engineering.feature_type.base import FeatureType
 from ads.feature_engineering.utils import (
@@ -23,6 +22,10 @@ from ads.feature_engineering.utils import (
     SchemeTeal,
 )
 from ads.feature_engineering import schema
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 def default_handler(data: pd.Series, *args, **kwargs) -> pd.Series:
@@ -128,6 +131,7 @@ class DateTime(FeatureType):
         return _add_missing(x.replace(r"", np.NaN), df_stat)
 
     @staticmethod
+    @runtime_dependency(module="seaborn", install_from=OptionalDependency.VIZ)
     def feature_plot(x: pd.Series) -> plt.Axes:
         """
         Shows distributions of datetime datasets using histograms.
@@ -150,7 +154,7 @@ class DateTime(FeatureType):
         if len(df.index):
             df[col_name] = df[col_name].apply(lambda x: pd.to_datetime(x))
             _set_seaborn_theme()
-            return sns.histplot(data=df, y=col_name, color=SchemeTeal.AREA_DARK)
+            return seaborn.histplot(data=df, y=col_name, color=SchemeTeal.AREA_DARK)
 
     @classmethod
     def feature_domain(cls, x: pd.Series) -> schema.Domain:

@@ -14,7 +14,10 @@ import numpy as np
 import pandas as pd
 from ads.common import logger
 from ads.model.extractor.pytorch_extractor import PytorchExtractor
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.common.utils import _serialize_input_helper
 from ads.model.generic_model import GenericModel
 from ads.model.model_properties import ModelProperties
@@ -111,7 +114,7 @@ class PyTorchModel(GenericModel):
     >>> torch_model.predict(...)
     """
 
-    @runtime_dependency(module="torch", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def __init__(
         self,
         estimator: callable,
@@ -192,7 +195,7 @@ class PyTorchModel(GenericModel):
                 )
         return model_file_name
 
-    @runtime_dependency(module="torch", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def serialize_model(
         self,
         as_onnx: bool = False,
@@ -270,7 +273,7 @@ class PyTorchModel(GenericModel):
             )
             torch.save(self.estimator.state_dict(), model_path)
 
-    @runtime_dependency(module="torch", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def to_onnx(
         self,
         path: str = None,
@@ -356,7 +359,7 @@ class PyTorchModel(GenericModel):
             dynamic_axes=dynamic_axes,
         )
 
-    @runtime_dependency(module="torch", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def _serialize_input(
         self,
         data: Union[

@@ -13,9 +13,12 @@ from numbers import Number
 from typing import Union
 
 import pandas as pd
-import six
 from ads.common import utils, logger
 from ads.common.data import ADSData
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.dataset import helper
 from ads.dataset.dataset import ADSDataset
 from ads.dataset.feature_engineering_transformer import FeatureEngineeringTransformer
@@ -29,13 +32,12 @@ from ads.dataset.recommendation_transformer import RecommendationTransformer
 from ads.dataset.target import TargetVariable
 from ads.type_discovery.typed_feature import DateTimeTypedFeature
 from sklearn.model_selection import train_test_split
-from IPython.display import HTML, display
 from pandas.io.formats.printing import pprint_thing
 from sklearn.preprocessing import FunctionTransformer
+from abc import ABCMeta
 
 
-@six.add_metaclass(abc.ABCMeta)
-class ADSDatasetWithTarget(ADSDataset):
+class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
     """
     This class provides APIs for preparing dataset for modeling.
     """
@@ -477,6 +479,7 @@ class ADSDatasetWithTarget(ADSDataset):
 
         return suggestion_df
 
+    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def get_recommendations(
         self,
         correlation_methods: str = "pearson",
@@ -575,6 +578,9 @@ class ADSDatasetWithTarget(ADSDataset):
                 frac=sample_size,
                 force_recompute=force_recompute,
             )
+
+            from IPython.display import HTML, display
+
             display(
                 HTML(
                     df_suggestion.to_html()

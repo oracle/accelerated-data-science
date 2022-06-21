@@ -10,9 +10,11 @@ from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from ads.common import logger
-from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 from ads.model.extractor.tensorflow_extractor import TensorflowExtractor
 from ads.common.utils import _serialize_input_helper
 from ads.model.generic_model import GenericModel
@@ -130,7 +132,9 @@ class TensorFlowModel(GenericModel):
     """
 
     @runtime_dependency(
-        module="tensorflow", short_name="tf", install_from="oracle-ads[data_science]"
+        module="tensorflow",
+        short_name="tf",
+        install_from=OptionalDependency.TENSORFLOW,
     )
     def __init__(
         self,
@@ -211,7 +215,9 @@ class TensorFlowModel(GenericModel):
         return model_file_name
 
     @runtime_dependency(
-        module="tensorflow", short_name="tf", install_from="oracle-ads[data_science]"
+        module="tensorflow",
+        short_name="tf",
+        install_from=OptionalDependency.TENSORFLOW,
     )
     def serialize_model(
         self,
@@ -281,7 +287,12 @@ class TensorFlowModel(GenericModel):
         else:
             self.estimator.save(model_path)
 
-    @runtime_dependency(module="tf2onnx", install_from="oracle-ads[data_science]")
+    @runtime_dependency(module="tf2onnx", install_from=OptionalDependency.ONNX)
+    @runtime_dependency(
+        module="tensorflow",
+        short_name="tf",
+        install_from=OptionalDependency.TENSORFLOW,
+    )
     def to_onnx(
         self,
         path: str = None,
@@ -388,7 +399,9 @@ class TensorFlowModel(GenericModel):
             )
 
     @runtime_dependency(
-        module="tensorflow", short_name="tf", install_from="oracle-ads[data_science]"
+        module="tensorflow",
+        short_name="tf",
+        install_from=OptionalDependency.TENSORFLOW,
     )
     def _serialize_input(
         self,

@@ -8,7 +8,6 @@ from numbers import Integral, Number
 from time import time
 
 import numpy as np
-from optuna import TrialPruned  # NOQA
 
 import sklearn
 from sklearn.base import BaseEstimator, clone, is_classifier
@@ -27,6 +26,10 @@ try:
     from sklearn.metrics import check_scoring
 except:
     from sklearn.metrics.scorer import check_scoring
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 
 class _Objective(object):
@@ -148,6 +151,7 @@ class _Objective(object):
                 self.max_iter = params.pop(max_iter_name)
         return params
 
+    @runtime_dependency(module="optuna", install_from=OptionalDependency.OPTUNA)
     def _cross_validate_with_pruning(
         self,
         X,
@@ -200,7 +204,7 @@ class _Objective(object):
 
                 self._store_scores(trial, scores, self.scoring_name)
 
-                raise TrialPruned("trial was pruned at iteration {}.".format(step))
+                raise optuna.TrialPruned(f"trial was pruned at iteration {step}.")
         return scores
 
     def _get_params(self, trial, param_distributions):
