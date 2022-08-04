@@ -44,6 +44,7 @@ class ClusterRunner:
         print("Signalling Stop!!!", flush=True)
         self.cluster.stop()  # Signal cluster tear down
         print(f"Exiting with exit code: {exit_code}", flush=True)
+        self.cluster.sync(loop=False)
         exit(exit_code)
 
 

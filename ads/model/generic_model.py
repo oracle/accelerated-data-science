@@ -6,15 +6,22 @@
 
 import json
 import os
+import tempfile
+import yaml
+from enum import Enum, auto
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
+import cloudpickle
 import numpy as np
 import pandas as pd
 import requests
-import cloudpickle
 from ads.catalog.model import ModelCatalog
 from ads.common import auth as authutil
 from ads.common import logger, oci_client
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.model_export_util import ONNXTransformer
 from ads.common.model_introspect import (
     TEST_STATUS,
@@ -30,10 +37,6 @@ from ads.common.model_metadata import (
 )
 from ads.common.model_metadata_mixin import MetadataMixin
 from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 from ads.config import (
     CONDA_BUCKET_NS,
     JOB_RUN_COMPARTMENT_OCID,
@@ -46,6 +49,8 @@ from ads.feature_engineering.schema import Schema
 from ads.model.artifact import ModelArtifact
 from ads.model.common.utils import _extract_locals
 from ads.model.deployment import (
+    DEFAULT_CONTENT_TYPE_JSON,
+    DEFAULT_CONTENT_TYPE_BYTES,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
     ModelDeployer,
@@ -56,7 +61,7 @@ from ads.model.deployment.common.utils import State as ModelDeploymentState
 from ads.model.model_properties import ModelProperties
 from ads.model.runtime.env_info import DEFAULT_CONDA_BUCKET_NAME
 from ads.model.runtime.runtime_info import RuntimeInfo
-from enum import Enum, auto
+from ads.common.model_artifact import fetch_manifest_from_conda_location
 
 
 _TRAINING_RESOURCE_ID = JOB_RUN_OCID or NB_SESSION_OCID
@@ -68,6 +73,13 @@ MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
 
 ONNX_DATA_TRANSFORMER = "onnx_data_transformer.json"
+_ATTRIBUTES_TO_SHOW_ = [
+    "artifact_dir",
+    "framework",
+    "algorithm",
+    "model_id",
+    "model_deployment_id",
+]
 
 
 class NotActiveDeploymentError(Exception):
@@ -159,6 +171,8 @@ class GenericModel(MetadataMixin, Introspectable):
         Returns prediction of input data run against the model deployment endpoint.
     prepare(..., **kwargs)
         Prepare and save the score.py, serialized model and runtime.yaml file.
+    prepare_save_deploy(..., **kwargs)
+        Shortcut for prepare, save and deploy steps.
     reload(...)
         Reloads the model artifact files: `score.py` and the `runtime.yaml`.
     save(..., **kwargs)
@@ -181,7 +195,7 @@ class GenericModel(MetadataMixin, Introspectable):
 
     >>> model = GenericModel(estimator=estimator, artifact_dir=tempfile.mkdtemp())
     >>> model.summary_status()
-    >>> model.prepare(inference_conda_env="oci://service-conda-packs@id19sfcrra6z/service_pack/cpu/Data Exploration and Manipulation for CPU Python 3.7/3.0/dataexpl_p37_cpu_v3",
+    >>> model.prepare(inference_conda_env="oci://service-conda-packs@id19sfcrra6z/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
     ...              inference_python_version="3.7",
     ...              model_file_name="toy_model.pkl",
     ...              training_id=None,
@@ -197,7 +211,7 @@ class GenericModel(MetadataMixin, Introspectable):
     def __init__(
         self,
         estimator: Callable,
-        artifact_dir: str,
+        artifact_dir: Optional[str] = None,
         properties: Optional[ModelProperties] = None,
         auth: Optional[Dict] = None,
         serialize: bool = True,
@@ -209,7 +223,7 @@ class GenericModel(MetadataMixin, Introspectable):
         ----------
         estimator: (Callable).
             Trained model.
-        artifact_dir: str
+        artifact_dir: (str, optional). Defaults to None.
             Artifact directory to store the files needed for deployment.
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
@@ -230,7 +244,14 @@ class GenericModel(MetadataMixin, Introspectable):
         self.schema_input = Schema()
         self.schema_output = Schema()
         self.model_file_name = None
-        self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
+        if artifact_dir:
+            self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
+        else:
+            self.artifact_dir = tempfile.mkdtemp()
+            print(
+                "`artifact_dir` is not provided and automatically set to be a temporary folder:"
+                + self.artifact_dir
+            )
         self.model_artifact = None
         self.framework = None
         self.algorithm = None
@@ -253,6 +274,34 @@ class GenericModel(MetadataMixin, Introspectable):
 
         self._serialize = serialize
         self._summary_status = SummaryStatus()
+
+    def __repr__(self) -> str:
+        """Representation of the model."""
+        return self._to_yaml()
+
+    def _to_dict(self):
+        """Converts the model attributes to dictionary format."""
+        attributes = {}
+        for key in _ATTRIBUTES_TO_SHOW_:
+
+            if key == "artifact_dir":
+                attributes[key] = {getattr(self, key): [self._get_files()]}
+            else:
+                attributes[key] = getattr(self, key, None)
+            if key == "model_deployment_id":
+                if hasattr(self, "model_deployment"):
+                    attributes[key] = getattr(
+                        self.model_deployment, "model_deployment_id", None
+                    )
+                else:
+                    attributes[key] = None
+
+        return attributes
+
+    def _to_yaml(self):
+        """Converts the model attributes to yaml format."""
+        attributes = self._to_dict()
+        return yaml.safe_dump(attributes)
 
     def serialize_model(
         self,
@@ -425,10 +474,11 @@ class GenericModel(MetadataMixin, Introspectable):
         Returns
         -------
         None
-            Nothing.
+            Nothing
         """
         # Populate properties from args and kwargs.
         # empty values will be ignored.
+
         locals_dict = _extract_locals(locals())
         locals_dict.pop("training_id", None)
         self.properties.with_dict(locals_dict)
@@ -439,7 +489,21 @@ class GenericModel(MetadataMixin, Introspectable):
             self.properties.training_id = _TRAINING_RESOURCE_ID
 
         if not self.properties.inference_conda_env:
-            raise ValueError("`inference_conda_env` must be specified.")
+            try:
+                conda_prefix = os.environ.get("CONDA_PREFIX", None)
+                manifest = fetch_manifest_from_conda_location(conda_prefix)
+                if "pack_path" in manifest:
+                    self.properties.inference_conda_env = manifest["pack_path"]
+                else:
+                    raise ValueError("`inference_conda_env` must be specified.")
+                self.properties.inference_python_version = (
+                    manifest["python"]
+                    if "python" in manifest
+                    and not self.properties.inference_python_version
+                    else self.properties.inference_python_version
+                )
+            except:
+                raise ValueError("`inference_conda_env` must be specified.")
 
         self._as_onnx = as_onnx
         self.model_file_name = self._handle_model_file_name(
@@ -450,7 +514,6 @@ class GenericModel(MetadataMixin, Introspectable):
             artifact_dir=self.artifact_dir,
             model_file_name=self.model_file_name,
         )
-
         self.runtime_info = self.model_artifact.prepare_runtime_yaml(
             inference_conda_env=self.properties.inference_conda_env,
             inference_python_version=self.properties.inference_python_version,
@@ -516,7 +579,6 @@ class GenericModel(MetadataMixin, Introspectable):
                 jinja_template_filename = (
                     "score-pkl" if self._serialize else "score_generic"
                 )
-
         self.model_artifact.prepare_score_py(jinja_template_filename)
         self._summary_status.update_status(
             detail="Generated score.py", status=ModelState.DONE.value
@@ -547,13 +609,15 @@ class GenericModel(MetadataMixin, Introspectable):
             status=ModelState.AVAILABLE.value,
         )
 
-    def verify(self, data: Any) -> Dict[str, Any]:
+    def verify(self, data: Any, **kwargs) -> Dict[str, Any]:
         """test if deployment works in local environment.
 
         Parameters
         ----------
         data: Any.
             Data used to test if deployment works in local environment.
+        kwargs:
+            content_type: str, used to indicate the media type of the resource.
 
         Returns
         -------
@@ -561,15 +625,34 @@ class GenericModel(MetadataMixin, Introspectable):
             A dictionary which contains prediction results.
         """
         url = f"http://127.0.0.1:8000/predict"
-        headers = {
-            "Content-Type": "application/json",
-            "Accept": "*/*",
-        }
+        content_type = kwargs.get("content_type", None)
         data_dict = self._handle_input_data(data)
-        req = requests.Request("POST", url, json=data_dict, headers=headers)
-        prepared_req = req.prepare()
+        if isinstance(data_dict, dict) and "bytes" in data_dict["data_type"]:
+            if not content_type:
+                content_type = DEFAULT_CONTENT_TYPE_BYTES
+            headers = {
+                "Content-Type": content_type,
+                "Accept": "*/*",
+            }
+            # should pass bytes when using data
+            req = requests.Request(
+                "POST", url, data=data_dict["data"], headers=headers
+            ).prepare()
+            request_body = req.body
+        else:
+            if not content_type:
+                content_type = DEFAULT_CONTENT_TYPE_JSON
+            headers = {
+                "Content-Type": content_type,
+                "Accept": "*/*",
+            }
+            req = requests.Request(
+                "POST", url, json=data_dict, headers=headers
+            ).prepare()
+            request_body = json.loads(req.body)
+
         self.model_artifact.reload()
-        prediction = self.model_artifact.predict(json.loads(prepared_req.body))
+        prediction = self.model_artifact.predict(request_body)
 
         try:
             req = requests.Request("POST", url, json=prediction, headers=headers)
@@ -937,8 +1020,8 @@ class GenericModel(MetadataMixin, Introspectable):
 
         Returns
         -------
-        None
-            Nothing
+        str
+            model id.
         """
         # populates properties from args and kwargs. Empty values will be ignored.
         self.properties.with_dict(_extract_locals(locals()))
@@ -1169,14 +1252,205 @@ class GenericModel(MetadataMixin, Introspectable):
         )
         return self.model_deployment
 
-    def predict(self, data: Any) -> Dict[str, Any]:
+    def prepare_save_deploy(
+        self,
+        inference_conda_env: str = None,
+        inference_python_version: str = None,
+        training_conda_env: str = None,
+        training_python_version: str = None,
+        model_file_name: str = None,
+        as_onnx: bool = False,
+        initial_types: List[Tuple] = None,
+        force_overwrite: bool = False,
+        namespace: str = CONDA_BUCKET_NS,
+        use_case_type: str = None,
+        X_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+        y_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+        training_script_path: str = None,
+        training_id: str = _TRAINING_RESOURCE_ID,
+        ignore_pending_changes: bool = True,
+        max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
+        model_display_name: Optional[str] = None,
+        model_description: Optional[str] = None,
+        model_freeform_tags: Optional[dict] = None,
+        model_defined_tags: Optional[dict] = None,
+        ignore_introspection: Optional[bool] = False,
+        wait_for_completion: Optional[bool] = True,
+        deployment_display_name: Optional[str] = None,
+        deployment_description: Optional[str] = None,
+        deployment_instance_shape: Optional[str] = None,
+        deployment_instance_count: Optional[int] = None,
+        deployment_bandwidth_mbps: Optional[int] = None,
+        deployment_log_group_id: Optional[str] = None,
+        deployment_access_log_id: Optional[str] = None,
+        deployment_predict_log_id: Optional[str] = None,
+        **kwargs: Dict,
+    ):
+        """Shortcut for prepare, save and deploy steps.
+
+        Parameters
+        ----------
+        inference_conda_env: (str, optional). Defaults to None.
+            Can be either slug or object storage path of the conda pack.
+            You can only pass in slugs if the conda pack is a service pack.
+        inference_python_version: (str, optional). Defaults to None.
+            Python version which will be used in deployment.
+        training_conda_env: (str, optional). Defaults to None.
+            Can be either slug or object storage path of the conda pack.
+            You can only pass in slugs if the conda pack is a service pack.
+            If `training_conda_env` is not provided, `training_conda_env` will
+            use the same value of `training_conda_env`.
+        training_python_version: (str, optional). Defaults to None.
+            Python version used during training.
+        model_file_name: (str).
+            Name of the serialized model.
+        as_onnx: (bool, optional). Defaults to False.
+            Whether to serialize as onnx model.
+        initial_types: (list[Tuple], optional).
+            Defaults to None. Only used for SklearnModel, LightGBMModel and XGBoostModel.
+            Each element is a tuple of a variable name and a type.
+            Check this link http://onnx.ai/sklearn-onnx/api_summary.html#id2 for
+            more explanation and examples for `initial_types`.
+        force_overwrite: (bool, optional). Defaults to False.
+            Whether to overwrite existing files.
+        namespace: (str, optional).
+            Namespace of region. This is used for identifying which region the service pack
+            is from when you pass a slug to inference_conda_env and training_conda_env.
+        use_case_type: str
+            The use case type of the model. Use it through UserCaseType class or string provided in `UseCaseType`. For
+            example, use_case_type=UseCaseType.BINARY_CLASSIFICATION or use_case_type="binary_classification". Check
+            with UseCaseType class to see all supported types.
+        X_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]. Defaults to None.
+            A sample of input data that will be used to generate input schema.
+        y_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]. Defaults to None.
+            A sample of output data that will be used to generate output schema.
+        training_script_path: str. Defaults to None.
+            Training script path.
+        training_id: (str, optional). Defaults to value from environment variables.
+            The training OCID for model. Can be notebook session or job OCID.
+        ignore_pending_changes: bool. Defaults to False.
+            whether to ignore the pending changes in the git.
+        max_col_num: (int, optional). Defaults to utils.DATA_SCHEMA_MAX_COL_NUM.
+            Do not generate the input schema if the input has more than this
+            number of features(columns).
+        model_display_name: (str, optional). Defaults to None.
+            The name of the model.
+        model_description: (str, optional). Defaults to None.
+            The description of the model.
+        model_freeform_tags : Dict(str, str), Defaults to None.
+            Freeform tags for the model.
+        model_defined_tags : (Dict(str, dict(str, object)), optional). Defaults to None.
+            Defined tags for the model.
+        ignore_introspection: (bool, optional). Defaults to None.
+            Determine whether to ignore the result of model introspection or not.
+            If set to True, the save will ignore all model introspection errors.
+        wait_for_completion : (bool, optional). Defaults to True.
+            Flag set for whether to wait for deployment to complete before proceeding.
+        display_name: (str, optional). Defaults to None.
+            The name of the model.
+        description: (str, optional). Defaults to None.
+            The description of the model.
+        deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
+            The shape of the instance used for deployment.
+        deployment_instance_count: (int, optional). Defaults to 1.
+            The number of instance used for deployment.
+        deployment_bandwidth_mbps: (int, optional). Defaults to 10.
+            The bandwidth limit on the load balancer in Mbps.
+        deployment_log_group_id: (str, optional). Defaults to None.
+            The oci logging group id. The access log and predict log share the same log group.
+        deployment_access_log_id: (str, optional). Defaults to None.
+            The access log OCID for the access logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
+        deployment_predict_log_id: (str, optional). Defaults to None.
+            The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
+        kwargs:
+            impute_values: (dict, optional).
+                The dictionary where the key is the column index(or names is accepted
+                for pandas dataframe) and the value is the impute value for the corresponding column.
+            project_id: (str, optional).
+                Project OCID. If not specified, the value will be taken either
+                from the environment variables or model properties.
+            compartment_id : (str, optional).
+                Compartment OCID. If not specified, the value will be taken either
+                from the environment variables or model properties.
+            timeout: (int, optional). Defaults to 10 seconds.
+                The connection timeout in seconds for the client.
+            max_wait_time : (int, optional). Defaults to 1200 seconds.
+                Maximum amount of time to wait in seconds.
+                Negative implies infinite wait time.
+            poll_interval : (int, optional). Defaults to 60 seconds.
+                Poll interval in seconds.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance.
+
+        Raises
+        ------
+        FileExistsError: when files already exist but `force_overwrite` is False.
+        ValueError: when `inference_python_version` is not provided, but also cannot be found through manifest file.
+        """
+        locals_dict = _extract_locals(locals())
+        locals_dict.pop("training_id", None)
+        self.properties.with_dict(locals_dict)
+
+        self.prepare(
+            inference_conda_env=self.properties.inference_conda_env,
+            inference_python_version=self.properties.inference_python_version,
+            training_conda_env=self.properties.training_conda_env,
+            training_python_version=self.properties.training_python_version,
+            model_file_name=model_file_name,
+            as_onnx=as_onnx,
+            initial_types=initial_types,
+            force_overwrite=force_overwrite,
+            namespace=namespace,
+            use_case_type=use_case_type,
+            X_sample=X_sample,
+            y_sample=y_sample,
+            training_script_path=self.properties.training_script_path,
+            training_id=self.properties.training_id,
+            ignore_pending_changes=ignore_pending_changes,
+            max_col_num=max_col_num,
+            impute_values=kwargs.pop("impute_values", None),
+        )
+        self.save(
+            display_name=model_display_name,
+            description=model_description,
+            freeform_tags=model_freeform_tags,
+            defined_tags=model_defined_tags,
+            ignore_introspection=ignore_introspection,
+            compartment_id=self.properties.compartment_id,
+            project_id=self.properties.project_id,
+            timeout=kwargs.pop("timeout", None),
+        )
+        self.deploy(
+            wait_for_completion=wait_for_completion,
+            display_name=deployment_display_name,
+            description=deployment_description,
+            deployment_instance_shape=self.properties.deployment_instance_shape,
+            deployment_instance_count=self.properties.deployment_instance_count,
+            deployment_bandwidth_mbps=self.properties.deployment_bandwidth_mbps,
+            deployment_log_group_id=self.properties.deployment_log_group_id,
+            deployment_access_log_id=self.properties.deployment_access_log_id,
+            deployment_predict_log_id=self.properties.deployment_predict_log_id,
+            kwargs=kwargs,
+        )
+        return self.model_deployment
+
+    def predict(self, data: Any, **kwargs) -> Dict[str, Any]:
         """Returns prediction of input data run against the model deployment endpoint.
 
         Parameters
         ----------
         data: Any
-            JSON serializable data for the prediction for onnx models, for local serialization
+            Data for the prediction for onnx models, for local serialization
             method, data can be the data types that each framework support.
+        kwargs:
+            content_type: str
+                Used to indicate the media type of the resource.
+                By default, it will be `application/octet-stream` for bytes input and `application/json` for other cases.
+                The content-type will be added into headers and passed in the call of model deployment endpoint.
+
 
         Returns
         -------
@@ -1196,9 +1470,12 @@ class GenericModel(MetadataMixin, Introspectable):
         current_state = self.model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
             raise NotActiveDeploymentError(current_state)
-
         data_dict = self._handle_input_data(data)
-        prediction = self.model_deployment.predict(data_dict)
+
+        if isinstance(data_dict, dict) and "bytes" in data_dict["data_type"]:
+            prediction = self.model_deployment.predict(data=data_dict["data"], **kwargs)
+        else:
+            prediction = self.model_deployment.predict(json_input=data_dict, **kwargs)
 
         self._summary_status.update_status(
             detail="Called deployment predict endpoint", status=ModelState.DONE.value
@@ -1225,18 +1502,12 @@ class GenericModel(MetadataMixin, Introspectable):
             data_dict = self._serialize_input(data)
         except SerializeInputNotImplementedError as e:
             data_dict = data
-            if not GenericModel._is_json_serializable(data):
-                raise ValueError(
-                    "`data` must be json serializable. "
-                    "Serialize the provided input data first."
-                )
-        except Exception as e:
-            raise e
-        if not GenericModel._is_json_serializable(data_dict):
-            raise ValueError(
-                f"An error occurred in attempt to serialize the `data` to JSON. "
-                "Check if the type of the data is supported."
-            )
+            if isinstance(data, bytes):
+                data_dict = {
+                    "data": data,
+                    "data_type": str(type(data)),
+                }
+
         return data_dict
 
     @staticmethod

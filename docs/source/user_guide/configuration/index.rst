@@ -10,5 +10,4 @@ Configuration
    authentication
    core-site_xml
    spark-defaults_conf
-   vault
 

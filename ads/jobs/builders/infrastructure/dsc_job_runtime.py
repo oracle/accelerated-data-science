@@ -163,12 +163,17 @@ class RuntimeHandler:
                 "jobType"
                 "commandLineArguments"
                 "environmentVariables"
+                "maximumRuntimeInMinutes"
             The configurations will be used to initialize the DSCJob instance.
             The DSCJob class can handle keys in either camel or snake format.
         """
         job_configuration_details = {
             "jobType": self.data_science_job.job_type,
         }
+        if runtime.maximum_runtime_in_minutes:
+            job_configuration_details[
+                "maximum_runtime_in_minutes"
+            ] = runtime.maximum_runtime_in_minutes
         job_configuration_details["environment_variables"] = self._translate_env(
             runtime
         )
@@ -268,6 +273,7 @@ class RuntimeHandler:
         * _extract_args()
         * _extract_envs()
         * _extract_artifact()
+        * _extract_runtime_minutes()
         Each of these method returns a dict for specifying the runtime.
         The dictionaries are combined before initalizing the runtime.
         A sub-class can modify one of more of these methods.
@@ -288,6 +294,7 @@ class RuntimeHandler:
             self._extract_args,
             self._extract_envs,
             self._extract_artifact,
+            self._extract_runtime_minutes,
         ]
         for extraction in extractions:
             runtime_spec.update(extraction(dsc_job))
@@ -365,6 +372,28 @@ class RuntimeHandler:
         dict
             A runtime specification dictionary for initializing a runtime.
         """
+        return {}
+
+    def _extract_runtime_minutes(self, dsc_job):
+        """Extract the maximum runtime in minutes from data science job.
+
+        Parameters
+        ----------
+        dsc_job : DSCJob or oci.datascience.models.Job
+            The data science job containing runtime information.
+
+        Returns
+        -------
+        dict
+            A runtime specification dictionary for initializing a runtime.
+        """
+        maximum_runtime_in_minutes = get_value(
+            dsc_job, "job_configuration_details.maximum_runtime_in_minutes"
+        )
+        if maximum_runtime_in_minutes:
+            return {
+                Runtime.CONST_MAXIMUM_RUNTIME_IN_MINUTES: maximum_runtime_in_minutes
+            }
         return {}
 
 
@@ -645,7 +674,7 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
         NotebookRuntime.CONST_NOTEBOOK_PATH: CONST_NOTEBOOK_NAME,
         NotebookRuntime.CONST_OUTPUT_URI: CONST_OUTPUT_URI,
         NotebookRuntime.CONST_TAG: CONST_EXCLUDE_TAGS,
-        NotebookRuntime.CONST_NOTEBOOK_ENCODING: CONST_NOTEBOOK_ENCODING
+        NotebookRuntime.CONST_NOTEBOOK_ENCODING: CONST_NOTEBOOK_ENCODING,
     }
 
     def _translate_artifact(self, runtime: NotebookRuntime):

@@ -25,6 +25,7 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.common.decorator.deprecate import deprecated
 
 from oci.data_flow.models import (
     CreateApplicationDetails,
@@ -60,6 +61,7 @@ class SPARK_VERSION(str):
 
 
 class DataFlow:
+    @deprecated("2.6.3")
     def __init__(
         self,
         compartment_id=None,
@@ -947,6 +949,7 @@ class DataFlow:
 
 
 class DataFlowApp(DataFlow):
+    @deprecated("2.6.3")
     def __init__(self, app_config, app_response, app_dir, oci_link, **kwargs):
         super().__init__(compartment_id=app_config["compartment_id"], **kwargs)
         self._config = app_config
@@ -1386,6 +1389,7 @@ class DataFlowApp(DataFlow):
 
 
 class RunObserver:
+    @deprecated("2.6.3")
     def __init__(self, app, run_config, save_log_to_local):
         self.app = app
         self._config = run_config
@@ -1571,6 +1575,7 @@ class RunObserver:
 class DataFlowRun(DataFlow):
     LOG_OUTPUTS = ["stdout", "stderr"]
 
+    @deprecated("2.6.3")
     def __init__(
         self, run_config, run_response, save_log_to_local, local_dir, **kwargs
     ):
@@ -1739,6 +1744,7 @@ class DataFlowRun(DataFlow):
 
 
 class DataFlowLog:
+    @deprecated("2.6.3")
     def __init__(self, text, oci_path, log_local_dir):
         self.text = str(text)
         self._oci_path = oci_path

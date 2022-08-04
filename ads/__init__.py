@@ -57,15 +57,16 @@ def set_auth(
     global oci_config_path
     global oci_key_profile
     oci_key_profile = profile
-    if os.path.exists(os.path.expanduser(oci_config_location)):
-        oci_config_path = oci_config_location
-    else:
-        logging.warning(
-            f"{oci_config_location} file not exists, default value oci.config.DEFAULT_LOCATION used instead"
-        )
-        oci_config_path = oci.config.DEFAULT_LOCATION
+
     if auth == "api_key":
         resource_principal_mode = False
+        if os.path.exists(os.path.expanduser(oci_config_location)):
+            oci_config_path = oci_config_location
+        else:
+            logging.warning(
+                f"{oci_config_location} file not exists, default value oci.config.DEFAULT_LOCATION used instead"
+            )
+            oci_config_path = oci.config.DEFAULT_LOCATION
     elif auth == "resource_principal":
         resource_principal_mode = True
 

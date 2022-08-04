@@ -4,17 +4,24 @@
 # Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import fsspec
-import ads
-import os
-import oci
-import json
-from ads.jobs import Job
 import ipaddress
-import psutil
-from time import sleep, time
-import pandas as pd  # Have to find a better way for timedelta
+import json
+import os
+import sys
+from time import sleep, time, time_ns
 from urllib.parse import urlparse
+import subprocess
+
+
+import ads
+import fsspec
+import oci
+import pandas as pd  # Have to find a better way for timedelta
+import psutil
+from ads.jobs import Job
+from ads.opctl.distributed.common import cluster_config_helper
+from ads.jobs.templates.driver_oci import GitSSHKey, GitManager, JobRunner
+from ads.jobs.builders.runtimes.artifact import Artifact
 
 
 class ClusterProvider:
@@ -27,6 +34,9 @@ class ClusterProvider:
     The worker and main coordinate cluster configuration using the directory provided via `WORK_DIR`. The main node creates config.json in the `WORK_DIR`.
     The worker nodes polls the config.json and exports the configuration as environment variables
     """
+    SYNC_SCRIPT_PATH = "/etc/datascience/sync.sh"
+
+    DEFAULT_CODE_DIR = "/code"
 
     def __init__(self, mode, ephemeral=True, life_span="0h", work_dir=""):
         self.mode = mode
@@ -48,6 +58,8 @@ class ClusterProvider:
             os.environ.get("OCI__TIMEOUT", "600")
         )  # Time out to wait for the config file
 
+        self.fetch_code()
+
         self.setup_configuration()  # Write cluster configuration to `work_dir`. Eg. IP address of scheduler, etc.
 
         # self.tmpdir = os.environ["tmpdir"]
@@ -63,6 +75,59 @@ class ClusterProvider:
 
         self.execution_failure = False
         self.code_execution_complete = False
+        self.sync()
+
+    def sync(self, loop = True):
+        sync_artifacts = os.environ.get("SYNC_ARTIFACTS", 0)
+        print(f'sync_artifacts - {sync_artifacts}')
+        if sync_artifacts == "1":
+            sync_script_fn = self.SYNC_SCRIPT_PATH
+            if not os.path.exists(sync_script_fn):
+                sync_script = self.get_sync_script()
+                self.create_sync_script(sync_script_fn,sync_script)
+            subprocess.Popen([sync_script_fn,'-l']) if loop else subprocess.Popen([sync_script_fn])
+
+    @staticmethod
+    def create_sync_script(sync_script_fn,sync_script):
+        sync_script_fn_obj = open(sync_script_fn, 'w')
+        sync_script_fn_obj.write(sync_script)
+        sync_script_fn_obj.close()
+        os.chmod(sync_script_fn, 755)
+
+    def get_sync_script(self):
+        return sync_script_str
+
+    def fetch_code(self):
+        runtime_type = os.environ.get(cluster_config_helper.OCI__RUNTIME_TYPE)
+        if not runtime_type:
+            return
+        delegates = {"git": self._fetch_git, "remote": self._fetch_remote}
+        if runtime_type not in delegates:
+            raise ValueError(f"Runtime type {runtime_type} is not supported.")
+        if cluster_config_helper.OCI__CODE_DIR not in os.environ:
+            os.environ[cluster_config_helper.OCI__CODE_DIR] = self.DEFAULT_CODE_DIR
+        delegates[runtime_type](
+            code_dir=os.environ.get(cluster_config_helper.OCI__CODE_DIR)
+        )
+
+    def _fetch_git(self, code_dir):
+        uri = os.environ.get(cluster_config_helper.OCI__RUNTIME_URI)
+        branch = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_BRANCH)
+        commit = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_COMMIT)
+        secret_ocid = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_SECRET_ID)
+        # with GitSSHKey does nothing if secret_ocid is None or empty
+        with GitSSHKey(secret_ocid):
+            GitManager(uri, code_dir).fetch_repo().setup_code(
+                branch=branch, commit=commit
+            )
+        JobRunner.setup_python_path(
+            python_path=os.environ.get(cluster_config_helper.OCI__RUNTIME_PYTHON_PATH),
+            code_dir=code_dir,
+        )
+
+    def _fetch_remote(self, code_dir):
+        uri = os.environ.get(cluster_config_helper.OCI__RUNTIME_URI)
+        Artifact.copy_from_uri(uri, code_dir)
 
     def run_code(self):
         # Sub-class should implement this method to run code and,
@@ -85,7 +150,7 @@ class ClusterProvider:
         # Use "Undefined" as job identifier when not running on OCI jobs.
         self.jobDefID = os.environ.get("JOB_OCID", "Undefined")
         # Use time as job run identifier when not running on OCI jobs
-        self.jobRunID = os.environ.get("JOB_RUN_OCID", str(time()))
+        self.jobRunID = os.environ.get("JOB_RUN_OCID", str(time_ns()))
 
         self.my_work_dir = os.path.join(self.work_dir, self.jobDefID)
         self.config_file = os.path.join(
@@ -128,6 +193,7 @@ class ClusterProvider:
             subnet_id = jobDef.infrastructure.subnet_id
             core_client = oci.core.VirtualNetworkClient(**authinfo)
             cidr = core_client.get_subnet(subnet_id).data.cidr_block
+
             for interface, snics in psutil.net_if_addrs().items():
                 ip = snics[0].address
                 if ipaddress.ip_address(ip) in ipaddress.ip_network(cidr):
@@ -301,3 +367,34 @@ class ClusterProvider:
                 )
 
         func(*args, **kwargs)
+
+sync_script_str = '''#!/bin/bash
+
+loop=false
+
+if [ "$1" == "-l" ]; then
+  loop=true;
+fi
+echo "loop: $loop"
+sleep_duration=30
+if [ "$OCI_IAM_TYPE" = 'api_key' ]; then
+  auth_method=api_key
+else
+  auth_method=resource_principal
+fi
+echo "auth method: $auth_method"
+echo "OCI__SYNC_DIR dir: $OCI__SYNC_DIR"
+
+while true; do
+  if [[ -d $OCI__SYNC_DIR && -n "$(ls -A $OCI__SYNC_DIR)" ]]; then
+    echo "syncing $OCI__SYNC_DIR to $WORKSPACE/$WORKSPACE_PREFIX/$JOB_OCID/$JOB_RUN_OCID/"
+    ~/bin/oci os object sync --auth $auth_method --bucket-name $WORKSPACE --prefix $WORKSPACE_PREFIX/$JOB_OCID/$JOB_RUN_OCID/ --src-dir $OCI__SYNC_DIR
+  else
+    echo "nothing to sync in $OCI__SYNC_DIR"
+  fi
+  if [ "$loop" = false ] ; then
+    break
+  fi
+  sleep $sleep_duration
+done
+    '''

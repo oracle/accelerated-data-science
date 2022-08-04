@@ -17,7 +17,7 @@ Data Flow
     compartment_id = os.environ.get("NB_SESSION_COMPARTMENT_OCID")
     driver_shape = "VM.Standard2.1"
     executor_shape = "VM.Standard2.1"
-    spark_version = "3.0.2"
+    spark_version = "3.2.1"
 
     # A python script to be run in Data Flow
     script = '''

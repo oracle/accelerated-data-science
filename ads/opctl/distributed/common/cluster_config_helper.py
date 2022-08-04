@@ -5,6 +5,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+OCI__RUNTIME_TYPE = "OCI__RUNTIME_TYPE"
+OCI__RUNTIME_URI = "OCI__RUNTIME_URI"
+OCI__RUNTIME_PYTHON_PATH = "OCI__RUNTIME_PYTHON_PATH"
+OCI__RUNTIME_GIT_BRANCH = "OCI__RUNTIME_GIT_BRANCH"
+OCI__RUNTIME_GIT_COMMIT = "OCI__RUNTIME_GIT_COMMIT"
+OCI__RUNTIME_GIT_SECRET_ID = "OCI__RUNTIME_GIT_SECRET_ID"
+OCI__CODE_DIR = "OCI__CODE_DIR"
+
+
 class ClusterConfigToJobSpecConverter:
     def __init__(self, cluster_info):
         self.cluster_info = cluster_info
@@ -24,6 +33,22 @@ class ClusterConfigToJobSpecConverter:
         job["envVars"]["OCI__WORKER_COUNT"] = cluster.worker.replicas
         job["envVars"]["OCI__START_ARGS"] = cluster.config.cmd_args.strip()
         job["envVars"]["OCI__ENTRY_SCRIPT"] = self.cluster_info.runtime.entry_point
+
+        if self.cluster_info.runtime.type:
+            optional_runtime_fields = [
+                {"attr": "type", "env": OCI__RUNTIME_TYPE},
+                {"attr": "uri", "env": OCI__RUNTIME_URI},
+                {"attr": "branch", "env": OCI__RUNTIME_GIT_BRANCH},
+                {"attr": "commit", "env": OCI__RUNTIME_GIT_COMMIT},
+                {"attr": "git_secret_id", "env": OCI__RUNTIME_GIT_SECRET_ID},
+                {"attr": "code_dir", "env": OCI__CODE_DIR},
+                {"attr": "python_path", "env": OCI__RUNTIME_PYTHON_PATH},
+            ]
+            for field in optional_runtime_fields:
+                val = getattr(self.cluster_info.runtime, field["attr"], None)
+                if val:
+                    job["envVars"][field["env"]] = val
+
         runtime_args = self.cluster_info.runtime.args
         if isinstance(self.cluster_info.runtime.args, list):
             runtime_args = " ".join([str(v) for v in self.cluster_info.runtime.args])

@@ -1,7 +1,7 @@
 MySQL
 *****
 
-To connect to an Oracle Database, you need the following:
+To connect to a MySQL Database, you need the following:
 
 * hostname
 * password

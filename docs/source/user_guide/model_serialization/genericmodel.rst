@@ -58,9 +58,9 @@ Verify
 
 .. include:: _template/verify.rst
 
-* ``data (Union[dict, str, tuple, list])``. The data is used to test if the deployment works in the local environment.
+* ``data (Union[dict, str, tuple, list, bytes])``. The data is used to test if the deployment works in the local environment.
 
-In ``GenericModel``, data serialization is not supported. This means that you must ensure that you pass in JSON serializable data to the ``.verify()`` and ``.predict()`` methods. Or you could implement data serialization and deserialization in the ``score.py`` file.
+In ``GenericModel``, data serialization is not supported. You can implement data serialization and deserialization in the ``score.py`` file.
 
 Save
 ----
@@ -72,6 +72,11 @@ Deploy
 
 .. include:: _template/deploy.rst
 
+Prepare, Save and Deploy Shortcut
+---------------------------------
+.. include:: _template/prepare_save_deploy.rst
+
+
 Predict
 -------
 
@@ -80,6 +85,8 @@ Predict
 * ``data: Union[dict, str, tuple, list]``: JSON serializable data used for making inferences.
 
 The ``.predict()`` and ``.verify()`` methods take the same data formats.
+
+.. include:: _template/score.rst
 
 Load
 ====
@@ -154,3 +161,24 @@ By default, the ``GenericModel`` serializes to a pickle file. The following exam
     generic_model.delete_deployment(wait_for_completion=True)
     ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
 
+You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.prepare()``, ``.save()`` and ``.deploy()`` seperately.
+
+.. code-block:: python3
+
+    import tempfile
+    from ads.catalog.model import ModelCatalog
+    from ads.model.generic_model import GenericModel
+
+    class Toy:
+        def predict(self, x):
+            return x ** 2
+    estimator = Toy()
+
+    model = GenericModel(estimator=estimator)
+    model.summary_status()
+    # If you are running the code inside a notebook session and using a service pack, `inference_conda_env` can be omitted.
+    model.prepare_save_deploy(inference_conda_env="dataexpl_p37_cpu_v3")
+    model.verify(2)
+    model.predict(2)
+    model.delete_deployment(wait_for_completion=True)
+    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model.model_id)

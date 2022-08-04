@@ -260,7 +260,13 @@ class ModelIntrospect:
         for key, item in self._result.items():
             error_msg = (
                 item.get(_TEST_COLUMNS.ERROR_MSG)
-                if item.get(_TEST_COLUMNS.SUCCESS) == False
+                if (
+                    item.get(_TEST_COLUMNS.SUCCESS) == False
+                    or (
+                        item.get(_TEST_COLUMNS.SUCCESS) == None
+                        and "WARNING" in item.get(_TEST_COLUMNS.ERROR_MSG, "")
+                    )
+                )
                 else ""
             )
             result.append(

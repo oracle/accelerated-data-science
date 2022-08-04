@@ -30,6 +30,18 @@ GIT_SECRET_OCID:
     The OCID of the OCI vault secret storing the SSH key for Git commands.
 SKIP_METADATA_UPDATE:
     If this variable exists, the update metadata step will be skipped.
+OCI_IAM_TYPE:
+    Authentication method for OCI services.
+    OCI API key will be used if this is set to api_key.
+    Otherwise resource principal will be used.
+OCI_CONFIG_LOCATION:
+    The location of OCI API key when OCI_IAM_TYPE is set to api_key.
+    If this is not set, oci.config.DEFAULT_LOCATION will be used.
+OCI_CONFIG_PROFILE:
+    The profile name to be used for API key authentication.
+    If this is not set, oci.config.DEFAULT_PROFILE will be used.
+OCI__GIT_SSH_KEY_PATH:
+    The location to save the SSH Key for accessing the git repository.
 
 JOB_RUN_OCID:
     The OCID of the job run. This is set by the job run.
@@ -38,6 +50,8 @@ This module requires the following packages:
 oci
 requests
 GitPython
+git
+openssh
 
 """
 import base64
@@ -49,9 +63,12 @@ import shutil
 import string
 import subprocess
 import sys
+import time
 import traceback
+import uuid
 from typing import Optional
 from urllib.parse import urlparse
+from urllib.request import getproxies
 
 import git
 import oci
@@ -59,19 +76,24 @@ import requests
 from oci.data_science import DataScienceClient
 from oci.object_storage import ObjectStorageClient
 
-SSH_KEY_FILE_PATH = "~/.ssh/id_rsa"
+
+SSH_DIR = os.path.join("home", "datascience", "ssh_" + str(uuid.uuid4()))
+SSH_KEY_FILE_PATH = os.path.join(SSH_DIR, "id_rsa")
+DEFAULT_CODE_DIR = "~/Code/"
 
 
 class GitManager:
     """Contains methods for fetching code from Git repository"""
 
-    def __init__(self, repo_url: str):
+    def __init__(self, repo_url: str, code_dir: str = None):
         """Initialize the GitManager
 
         Parameters
         ----------
         repo_url : str
             The URL of the repository.
+        code_dir : str
+            The local directory for storing the code from Git repository.
 
         Raises
         ------
@@ -81,10 +103,11 @@ class GitManager:
         if not repo_url:
             raise ValueError("Specify the URL of Git repository.")
         self.repo_url = repo_url
-        code_dir = os.environ.get("CODE_DIR")
+        if not code_dir:
+            code_dir = os.environ.get("CODE_DIR")
         # Use default directory if CODE_DIR is set to None or empty string.
         if not code_dir:
-            code_dir = "~/Code/" + os.path.basename(repo_url).split(".", 1)[0]
+            code_dir = os.path.join(DEFAULT_CODE_DIR, os.path.basename(repo_url).split(".", 1)[0])
         self.code_dir = os.path.abspath(os.path.expanduser(code_dir))
 
         print(f"Initializing code directory at {self.code_dir} ...")
@@ -108,19 +131,54 @@ class GitManager:
         if repo_url.startswith("git@"):
             repo_url = "ssh://" + repo_url
         host = urlparse(repo_url).hostname
-        if host:
-            os.makedirs(os.path.expanduser("~/.ssh"), exist_ok=True)
-            subprocess.check_output(
-                f"ssh-keyscan -H {host} >> ~/.ssh/known_hosts", shell=True
-            )
-            print(f"Added {host} to known hosts.")
+        ssh_config_path = os.path.join(SSH_DIR, "config")
+        if urlparse(repo_url).scheme == "ssh":
+            os.makedirs(os.path.dirname(ssh_config_path), exist_ok=True)
+            proxies = getproxies()
+            if ("http" in proxies or "https" in proxies) and "ssh" not in proxies:
+                print(
+                    "You have http/https proxy configured. "
+                    "Please set ssh_proxy in environment variable install the 'socat' package "
+                    "if you would like to use the proxy for Git clone via SSH."
+                )
+            if "ssh" in proxies:
+                proxy = urlparse(proxies["ssh"])
+                try:
+                    subprocess.check_output("command -v socat", shell=True)
+                    ssh_config = f"ProxyCommand socat - PROXY:{proxy.hostname}:%h:%p,proxyport={proxy.port}"
+                    print(f"Adding proxy for SSH: {ssh_config}")
+                    with open(ssh_config_path, "a", encoding="utf-8") as f:
+                        f.write(ssh_config)
+                    print(f"SSH config saved to {ssh_config_path}")
+                except subprocess.CalledProcessError:
+                    print(
+                        "You have ssh_proxy configured. "
+                        "Please install the 'socat' package into your environment "
+                        "if you would like to use proxy for Git clone via SSH."
+                    )
 
-        if "GIT_SECRET_OCID" in os.environ:
-            ssh_key_path = os.path.expanduser(SSH_KEY_FILE_PATH)
-            # subprocess.check_output(f'eval "$(ssh-agent -s)" && ssh-add "{ssh_key_path}"', shell=True)
-            os.system("ssh -vT git@github.com")
+            try:
+                cmd = f"ssh-keyscan -H {host} >> {SSH_DIR}/known_hosts"
+                subprocess.check_output(cmd, shell=True)
+                print(f"Added {host} to known hosts.")
+            except subprocess.CalledProcessError as ex:
+                print(f"'{cmd}' exited with code {ex.returncode}.")
+                print(ex.output)
+                print(
+                    "You may need to configure your subnet security list to allow traffic on port 22."
+                )
+
+        ssh_key_path = os.path.expanduser(SSH_KEY_FILE_PATH)
+        if os.path.exists(ssh_key_path):
+            # Test the connection, for debugging purpose
+            os.system(f"ssh -vT git@{host}")
             # Ignore the fingerprint checking
-            ssh_cmd = f'ssh -i "{ssh_key_path}" -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null"'
+            ssh_cmd = f'ssh -i "{ssh_key_path}" '
+            if os.path.exists(ssh_config_path):
+                ssh_cmd += f'-F "{ssh_config_path}" '
+            ssh_cmd += (
+                ' -o "StrictHostKeyChecking=no" -o "UserKnownHostsFile=/dev/null"'
+            )
             env = {"GIT_SSH_COMMAND": ssh_cmd}
         else:
             env = None
@@ -164,9 +222,18 @@ class CredentialManager:
         client_class :
             The class of OCI client to be initialized.
         """
-        if os.environ.get("API_KEY"):
+        if os.environ.get("OCI_IAM_TYPE", "").lower() == "api_key":
             print(f"Initializing {client_class.__name__} with API Key...")
-            client = client_class(oci.config.from_file())
+            client = client_class(
+                oci.config.from_file(
+                    file_location=os.environ.get(
+                        "OCI_CONFIG_LOCATION", oci.config.DEFAULT_LOCATION
+                    ),
+                    profile_name=os.environ.get(
+                        "OCI_CONFIG_PROFILE", oci.config.DEFAULT_PROFILE
+                    ),
+                )
+            )
         else:
             print(f"Initializing {client_class.__name__} with Resource Principal...")
             client = client_class(
@@ -201,7 +268,9 @@ class CredentialManager:
 class GitSSHKey:
     def __init__(self, secret_id) -> None:
         self.secret_id = secret_id
-        self.key_file_path = os.path.expanduser(SSH_KEY_FILE_PATH)
+        self.key_file_path = os.path.expanduser(
+            os.environ.get("OCI__GIT_SSH_KEY_PATH", SSH_KEY_FILE_PATH)
+        )
         self.existing_git_ssh_cmd = None
         self.backup_file_path = None
 
@@ -213,7 +282,7 @@ class GitSSHKey:
         if not content.endswith("\n"):
             content += "\n"
         os.makedirs(os.path.dirname(self.key_file_path), exist_ok=True)
-        with open(self.key_file_path, "w") as f:
+        with open(self.key_file_path, "w", encoding="utf-8") as f:
             f.write(content)
         # Set the correct permission for the SSH key.
         os.chmod(self.key_file_path, 0o600)
@@ -274,16 +343,38 @@ class JobRunner:
         self.artifacts = []
         self.source_info = {}
 
-    def setup_python_path(self):
+    @staticmethod
+    def setup_python_path(python_path="", code_dir=""):
         """Adds additional python paths."""
-        python_paths = os.environ.get("PYTHON_PATH", "").split(os.pathsep)
-        python_paths.append(self.git_manager.code_dir)
+        if not python_path:
+            python_path = os.environ.get("PYTHON_PATH", "")
+        python_paths = python_path.split(os.pathsep)
+        python_paths.append(code_dir)
         for path in python_paths:
-            python_path = os.path.join(self.git_manager.code_dir, path)
+            python_path = os.path.join(code_dir, path)
             if python_path not in sys.path:
                 sys.path.append(python_path)
         print(f"Python Path: {sys.path}")
-        return self
+
+    @staticmethod
+    def run_command(command):
+        # Conda activate
+        # https://docs.conda.io/projects/conda/en/latest/release-notes.html#id241
+        conda_prefix = sys.executable.split("/bin/python", 1)[0]
+        cmd = f"CONDA_BASE=$(conda info --base) && source $CONDA_BASE/etc/profile.d/conda.sh && conda activate {conda_prefix}; "
+        cmd += command
+        process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, env=os.environ.copy(), shell=True
+        )
+        # Steam the outputs
+        while True:
+            output = process.stdout.readline()
+            if process.poll() is not None and output == b"":
+                break
+            if output:
+                print(output.decode().strip(), flush=True)
+            time.sleep(0.5)
+        return process.returncode
 
     def _run_function(self, module_path: str, entry_function: str, argv: list):
         """Runs the entry function in module specified by module path.
@@ -323,24 +414,10 @@ class JobRunner:
         commands = [sys.executable, "-u", module_path]
         if arguments:
             commands.extend(arguments)
-        # Conda activate
-        # https://docs.conda.io/projects/conda/en/latest/release-notes.html#id241
-        conda_prefix = sys.executable.split("/bin/python", 1)[0]
-        cmd = f"CONDA_BASE=$(conda info --base) && source $CONDA_BASE/etc/profile.d/conda.sh && conda activate {conda_prefix}; "
-        cmd += " ".join(commands)
-        process = subprocess.Popen(
-            cmd, stdout=subprocess.PIPE, env=os.environ.copy(), shell=True
-        )
-        # Steam the outputs
-        while True:
-            output = process.stdout.readline()
-            if process.poll() is not None and output == b"":
-                break
-            if output:
-                print(output.decode().strip(), flush=True)
-        if process.returncode != 0:
+        return_code = self.run_command(" ".join(commands))
+        if return_code != 0:
             # If there is an error, exit the main process with the same return code.
-            sys.exit(process.returncode)
+            sys.exit(return_code)
 
     def fetch_code(self):
         """Gets the source code from Git repository."""
@@ -499,10 +576,10 @@ class JobRunner:
         print("Saving Metdata to job run...")
         tags = {}
         # Source info
-        for key in self.source_info:
-            print(f"{key} = {self.source_info[key]}")
-            if self.source_info[key]:
-                tags[key] = str(self.source_info[key])
+        for key, val in self.source_info.items():
+            print(f"{key} = {val}")
+            if val:
+                tags[key] = str(val)
         # Output files
         if self.artifacts:
             prefix = "oci://" + os.path.commonprefix(self.artifacts)
@@ -624,14 +701,15 @@ def main():
     print(f"Job Run ID is: {job_run_ocid}")
 
     check_internet()
-    jbr = JobRunner(job_run_ocid)
+    runner = JobRunner(job_run_ocid)
     with GitSSHKey(os.environ.get("GIT_SECRET_OCID")):
-        jbr.fetch_code().setup_python_path().run(sys.argv[1:])
+        runner.fetch_code().setup_python_path(code_dir=runner.git_manager.code_dir)
+        runner.run(sys.argv[1:])
 
     # Copy outputs
     if "OUTPUT_DIR" in os.environ:
         print(f"Found OUTPUT_DIR is configured as: {os.environ['OUTPUT_DIR']}")
-        jbr.copy_artifacts(
+        runner.copy_artifacts(
             output_dir=os.environ["OUTPUT_DIR"],
             output_uri=os.environ.get("OUTPUT_URI"),
         )
@@ -641,7 +719,7 @@ def main():
     # Save metadata only if job run OCID is available
     if job_run_ocid and "SKIP_METADATA_UPDATE" not in os.environ:
         try:
-            jbr.save_metadata()
+            runner.save_metadata()
         except:
             # Allow the job run to finish successfully even if the driver script failed to save the metadata.
             traceback.print_exc()

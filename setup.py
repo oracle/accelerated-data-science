@@ -32,6 +32,7 @@ install_requires = [
     "scikit-learn>=0.23.2",
     "tabulate>=0.8.9",
     "tqdm>=4.59.0",
+    "psutil>=5.7.2",
 ]
 
 extras_require = {
@@ -50,7 +51,6 @@ extras_require = {
         "graphviz<0.17",
         "scipy>=1.5.4",
         "seaborn>=0.11.0",
-        "psutil>=5.7.2",
     ],
     "data": [
         "fastavro>=0.24.2",

@@ -148,7 +148,7 @@ def prepare_generic_model(
     >>>
     >>> ads.set_auth('api_key', oci_config_location=oci.config.DEFAULT_LOCATION, profile='DEFAULT')
     >>> model_artifact_location = os.path.expanduser('~/myusecase/model/')
-    >>> inference_conda_env="oci://my-bucket@namespace/conda_environments/cpu/Data Exploration and Manipulation for CPU Python 3.7/2.0/dataexpl_p37_cpu_v2"
+    >>> inference_conda_env="oci://my-bucket@namespace/conda_environments/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/2.0/dataexpl_p37_cpu_v2"
     >>> inference_python_version = "3.7"
     >>> if not os.path.exists(model_artifact_location):
     ...     os.makedirs(model_artifact_location)

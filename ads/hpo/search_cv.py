@@ -8,6 +8,7 @@ import importlib
 import multiprocessing
 import os
 import uuid
+import psutil
 from enum import Enum, auto
 from time import time, sleep
 
@@ -614,7 +615,6 @@ class ADSTuner(BaseEstimator):
                 self.X = X
                 self.y = y
 
-    @runtime_dependency(module="psutil", install_from=OptionalDependency.VIZ)
     def halt(self):
         """
         Halt the current running tuning process.
@@ -656,7 +656,6 @@ class ADSTuner(BaseEstimator):
                 "No running process found. Do you need to call tune()?"
             )
 
-    @runtime_dependency(module="psutil", install_from=OptionalDependency.VIZ)
     def resume(self):
         """
         Resume the current halted tuning process.

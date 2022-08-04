@@ -155,9 +155,9 @@ Predict
 
 .. include:: _template/predict.rst
 
-* ``data: Any``: JSON serializable data used for making inferences.
+* ``data: Any``: Data used for making inferences.
 
-The ``.predict()`` and ``.verify()`` methods take the same data format. You must ensure that the data passed into and returned by the ``predict()`` function in the ``score.py`` file is JSON serializable.
+The ``.predict()`` and ``.verify()`` methods take the same data format. 
 
 Load
 ====

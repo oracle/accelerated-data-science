@@ -12,9 +12,11 @@ from oci.util import to_dict
 from pandas import DataFrame
 import pandas as pd
 from abc import ABCMeta
+from ads.common.decorator.deprecate import deprecated
 
 
 class SummaryList(list, metaclass=ABCMeta):
+    @deprecated("2.6.3")
     def __init__(self, entity_list, datetime_format=utils.date_format):
         if isinstance(entity_list, filter):
             entity_list = list(entity_list)
