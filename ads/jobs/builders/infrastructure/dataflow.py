@@ -15,20 +15,26 @@ from typing import Dict, List, Optional
 
 import fsspec
 import oci.data_flow
-import ocifs
 import yaml
-from ads import config
 from ads.common.auth import default_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_mixin import OCIModelMixin
+from ads.common.utils import _snake_to_camel
 from ads.config import OCI_REGION_METADATA
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
-from ads.jobs.builders.infrastructure.utils import batch_convert_case, normalize_config
+from ads.jobs.builders.infrastructure.utils import (
+    batch_convert_case,
+    normalize_config,
+    _camel_to_snake,
+)
 from ads.jobs.builders.runtimes.python_runtime import DataFlowRuntime
+from ads.model.runtime.env_info import InferenceEnvInfo
 from oci.data_flow.models import CreateApplicationDetails, CreateRunDetails
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
+
+CONDA_PACK_SUFFIX = "#conda"
 
 
 class DataFlowApp(OCIModelMixin, oci.data_flow.models.Application):
@@ -321,18 +327,48 @@ class DataFlowLogs:
 
 
 class DataFlow(Infrastructure):
-    def __init__(self, spec: dict = None):
+
+    CONST_COMPARTMENT_ID = "compartment_id"
+    CONST_CONFIG = "configuration"
+    CONST_EXECUTE = "execute"
+    CONST_DRIVER_SHAPE = "driver_shape"
+    CONST_EXECUTOR_SHAPE = "executor_shape"
+    CONST_LANGUAGE = "language"
+    CONST_METASTORE_ID = "metastore_id"
+    CONST_BUCKET_URI = "logs_bucket_uri"
+    CONST_NUM_EXECUTORS = "num_executors"
+    CONST_SPARK_VERSION = "spark_version"
+    CONST_WAREHOUSE_BUCKET_URI = "warehouse_bucket_uri"
+    CONST_ID = "id"
+
+    attribute_map = {
+        CONST_COMPARTMENT_ID: "compartmentId",
+        CONST_CONFIG: CONST_CONFIG,
+        CONST_EXECUTE: CONST_EXECUTE,
+        CONST_DRIVER_SHAPE: "driverShape",
+        CONST_EXECUTOR_SHAPE: "executorShape",
+        CONST_METASTORE_ID: "metastoreId",
+        CONST_BUCKET_URI: "logsBucketUri",
+        CONST_NUM_EXECUTORS: "numExecutors",
+        CONST_SPARK_VERSION: "sparkVersion",
+        CONST_WAREHOUSE_BUCKET_URI: "warehouseBucketUri",
+        CONST_ID: CONST_ID,
+    }
+
+    def __init__(self, spec: dict = None, **kwargs):
         defaults = self._load_default_properties()
+        spec = self._standardize_spec(spec)
+        kwargs = self._standardize_spec(kwargs)
         if spec is None:
-            super(DataFlow, self).__init__(defaults)
+            super(DataFlow, self).__init__(defaults, **kwargs)
         else:
             spec = {
                 k: v
                 for k, v in spec.items()
-                if f"with_{k}" in self.__dir__() and v is not None
+                if f"with_{_camel_to_snake(k)}" in self.__dir__() and v is not None
             }
             defaults.update(spec)
-            super(DataFlow, self).__init__(defaults)
+            super(DataFlow, self).__init__(defaults, **kwargs)
         self.df_app = DataFlowApp(**self._spec)
         self.runtime = None
         self._name = None
@@ -376,9 +412,10 @@ class DataFlow(Infrastructure):
                 )
 
         defaults["language"] = "PYTHON"
-        defaults["spark_version"] = "2.4.4"
+        defaults["spark_version"] = "3.2.1"
         defaults["num_executors"] = 1
-        logger.debug("Set spark version to be 2.4.4.")
+        logger.debug("Set spark version to be 3.2.1.")
+        logger.debug("Set number of executors to be 1.")
         return defaults
 
     @property
@@ -418,7 +455,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("compartment_id", id)
+        return self.set_spec(self.CONST_COMPARTMENT_ID, id)
 
     def with_configuration(self, configs: dict) -> "DataFlow":
         """
@@ -434,7 +471,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("configuration", configs)
+        return self.set_spec(self.CONST_CONFIG, configs)
 
     def with_execute(self, exec: str) -> "DataFlow":
         """
@@ -450,7 +487,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("execute", exec)
+        return self.set_spec(self.CONST_EXECUTE, exec)
 
     def with_driver_shape(self, shape: str) -> "DataFlow":
         """
@@ -466,7 +503,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("driver_shape", shape)
+        return self.set_spec(self.CONST_DRIVER_SHAPE, shape)
 
     def with_executor_shape(self, shape: str) -> "DataFlow":
         """
@@ -482,7 +519,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("executor_shape", shape)
+        return self.set_spec(self.CONST_EXECUTOR_SHAPE, shape)
 
     def with_language(self, lang: str) -> "DataFlow":
         """
@@ -498,7 +535,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("language", lang)
+        return self.set_spec(self.CONST_LANGUAGE, lang)
 
     def with_metastore_id(self, id: str) -> "DataFlow":
         """
@@ -515,7 +552,7 @@ class DataFlow(Infrastructure):
             the Data Flow instance itself
         """
 
-        return self.set_spec("metastore_id", id)
+        return self.set_spec(self.CONST_METASTORE_ID, id)
 
     def with_logs_bucket_uri(self, uri: str) -> "DataFlow":
         """
@@ -531,7 +568,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("logs_bucket_uri", uri)
+        return self.set_spec(self.CONST_BUCKET_URI, uri)
 
     def with_num_executors(self, n: int) -> "DataFlow":
         """
@@ -547,12 +584,12 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("num_executors", n)
+        return self.set_spec(self.CONST_NUM_EXECUTORS, n)
 
     def with_spark_version(self, ver: str) -> "DataFlow":
         """
         Set spark version for a Data Flow job.
-        Currently supported versions are 2.4.4 and 3.0.2
+        Currently supported versions are 2.4.4, 3.0.2 and 3.2.1
         Documentation: https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm#before_you_begin
 
         Parameters
@@ -565,7 +602,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("spark_version", ver)
+        return self.set_spec(self.CONST_SPARK_VERSION, ver)
 
     def with_warehouse_bucket_uri(self, uri: str) -> "DataFlow":
         """
@@ -581,7 +618,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("warehouse_bucket_uri", uri)
+        return self.set_spec(self.CONST_WAREHOUSE_BUCKET_URI, uri)
 
     def with_id(self, id: str) -> "DataFlow":
         """
@@ -597,7 +634,7 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
-        return self.set_spec("id", id)
+        return self.set_spec(self.CONST_ID, id)
 
     def __getattr__(self, item):
         if f"with_{item}" in self.__dir__():
@@ -650,12 +687,35 @@ class DataFlow(Infrastructure):
                 raise ValueError(
                     "archive bucket must be specified if archive uri given is local."
                 )
+        if runtime.conda:
+            conda_type = runtime.conda.get(runtime.CONST_CONDA_TYPE)
+            if conda_type == runtime.CONST_CONDA_TYPE_CUSTOM:
+                conda_uri = runtime.conda.get(runtime.CONST_CONDA_URI)
+            elif conda_type == runtime.CONST_CONDA_TYPE_SERVICE:
+                conda_slug = runtime.conda.get(runtime.CONST_CONDA_SLUG)
+                env_info = InferenceEnvInfo.from_slug(env_slug=conda_slug)
+                conda_uri = env_info.inference_env_path
+                # TODO: Re-visit if we can enable a global read policy
+                raise NotImplementedError(
+                    "Service Conda Packs not yet supported. Please use a published pack."
+                )
+            else:
+                raise ValueError(f"Conda built type not understood: {conda_type}.")
+            runtime_config = runtime.configuration or dict()
+            runtime_config.update(
+                {
+                    "spark.archives": conda_uri.replace(" ", "%20") + CONDA_PACK_SUFFIX,
+                    "dataflow.auth": "resource_principal",
+                }
+            )
+            runtime.with_configuration(runtime_config)
         payload.update(
             {
                 "display_name": self.name,
                 "file_uri": runtime.script_uri,
                 "freeform_tags": runtime.freeform_tags,
                 "archive_uri": runtime.archive_uri,
+                "configuration": runtime.configuration,
             }
         )
         if len(runtime.args) > 0:

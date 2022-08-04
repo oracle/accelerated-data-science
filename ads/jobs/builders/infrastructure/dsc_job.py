@@ -490,11 +490,11 @@ class DataScienceJobRun(
             log record as a dictionary, including id, time and message as keys.
         """
         if isinstance(date_time, datetime.datetime):
-            date_time = date_time.strftime("%Y-%m-%d %H:%M:%S")
+            date_time = date_time.strftime("%Y-%m-%dT%H:%M:%S.000Z")
         return {
             "id": str(uuid.uuid4()),
-            "time": str(date_time),
             "message": message,
+            "time": date_time,
         }
 
     def logs(self, limit: int = None) -> list:
@@ -677,6 +677,19 @@ class DataScienceJob(Infrastructure):
         CONST_PROJECT_ID: "project_id",
         CONST_COMPARTMENT_ID: "compartment_id",
         CONST_DISPLAY_NAME: "display_name",
+        CONST_JOB_TYPE: "job_type",
+        CONST_JOB_INFRA: "job_infrastructure_type",
+        CONST_SHAPE_NAME: "shape_name",
+        CONST_BLOCK_STORAGE: "block_storage_size",
+        CONST_SUBNET_ID: "subnet_id",
+        CONST_LOG_ID: "log_id",
+        CONST_LOG_GROUP_ID: "log_group_id",
+    }
+
+    payload_attribute_map = {
+        CONST_PROJECT_ID: "project_id",
+        CONST_COMPARTMENT_ID: "compartment_id",
+        CONST_DISPLAY_NAME: "display_name",
         CONST_JOB_TYPE: "job_configuration_details.job_type",
         CONST_JOB_INFRA: "job_infrastructure_configuration_details.job_infrastructure_type",
         CONST_SHAPE_NAME: "job_infrastructure_configuration_details.shape_name",
@@ -686,14 +699,14 @@ class DataScienceJob(Infrastructure):
         CONST_LOG_GROUP_ID: "job_log_configuration_details.log_group_id",
     }
 
-    snake_to_camel_map = {v.split(".", maxsplit=1)[-1]: k for k, v in attribute_map.items()}
+    snake_to_camel_map = {v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()}
 
     @staticmethod
     def standardize_spec(spec):
         if not spec:
             return {}
         for key in list(spec.keys()):
-            if key not in DataScienceJob.attribute_map and key in DataScienceJob.snake_to_camel_map:
+            if key not in DataScienceJob.payload_attribute_map and key in DataScienceJob.snake_to_camel_map:
                 spec[DataScienceJob.snake_to_camel_map[key]] = spec.pop(key)
         return spec
 
@@ -1014,7 +1027,7 @@ class DataScienceJob(Infrastructure):
 
         """
         self.dsc_job = dsc_job
-        for infra_attr, dsc_attr in self.attribute_map.items():
+        for infra_attr, dsc_attr in self.payload_attribute_map.items():
             value = get_value(dsc_job, dsc_attr)
             if value:
                 self._spec[infra_attr] = get_value(dsc_job, dsc_attr)

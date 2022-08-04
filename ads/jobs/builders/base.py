@@ -9,6 +9,9 @@ from ads.jobs.serializer import Serializable
 
 
 class Builder(Serializable):
+
+    attribute_map = {}
+
     def __init__(self, spec: Dict = None, **kwargs) -> None:
         """Initialize the object with specifications.
 
@@ -25,8 +28,19 @@ class Builder(Serializable):
         super().__init__()
         if spec is None:
             spec = {}
+        spec = self._standardize_spec(spec)
+        kwargs = self._standardize_spec(kwargs)
         spec.update(kwargs)
         self._spec = spec
+
+    def _standardize_spec(self, spec):
+        if not spec:
+            return {}
+        snake_to_camel_map = {v: k for k, v in self.attribute_map.items()}
+        for key in list(spec.keys()):
+            if key not in self.attribute_map and key in snake_to_camel_map:
+                spec[snake_to_camel_map[key]] = spec.pop(key)
+        return spec
 
     def set_spec(self, k: str, v: Any):
         """Sets a specification property for the object.

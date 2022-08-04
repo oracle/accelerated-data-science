@@ -42,6 +42,12 @@ class ContainerRuntime(Runtime):
     CONST_IMAGE = "image"
     CONST_ENTRYPOINT = "entrypoint"
     CONST_CMD = "cmd"
+    attribute_map = {
+        CONST_IMAGE: CONST_IMAGE,
+        CONST_ENTRYPOINT: CONST_ENTRYPOINT,
+        CONST_CMD: CONST_CMD
+    }
+    attribute_map.update(Runtime.attribute_map)
 
     @property
     def image(self) -> str:

@@ -70,13 +70,14 @@ The `.ls() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.arc
 Upload
 ------
 
-The `.put() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.spec.AbstractFileSystem.put>`_ method is used to upload files from local storage to HDFS. The first parameter is the HDFS path where the files are to be stored. The second parameter is the local path of the files to upload.
-
+The `.put() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.spec.AbstractFileSystem.put>`_ method is used to upload files from local storage to HDFS. The first parameter is the local path of the files to upload. The second parameter is the HDFS path where the files are to be stored. 
+`.upload() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.spec.AbstractFileSystem.upload>`_ is an alias of `.put()`.
 .. code-block:: python3
 
-    hdfs.put(lpath="/data/biketrips/second_quarter/", 
-             path="./first_half/20200[456]-tripdata.csv", 
-             overwrite=True, recursive=True)
+    fs.put(
+        lpath="./first_half/20200[456]-tripdata.csv",
+        rpath="/data/biketrips/second_quarter/"
+)
 
 Ibis
 ====
@@ -149,8 +150,8 @@ Use the `.put() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspe
 
 .. code-block:: python3
 
-    hdfs.put(lpath="/data/biketrips/second_quarter/", 
-             rpath="./first_half/20200[456]-tripdata.csv", 
+    hdfs.put(rpath="/data/biketrips/second_quarter/", 
+             lpath="./first_half/20200[456]-tripdata.csv", 
              overwrite=True, recursive=True)
 
 .. _BDS Pandas:

@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import re
+from typing import Dict
 from ads.jobs.builders.base import Builder
 from ads.jobs import env_var_parser
 
@@ -14,7 +15,23 @@ class Runtime(Builder):
     # Constant strings
     CONST_ENV_VAR = "env"
     CONST_ARGS = "args"
-    CONST_TAG = "freeform_tag"
+    CONST_MAXIMUM_RUNTIME_IN_MINUTES = "maximumRuntimeInMinutes"
+    CONST_TAG = "freeformTags"
+
+    attribute_map = {
+        CONST_TAG: "freeform_tags",
+        CONST_ENV_VAR: CONST_ENV_VAR,
+    }
+
+    def __init__(self, spec: Dict = None, **kwargs) -> None:
+        env = {}
+        if spec and "env" in spec and isinstance(spec["env"], dict):
+            env = spec.pop("env", {})
+        if "env" in kwargs:
+            env = kwargs.pop("env")
+        super().__init__(spec, **kwargs)
+        if isinstance(env, dict):
+            self.with_environment_variable(**env)
 
     @property
     def kind(self):
@@ -96,6 +113,18 @@ class Runtime(Builder):
         """
         return self.set_spec(self.CONST_TAG, kwargs)
 
+    def with_maximum_runtime_in_minutes(self, maximum_runtime_in_minutes: int):
+        """Sets maximum runtime in minutes
+
+        Returns
+        -------
+        Runtime
+            This method returns self to support chaining methods.
+        """
+        return self.set_spec(
+            self.CONST_MAXIMUM_RUNTIME_IN_MINUTES, maximum_runtime_in_minutes
+        )
+
     @property
     def environment_variables(self) -> dict:
         """Environment variables
@@ -125,3 +154,8 @@ class Runtime(Builder):
     def args(self) -> list:
         """Command line arguments"""
         return self.get_spec(self.CONST_ARGS, [])
+
+    @property
+    def maximum_runtime_in_minutes(self) -> int:
+        """Maximum runtime in minutes"""
+        return self.get_spec(self.CONST_MAXIMUM_RUNTIME_IN_MINUTES)

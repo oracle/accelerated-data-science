@@ -172,7 +172,7 @@ If a database query returns more rows than the memory of the client permits, you
                connection_parameters=connection_parameters,
              ))
           # each df will contain up to 100000 rows (chunksize)
-          # to write the data to object storage use oci://bucket#namespace/part_{i}.csv"
+          # to write the data to object storage use oci://bucket@namespace/part_{i}.csv"
           df.to_csv(f"part_{i}.csv")
 
 Very Large Result Set

@@ -1,5 +1,5 @@
 The ``.prepare()`` method serializes the model and prepares and saves the ``score.py`` and ``runtime.yaml`` files using the following parameters:
-  
+
 * ``as_onnx`` (bool, optional): Defaults to ``False``. If ``True``, it will serialize as an ONNX model.
 * ``force_overwrite`` (bool, optional): Defaults to ``False``. If ``True``, it will overwrite existing files.
 * ``ignore_pending_changes`` (bool): Defaults to ``False``. If ``False``, it will ignore the pending changes in Git.
@@ -18,3 +18,6 @@ The ``.prepare()`` method serializes the model and prepares and saves the ``scor
 * ``**kwarg``:
     - ``impute_values`` (dict, optional): The dictionary where the key is the column index (or names is accepted for Pandas dataframe), and the value is the imputed value for the corresponding column.
 
+.. versionadded:: 2.6.3
+
+If you run the code using a service conda pack in a notebook session, you do not need to pass ``inference_conda_env``. The ``.prepare()`` method automatically tries to detect the conda environment.

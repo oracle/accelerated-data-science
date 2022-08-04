@@ -6,10 +6,8 @@
 
 from logging import getLogger
 from collections import namedtuple
-import fsspec
-import yaml
-import importlib
 from ads.opctl.config.yaml_parsers import YamlSpecParser
+from ads.common.utils import _snake_to_camel
 
 logger = getLogger("ads.yaml")
 
@@ -109,7 +107,20 @@ class DistributedSpecParser(YamlSpecParser):
 
     def parse_runtime(self, runtime):
         PythonRuntime = namedtuple(
-            "PythonRuntime", field_names=["entry_point", "args", "kwargs", "envVars"]
+            "PythonRuntime",
+            field_names=[
+                "entry_point",
+                "args",
+                "kwargs",
+                "envVars",
+                "type",
+                "uri",
+                "branch",
+                "commit",
+                "git_secret_id",
+                "code_dir",
+                "python_path",
+            ],
         )
         python_spec = runtime["spec"]
         envVars = {}
@@ -120,6 +131,13 @@ class DistributedSpecParser(YamlSpecParser):
             args=python_spec.get("args"),
             kwargs=python_spec.get("kwargs"),
             envVars=envVars,
+            type=runtime.get("type"),
+            uri=python_spec.get("uri"),
+            branch=python_spec.get("branch"),
+            commit=python_spec.get("commit"),
+            git_secret_id=python_spec.get("gitSecretId"),
+            code_dir=python_spec.get("codeDir"),
+            python_path=python_spec.get("pythonPath"),
         )
 
     def parse_certificate(self, certificate):

@@ -92,13 +92,11 @@ class FileOverwriteError(Exception):
     pass
 
 
-# get number of core count
-@runtime_dependency(module="psutil", install_from=OptionalDependency.VIZ)
 def get_cpu_count():
     """
     Returns the number of CPUs available on this machine
     """
-    return psutil.cpu_count()
+    return os.cpu_count()
 
 
 @deprecated(
@@ -1119,13 +1117,12 @@ def _serialize_input_helper(
         data = data.tolist()
     elif isinstance(data, pd.core.frame.DataFrame):
         data = data.to_json()
-    elif isinstance(data, bytes):
-        data = base64.b64encode(data).decode("utf-8")
     elif (
         isinstance(data, dict)
         or isinstance(data, str)
         or isinstance(data, list)
         or isinstance(data, tuple)
+        or isinstance(data, bytes)
     ):
         pass
     else:

@@ -13,7 +13,6 @@ import oci
 import json
 from ads.jobs import Job
 import ipaddress
-import psutil
 from abc import ABCMeta, abstractmethod
 import subprocess
 from time import sleep, time

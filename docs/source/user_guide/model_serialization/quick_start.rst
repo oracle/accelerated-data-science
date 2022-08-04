@@ -132,7 +132,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     torch_model = PyTorchModel(torch_estimator, artifact_dir=artifact_dir)
     torch_model.prepare(inference_conda_env="generalml_p37_cpu_v1")
 
-    # Update ``score.py`` by constructing the model class instance first. 
+    # Update ``score.py`` by constructing the model class instance first.
     added_line = """
     import torchvision
     the_model = torchvision.models.resnet18()
@@ -249,22 +249,48 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     xgboost_model.delete_deployment(wait_for_completion=True)
     ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
 
+Shortcut
+========
+.. versionadded:: 2.6.3
+
+Create a model and call the ``prepare_save_deploy`` method to prepare, save, and deploy in one step, make a prediction, and then delete the deployment.
+
+.. code-block:: python3
+
+    import tempfile
+    from ads.catalog.model import ModelCatalog
+    from ads.model.generic_model import GenericModel
+
+    class Toy:
+        def predict(self, x):
+            return x ** 2
+    estimator = Toy()
+
+    model = GenericModel(estimator=estimator)
+    model.summary_status()
+    # If you are running the code inside a notebook session and using a service pack, `inference_conda_env` can be omitted.
+    model.prepare_save_deploy(inference_conda_env="dataexpl_p37_cpu_v3")
+    model.verify(2)
+    model.predict(2)
+    model.delete_deployment(wait_for_completion=True)
+    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model.model_id)
+
 
 Logging
 =======
 
-Model deployments have the option to log access and prediction traffic. The access log, logs requests to the model deployment endpoint. The prediction logs record the predictions that the model endpoint made. Logs must belong to a log group. 
+Model deployments have the option to log access and prediction traffic. The access log, logs requests to the model deployment endpoint. The prediction logs record the predictions that the model endpoint makes. Logs must belong to a log group.
 
-The following example uses the ``OCILogGroup`` class to create a log group and two logs (access and predict). When a model is being deployed, the OCIDs of these resources are passed to the ``.deploy()`` method.
+The following example uses the ``OCILogGroup`` class to create a log group and two logs (access and predict). When a model is deployed, the OCIDs of these resources are passed to the ``.deploy()`` method.
 
-There are several methods to access the logs. These include command-line tools, such as ``oci``. Or they can be accessed in the OCI Console. The following example uses the ``.show_logs()`` method and also uses the access and predict log objects in the ``model_deployment`` module to access them.
+You can access logs through APIs, the ``oci`` CLI, or the Console. The following example uses the ADS ``.show_logs()`` method, to access the predict and access log objects in the ``model_deployment`` module.
 
 .. code-block:: python3
 
     import tempfile
     from ads.common.oci_logging import OCILogGroup
     from ads.model.generic_model import GenericModel
-    
+
     # Create a log group and logs
     log_group = OCILogGroup(display_name="Model Deployment Log Group").create()
     access_log = log_group.create_log("Model Deployment Access Log")

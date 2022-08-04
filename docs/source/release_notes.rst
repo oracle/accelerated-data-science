@@ -2,6 +2,18 @@
 Release Notes
 =============
 
+2.6.3
+-----
+
+Release date: August 4, 2022
+
+* Added ``prepare_save_deploy()`` method to the ``GenericModel`` class. Now you can prepare model artifacts and deploy the model within one command.
+* Added supporting binary payload data for the model deployment.
+* Updated ``GenericModel``, ``AutoMLModel``, ``SklearnModel``, ``LightgbmModel``, ``XgboostModel``, ``TensorflowModel``, ``PyTorchModel`` classes to reflect supporting binary payload data for the model deployment.
+* Updated supporting maximum runtime for ads jobs.
+* The ``ads.jobs.DataFlow`` class supports published conda packs.
+* The ``ads.dataflow.DataFlow`` class is deprecated. Use the ``ads.jobs.DataFlow`` class instead.
+
 2.6.2
 -----
 

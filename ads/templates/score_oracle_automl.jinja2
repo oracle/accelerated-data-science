@@ -3,6 +3,7 @@ import os
 import sys
 from cloudpickle import cloudpickle
 from functools import lru_cache
+from io import StringIO
 import logging
 import sys
 import automl
@@ -69,12 +70,12 @@ def deserialize(data, input_schema_path):
     data: deserialized input data.
 
     """
+    if isinstance(data, bytes):
+        return pd.read_json(StringIO(data.decode("utf-8")))
+
     data_type = data.get('data_type', '') if isinstance(data, dict) else ''
     json_data = data.get('data', data) if isinstance(data, dict) else data
 
-    if "numpy.ndarray" in data_type:
-        load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-        return np.load(load_bytes, allow_pickle=True)
     if "pandas.core.series.Series" in data_type:
         return pd.Series(json_data)
     if "pandas.core.frame.DataFrame" in data_type or isinstance(json_data, str):

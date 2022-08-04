@@ -1,12 +1,13 @@
 import os
 import sys
-from functools import lru_cache
+import logging
 import pandas as pd
 import numpy as np
 import json
 import tensorflow as tf
-from io import BytesIO
 import base64
+from io import BytesIO
+from functools import lru_cache
 
 model_name = '{{model_file_name}}'
 
@@ -78,6 +79,12 @@ predict.
     data: deserialized input data.
 
     """
+    if isinstance(data, bytes):
+        logging.warning(
+            "bytes are passed directly to the model. If the model expects a specific data format, you need to write the conversion logic in `deserialize()` yourself."
+        )
+        return data
+
     data_type = data.get('data_type', '') if isinstance(data, dict) else ''
     json_data = data.get('data', data) if isinstance(data, dict) else data
 

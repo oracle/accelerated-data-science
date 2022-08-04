@@ -26,8 +26,8 @@ DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 30
 DEFAULT_WORKFLOW_STEPS = 6
 DEFAULT_RETRYING_REQUEST_ATTEMPTS = 3
-
-
+DEFAULT_CONTENT_TYPE_JSON = "application/json"
+DEFAULT_CONTENT_TYPE_BYTES = "application/octet-stream"
 TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 
 
@@ -452,13 +452,23 @@ class ModelDeployment:
             raise Exception
         return self.ds_client.list_work_request_logs(self.workflow_req_id).data
 
-    def predict(self, json_input: dict) -> dict:
+    def predict(
+        self, json_input: dict = None, data: Union[bytes, dict] = None, **kwargs
+    ) -> dict:
         """Returns prediction of input data run against the model deployment endpoint
 
         Parameters
         ----------
         json_input: dict
-            JSON payload for the prediction.
+            Json payload for the prediction.
+        data: Union[bytes, dict]
+            Payload for the prediction.
+
+        kwargs:
+            content_type: str
+                Used to indicate the media type of the resource.
+                By default, it will be `application/octet-stream` for bytes input and `application/json` otherwise.
+                The content-type header will be set to this value when calling the model deployment endpoint.
 
         Returns
         -------
@@ -468,9 +478,34 @@ class ModelDeployment:
         """
         endpoint = self.url
         signer = self.config.get("signer")
-        response = requests.post(
-            f"{endpoint}/predict", json=json_input, auth=signer
-        ).json()
+        if not data and not json_input:
+            raise AttributeError(
+                "Neither `data` nor `json_input` are provided. You need to provide one of them."
+            )
+        if data and json_input:
+            raise AttributeError(
+                "`data` and `json_input` are both provided. You can only use one of them."
+            )
+
+        content_type = kwargs.get("content_type", None)
+
+        if data:
+            if isinstance(data, dict):
+                response = requests.post(
+                    f"{endpoint}/predict", json=data, auth=signer
+                ).json()
+            else:
+                if not content_type:
+                    content_type = DEFAULT_CONTENT_TYPE_BYTES
+                headers = {"Content-Type": content_type}
+                response = requests.post(
+                    f"{endpoint}/predict", data=data, auth=signer, headers=headers
+                ).json()
+
+        else:
+            response = requests.post(
+                f"{endpoint}/predict", json=json_input, auth=signer
+            ).json()
         return response
 
     def _wait_for_deletion(

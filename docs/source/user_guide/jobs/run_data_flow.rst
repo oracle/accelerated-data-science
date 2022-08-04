@@ -87,7 +87,7 @@ In the following "hello-world" example, ``DataFlow`` is populated with ``compart
             .with_logs_bucket_uri(logs_bucket_uri)\
             .with_driver_shape("VM.Standard2.1") \
             .with_executor_shape("VM.Standard2.1") \
-            .with_spark_version("3.0.2")
+            .with_spark_version("3.2.1")
         runtime_config = DataFlowRuntime()\
             .with_script_uri(os.path.join(td, "script.py"))\
             .with_script_bucket(script_prefix)
@@ -111,7 +111,7 @@ You should this in the log:
 .. code-block:: python3
     
     Hello World
-    Spark version is 3.0.2
+    Spark version is 3.2.1
 
 Data Flow supports adding third-party libraries using a ZIP file, usually called ``archive.zip``, see the `Data Flow documentation <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__ about how to create ZIP files. Similar to scripts, you can specify an archive ZIP for a Data Flow application using ``with_archive_uri``.  In the next example, ``archive_uri`` is given as an Object Storage location.  ``archive_uri`` can also be local so you must specify ``with_archive_bucket`` and follow the same rule as ``with_script_bucket``.
 
@@ -178,7 +178,7 @@ Data Flow supports adding third-party libraries using a ZIP file, usually called
             .with_logs_bucket_uri(logs_bucket_uri)\
             .with_driver_shape("VM.Standard2.1") \
             .with_executor_shape("VM.Standard2.1") \
-            .with_spark_version("3.0.2")
+            .with_spark_version("3.2.1")
         runtime_config = DataFlowRuntime()\
             .with_script_uri(os.path.join(td, "script.py"))\
             .with_script_bucket("oci://<bucket>@<namespace>/prefix/path") \
@@ -333,7 +333,7 @@ You can create a Data Flow job directly from a YAML string. You can pass a YAML 
         language: PYTHON
         logsBucketUri: <logs_bucket_uri>
         numExecutors: 1
-        sparkVersion: 2.4.4
+        sparkVersion: 3.2.1
       type: dataFlow
     name: dataflow_app_name
     runtime:
@@ -422,12 +422,21 @@ You can create a Data Flow job directly from a YAML string. You can pass a YAML 
                 required: false
                 type: dict
                 schema:
-                    slug:
+                    uri:
                         required: true
                         type: string
+                    region:
+                        required: False
+                        type: string
+                    authType:
+                        required: false
+                        allowed:
+                            - "resource_principal"
+                            - "api_keys"
+                            - "instance_principal"
                     type:
                         allowed:
-                            - service
+                            - published
                         required: true
                         type: string
             env:
@@ -435,7 +444,7 @@ You can create a Data Flow job directly from a YAML string. You can pass a YAML 
                 required: false
                 schema:
                     type: dict
-            freeform_tag:
+            freeformTags:
                 required: false
                 type: dict
             scriptBucket:

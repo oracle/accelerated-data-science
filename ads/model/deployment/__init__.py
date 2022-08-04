@@ -6,5 +6,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from .model_deployer import ModelDeployer
-from .model_deployment import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME, ModelDeployment
+from .model_deployment import (
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_WAIT_TIME,
+    DEFAULT_CONTENT_TYPE_JSON,
+    DEFAULT_CONTENT_TYPE_BYTES,
+    ModelDeployment,
+)
 from .model_deployment_properties import ModelDeploymentProperties
