@@ -344,6 +344,7 @@ class Plotting:
     @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     @runtime_dependency(module="folium", install_from=OptionalDependency.VIZ)
     def _folium_map(x, data):
+        import folium.plugins
         df = LatLonDetector.extract_x_y(data[x])
         lat_min, lat_max, long_min, long_max = (
             min(df.Y),

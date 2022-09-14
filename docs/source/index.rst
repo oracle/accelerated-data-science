@@ -33,7 +33,6 @@ Oracle Accelerated Data Science SDK (ADS)
    :maxdepth: 5
    :caption: Components:
 
-   user_guide/ADSString/index
    user_guide/big_data_service/index
    user_guide/data_flow/dataflow
    user_guide/data_labeling/index
@@ -46,6 +45,7 @@ Oracle Accelerated Data Science SDK (ADS)
    user_guide/model_explainability/index
    user_guide/model_serialization/index
    user_guide/secrets/index
+   user_guide/ADSString/index
    user_guide/text_extraction/text_dataset
 
 .. toctree::

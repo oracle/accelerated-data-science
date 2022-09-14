@@ -388,7 +388,7 @@ echo "OCI__SYNC_DIR dir: $OCI__SYNC_DIR"
 while true; do
   if [[ -d $OCI__SYNC_DIR && -n "$(ls -A $OCI__SYNC_DIR)" ]]; then
     echo "syncing $OCI__SYNC_DIR to $WORKSPACE/$WORKSPACE_PREFIX/$JOB_OCID/$JOB_RUN_OCID/"
-    ~/bin/oci os object sync --auth $auth_method --bucket-name $WORKSPACE --prefix $WORKSPACE_PREFIX/$JOB_OCID/$JOB_RUN_OCID/ --src-dir $OCI__SYNC_DIR
+    $HOME/bin/oci os object sync --auth $auth_method --bucket-name $WORKSPACE --prefix $WORKSPACE_PREFIX/$JOB_OCID/$JOB_RUN_OCID/ --src-dir $OCI__SYNC_DIR
   else
     echo "nothing to sync in $OCI__SYNC_DIR"
   fi

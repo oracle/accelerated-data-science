@@ -32,7 +32,7 @@ provenance, reproduced, and deployed.
     logging.basicConfig(format='%(levelname)s:%(message)s', level=logging.ERROR)
     warnings.filterwarnings('ignore')
 
-Introduction 
+Introduction
 ************
 
 The purpose of the model catalog is to provide a managed and centralized storage space for models. It ensures that model artifacts are immutable and allows data scientists to share models, and reproduce them as needed.
@@ -319,7 +319,7 @@ Taxonomy metadata includes the type of the model, use case type, libraries, fram
    -  ``FrameWork.WORD2VEC``
    -  ``FrameWork.XGBOOST``
 
-*  ``FrameWorkVersion``: The framework version of the estimator object.  For example, ``2.3.1``.
+*  ``FrameWorkVersion``: The framework version of the estimator object.  For example, ``2.3.1``.
 *  ``Algorithm``: The model class.
 *  ``Hyperparameters``: The hyperparameters of the estimator object.
 
@@ -796,7 +796,7 @@ The next example retrieves the contents of the ``score.py`` file.
 
 **Update the requirements.txt File**
 
-The ``.prepare()`` method automatically encapsulates the notebook’s Python libraries and their versions in the ``requirements.txt`` file. This ensures that the model’s dependencies can be reproduced. Typically, this file doesn't need to be modified.
+The ``.prepare()`` method automatically encapsulates the notebook's Python libraries and their versions in the ``requirements.txt`` file. This ensures that the model's dependencies can be reproduced. Typically, this file doesn't need to be modified.
 
 If you install custom libraries in a notebook, then you must update the ``requirements.txt`` file. You can update the file by calling ``pip freeze``, and storing the output into the file. The command in the next example captures all of the packages that are installed. It is likely that only a few of them are required by the model. However, using the command ensures that all of the required packages are present on the system to run the model. We recommend that you update this list to include only what is required if the model is going into a production environment. Typically, you don't need to modify the ``requirements.txt`` file.
 
@@ -1144,7 +1144,7 @@ After the changes are made to the model artifacts, and those changes have been i
 
     [29.462982553823185, 33.88604047807801]
 
-Save 
+Save
 *****
 
 You use the ``ModelArtifact`` object to store the model artifacts in the model catalog.  Saving the model artifact requires the `OCID <https://docs.cloud.oracle.com/iaas/Content/General/Concepts/identifiers.htm>`_ for the compartment and project that you want to store it in. Model artifacts can be stored in any project that you have access to. However, the most common use case is to store the model artifacts in the same compartment and project that the notebook session belongs to. There are environmental variables in the notebook session that contain this information. The ``NB_SESSION_COMPARTMENT_OCID`` and ``PROJECT_OCID`` environment variables contain both compartment and project OCIDs that are associated with the notebook session.
@@ -1189,16 +1189,75 @@ Information about the model can also be found in the Console on the Projects pag
 
 .. image:: figures/model_catalog_save.png
 
-List Models 
+Large Model Artifacts
+*********************
+
+.. versionadded:: 2.6.4
+
+Large models are models with artifacts between 2 and 6 GB. You must first upload large models to an Object Storage bucket, and then transfer them to a model catalog. Follow a similar process to download a model artifact from the model catalog. First download large models from the model catalog to an Object Storage bucket, and then transfer them to local storage. For model artifacts that are less than 2 GB, you can use the same approach, or download them directly to local storage.
+
+ADS :ref:`model serialization` classes save large models using a process almost identical to model artifacts that are less than 2GB. An Object Storage bucket is required with Data Science service access granted to that bucket.
+
+If you don't have an Object Storage bucket, create one using the OCI SDK or the Console. Create an `Object Storage bucket <https://docs.oracle.com/iaas/Content/Object/home.htm>`_. Make a note of the namespace, compartment, and bucket name. Configure the following policies to allow the Data Science service to read and write the model artifact to the Object Storage bucket in your tenancy. An administrator must configure these policies in `IAM <https://docs.oracle.com/iaas/Content/Identity/home1.htm>`_ in the Console.
+
+.. parsed-literal::
+
+        Allow service datascience to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
+
+        Allow service objectstorage to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
+
+Saving
+======
+
+We recommend that you work with model artifacts using the :ref:`model serialization` classes in ADS. After you prepare and verify the model, the model is ready to be stored in the model catalog. The standard method to do this is to use the ``.save()`` method. If the ``bucket_uri`` parameter is present, then the large model artifact is supported.
+
+The URI syntax for the ``bucket_uri`` is:
+
+``oci://<bucket_name>@<namespace>/<path>/``
+
+The following saves the :ref:`model serialization` object, ``model``, to the model catalog and returns the OCID from the model catalog:
+
+.. code-block:: python3
+
+   model_catalog_id = model.save(
+        display_name='Model With Large Artifact',
+        bucket_uri=<provide bucket url>,
+        overwrite_existing_artifact = True,
+        remove_existing_artifact = True,
+    )
+
+Loading
+=======
+
+We recommend that you transfer a model artifact from the model catalog to your notebook session using the :ref:`model serialization` classes in ADS. The ``.from_model_catalog()`` method takes the model catalog OCID and some file parameters. If the ``bucket_uri`` parameter is present, then a large model artifact is used.
+
+The following example downloads a model from the model catalog using the large model artifact approach. The ``bucket_uri`` has the following syntax:
+
+``oci://<bucket_name>@<namespace>/<path>/``
+
+.. code-block:: python3
+
+    large_model = model.from_model_catalog(
+        model_id=model_catalog_id,
+        model_file_name="model.pkl",
+        artifact_dir="./artifact/",
+        bucket_uri=<provide bucket url> ,
+        force_overwrite=True,
+        remove_existing_artifact=True,
+    )
+
+List Models
 ***********
 
 The ``ModelCatalog`` object is used to interact with the model catalog. This class allows access to all models in a compartment. Using this class, entries in the model catalog can be listed, deleted, and downloaded. It also provides access to specific models so that the metadata can be updated, and the model can be activated and deactivated.
 
 When model artifacts are saved to the model catalog, they are associated with a compartment and a project. The ``ModelCatalog`` provides access across projects and all model catalog entries in a compartment are accessible. When creating a ``ModelCatalog`` object, the compartment OCID must be provided. For most use cases, you can access the model catalog associated with the compartment that the notebook is in. The ``NB_SESSION_COMPARTMENT_OCID`` environment variable provides the compartment OCID associated with the current notebook. The ``compartment_id`` parameter is optional. When it is not specified, the compartment for the current notebook is used.
 
-The ``.list_models()`` method returns a list of entries in the model catalog as a ``ModelSummaryList`` object. By default, it only returns the entries that are active.  The parameter ``include_deleted=True`` can override this behavior and return all entries.  Use the ``model_version_set_name`` parameter to get all models associated with a model version set.
+The ``.list_models()`` method returns a list of entries in the model catalog as a ``ModelSummaryList`` object. By default, it only returns the entries that are active.  The parameter ``include_deleted=True`` can override this behavior and return all entries.
 
 .. code-block:: python3
+
+    from ads.catalog.model import ModelCatalog
 
     from ads.catalog.model import ModelCatalog
 
@@ -1206,7 +1265,7 @@ The ``.list_models()`` method returns a list of entries in the model catalog as 
     mc = ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID'])
 
     # Get a list of the entries in the model catalog
-    mc_list = mc.list_models(include_deleted=False, model_version_set_name="test24")
+    mc_list = mc.list_models(include_deleted=False)
     mc_list
 
 .. image:: figures/list_model.png
@@ -1273,7 +1332,7 @@ In the next example, the model that was stored in the model catalog is downloade
     ['output_schema.json', 'score.py', 'runtime.yaml', 'onnx_data_transformer.json', 'Hyperparameters.json', 'test_json_output.json', 'backup-requirements.txt', 'model.onnx', '.model-ignore', 'input_schema.json', 'ModelCustomMetadata.json']
     {'prediction': [1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 0, 0, 1, 1, 1, 0]}
 
-Retrieve a Model 
+Retrieve a Model
 ****************
 
 The ``.get_model()`` method of the ``ModelCatalog`` class allows for an entry in the model catalog to be retrieved. The returned object is a ``Model`` object.  The difference between ``.get_model()`` and ``.download_model()`` is that the ``.download_model()`` returns a ``ModelArtifact`` object, and the ``.get_model()`` returns the ``Model`` object.  The ``Model`` object allows for interaction with the entry in the model catalog where the ``ModelArtifact`` allows interaction with the model and its artifacts.
@@ -1322,7 +1381,6 @@ These are the metadata attributes:
 *  ``lifecycle_state``: The state of the model. It can be ``ACTIVE`` or ``INACTIVE``.
 *  ``metadata_custom``: Customizable metadata.
 *  ``metadata_taxonomy``: Model taxonomy metadata.
-* ``model_version_set_id``: The Model Version Set OCID.
 *  ``project_id``: Project OCID. Each model catalog entry belongs to a compartment and project.
 *  ``provenance_metadata``: Information about the:
 
@@ -1336,7 +1394,6 @@ These are the metadata attributes:
 *  ``schema_output``: Output schema. However, this field can't be updated.
 *  ``time_created``: The date and time that the model artifacts were stored in the model catalog.
 *  ``user_name``: User name of the account that created the entry.
-*  ``version_label``: The version label to be associated with the model when the model is part of a model version set.
 
 The ``provenance_metadata`` attribute returns a `ModelProvenance <https://oracle-cloud-infrastructure-python-sdk.readthedocs.io/en/latest/api/data_science/models/oci.data_science.models.ModelProvenance.html#oci.data_science.models.ModelProvenance>`__ object. This object has the attributes to access the metadata.
 
@@ -1411,7 +1468,6 @@ Only the ``display_name``, ``description``, ``freeform_tags``, ``defined_tags``,
     # Update some metadata
     mc_model.display_name = "Update Display Name"
     mc_model.description = "This description has been updated"
-    mc_model.version_label = "This is a version"
     mc_model.freeform_tags = {'isUpdated': 'True'}
     if 'CondaEnvironmentPath' in mc_model.metadata_custom.keys:
         mc_model.metadata_custom.remove('CondaEnvironmentPath')
@@ -1443,7 +1499,7 @@ Only the ``display_name``, ``description``, ``freeform_tags``, ``defined_tags``,
 .. image:: figures/updated.png
 
 
-Activate and Deactivate 
+Activate and Deactivate
 ***********************
 
 Entries in the model catalog can be set as active or inactive. An inactive model is similar to archiving it. The model artifacts aren't deleted, but deactivated entries aren't returned in default queries. The ``.deactivate()`` method of a ``Model`` object sets a flag in the ``Model`` object that it's inactive. However, you have to call the ``.commit()`` method to update the model catalog to deactivate the entry.
@@ -1489,5 +1545,4 @@ In the next example, the model that was stored in the model catalog as part of t
 .. code-block:: python3
 
     mc.delete_model(mc_model.id)
-
 

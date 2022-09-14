@@ -127,10 +127,11 @@ def model_deployment_find_fields(cfg) -> None:
 
 def get_object_storage_client():
     try:
-        config = oci.auth.signers.get_resource_principals_signer()
+        signer = oci.auth.signers.get_resource_principals_signer()
+        return oci.object_storage.ObjectStorageClient({}, signer=signer)
     except:
         config = oci.config.from_file()
-    return oci.object_storage.ObjectStorageClient(config)
+        return oci.object_storage.ObjectStorageClient(config)
 
 
 def check_runtime_yml(file_path) -> Tuple[bool, str]:

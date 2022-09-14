@@ -7,7 +7,6 @@
 from logging import getLogger
 from collections import namedtuple
 from ads.opctl.config.yaml_parsers import YamlSpecParser
-from ads.common.utils import _snake_to_camel
 
 logger = getLogger("ads.yaml")
 
@@ -89,6 +88,8 @@ class DistributedSpecParser(YamlSpecParser):
         return Main(name=name, image=image, replicas=replicas, config=translated_config)
 
     def parse_worker(self, worker):
+        if not worker:
+            return None
         Worker = namedtuple(
             "Worker", field_names=["name", "image", "replicas", "config"]
         )

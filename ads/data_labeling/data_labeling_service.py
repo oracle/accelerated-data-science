@@ -12,7 +12,7 @@ from urllib.parse import urlparse
 import pandas as pd
 from ads.common import auth, oci_client, utils
 from ads.common.oci_mixin import OCIWorkRequestMixin
-from ads.common.utils import _snake_to_camel
+from ads.common.utils import snake_to_camel
 from ads.config import JOB_RUN_COMPARTMENT_OCID, NB_SESSION_COMPARTMENT_OCID
 from ads.common.object_storage_details import (
     ObjectStorageDetails,
@@ -130,7 +130,7 @@ class DataLabeling(OCIWorkRequestMixin):
                 df.reset_index(drop=True).set_index("id").drop(columns="compartment_id")
             )
         df.columns = [
-            _snake_to_camel(name, capitalized_first_token=True) for name in df.columns
+            snake_to_camel(name, capitalized_first_token=True) for name in df.columns
         ]
         return df
 
@@ -196,7 +196,7 @@ class DataLabeling(OCIWorkRequestMixin):
             if dataset_id not in self.list_dataset().index:
                 raise ValueError(
                     "The parameter `dataset_id` is invalid. "
-                    "Use the `.list_dataset()` method to obtain a list of  all available datasets."
+                    "Use the `.list_dataset()` method to obtain a list of  all available datasets."
                 )
             raise error
 

@@ -4,19 +4,7 @@
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import copy
-import re
-
-
-def _snake_to_camel(name):
-    tokens = name.split("_")
-    return tokens[0] + "".join(
-        x.capitalize() if not x.isupper() else x for x in tokens[1:]
-    )
-
-
-def _camel_to_snake(name: str) -> str:
-    s = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s).lower()
+from ads.common.utils import camel_to_snake, snake_to_camel
 
 
 def batch_convert_case(spec: dict, to_fmt: str) -> dict:
@@ -37,9 +25,9 @@ def batch_convert_case(spec: dict, to_fmt: str) -> dict:
     """
     converted = {}
     if to_fmt == "camel":
-        converter = _snake_to_camel
+        converter = snake_to_camel
     else:
-        converter = _camel_to_snake
+        converter = camel_to_snake
     for k, v in spec.items():
         if k == "spec":
             converted[converter(k)] = batch_convert_case(v, to_fmt)

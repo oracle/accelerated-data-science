@@ -5,23 +5,29 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+import inspect
 import os
+import shutil
 import tempfile
 import yaml
-from enum import Enum, auto
+from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import cloudpickle
 import numpy as np
 import pandas as pd
 import requests
+import yaml
 from ads.catalog.model import ModelCatalog
+from ads.common import utils
 from ads.common import auth as authutil
 from ads.common import logger, oci_client
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
+from ads.common.decorator.utils import class_or_instance_method
+from ads.common.model_artifact import fetch_manifest_from_conda_location
 from ads.common.model_export_util import ONNXTransformer
 from ads.common.model_introspect import (
     TEST_STATUS,
@@ -49,8 +55,8 @@ from ads.feature_engineering.schema import Schema
 from ads.model.artifact import ModelArtifact
 from ads.model.common.utils import _extract_locals
 from ads.model.deployment import (
-    DEFAULT_CONTENT_TYPE_JSON,
     DEFAULT_CONTENT_TYPE_BYTES,
+    DEFAULT_CONTENT_TYPE_JSON,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
     ModelDeployer,
@@ -61,8 +67,6 @@ from ads.model.deployment.common.utils import State as ModelDeploymentState
 from ads.model.model_properties import ModelProperties
 from ads.model.runtime.env_info import DEFAULT_CONDA_BUCKET_NAME
 from ads.model.runtime.runtime_info import RuntimeInfo
-from ads.common.model_artifact import fetch_manifest_from_conda_location
-
 
 _TRAINING_RESOURCE_ID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
@@ -207,6 +211,8 @@ class GenericModel(MetadataMixin, Introspectable):
     >>> model.predict(2)
     >>> model.delete_deployment()
     """
+
+    _summary_status = None
 
     def __init__(
         self,
@@ -779,7 +785,7 @@ class GenericModel(MetadataMixin, Introspectable):
         )
         model.model_file_name = model_file_name
         model.model_artifact = model_artifact
-        model.reload()
+        model.reload_runtime_info()
         model._summary_status.update_status(
             detail="Generated score.py", status=ModelState.DONE.value
         )
@@ -804,6 +810,8 @@ class GenericModel(MetadataMixin, Introspectable):
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
         **kwargs,
     ) -> "GenericModel":
         """Loads model from model catalog.
@@ -825,6 +833,12 @@ class GenericModel(MetadataMixin, Introspectable):
             Whether to overwrite existing files or not.
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -851,9 +865,14 @@ class GenericModel(MetadataMixin, Introspectable):
             timeout=kwargs.pop("timeout", None),
         )
 
-        model_catalog._download_artifacts(model_id, artifact_dir, force_overwrite)
+        model_catalog._download_artifact(
+            model_id=model_id,
+            target_dir=artifact_dir,
+            force_overwrite=force_overwrite,
+            bucket_uri=bucket_uri,
+            remove_existing_artifact=remove_existing_artifact,
+        )
         oci_model = model_catalog.get_model(model_id)
-
         result_model = cls.from_model_artifact(
             uri=artifact_dir,
             model_file_name=model_file_name,
@@ -898,6 +917,8 @@ class GenericModel(MetadataMixin, Introspectable):
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
         **kwargs,
     ) -> "GenericModel":
         """Loads model from model deployment.
@@ -919,6 +940,12 @@ class GenericModel(MetadataMixin, Introspectable):
             Whether to overwrite existing files or not.
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -945,6 +972,8 @@ class GenericModel(MetadataMixin, Introspectable):
             auth=auth,
             force_overwrite=force_overwrite,
             properties=properties,
+            bucket_uri=bucket_uri,
+            remove_existing_artifact=remove_existing_artifact,
             **kwargs,
         )
         model._summary_status.update_status(
@@ -959,6 +988,23 @@ class GenericModel(MetadataMixin, Introspectable):
         )
         return model
 
+    def reload_runtime_info(self) -> None:
+        """Reloads the model artifact file: `runtime.yaml`.
+
+        Returns
+        -------
+        None
+            Nothing.
+        """
+        # reload runtime.yaml
+        runtime_yaml_file = os.path.join(self.artifact_dir, "runtime.yaml")
+        if not os.path.exists(runtime_yaml_file):
+            raise FileNotFoundError(
+                f"`runtime.yaml` does not exist in {self.artifact_dir}. "
+                "Use `RuntimeInfo` class to populate it."
+            )
+        self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
+
     def reload(self) -> None:
         """Reloads the model artifact files: `score.py` and the `runtime.yaml`.
 
@@ -969,15 +1015,8 @@ class GenericModel(MetadataMixin, Introspectable):
         """
         # reload the score.py
         self.model_artifact.reload()
-
         # reload runtime.yaml
-        runtime_yaml_file = os.path.join(self.artifact_dir, "runtime.yaml")
-        if not os.path.exists(runtime_yaml_file):
-            raise FileNotFoundError(
-                f"`runtime.yaml` does not exist in {self.artifact_dir}. "
-                "Use `RuntimeInfo` class to populate it."
-            )
-        self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
+        self.reload_runtime_info()
 
     @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def save(
@@ -987,14 +1026,19 @@ class GenericModel(MetadataMixin, Introspectable):
         freeform_tags: Optional[dict] = None,
         defined_tags: Optional[dict] = None,
         ignore_introspection: Optional[bool] = False,
+        bucket_uri: Optional[str] = None,
+        overwrite_existing_artifact: Optional[bool] = True,
+        remove_existing_artifact: Optional[bool] = True,
         **kwargs,
-    ) -> None:
+    ) -> str:
         """Saves model artifacts to the model catalog.
 
         Parameters
         ----------
         display_name: (str, optional). Defaults to None.
-            The name of the model.
+            The name of the model. If a display_name is not provided in kwargs,
+            randomly generated easy to remember name with timestamp will be generated,
+            like 'strange-spider-2022-08-17-23:55.02'.
         description: (str, optional). Defaults to None.
             The description of the model.
         freeform_tags : Dict(str, str), Defaults to None.
@@ -1004,6 +1048,14 @@ class GenericModel(MetadataMixin, Introspectable):
         ignore_introspection: (bool, optional). Defaults to None.
             Determine whether to ignore the result of model introspection or not.
             If set to True, the save will ignore all model introspection errors.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for uploading large artifacts which
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        overwrite_existing_artifact: (bool, optional). Defaults to `True`.
+            Overwrite target bucket artifact if exists.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1013,6 +1065,7 @@ class GenericModel(MetadataMixin, Introspectable):
                 from the environment variables or model properties.
             timeout: (int, optional). Defaults to 10 seconds.
                 The connection timeout in seconds for the client.
+
         Raises
         ------
         RuntimeInfoInconsistencyError
@@ -1023,6 +1076,9 @@ class GenericModel(MetadataMixin, Introspectable):
         str
             model id.
         """
+        # Set default display_name if not specified - randomly generated easy to remember name generated
+        if not display_name:
+            display_name = utils.get_random_name_for_resource()
         # populates properties from args and kwargs. Empty values will be ignored.
         self.properties.with_dict(_extract_locals(locals()))
         self.properties.compartment_id = (
@@ -1091,6 +1147,9 @@ class GenericModel(MetadataMixin, Introspectable):
             description=description,
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
+            bucket_uri=bucket_uri,
+            remove_existing_artifact=remove_existing_artifact,
+            overwrite_existing_artifact=overwrite_existing_artifact,
         )
         self.model_id = oci_model.id
 
@@ -1135,7 +1194,9 @@ class GenericModel(MetadataMixin, Introspectable):
         wait_for_completion : (bool, optional). Defaults to True.
             Flag set for whether to wait for deployment to complete before proceeding.
         display_name: (str, optional). Defaults to None.
-            The name of the model.
+            The name of the model. If a display_name is not provided in kwargs,
+            a randomly generated easy to remember name with timestamp will be generated,
+            like 'strange-spider-2022-08-17-23:55.02'.
         description: (str, optional). Defaults to None.
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
@@ -1171,6 +1232,9 @@ class GenericModel(MetadataMixin, Introspectable):
         ValueError
             If `model_id` is not specified.
         """
+        # Set default display_name if not specified - randomly generated easy to remember name generated
+        if not display_name:
+            display_name = utils.get_random_name_for_resource()
         # populates properties from args and kwargs. Empty values will be ignored.
         self.properties.with_dict(_extract_locals(locals()))
         # clears out project_id and compartment_id from kwargs, to prevent passing
@@ -1284,8 +1348,11 @@ class GenericModel(MetadataMixin, Introspectable):
         deployment_log_group_id: Optional[str] = None,
         deployment_access_log_id: Optional[str] = None,
         deployment_predict_log_id: Optional[str] = None,
+        bucket_uri: Optional[str] = None,
+        overwrite_existing_artifact: Optional[bool] = True,
+        remove_existing_artifact: Optional[bool] = True,
         **kwargs: Dict,
-    ):
+    ) -> ModelDeployment:
         """Shortcut for prepare, save and deploy steps.
 
         Parameters
@@ -1334,7 +1401,9 @@ class GenericModel(MetadataMixin, Introspectable):
             Do not generate the input schema if the input has more than this
             number of features(columns).
         model_display_name: (str, optional). Defaults to None.
-            The name of the model.
+            The name of the model. If a model_display_name is not provided in kwargs,
+            a randomly generated easy to remember name with timestamp will be generated,
+            like 'strange-spider-2022-08-17-23:55.02'.
         model_description: (str, optional). Defaults to None.
             The description of the model.
         model_freeform_tags : Dict(str, str), Defaults to None.
@@ -1346,8 +1415,10 @@ class GenericModel(MetadataMixin, Introspectable):
             If set to True, the save will ignore all model introspection errors.
         wait_for_completion : (bool, optional). Defaults to True.
             Flag set for whether to wait for deployment to complete before proceeding.
-        display_name: (str, optional). Defaults to None.
-            The name of the model.
+        deployment_display_name: (str, optional). Defaults to None.
+            The name of the model deployment. If a deployment_display_name is not provided in kwargs,
+            a randomly generated easy to remember name with timestamp will be generated,
+            like 'strange-spider-2022-08-17-23:55.02'.
         description: (str, optional). Defaults to None.
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
@@ -1362,6 +1433,14 @@ class GenericModel(MetadataMixin, Introspectable):
             The access log OCID for the access logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
         deployment_predict_log_id: (str, optional). Defaults to None.
             The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        overwrite_existing_artifact: (bool, optional). Defaults to `True`.
+            Overwrite target bucket artifact if exists.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -1413,6 +1492,9 @@ class GenericModel(MetadataMixin, Introspectable):
             max_col_num=max_col_num,
             impute_values=kwargs.pop("impute_values", None),
         )
+        # Set default model_display_name if not specified - randomly generated easy to remember name generated
+        if not model_display_name:
+            model_display_name = utils.get_random_name_for_resource()
         self.save(
             display_name=model_display_name,
             description=model_description,
@@ -1422,7 +1504,13 @@ class GenericModel(MetadataMixin, Introspectable):
             compartment_id=self.properties.compartment_id,
             project_id=self.properties.project_id,
             timeout=kwargs.pop("timeout", None),
+            bucket_uri=bucket_uri,
+            overwrite_existing_artifact=overwrite_existing_artifact,
+            remove_existing_artifact=remove_existing_artifact,
         )
+        # Set default deployment_display_name if not specified - randomly generated easy to remember name generated
+        if not deployment_display_name:
+            deployment_display_name = utils.get_random_name_for_resource()
         self.deploy(
             wait_for_completion=wait_for_completion,
             display_name=deployment_display_name,
@@ -1613,27 +1701,75 @@ class GenericModel(MetadataMixin, Introspectable):
             raise ValueError("Use `deploy()` method to start model deployment.")
         self.model_deployment.delete(wait_for_completion=wait_for_completion)
 
-    def _delete_model(self, model_id: str = None):
-        """Deletes the remote model artifact on the model catalog.
+    @class_or_instance_method
+    def delete(
+        cls,
+        model_id: Optional[str] = None,
+        delete_associated_model_deployment: Optional[bool] = False,
+        delete_model_artifact: Optional[bool] = False,
+        artifact_dir: Optional[str] = None,
+        **kwargs: Dict,
+    ) -> None:
+        """
+        Deletes a model from Model Catalog.
 
         Parameters
         ----------
-        model_id: (str, optional). Defaults to current saved model artfact id.
-            model artifact id to be deleted.
+        model_id: (str, optional). Defaults to None.
+            The model OCID to be deleted.
+            If the method called on instance level, then `self.model_id` will be used.
+        delete_associated_model_deployment: (bool, optional). Defaults to `False`.
+            Whether associated model deployments need to be deleted or not.
+        delete_model_artifact: (bool, optional). Defaults to `False`.
+            Whether associated model artifacts need to be deleted or not.
+        artifact_dir: (str, optional). Defaults to `None`
+            The local path to the model artifacts folder.
+            If the method called on instance level,
+            the `self.artifact_dir` will be used by default.
+        kwargs:
+            auth: (Dict, optional). Defaults to `None`.
+                The default authetication is set using `ads.set_auth` API.
+                If you need to override the default, use the `ads.common.auth.api_keys` or
+                `ads.common.auth.resource_principal` to create appropriate authentication signer
+                and kwargs required to instantiate IdentityClient object.
+            compartment_id: (str, optional). Defaults to `None`.
+                Compartment OCID.
+                If not specified, the value will be taken from the environment variables.
+            timeout: (int, optional). Defaults to 10 seconds.
+                The connection timeout in seconds for the client.
+        Returns
+        -------
+        None
 
         Raises
         ------
-        ValueError: if model id cannot be found.
+        ValueError
+            If `model_id` not provided.
         """
-        if model_id:
-            model_id = model_id
-        elif hasattr(self, "model_id"):
-            model_id = self.model_id
-        else:
-            raise ValueError(
-                "Cannot find model to delete. `model_id` needs to be provided."
-            )
-        self.model_catalog.delete_model(model=model_id)
+        if not inspect.isclass(cls):
+            model_id = model_id or cls.model_id
+            artifact_dir = artifact_dir or cls.artifact_dir
+
+        if not model_id:
+            raise ValueError("The `model_id` must be provided.")
+        if delete_model_artifact and not artifact_dir:
+            raise ValueError("The `artifact_dir` must be provided.")
+
+        auth = kwargs.pop("auth", None) or authutil.default_signer()
+        compartment_id = kwargs.pop("compartment_id", None) or _COMPARTMENT_OCID
+
+        ModelCatalog(
+            compartment_id=compartment_id,
+            ds_client_auth=auth,
+            identity_client_auth=auth,
+            timeout=kwargs.pop("timeout", None),
+        ).delete_model(
+            model=model_id,
+            delete_associated_model_deployment=delete_associated_model_deployment,
+        )
+
+        if delete_model_artifact:
+            shutil.rmtree(artifact_dir, ignore_errors=True)
 
 
 class ModelState(Enum):
@@ -1698,10 +1834,7 @@ class SummaryStatus:
         None
             Nothing.
         """
-        self.df.loc[
-            self.df["Details"] == detail,
-            "Status",
-        ] = status
+        self.df.loc[self.df["Details"] == detail, "Status"] = status
 
     def update_action(self, detail: str, action: str) -> None:
         """Updates the action of the summary status table of the corresponding detail.

@@ -20,6 +20,7 @@ from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.config.utils import read_from_ini
 from ads.opctl.config.validator import ConfigValidator
 from ads.opctl.config.yaml_parsers import YamlSpecParser
+import fsspec
 
 from ads.opctl.constants import (
     DEFAULT_OCI_CONFIG_FILE,
@@ -77,9 +78,7 @@ def run(config: Dict, **kwargs) -> Dict:
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
-
         cluster_def = YamlSpecParser.parse_content(config)
-
         backend = MLJobDistributedBackend(p.config)
 
         # Define job first,
@@ -92,7 +91,8 @@ def run(config: Dict, **kwargs) -> Dict:
             cluster_run["jobId"] = cluster_run_info[0].id
             cluster_run["workDir"] = cluster_def.cluster.work_dir
             cluster_run["mainJobRunId"] = cluster_run_info[1].id
-            cluster_run["workerJobRunIds"] = [wj.id for wj in cluster_run_info[2]]
+            if len(cluster_run_info[2]) > 0:
+                cluster_run["workerJobRunIds"] = [wj.id for wj in cluster_run_info[2]]
             yamlContent = yaml.dump(cluster_run)
             print(yamlContent)
             print(f"# \u2b50 To stream the logs of the main job run:")
@@ -108,6 +108,50 @@ def run(config: Dict, **kwargs) -> Dict:
         p = ConfigResolver(p.config)
         p._resolve_command()
         return _BackendFactory(p.config).backend.run()
+
+
+def run_diagnostics(config: Dict, **kwargs) -> Dict:
+    """
+    Run a job given configuration and command line args passed in (kwargs).
+
+    Parameters
+    ----------
+    config: dict
+        dictionary of configurations
+    kwargs: dict
+        keyword arguments, stores configuration from command line args
+
+    Returns
+    -------
+    Dict
+        dictionary of job id and run id in case of ML Job run, else empty if running locally
+    """
+    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    if config.get("kind") == "distributed":  # TODO: add kind factory
+
+        cluster_def = YamlSpecParser.parse_content(config)
+
+        backend = MLJobDistributedBackend(p.config)
+
+        # Define job first,
+        # Then Run
+        cluster_run_info = backend.run_diagnostics(
+            cluster_info=cluster_def, dry_run=p.config["execution"].get("dry_run")
+        )
+        if cluster_run_info:
+            diagnostics_report_path = os.path.join(
+                cluster_def.cluster.work_dir,
+                cluster_run_info[0].id,
+                "diagnostic_report.html",
+            )
+            with fsspec.open(
+                diagnostics_report_path, "r", **backend.oci_auth
+            ) as infile:
+                with open(kwargs["output"], "w") as outfile:
+                    outfile.write(infile.read())
+        return cluster_run_info
+    else:
+        print("Diagnostics not available for kind: {config.get('kind')}")
 
 
 def _update_env_vars(config, env_vars: List):

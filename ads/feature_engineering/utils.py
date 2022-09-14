@@ -63,24 +63,6 @@ def _tag_to_snake(name: str) -> str:
     return _name
 
 
-def _camel_to_snake(name: str) -> str:
-    """Converts the camel case string to the snake representation.
-
-    Parameters
-    ----------
-    name: str
-        The name to convert.
-
-    Returns
-    -------
-    str: The name converted to the snake representation.
-
-    """
-
-    s = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
-    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s).lower()
-
-
 def _add_missing(x, df):
     """
     Adds count of missing values.

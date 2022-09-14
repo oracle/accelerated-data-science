@@ -275,6 +275,9 @@ class MLJobBackend(Backend):
 
 
 class MLJobDistributedBackend(MLJobBackend):
+
+    DIAGNOSTIC_COMMAND = "python -m ads.opctl.diagnostics -t distributed"
+
     def __init__(self, config: Dict) -> None:
         """
         Initialize a MLJobDistributedBackend object given config dictionary.
@@ -313,16 +316,57 @@ class MLJobDistributedBackend(MLJobBackend):
 
         worker_jobrun_conf = job_conf_helper.job_run_info("worker")
         worker_jobrun_conf_list = []
-        for i in range(cluster_info.cluster.worker.replicas):
-            conf = copy.deepcopy(worker_jobrun_conf)
-            conf["envVars"]["RANK"] = str(i + 1)
-            conf["name"] = conf.get("name", "worker")
-            worker_jobrun_conf_list.append(conf)
+        if worker_jobrun_conf:
+            for i in range(cluster_info.cluster.worker.replicas):
+                conf = copy.deepcopy(worker_jobrun_conf)
+                conf["envVars"]["RANK"] = str(i + 1)
+                conf["name"] = conf.get("name", "worker")
+                worker_jobrun_conf_list.append(conf)
         return main_jobrun_conf, worker_jobrun_conf_list
 
     @staticmethod
     def generate_worker_name(worker_jobrun_conf, i):
         return f"{worker_jobrun_conf['name']}-{i}"
+
+    def run_diagnostics(self, cluster_info, dry_run=False, **kwargs):
+        with OCIAuthContext(profile=self.profile):
+            main_jobrun_conf, worker_jobrun_conf_list = self.prepare_job_config(
+                cluster_info=cluster_info
+            )
+            self.job.runtime.with_entrypoint(["/bin/bash", "--login", "-c"])
+            self.job.runtime.with_cmd(MLJobDistributedBackend.DIAGNOSTIC_COMMAND)
+            if dry_run:  # If dry run, print the job yaml on the console.
+                print(
+                    "-----------------------------Entering dryrun mode----------------------------------"
+                )
+                print(f"Creating Job with payload: \n{self.job}")
+                print("+" * 200)
+
+                print(f"Creating Main Job Run with following details:")
+                print(f"Name: {main_jobrun_conf['name']}")
+                print(f"Additional Environment Variables: ")
+                main_env_Vars = main_jobrun_conf.get("envVars", {})
+                for k in main_env_Vars:
+                    print(f"\t{k}:{main_env_Vars[k]}")
+                print("~" * 200)
+
+                print(
+                    "-----------------------------Ending dryrun mode----------------------------------"
+                )
+                return None
+            else:
+                job = self.job.create()
+
+                # Start main job
+                conf = dict(main_jobrun_conf)
+                main_jobrun = job.run(
+                    conf["name"],
+                    env_var=conf["envVars"],
+                    freeform_tags={"distributed_training": "oracle-ads"},
+                )
+                self.job = job
+                main_jobrun.watch()
+                return job, main_jobrun
 
     def run(self, cluster_info, dry_run=False) -> None:
         """
@@ -352,18 +396,21 @@ class MLJobDistributedBackend(MLJobBackend):
                 print(
                     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                 )
-                for i in range(cluster_info.cluster.worker.replicas):
-                    worker_jobrun_conf = worker_jobrun_conf_list[i]
-                    print(f"Creating Worker Job Run {i} with following details:")
-                    print(f"Name: {self.generate_worker_name(worker_jobrun_conf, i)}")
-                    print("Additional Environment Variables: ")
-                    worker_env_Vars = worker_jobrun_conf.get("envVars", {})
-                    for k in worker_env_Vars:
-                        print(f"\t{k}:{worker_env_Vars[k]}")
+                if cluster_info.cluster.worker:
+                    for i in range(cluster_info.cluster.worker.replicas):
+                        worker_jobrun_conf = worker_jobrun_conf_list[i]
+                        print(f"Creating Worker Job Run {i} with following details:")
+                        print(
+                            f"Name: {self.generate_worker_name(worker_jobrun_conf, i)}"
+                        )
+                        print("Additional Environment Variables: ")
+                        worker_env_Vars = worker_jobrun_conf.get("envVars", {})
+                        for k in worker_env_Vars:
+                            print(f"\t{k}:{worker_env_Vars[k]}")
 
-                    print(
-                        "-----------------------------Ending dryrun mode----------------------------------"
-                    )
+                print(
+                    "-----------------------------Ending dryrun mode----------------------------------"
+                )
                 return None
 
             else:
@@ -379,13 +426,14 @@ class MLJobDistributedBackend(MLJobBackend):
 
                 # Start worker job
                 worker_jobruns = []
-                for i in range(cluster_info.cluster.worker.replicas):
-                    worker_jobrun_conf = worker_jobrun_conf_list[i]
-                    conf = dict(worker_jobrun_conf)
-                    jobrun = job.run(
-                        self.generate_worker_name(worker_jobrun_conf, i),
-                        env_var=conf["envVars"],
-                    )
-                    worker_jobruns.append(jobrun)
+                if cluster_info.cluster.worker:
+                    for i in range(cluster_info.cluster.worker.replicas):
+                        worker_jobrun_conf = worker_jobrun_conf_list[i]
+                        conf = dict(worker_jobrun_conf)
+                        jobrun = job.run(
+                            self.generate_worker_name(worker_jobrun_conf, i),
+                            env_var=conf["envVars"],
+                        )
+                        worker_jobruns.append(jobrun)
                 self.job = job
                 return job, main_jobrun, worker_jobruns

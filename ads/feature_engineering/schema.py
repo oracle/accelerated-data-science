@@ -6,6 +6,7 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from locale import normalize
 from typing import Dict, List, Optional
 
 import yaml
@@ -32,6 +33,10 @@ from string import Template
 
 SCHEMA_VALIDATOR_NAME = "data_schema.json"
 INPUT_OUTPUT_SCHENA_SIZE_LIMIT = 32000
+SCHEMA_VERSION = "1.1"
+DEFAULT_SCHEMA_VERSION = "1.0"
+SCHEMA_KEY = "schema"
+SCHEMA_VERSION_KEY = "version"
 
 
 class SchemaSizeTooLarge(ValueError):
@@ -132,7 +137,7 @@ class Domain(DataClassSerializable):
     constraints: List[Expression] = field(default_factory=list)
 
 
-@dataclass(repr=False)
+@dataclass(repr=False, order=True)
 class Attribute(DataClassSerializable):
     """
     Attribute describes the column/feature/element. It holds following information -
@@ -174,6 +179,7 @@ class Attribute(DataClassSerializable):
     'fruits'
     """
 
+    sort_index: int = field(init=False, repr=False)
     dtype: str
     feature_type: str
     name: str
@@ -186,8 +192,16 @@ class Attribute(DataClassSerializable):
     def key(self):
         return self.name
 
+    def to_dict(self, **kwargs) -> dict:
+        data = super().to_dict(**kwargs)
+        data.pop("sort_index", None)
+        return data
+
     def __hash__(self):
         return hash(self.key)
+
+    def __post_init__(self):
+        object.__setattr__(self, "sort_index", self.order or 0)
 
 
 class BaseSchemaLoader(ABC):
@@ -203,24 +217,35 @@ class BaseSchemaLoader(ABC):
     def __init__(self):
         self._schema = None
 
-    @abstractmethod
-    def load_schema(self):
+    def load_schema(self, schema_path):
         """Load and validate schema from a file and return the normalized schema."""
+        self._load_schema(schema_path)
+        self._normalize()
+        return self._validate()
+
+    def _normalize(self):
+        self._schema = {key.lower(): value for key, value in self._schema.items()}
+
+    @abstractmethod
+    def _load_schema(self, schema_path):
         pass
 
     def _validate(self):
         """Validate the schema."""
         schema_validator = self._load_schema_validator()
         v = Validator(schema_validator)
-        schema_key = _get_schema_key(self._schema)
         normalized_items = []
-        for item in self._schema[schema_key]:
+        for item in self._schema[SCHEMA_KEY]:
             valid = v.validate(item)
             if not valid:
                 new_dict = {"column": item["name"], "error": v.errors}
                 raise ValueError(json.dumps(new_dict, indent=2))
             normalized_items.append(v.normalized(item))
-        self._schema = {"schema": normalized_items}
+        schema_version = self._schema.get(SCHEMA_VERSION_KEY) or DEFAULT_SCHEMA_VERSION
+        self._schema = {
+            SCHEMA_KEY: normalized_items,
+            SCHEMA_VERSION_KEY: schema_version,
+        }
         return self._schema
 
     @staticmethod
@@ -274,8 +299,8 @@ class JsonSchemaLoader(BaseSchemaLoader):
         'description': 'Age'}]}
     """
 
-    def load_schema(self, schema_path):
-        """Loads and validates schema from a json file and returns the normalized schema."""
+    def _load_schema(self, schema_path):
+        """Loads and validates schema from a json file."""
         assert os.path.splitext(schema_path)[-1].lower() in [
             ".json"
         ], "Expecting a json format file."
@@ -283,7 +308,6 @@ class JsonSchemaLoader(BaseSchemaLoader):
             raise FileNotFoundError(f"{schema_path} does not exist")
         with fsspec.open(schema_path, mode="r", encoding="utf8") as f:
             self._schema = json.load(f)
-        return self._validate()
 
 
 class YamlSchemaLoader(BaseSchemaLoader):
@@ -325,8 +349,8 @@ class YamlSchemaLoader(BaseSchemaLoader):
         'required': True}]}
     """
 
-    def load_schema(self, schema_path):
-        """Load and validate schema from yaml file and return the normalized schema."""
+    def _load_schema(self, schema_path):
+        """Load and validate schema from yaml file."""
         assert os.path.splitext(schema_path)[-1].lower() in [
             ".yaml",
             ".yml",
@@ -335,10 +359,9 @@ class YamlSchemaLoader(BaseSchemaLoader):
             raise FileNotFoundError(f"{schema_path} does not exist")
         with open(schema_path, "r") as stream:
             try:
-                self._schema = yaml.load(yaml.safe_load(stream))
+                self._schema = yaml.load(yaml.safe_load(stream), Loader=loader)
             except yaml.YAMLError as exc:
                 raise exc
-        return self._validate()
 
 
 class SchemaFactory:
@@ -520,6 +543,7 @@ class Schema:
     """
 
     _schema: set = field(default_factory=set, init=False)
+    _version: str = SCHEMA_VERSION
 
     def add(self, item: Attribute, replace: bool = False):
         """Adds a new attribute item. Replaces existing one if replace flag is True.
@@ -563,7 +587,7 @@ class Schema:
         Tuple[str]
             The list of Attribute keys.
         """
-        return tuple(item.key for item in self._schema)
+        return tuple(item.key for item in self)
 
     @classmethod
     def from_dict(cls, schema: dict):
@@ -585,8 +609,8 @@ class Schema:
             return sc
         if not isinstance(schema, dict):
             raise TypeError("schema has to be of dictionary type.")
-        schema_key = _get_schema_key(schema)
-        for item in schema[schema_key]:
+        schema = {key.lower(): value for key, value in schema.items()}
+        for item in schema[SCHEMA_KEY]:
             domain = Domain(**item["domain"])
             domain.constraints = []
             for constraint in item["domain"]["constraints"]:
@@ -621,7 +645,10 @@ class Schema:
         dict
             The dictionary representation of data schema.
         """
-        return {"schema": [item.to_dict() for item in self._schema]}
+        return {
+            SCHEMA_KEY: [item.to_dict() for item in self],
+            SCHEMA_VERSION_KEY: self._version,
+        }
 
     def to_yaml(self):
         """Serializes the data schema into a YAML.
@@ -717,8 +744,7 @@ class Schema:
         """Validate the schema."""
         schema_validator = BaseSchemaLoader._load_schema_validator()
         v = Validator(schema_validator)
-        schema_key = _get_schema_key(self.to_dict())
-        for item in self.to_dict()[schema_key]:
+        for item in self.to_dict()[SCHEMA_KEY]:
             valid = v.validate(item)
             if not valid:
                 new_dict = {"column": item["name"], "error": v.errors}
@@ -738,11 +764,8 @@ class Schema:
     def __repr__(self):
         return self.to_yaml()
 
+    def __iter__(self):
+        return sorted(self._schema).__iter__()
 
-def _get_schema_key(schema):
-    schema_key = ""
-    for key in schema.keys():
-        if key.lower() == "schema":
-            schema_key = key
-    assert schema_key and isinstance(schema[schema_key], list), "Invalid schema."
-    return schema_key
+    def __len__(self):
+        return len(self._schema)

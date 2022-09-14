@@ -2,17 +2,27 @@
 Release Notes
 =============
 
+2.6.4
+-----
+Release date: September 14, 2022
+
+* Added support for large models with artifact size between 2 and 6 GB. The large models can be saved to the Model Catalog, downloaded from the Model Catalog, and deployed as a Model Deployment resource.
+* Added ``delete()`` method to the ``GenericModel`` class. Deletes models and associated model deployments.
+* The Model Input Schema is improved to return features sorted by the ``order`` attribute.
+* Added user-friendly default names for created Jobs, Model Deployments, and Models.
+
+
 2.6.3
 -----
 
 Release date: August 4, 2022
 
-* Added ``prepare_save_deploy()`` method to the ``GenericModel`` class. Now you can prepare model artifacts and deploy the model within one command.
-* Added supporting binary payload data for the model deployment.
-* Updated ``GenericModel``, ``AutoMLModel``, ``SklearnModel``, ``LightgbmModel``, ``XgboostModel``, ``TensorflowModel``, ``PyTorchModel`` classes to reflect supporting binary payload data for the model deployment.
-* Updated supporting maximum runtime for ads jobs.
-* The ``ads.jobs.DataFlow`` class supports published conda packs.
-* The ``ads.dataflow.DataFlow`` class is deprecated. Use the ``ads.jobs.DataFlow`` class instead.
+* Deprecated the ``ads.dataflow.DataFlow`` class. It has been superseded by the ``ads.jobs.DataFlow`` class.
+* Added ``prepare_save_deploy()`` method to the ``GenericModel`` class. Prepare model artifacts and deploy the model with one command.
+* Added support for binary payloads in model deployment.
+* Updated ``AutoMLModel``, ``GenericModel``, ``LightgbmModel``, ``PyTorchModel``, ``SklearnModel``, ``TensorflowModel``, and ``XgboostModel`` classes to support binary payloads in model deployment.
+* The maximum runtime for a Job can be limited with the ``with_maximum_runtime_in_minutes()`` method in the ``CondaRuntime``, ``DataFlowNotebookRuntime``, ``DataFlowRuntime``, ``GitPythonRuntime``, ``NotebookRuntime``, and ``ScriptRuntime`` classes.
+* The ``ads.jobs.DataFlow`` class supports Published conda environments.
 
 2.6.2
 -----

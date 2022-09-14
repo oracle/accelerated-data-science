@@ -30,7 +30,9 @@ class ClusterConfigToJobSpecConverter:
         job["envVars"]["OCI__WORK_DIR"] = cluster.work_dir
         job["envVars"]["OCI__EPHEMERAL"] = cluster.ephemeral
         job["envVars"]["OCI__CLUSTER_TYPE"] = cluster.type.upper()
-        job["envVars"]["OCI__WORKER_COUNT"] = cluster.worker.replicas
+        job["envVars"]["OCI__WORKER_COUNT"] = (
+            cluster.worker.replicas if cluster.worker is not None else 0
+        )
         job["envVars"]["OCI__START_ARGS"] = cluster.config.cmd_args.strip()
         job["envVars"]["OCI__ENTRY_SCRIPT"] = self.cluster_info.runtime.entry_point
 
@@ -83,11 +85,16 @@ class ClusterConfigToJobSpecConverter:
     def job_run_info(self, jobType):
         jobrun = {}
         jobTypeConfig = getattr(self.cluster_info.cluster, jobType)
-        jobrun["name"] = jobTypeConfig.name or jobType
-        jobrun["envVars"] = jobTypeConfig.config.envVars
-        if jobTypeConfig.config.cmd_args:
-            jobrun["envVars"]["OCI__START_ARGS"] = jobTypeConfig.config.cmd_args.strip()
+        if jobTypeConfig is not None:
+            jobrun["name"] = jobTypeConfig.name or jobType
+            jobrun["envVars"] = jobTypeConfig.config.envVars
+            if jobTypeConfig.config.cmd_args:
+                jobrun["envVars"][
+                    "OCI__START_ARGS"
+                ] = jobTypeConfig.config.cmd_args.strip()
 
-        jobrun["envVars"]["OCI__MODE"] = jobType.upper()
-        jobrun["envVars"] = {k: str(jobrun["envVars"][k]) for k in jobrun["envVars"]}
+            jobrun["envVars"]["OCI__MODE"] = jobType.upper()
+            jobrun["envVars"] = {
+                k: str(jobrun["envVars"][k]) for k in jobrun["envVars"]
+            }
         return jobrun

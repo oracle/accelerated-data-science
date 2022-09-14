@@ -18,16 +18,18 @@ import oci.data_science
 import yaml
 from oci.data_science.models import JobInfrastructureConfigurationDetails
 from oci.exceptions import ServiceError
+from ads.common import utils
 from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
 from ads.jobs.builders.runtimes.artifact import Artifact
+from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
+from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
 from ads.jobs.builders.infrastructure.utils import get_value
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     DataScienceJobRuntimeManager,
 )
-
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +45,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
     .. code-block:: python
 
         job_properties = {
-            "display_name": "my_job,
+            "display_name": "my_job",
             "job_infrastructure_configuration_details": {"shape_name": "VM.MY_SHAPE"}
         }
         job = DSCJob(**job_properties)
@@ -208,7 +210,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             self.to_oci_model(oci.data_science.models.CreateJobDetails)
         )
         self.update_from_oci_model(res.data)
-        if self.lifecycle_state == 'ACTIVE':
+        if self.lifecycle_state == "ACTIVE":
             return
         try:
             if issubclass(self.artifact.__class__, Artifact):
@@ -230,13 +232,15 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             The DSCJob instance (self), which allows chaining additional method.
 
         """
-        if not self.artifact:
-            raise ValueError("Artifact is required to create the job.")
         if not self.display_name:
-            timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
-            self.display_name = (
-                os.path.basename(str(self.artifact)).split(".")[0] + f"-{timestamp}"
-            )
+            if self.artifact:
+                timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d-%H:%M.%S")
+                self.display_name = (
+                    os.path.basename(str(self.artifact)).split(".")[0] + f"-{timestamp}"
+                )
+            else:
+                # Set default display_name if not specified - randomly generated easy to remember name generated
+                self.display_name = utils.get_random_name_for_resource()
         try:
             self.load_properties_from_env()
         except Exception as ex:
@@ -348,7 +352,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             * maximum_runtime_in_minutes: int
             * display_name: str
 
-        If display_name is not specified, it will be generated as "<JOB_NAME>-run-<TIMESTAMP>"
+        If display_name is not specified, it will be generated as "<JOB_NAME>-run-<TIMESTAMP>".
 
         Returns
         -------
@@ -368,18 +372,19 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             if key in swagger_types:
                 config_kwargs[key] = kwargs.pop(key)
 
-        if not kwargs.get("display_name"):
-            kwargs["display_name"] = (
-                self.display_name
-                + "-run-"
-                + datetime.datetime.now().strftime("%Y%m%d-%H%M")
-            )
+        # remove timestamp from the job name (added in default names, when display_name not specified by user)
+        if self.display_name:
+            try:
+                datetime.datetime.strptime(self.display_name[-19:], "%Y-%m-%d-%H:%M.%S")
+                self.display_name = self.display_name[:-20]
+            except ValueError:
+                pass
 
         job_attrs = dict(
             project_id=self.project_id,
             display_name=self.display_name
             + "-run-"
-            + datetime.datetime.now().strftime("%Y%m%d-%H%M"),
+            + datetime.datetime.now().strftime("%Y-%m-%d-%H:%M.%S"),
             job_id=self.id,
             compartment_id=self.compartment_id,
         )
@@ -699,14 +704,19 @@ class DataScienceJob(Infrastructure):
         CONST_LOG_GROUP_ID: "job_log_configuration_details.log_group_id",
     }
 
-    snake_to_camel_map = {v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()}
+    snake_to_camel_map = {
+        v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()
+    }
 
     @staticmethod
     def standardize_spec(spec):
         if not spec:
             return {}
         for key in list(spec.keys()):
-            if key not in DataScienceJob.payload_attribute_map and key in DataScienceJob.snake_to_camel_map:
+            if (
+                key not in DataScienceJob.payload_attribute_map
+                and key in DataScienceJob.snake_to_camel_map
+            ):
                 spec[DataScienceJob.snake_to_camel_map[key]] = spec.pop(key)
         return spec
 
@@ -1090,7 +1100,10 @@ class DataScienceJob(Infrastructure):
         for attr in ["project_id", "compartment_id"]:
             if getattr(self, attr):
                 payload[attr] = getattr(self, attr)
-        payload["display_name"] = self.name
+        if isinstance(runtime, GitPythonRuntime) or isinstance(
+            runtime, ContainerRuntime
+        ):
+            payload["display_name"] = self.name or utils.get_random_name_for_resource()
         payload["job_log_configuration_details"] = self._prepare_log_config()
 
         self.dsc_job = DSCJob(**payload)
@@ -1109,7 +1122,7 @@ class DataScienceJob(Infrastructure):
         Parameters
         ----------
         name : str, optional
-            The name of the job run, by default None
+            The name of the job run, by default None.
         args : str, optional
             Command line arguments for the job run, by default None.
         env_var : dict, optional
