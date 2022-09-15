@@ -23,6 +23,9 @@ class ModelProperties(BaseProperties):
     training_id: str = None
     compartment_id: str = None
     project_id: str = None
+    bucket_uri: str = None
+    remove_existing_artifact: bool = None
+    overwrite_existing_artifact: bool = None
     deployment_instance_shape: str = None
     deployment_instance_count: int = None
     deployment_bandwidth_mbps: int = None

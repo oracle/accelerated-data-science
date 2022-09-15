@@ -18,9 +18,9 @@ import uuid
 import python_jsonschema_objects as pjs
 from enum import Enum
 from pathlib import Path
-from typing import Union, Optional, Dict, Any
-from urllib.parse import urlparse
-from ads.common.object_storage_details import ObjectStorageDetails
+from typing import Dict, Optional, Union
+
+import ads.dataset.factory as factory
 import fsspec
 import numpy as np
 import oci.data_science
@@ -36,8 +36,7 @@ from ads.common.decorator.runtime_dependency import (
 from ads.common import logger, utils
 from ads.common import auth as authutil
 from ads.common.data import ADSData
-
-from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
+from ads.common.error import ChangesNotCommitted
 from ads.common.model_introspect import (
     TEST_STATUS,
     Introspectable,
@@ -55,22 +54,23 @@ from ads.common.model_metadata import (
     ModelTaxonomyMetadata,
     UseCaseType,
 )
-from ads.common.utils import (
-    DATA_SCHEMA_MAX_COL_NUM,
+from ads.common.object_storage_details import (
+    InvalidObjectStoragePath,
+    ObjectStorageDetails,
 )
-from ads.common.object_storage_details import InvalidObjectStoragePath
+from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM
 from ads.config import (
+    JOB_RUN_COMPARTMENT_OCID,
     JOB_RUN_OCID,
     NB_SESSION_COMPARTMENT_OCID,
     NB_SESSION_OCID,
     PROJECT_OCID,
-    JOB_RUN_COMPARTMENT_OCID,
 )
-import ads.dataset.factory as factory
-from ads.feature_engineering.schema import Schema, SchemaSizeTooLarge, DataSizeTooWide
+from ads.feature_engineering.schema import DataSizeTooWide, Schema, SchemaSizeTooLarge
+from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
+from git import InvalidGitRepositoryError, Repo
 
 from oci.data_science.models import ModelProvenance
-from ads.common.error import ChangesNotCommitted
 
 try:
     from yaml import CDumper as dumper
@@ -691,6 +691,8 @@ class ModelArtifact(Introspectable):
         ignore_introspection=True,
         freeform_tags=None,
         defined_tags=None,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
     ):
         """
         Saves the model artifact in the model catalog.
@@ -728,6 +730,12 @@ class ModelArtifact(Introspectable):
             Freeform tags for the model.
         defined_tags : dict(str, dict(str, object)), optional
             Defined tags for the model.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for uploading large artifacts which
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
 
         Examples
         ________
@@ -869,6 +877,8 @@ class ModelArtifact(Introspectable):
                 project_id=project_id,
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                bucket_uri=bucket_uri,
+                remove_existing_artifact=remove_existing_artifact,
             )
         except oci.exceptions.RequestException as e:
             if "The write operation timed out" in str(e):
@@ -1592,6 +1602,8 @@ class ModelArtifact(Introspectable):
         force_overwrite: Optional[bool] = False,
         install_libs: Optional[bool] = False,
         conflict_strategy=ConflictStrategy.IGNORE,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
         **kwargs,
     ) -> "ModelArtifact":
         """Download model artifacts from the model catalog to the target artifact directory.
@@ -1619,6 +1631,12 @@ class ModelArtifact(Introspectable):
            Valid values: "IGNORE", "UPDATE" or ConflictStrategy.
            IGNORE: Use the installed version in  case of conflict
            UPDATE: Force update dependency to the version required by model artifact in case of conflict
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
         kwargs:
             compartment_id: (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -1642,7 +1660,13 @@ class ModelArtifact(Introspectable):
             timeout=kwargs.pop("timeout", None),
         )
 
-        model_catalog._download_artifacts(model_id, artifact_dir, force_overwrite)
+        model_catalog._download_artifact(
+            model_id=model_id,
+            target_dir=artifact_dir,
+            force_overwrite=force_overwrite,
+            bucket_uri=bucket_uri,
+            remove_existing_artifact=remove_existing_artifact,
+        )
         oci_model = model_catalog.get_model(model_id)
 
         result_artifact = cls(

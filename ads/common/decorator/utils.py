@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and its affiliates.
+# Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -29,6 +29,7 @@ class class_or_instance_method(classmethod):
     If it is called on the instance C().f(), the first argument (obj) will be the instance (aka. self).
 
     """
+
     def __get__(self, instance, type_):
         delegate_get = super().__get__ if instance is None else self.__func__.__get__
         return delegate_get(instance, type_)

@@ -51,3 +51,9 @@ class Backend:
         None
         """
         pass  # pragma: no cover
+
+    def run_diagnostics(self):
+        """
+        Implement Diagnostics check appropriate for the backend
+        """
+        pass

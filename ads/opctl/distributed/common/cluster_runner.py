@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-from time import sleep
+from time import sleep, time_ns
 from ads.opctl.distributed.common.cluster_provider_factory import ClusterProviderFactory
 import traceback
 
@@ -17,6 +17,8 @@ class ClusterRunner:
         self.ephemeral = os.environ.get("OCI__EPHEMERAL", 1)
         # life_span = os.environ.get("OCI__LIFE_SPAN")  # TODO: Ask MR how this works
         self.work_dir = os.environ.get("OCI__WORK_DIR")
+        os.environ["JOB_OCID"] = os.environ.get("JOB_OCID", 'Undefined')
+        os.environ["JOB_RUN_OCID"] = os.environ.get("JOB_RUN_OCID", str(time_ns()))
         self.cluster = cluster_provider or ClusterProviderFactory.get_provider(
             self.cluster_key,
             mode=self.mode,

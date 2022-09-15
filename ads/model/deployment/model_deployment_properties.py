@@ -6,6 +6,7 @@
 from typing import Any, Optional, Union
 import oci.data_science.models as data_science_models
 
+from ads.common import utils
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.auth import default_signer
 from ads.common.oci_client import OCIClientFactory
@@ -95,6 +96,9 @@ class ModelDeploymentProperties(
             - `freeform_tags`,
             - `defined_tags`.
 
+            If display_name is not specified, a randomly generated easy to remember name will be generated,
+            like 'strange-spider-2022-08-17-23:55.02'.
+
             ModelDeploymentProperties also supports the following additional
             keyward arguments:
 
@@ -165,6 +169,10 @@ class ModelDeploymentProperties(
         # Process additional kwargs
         # Convert all keys to lower case
         kwargs = {str(k).lower(): v for k, v in kwargs.items()}
+
+        # Set default display_name if not specified - randomly generated easy to remember name generated
+        if "display_name" not in kwargs or kwargs["display_name"] is None:
+            kwargs["display_name"] = utils.get_random_name_for_resource()
 
         # Set ModelDeployment properties
         for key, val in kwargs.items():

@@ -1,0 +1,102 @@
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="canonical" href="https://getbootstrap.com/docs/3.4/examples/theme/">
+
+    <title>ODSC Distributed Training - Diagnostic Report</title>
+
+    <!-- Bootstrap core CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@3.4.1/dist/css/bootstrap.min.css" integrity="sha384-HSMxcRTRxnN+Bdg0JdbxYKrThecOKuH5zCYotlSAcp1+c8xmyTe9GYg1l9a69psu" crossorigin="anonymous">
+
+
+
+  </head>
+
+  <body>
+
+
+    <div class="container theme-showcase" role="main">
+
+      <!-- Main jumbotron for a primary marketing message or call to action -->
+      <div class="jumbotron">
+        <h1>Diagnostic Report for {{cluster_type}}</h1>
+      </div>
+
+
+      <div class="row">
+        <div class="col-md-12">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Requirement</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for requirement, status in report %}
+              <tr>
+                <td>{{loop.index}}</td>
+                <td>{{requirement}}</td>
+                <td>{{status}}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="row">
+      {% if action_item|length == 0 %}
+        <div class="alert alert-success" role="alert">
+        {{success_message}}.
+        </div>
+        {% else -%}
+        <div  class="alert alert-danger" role="alert">
+        Following setup requirements are to be met to run {{cluster_type}} cluster
+        </div>
+        <div class="col-md-12">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Requirement</th>
+                <th>Resolution</th>
+              </tr>
+            </thead>
+            <tbody>
+            {% for requirement, action in action_item%}
+              <tr>
+                <td>{{loop.index}}</td>
+                <td>{{requirement}}</td>
+                <td>{{action}}</td>
+              </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+
+
+
+    </div> <!-- /container -->
+
+
+    <!-- Bootstrap core JavaScript
+    ================================================== -->
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js" integrity="sha384-nvAa0+6Qg9clwYCGGPpDQLVpLNn0fRaROjHqs13t4Ggj3Ez50XnGQqc/r8MhnRDZ" crossorigin="anonymous"></script>
+    <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery.min.js"><\/script>')</script>
+    <script src="../../dist/js/bootstrap.min.js"></script>
+    <script src="../../assets/js/docs.min.js"></script>
+    <!-- IE10 viewport hack for Surface/desktop Windows 8 bug -->
+    <script src="../../assets/js/ie10-viewport-bug-workaround.js"></script>
+  </body>
+</html>

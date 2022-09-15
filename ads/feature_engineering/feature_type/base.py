@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from abc import ABC, ABCMeta
@@ -12,12 +12,12 @@ from ads.feature_engineering.feature_type.handler.feature_validator import (
 from ads.feature_engineering.feature_type.handler.feature_warning import (
     FeatureWarning,
 )
-from ads.feature_engineering.utils import _camel_to_snake
+from ads.common.utils import camel_to_snake
 
 
 class Name:
     def __get__(self, instance, owner):
-        return _camel_to_snake(owner.__name__)
+        return camel_to_snake(owner.__name__)
 
 
 class FeatureBaseType(type):

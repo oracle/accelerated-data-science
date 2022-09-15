@@ -16,14 +16,22 @@ from datetime import date, datetime
 from typing import Callable, Optional, Union
 
 import oci
+import yaml
+from ads.common.auth import default_signer
+from ads.common.decorator.utils import class_or_instance_method
+from ads.common.utils import camel_to_snake
+from ads.config import COMPARTMENT_OCID
 from dateutil import tz
 from dateutil.parser import parse
 from oci._vendor import six
 
-from ads.common.auth import default_signer
-from ads.common.decorator.utils import class_or_instance_method
-
 logger = logging.getLogger(__name__)
+
+LIFECYCLE_STOP_STATE = ("SUCCEEDED", "FAILED", "CANCELED", "DELETED")
+
+
+class OCIModelNotExists(Exception):
+    pass
 
 
 class OCIClientMixin:
@@ -389,32 +397,10 @@ class OCIModelMixin(OCISerializableMixin):
             compartment_id is not specified and NB_SESSION_COMPARTMENT_OCID environment variable is not set
 
         """
-        compartment_id = (
-            compartment_id
-            if compartment_id
-            else os.environ.get("NB_SESSION_COMPARTMENT_OCID")
-        )
+        compartment_id = compartment_id or COMPARTMENT_OCID
         if not compartment_id:
             raise ValueError("Specify compartment OCID.")
         return compartment_id
-
-    @staticmethod
-    def camel_to_snake(s: str) -> str:
-        """Converts camel style string to snake style.
-
-        Parameters
-        ----------
-        s : str
-            The string to be converted
-
-
-        Returns
-        -------
-        str
-            A string in snake format.
-
-        """
-        return re.sub(r"(?<!^)(?=[A-Z])", "_", s).lower()
 
     @class_or_instance_method
     def list_resource(
@@ -508,9 +494,9 @@ class OCIModelMixin(OCISerializableMixin):
 
         oci_class = cls._find_oci_parent()
         if method == "list":
-            method_name = f"{method}_{cls.camel_to_snake(oci_class.__name__)}s"
+            method_name = f"{method}_{camel_to_snake(oci_class.__name__)}s"
         else:
-            method_name = f"{method}_{cls.camel_to_snake(oci_class.__name__)}"
+            method_name = f"{method}_{camel_to_snake(oci_class.__name__)}"
 
         if hasattr(client, method_name):
             return getattr(client, method_name)
@@ -611,23 +597,43 @@ class OCIModelMixin(OCISerializableMixin):
         self._oci_attributes = {}
 
     @property
-    def name(self):
-        """Display name of the object"""
+    def name(self) -> str:
+        """Gets the name of the object."""
         if hasattr(self, "display_name"):
             return getattr(self, "display_name")
-        raise NotImplementedError()
+        return ""
+
+    @name.setter
+    def name(self, value: str):
+        """Sets the name of the object.
+
+        Parameters
+        ----------
+        value : str
+            The name of the object.
+        """
+        setattr(self, "display_name", value)
 
     def load_properties_from_env(self):
         """Loads properties from the environment"""
         env_var_mapping = {
-            "project_id": "PROJECT_OCID",
-            OCIModelMixin.CONS_COMPARTMENT_ID: "NB_SESSION_COMPARTMENT_OCID",
+            "project_id": ["PROJECT_OCID"],
+            OCIModelMixin.CONS_COMPARTMENT_ID: [
+                "JOB_RUN_COMPARTMENT_OCID",
+                "NB_SESSION_COMPARTMENT_OCID",
+            ],
         }
-        for attr, env_name in env_var_mapping.items():
-            # Load value from env only if the attribute value is None.
-
-            if getattr(self, attr, "") is None:
-                setattr(self, attr, os.environ.get(env_name))
+        for attr, env_names in env_var_mapping.items():
+            try:
+                env_value = next(
+                    os.environ.get(env_name)
+                    for env_name in env_names
+                    if os.environ.get(env_name, None) is not None
+                )
+                if getattr(self, attr, "") is None:
+                    setattr(self, attr, env_value)
+            except:
+                pass
 
     def to_oci_model(self, oci_model):
         """Converts the object into an instance of OCI data model.
@@ -748,6 +754,33 @@ class OCIModelMixin(OCISerializableMixin):
                     )
         return super().__getattribute__(name)
 
+    @property
+    def status(self) -> Optional[str]:
+        """Status of the object.
+
+        Returns
+        -------
+        str
+            Status of the object.
+        """
+        if not self.lifecycle_state or not self.lifecycle_state in LIFECYCLE_STOP_STATE:
+            self.sync()
+        return self.lifecycle_state
+
+    def __repr__(self) -> str:
+        """Displays the object as YAML."""
+        return self.to_yaml()
+
+    def to_yaml(self) -> str:
+        """Serializes the object into YAML string.
+
+        Returns
+        -------
+        str
+            YAML stored in a string.
+        """
+        return yaml.safe_dump(self.to_dict())
+
 
 class OCIWorkRequestMixin:
     """Mixin class containing methods related to OCI work request"""
@@ -847,3 +880,24 @@ class OCIWorkRequestMixin:
                 f"opc-work-request-id not found in response headers: {response.headers}"
             )
         return work_request_response
+
+
+class OCIModelWithNameMixin:
+    """Mixin class to operate OCI model which contains name property."""
+
+    @classmethod
+    def from_name(cls, name: str, compartment_id: Optional[str] = None):
+        """Initializes an object from name.
+
+        Parameters
+        ----------
+        name: str
+            The name of the object.
+        compartment_id: (str, optional). Defaults to None.
+            Compartment OCID of the OCI resources. If `compartment_id` is not specified,
+            the value will be taken from environment variables.
+        """
+        res = cls.list_resource(compartment_id=compartment_id, limit=1, name=name)
+        if not res:
+            raise OCIModelNotExists()
+        return cls.from_oci_model(res[0])

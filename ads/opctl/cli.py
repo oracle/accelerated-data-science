@@ -15,6 +15,7 @@ from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import run as run_cmd
+from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
 from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.utils import build_image as build_image_cmd
@@ -322,6 +323,34 @@ def run(file, **kwargs):
     else:
         config = {}
     suppress_traceback(debug)(run_cmd)(config, **kwargs)
+
+
+@commands.command()
+@add_options(_options)
+@click.option(
+    "--dry-run",
+    "-r",
+    default=False,
+    is_flag=True,
+    help="During dry run, the actual operation is not performed, only the steps are enumerated.",
+)
+@click.option(
+    "--output", help="filename to save the report", default="diagnostic_report.html"
+)
+def check(file, **kwargs):
+    """
+    Run diagnostics to check if your setup meets all the requirements to run the job
+    """
+    debug = kwargs["debug"]
+    if file:
+        if os.path.exists(file):
+            with open(file, "r") as f:
+                config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+        else:
+            raise FileNotFoundError(f"{file} is not found")
+    else:
+        config = {}
+    suppress_traceback(debug)(run_diagnostics_cmd)(config, **kwargs)
 
 
 @commands.command()

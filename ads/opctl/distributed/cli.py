@@ -29,7 +29,9 @@ def commands():
     "--framework",
     "-f",
     help="Distributed training framework type",
-    type=click.Choice(["dask", "horovod-tensorflow", "horovod-pytorch", "pytorch"]),
+    type=click.Choice(
+        ["dask", "horovod-tensorflow", "horovod-pytorch", "pytorch", "tensorflow"]
+    ),
     default=None,
     required=True,
 )
@@ -44,7 +46,8 @@ def commands():
 def init(framework, version, debug):
     """
     Initialize workspace to build distributed framework compatible container images.
-    Supported frameworks are - dask, horovod-tensorflow, horovod-pytorch and pytroch
+    Supported frameworks are - dask, horovod-tensorflow, horovod-pytorch pytorch and
+    tensorflow.
     """
     initialize_workspace(
         framework,

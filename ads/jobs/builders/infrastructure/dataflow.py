@@ -16,16 +16,16 @@ from typing import Dict, List, Optional
 import fsspec
 import oci.data_flow
 import yaml
+from ads.common import utils
 from ads.common.auth import default_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_mixin import OCIModelMixin
-from ads.common.utils import _snake_to_camel
+from ads.common.utils import camel_to_snake
 from ads.config import OCI_REGION_METADATA
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
 from ads.jobs.builders.infrastructure.utils import (
     batch_convert_case,
     normalize_config,
-    _camel_to_snake,
 )
 from ads.jobs.builders.runtimes.python_runtime import DataFlowRuntime
 from ads.model.runtime.env_info import InferenceEnvInfo
@@ -365,7 +365,7 @@ class DataFlow(Infrastructure):
             spec = {
                 k: v
                 for k, v in spec.items()
-                if f"with_{_camel_to_snake(k)}" in self.__dir__() and v is not None
+                if f"with_{camel_to_snake(k)}" in self.__dir__() and v is not None
             }
             defaults.update(spec)
             super(DataFlow, self).__init__(defaults, **kwargs)
@@ -657,9 +657,9 @@ class DataFlow(Infrastructure):
         DataFlow
             a Data Flow job instance
         """
+        # Set default display_name if not specified - randomly generated easy to remember name
         if not self.name:
-            timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
-            self.name = f"dataflow-{timestamp}"
+            self.name = utils.get_random_name_for_resource()
         payload = copy.deepcopy(self._spec)
         runtime.convert(overwrite=kwargs.get("overwrite", False))
         if not runtime.script_uri:
@@ -788,7 +788,8 @@ class DataFlow(Infrastructure):
         Parameters
         ----------
         name: str, optional
-            name of the run
+            name of the run. If a name is not provided, a randomly generated easy to remember name
+            with timestamp will be generated, like 'strange-spider-2022-08-17-23:55.02'.
         args: List[str], optional
             list of command line arguments
         env_vars: Dict[str, str], optional
@@ -810,11 +811,8 @@ class DataFlow(Infrastructure):
             payload["application_id"] = self.id
         if "compartment_id" not in payload:
             payload["compartment_id"] = self.get_spec("compartment_id")
-        payload["display_name"] = (
-            name
-            if name
-            else f"{self.name}-run-{datetime.datetime.now().strftime('%Y%m%d-%H%M')}"
-        )
+        # Set default display_name if not specified - randomly generated easy to remember name generated
+        payload["display_name"] = name if name else utils.get_random_name_for_resource()
         payload["arguments"] = args if args and len(args) > 0 else None
         payload["freeform_tags"] = freeform_tags
         payload.pop("spark_version", None)

@@ -13,6 +13,8 @@ include ads/opctl/operators/**/*.py
 include ads/opctl/docker/**
 include ads/opctl/conda/manifest_template.yaml
 include ads/opctl/conda/config.yaml
+include ads/opctl/config/diagnostics/**/*.yaml
+include ads/opctl/templates/*.jinja2
 global-exclude tests/**
 global-exclude notebooks/**
 exclude tests/**

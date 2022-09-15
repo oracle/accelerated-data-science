@@ -9,13 +9,17 @@ from __future__ import absolute_import, print_function
 import base64
 import collections
 import contextlib
+import copy
 import fnmatch
+import glob
 import json
+import math
 import os
 import random
 import re
 import shutil
 import string
+import sys
 import tempfile
 from enum import Enum
 from io import DEFAULT_BUFFER_SIZE, BytesIO
@@ -31,10 +35,13 @@ import numpy as np
 import pandas as pd
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
+from ads.common.word_lists import adjectives, animals
 from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
 from cycler import cycler
+from datetime import datetime
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
+from tqdm import tqdm
 
 from . import auth as authutil
 
@@ -88,6 +95,8 @@ DATA_SCHEMA_MAX_COL_NUM = 2000
 DIMENSION = 2
 
 # declare custom exception class
+
+
 class FileOverwriteError(Exception):
     pass
 
@@ -356,15 +365,8 @@ def horizontal_scrollable_div(html):
     """
 
 
-#
-# checks to see if in notebook mode
-#
-
-
 def is_notebook():
-    """
-    Returns true if the environment is a jupyter notebook.
-    """
+    """Returns true if the environment is a jupyter notebook."""
     try:
         from IPython import get_ipython
 
@@ -379,12 +381,6 @@ def is_notebook():
         return False  # Probably standard Python interpreter
 
 
-#
-# checks to see if in test mode
-#
-#
-# ***FOR TESTING PURPOSE ONLY***
-#
 def is_test():  # pragma: no cover
     """
     Returns true if ADS is in test mode.
@@ -629,12 +625,10 @@ def ellipsis_strings(raw, n=24):
     return result
 
 
-#
-# returns the first non-none result from an iterable, similar to any() but return value not true/false
-#
 def first_not_none(itr):
     """
-    returns the first non-none result from an iterable, similar to any() but return value not true/false
+    Returns the first non-none result from an iterable,
+    similar to any() but return value not true/false
     """
     for x in itr:
         if x:
@@ -1025,11 +1019,40 @@ def _log_plot_high_cardinality_warning(s, length):
     )
 
 
-def _snake_to_camel(name, capitalized_first_token=False):
+def snake_to_camel(name: str, capitalized_first_token: Optional[bool] = False) -> str:
+    """Converts the snake case string to the camel representation.
+
+    Parameters
+    ----------
+    name: str
+        The name to convert.
+    capitalized_first_token: (bool, optional). Defaults to False.
+        Wether the first token needs to be capitalized or not.
+
+    Returns
+    -------
+    str: The name converted to the camel representation.
+    """
     tokens = name.split("_")
     return (tokens[0].capitalize() if capitalized_first_token else tokens[0]) + "".join(
         x.capitalize() if not x.isupper() else x for x in tokens[1:]
     )
+
+
+def camel_to_snake(name: str) -> str:
+    """Converts the camel case string to the snake representation.
+
+    Parameters
+    ----------
+    name: str
+        The name to convert.
+
+    Returns
+    -------
+    str: The name converted to the snake representation.
+    """
+    s = re.sub("(.)([A-Z][a-z]+)", r"\1_\2", name)
+    return re.sub("([a-z0-9])([A-Z])", r"\1_\2", s).lower()
 
 
 def is_data_too_wide(
@@ -1266,3 +1289,231 @@ def copy_from_uri(
 
         if unpack_path:
             shutil.unpack_archive(to_path, unpack_path)
+
+
+def copy_file(
+    uri_src: str,
+    uri_dst: str,
+    force_overwrite: Optional[bool] = False,
+    auth: Optional[Dict] = None,
+    chunk_size: Optional[int] = DEFAULT_BUFFER_SIZE,
+    progressbar_description: Optional[str] = "Copying `{uri_src}` to `{uri_dst}`",
+) -> str:
+    """
+    Copies file from `uri_src` to `uri_dst`.
+    If `uri_dst` specifies a directory, the file will be copied into `uri_dst`
+    using the base filename from `uri_src`.
+    Returns the path to the newly created file.
+
+    Parameters
+    ----------
+    uri_src: str
+        The URI of the source file, which can be local path or OCI object storage URI.
+    uri_dst: str
+        The URI of the destination file, which can be local path or OCI object storage URI.
+    force_overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite existing files or not.
+    auth: (Dict, optional). Defaults to None.
+        The default authetication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+    chunk_size: (int, optinal). Defaults to `DEFAULT_BUFFER_SIZE`
+        How much data can be copied in one iteration.
+
+    Returns
+    -------
+    str
+        The path to the newly created file.
+
+    Raises
+    ------
+    FileExistsError
+        If a destination file exists and `force_overwrite` set to `False`.
+    """
+    chunk_size = chunk_size or DEFAULT_BUFFER_SIZE
+    auth = auth or authutil.default_signer()
+
+    if not os.path.basename(uri_dst):
+        uri_dst = os.path.join(uri_dst, os.path.basename(uri_src))
+    src_path_scheme = urlparse(uri_src).scheme or "file"
+    src_file_system = fsspec.filesystem(src_path_scheme, **auth)
+    file_size = src_file_system.info(uri_src)["size"]
+
+    if not force_overwrite:
+        dst_path_scheme = urlparse(uri_dst).scheme or "file"
+        if fsspec.filesystem(dst_path_scheme, **auth).exists(uri_dst):
+            raise FileExistsError(
+                f"The `{uri_dst}` exists. Please use a new file name or "
+                "set force_overwrite to True if you wish to overwrite."
+            )
+
+    with fsspec.open(uri_dst, mode="wb", **auth) as fwrite:
+        with fsspec.open(uri_src, mode="rb", encoding=None, **auth) as fread:
+            with tqdm.wrapattr(
+                fread,
+                "read",
+                desc=progressbar_description.format(uri_src=uri_src, uri_dst=uri_dst),
+                total=file_size,
+                position=0,
+                leave=False,
+                colour="blue",
+                file=sys.stdout,
+            ) as ffrom:
+                while True:
+                    chunk = ffrom.read(chunk_size)
+                    if not chunk:
+                        break
+                    fwrite.write(chunk)
+
+    return uri_dst
+
+
+def remove_file(file_path: str, auth: Optional[Dict] = None) -> None:
+    """
+    Reoves file.
+
+    Parameters
+    ----------
+    file_path: str
+        The path of the source file, which can be local path or OCI object storage URI.
+    auth: (Dict, optional). Defaults to None.
+        The default authetication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    None
+        Nothing.
+    """
+    scheme = urlparse(file_path).scheme
+    auth = auth or (scheme and authutil.default_signer()) or {}
+    fs = fsspec.filesystem(scheme, **auth)
+    try:
+        fs.rm(file_path)
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"`{file_path}` not found.")
+    except Exception as e:
+        raise e
+
+
+def folder_size(path: str) -> int:
+    """Recursively calculating a size of the `path` folder.
+
+    Parameters
+    ----------
+    path: str
+        Path to the folder.
+
+    Returns
+    -------
+    int
+        The size fo the folder in bytes.
+    """
+    path = os.path.join(path.rstrip("/"), "**")
+    return sum(
+        os.path.getsize(f) for f in glob.glob(path, recursive=True) if os.path.isfile(f)
+    )
+
+
+def human_size(num_bytes: int, precision: Optional[int] = 2) -> str:
+    """Converts bytes size to a string representing its value in B, KB, MB and GB.
+
+    Parameters
+    ----------
+    num_bytes: int
+        The size in bytes.
+    precision: (int, optional). Defaults to 2.
+        The precision of converting the bytes value.
+
+    Returns
+    -------
+    str
+        A string representing the size in B, KB, MB and GB.
+    """
+    if not num_bytes:
+        return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB")
+    size_index = int(math.floor(math.log(num_bytes, 1024)))
+    result_size = round(num_bytes / math.pow(1024, size_index), precision)
+    return f"{result_size}{size_name[size_index]}"
+
+
+def get_value(obj, attr, default=None):
+    """Gets a copy of the value from a nested dictionary of an object with nested attributes.
+
+    Parameters
+    ----------
+    obj :
+        An object or a dictionary
+    attr :
+        Attributes as a string seprated by dot(.)
+    default :
+        Default value to be returned if attribute is not found.
+
+    Returns
+    -------
+    Any:
+        A copy of the attribute value. For dict or list, a deepcopy will be returned.
+
+    """
+    keys = attr.split(".")
+    val = default
+    for key in keys:
+        if hasattr(obj, key):
+            val = getattr(obj, key)
+        elif hasattr(obj, "get"):
+            val = obj.get(key, default)
+        else:
+            return default
+        obj = val
+    return copy.deepcopy(val)
+
+
+def _filter_fn(adjective: str, word: str) -> bool:
+    """Used to filter list of adjectives phonetically
+
+    Parameters
+    ----------
+    adjective: str
+        adjective word
+    word: str
+        word to see if should be included in list of alliterations
+
+    Returns
+    -------
+    bool:
+        filter or not
+    """
+    if adjective.startswith("f"):
+        return word.startswith("f") or word.startswith("ph")
+    elif adjective.startswith("q"):
+        return word.startswith("q") or word.startswith("k")
+    else:
+        return word.startswith(adjective[0])
+
+
+def get_random_name_for_resource() -> str:
+    """Returns randomly generated easy to remember name. It consists from 1 adjective and 1 animal word,
+    tailed by UTC timestamp (joined with '-'). This is an ADS default resource name generated for
+    models, jobs, jobruns, model deployments, pipelines.
+
+    Returns
+    -------
+    str
+        Randomly generated easy to remember name for oci resources - models, jobs, jobruns, model deployments, pipelines.
+        Example: polite-panther-2022-08-17-21:15.46; strange-spider-2022-08-17-23:55.02
+    """
+
+    adjective = random.choice(adjectives)
+    animal = random.choice(
+        list(filter(lambda x: _filter_fn(adjective, x), animals)) or animals
+    )
+
+    return "-".join(
+        (
+            adjective,
+            animal,
+            datetime.utcnow().strftime("%Y-%m-%d-%H:%M.%S"),
+        )
+    )

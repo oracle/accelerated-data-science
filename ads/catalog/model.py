@@ -7,8 +7,10 @@
 import json
 import os
 import shutil
+import tempfile
+import time
 import uuid
-from typing import Optional
+from typing import Dict, Optional, Union
 from zipfile import ZipFile
 
 import pandas as pd
@@ -27,17 +29,27 @@ from ads.common.model_metadata import (
     ModelCustomMetadata,
     ModelTaxonomyMetadata,
 )
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.config import (
     NB_SESSION_COMPARTMENT_OCID,
     OCI_ODSC_SERVICE_ENDPOINT,
+    OCI_REGION_METADATA,
     PROJECT_OCID,
 )
+from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
 from ads.feature_engineering.schema import Schema
+from ads.model.deployment.model_deployer import ModelDeployer
 from oci.data_science.data_science_client import DataScienceClient
-from oci.data_science.models import CreateModelDetails
+from oci.data_science.models import (
+    ArtifactExportDetailsObjectStorage,
+    ArtifactImportDetailsObjectStorage,
+    CreateModelDetails,
+    ExportModelArtifactDetails,
+    ImportModelArtifactDetails,
+)
 from oci.data_science.models import Model as OCIModel
-from oci.data_science.models import ModelSummary
+from oci.data_science.models import ModelSummary, WorkRequest
 from oci.data_science.models.model_provenance import ModelProvenance
 from oci.data_science.models.update_model_details import UpdateModelDetails
 from oci.exceptions import ServiceError
@@ -50,12 +62,23 @@ _UPDATE_MODEL_DETAILS_ATTRIBUTES = [
     "defined_tags",
 ]
 _MODEL_PROVENANCE_ATTRIBUTES = ModelProvenance().swagger_types.keys()
-
 _ETAG_KEY = "ETag"
+_MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
+_WORK_REQUEST_INTERVAL_IN_SEC = 3
 
 
 class ModelWithActiveDeploymentError(Exception):
     pass
+
+
+class ModelArtifactSizeError(Exception):
+    def __init__(self, max_artifact_size: str):
+        super().__init__(
+            f"The model artifacts size is greater than `{max_artifact_size}`. "
+            "The `bucket_uri` needs to be specified to "
+            "copy artifacts to the object storage bucket. "
+            "Example: `bucket_uri=oci://<bucket_name>@<namespace>/prefix/`"
+        )
 
 
 def _get_etag(response) -> str:
@@ -572,6 +595,8 @@ class ModelCatalog:
         ds_client_auth: Optional[dict] = None,
         identity_client_auth: Optional[dict] = None,
         timeout: Optional[int] = None,
+        ds_client: Optional[DataScienceClient] = None,
+        identity_client: Optional[IdentityClient] = None,
     ):
         """Initializes model catalog instance.
 
@@ -589,13 +614,17 @@ class ModelCatalog:
             authentication signer and kwargs required to instantiate IdentityClient object.
         timeout: (int, optional). Defaults to 10 seconds.
             The connection timeout in seconds for the client.
+        ds_client: DataScienceClient
+            The Oracle DataScience client.
+        identity_client: IdentityClient
+            The Orcale Identity Service Client.
 
         Raises
         ------
-            ValueError
-                If compartment ID not specified.
-            TypeError
-                If timeout not an integer.
+        ValueError
+            If compartment ID not specified.
+        TypeError
+            If timeout not an integer.
         """
         self.compartment_id = (
             NB_SESSION_COMPARTMENT_OCID if compartment_id is None else compartment_id
@@ -606,30 +635,42 @@ class ModelCatalog:
         if timeout and not isinstance(timeout, int):
             raise TypeError("Timeout must be an integer.")
 
-        self.ds_client_auth = (
-            ds_client_auth
-            if ds_client_auth
-            else auth.default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
-        )
+        self.ds_client_auth = ds_client_auth
+        self.identity_client_auth = identity_client_auth
+        self.ds_client = ds_client
+        self.identity_client = identity_client
 
-        self.identity_client_auth = (
-            identity_client_auth
-            if identity_client_auth
-            else auth.default_signer({"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT})
-        )
+        if not self.ds_client:
+            self.ds_client_auth = (
+                ds_client_auth
+                if ds_client_auth
+                else auth.default_signer(
+                    {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
+                )
+            )
+            if timeout:
+                if not self.ds_client_auth.get("client_kwargs"):
+                    self.ds_client_auth["client_kwargs"] = {}
+                self.ds_client_auth["client_kwargs"]["timeout"] = timeout
+            self.ds_client = oci_client.OCIClientFactory(
+                **self.ds_client_auth
+            ).data_science
 
-        if timeout:
-            if not self.ds_client_auth.get("client_kwargs"):
-                self.ds_client_auth["client_kwargs"] = {}
-            if not self.identity_client_auth.get("client_kwargs"):
-                self.identity_client_auth["client_kwargs"] = {}
-            self.ds_client_auth["client_kwargs"]["timeout"] = timeout
-            self.identity_client_auth["client_kwargs"]["timeout"] = timeout
-
-        self.ds_client = oci_client.OCIClientFactory(**self.ds_client_auth).data_science
-        self.identity_client = oci_client.OCIClientFactory(
-            **self.identity_client_auth
-        ).identity
+        if not self.identity_client:
+            self.identity_client_auth = (
+                identity_client_auth
+                if identity_client_auth
+                else auth.default_signer(
+                    {"service_endpoint": OCI_ODSC_SERVICE_ENDPOINT}
+                )
+            )
+            if timeout:
+                if not self.identity_client_auth.get("client_kwargs"):
+                    self.identity_client_auth["client_kwargs"] = {}
+                self.identity_client_auth["client_kwargs"]["timeout"] = timeout
+            self.identity_client = oci_client.OCIClientFactory(
+                **self.identity_client_auth
+            ).identity
 
         self.short_id_index = {}
 
@@ -828,61 +869,99 @@ class ModelCatalog:
             identity_client=self.identity_client,
         )
 
-    def delete_model(self, model, **kwargs):
+    def delete_model(self, model: Union[str, "ads.catalog.Model"], **kwargs) -> bool:
         """
-        Deletes the model based on model_id.
+        Deletes the model from Model Catalog.
 
         Parameters
         ----------
-        model: str ID or ads.catalog.Model,required
-            The OCID of the model to delete as a string, or a Model instance.
+        model: Union[str, "ads.catalog.Model"]
+            The OCID of the model to delete as a string, or a `ads.catalog.Model` instance.
+
+        kwargs:
+            delete_associated_model_deployment: (bool, optional). Defaults to `False`.
+                Whether associated model deployments need to be deletet or not.
 
         Returns
         -------
-        Bool: `True` if the model was deleted and `False` otherwise
-        """
-        try:
-            model_id = (
-                model.id
-                if isinstance(model, Model)
-                else self.short_id_index[model]
-                if not model.startswith("ocid")
-                else model
-            )
-            deployments = self.list_model_deployment(model_id)
-            for deployment in deployments:
-                if deployment.lifecycle_state == "ACTIVE":
-                    raise ModelWithActiveDeploymentError
-            self.ds_client.delete_model(model_id, **kwargs)
-            return True
-        except Exception as e:
-            if isinstance(e, ModelWithActiveDeploymentError):
-                raise ModelWithActiveDeploymentError(
-                    "Models that have active deployments cannot be deleted. Deactivate the model first."
-                )
-            else:
-                logger.error("Failed to delete the Model.")
-                return False
+        bool
+            `True` if the model was successfully deleted.
 
-    def _download_artifacts(
-        self, model_id: str, target_dir: str, force_overwrite: Optional[bool] = False
+        Raises
+        ------
+        ModelWithActiveDeploymentError
+            If model has active model deployments ant inout attribute
+            `delete_associated_model_deployment` set to `False`.
+        """
+        model_id = (
+            model.id
+            if isinstance(model, Model)
+            else self.short_id_index[model]
+            if not model.startswith("ocid")
+            else model
+        )
+        delete_associated_model_deployment = kwargs.pop(
+            "delete_associated_model_deployment", None
+        )
+        active_deployments = tuple(
+            item
+            for item in self.list_model_deployment(model_id)
+            if item.lifecycle_state == "ACTIVE"
+        )
+
+        if len(active_deployments) > 0:
+            if not delete_associated_model_deployment:
+                raise ModelWithActiveDeploymentError(
+                    f"The model `{model_id}` has active model deployments: "
+                    f"{[item.identifier for item in active_deployments]}. "
+                    "Delete associated model deployments before deleting the model or "
+                    "set the `delete_associated_model_deployment` attribute to `True`."
+                )
+
+            logger.info(
+                f"Deleting model deployments associated with the model `{model_id}`."
+            )
+            for oci_model_deployment in active_deployments:
+                (
+                    ModelDeployer(config=self.ds_client_auth)
+                    .get_model_deployment(oci_model_deployment.identifier)
+                    .delete(wait_for_completion=True)
+                )
+
+        logger.info(f"Deleting model `{model_id}`.")
+        self.ds_client.delete_model(model_id, **kwargs)
+        return True
+
+    def _download_artifact(
+        self,
+        model_id: str,
+        target_dir: str,
+        force_overwrite: Optional[bool] = False,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
     ) -> None:
         """
-        Downloads the model artifacts from model catalog to target_dir based on model_id.
+        Downloads the model artifacts from model catalog to target_dir based on `model_id`.
 
         Parameters
         ----------
         model_id: str
             The OCID of the model to download.
         target_dir: str
-            The target location of model after download.
-        force_overwrite: bool
-            Overwrite target_dir if exists.
+            The target location of model artifacts.
+        force_overwrite: (bool, optional). Defaults to `False`.
+            Overwrite target directory if exists.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `bucket_uri=oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
 
         Raises
         ------
         ValueError
-            If targed dir not exists.
+            If targeted directory does not exist.
         KeyError
             If model id not found.
 
@@ -894,11 +973,154 @@ class ModelCatalog:
         if os.path.exists(target_dir) and os.listdir(target_dir):
             if not force_overwrite:
                 raise ValueError(
-                    "Target directory already exists. "
-                    "Set `force_overwrite` to overwrite."
+                    f"The `{target_dir}` directory already exists. "
+                    "Set `force_overwrite` to `True` if you wish to overwrite."
                 )
             shutil.rmtree(target_dir)
 
+        with utils.get_progress_bar(6) as progress:
+            progress.update("Getting information about model artifacts")
+
+            # If the size of artifacts greater than 2GB, then artifacts
+            # need to be imported to OS bucket at first.
+            try:
+                model_artifact_info = self.ds_client.head_model_artifact(
+                    model_id=model_id
+                ).headers
+            except ServiceError as ex:
+                if ex.status == 404:
+                    raise KeyError(f"The model `{model_id}` not found.") from ex
+                raise
+
+            artifact_size = int(model_artifact_info.get("content-length"))
+
+            if bucket_uri or artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES:
+                if not bucket_uri:
+                    raise ModelArtifactSizeError(
+                        utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES)
+                    )
+
+                self._download_large_artifact(
+                    model_id=model_id,
+                    target_dir=target_dir,
+                    bucket_uri=os.path.join(bucket_uri, f"{model_id}.zip"),
+                    progress=progress,
+                    remove_existing_artifact=remove_existing_artifact,
+                )
+            else:
+                self._download_small_artifact(
+                    model_id=model_id, target_dir=target_dir, progress=progress
+                )
+                progress.update()
+
+            progress.update("Done")
+
+    def _download_large_artifact(
+        self,
+        model_id: str,
+        target_dir: str,
+        bucket_uri: str,
+        progress: Union[TqdmProgressBar, DummyProgressBar],
+        remove_existing_artifact: Optional[bool] = True,
+    ) -> None:
+        """
+        Downloads the model artifacts from model catalog to target_dir based on `model_id`.
+        This method is used for artifacts with size greater than 2GB.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the model to download.
+        target_dir: str
+            The target location of model artifacts.
+        bucket_uri: str
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `bucket_uri=oci://<bucket_name>@<namespace>/prefix/`.
+        progress: Union[TqdmProgressBar, DummyProgressBar]
+            The progress bar.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
+
+        Returns
+        -------
+        None
+            Nothing.
+        """
+        progress.update(f"Importing model artifacts from model catalog")
+        self._import_model_artifact(model_id=model_id, bucket_uri=bucket_uri)
+
+        progress.update("Copying model artifacts to the artifact directory")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            zip_file_path = os.path.join(temp_dir, f"{str(uuid.uuid4())}.zip")
+            zip_file_path = utils.copy_file(
+                uri_src=bucket_uri,
+                uri_dst=zip_file_path,
+                progressbar_description="Copying model artifacts to the artifact directory",
+            )
+
+            progress.update("Extracting model artifacts")
+            with ZipFile(zip_file_path) as zip_file:
+                zip_file.extractall(target_dir)
+
+        if remove_existing_artifact:
+            progress.update("Removing temporary artifacts")
+            utils.remove_file(bucket_uri, self.ds_client_auth)
+        else:
+            progress.update()
+
+    def _import_model_artifact(
+        self,
+        model_id: str,
+        bucket_uri: str,
+    ):
+        """Imports model artifact from the model catalog to the object storage bucket.
+        This method is used for the case when the artifact size is greater than 2GB.
+        """
+        bucket_details = ObjectStorageDetails.from_path(bucket_uri)
+        response = self.ds_client.import_model_artifact(
+            model_id=model_id,
+            import_model_artifact_details=ImportModelArtifactDetails(
+                artifact_import_details=ArtifactImportDetailsObjectStorage(
+                    namespace=bucket_details.namespace,
+                    destination_bucket=bucket_details.bucket,
+                    destination_object_name=bucket_details.filepath,
+                    destination_region=self._region,
+                )
+            ),
+        )
+
+        self._wait_for_work_request(
+            response=response,
+            first_step_description="Preparing to import model artifacts from the model catalog",
+            num_steps=3,
+        )
+
+    def _download_small_artifact(
+        self,
+        model_id: str,
+        target_dir: str,
+        progress: Union[TqdmProgressBar, DummyProgressBar],
+    ) -> None:
+        """
+        Downloads the model artifacts from model catalog to target_dir based on `model_id`.
+        This method is used for the artifacts with size less than 2GB.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the model to download.
+        target_dir: str
+            The target location of model artifacts.
+        progress: Union[TqdmProgressBar, DummyProgressBar]
+            The progress bar.
+
+        Returns
+        -------
+        None
+            Nothing
+        """
+        progress.update("Importing model artifacts from catalog")
         try:
             zip_contents = self.ds_client.get_model_artifact_content(
                 model_id
@@ -906,21 +1128,16 @@ class ModelCatalog:
         except ServiceError as ex:
             if ex.status == 404:
                 raise KeyError(ex.message) from ex
-            else:
-                raise
-        zip_file_path = os.path.join(
-            "/tmp", "saved_model_" + str(uuid.uuid4()) + ".zip"
-        )
+            raise
 
-        # write contents to zip file
-        with open(zip_file_path, "wb") as zip_file:
-            zip_file.write(zip_contents)
-
-        # Extract all the contents of zip file in target directory
-        with ZipFile(zip_file_path) as zip_file:
-            zip_file.extractall(target_dir)
-
-        os.remove(zip_file_path)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            progress.update("Copying model artifacts to the artifact directory")
+            zip_file_path = os.path.join(temp_dir, f"{str(uuid.uuid4())}.zip")
+            with open(zip_file_path, "wb") as zip_file:
+                zip_file.write(zip_contents)
+            progress.update("Extracting model artifacts")
+            with ZipFile(zip_file_path) as zip_file:
+                zip_file.extractall(target_dir)
 
     @deprecated(
         "2.5.9",
@@ -933,6 +1150,8 @@ class ModelCatalog:
         force_overwrite: bool = False,
         install_libs: bool = False,
         conflict_strategy=ConflictStrategy.IGNORE,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
     ):
         """
         Downloads the model from model_dir to target_dir based on model_id.
@@ -953,13 +1172,25 @@ class ModelCatalog:
            Valid values: "IGNORE", "UPDATE" or ConflictStrategy.
            IGNORE: Use the installed version in  case of conflict
            UPDATE: Force update dependency to the version required by model artifact in case of conflict
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
 
         Returns
         -------
         ModelArtifact
             A ModelArtifact instance.
         """
-        self._download_artifacts(model_id, target_dir, force_overwrite)
+        self._download_artifact(
+            model_id,
+            target_dir,
+            force_overwrite,
+            bucket_uri=bucket_uri,
+            remove_existing_artifact=remove_existing_artifact,
+        )
 
         result = ModelArtifact(
             target_dir,
@@ -1019,40 +1250,74 @@ class ModelCatalog:
 
     def upload_model(
         self,
-        model_artifact,
-        provenance_metadata=None,
-        project_id=None,
-        display_name=None,
-        description=None,
-        freeform_tags=None,
-        defined_tags=None,
+        model_artifact: ModelArtifact,
+        provenance_metadata: Optional[ModelProvenance] = None,
+        project_id: Optional[str] = None,
+        display_name: Optional[str] = None,
+        description: Optional[str] = None,
+        freeform_tags: Optional[Dict[str, Dict[str, object]]] = None,
+        defined_tags: Optional[Dict[str, Dict[str, object]]] = None,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
+        overwrite_existing_artifact: Optional[bool] = True,
     ):
         """
         Uploads the model artifact to cloud storage.
 
         Parameters
         ----------
-        model_artifact: `ModelArtifact` instance
-            This is built by calling prepare on an `ADSModel` instance.
-        provenance_metadata: `ModelProvenance`
-            Model provenance gives data scientists information about the origin of their model. This information allows data scientists to reproduce
+        model_artifact: Union[ModelArtifact, GenericModel]
+            The model artifacts or generic model instance.
+        provenance_metadata: (ModelProvenance, optional). Defaults to None.
+            Model provenance gives data scientists information about the origin of their model.
+            This information allows data scientists to reproduce
             the development environment in which the model was trained.
-        project_id: str, optional
+        project_id: (str, optional). Defaults to None.
             The project_id of model.
-        display_name: str, optional
-            The name of model.
-        description: str, optional
+        display_name: (str, optional). Defaults to None.
+            The name of model. If a display_name is not provided, a randomly generated easy to remember name
+            with timestamp will be generated, like 'strange-spider-2022-08-17-23:55.02'.
+        description: (str, optional). Defaults to None.
             The description of model.
-        freeform_tags : dict(str, str), optional
+        freeform_tags: (Dict[str, str], optional). Defaults to None.
             Freeform tags for the model, by default None
-        defined_tags : dict(str, dict(str, object)), optional
-            Defined tags for the model, by default None
+        defined_tags: (Dict[str, dict[str, object]], optional). Defaults to None.
+            Defined tags for the model, by default None.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for uploading large artifacts which
+            size greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
+        overwrite_existing_artifact: (bool, optional). Defaults to `True`.
+            Overwrite target bucket artifact if exists.
 
         Returns
         -------
         ads.catalog.Model
             The ads.catalog.Model with the matching ID.
         """
+        project_id = project_id or PROJECT_OCID
+        if not project_id:
+            raise ValueError("`project_id` needs to be specified.")
+
+        copy_artifact_to_os = False
+        if (
+            bucket_uri
+            or utils.folder_size(model_artifact.artifact_dir)
+            > _MAX_ARTIFACT_SIZE_IN_BYTES
+        ):
+            if not bucket_uri:
+                raise ValueError(
+                    f"The model artifacts size is greater than `{utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES)}`. "
+                    "The `bucket_uri` needs to be specified to "
+                    "copy artifacts to the object storage bucket. "
+                    "Example: `bucket_uri=oci://<bucket_name>@<namespace>/prefix/`"
+                )
+            copy_artifact_to_os = True
+
+        # Set default display_name if not specified - randomly generated easy to remember name generated
+        display_name = display_name or utils.get_random_name_for_resource()
 
         with utils.get_progress_bar(5) as progress:
             project_id = PROJECT_OCID if project_id is None else project_id
@@ -1063,7 +1328,8 @@ class ModelCatalog:
                 with open(schema_file, "r") as schema:
                     metadata = json.load(schema)
                     freeform_tags = {"problem_type": metadata["problem_type"]}
-            progress.update("Creating model in catalog")
+
+            progress.update("Saving model in the model catalog")
             create_model_details = CreateModelDetails(
                 display_name=display_name,
                 description=description,
@@ -1084,38 +1350,186 @@ class ModelCatalog:
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
             )
-
             model = self.ds_client.create_model(create_model_details)
-            self._upload_model_artifact(model.data.id, model_artifact, progress)
+
             if provenance_metadata is not None:
-                progress.update("Save provenance metadata")
+                progress.update("Saving provenance metadata")
                 self.ds_client.create_model_provenance(
                     model.data.id, provenance_metadata
                 )
             else:
                 progress.update()
-            progress.update("Done")
-            return self.get_model(model.data.id)
 
-    def _upload_model_artifact(self, model_id, model_artifact, progress):
-        # zip model_dir
-        progress.update("Generating model artifact zip")
+            # if the model artifact size greater than 2GB then export function
+            # needs to be used instead of upload. The export function will copy
+            # model artifacts to the OS bucket at first and then will upload
+            # the artifacts to the model catalog.
+            if copy_artifact_to_os:
+                self._export_model_artifact(
+                    model_id=model.data.id,
+                    model_artifact=model_artifact,
+                    progress=progress,
+                    bucket_uri=bucket_uri,
+                    remove_existing_artifact=remove_existing_artifact,
+                    overwrite_existing_artifact=overwrite_existing_artifact,
+                )
+            else:
+                self._upload_model_artifact(
+                    model_id=model.data.id,
+                    model_artifact=model_artifact,
+                    progress=progress,
+                )
+                progress.update()
+
+            progress.update("Done")
+        return self.get_model(model.data.id)
+
+    def _prepare_model_artifact(
+        self, model_artifact, progress: Union[TqdmProgressBar, DummyProgressBar]
+    ) -> str:
+        """Prepares model artifacts to save in the Model Catalog.
+
+        Returns
+        -------
+        str
+            The path to the model artifact zip archive.
+        """
+        progress.update("Preparing model artifacts zip")
         files_to_upload = model_artifact._get_files()
-        artifact = "/tmp/saved_model_" + str(uuid.uuid4()) + ".zip"
-        print("artifact:" + artifact)
-        zf = ZipFile(artifact, "w")
+        artifact_path = "/tmp/saved_model_" + str(uuid.uuid4()) + ".zip"
+        zf = ZipFile(artifact_path, "w")
         for matched_file in files_to_upload:
             zf.write(
                 os.path.join(model_artifact.artifact_dir, matched_file),
                 arcname=matched_file,
             )
         zf.close()
-        progress.update("Uploading model artifact")
-        with open(artifact, "rb") as file_data:
+        return artifact_path
+
+    def _upload_model_artifact(self, model_id, model_artifact, progress):
+        """Uploads model artifact to the model catalog.
+        This method can be used only if the size of model artifact is less than 2GB.
+        For the artifacts with size greater than 2 GB the `_export_model_artifact`
+        method should be used instead.
+        """
+        artifact_zip_path = self._prepare_model_artifact(model_artifact, progress)
+        progress.update("Uploading model artifacts to the catalog")
+        with open(artifact_zip_path, "rb") as file_data:
             bytes_content = file_data.read()
             self.ds_client.create_model_artifact(
                 model_id,
                 bytes_content,
                 content_disposition=f'attachment; filename="{model_id}.zip"',
             )
-        os.remove(artifact)
+        os.remove(artifact_zip_path)
+        progress.update()
+
+    def _export_model_artifact(
+        self,
+        model_id: str,
+        model_artifact: ModelArtifact,
+        bucket_uri: str,
+        progress,
+        remove_existing_artifact: Optional[bool] = True,
+        overwrite_existing_artifact: Optional[bool] = True,
+    ):
+        """Exports model artifact to the model catalog.
+        This method is used for the case when the artifact size is greater than 2GB.
+        1. Archive model artifact.
+        2. Copies the artifact to the object storage bucket.
+        3. Exports artifact from the user's object storage bucket to the system one.
+        """
+        artifact_zip_path = self._prepare_model_artifact(model_artifact, progress)
+        progress.update(f"Copying model artifact to the Object Storage bucket")
+
+        try:
+            bucket_uri_file_name = os.path.basename(bucket_uri)
+            if not bucket_uri_file_name:
+                bucket_uri = os.path.join(bucket_uri, f"{model_id}.zip")
+            elif not bucket_uri.lower().endswith(".zip"):
+                bucket_uri = f"{bucket_uri}.zip"
+
+            bucket_file_name = utils.copy_file(
+                artifact_zip_path,
+                bucket_uri,
+                force_overwrite=overwrite_existing_artifact,
+                auth=self.ds_client_auth,
+                progressbar_description="Copying model artifact to the Object Storage bucket",
+            )
+        except FileExistsError:
+            raise FileExistsError(
+                f"The `{bucket_uri}` exists. Please use a new file name or "
+                "set `overwrite_existing_artifact` to `True` if you wish to overwrite."
+            )
+
+        os.remove(artifact_zip_path)
+
+        progress.update("Exporting model artifact to the model catalog")
+        bucket_details = ObjectStorageDetails.from_path(bucket_file_name)
+        response = self.ds_client.export_model_artifact(
+            model_id=model_id,
+            export_model_artifact_details=ExportModelArtifactDetails(
+                artifact_export_details=ArtifactExportDetailsObjectStorage(
+                    namespace=bucket_details.namespace,
+                    source_bucket=bucket_details.bucket,
+                    source_object_name=bucket_details.filepath,
+                    source_region=self._region,
+                )
+            ),
+        )
+
+        self._wait_for_work_request(
+            response=response,
+            first_step_description="Preparing to export model artifact to the model catalog",
+            num_steps=4,
+        )
+
+        if remove_existing_artifact:
+            progress.update(
+                "Removing temporary model artifact from the Object Storage bucket"
+            )
+            utils.remove_file(bucket_file_name, self.ds_client_auth)
+        else:
+            progress.update()
+
+    @property
+    def _region(self):
+        """Gets current region."""
+        if "region" in self.ds_client_auth.get("config", {}):
+            return self.ds_client_auth["config"]["region"]
+        return json.loads(OCI_REGION_METADATA)["regionIdentifier"]
+
+    def _wait_for_work_request(
+        self, response, first_step_description: str = "", num_steps=4
+    ):
+        """Waits for the work request to be completed."""
+        STOP_STATE = (
+            WorkRequest.STATUS_SUCCEEDED,
+            WorkRequest.STATUS_CANCELED,
+            WorkRequest.STATUS_CANCELING,
+            WorkRequest.STATUS_FAILED,
+        )
+        work_request_id = response.headers["opc-work-request-id"]
+        work_request_logs = None
+
+        i = 0
+        with utils.get_progress_bar(num_steps) as progress:
+            progress.update(first_step_description)
+            while not work_request_logs or len(work_request_logs) < num_steps:
+                time.sleep(_WORK_REQUEST_INTERVAL_IN_SEC)
+                work_request = self.ds_client.get_work_request(work_request_id)
+                work_request_logs = self.ds_client.list_work_request_logs(
+                    work_request_id
+                ).data
+                new_work_request_logs = work_request_logs[i:]
+
+                for wr_item in new_work_request_logs:
+                    progress.update(wr_item.message)
+                    i += 1
+
+                if work_request.data.status in STOP_STATE:
+                    if work_request.data.status != WorkRequest.STATUS_SUCCEEDED:
+                        raise Exception(work_request_logs[-1].message)
+                    else:
+                        break
+        return work_request
