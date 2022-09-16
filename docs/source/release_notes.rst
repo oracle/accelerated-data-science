@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.6.5
+-----
+Release date: September 16, 2022
+
+* OCI SDK updated from version ``2.59.0`` to version ``2.82.0``.
+
 2.6.4
 -----
 Release date: September 14, 2022
@@ -10,7 +16,6 @@ Release date: September 14, 2022
 * Added ``delete()`` method to the ``GenericModel`` class. Deletes models and associated model deployments.
 * The Model Input Schema is improved to return features sorted by the ``order`` attribute.
 * Added user-friendly default names for created Jobs, Model Deployments, and Models.
-
 
 2.6.3
 -----
