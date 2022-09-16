@@ -23,7 +23,7 @@ install_requires = [
     "gitpython>=3.1.2",
     "matplotlib>=3.1.3",
     "numpy>=1.19.2",
-    "oci>=2.59.0",
+    "oci>=2.82.0",
     "ocifs>=0.1.5",
     "pandas>1.2.1,<1.4",
     "python_jsonschema_objects>=0.3.13",
