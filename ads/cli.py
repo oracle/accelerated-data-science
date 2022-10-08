@@ -3,13 +3,17 @@
 
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-import click
-import ads.opctl.cli
-import ads.jobs.cli
-import os
-import json
-
+try:
+    import click
+    import ads.opctl.cli
+    import ads.jobs.cli
+    import os
+    import json
+except:
+    print(
+        "Please run `pip install oracle-ads[opctl]` to install the required dependencies for ADS CLI"
+    )
+    exit()
 with open(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads_version.json")
 ) as version_file:

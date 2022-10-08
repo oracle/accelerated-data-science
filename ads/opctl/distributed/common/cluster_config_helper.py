@@ -33,6 +33,9 @@ class ClusterConfigToJobSpecConverter:
         job["envVars"]["OCI__WORKER_COUNT"] = (
             cluster.worker.replicas if cluster.worker is not None else 0
         )
+        if cluster.ps is not None:
+            job["envVars"]["OCI__PS_COUNT"] = cluster.ps.replicas
+
         job["envVars"]["OCI__START_ARGS"] = cluster.config.cmd_args.strip()
         job["envVars"]["OCI__ENTRY_SCRIPT"] = self.cluster_info.runtime.entry_point
 

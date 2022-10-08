@@ -8,7 +8,7 @@ Setup
 
 Load the necessary modules:
 
-.. code-block:: python3
+.. code:: python3
 
     import seaborn as sns
     import pickle
@@ -34,7 +34,7 @@ Dataset
 
 Start by reading in the dataset from UCI. The dataset is not properly formatted, the separators have spaces between them, and the test set has a corrupt row at the top. These options are specified to the Pandas CSV reader. The dataset has already been pre-split into training and test sets. The training set is used to create a machine learning model using Oracle AutoML, and the test set is used to evaluate the model’s performance on unseen data.
 
-.. code-block:: python3
+.. code:: python3
 
     column_names = [
         'age',
@@ -61,7 +61,7 @@ Start by reading in the dataset from UCI. The dataset is not properly formatted,
 
 Retrieve some of the values in the data:
 
-.. code-block:: python3
+.. code:: python3
 
     df.head()
 
@@ -79,7 +79,7 @@ Retrieve some of the values in the data:
 
 The Adult dataset contains a mix of numerical and string data, making it a challenging problem to train machine learning models on.
 
-.. code-block:: python3
+.. code:: python3
 
     pd.DataFrame({'Data type': df.dtypes}).T
 
@@ -93,7 +93,7 @@ The Adult dataset contains a mix of numerical and string data, making it a chall
 The dataset is also missing many values, further adding to its complexity. The Oracle AutoML solution automatically handles missing
 values by intelligently dropping features with too many missing values, and filling in the remaining missing values based on the feature type.
 
-.. code-block:: python3
+.. code:: python3
 
     pd.DataFrame({'% missing values': df.isnull().sum() * 100 / len(df)}).T
 
@@ -106,7 +106,7 @@ values by intelligently dropping features with too many missing values, and fill
 
 Visualize the distribution of the target variable in the training data.
 
-.. code-block:: python3
+.. code:: python3
 
     target_col = 'income'
     sns.countplot(x="income", data=df)
@@ -115,7 +115,7 @@ Visualize the distribution of the target variable in the training data.
 
 The test set has a different set of labels from the training set. The test set labels have an extra period (.) at the end causing incorrect scoring.
 
-.. code-block:: python3
+.. code:: python3
 
     print(df[target_col].unique())
     print(test_df[target_col].unique())
@@ -127,7 +127,7 @@ The test set has a different set of labels from the training set. The test set l
 
 Remove the trailing period (.) from the test set labels.
 
-.. code-block:: python3
+.. code:: python3
 
     test_df[target_col] = test_df[target_col].str.rstrip('.')
     print(test_df[target_col].unique())
@@ -138,21 +138,21 @@ Remove the trailing period (.) from the test set labels.
 
 Convert the Pandas dataframes to ``ADSDataset`` to use with ADS APIs.
 
-.. code-block:: python3
+.. code:: python3
 
     train = DatasetFactory.open(df).set_target(target_col)
     test = DatasetFactory.open(test_df).set_target(target_col)
 
 If the data is not already pre-split into train and test sets, you can split it with the ``train_test_split()`` or ``train_validation_test_split()`` method. This example of loading the data and splitting it into an 80%/20% train and test set.
 
-.. code-block:: python3
+.. code:: python3
 
     ds = DatasetFactory.open("path/data.csv").set_target('target')
     train, test = ds.train_test_split(test_size=0.2)
 
 Splitting the data into train, validation, and test returns three data subsets. If you don't specify the test and validation sizes, the data is split 80%/10%/10%. This example assigns a 70%/15%/15% split:
 
-.. code-block:: python3
+.. code:: python3
 
     data_split = ds.train_validation_test_split(
         test_size=0.15,
@@ -194,7 +194,7 @@ All these modules are readily combined into a simple AutoML pipeline that automa
 
 Create an ``OracleAutoMLProvider`` object that uses all available cores and disable any logging.
 
-.. code-block:: python3
+.. code:: python3
 
     ml_engine = OracleAutoMLProvider(n_jobs=-1, loglevel=logging.ERROR)
 
@@ -210,7 +210,7 @@ The AutoML API is quite simple to work with. Create an instance of Oracle AutoML
 
 A model is then generated that can be used for prediction tasks. ADS uses the ``roc_auc`` scoring metric to evaluate the performance of this model on unseen data (``X_test``).
 
-.. code-block:: python3
+.. code:: python3
 
     oracle_automl = AutoML(train, provider=ml_engine)
     automl_model1, baseline = oracle_automl.train()
@@ -344,7 +344,7 @@ all the different trials performed by Oracle AutoML. The API has two arguments:
    * Hyperparameters
    * CPU Time
 
-.. code-block:: python3
+.. code:: python3
 
     oracle_automl.print_trials(max_rows=20, sort_column='Mean Validation Score')
 
@@ -367,7 +367,7 @@ all the different trials performed by Oracle AutoML. The API has two arguments:
 
 ADS also provides the ability to visualize the results of each stage of the AutoML pipeline. The following plot shows the scores predicted by algorithm selection for each algorithm. The horizontal line shows the average score across all algorithms. Algorithms below the line are colored turquoise, whereas those with a score higher than the mean are colored teal. You can see that the LightGBM classifier achieved the highest predicted score (orange bar) and is chosen for subsequent stages of the pipeline.
 
-.. code-block:: python3
+.. code:: python3
 
     oracle_automl.visualize_algorithm_selection_trials()
 
@@ -379,7 +379,7 @@ After algorithm selection, adaptive sampling aims to find the smallest dataset s
 .. note::
   If you have fewer than 1000 data points in your dataset, adaptive sampling is not run and visualizations are not generated.
 
-.. code-block:: python3
+.. code:: python3
 
     oracle_automl.visualize_adaptive_sampling_trials()
 
@@ -387,7 +387,7 @@ After algorithm selection, adaptive sampling aims to find the smallest dataset s
 
 After finding a sample subset, the next goal of Oracle AutoML is to find a relevant feature subset that maximizes score for the chosen algorithm. Oracle AutoML feature selection follows an intelligent search strategy. It looks at various possible feature rankings and subsets, and identifies that smallest feature subset that does not compromise on score for the chosen algorithm  ``ExtraTreesClassifier``). The orange line shows the optimal number of features chosen by feature selection (9 features - [age, workclass, education, education-num, occupation, relationship, capital-gain, capital-loss, hours-per-week]).
 
-.. code-block:: python3
+.. code:: python3
 
     oracle_automl.visualize_feature_selection_trials()
 
@@ -396,7 +396,7 @@ After finding a sample subset, the next goal of Oracle AutoML is to find a relev
 
 Hyperparameter tuning is the last stage of the Oracle AutoML pipeline It focuses on improving the chosen algorithm’s score on the reduced dataset (given by adaptive sampling and feature selection). ADS uses a novel algorithm to search across many hyperparamter dimensions. Convergence is automatic when optimal hyperparameters are identified. Each trial in the following graph represents a particular hyperparamter combination for the selected model.
 
-.. code-block:: python3
+.. code:: python3
 
     oracle_automl.visualize_tuning_trials()
 
@@ -436,7 +436,7 @@ For regression:
 
 This example specifies that AutoML only consider the ``LogisticRegression`` classifier because it is a good algorithm for this dataset.
 
-.. code-block:: python3
+.. code:: python3
 
     automl_model2, _ = oracle_automl.train(model_list=['LogisticRegression'])
 
@@ -561,7 +561,7 @@ The Oracle AutoML tool tries to maximize a given scoring metric, by looking at d
 
 - In this example,  AutoML will optimize on the ‘f1_macro’ scoring metric:
 
-.. code-block:: python3
+.. code:: python3
 
     automl_model3, _ = oracle_automl.train(score_metric='f1_macro')
 
@@ -580,7 +580,7 @@ The scoring function needs to the be encapsulated as a scikit-learn scorer using
 
 This example leverages the scikit-learn’s implementation of the balanced accuracy scoring function. Then a scorer function is created (``score_fn``) and passed to the ``score_metric argument`` of train.
 
-.. code-block:: python3
+.. code:: python3
 
     import numpy as np
     from sklearn.metrics import make_scorer, f1_score
@@ -712,7 +712,7 @@ If the time budget is exhausted before:
 
 Given the small size of this dataset, a small time budget of 10 seconds is specified using the ``time_budget`` argument. The time budget in this case is exhausted during algorithm selection, and the currently known best model (``LGBMClassifier``) is returned.
 
-.. code-block:: python3
+.. code:: python3
 
     automl_model5, _ = oracle_automl.train(time_budget=10)
 
@@ -837,7 +837,7 @@ It can take three possible types of values:
 * If float, 0 < min_features <= 1.0 
 * If list, names of features to keep. For example, [‘a’, ‘b’] means keep features ‘a’ and ‘b’.
 
-.. code-block:: python3
+.. code:: python3
 
     automl_model6, _ = oracle_automl.train(min_features=['fnlwgt', 'native-country'])
 
@@ -941,7 +941,7 @@ Compare Models
 
 A model trained using AutoML can easily be deployed into production because it behaves similar to any standard Machine Learning model. This example evaluates the model on unseen data stored in test. Each of the generated AutoML models is renamed making them easier to visualize. ADS uses ``ADSEvaluator`` to visualize behavior for each of the models on the test set, including the baseline.
 
-.. code-block:: python3
+.. code:: python3
 
     automl_model1.rename('AutoML_Default')
     automl_model2.rename('AutoML_ModelList')

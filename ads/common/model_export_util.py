@@ -20,6 +20,7 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
+from ads.common.decorator.deprecate import deprecated
 from ads.common.function.fn_util import (
     generate_fn_artifacts,
     get_function_config,
@@ -52,6 +53,10 @@ Progress_Steps_W_Fn = 6
 Progress_Steps_Wo_Fn = 4
 
 
+@deprecated(
+    "2.6.6",
+    details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+)
 def prepare_generic_model(
     model_path: str,
     fn_artifact_files_included: bool = False,

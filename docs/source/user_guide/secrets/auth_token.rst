@@ -3,6 +3,8 @@ Auth Token
 
 The ``AuthTokenSecretKeeper`` helps you to save the Auth Token or Access Token string to the OCI Vault service.
 
+See `API Documentation <../../ads.secrets.html#ads.secrets.auth_token.AuthTokenSecretKeeper>`__ for more details 
+
 Save Credentials
 ================
 

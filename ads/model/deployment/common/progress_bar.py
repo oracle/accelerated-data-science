@@ -7,6 +7,7 @@
 
 # Standard lib
 import time
+
 # Third party
 from abc import abstractmethod
 from tqdm import tqdm_notebook

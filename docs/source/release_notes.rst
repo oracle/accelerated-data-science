@@ -2,6 +2,23 @@
 Release Notes
 =============
 
+2.6.6
+-----
+Release date: October 7, 2022
+
+* Added ``SparkPipelineModel`` model serialization class for fast and easy model deployment.
+* Added support for flexible shapes for Jobs and Model Deployments.
+* Added support for ``freeform_tags`` and ``defined_tags`` for Model Deployments.
+* Added the ``populate_schema()`` method to the ``GenericModel`` class. Populate input and output schemas for model artifacts.
+* The ``ADSString`` was added to the Feature types system. Use the enhanced string class functionalities such as regular expression (RegEx) matching and natural language parsing within Pandas dataframes and series.
+* Saving model does not require iPython dependencies
+
+Following APIs are deprecated:
+
+* DatasetFactory.open
+* ADSModel.prepare
+* ads.common.model_export_util.prepare_generic_model
+
 2.6.5
 -----
 Release date: September 16, 2022
@@ -51,7 +68,7 @@ Release date: June 21, 2022
     * ``torch``
     * ``viz``
 
-  Use ``python3 -m pip install oracle-ads[XXX]`` where XXX are the group names.
+  Use ``python3 -m pip install "oracle-ads[XXX]"`` where XXX are the group names.
 
 2.6.1
 -----

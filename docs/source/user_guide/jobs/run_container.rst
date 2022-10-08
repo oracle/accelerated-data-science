@@ -26,7 +26,8 @@ To configure ``ContainerRuntime``, you must specify the container ``image``. Sim
             .with_compartment_id("<compartment_ocid>")
             .with_project_id("<project_ocid>")
             .with_subnet_id("<subnet_ocid>")
-            .with_shape_name("VM.Standard2.1")
+            .with_shape_name("VM.Standard.E3.Flex")
+            .with_shape_config_details(memory_in_gbs=16, ocpus=1) # Applicable only for the flexible shapes
             .with_block_storage_size(50)
         )
         .with_runtime(
@@ -62,7 +63,10 @@ You could use the following YAML to create the same job:
           compartmentId: <compartment_ocid>
           projectId: <project_ocid>
           subnetId: <subnet_ocid>
-          shapeName: VM.Standard2.1
+          shapeName: VM.Standard.E3.Flex
+          shapeConfigDetails:
+            memoryInGBs: 16
+            ocpus: 1
           blockStorageSize: 50
       runtime:
         kind: runtime

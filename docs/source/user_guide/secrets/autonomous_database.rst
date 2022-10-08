@@ -11,6 +11,8 @@ To connect to Autonomous Database you need the following:
 
 The ``ADBSecretKeeper`` class saves the ADB credentials to the OCI Vault service.
 
+See `API Documentation <../../ads.secrets.html#ads.secrets.adb.ADBSecretKeeper>`__ for more details 
+
 Save Credentials
 ================
 

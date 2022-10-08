@@ -9,8 +9,6 @@ from .model_deployer import ModelDeployer
 from .model_deployment import (
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
-    DEFAULT_CONTENT_TYPE_JSON,
-    DEFAULT_CONTENT_TYPE_BYTES,
     ModelDeployment,
 )
 from .model_deployment_properties import ModelDeploymentProperties

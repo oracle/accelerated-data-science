@@ -7,6 +7,7 @@
 import fnmatch
 import importlib
 import os
+import sys
 import shutil
 import tempfile
 import uuid
@@ -136,9 +137,9 @@ class ModelArtifact:
             raise ValueError("The `model_file_name` needs to be provided.")
 
         self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
+        sys.path.insert(0, self.artifact_dir)
         self.model_file_name = model_file_name
         self._env = Environment(loader=PackageLoader("ads", "templates"))
-
         if reload:
             self.reload()
 
@@ -307,7 +308,6 @@ class ModelArtifact:
         self.score = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.score)
         self.model = self.score.load_model()  # load model in cache
-
         # remove the cache files.
         for dir in [
             os.path.join(self.artifact_dir, "__pycache__"),

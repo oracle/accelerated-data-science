@@ -80,6 +80,7 @@ from ads.feature_engineering.feature_type.text import Text
 from ads.feature_engineering.feature_type.zip_code import ZipCode
 from ads.feature_engineering.feature_type.unknown import Unknown
 from ads.feature_engineering.feature_type.handler import warnings as w
+from ads.feature_engineering.feature_type.adsstring.string import ADSString
 
 Address.warning.register("missing_values", w.missing_values_handler)
 

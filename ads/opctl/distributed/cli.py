@@ -3,19 +3,19 @@
 
 # Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-
 import os
-import click
-import yaml
 
+import click
+
+from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
+from ads.opctl.distributed.cmds import update_ini, docker_build_cmd
 from ads.opctl.distributed.cmds import (
     initialize_workspace,
     show_config_info,
     cancel_distributed_run,
-    generate_docker_compose_yaml,
 )
+from configparser import ConfigParser
 
 
 @click.group("distributed-training")
@@ -146,37 +146,54 @@ def cancel(job_id, file, debug, **kwargs):
 
 
 @commands.command()
+@click.option("--tag", "-t", help="tag of image", required=False, default=None)
 @click.option(
-    "--file",
-    "-f",
-    help="YAML file with cluster run information",
-    default=None,
-    required=False,
+    "--registry", "-reg", help="registry to push to", required=False, default=None
 )
 @click.option(
-    "--output",
-    "-o",
-    help="Output path for Docker compose YAML file. Defaults to docker-compose.yml in same directory as the YAML file.",
-    default=None,
+    "--dockerfile",
+    "-df",
+    help="relative path to Dockerfile",
     required=False,
+    default=None,
 )
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=None)
+@click.option(
+    "--push", "-p", help="push docker image to registry", is_flag=True, default=None
+)
+@click.option(
+    "--source-folder",
+    "-s",
+    help="source scripts folder that will be mounted during a local run",
+    required=False,
+    default=None,
+)
+def build_image(tag, registry, dockerfile, source_folder, **kwargs):
+    debug = kwargs.pop("debug")
+    push = kwargs["push"]
+    ini = update_ini(
+        tag, registry, dockerfile, source_folder, config=None, nobuild=False
+    )
+    img_name = ini.get("main", "registry") + ":" + ini.get("main", "tag")
+    docker_build_cmd(ini)
+    if push:
+        print("pushing docker image")
+        suppress_traceback(debug)(publish_image_cmd)(img_name)
+
+
+@commands.command()
+@click.argument("image", default="None")
+@click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
-@click.option(
-    "--oci-config",
-    help="OCI Config file location. Defaults to ~/.oci",
-    default=None,
-    required=False,
-)
-def generate_docker_compose(file, output, **kwargs):
-    """Generates docker-compose.yml from ADS distributed training YAML specification."""
-    debug = kwargs["debug"]
-    if os.path.exists(file):
-        if output is None:
-            output = os.path.abspath(
-                os.path.join(os.path.dirname(file), "docker-compose.yml")
-            )
-        with open(file, "r", encoding="utf-8") as f:
-            config = suppress_traceback(debug)(yaml.safe_load)(f.read())
-            generate_docker_compose_yaml(config, output, **kwargs)
+def publish_image(**kwargs):
+    debug = kwargs.pop("debug")
+    if kwargs["image"] == "None":
+        config = ConfigParser()
+        if os.path.isfile("config.ini"):
+            config.read("config.ini")
+            img_name = config.get("main", "registry") + ":" + config.get("main", "tag")
+        else:
+            raise ValueError("Arg image is missing")
     else:
-        raise FileNotFoundError(f"{file} is not found")
+        img_name = kwargs["image"]
+    suppress_traceback(debug)(publish_image_cmd)(img_name)

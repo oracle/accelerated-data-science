@@ -62,6 +62,7 @@ class OptionalDependency:
     GEO = "oracle-ads[geo]"
     ONNX = "oracle-ads[onnx]"
     OPTUNA = "oracle-ads[optuna]"
+    SPARK = "oracle-ads[spark]"
 
 
 def runtime_dependency(

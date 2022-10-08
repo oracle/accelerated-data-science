@@ -35,6 +35,25 @@ def load_model(model_file_name=model_name):
     else:
         raise Exception(f'{model_file_name} is not found in model directory {model_dir}')
 
+def deserialize(data):
+    """
+    Deserialize json serialization data to data in original type when sent to predict.
+
+    Parameters
+    ----------
+    data: serialized input data.
+
+    Returns
+    -------
+    data: deserialized input data.
+
+    """
+    if isinstance(data, bytes):
+        return data
+
+    data_type = data.get('data_type', '') if isinstance(data, dict) else ''
+    json_data = data.get('data', data) if isinstance(data, dict) else data
+    return json_data
 
 def pre_inference(data):
     """
@@ -49,7 +68,7 @@ def pre_inference(data):
     data: Data format after any processing.
 
     """
-    return data
+    return deserialize(data)
 
 def post_inference(yhat):
     """

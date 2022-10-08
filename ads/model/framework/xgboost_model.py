@@ -14,13 +14,14 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
-from ads.common.utils import _serialize_input_helper
+from ads.common.data_serializer import InputDataSerializer
 from ads.model.extractor.xgboost_extractor import XgboostExtractor
-from ads.model.generic_model import GenericModel
+from ads.model.generic_model import (
+    GenericModel,
+    DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME,
+    DEFAULT_JSON_FORMAT_MODEL_FILE_NAME,
+)
 from ads.model.model_properties import ModelProperties
-
-DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME = "model.onnx"
-DEFAULT_JSON_FORMAT_MODEL_FILE_NAME = "model.json"
 
 
 class XGBoostModel(GenericModel):
@@ -462,7 +463,7 @@ class XGBoostModel(GenericModel):
             )
         return auto_generated_initial_types
 
-    def _serialize_input(
+    def get_data_serializer(
         self,
         data: Union[
             Dict,
@@ -480,13 +481,11 @@ class XGBoostModel(GenericModel):
         data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
         pd.core.frame.DataFrame]
             Data expected by the model deployment predict API.
-        data_type: Any, defaults to None.
-            Type of the data. If not provided, it will be checked against data.
 
         Returns
         -------
-        Dict
-            A dictionary containing serialized input data and original data type
+        InputDataSerializer
+            A class containing serialized input data and original data type
             information.
 
         Raises
@@ -494,12 +493,4 @@ class XGBoostModel(GenericModel):
         TypeError
             if provided data type is not supported.
         """
-        try:
-            return _serialize_input_helper(data)
-        except:
-            raise TypeError(
-                "The supported data types are dict, str, list, tuple, bytes, "
-                "numpy.ndarray, pd.core.series.Series, "
-                "pd.core.frame.DataFrame. Please "
-                "convert to the supported data types first. "
-            )
+        return InputDataSerializer(data)

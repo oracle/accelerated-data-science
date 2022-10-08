@@ -24,10 +24,12 @@ Examples
 ...                 .with_prop("project_id", project_id)
 ...                 .with_prop("compartment_id", compartment_id)
 ...                 .with_instance_configuration(
-...                     config={"INSTANCE_SHAPE":"VM.Standard2.1",
+...                     config={"INSTANCE_SHAPE":"VM.Standard.E3.Flex",
 ...                             "INSTANCE_COUNT":"1",
-...                             'bandwidth_mbps':10})
-...                      .build()
+...                             "bandwidth_mbps":10,
+...                             "memory_in_gbs":10,
+...                             "ocpus":2}
+...                  ).build()
 >>> deployment_info = deployer.deploy(deployment_properties,
 ...             max_wait_time=600, poll_interval=15)
 >>> print(deployment_info.model_deployment_id)
@@ -74,7 +76,6 @@ class ModelDeployer:
         science client
     show_deployments(status)
         shows the deployments filtered by `status` in a Dataframe
-
     """
 
     def __init__(self, config: dict = None):
@@ -125,7 +126,6 @@ class ModelDeployer:
         -------
         ModelDeployment
             A ModelDeployment instance.
-
         """
         model_deployment = ModelDeployment(
             properties,

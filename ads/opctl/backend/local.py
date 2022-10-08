@@ -12,6 +12,7 @@ from typing import List, Dict
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend
 from ads.opctl.config.resolver import ConfigResolver
+from ads.opctl.distributed.cmds import local_run, load_ini
 from ads.opctl.constants import (
     ML_JOB_IMAGE,
     ML_JOB_GPU_IMAGE,
@@ -389,3 +390,21 @@ source {os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug, 'bin/activate')}
             # Bad Request ("OCI runtime create failed: container_linux.go:380:
             # starting container process caused: exec: "source": executable file not found in $PATH: unknown")
             # command=["source", f"/home/datascience/conda/{slug}/bin/activate", "&&", command]
+
+
+class LocalBackendDistributed(LocalBackend):
+    def __init__(self, config: Dict) -> None:
+        """
+        Initialize a LocalBackendDistributed object with given config. This serves local single node(docker) testing
+        for Distributed Tranining
+
+
+        Parameters
+        ----------
+        config: dict
+            dictionary of configurations
+        """
+        self.config = config
+
+    def run(self):
+        local_run(self.config, load_ini())

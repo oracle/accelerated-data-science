@@ -195,6 +195,7 @@ class Framework(str, metaclass=ExtendedEnumMeta):
     FLAIR = "flair"
     WORD2VEC = "word2vec"
     ENSEMBLE = "ensemble"
+    SPARK = "spark"
     OTHER = "other"
 
 

@@ -191,6 +191,16 @@ class MetadataMixin:
         )
         self.metadata_custom._add_many(model_metadata_items, replace=True)
 
+    def _prepare_data_for_schema(
+        self,
+        X_sample: Union[List, Tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+        y_sample: Union[List, Tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+    ):
+        """
+        Any Framework-specific work before generic schema generation.
+        """
+        return X_sample, y_sample
+
     def _populate_provenance_metadata(
         self,
         training_script_path: str = "",
@@ -277,7 +287,7 @@ class MetadataMixin:
             and self.metadata_taxonomy[MetadataTaxonomyKeys.ALGORITHM].value is None
         ):
             logger.info(
-                "To auto-extract taxonomy metadata the model must be provided. Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost."
+                "To auto-extract taxonomy metadata the model must be provided. Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, pyspark, and xgboost."
             )
         if use_case_type is None:
             use_case_type = self.metadata_taxonomy[
@@ -287,7 +297,7 @@ class MetadataMixin:
             model=self.estimator, use_case_type=use_case_type
         )
         self._populate_metadata_custom()
-        self._populate_input_output_schema(
+        self.populate_schema(
             data_sample=data_sample,
             X_sample=X_sample,
             y_sample=y_sample,
@@ -306,7 +316,7 @@ class MetadataMixin:
             status="Done",
         )
 
-    def _populate_input_output_schema(
+    def populate_schema(
         self,
         data_sample: ADSData = None,
         X_sample: Union[List, Tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
@@ -334,6 +344,8 @@ class MetadataMixin:
             Pass in to `X_sample` and `y_sample` for other data types."
             X_sample = data_sample.X
             y_sample = data_sample.y
+
+        X_sample, y_sample = self._prepare_data_for_schema(X_sample, y_sample)
         self.schema_input = self._populate_schema(
             X_sample,
             schema_file_name=INPUT_SCHEMA_FILE_NAME,

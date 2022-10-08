@@ -10,6 +10,9 @@ To connect to a MySQL Database, you need the following:
 
 The ``MySQLDBSecretKeeper`` class saves the MySQL database credentials to the OCI Vault service.
 
+See `API Documentation <../../ads.secrets.html#ads.secrets.mysqldb.MySQLDBSecretKeeper>`__ for more details 
+
+
 Save Credentials
 ==================
 

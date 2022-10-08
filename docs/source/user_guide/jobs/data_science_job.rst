@@ -19,7 +19,8 @@ The Data Science job infrastructure is defined by a ``DataScienceJob`` instance.
         .with_compartment_id("<compartment_ocid>")
         .with_project_id("<project_ocid>")
         .with_subnet_id("<subnet_ocid>")
-        .with_shape_name("VM.Standard2.1")
+        .with_shape_name("VM.Standard.E3.Flex")
+        .with_shape_config_details(memory_in_gbs=16, ocpus=1) # Applicable only for the flexible shapes
         .with_block_storage_size(50)
         .with_log_group_id("<log_group_ocid>")
         .with_log_id("<log_ocid>")
@@ -52,20 +53,23 @@ In some cases, you may want to override the shape and block storage size.  For e
 
 Data Science jobs support the following shapes:
 
-================  ==========  ===========
-Shape Name        Core Count  Memory (GB)
-================  ==========  ===========
-VM.Standard2.1    1           15
-VM.Standard2.2    2           30
-VM.Standard2.4    4           60
-VM.Standard2.8    8           120
-VM.Standard2.16   16          240
-VM.Standard2.24   24          320
-VM.GPU2.1         12          72
-VM.GPU3.1         6           90
-VM.GPU3.2         12          180
-VM.GPU3.4         24          360
-================  ==========  ===========
+====================  ==========  ===========
+Shape Name            Core Count  Memory (GB)
+====================  ==========  ===========
+VM.Optimized3.Flex    18          256
+VM.Standard3.Flex     32          512
+VM.Standard.E4.Flex   16          1024
+VM.Standard2.1        1           15
+VM.Standard2.2        2           30
+VM.Standard2.4        4           60
+VM.Standard2.8        8           120
+VM.Standard2.16       16          240
+VM.Standard2.24       24          320
+VM.GPU2.1             12          72
+VM.GPU3.1             6           90
+VM.GPU3.2             12          180
+VM.GPU3.4             24          360
+====================  ==========  ===========
 
 You can get a list of currently supported shapes by calling ``DataScienceJob.instance_shapes()``.
 
@@ -235,7 +239,10 @@ Here is an example of a YAML file representing the job defined in the preceding 
           compartmentId: <compartment_ocid>
           projectId: <project_ocid>
           subnetId: <subnet_ocid>
-          shapeName: VM.Standard2.1
+          shapeName: VM.Standard.E3.Flex
+          shapeConfigDetails:
+            memoryInGBs: 16
+            ocpus: 1
           blockStorageSize: 50
       runtime:
         kind: runtime
@@ -316,4 +323,7 @@ Here is an example of a YAML file representing the job defined in the preceding 
         subnetId:
           required: false
           type: "string"
+        shapeConfigDetails:
+          required: false
+          type: "dict"
 

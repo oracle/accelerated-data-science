@@ -40,8 +40,7 @@ from ads.common.model_metadata import MetadataTaxonomyKeys
 
 
 class IntrospectionNotPassed(ValueError):
-    def __init__(self):
-        super().__init__(f"Introspection not passed.")
+    pass
 
 
 class TEST_STATUS(str):

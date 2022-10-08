@@ -16,7 +16,7 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
 )
 from ads.model.extractor.tensorflow_extractor import TensorflowExtractor
-from ads.common.utils import _serialize_input_helper
+from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import GenericModel
 from ads.model.model_properties import ModelProperties
 
@@ -403,7 +403,7 @@ class TensorFlowModel(GenericModel):
         short_name="tf",
         install_from=OptionalDependency.TENSORFLOW,
     )
-    def _serialize_input(
+    def get_data_serializer(
         self,
         data: Union[
             Dict,
@@ -422,27 +422,22 @@ class TensorFlowModel(GenericModel):
         data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
         pd.core.frame.DataFrame, tf.Tensor]
             Data expected by the model deployment predict API.
-        data_type: Any, defaults to None.
-            Type of the data. If not provided, it will be checked against data.
 
         Returns
         -------
-        Dict
-            A dictionary containing serialized input data and original data type
-            information.
+        InputDataSerializer
+            A class containing serialized input data and original data type information.
 
         Raises
         ------
         TypeError
             if provided data type is not supported.
         """
-        # the reason why we dont include tf.tensor in the _serialize_input_helper
-        # is because other modules might not need tensorflow library.
         try:
             data_type = type(data)
             if isinstance(data, tf.Tensor):
                 data = data.numpy()
-            return _serialize_input_helper(data, data_type=data_type)
+            return InputDataSerializer(data, data_type=data_type)
         except:
             raise TypeError(
                 "The supported data types are Dict, str, list, "

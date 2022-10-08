@@ -1098,66 +1098,6 @@ def is_data_too_wide(
     return col_num > max_col_num
 
 
-def _serialize_input_helper(
-    data: Union[
-        Dict,
-        str,
-        List,
-        np.ndarray,
-        pd.core.series.Series,
-        pd.core.frame.DataFrame,
-    ],
-    data_type=None,
-):
-    """Returns serializable input data.
-
-    Parameters
-    ----------
-    data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
-    pd.core.frame.DataFrame]
-        Data expected by the model deployment predict API.
-    data_type: Any, defaults to None.
-        Type of the data. If not provided, it will be checked against data.
-
-    Returns
-    -------
-    Dict
-        A dictionary containing serialized input data and original data type
-        information.
-
-    Raises
-    ------
-    TypeError
-        if provided data type is not supported.
-    """
-    if not data_type:
-        data_type = type(data)
-    if isinstance(data, np.ndarray):
-        np_bytes = BytesIO()
-        np.save(np_bytes, data, allow_pickle=True)
-        data = base64.b64encode(np_bytes.getvalue()).decode("utf-8")
-    elif isinstance(data, pd.core.series.Series):
-        data = data.tolist()
-    elif isinstance(data, pd.core.frame.DataFrame):
-        data = data.to_json()
-    elif (
-        isinstance(data, dict)
-        or isinstance(data, str)
-        or isinstance(data, list)
-        or isinstance(data, tuple)
-        or isinstance(data, bytes)
-    ):
-        pass
-    else:
-        raise TypeError("The provided data type is not json serializable. ")
-
-    data_dict = {
-        "data": data,
-        "data_type": str(data_type),
-    }
-    return data_dict
-
-
 def get_files(directory: str):
     """List out all the file names under this directory.
 

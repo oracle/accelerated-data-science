@@ -17,6 +17,9 @@ To connect to Oracle Big Data Service (BDS) you need the following:
 
 The ``BDSSecretKeeper`` class saves the BDS credentials to the OCI Vault service.
 
+See `API Documentation <../../ads.secrets.html#ads.secrets.big_data_service.BDSSecretKeeper>`__ for more details 
+
+
 Save Credentials
 ================
 

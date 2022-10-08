@@ -18,7 +18,7 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
-from ads.common.utils import _serialize_input_helper
+from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import GenericModel
 from ads.model.model_properties import ModelProperties
 
@@ -360,7 +360,7 @@ class PyTorchModel(GenericModel):
         )
 
     @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
-    def _serialize_input(
+    def get_data_serializer(
         self,
         data: Union[
             Dict,
@@ -379,13 +379,11 @@ class PyTorchModel(GenericModel):
         data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
         pd.core.frame.DataFrame, torch.Tensor]
             Data expected by the model deployment predict API.
-        data_type: Any, defaults to None.
-            Type of the data. If not provided, it will be checked against data.
 
         Returns
         -------
-        Dict
-            A dictionary containing serialized input data and original data type
+        InputDataSerializer
+            A class containing serialized input data and original data type
             information.
 
         Raises
@@ -393,18 +391,13 @@ class PyTorchModel(GenericModel):
         TypeError
             if provided data type is not supported.
         """
-        # the reason to leave the torch tensor here is because other modules
-        # might not require torch library.
+        data_type = type(data)
+        if isinstance(data, torch.Tensor):
+            buffer = BytesIO()
+            torch.save(data, buffer)
+            data = base64.b64encode(buffer.getvalue()).decode("utf-8")
         try:
-            data_type = type(data)
-            if isinstance(data, torch.Tensor):
-                buffer = BytesIO()
-                torch.save(data, buffer)
-                return {
-                    "data": base64.b64encode(buffer.getvalue()).decode("utf-8"),
-                    "data_type": str(data_type),
-                }
-            return _serialize_input_helper(data, data_type=data_type)
+            return InputDataSerializer(data, data_type=data_type)
         except:
             raise TypeError(
                 "The supported data types are Dict, str, list, "

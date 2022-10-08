@@ -35,7 +35,8 @@ Next, you specify the desired infrastructure to run the job. If you are in a not
     .with_compartment_id("<compartment_ocid>")
     .with_project_id("<project_ocid>")
     .with_subnet_id("<subnet_ocid>")
-    .with_shape_name("VM.Standard2.1")
+    .with_shape_name("VM.Standard.E3.Flex")
+    .with_shape_config_details(memory_in_gbs=16, ocpus=1) # Applicable only for the flexible shapes
     .with_block_storage_size(50)
   )
 
@@ -54,7 +55,7 @@ Finally, you create and run the job, which gives you access to the
 .. code-block:: python3
 
     job.create()
-    job_run = job.run() 
+    job_run = job.run()
 
 Additionally, you can acquire the job run using the OCID:
 
@@ -67,7 +68,7 @@ The ``.watch()`` method is useful to monitor the progress of the job run:
 
 .. code-block:: python3
 
-    job_run.watch() 
+    job_run.watch()
 
 After the job has been created and runs successfully, you can find
 the output of the script in the logs if you configured logging.
@@ -91,7 +92,10 @@ You could also initialize a job directly from a YAML string.  For example, to cr
         compartmentId: <compartment_ocid>
         projectId: <project_ocid>
         subnetId: <subnet_ocid>
-        shapeName: VM.Standard2.1
+        shapeName: VM.Standard.E3.Flex
+        shapeConfigDetails:
+          memoryInGBs: 16
+          ocpus: 1
         blockStorageSize: 50
     name: <resource_name>
     runtime:
@@ -105,7 +109,7 @@ You could also initialize a job directly from a YAML string.  For example, to cr
 Command Line Arguments
 ======================
 
-If the Python script that you want to run as a job requires CLI arguments, 
+If the Python script that you want to run as a job requires CLI arguments,
 use the ``.with_argument()`` method to pass the arguments to the job.
 
 Python
@@ -128,14 +132,14 @@ This example runs a job with CLI arguments:
     .with_log_id("<log_id>")
     .with_log_group_id("<log_group_id>")
   )
-    
+
   # The CLI argument can be passed in using `with_argument` when defining the runtime
   job.with_runtime(
     ScriptRuntime()
       .with_source("job_script_argument.py")
       .with_argument("<first_argument>", "<second_argument>")
     )
-    
+
   job.create()
   job_run = job.run()
 
@@ -166,7 +170,10 @@ You could create the preceding example job with the following YAML file:
         compartmentId: <compartment_ocid>
         projectId: <project_ocid>
         subnetId: <subnet_ocid>
-        shapeName: VM.Standard2.1
+        shapeName: VM.Standard.E3.Flex
+        shapeConfigDetails:
+          memoryInGBs: 16
+          ocpus: 1
         blockStorageSize: 50
 	  runtime:
 	    kind: runtime
@@ -197,7 +204,7 @@ Suppose you want to run the following python script named ``job_script_env.py``:
 This example runs a job with environment variables:
 
 .. code-block:: python3
-    
+
   job = Job()
   job.with_infrastructure(
     DataScienceJob()
@@ -209,7 +216,8 @@ This example runs a job with environment variables:
     .with_compartment_id("<compartment_ocid>")
     .with_project_id("<project_ocid>")
     .with_subnet_id("<subnet_ocid>")
-    .with_shape_name("VM.Standard2.1")
+    .with_shape_name("VM.Standard.E3.Flex")
+    .with_shape_config_details(memory_in_gbs=16, ocpus=1)
     .with_block_storage_size(50)
   )
 
@@ -247,7 +255,10 @@ You could create the preceding example job with the following YAML file:
         compartmentId: <compartment_ocid>
         projectId: <project_ocid>
         subnetId: <subnet_ocid>
-        shapeName: VM.Standard2.1
+        shapeName: VM.Standard.E3.Flex
+        shapeConfigDetails:
+          memoryInGBs: 16
+          ocpus: 1
         blockStorageSize: 50
 	  runtime:
 	    kind: runtime

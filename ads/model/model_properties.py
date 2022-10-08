@@ -6,6 +6,7 @@
 
 from dataclasses import dataclass
 from os import environ
+from typing import Union
 
 from ads.common.base_properties import BaseProperties
 
@@ -32,6 +33,8 @@ class ModelProperties(BaseProperties):
     deployment_log_group_id: str = None
     deployment_access_log_id: str = None
     deployment_predict_log_id: str = None
+    deployment_memory_in_gbs: Union[float, int] = None
+    deployment_ocpus: Union[float, int] = None
 
     def _adjust_with_env(self) -> None:
         """Adjusts env variables. This method is used within `with_env` method."""

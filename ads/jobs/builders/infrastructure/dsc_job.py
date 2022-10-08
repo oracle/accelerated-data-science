@@ -11,25 +11,26 @@ import os
 import time
 import uuid
 from io import DEFAULT_BUFFER_SIZE
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import fsspec
 import oci.data_science
+import oci.util as oci_util
 import yaml
-from oci.data_science.models import JobInfrastructureConfigurationDetails
-from oci.exceptions import ServiceError
 from ads.common import utils
 from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
-from ads.jobs.builders.runtimes.artifact import Artifact
-from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
-from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
-from ads.jobs.builders.infrastructure.utils import get_value
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     DataScienceJobRuntimeManager,
 )
+from ads.jobs.builders.infrastructure.utils import get_value
+from ads.jobs.builders.runtimes.artifact import Artifact
+from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
+from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
+from oci.data_science.models import JobInfrastructureConfigurationDetails
+from oci.exceptions import ServiceError
 
 logger = logging.getLogger(__name__)
 
@@ -71,13 +72,16 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             },
             "jobInfrastructureConfigurationDetails": {
                 "jobInfrastructureType": "STANDALONE",
-                "shapeName": "VM.Standard2.1",
+                "shapeName": "VM.Standard.E3.Flex",
+                "jobShapeConfigDetails": {
+                    "memoryInGBs": 16,
+                    "ocpus": 1
+                },
                 "blockStorageSizeInGBs": "100",
                 "subnetId": "<subnet_ocid>"
             }
         }
         job = DSCJob(**job_payload)
-
     """
 
     DEFAULT_INFRA_TYPE = (
@@ -131,12 +135,15 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
 
     @artifact.setter
     def artifact(self, artifact: Union[str, Artifact]):
-        """Sets the job artifact"""
+        """Sets the job artifact."""
         self._artifact = artifact
 
     def _load_infra_from_notebook(self, nb_config):
         """Loads the infrastructure configuration from notebook configuration."""
         infra = self.job_infrastructure_configuration_details
+        nb_shape_config_details = oci_util.to_dict(
+            getattr(nb_config, "notebook_session_shape_config_details", None) or {}
+        )
         if isinstance(infra, dict):
             infra_type = infra.get("jobInfrastructureType", self.DEFAULT_INFRA_TYPE)
             shape_name = infra.get("shapeName", nb_config.shape)
@@ -144,6 +151,13 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 "blockStorageSizeInGBs", nb_config.block_storage_size_in_gbs
             )
             subnet_id = infra.get("subnetId", nb_config.subnet_id)
+            job_shape_config_details = infra.get("jobShapeConfigDetails", {})
+            memory_in_gbs = job_shape_config_details.get(
+                "memoryInGBs", nb_shape_config_details.get("memory_in_gbs")
+            )
+            ocpus = job_shape_config_details.get(
+                "ocpus", nb_shape_config_details.get("ocpus")
+            )
         else:
             infra_type = (
                 infra.job_infrastructure_type
@@ -165,6 +179,15 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 if getattr(infra, "subnet_id", None)
                 else nb_config.subnet_id
             )
+            job_shape_config_details = oci_util.to_dict(
+                getattr(infra, "job_shape_config_details", {}) or {}
+            )
+            memory_in_gbs = job_shape_config_details.get(
+                "memory_in_gbs", nb_shape_config_details.get("memory_in_gbs")
+            )
+            ocpus = job_shape_config_details.get(
+                "ocpus", nb_shape_config_details.get("ocpus")
+            )
 
         self.job_infrastructure_configuration_details = {
             "jobInfrastructureType": infra_type,
@@ -179,6 +202,17 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 {
                     "subnetId": subnet_id,
                     "jobInfrastructureType": JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_STANDALONE,
+                }
+            )
+
+        # Specify shape config details
+        if memory_in_gbs or ocpus:
+            self.job_infrastructure_configuration_details.update(
+                {
+                    "jobShapeConfigDetails": {
+                        "memoryInGBs": memory_in_gbs,
+                        "ocpus": ocpus,
+                    }
                 }
             )
 
@@ -566,7 +600,20 @@ class DataScienceJobRun(
         def stop_condition():
             """Stops the log streaming once the job is in a terminal state."""
             self.sync()
-            return self.lifecycle_state in self.TERMINAL_STATES
+            if self.lifecycle_state not in self.TERMINAL_STATES:
+                return False
+            # Stop if time_finished is not available.
+            if not self.time_finished:
+                return True
+            # Stop only if time_finished is over 1 minute ago.
+            # This is for the time delay between job run stopped and the logs appear in oci logging.
+            if (
+                datetime.datetime.now(self.time_finished.tzinfo)
+                - datetime.timedelta(minutes=1)
+                > self.time_finished
+            ):
+                return True
+            return False
 
         if not self.log_id and not self.log_group_id:
             print(
@@ -675,6 +722,9 @@ class DataScienceJob(Infrastructure):
     CONST_SHAPE_NAME = "shapeName"
     CONST_BLOCK_STORAGE = "blockStorageSize"
     CONST_SUBNET_ID = "subnetId"
+    CONST_SHAPE_CONFIG_DETAILS = "shapeConfigDetails"
+    CONST_MEMORY_IN_GBS = "memoryInGBs"
+    CONST_OCPUS = "ocpus"
     CONST_LOG_ID = "logId"
     CONST_LOG_GROUP_ID = "logGroupId"
 
@@ -687,8 +737,14 @@ class DataScienceJob(Infrastructure):
         CONST_SHAPE_NAME: "shape_name",
         CONST_BLOCK_STORAGE: "block_storage_size",
         CONST_SUBNET_ID: "subnet_id",
+        CONST_SHAPE_CONFIG_DETAILS: "shape_config_details",
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
+    }
+
+    shape_config_details_attribute_map = {
+        CONST_MEMORY_IN_GBS: "memory_in_gbs",
+        CONST_OCPUS: "ocpus",
     }
 
     payload_attribute_map = {
@@ -700,6 +756,7 @@ class DataScienceJob(Infrastructure):
         CONST_SHAPE_NAME: "job_infrastructure_configuration_details.shape_name",
         CONST_BLOCK_STORAGE: "job_infrastructure_configuration_details.block_storage_size_in_gbs",
         CONST_SUBNET_ID: "job_infrastructure_configuration_details.subnet_id",
+        CONST_SHAPE_CONFIG_DETAILS: "job_infrastructure_configuration_details.job_shape_config_details",
         CONST_LOG_ID: "job_log_configuration_details.log_id",
         CONST_LOG_GROUP_ID: "job_log_configuration_details.log_group_id",
     }
@@ -712,12 +769,22 @@ class DataScienceJob(Infrastructure):
     def standardize_spec(spec):
         if not spec:
             return {}
+
+        attribute_map = {
+            **DataScienceJob.attribute_map,
+            **DataScienceJob.shape_config_details_attribute_map,
+        }
+        snake_to_camel_map = {v: k for k, v in attribute_map.items()}
+
         for key in list(spec.keys()):
-            if (
-                key not in DataScienceJob.payload_attribute_map
-                and key in DataScienceJob.snake_to_camel_map
-            ):
-                spec[DataScienceJob.snake_to_camel_map[key]] = spec.pop(key)
+            if key not in attribute_map and key in snake_to_camel_map:
+                value = spec.pop(key)
+                if isinstance(value, dict):
+                    spec[snake_to_camel_map[key]] = DataScienceJob.standardize_spec(
+                        value
+                    )
+                else:
+                    spec[snake_to_camel_map[key]] = value
         return spec
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -929,6 +996,41 @@ class DataScienceJob(Infrastructure):
         """Subnet ID"""
         return self.get_spec(self.CONST_SUBNET_ID)
 
+    def with_shape_config_details(
+        self, memory_in_gbs: float, ocpus: float, **kwargs: Dict[str, Any]
+    ) -> DataScienceJob:
+        """Sets the details for the job run shape configuration.
+        Specify only when a flex shape is selected.
+        For example `VM.Standard.E3.Flex` allows the memory_in_gbs and cpu count to be specified.
+
+        Parameters
+        ----------
+        memory_in_gbs: float
+            The size of the memory in GBs.
+        ocpus: float
+            The OCPUs count.
+        kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        return self.set_spec(
+            self.CONST_SHAPE_CONFIG_DETAILS,
+            {
+                self.CONST_OCPUS: ocpus,
+                self.CONST_MEMORY_IN_GBS: memory_in_gbs,
+                **kwargs,
+            },
+        )
+
+    @property
+    def shape_config_details(self) -> Dict:
+        """The details for the job run shape configuration."""
+        return self.get_spec(self.CONST_SHAPE_CONFIG_DETAILS)
+
     def with_log_id(self, log_id: str) -> DataScienceJob:
         """Sets the log OCID for the data science job.
         If log ID is specified, setting the log group ID (with_log_group_id()) is not strictly needed.
@@ -1034,13 +1136,23 @@ class DataScienceJob(Infrastructure):
         -------
         DataScienceJob
             The DataScienceJob instance (self)
-
         """
+        sub_level = {
+            self.CONST_SHAPE_CONFIG_DETAILS: self.shape_config_details_attribute_map
+        }
         self.dsc_job = dsc_job
+
         for infra_attr, dsc_attr in self.payload_attribute_map.items():
             value = get_value(dsc_job, dsc_attr)
             if value:
-                self._spec[infra_attr] = get_value(dsc_job, dsc_attr)
+                if infra_attr not in sub_level:
+                    self._spec[infra_attr] = value
+                else:
+                    self._spec[infra_attr] = {}
+                    for sub_infra_attr, sub_dsc_attr in sub_level[infra_attr].items():
+                        sub_value = get_value(value, sub_dsc_attr)
+                        if sub_value:
+                            self._spec[infra_attr][sub_infra_attr] = sub_value
         return self
 
     def _update_job_infra(self, dsc_job: DSCJob) -> DataScienceJob:
@@ -1062,17 +1174,20 @@ class DataScienceJob(Infrastructure):
             self.CONST_SHAPE_NAME: "shapeName",
             self.CONST_SUBNET_ID: "subnetId",
             self.CONST_BLOCK_STORAGE: "blockStorageSizeInGBs",
+            self.CONST_SHAPE_CONFIG_DETAILS: "jobShapeConfigDetails",
         }
+
+        if not dsc_job.job_infrastructure_configuration_details:
+            dsc_job.job_infrastructure_configuration_details = {
+                self.CONST_JOB_INFRA: DSCJob.DEFAULT_INFRA_TYPE,
+                self.CONST_BLOCK_STORAGE: 50,
+            }
+
         for snake_attr, camel_attr in attr_map.items():
-            if self.get_spec(snake_attr):
-                if not dsc_job.job_infrastructure_configuration_details:
-                    dsc_job.job_infrastructure_configuration_details = {
-                        self.CONST_JOB_INFRA: DSCJob.DEFAULT_INFRA_TYPE,
-                        self.CONST_BLOCK_STORAGE: 50,
-                    }
-                dsc_job.job_infrastructure_configuration_details[
-                    camel_attr
-                ] = self.get_spec(snake_attr)
+            value = self.get_spec(snake_attr)
+            if value:
+                dsc_job.job_infrastructure_configuration_details[camel_attr] = value
+
         if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
             dsc_job.job_infrastructure_configuration_details[
                 "jobInfrastructureType"
@@ -1104,6 +1219,9 @@ class DataScienceJob(Infrastructure):
             runtime, ContainerRuntime
         ):
             payload["display_name"] = self.name or utils.get_random_name_for_resource()
+        else:
+            payload["display_name"] = self.name
+
         payload["job_log_configuration_details"] = self._prepare_log_config()
 
         self.dsc_job = DSCJob(**payload)

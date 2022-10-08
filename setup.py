@@ -71,6 +71,7 @@ extras_require = {
     ],
     "mysql": ["mysql-connector-python"],
     "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
+    "spark": ["pyspark>=3.0.0"],
 }
 
 this_directory = Path(__file__).parent
@@ -190,5 +191,6 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html",
     },
-    cmdclass={"develop": DevelopCommand, "install": InstallCommand},
+    scripts=["ads/ads"]
+    # cmdclass={"develop": DevelopCommand, "install": InstallCommand},
 )

@@ -23,6 +23,8 @@ def normalize_hyperparameter(data: Dict) -> dict:
     Dict
         Normalized (json serializable) dictionary.
     """
+    if not data:
+        return None
     new_dict = {}
     for key, value in data.items():
         if isinstance(value, dict):

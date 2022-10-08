@@ -676,7 +676,6 @@ class ModelArtifact(Introspectable):
 
             return load(output_bstream)
 
-    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def save(
         self,
         display_name: str = None,
@@ -850,18 +849,12 @@ class ModelArtifact(Introspectable):
             self._introspect()
             if self._introspect.status == TEST_STATUS.NOT_PASSED:
                 msg = (
-                    "Model introspection failed. The model was not saved. "
-                    "See the following table for details. "
-                    "To save model artifacts ignoring "
-                    "introspection use .save(ignore_introspection=True)."
+                    "Model introspection not passed. "
+                    "Use `.introspect()` method to get detailed information and follow the "
+                    "messages to fix it. To save model artifacts ignoring introspection "
+                    "use `.save(ignore_introspection=True...)`."
                 )
-                logger.error(msg)
-
-                from IPython.core.display import display
-
-                display(self._introspect.to_dataframe())
-                raise (IntrospectionNotPassed())
-
+                raise IntrospectionNotPassed(msg)
         try:
             from ads.catalog.model import ModelCatalog
 
@@ -1488,6 +1481,16 @@ class ModelArtifact(Introspectable):
             replace=True,
         )
 
+    def _prepare_data_for_schema(
+        self,
+        X_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+        y_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+    ):
+        """
+        Any Framework-specific work before generic schema generation.
+        """
+        return X_sample, y_sample
+
     def populate_schema(
         self,
         data_sample: ADSData = None,
@@ -1517,6 +1520,7 @@ class ModelArtifact(Introspectable):
             Pass in to `X_sample` and `y_sample` for other data types."
             X_sample = data_sample.X
             y_sample = data_sample.y
+        X_sample, y_sample = self._prepare_data_for_schema(X_sample, y_sample)
         self.schema_input = self._populate_schema(
             X_sample,
             schema_file_name=INPUT_SCHEMA_FILE_NAME,

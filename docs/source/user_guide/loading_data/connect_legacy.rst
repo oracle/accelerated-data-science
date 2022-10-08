@@ -1,5 +1,18 @@
-Connect with ``DatasetFactory``
+Connect with ``DatasetFactory`` 
 *******************************
+
+
+.. admonition:: Deprecation Note |deprecated|
+
+    * ``DataSetFactory.open`` is deprecated in favor of Pandas to read from file systems. 
+    * Pandas(>1.2.1) can connect to object storage using uri format - ``oci://bucket@namepace/path/to/data``.
+    * To read from Oracle database or MySQL, see DataBase sections under :doc:`Connecting to Datasources<connect>`
+    * ``DataSetFactory.from_dataframe`` is supported to create ``ADSDataset`` class from ``pandas`` dataframe
+
+    See :doc:`Connecting to Datasources<connect>` for examples.
+
+.. |deprecated| image:: /_static/badge_deprecated.svg
+
 
 You can load data into ADS in several different ways from Oracle Cloud Infrastructure Object Storage, cx_Oracle, or S3.  Following are some examples.
 
