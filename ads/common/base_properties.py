@@ -7,7 +7,7 @@
 import dataclasses
 import json
 import os
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 from ads.common.config import Config, ConfigSection
 from ads.common.serializer import Serializable
@@ -42,11 +42,21 @@ class BaseProperties(Serializable):
         if value is None:
             self.__dict__[name] = value
         elif name in self.__annotations__:
-            if self.__annotations__[name] != type(value):
+            if hasattr(self.__annotations__[name], "__origin__"):
+                if self.__annotations__[name].__origin__ is Union and not isinstance(
+                    value, self.__annotations__[name].__args__
+                ):
+                    raise TypeError(
+                        f"Field `{name}` was expected to be of type `{self.__annotations__[name].__args__}` "
+                        f"but type `{type(value)}` was provided."
+                    )
+
+            elif self.__annotations__[name] != type(value):
                 raise TypeError(
-                    f"Field `{name}` was expected to be of type `{self.__annotations__[name].__name__}` "
-                    f"but type `{type(value).__name__}` was provided."
+                    f"Field `{name}` was expected to be of type `{self.__annotations__[name]}` "
+                    f"but type `{type(value)}` was provided."
                 )
+
             self.__dict__[name] = value
 
     def with_prop(self, name: str, value: Any) -> "BaseProperties":

@@ -1,8 +1,4 @@
-###############
-Text Extraction
-###############
-
-The Accelerated Data Science (ADS) SDK provides a text extraction module. This module allows you to convert files such as PDF, and Microsoft Word files into plain text. The data is stored in Pandas dataframes and therefore it can easily be manipulated and saved. The text extraction module allows you to read files of various file formats, and convert them into different formats that can be used for text manipulation. The most common ``DataLoader`` commands are demonstrated, and some advanced features, such as defining custom backend and file processor.
+Convert files such as PDF, and Microsoft Word files into plain text. The data is stored in Pandas dataframes and therefore it can easily be manipulated and saved. The text extraction module allows you to read files of various file formats, and convert them into different formats that can be used for text manipulation. The most common ``DataLoader`` commands are demonstrated, and some advanced features, such as defining custom backend and file processor.
 
 .. code-block:: python3
 

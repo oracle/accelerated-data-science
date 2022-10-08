@@ -5,3 +5,4 @@ sphinx
 sphinxcontrib-napoleon
 sphinx-rtd-theme
 pandoc
+sphinx-copybutton

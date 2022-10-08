@@ -3,12 +3,10 @@
 
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from copy import deepcopy
 from typing import List, Union
 from urllib.parse import urlparse
 
 import fsspec
-from ads.common import utils
 from ads.common.auth import default_signer
 from ads.jobs.builders.base import Builder
 from ads.jobs.builders.infrastructure.dataflow import DataFlow, DataFlowRun
@@ -42,7 +40,8 @@ class Job(Builder):
                 .with_compartment_id("<compartment_ocid>")
                 .with_project_id("<project_ocid>")
                 .with_subnet_id("<subnet_ocid>")
-                .with_shape_name("VM.Standard2.1")
+                .with_shape_name("VM.Standard.E3.Flex")
+                .with_shape_config_details(memory_in_gbs=16, ocpus=1)
                 .with_block_storage_size(50)
                 .with_log_group_id("<log_group_ocid>")
                 .with_log_id("<log_ocid>")

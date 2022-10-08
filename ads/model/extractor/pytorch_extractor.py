@@ -12,7 +12,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 
 
-class PytorchExtractor(ModelInfoExtractor):
+class PyTorchExtractor(ModelInfoExtractor):
     """Class that extract model metadata from pytorch models.
 
     Attributes
@@ -81,3 +81,7 @@ class PytorchExtractor(ModelInfoExtractor):
            The hyperparameters of the model.
         """
         return None
+
+
+class PytorchExtractor(PyTorchExtractor):
+    pass

@@ -1,7 +1,7 @@
 Run a Git Repo
 **************
-       
-The ADS ``GitPythonRuntime`` class allows you to run source code from a Git repository as a Data Science job. The next example shows how to run a 
+
+The ADS ``GitPythonRuntime`` class allows you to run source code from a Git repository as a Data Science job. The next example shows how to run a
 `PyTorch Neural Network Example to train third order polynomial predicting y=sin(x) <https://github.com/pytorch/tutorials/blob/master/beginner_source/examples_nn/polynomial_nn.py>`__.
 
 Python
@@ -25,7 +25,8 @@ To configure the ``GitPythonRuntime``, you must specify the source code ``url`` 
       .with_compartment_id("<compartment_ocid>")
       .with_project_id("<project_ocid>")
       .with_subnet_id("<subnet_ocid>")
-      .with_shape_name("VM.Standard2.1")
+      .with_shape_name("VM.Standard.E3.Flex")
+      .with_shape_config_details(memory_in_gbs=16, ocpus=1) # Applicable only for the flexible shapes
       .with_block_storage_size(50)
     )
     .with_runtime(
@@ -55,7 +56,7 @@ public.
 To use a private repository, you must first save an SSH key to an `OCI Vault <https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Concepts/keyoverview.htm>`__ as a secret, and provide the ``secret_ocid`` to the ``with_source()`` method, see `Managing Secret with Vault <https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Tasks/managingsecrets.htm>`__.  For example, you could use `GitHub Deploy
 Key <https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys>`__.
 
-The entry point specifies how the source code is invoked.  The ``.with_entrypiont()`` has the following arguments: 
+The entry point specifies how the source code is invoked.  The ``.with_entrypiont()`` has the following arguments:
 
 * ``func``: Optional. The function in the script specified by ``path`` to call. If you don't specify it, then the script specified by ``path`` is run as a Python script in a subprocess.
 * ``path``: Required. The relative path for the script, module, or file to start the job.
@@ -64,12 +65,12 @@ With the ``GitPythonRuntime`` class, you can save the output files from the job 
 
 ``oci://BUCKET_NAME@BUCKET_NAMESPACE/PREFIX``
 
-The ``GitPythonRuntime`` also supports these additional configurations: 
+The ``GitPythonRuntime`` also supports these additional configurations:
 
-* The ``.with_python_path()`` method allows you to add additional Python paths to the runtime. By default, the code directory checked out from Git is added to ``sys.path``. Additional Python paths are appended before the code directory is appended. 
+* The ``.with_python_path()`` method allows you to add additional Python paths to the runtime. By default, the code directory checked out from Git is added to ``sys.path``. Additional Python paths are appended before the code directory is appended.
 * The ``.with_argument()`` method allows you to pass arguments to invoke the script or function. For running a script, the arguments are passed in as CLI arguments. For running a function, the ``list`` and ``dict`` JSON serializable objects are supported and are passed into the function.
 
-The ``GitPythonRuntime`` method updates metadata in the free form tags of the job run after the job run finishes. The following tags are added automatically: 
+The ``GitPythonRuntime`` method updates metadata in the free form tags of the job run after the job run finishes. The following tags are added automatically:
 
 * ``commit``: The Git commit ID.
 * ``method``: The entry function or method.
@@ -101,7 +102,10 @@ You could create the preceding example job with the following YAML file:
         compartmentId: <compartment_ocid>
         projectId: <project_ocid>
         subnetId: <subnet_ocid>
-        shapeName: VM.Standard2.1
+        shapeName: VM.Standard.E3.Flex
+        shapeConfigDetails:
+          memoryInGBs: 16
+          ocpus: 1
         blockStorageSize: 50
     name: git_example
     runtime:

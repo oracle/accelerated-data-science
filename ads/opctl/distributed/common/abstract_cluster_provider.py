@@ -155,9 +155,9 @@ class ClusterProvider:
         self.my_work_dir = os.path.join(self.work_dir, self.jobDefID)
         self.config_file = os.path.join(
             self.my_work_dir,
-            f"{self.mode}_{self.jobRunID}_config.json"
-            if self.mode == "WORKER"
-            else "MAIN_config.json",
+            "MAIN_config.json"
+            if self.mode == "MAIN"
+            else f"{self.mode}_{self.jobRunID}_config.json",
         )  # Config file location
 
     def export_config_files(self):
@@ -249,7 +249,7 @@ class ClusterProvider:
         # tmpdir = self.my_work_dir
         # self.tmpdir = tmpdir
         config = config or self.configuration()
-        print(f"Writing configuration: {config}", flush=True)
+        print(f"Writing configuration: {config} to file: {self.config_file}", flush=True)
         with fsspec.open(self.config_file, "w", **self.authinfo) as conf:
             conf.write(json.dumps(config))
 
@@ -296,6 +296,12 @@ class ClusterProvider:
         """
         pass
 
+    def start_ps(self):
+        """
+        Implement this for starting the ps process. Eg. `tf-parameter-server` for tensorflow
+        """
+        pass
+
     def start(self):
         """
         Starts the cluster processes
@@ -306,6 +312,9 @@ class ClusterProvider:
         elif self.mode == "WORKER":  # Check if the docker is staretd in worker mode
             print(f"Starting worker process", flush=True)
             self.when_ready(self.start_worker)
+        elif self.mode == "PS":  # Check if the docker is staretd in worker mode
+            print(f"Starting ps process", flush=True)
+            self.when_ready(self.start_ps)
         else:
             print(f"Not a valid mode: {self.mode}", flush=True)
             raise Exception("Not a valid mode")

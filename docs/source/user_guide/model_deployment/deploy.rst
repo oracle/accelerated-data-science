@@ -29,7 +29,13 @@ After a ``ModelDeploymentProperties`` object is created, then you use ``model_de
     ).with_logging_configuration(
         "<ACCESS_LOG_GROUP_OCID>", "<ACCESS_LOG_OCID>", "<PREDICT_LOG_GROUP_OCID>", "<PREDICT_LOG_OCID>"
     ).with_instance_configuration(
-        config={"INSTANCE_SHAPE":"VM.Standard2.1", "INSTANCE_COUNT":"1",'bandwidth_mbps':10}
+        config={
+            "INSTANCE_SHAPE":"VM.Standard.E4.Flex",
+            "INSTANCE_COUNT":"1",
+            "bandwidth_mbps":10,
+            "memory_in_gbs":10,
+            "ocpus":1
+        }
     )
     deployer = ModelDeployer()
     deployment = deployer.deploy(model_deployment_properties)
@@ -51,8 +57,10 @@ You define the model deployment properties using the following parameters:
 * ``display_name``: A name that identifies the model deployment in the Console.
 * ``freeform_tags``: A dictionary of freeform tags to be attached to the model deployment. Optional.
 * ``instance_count``: The number of instances to deploy.
-* ``instance_shape``: The instance compute shape to use. For example, “VM.Standard2.1”
+* ``instance_shape``: The instance compute shape to use. For example, “VM.Standard2.1”.
+* ``memory_in_gbs``:  The size of the memory of the model deployment instance in GBs. Applicable for the flexible shapes, for example, “VM.Standard.E4.Flex”.
 * ``model_id``: Model OCID that is used in the model deployment.
+* ``ocpus``: The ocpus count of the model deployment instance. Applicable for the flexible shapes, for example, “VM.Standard.E4.Flex”.
 * ``predict_log_group_id``: Log group OCID for the predict logs. Required when ``predict_log_id`` is specified.
 * ``predict_log_id``: Custom logger OCID for the predict logs. Required when ``predict_log_group_id`` is specified.
 * ``project_id``: Project OCID that the model deployment will belong to.
@@ -65,8 +73,10 @@ You define the model deployment properties using the following parameters:
     deployment = deployer.deploy(
         model_id="<MODEL_OCID>",
         display_name="Model Deployment Demo using ADS",
-        instance_shape="VM.Standard2.1",
+        instance_shape="VM.Standard.E4.Flex",
         instance_count=1,
+        memory_in_gbs=6, # Applicable for the flexible shapes for example, “VM.Standard.E4.Flex”.
+        ocpus=2, # Applicable for the flexible shapes for example, “VM.Standard.E4.Flex”.
         project_id="<PROJECT_OCID>",
         compartment_id="<COMPARTMENT_OCID>",
         # The following are optional

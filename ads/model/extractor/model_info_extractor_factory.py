@@ -11,6 +11,7 @@ from ads.model.extractor.xgboost_extractor import XgboostExtractor
 from ads.model.extractor.lightgbm_extractor import LightgbmExtractor
 from ads.model.extractor.keras_extractor import KerasExtractor
 from ads.model.extractor.automl_extractor import AutoMLExtractor
+from ads.model.extractor.spark_extractor import SparkExtractor
 from ads.model.extractor.pytorch_extractor import PytorchExtractor
 from ads.model.extractor.tensorflow_extractor import TensorflowExtractor
 
@@ -24,6 +25,7 @@ ORDERED_FRAMEWORKS = [
     "bert",
     "transformers",
     "torch",
+    "spark",
     "automl",
 ]
 
@@ -39,6 +41,7 @@ class ModelInfoExtractorFactory:
         Framework.ORACLE_AUTOML: AutoMLExtractor,
         Framework.TENSORFLOW: TensorflowExtractor,
         Framework.PYTORCH: PytorchExtractor,
+        Framework.SPARK: SparkExtractor,
     }
 
     @staticmethod
@@ -90,6 +93,7 @@ class ModelInfoExtractorFactory:
             "bert": Framework.BERT,
             "transformers": Framework.TRANSFORMERS,
             "torch": Framework.PYTORCH,
+            "spark": Framework.SPARK,
             "automl": Framework.ORACLE_AUTOML,
         }
         for model_base in model_bases:

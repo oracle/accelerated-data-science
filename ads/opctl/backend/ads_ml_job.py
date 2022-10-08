@@ -275,7 +275,6 @@ class MLJobBackend(Backend):
 
 
 class MLJobDistributedBackend(MLJobBackend):
-
     DIAGNOSTIC_COMMAND = "python -m ads.opctl.diagnostics -t distributed"
 
     def __init__(self, config: Dict) -> None:
@@ -320,8 +319,25 @@ class MLJobDistributedBackend(MLJobBackend):
             for i in range(cluster_info.cluster.worker.replicas):
                 conf = copy.deepcopy(worker_jobrun_conf)
                 conf["envVars"]["RANK"] = str(i + 1)
-                conf["name"] = conf.get("name", "worker")
+                conf["name"] = (
+                    conf.get("name", worker_jobrun_conf["envVars"]["OCI__MODE"])
+                    + "_"
+                    + str(i)
+                )
                 worker_jobrun_conf_list.append(conf)
+        ps_jobrun_conf = job_conf_helper.job_run_info("ps")
+        ps_jobrun_conf_list = []
+        if ps_jobrun_conf:
+            for i in range(cluster_info.cluster.ps.replicas):
+                conf = copy.deepcopy(ps_jobrun_conf)
+                conf["name"] = (
+                    conf.get("name", worker_jobrun_conf["envVars"]["OCI__MODE"])
+                    + "_"
+                    + str(i)
+                )
+                ps_jobrun_conf_list.append(conf)
+
+        worker_jobrun_conf_list.extend(ps_jobrun_conf_list)
         return main_jobrun_conf, worker_jobrun_conf_list
 
     @staticmethod
@@ -362,7 +378,7 @@ class MLJobDistributedBackend(MLJobBackend):
                 main_jobrun = job.run(
                     conf["name"],
                     env_var=conf["envVars"],
-                    freeform_tags={"distributed_training": "oracle-ads"},
+                    # freeform_tags={"distributed_training": "oracle-ads"},
                 )
                 self.job = job
                 main_jobrun.watch()
@@ -397,12 +413,10 @@ class MLJobDistributedBackend(MLJobBackend):
                     "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                 )
                 if cluster_info.cluster.worker:
-                    for i in range(cluster_info.cluster.worker.replicas):
+                    print(f"Creating Job Runs with following details:")
+                    for i in range(len(worker_jobrun_conf_list)):
                         worker_jobrun_conf = worker_jobrun_conf_list[i]
-                        print(f"Creating Worker Job Run {i} with following details:")
-                        print(
-                            f"Name: {self.generate_worker_name(worker_jobrun_conf, i)}"
-                        )
+                        print("Name: " + worker_jobrun_conf.get("name"))
                         print("Additional Environment Variables: ")
                         worker_env_Vars = worker_jobrun_conf.get("envVars", {})
                         for k in worker_env_Vars:
@@ -421,17 +435,17 @@ class MLJobDistributedBackend(MLJobBackend):
                 main_jobrun = job.run(
                     conf["name"],
                     env_var=conf["envVars"],
-                    freeform_tags={"distributed_training": "oracle-ads"},
+                    # freeform_tags={"distributed_training": "oracle-ads"},
                 )
 
                 # Start worker job
                 worker_jobruns = []
                 if cluster_info.cluster.worker:
-                    for i in range(cluster_info.cluster.worker.replicas):
+                    for i in range(len(worker_jobrun_conf_list)):
                         worker_jobrun_conf = worker_jobrun_conf_list[i]
                         conf = dict(worker_jobrun_conf)
                         jobrun = job.run(
-                            self.generate_worker_name(worker_jobrun_conf, i),
+                            worker_jobrun_conf.get("name"),
                             env_var=conf["envVars"],
                         )
                         worker_jobruns.append(jobrun)

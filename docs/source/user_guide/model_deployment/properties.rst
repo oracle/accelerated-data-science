@@ -21,11 +21,17 @@ The ``ModelDeploymentProperties`` class is a container to store model deployment
     ).with_logging_configuration(
         "<ACCESS_LOG_GROUP_OCID>", "<ACCESS_LOG_OCID>", "<PREDICT_LOG_GROUP_OCID>", "<PREDICT_LOG_OCID>"
     ).with_instance_configuration(
-        config={"INSTANCE_SHAPE":"VM.Standard2.1", "INSTANCE_COUNT":"1",'bandwidth_mbps':10}
+        config={
+            "INSTANCE_SHAPE":"VM.Standard.E4.Flex",
+            "INSTANCE_COUNT":"1",
+            "bandwidth_mbps":10,
+            "memory_in_gbs":10,
+            "ocpus":1
+        }
     )
 
-Alternatively, you could specify a ``model_uri`` instead of a ``model_id``. The 
-``model_uri`` is the path to the directory containing the model artifact. This can be a local path or 
+Alternatively, you can specify a ``model_uri`` instead of a ``model_id``. The
+``model_uri`` is the path to the directory containing the model artifact. This can be a local path or
 the URI of Object Storage. For example, ``oci://your_bucket@your_namespace/path/to/dir``.
 
 .. code-block:: python3
@@ -47,7 +53,11 @@ The ``ModelDeployment`` class has a number of attributes that provide informatio
 *  ``description``: Description of the model deployment.
 *  ``display_name``: Name of the model that is displayed in the Console.
 *  ``freeform_tags``: User-defined tags.
+*  ``instance_count``: The number of instances to deploy.
+*  ``instance_shape``: The instance compute shape to use. For example, “VM.Standard2.1”.
+*  ``memory_in_gbs``:  The size of the memory of the model deployment instance in GBs. Applicable for the flexible shapes, for example, “VM.Standard.E4.Flex”.
 *  ``model_id``: OCID of the deployed model.
+*  ``ocpus``: The ocpus count of the model deployment instance. Applicable for the flexible shapes, for example, “VM.Standard.E4.Flex”.
 *  ``project_id``: OCID of the project the model deployment belongs to.
 
 To access these properties use the ``.properties`` accessor on a ``ModelDeployment`` object.  For example, to determine the OCID of the project that a model deployment is associated with, use the command:

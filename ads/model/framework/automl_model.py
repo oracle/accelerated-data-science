@@ -11,7 +11,7 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 from ads.common import logger
-from ads.common.utils import _serialize_input_helper
+from ads.common.data_serializer import InputDataSerializer
 from ads.model.extractor.automl_extractor import AutoMLExtractor
 from ads.model.generic_model import GenericModel
 from ads.model.model_properties import ModelProperties
@@ -230,7 +230,7 @@ class AutoMLModel(GenericModel):
             with open(model_path, "wb") as outfile:
                 cloudpickle.dump(self.estimator, outfile)
 
-    def _serialize_input(
+    def get_data_serializer(
         self,
         data: Union[
             Dict,
@@ -248,13 +248,11 @@ class AutoMLModel(GenericModel):
         data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
         pd.core.frame.DataFrame]
             Data expected by the model deployment predict API.
-        data_type: Any, defaults to None.
-            Type of the data. If not provided, it will be checked against data.
 
         Returns
         -------
-        Dict
-            A dictionary containing serialized input data and original data type
+        InputDataSerializer
+            A class containing serialized input data and original data type
             information.
 
         Raises
@@ -262,12 +260,4 @@ class AutoMLModel(GenericModel):
         TypeError
             if provided data type is not supported.
         """
-        try:
-            return _serialize_input_helper(data)
-        except:
-            raise TypeError(
-                "The supported data types are Dict, str, list, "
-                "numpy.ndarray, pd.core.series.Series, "
-                "pd.core.frame.DataFrame. Please "
-                "convert to the supported data types first. "
-            )
+        return InputDataSerializer(data)

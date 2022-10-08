@@ -52,6 +52,7 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.common.decorator.deprecate import deprecated
 
 default_snapshots_dir = None
 default_storage_options = None
@@ -60,6 +61,10 @@ mindate = datetime.date(datetime.MINYEAR, 1, 1)
 
 class DatasetFactory:
     @staticmethod
+    @deprecated(
+        "2.6.6",
+        details="Deprecated in favor of using Pandas. Pandas supports reading from object storage directly. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/loading_data/connect.html",
+    )
     def open(
         source,
         target=None,
@@ -79,6 +84,10 @@ class DatasetFactory:
     ):
         """
         Returns an object of ADSDataset or ADSDatasetWithTarget  read from the given path
+
+        .. deprecated:: 2.6.6
+            "Deprecated in favor of using Pandas. Pandas supports reading from object storage directly.
+            Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/loading_data/connect.html",
 
         Parameters
         ----------

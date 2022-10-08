@@ -1,8 +1,8 @@
 .. _jobs-1:
 
-####
-Jobs
-####
+#################
+Data Science Jobs
+#################
 
 Oracle Cloud Infrastructure (OCI) Data Science jobs enable you to define and run a repeatable machine learning task on a fully managed infrastructure, such as **data preparation, model training, hyperparameter optimization, batch inference, and so on**.
 
@@ -12,8 +12,9 @@ Oracle Cloud Infrastructure (OCI) Data Science jobs enable you to define and run
    overview
    data_science_job
    run_container
-   run_data_flow
    run_git
    run_notebook
    run_script
    run_zip
+   ../cli/opctl/_template/jobs
+   ../cli/opctl/_template/monitoring

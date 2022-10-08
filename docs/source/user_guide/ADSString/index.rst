@@ -1,8 +1,12 @@
 .. _ADSString:
 
-######
-NLP
-######
+######################
+Manipulating Text Data
+######################
+
+
+TextStrings
+-----------
 
 .. toctree::
    :maxdepth: 1
@@ -13,3 +17,11 @@ NLP
    plugin
    regex_match
    still_a_string
+
+Text Extraction
+---------------
+
+.. toctree::
+   :maxdepth: 1
+
+   ../text_extraction/text_dataset

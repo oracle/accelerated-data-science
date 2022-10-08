@@ -7,6 +7,7 @@
 import oci
 import os
 from ads.common import utils
+import ads.telemetry
 
 
 def api_keys(
@@ -42,7 +43,9 @@ def api_keys(
     >>> auth = authutil.api_keys(oci_config="/home/datascience/.oci/config", profile="TEST", client_kwargs={"timeout": 6000})
     >>> oc.OCIClientFactory(**auth).object_storage # Creates Object storage client with timeout set to 6000 using API Key authentication
     """
-    configuration = oci.config.from_file(oci_config, profile)
+    configuration = ads.telemetry.update_oci_client_config(
+        oci.config.from_file(oci_config, profile)
+    )
     return {
         "config": configuration,
         "signer": oci.signer.Signer(
@@ -82,8 +85,10 @@ def resource_principal(client_kwargs=None):
     >>> oc.OCIClientFactory(**auth).object_storage # Creates Object Storage client with timeout set to 6000 seconds using resource principal authentication
     """
 
+    configuration = ads.telemetry.update_oci_client_config()
+
     return {
-        "config": {},
+        "config": configuration,
         "signer": oci.auth.signers.get_resource_principals_signer(),
         "client_kwargs": client_kwargs,
     }

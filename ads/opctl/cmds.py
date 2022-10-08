@@ -12,7 +12,7 @@ from typing import Dict, List
 
 from ads.common.oci_datascience import DSCNotebookSession
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
-from ads.opctl.backend.local import LocalBackend
+from ads.opctl.backend.local import LocalBackend, LocalBackendDistributed
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -22,6 +22,13 @@ from ads.opctl.config.validator import ConfigValidator
 from ads.opctl.config.yaml_parsers import YamlSpecParser
 import fsspec
 
+from ads.opctl.distributed.cmds import (
+    update_ini,
+    increment_tag_in_ini,
+    docker_build_cmd,
+    update_image,
+    verify_and_publish_image,
+)
 from ads.opctl.constants import (
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_PROFILE,
@@ -40,7 +47,6 @@ import yaml
 
 
 class _BackendFactory:
-
     BACKENDS_MAP = {
         "local": LocalBackend,
         "job": MLJobBackend,
@@ -78,26 +84,75 @@ def run(config: Dict, **kwargs) -> Dict:
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
-        cluster_def = YamlSpecParser.parse_content(config)
-        backend = MLJobDistributedBackend(p.config)
-
-        # Define job first,
-        # Then Run
-        cluster_run_info = backend.run(
-            cluster_info=cluster_def, dry_run=p.config["execution"].get("dry_run")
+        print(
+            "......................... Initializing the process ..................................."
         )
-        if cluster_run_info:
-            cluster_run = {}
-            cluster_run["jobId"] = cluster_run_info[0].id
-            cluster_run["workDir"] = cluster_def.cluster.work_dir
-            cluster_run["mainJobRunId"] = cluster_run_info[1].id
-            if len(cluster_run_info[2]) > 0:
-                cluster_run["workerJobRunIds"] = [wj.id for wj in cluster_run_info[2]]
-            yamlContent = yaml.dump(cluster_run)
-            print(yamlContent)
-            print(f"# \u2b50 To stream the logs of the main job run:")
-            print(f"# \u0024 ads opctl watch {cluster_run['mainJobRunId']}")
-        return cluster_run_info
+        ini = update_ini(
+            kwargs["tag"],
+            kwargs["registry"],
+            kwargs["dockerfile"],
+            kwargs["source_folder"],
+            config,
+            kwargs["nobuild"],
+        )
+        nobuild = kwargs["nobuild"]
+        mode = kwargs["backend"]
+        increment = kwargs["auto_increment"]
+
+        if not nobuild:
+            if increment:
+                ini = increment_tag_in_ini(ini)
+            docker_build_cmd(ini)
+        config = update_image(config, ini)
+
+        if mode == "local":
+            print(
+                "\u26A0 Docker Image: "
+                + ini.get("main", "registry")
+                + ":"
+                + ini.get("main", "tag")
+                + " is not pushed to oci artifacts."
+            )
+            print("running image: " + config["spec"]["cluster"]["spec"]["image"])
+
+            backend = LocalBackendDistributed(config)
+            backend.run()
+        elif mode == "dataflow":
+            raise RuntimeError(
+                "backend operator for distributed training can either be local or job"
+            )
+        else:
+            if not kwargs["dry_run"]:
+                verify_and_publish_image(kwargs["nopush"], config)
+
+                print("running image: " + config["spec"]["cluster"]["spec"]["image"])
+            cluster_def = YamlSpecParser.parse_content(config)
+
+            backend = MLJobDistributedBackend(p.config)
+
+            # Define job first,
+            # Then Run
+            cluster_run_info = backend.run(
+                cluster_info=cluster_def, dry_run=p.config["execution"].get("dry_run")
+            )
+            if cluster_run_info:
+                cluster_run = {}
+                cluster_run["jobId"] = cluster_run_info[0].id
+                cluster_run["workDir"] = cluster_def.cluster.work_dir
+                cluster_run["mainJobRunId"] = {
+                    cluster_run_info[1].name: cluster_run_info[1].id
+                }
+                if len(cluster_run_info[2]) > 0:
+                    cluster_run["otherJobRunIds"] = [
+                        {wj.name: wj.id} for wj in cluster_run_info[2]
+                    ]
+                yamlContent = yaml.dump(cluster_run)
+                print(yamlContent)
+                print(f"# \u2b50 To stream the logs of the main job run:")
+                print(
+                    f"# \u0024 ads opctl watch {list(cluster_run['mainJobRunId'].values())[0]}"
+                )
+            return cluster_run_info
     else:
         if p.config["execution"].get("job_id", None):
             p.config["execution"]["backend"] = "job"

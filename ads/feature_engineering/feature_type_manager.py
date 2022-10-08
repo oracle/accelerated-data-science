@@ -75,6 +75,7 @@ from ads.feature_engineering.feature_type.text import Text
 from ads.feature_engineering.feature_type.unknown import Unknown
 from ads.feature_engineering.feature_type.discrete import Discrete
 from ads.feature_engineering import exceptions
+from ads.feature_engineering.feature_type.adsstring.string import ADSString
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,7 @@ class FeatureTypeManager:
         Text,
         Unknown,
         Discrete,
+        ADSString,
     ]
     _name_to_type_map = {tp.name: tp for tp in _default_registered_type}
 

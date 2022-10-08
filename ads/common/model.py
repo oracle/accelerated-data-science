@@ -23,9 +23,9 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.common.decorator.deprecate import deprecated
 from ads.common.utils import is_notebook
 from ads.dataset.pipeline import TransformerPipeline
-from distutils import dir_util
 from sklearn.pipeline import Pipeline
 
 
@@ -171,14 +171,18 @@ class ADSModel(object):
         """
         self.name = name
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def predict(self, X):
         """
         Runs the models predict function on some data
 
         Parameters
         ----------
-        X: MLData
-            A MLData object which holds the examples to be predicted on.
+        X: ADSData
+            A ADSData object which holds the examples to be predicted on.
 
         Returns
         -------
@@ -202,8 +206,8 @@ class ADSModel(object):
 
         Parameters
         ----------
-        X: MLData
-            A MLData object which holds the examples to be predicted on.
+        X: ADSData
+            A ADSData object which holds the examples to be predicted on.
 
         Returns
         -------
@@ -218,16 +222,20 @@ class ADSModel(object):
         else:
             return self.est.predict_proba(X)
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def score(self, X, y_true, score_fn=None):
         """
         Scores a model according to a custom score function
 
         Parameters
         ----------
-        X: MLData
-            A MLData object which holds the examples to be predicted on.
-        y_true: MLData
-            A MLData object which holds ground truth labels for the examples which are being predicted on.
+        X: ADSData
+            A ADSData object which holds the examples to be predicted on.
+        y_true: ADSData
+            A ADSData object which holds ground truth labels for the examples which are being predicted on.
         score_fn: Scorer (callable)
             A callable object that returns a score, usually created with sklearn.metrics.make_scorer().
 
@@ -250,6 +258,10 @@ class ADSModel(object):
             else:
                 return self.est.score(X, y_true)
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def summary(self):
         """
         A summary of the ADSModel
@@ -274,14 +286,18 @@ class ADSModel(object):
     def __getattr__(self, item):
         return getattr(self.est, item)
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def transform(self, X):
         """
-        Process some MLData through the selected ADSModel transformers
+        Process some ADSData through the selected ADSModel transformers
 
         Parameters
         ----------
-        X: MLData
-            A MLData object which holds the examples to be transformed.
+        X: ADSData
+            A ADSData object which holds the examples to be transformed.
         """
 
         if hasattr(X, "copy"):
@@ -310,6 +326,10 @@ class ADSModel(object):
         """
         return hasattr(self, "classes_") and self.classes_ is not None
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def feature_names(self, X=None):
         model_type = self._underlying_model
         if model_type == "sklearn":
@@ -367,6 +387,10 @@ class ADSModel(object):
     def __setstate__(self, state):
         self.__dict__ = state
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def prepare(
         self,
         target_dir=None,

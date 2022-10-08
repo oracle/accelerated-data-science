@@ -40,6 +40,7 @@ class DistributedSpecParser(YamlSpecParser):
                 "config",
                 "main",
                 "worker",
+                "ps",
                 "ephemeral",
                 "certificate",
             ],
@@ -53,10 +54,11 @@ class DistributedSpecParser(YamlSpecParser):
         cluster_default_config = cluster_spec.get("config")
         main = self.parse_main(cluster_spec.get("main"))
         worker = self.parse_worker(cluster_spec.get("worker"))
+        ps = self.parse_ps(cluster_spec.get("ps"))
         translated_config = self.translate_config(cluster_default_config)
         certificate = self.parse_certificate(cluster_spec.get("certificate"))
         logger.debug(
-            f"Cluster: [name: {name}, type: {cluster_type}, image: {image}, work_dir: {work_dir}, config: {translated_config}, main: {main}, worker: {worker}]"
+            f"Cluster: [name: {name}, type: {cluster_type}, image: {image}, work_dir: {work_dir}, config: {translated_config}, main: {main}, worker: {worker}, ps: {ps}]"
         )
         return Cluster(
             name=name,
@@ -66,6 +68,7 @@ class DistributedSpecParser(YamlSpecParser):
             config=translated_config,
             main=main,
             worker=worker,
+            ps=ps,
             ephemeral=ephemeral,
             certificate=certificate,
         )
@@ -87,13 +90,7 @@ class DistributedSpecParser(YamlSpecParser):
         )
         return Main(name=name, image=image, replicas=replicas, config=translated_config)
 
-    def parse_worker(self, worker):
-        if not worker:
-            return None
-        Worker = namedtuple(
-            "Worker", field_names=["name", "image", "replicas", "config"]
-        )
-        worker_spec = worker
+    def parse_worker_params(self, worker_spec):
         name = worker_spec.get("name")
         replicas = worker_spec.get("replicas") or 1
         image = worker_spec.get("image")
@@ -102,9 +99,27 @@ class DistributedSpecParser(YamlSpecParser):
         logger.debug(
             f"Worker: [name: {name}, image: {image}, replicas: {replicas}, config: {translated_config}]"
         )
-        return Worker(
-            name=name, image=image, replicas=replicas, config=translated_config
+        return name, image, replicas, translated_config
+
+    def parse_worker(self, worker):
+        if not worker:
+            return None
+        Worker = namedtuple("Worker", field_names=["name", "image", "replicas", "config"])
+        name, image, replicas, translated_config = self.parse_worker_params(worker)
+        logger.debug(
+            f"Worker: [name: {name}, image: {image}, replicas: {replicas}, config: {translated_config}]"
         )
+        return Worker(name=name, image=image, replicas=replicas, config=translated_config)
+
+    def parse_ps(self, worker):
+        if not worker:
+            return None
+        Ps = namedtuple("PS", field_names=["name", "image", "replicas", "config"])
+        name, image, replicas, translated_config = self.parse_worker_params(worker)
+        logger.debug(
+            f"PS: [name: {name}, image: {image}, replicas: {replicas}, config: {translated_config}]"
+        )
+        return Ps(name=name, image=image, replicas=replicas, config=translated_config)
 
     def parse_runtime(self, runtime):
         PythonRuntime = namedtuple(

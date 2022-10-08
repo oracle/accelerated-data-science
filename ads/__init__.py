@@ -8,26 +8,26 @@ from __future__ import print_function, division, absolute_import
 import os
 import logging
 import sys
-
-import oci
-
-import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
 import json
-
-import ocifs
-from ads.common.decorator.deprecate import deprecated
-from ads.common.ipython import configure_plotting, _log_traceback
-from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
-from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
-
-
-os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
 __version__ = ""
 with open(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads_version.json")
 ) as version_file:
     __version__ = json.load(version_file)["version"]
+import oci
+
+import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
+
+import ocifs
+from ads.common.decorator.deprecate import deprecated
+from ads.common.ipython import configure_plotting, _log_traceback
+from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
+from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
+from ads.common import auth
+
+os.environ["GIT_PYTHON_REFRESH"] = "quiet"
+
 
 debug_mode = os.environ.get("DEBUG_MODE", False)
 documentation_mode = os.environ.get("DOCUMENTATION_MODE", "False") == "True"
@@ -64,7 +64,7 @@ def set_auth(
             oci_config_path = oci_config_location
         else:
             logging.warning(
-                f"{oci_config_location} file not exists, default value oci.config.DEFAULT_LOCATION used instead"
+                f"{oci_config_location} file does not exist, default value oci.config.DEFAULT_LOCATION used instead"
             )
             oci_config_path = oci.config.DEFAULT_LOCATION
     elif auth == "resource_principal":

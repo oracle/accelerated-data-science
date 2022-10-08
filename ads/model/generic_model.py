@@ -22,6 +22,7 @@ from ads.catalog.model import ModelCatalog
 from ads.common import utils
 from ads.common import auth as authutil
 from ads.common import logger, oci_client
+from ads.common.data_serializer import InputDataSerializer
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
@@ -55,8 +56,6 @@ from ads.feature_engineering.schema import Schema
 from ads.model.artifact import ModelArtifact
 from ads.model.common.utils import _extract_locals
 from ads.model.deployment import (
-    DEFAULT_CONTENT_TYPE_BYTES,
-    DEFAULT_CONTENT_TYPE_JSON,
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
     ModelDeployer,
@@ -75,6 +74,11 @@ MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard2.1"
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
+DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME = "model.onnx"
+DEFAULT_JSON_FORMAT_MODEL_FILE_NAME = "model.json"
+DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME = "model.joblib"
+DEFAULT_TXT_FORMAT_MODEL_FILE_NAME = "model.txt"
+DEFAULT_MODEL_FOLDER_NAME = "model"
 
 ONNX_DATA_TRANSFORMER = "onnx_data_transformer.json"
 _ATTRIBUTES_TO_SHOW_ = [
@@ -83,6 +87,11 @@ _ATTRIBUTES_TO_SHOW_ = [
     "algorithm",
     "model_id",
     "model_deployment_id",
+]
+FRAMEWORKS_WITHOUT_ONNX_DATA_TRANSFORM = [
+    Framework.TENSORFLOW,
+    Framework.PYTORCH,
+    Framework.SPARK,
 ]
 
 
@@ -249,6 +258,7 @@ class GenericModel(MetadataMixin, Introspectable):
         self.metadata_provenance = ModelProvenanceMetadata()
         self.schema_input = Schema()
         self.schema_output = Schema()
+        self.data_serializer_class = InputDataSerializer
         self.model_file_name = None
         if artifact_dir:
             self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
@@ -365,7 +375,7 @@ class GenericModel(MetadataMixin, Introspectable):
         force_overwrite: bool = False,
     ):
         """Apply onnx data transformer to data."""
-        if self.framework in [Framework.TENSORFLOW, Framework.PYTORCH] or X is None:
+        if self.framework in FRAMEWORKS_WITHOUT_ONNX_DATA_TRANSFORM or X is None:
             return X
         try:
             if hasattr(self, "onnx_data_preprocessor") and isinstance(
@@ -580,7 +590,13 @@ class GenericModel(MetadataMixin, Introspectable):
             jinja_template_filename = "score_onnx_new"
         else:
             if self.framework:
-                jinja_template_filename = "score_" + self.framework
+                if self.framework == "other":
+                    logger.warn(
+                        f"Framework: other given. Attempting to use the spark template for score.py generation."
+                    )
+                    jinja_template_filename = "score_spark"
+                else:
+                    jinja_template_filename = "score_" + self.framework
             else:
                 jinja_template_filename = (
                     "score-pkl" if self._serialize else "score_generic"
@@ -615,13 +631,17 @@ class GenericModel(MetadataMixin, Introspectable):
             status=ModelState.AVAILABLE.value,
         )
 
-    def verify(self, data: Any, **kwargs) -> Dict[str, Any]:
+    def verify(
+        self, data: Any, reload_artifacts: bool = True, **kwargs
+    ) -> Dict[str, Any]:
         """test if deployment works in local environment.
 
         Parameters
         ----------
-        data: Any.
+        data: Any
             Data used to test if deployment works in local environment.
+        reload_artifacts: bool. Defaults to True.
+            Whether to reload artifacts or not.
         kwargs:
             content_type: str, used to indicate the media type of the resource.
 
@@ -630,38 +650,17 @@ class GenericModel(MetadataMixin, Introspectable):
         Dict
             A dictionary which contains prediction results.
         """
-        url = f"http://127.0.0.1:8000/predict"
-        content_type = kwargs.get("content_type", None)
-        data_dict = self._handle_input_data(data)
-        if isinstance(data_dict, dict) and "bytes" in data_dict["data_type"]:
-            if not content_type:
-                content_type = DEFAULT_CONTENT_TYPE_BYTES
-            headers = {
-                "Content-Type": content_type,
-                "Accept": "*/*",
-            }
-            # should pass bytes when using data
-            req = requests.Request(
-                "POST", url, data=data_dict["data"], headers=headers
-            ).prepare()
-            request_body = req.body
-        else:
-            if not content_type:
-                content_type = DEFAULT_CONTENT_TYPE_JSON
-            headers = {
-                "Content-Type": content_type,
-                "Accept": "*/*",
-            }
-            req = requests.Request(
-                "POST", url, json=data_dict, headers=headers
-            ).prepare()
-            request_body = json.loads(req.body)
+        endpoint = f"http://127.0.0.1:8000/predict"
 
-        self.model_artifact.reload()
+        serialized_data = self.get_data_serializer(data)
+        request_body = serialized_data.send(endpoint, dry_run=True, **kwargs)
+
+        if reload_artifacts:
+            self.model_artifact.reload()
         prediction = self.model_artifact.predict(request_body)
 
         try:
-            req = requests.Request("POST", url, json=prediction, headers=headers)
+            requests.Request("POST", endpoint, json=prediction)
         except:
             raise TypeError(
                 "The prediction result is not json serializable. "
@@ -672,40 +671,6 @@ class GenericModel(MetadataMixin, Introspectable):
             detail="Local tested .predict from score.py", status=ModelState.DONE.value
         )
         return prediction
-
-    def _serialize_input(
-        self,
-        data: Union[
-            Dict,
-            str,
-            List,
-            np.ndarray,
-            pd.core.series.Series,
-            pd.core.frame.DataFrame,
-        ],
-    ) -> Union[Dict, List, str]:
-        """Returns serializable input data.
-
-        Parameters
-        ----------
-        data: Union[Dict, str, list, numpy.ndarray,
-        pd.core.series.Series,  pd.core.frame.DataFrame]
-        data_type: (Any, otional). Defaults to None.
-            Type of the data. If not provided, it will be checked against data.
-
-        Returns
-        -------
-        Union[Dict, List, str]
-            Serializable input data.
-
-        Raises
-        ------
-        TypeError
-            If provided data type is not supported.
-        """
-        raise SerializeInputNotImplementedError(
-            "`_serialize_input` is not implemented."
-        )
 
     def introspect(self) -> pd.DataFrame:
         """Conducts instrospection.
@@ -882,6 +847,7 @@ class GenericModel(MetadataMixin, Introspectable):
             properties=properties,
         )
 
+        result_model.model_id = model_id
         # Populate metadata
         result_model.metadata_custom = oci_model.metadata_custom
         result_model.metadata_taxonomy = oci_model.metadata_taxonomy
@@ -1018,7 +984,6 @@ class GenericModel(MetadataMixin, Introspectable):
         # reload runtime.yaml
         self.reload_runtime_info()
 
-    @runtime_dependency(module="IPython", install_from=OptionalDependency.NOTEBOOK)
     def save(
         self,
         display_name: Optional[str] = None,
@@ -1104,26 +1069,18 @@ class GenericModel(MetadataMixin, Introspectable):
             if self._introspect.status == TEST_STATUS.NOT_PASSED:
                 msg = (
                     "Model introspection not passed. "
-                    "See the table below for "
-                    "more detailed information and follow the messages to fix it, "
-                    "otherwise you might come across errors during model deployment. "
-                    "To save model artifacts ignoring "
-                    "introspection use .save(ignore_introspection=True...)."
+                    "Use `.introspect()` method to get detailed information and follow the "
+                    "messages to fix it. To save model artifacts ignoring introspection "
+                    "use `.save(ignore_introspection=True...)`."
                 )
-                logger.error(msg)
-
-                from IPython.core.display import display
-
-                display(self._introspect.to_dataframe())
-
                 self._summary_status.update_status(
                     detail="Conducted Introspect Test", status="Failed"
                 )
                 self._summary_status.update_action(
                     detail="Conducted Introspect Test",
-                    action=f"Check introspect table for the reason why it failed.",
+                    action=f"Use `.introspect()` method to get detailed information.",
                 )
-                raise IntrospectionNotPassed()
+                raise IntrospectionNotPassed(msg)
             else:
                 self._summary_status.update_status(
                     detail="Conducted Introspect Test", status=ModelState.DONE.value
@@ -1184,6 +1141,8 @@ class GenericModel(MetadataMixin, Introspectable):
         deployment_log_group_id: Optional[str] = None,
         deployment_access_log_id: Optional[str] = None,
         deployment_predict_log_id: Optional[str] = None,
+        deployment_memory_in_gbs: Optional[float] = None,
+        deployment_ocpus: Optional[float] = None,
         **kwargs: Dict,
     ) -> ModelDeployment:
         """
@@ -1205,6 +1164,10 @@ class GenericModel(MetadataMixin, Introspectable):
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
             The bandwidth limit on the load balancer in Mbps.
+        deployment_memory_in_gbs: (float, optional). Defaults to None.
+            Specifies the size of the memory of the model deployment instance in GBs.
+        deployment_ocpus: (float, optional). Defaults to None.
+            Specifies the ocpus count of the model deployment instance.
         deployment_log_group_id: (str, optional). Defaults to None.
             The oci logging group id. The access log and predict log share the same log group.
         deployment_access_log_id: (str, optional). Defaults to None.
@@ -1221,6 +1184,13 @@ class GenericModel(MetadataMixin, Introspectable):
                 Negative implies infinite wait time.
             poll_interval : (int, optional). Defaults to 60 seconds.
                 Poll interval in seconds.
+            freeform_tags: (Dict[str, str], optional). Defaults to None.
+                Freeform tags of the model deployment.
+            defined_tags: (Dict[str, dict[str, object]], optional). Defaults to None.
+                Defined tags of the model deployment.
+
+            Also can be any keyword argument for initializing the `ads.model.deployment.ModelDeploymentProperties`.
+            See `ads.model.deployment.ModelDeploymentProperties()` for details.
 
         Returns
         -------
@@ -1241,6 +1211,9 @@ class GenericModel(MetadataMixin, Introspectable):
         # these params to the deployment via kwargs.
         kwargs.pop("project_id", None)
         kwargs.pop("compartment_id", None)
+
+        max_wait_time = kwargs.pop("max_wait_time", DEFAULT_WAIT_TIME)
+        poll_interval = kwargs.pop("poll_interval", DEFAULT_POLL_INTERVAL)
 
         self.properties.compartment_id = (
             self.properties.compartment_id or _COMPARTMENT_OCID
@@ -1275,7 +1248,7 @@ class GenericModel(MetadataMixin, Introspectable):
             )
 
         model_deployment_properties = (
-            ModelDeploymentProperties(self.model_id, config=self.auth)
+            ModelDeploymentProperties(self.model_id, config=self.auth, **kwargs)
             .with_prop("display_name", display_name)
             .with_prop("description", description)
             .with_prop("project_id", self.properties.project_id)
@@ -1285,6 +1258,8 @@ class GenericModel(MetadataMixin, Introspectable):
                     "INSTANCE_SHAPE": self.properties.deployment_instance_shape,
                     "INSTANCE_COUNT": self.properties.deployment_instance_count,
                     "bandwidth_mbps": self.properties.deployment_bandwidth_mbps,
+                    "memory_in_gbs": self.properties.deployment_memory_in_gbs,
+                    "ocpus": self.properties.deployment_ocpus,
                 }
             )
         )
@@ -1306,8 +1281,8 @@ class GenericModel(MetadataMixin, Introspectable):
         self.model_deployment = ModelDeployer(config=self.auth).deploy(
             properties=model_deployment_properties,
             wait_for_completion=wait_for_completion,
-            max_wait_time=kwargs.pop("max_wait_time", DEFAULT_WAIT_TIME),
-            poll_interval=kwargs.pop("poll_interval", DEFAULT_POLL_INTERVAL),
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
             **kwargs,
         )
         self._summary_status.update_status(
@@ -1348,6 +1323,8 @@ class GenericModel(MetadataMixin, Introspectable):
         deployment_log_group_id: Optional[str] = None,
         deployment_access_log_id: Optional[str] = None,
         deployment_predict_log_id: Optional[str] = None,
+        deployment_memory_in_gbs: Optional[float] = None,
+        deployment_ocpus: Optional[float] = None,
         bucket_uri: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
@@ -1433,6 +1410,10 @@ class GenericModel(MetadataMixin, Introspectable):
             The access log OCID for the access logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
         deployment_predict_log_id: (str, optional). Defaults to None.
             The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
+        deployment_memory_in_gbs: (float, optional). Defaults to None.
+            Specifies the size of the memory of the model deployment instance in GBs.
+        deployment_ocpus: (float, optional). Defaults to None.
+            Specifies the ocpus count of the model deployment instance.
         bucket_uri: (str, optional). Defaults to None.
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for downloading large artifacts with
@@ -1458,6 +1439,13 @@ class GenericModel(MetadataMixin, Introspectable):
                 Negative implies infinite wait time.
             poll_interval : (int, optional). Defaults to 60 seconds.
                 Poll interval in seconds.
+            freeform_tags: (Dict[str, str], optional). Defaults to None.
+                Freeform tags of the model deployment.
+            defined_tags: (Dict[str, dict[str, object]], optional). Defaults to None.
+                Defined tags of the model deployment.
+
+            Also can be any keyword argument for initializing the `ads.model.deployment.ModelDeploymentProperties`.
+            See `ads.model.deployment.ModelDeploymentProperties()` for details.
 
         Returns
         -------
@@ -1495,6 +1483,7 @@ class GenericModel(MetadataMixin, Introspectable):
         # Set default model_display_name if not specified - randomly generated easy to remember name generated
         if not model_display_name:
             model_display_name = utils.get_random_name_for_resource()
+
         self.save(
             display_name=model_display_name,
             description=model_description,
@@ -1511,6 +1500,7 @@ class GenericModel(MetadataMixin, Introspectable):
         # Set default deployment_display_name if not specified - randomly generated easy to remember name generated
         if not deployment_display_name:
             deployment_display_name = utils.get_random_name_for_resource()
+
         self.deploy(
             wait_for_completion=wait_for_completion,
             display_name=deployment_display_name,
@@ -1521,6 +1511,8 @@ class GenericModel(MetadataMixin, Introspectable):
             deployment_log_group_id=self.properties.deployment_log_group_id,
             deployment_access_log_id=self.properties.deployment_access_log_id,
             deployment_predict_log_id=self.properties.deployment_predict_log_id,
+            deployment_memory_in_gbs=self.properties.deployment_memory_in_gbs,
+            deployment_ocpus=self.properties.deployment_ocpus,
             kwargs=kwargs,
         )
         return self.model_deployment
@@ -1558,23 +1550,20 @@ class GenericModel(MetadataMixin, Introspectable):
         current_state = self.model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
             raise NotActiveDeploymentError(current_state)
-        data_dict = self._handle_input_data(data)
 
-        if isinstance(data_dict, dict) and "bytes" in data_dict["data_type"]:
-            prediction = self.model_deployment.predict(data=data_dict["data"], **kwargs)
-        else:
-            prediction = self.model_deployment.predict(json_input=data_dict, **kwargs)
+        serialized_data = self.get_data_serializer(data)
+        prediction = self.model_deployment.predict(data=serialized_data, **kwargs)
 
         self._summary_status.update_status(
             detail="Called deployment predict endpoint", status=ModelState.DONE.value
         )
         return prediction
 
-    def _handle_input_data(self, data: any):
-        """For generic model where _serialize_input is not implemented, check
-        if the data is json serializable. For other frameworks, serialize the
-        data using _serialize_input and double check if the resulted data is
-        json serializable.
+    def get_data_serializer(self, data: any):
+        """The data_serializer_class class is set in ``init`` and used here.
+        Frameworks should subclass the InputDataSerializer class, then
+        set that as the ``self.data_serializer_class``.
+        Frameworks should avoid overwriting this method whenever possible.
 
         Parameters
         ----------
@@ -1586,17 +1575,7 @@ class GenericModel(MetadataMixin, Introspectable):
         data
             Serialized data.
         """
-        try:
-            data_dict = self._serialize_input(data)
-        except SerializeInputNotImplementedError as e:
-            data_dict = data
-            if isinstance(data, bytes):
-                data_dict = {
-                    "data": data,
-                    "data_type": str(type(data)),
-                }
-
-        return data_dict
+        return self.data_serializer_class(data=data)
 
     @staticmethod
     def _is_json_serializable(data: Any) -> bool:

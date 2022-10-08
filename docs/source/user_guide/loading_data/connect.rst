@@ -1,3 +1,8 @@
+############
+Loading Data
+############
+
+
 Connecting to Data Sources
 **************************
 
@@ -37,6 +42,23 @@ To load a dataframe from Object Storage using the resource principal method, you
   namespace = <namespace>
   df = pd.read_csv(f"oci://{bucket_name}@{namespace}/{file_name}", storage_options=default_signer())
 
+To write a pandas dataframe to object storage, provide the file name in the following format -  ``oci://<mybucket>@<mynamespace>/<path/to/flle/name>``
+
+.. code-block:: python3
+
+  ads.set_auth(auth='resource_principal')
+  bucket_name = <bucket-name>
+  file_name = <file-name>
+  namespace = <namespace>
+  df = pd.to_csv(f"oci://{bucket_name}@{namespace}/{file_name}", index=False, storage_options=default_signer())
+
+  # To setup the content type while writing to object storage, set ``oci_additional_kwargs`` attribute with ``storage_options`` to the desired content type
+
+  storage_optons = default_signer()
+  storage_options['oci_additional_kwargs'] = {"content_type":"application/octet-stream"}
+  df = pd.to_csv(f"oci://{bucket_name}@{namespace}/{file_name}", index=False, storage_options=storage_options)
+
+
 Local Storage
 =============
 
@@ -67,6 +89,8 @@ The Pandas ``read_sql(...)`` function is a general, database independent approac
    This function is a convenience wrapper around read_sql_table and ``read_sql_query`` (for backward compatibility). It delegates to the specific function depending on the provided input. A SQL query is routed to read_sql_query, while a database table name is routed to ``read_sql_table``.
 
 Use the Pandas ADS accessor drop-in replacement, ``pd.DataFrame.ads.read_sql(...)``, instead of using ``pd.read_sql``.
+
+See :doc:`how to <../secrets/autonomous_database>` save and retrieve credentials from OCI Vault
 
 **Example**
 
@@ -111,6 +135,9 @@ Oracle Database to Pandas - No Wallet
 .. versionadded:: 2.5.6.
 
 If your database connection doesn't require a wallet file, you can connect to the database by specifying ``host/port/sid/service name``.
+
+See :doc:`how to <../secrets/oracle>` save and retrieve credentials from OCI Vault
+
 
 **Example**
 
@@ -233,6 +260,9 @@ MySQL
 
 To load a dataframe from a MySQL database, you must set ``engine=mysql`` in ``pd.DataFrame.ads.read_sql``.
 
+See :doc:`how to <../secrets/mysql>` save and retrieve credentials from OCI Vault
+
+
 **Example**
 
   .. code-block:: python3 
@@ -314,6 +344,9 @@ BDS Hive
 .. versionadded:: 2.6.1.
 
 To load a dataframe from BDS Hive, set ``engine="hive"`` in ``pd.DataFrame.ads.read_sql``.
+
+See :doc:`how to <../secrets/big_data_service>` save and retrieve credentials from OCI Vault
+
 
 Connection Parameters
 ---------------------
@@ -499,4 +532,10 @@ ADS supports reading files into ``PyArrow`` dataset directly via ``ocifs``. ``oc
   fs = ocifs.OCIFileSystem(**default_signer())
   ds = ds.dataset(f"{bucket_name}@{namespace}/{path}/", filesystem=fs)
 
+DataSetFactory
+**************
 
+.. toctree::
+   :maxdepth: 2
+
+   connect_legacy

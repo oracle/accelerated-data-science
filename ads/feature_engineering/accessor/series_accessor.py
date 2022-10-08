@@ -46,6 +46,7 @@ from ads.feature_engineering.feature_type.base import FeatureType, Tag
 from ads.feature_engineering.feature_type.handler.feature_validator import (
     FeatureValidator,
 )
+from ads.feature_engineering.feature_type.adsstring.string import ADSString
 
 logger = logging.getLogger(__name__)
 
@@ -371,6 +372,24 @@ class ADSSeriesAccessor(ADSFeatureTypesMixin, EDAMixinSeries):
             return ADSSeriesValidator(self._feature_type, self._obj)
 
         for feature_type in self._feature_type:
+            if feature_type == ADSString:
+                # We need to initialize first to use the plugins.
+                if hasattr(feature_type("default"), attr):
+                    methods = inspect.classify_class_attrs(feature_type)
+                    for method in methods:
+                        if method.name == attr:
+                            if method.kind == "method":
+                                return lambda *args, **kwargs: [
+                                    getattr(ADSString(v), attr)(*args, **kwargs)
+                                    for v in self._obj.values
+                                ]
+
+                            elif method.kind == "property":
+                                attr_objects = []
+                                for v in self._obj.values:
+                                    attr_objects.append(getattr(feature_type(v), attr))
+                                return attr_objects
+
             if hasattr(feature_type, attr):
                 # non-instance methods, aka class method or static method
                 non_ins_methods = [

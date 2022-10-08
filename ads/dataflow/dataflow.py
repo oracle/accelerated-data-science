@@ -61,7 +61,10 @@ class SPARK_VERSION(str):
 
 
 class DataFlow:
-    @deprecated("2.6.3")
+    @deprecated(
+        "2.6.3",
+        details="Use ads.jobs.DataFlow class for creating DataFlow applications and runs. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/apachespark/dataflow.html#create-run-data-flow-application-using-ads-python-sdk",
+    )
     def __init__(
         self,
         compartment_id=None,

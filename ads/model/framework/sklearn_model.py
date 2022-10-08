@@ -15,14 +15,15 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
 )
 from ads.model.extractor.sklearn_extractor import SklearnExtractor
-from ads.common.utils import _serialize_input_helper
-from ads.model.generic_model import GenericModel
+from ads.common.data_serializer import InputDataSerializer
+from ads.model.generic_model import (
+    GenericModel,
+    DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME,
+    DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME,
+)
 from ads.model.model_properties import ModelProperties
 from joblib import dump
 from pandas.api.types import is_numeric_dtype, is_string_dtype
-
-DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME = "model.onnx"
-DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME = "model.joblib"
 
 
 class SklearnModel(GenericModel):
@@ -544,7 +545,7 @@ class SklearnModel(GenericModel):
             ]
         )
 
-    def _serialize_input(
+    def get_data_serializer(
         self,
         data: Union[
             Dict,
@@ -562,26 +563,15 @@ class SklearnModel(GenericModel):
         data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
         pd.core.frame.DataFrame]
             Data expected by the model deployment predict API.
-        data_type: Any, defaults to None.
-            Type of the data. If not provided, it will be checked against data.
 
         Returns
         -------
-        Dict
-            A dictionary containing serialized input data and original data type
-            information.
+        InputDataSerializer
+            A class containing serialized input data and original data type information.
 
         Raises
         ------
         TypeError
             if provided data type is not supported.
         """
-        try:
-            return _serialize_input_helper(data)
-        except:
-            raise TypeError(
-                "The supported data types are Dict, str, list, "
-                "numpy.ndarray, pd.core.series.Series, "
-                "pd.core.frame.DataFrame. Please "
-                "convert to the supported data types first. "
-            )
+        return InputDataSerializer(data)

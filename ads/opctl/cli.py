@@ -309,6 +309,48 @@ def add_options(options):
     is_flag=True,
     help="During dry run, the actual operation is not performed, only the steps are enumerated.",
 )
+@click.option(
+    "--nobuild",
+    "-nobuild",
+    default=False,
+    is_flag=True,
+    help="skip re-building the docker image",
+)
+@click.option(
+    "--auto_increment",
+    "-i",
+    default=False,
+    is_flag=True,
+    help="Increments tag of the image while rebuilding",
+)
+@click.option(
+    "--nopush",
+    "-nopush",
+    default=False,
+    is_flag=True,
+    help="Image is not pushed to OCIR",
+)
+@click.option(
+    "--tag",
+      "-t",
+      help="tag of image",
+      required=False,
+      default=None
+)
+@click.option(
+    "--registry",
+      "-reg",
+      help="registry to push to",
+      required=False,
+      default=None
+)
+@click.option(
+    "--dockerfile",
+      "-df",
+      help="relative path to Dockerfile",
+      required=False,
+      default=None
+)
 def run(file, **kwargs):
     """
     Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science Jobs
