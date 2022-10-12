@@ -1,8 +1,8 @@
 .. _data-visualization-8:
 
-##################
-Data Visualization
-##################
+##############
+Visualize Data
+##############
 
 Data visualization is an important aspect of data exploration, analysis, and communication. Generally, visualization of the data is one of the first steps in any analysis. It allows the analysts to efficiently gain an understanding of the data and guides the exploratory data analysis (EDA) and the modeling process.
 

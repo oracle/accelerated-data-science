@@ -18,7 +18,7 @@ Build Image
 
 **Args**
 
-*  -t: Tag of the docker image
+* -t: Tag of the docker image
 * -reg: Docker Repository 
 * -df: Dockerfile using which docker will be build 
 * -push: push the image to oci registry
@@ -27,10 +27,10 @@ Build Image
 
 .. code-block:: bash
 
-    ads opctl distributed-training build-image
-    -t $TAG
-    -reg $NAME_OF_REGISTRY
-    -df $PATH_TO_DOCKERFILE
+    ads opctl distributed-training build-image \
+    -t $TAG \
+    -reg $NAME_OF_REGISTRY \
+    -df $PATH_TO_DOCKERFILE \
     -s $MOUNT_FOLDER_PATH
 
 
@@ -92,10 +92,10 @@ Run the container Image on the OCI Data Science or local
 * -i: Auto increments the tag of the image 
 * -nopush: Doesn't Push the latest image to OCIR
 * -nobuild: Doesn't build the image
-*  -t: Tag of the docker image
-*  -reg: Docker Repository 
-*  -df: Dockerfile using which docker will be build
-*  -s: source code dir
+* -t: Tag of the docker image
+* -reg: Docker Repository 
+* -df: Dockerfile using which docker will be build
+* -s: source code dir
 
 **Note** : The value "@image" for ``image`` attribute in ``train.yaml`` is replaced at runtime using combination of  ``-t`` and ``-r`` params.
 
@@ -128,7 +128,7 @@ If required OCI API keys can be mounted by specifying the location in the config
 
 
 
-Developement Flow
+Development Flow
 -----------------
 
 **Step 1**: 
@@ -179,3 +179,24 @@ Finally, to run on a jobs platform
 
     ads opctl run
             -f train.yaml
+
+Diagnosing Infrastructure Setup
+-------------------------------
+
+Before submitting your code to Data Science Jobs, check if the infra setup meets the framework requirement. Each framework has a specific set of requirements.
+
+``ads opctl check`` runs diagnosis by starting a single node ``jobrun`` using the container image specified in the ``train.yaml`` file.
+
+.. code-block:: bash
+
+    ads opctl check -f train.yaml --output infra_report.html
+
+The `train.yaml` is the same yaml file that is defined for running distributed training code. The diagnostic report is saved in the file provided in ``--output`` option.
+
+Here is a sample report generated for Horovod cluster - 
+
+.. figure:: figures/horovod.png
+
+
+
+

@@ -1,3 +1,6 @@
+Text Extraction
+---------------
+
 Convert files such as PDF, and Microsoft Word files into plain text. The data is stored in Pandas dataframes and therefore it can easily be manipulated and saved. The text extraction module allows you to read files of various file formats, and convert them into different formats that can be used for text manipulation. The most common ``DataLoader`` commands are demonstrated, and some advanced features, such as defining custom backend and file processor.
 
 .. code-block:: python3
@@ -94,8 +97,7 @@ Both the ``.read_line()`` and ``.read_text()`` methods parse the corpus, convert
 
 Each document can have a custom set of metadata that describes the document. The ``.metadata_all()`` and ``.metadata_schema()`` methods allow you to access this metadata. Metadata is represented as a key-value pair. The ``.metadata_all()`` returns a set of key-value pairs for each document. The ``.metadata_schema()`` returns what keys are used in defining the metadata. This can vary from document to document and this method creates a list of all observed keys. You use this to understand what metadata is available in the corpus.
 
-``.read_line()``
-----------------
+**``.read_line()``**
 
 The ``.read_line()`` method allows you to read a corpus line-by-line. In other words, each line in a file corresponds to one record. The only required argument to this method is ``path``. It sets the path to the corpus, and it can contain a glob pattern. For example, ``oci://{bucket}@{namespace}/pdf_sample/**.pdf``, ``'oci://{bucket}@{namespace}/20news-small/**/[1-9]*'``, or ``/home/datascience/<path-to-folder>/[A-Za-z]*.docx`` are all valid paths that contain a glob pattern for selecting multiple files. The ``path`` parameter can also be a list of paths. This allows for reading files from different file paths.
 
@@ -164,8 +166,7 @@ This example uses the default engine, which returns an iterator. The ``next()`` 
      'ok',
      '/etc/httpd/conf/workers2.properties']
 
-``.read_text()``
-----------------
+**``.read_text()``**
 
 It you want to treat each document in a corpus as a record, use the ``.read_text()`` method. The ``path`` parameter is the only required parameter as it defines the location of the corpus.
 
@@ -315,8 +316,7 @@ there is a difference in the metadata.
      'xmp:CreatorTool': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36',
      'xmpTPg:NPages': '1'}
 
-``.metadata_schema()``
-----------------------
+**``.metadata_schema()``**
 
 As briefly discussed in the  ``.metadata_all()`` method section, there is no standard set of metadata across all documents. The ``.metadata_schema()`` method is a convenience method that returns what metadata is available in the corpus. It returns a list of all observed metadata fields in the corpus. Since each document can have a different set of metadata, all the values returned may not exist in all documents.  It should also be noted that the engine used can return different metadata for the same document. 
 
@@ -355,8 +355,7 @@ The ``text_dataset`` module has the ability to augment the returned records with
 Examples
 ========
 
-``Options.FILE_NAME``
----------------------
+**``Options.FILE_NAME``**
 
 The following example uses ``.option(Options.FILE_NAME)`` to augment to add the filename of each record that is returned. The example uses the ``txt`` for the ``FileProcessor``, and Tika for the backend. The engine is Pandas so a dataframe is returned. The ``df_args`` option is used to rename the columns of the dataframe. Notice that the returned dataframe has a column named ``path``. This is the information that was added to the record from the ``.option(Options.FILE_NAME)`` method.
 
@@ -372,8 +371,7 @@ The following example uses ``.option(Options.FILE_NAME)`` to augment to add the 
 
 .. image:: figures/sec_filename.png
 
-``Options.FILE_METADATA``
--------------------------
+**``Options.FILE_METADATA``**
 
 You can add metadata about a document to a record using ``.option(Options.FILE_METADATA, {'extract': ['<key1>, '<key2>']})``.  When using ``Options.FILE_METADATA``, there is a required second parameter. It takes a dictionary where the key is the action to be taken. In the next example, the ``extract`` key provides a list of metadata that can be extracted. When a list is used, the returned value is also a list of the metadata values. The example uses repeated calls to ``.option()`` where different metadata values are extracted. In this case, a list is not returned, but each value is in a separate Pandas column.
 

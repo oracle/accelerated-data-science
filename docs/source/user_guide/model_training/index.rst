@@ -1,6 +1,6 @@
-==============
-Model Training
-==============
+============
+Train Models
+============
 
 In this section you will learn about model training on the Data Science cloud service using a variety of popular frameworks. This section
 covers the popular ``sklearn``  framework, along with gradient boosted tree estimators like LightGBM and XGBoost, Oracle AutoML  and
@@ -19,7 +19,6 @@ TensorBoard provides the visualization and the tooling that is needed to watch a
 
   ads_tuner
   Distributed Training [beta] <distributed_training/overview>
-  ../template/monitoring
   tensorboard/tensorboard
   model_evaluation/index
   model_explainability/index

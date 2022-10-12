@@ -52,9 +52,9 @@ To fetch code from Object Storage, you can update the ``runtime`` section of the
   runtime:
     apiVersion: v1
     kind: python
-    type: git
+    type: remote
     spec:
       uri: oci://bucket@namespace/prefix/to/source_code_dir
-      entryPoint: "source_code_dir/train.py"
+      entryPoint: "/code/source_code_dir/train.py"
 
 The ``uri`` can be a single file or a prefix (directory). The ``entryPoint`` is the the file path to start the training code. When using relative path, if ``uri`` is a single file, ``entryPoint`` should be the filename. If ``uri`` is a directory, the ``entryPoint`` should contain the name of the directory like the example above. The source code is cloned to the ``/code`` directory. You may also use the absolute path.

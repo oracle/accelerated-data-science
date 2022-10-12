@@ -1,6 +1,6 @@
-=========================
-Working with Apache Spark
-=========================
+============
+Apache Spark
+============
 
 
 .. admonition:: DataFlow

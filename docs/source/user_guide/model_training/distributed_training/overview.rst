@@ -64,8 +64,11 @@ of service provided frameworks for distributed training include:
 - `PyTorch Distributed <https://pytorch.org/tutorials/beginner/dist_overview.html>`_ for ``PyTorch``
   native using ``DistributedDataParallel`` - no training code changes
   to run PyTorch model training on a cluster. You can use ``Horovod`` to do the same, which has some
-  advanced features like ``Adasum`` for better convergence at high scale, auto-tuning to improve
+  advanced features like auto-tuning to improve
   ``allreduce`` performance, and ``fp16`` gradient compression.
+- `Tensorflow Distributed <https://www.tensorflow.org/guide/distributed_training>`_ for ``Tensorflow``
+  distributed training strategies like ``MirroredStrategy``, ``MultiWorkerMirroredStrategy`` and
+  ``ParameterServerStrategy``
 
 
 .. toctree::
@@ -78,5 +81,7 @@ of service provided frameworks for distributed training include:
   dask/dask
   horovod/horovod
   pytorch/pytorch
+  tensorflow/tensorflow
   remote_source_code
   yaml_schema
+  troubleshooting
