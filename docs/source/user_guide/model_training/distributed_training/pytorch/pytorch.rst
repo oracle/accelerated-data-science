@@ -6,8 +6,6 @@ PyTorch is an open source machine learning framework used for applications such 
 
 PyTorch distributed training requires initialization using the ``torch.distributed.init_process_group()`` function. By default this function collects uses environment variables to initialize the communications for the training cluster. When using ADS to run PyTorch distributed training on OCI data science Jobs, the environment variables, including ``MASTER_ADDR``, ``MASTER_PORT``, ``WORLD_SIZE`` ``RANK``, and ``LOCAL_RANK`` will automatically be set in the job runs. By default ``MASTER_PORT`` will be set to ``29400``.
 
-Check for latest information `here <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/distributed_training/pytorch.md>`__
-
 .. toctree::
     :maxdepth: 3
 

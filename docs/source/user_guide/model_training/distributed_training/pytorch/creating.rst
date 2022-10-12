@@ -291,52 +291,37 @@ The artifacts will be saved into the ``oci_dist_training_artifacts/pytorch/v1`` 
 
 **Containerize your code and build container:**
 
+
 Before you can build the image, you must set the following environment variables:
+
+Specify image name and tag
 
 .. code-block:: bash
 
   export IMAGE_NAME=<region.ocir.io/my-tenancy/image-name>
   export TAG=latest
-  export ARTIFACT_DIR=oci_dist_training_artifacts/pytorch/v1
 
 
-To build the image:
-
-`with Proxy server:`
+Build the container image.
 
 .. code-block:: bash
 
-  docker build  --build-arg no_proxy=$no_proxy \  
-                --build-arg http_proxy=$http_proxy \
-                --build-arg https_proxy=$http_proxy \
-                --build-arg ARTIFACT_DIR=$ARTIFACT_DIR \
-                -t $IMAGE_NAME:$TAG \
-                -f $ARTIFACT_DIR/Dockerfile .
+  ads opctl distributed-training build-image \
+      -t $TAG \
+      -reg $IMAGE_NAME \
+      -df oci_dist_training_artifacts/pytorch/v1/Dockerfile
 
-`without Proxy server:`
+The code is assumed to be in the current working directory. To override the source code directory, use the ``-s`` flag and specify the code dir. This folder should be within the current working directory.
 
 .. code-block:: bash
 
-  docker build -t $IMAGE_NAME:$TAG \
-      --build-arg ARTIFACT_DIR=$ARTIFACT_DIR \
-      -f $ARTIFACT_DIR/Dockerfile .
+  ads opctl distributed-training build-image \
+      -t $TAG \
+      -reg $IMAGE_NAME \
+       -df oci_dist_training_artifacts/horovod/v1/oci_dist_training_artifacts/pytorch/v1/Dockerfile
+      -s <code_dir>
 
-The code (``train.py``) is assumed to be in the current working directory.
-To override the source code directory, use the ``CODE_DIR`` build argument:
-
-.. code-block:: bash
-
-  docker build --build-arg CODE_DIR=`path/to/code/dir` \
-      -t $IMAGE_NAME:$TAG \
-      --build-arg ARTIFACT_DIR=$ARTIFACT_DIR \
-      -f $ARTIFACT_DIR/Dockerfile .
-
-
-Finally, push your image using:
-
-.. code-block:: bash
-
-    docker push $IMAGE_NAME:$TAG
+If you are behind proxy, ads opctl will automatically use your proxy settings (defined via ``no_proxy``, ``http_proxy`` and ``https_proxy``).
 
 
 **Define your workload yaml:**
@@ -410,26 +395,53 @@ the output from the dry run will show all the actions and infrastructure configu
 
 **Use ads opctl to create the cluster infrastructure and run the workload:**
 
+.. include:: ../_test_and_submit.rst
+
+.. _hvd_saving_artifacts:
+
+.. include:: ../_save_artifacts.rst
+
+.. code-block:: python
+
+  model_path = os.path.join(os.environ.get("OCI__SYNC_DIR"),"model.pt")
+  torch.save(model, model_path)
+
+**Profiling**
+
+You may want to profile your training setup for optimization/performance tuning. Profiling typically provides a detailed analysis of cpu utilization, gpu utilization,
+top cuda kernels, top operators etc. You can choose to profile your training setup using the native Pytorch profiler or using a third party profiler such as `Nvidia Nsights <https://developer.nvidia.com/nsight-systems>`__.
+
+**Profiling using Pytorch Profiler**
+
+Pytorch Profiler is a native offering from Pytorch for Pytorch performance profiling. Profiling is invoked using code instrumentation using the api ``torch.profiler.profile``.
+
+Refer `this link <https://pytorch.org/docs/stable/profiler.html>`__ for changes that you need to do in your training script for instrumentation.
+You should choose the ``OCI__SYNC_DIR`` directory to save the profiling logs. For example:
+
+.. code-block:: python
+
+  prof = torch.profiler.profile(activities=[torch.profiler.ProfilerActivity.CPU,torch.profiler.ProfilerActivity.CUDA],
+        schedule=torch.profiler.schedule(
+            wait=1,
+            warmup=1,
+            active=3,
+            repeat=1),
+        on_trace_ready=torch.profiler.tensorboard_trace_handler(os.environ.get("OCI__SYNC_DIR") + "/logs"),
+        with_stack=False)
+  prof.start()
+
+  # training code
+  prof.end()
+
+Also, the sync feature ``SYNC_ARTIFACTS`` should be enabled ``'1'`` to sync the profiling logs to the configured object storage.
+
+You would also need to install the Pytorch Tensorboard Plugin.
+
 .. code-block:: bash
 
-  ads opctl run -f train.yaml
+   pip install torch-tb-profiler
 
-Once running you will see on the terminal an output similar to the below. Note that this yaml
-can be used as input to ``ads opctl distributed-training show-config -f <info.yaml>`` - to both
-save and see the run info use ``tee`` - for example:
+Thereafter, use Tensorboard to view logs. Refer the :doc:`Tensorboard setup <../../tensorboard/tensorboard>` for set-up on your computer.
 
-.. code-block:: bash
 
-  ads opctl run -f train.yaml | tee info.yaml
-
-.. code-block:: yaml
-  :caption: info.yaml
-  :name: info.yaml
-
-  jobId: oci.xxxx.<job_ocid>
-  mainJobRunId: oci.xxxx.<job_run_ocid>
-  workDir: oci://my-bucket@my-namespace/pytorch/distributed
-  workerJobRunIds:
-    - oci.xxxx.<job_run_ocid>
-    - oci.xxxx.<job_run_ocid>
-    - oci.xxxx.<job_run_ocid>
+.. include:: ../_profiling.rst

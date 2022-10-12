@@ -17,6 +17,7 @@ You need to use a private subnet for distributed training and configure the secu
 
 * `PyTorch`: By default, ``PyTorch`` uses **29400**.
 * `Horovod`: allow TCP traffic on all ports within the subnet.
+* `Tensorflow`: Worker Port: Allow traffic from all source ports to one worker port (default: 12345). If changed, provide this in train.yaml config.
 
 See also: `Security Lists <https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/securitylists.htm>`_
 

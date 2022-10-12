@@ -73,46 +73,37 @@ example. Now running the command below
 
 Before you can build the image, you must set the following environment variables:
 
+Specify image name and tag
+
 .. code-block:: bash
 
   export IMAGE_NAME=<region.ocir.io/my-tenancy/image-name>
   export TAG=latest
 
 
-To build the image:
-
-
-`without Proxy server:`
+Build the container image.
 
 .. code-block:: bash
 
-  docker build -t $IMAGE_NAME:$TAG \
-      -f oci_dist_training_artifacts/dask/v1/Dockerfile .
+  ads opctl distributed-training build-image \
+      -t $TAG \
+      -reg $IMAGE_NAME \
+      -df oci_dist_training_artifacts/dask/v1/Dockerfile
 
-`with Proxy server:`
 
-.. code-block:: bash
 
-  docker build  --build-arg no_proxy=$no_proxy \
-                --build-arg http_proxy=$http_proxy \
-                --build-arg https_proxy=$http_proxy \
-                -t $IMAGE_NAME:$TAG \
-                -f oci_dist_training_artifacts/dask/v1/Dockerfile .
-
-The code is assumed to be in the current working directory. To override the source code directory:
+The code is assumed to be in the current working directory. To override the source code directory, use the ``-s`` flag and specify the code dir. This folder should be within the current working directory.
 
 .. code-block:: bash
 
-  docker build --build-arg CODE_DIR=`pwd` \
-      -t $IMAGE_NAME:$TAG \
-      -f oci_dist_training_artifacts/dask/v1/Dockerfile
+  ads opctl distributed-training build-image \
+      -t $TAG \
+      -reg $IMAGE_NAME \
+      -df oci_dist_training_artifacts/dask/v1/Dockerfile
+      -s <code_dir>
 
+If you are behind proxy, ads opctl will automatically use your proxy settings (defined via ``no_proxy``, ``http_proxy`` and ``https_proxy``).
 
-Finally, push your image using:
-
-.. code-block:: bash
-
-    docker push $IMAGE_NAME:$TAG
 
 
 **Define your workload yaml:**
@@ -229,31 +220,7 @@ This will give an option similar to this -
       OCI__MODE:WORKER
   -----------------------------Ending dryrun mode----------------------------------
 
-Submit the workload -
-
-.. code-block:: bash
-
-  ads opctl run -f train.yaml
-
-Once running you will see on the terminal an output similar to the contents of the ``info.yaml`` below. To both
-save and see the run info use ``tee`` - for example:
-
-.. code-block:: bash
-
-  ads opctl run -f train.yaml | tee info.yaml
-
-.. code-block:: yaml
-  :caption: info.yaml
-
-  jobId: oci.xxxx.<job_ocid>
-  mainJobRunId: oci.xxxx.<job_run_ocid>
-  workDir: oci://my-bucket@my-namespace/daskcluster-testing/005
-  workerJobRunIds:
-    - oci.xxxx.<job_run_ocid>
-    - oci.xxxx.<job_run_ocid>
-    - oci.xxxx.<job_run_ocid>
-
-It is recommended that you save the output to a file. 
+.. include:: ../_test_and_submit.rst
 
 **Monitoring the workload logs**
 
@@ -285,6 +252,12 @@ If the IP address is reachable from your workstation network, you can access the
 The alternate approach is to use either a Bastion host on the same subnet as the Job Runs and create an ssh tunnel from your workstation.
 
 For more information about the dashboard, checkout https://docs.dask.org/en/stable/diagnostics-distributed.html
+
+.. include:: ../_save_artifacts.rst
+.. code-block:: python
+
+  with open(os.path.join(os.environ.get("OCI__SYNC_DIR"),"results.txt"), "w") as rf:
+    rf.write(f"Best Params are: {grid.best_params_}, Score is {grid.best_score_}")
 
 **Terminating In-Progress Cluster**
 

@@ -1,8 +1,8 @@
 .. _secrets-1:
 
-#######
-Secrets
-#######
+#################
+Store Credentials
+#################
 
 Services such as OCI Database and Streaming require users to provide credentials. These credentials must be safely accessed at runtime. `OCI Vault <https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Concepts/keyoverview.htm>`_ provides a mechanism for safe storage and access of secrets. ``SecretKeeper`` uses Vault as a backend to store and retrieve the credentials. The data structure of the credentials varies from service to service. There is a ``SecretKeeper`` specific to each data structure.
 

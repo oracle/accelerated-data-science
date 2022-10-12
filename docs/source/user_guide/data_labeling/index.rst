@@ -1,8 +1,8 @@
 .. _data-labeling-8:
 
-#############
-Labeling Data
-#############
+##########
+Label Data
+##########
 
 The Oracle Cloud Infrastructure (OCI) Data Labeling service allows you to create and browse datasets, view data records (text, images) and apply labels for the purposes of building AI/machine learning (ML) models.  The service also provides interactive user interfaces that enable the labeling process.  After you label records, you can export the dataset as line-delimited JSON Lines (JSONL) for use in  model development.
 

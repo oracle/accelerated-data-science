@@ -1,7 +1,7 @@
 .. _data-transformations-8:
 
-Data Transformations
-####################
+Transform Data 
+##############
 
 When datasets are loaded with DatasetFactory, they can be transformed and manipulated easily with the built-in functions. Underlying, an ``ADSDataset`` object is a Pandas dataframe. Any operation that can be performed to a `Pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`_ can also be applied to an ADS Dataset.
 
@@ -520,3 +520,11 @@ You can split the dataset right after the ``DatasetFactory.open()`` statement:
     ds = DatasetFactory.open("path/data.csv").set_target('target')
     train, test = ds.train_test_split(test_size=0.25)
 
+Text Data 
+*********
+
+.. toctree::
+    :maxdepth: 3
+
+    ../ADSString/index
+    ../text_extraction/text_dataset

@@ -6,7 +6,7 @@ Setting up Visual Studio Code
 
 **Prerequisites**
 
-1. ADS CLI is :doc:`configured<configure>`
+1. ADS CLI is :doc:`configured<../configure>`
 2. Install Visual Studio Code
 3. :doc:`Build Development Container Image<jobs_container_image>`
 4. Install Visual Studio Code extension for `Remote Development <https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack>`_

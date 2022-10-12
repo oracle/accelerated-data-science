@@ -1,10 +1,5 @@
 .. _ADSString:
 
-######################
-Manipulating Text Data
-######################
-
-
 TextStrings
 -----------
 
@@ -18,10 +13,4 @@ TextStrings
    regex_match
    still_a_string
 
-Text Extraction
----------------
 
-.. toctree::
-   :maxdepth: 1
-
-   ../text_extraction/text_dataset
