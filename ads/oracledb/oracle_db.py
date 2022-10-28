@@ -4,7 +4,19 @@
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import ads
+"""
+There are two potential candidates for oracle database driver -
+* cx_Oracle
+* oracledb
+
+Preference is to use oracledb if it is available in the environment else choose cx_Oracle
+
+If oracledb is loaded and user uses `wallet` to connect to database, prefer thick mode. Thin mode requires user to provide passphrase for PEM file which is not required in thick mode
+
+If user uses DSN string copied from OCI console with OCI database setup for TLS connection, oracledb driver is preferred. If cx_Oracle is the only driver available, warn user that oracledb is preferred driver.
+Note: We need to account for cx_Oracle though oracledb can operate in thick mode. The end user may be is using one of the old conda packs or an environment where cx_Oracle is the only available driver.
+"""
+
 from ads.common.utils import ORACLE_DEFAULT_PORT
 
 import logging
@@ -16,22 +28,33 @@ from time import time
 from typing import Dict, Optional, List, Union, Iterator
 import zipfile
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
 )
 
-try:
-    import cx_Oracle
-except ModuleNotFoundError:
-    raise ModuleNotFoundError(
-        f"The `cx_Oracle` module was not found. Please run "
-        f"`pip install {OptionalDependency.DATA}`."
-    )
-
 logger = logging.getLogger("ads.oracle_connector")
+CX_ORACLE = "cx_Oracle"
+PYTHON_ORACLEDB = "PYTHON_ORACLEDB"
+PYTHON_DRIVER_NAME = None
 
 
-class OracleRDBMSConnection(cx_Oracle.Connection):
+try:
+    import oracledb as oracle_driver  # Both the driver share same signature for the APIs that we are using.
+
+    PYTHON_DRIVER_NAME = PYTHON_ORACLEDB
+except:
+    logger.info("oracledb package not found. Trying to load cx_Oracle")
+    try:
+        import cx_Oracle as oracle_driver
+
+        PYTHON_DRIVER_NAME = CX_ORACLE
+    except ModuleNotFoundError:
+        raise ModuleNotFoundError(
+            f"Neither `oracledb` nor `cx_Oracle` module was not found. Please run "
+            f"`pip install {OptionalDependency.DATA}`."
+        )
+
+
+class OracleRDBMSConnection(oracle_driver.Connection):
     def __init__(
         self,
         user_name,
@@ -44,12 +67,24 @@ class OracleRDBMSConnection(cx_Oracle.Connection):
         port=ORACLE_DEFAULT_PORT,
         **kwargs,
     ):
+        logger.info(f"Using `{PYTHON_DRIVER_NAME}` for connection with Oracle database")
+        if "wallet_location" in kwargs:
+            wallet_file = kwargs.pop("wallet_location")
+        if PYTHON_DRIVER_NAME == PYTHON_ORACLEDB and wallet_file:
+            try:
+                oracle_driver.init_oracle_client()
+                logger.info(
+                    "Running oracledb driver in thick mode. For mTLS based connection, thick mode is default."
+                )
+            except:
+                logger.info(
+                    "Could not use thick mode. The driver is running in thin mode. System might prompt for passphrase"
+                )
+
         self.temp_dir = None
         self.tns_entries = {}
         kwargs["user"] = user_name
         kwargs["password"] = password
-        if "wallet_location" in kwargs:
-            wallet_file = kwargs.pop("wallet_location")
         if wallet_file:
             self._setup_wallet_file(wallet_file)
             if service_name:
@@ -60,6 +95,12 @@ class OracleRDBMSConnection(cx_Oracle.Connection):
                 kwargs["dsn"] = dsn
         elif dsn:
             kwargs["dsn"] = dsn
+            logger.info("Using dsn for connection")
+            logger.debug(f"DSN string is {dsn}")
+            if PYTHON_DRIVER_NAME == CX_ORACLE and "protocol=tcps" in dsn:
+                logger.warning(
+                    "If you are connecting to Autonomous Database using TLS, install `oracledb` python package to use the connection string from OCI Autonomous Database Console."
+                )
         elif service_name or sid:
             logger.info(f"Connecting to {host}:{port}/{service_name or sid}")
             if not host:
@@ -71,9 +112,6 @@ class OracleRDBMSConnection(cx_Oracle.Connection):
         super().__init__(**kwargs)
 
         logger.info(
-            f"cx_Oracle version: {'.'.join([str(x) for x in cx_Oracle.clientversion()[:2]])}"
-        )
-        logger.info(
             f"RDBMS version: {'.'.join([str(x) for x in self.version.split('.')[:2]])}"
         )
 
@@ -82,7 +120,13 @@ class OracleRDBMSConnection(cx_Oracle.Connection):
             self.temp_dir.cleanup()
 
     def _construct_dsn_(self, host, port, service_name=None, sid=None):
-        return cx_Oracle.makedsn(host, port, sid=sid, service_name=service_name)
+        if PYTHON_DRIVER_NAME == CX_ORACLE:
+            return oracle_driver.makedsn(host, port, sid=sid, service_name=service_name)
+        else:
+            cp = oracle_driver.ConnectParams(
+                host=host, port=port, service_name=service_name, sid=sid
+            )
+            return cp.get_connect_string()
 
     def _setup_wallet_file(self, wallet_file: str):
         # extract files in wallet zip to a temporary directory
@@ -129,7 +173,7 @@ class OracleRDBMSConnection(cx_Oracle.Connection):
             if if_exists != "replace":
                 try:
                     cursor.execute(f"SELECT 1 from {table_name} FETCH NEXT 1 ROWS ONLY")
-                except Exception as e:
+                except Exception:
                     table_exist = False
                 if if_exists == "fail" and table_exist:
                     raise ValueError(

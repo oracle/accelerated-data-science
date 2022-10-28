@@ -142,6 +142,7 @@ class MetadataCustomKeys(str, metaclass=ExtendedEnumMeta):
     VALIDATION_DATASET_NUMBER_OF_ROWS = "ValidationDatasetNumberOfRows"
     VALIDATION_DATASET_NUMBER_OF_COLS = "ValidationDataSetNumberOfCols"
     CLIENT_LIBRARY = "ClientLibrary"
+    MODEL_FILE_NAME = "ModelFileName"
 
 
 class MetadataCustomCategory(str, metaclass=ExtendedEnumMeta):

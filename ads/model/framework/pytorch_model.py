@@ -114,6 +114,8 @@ class PyTorchModel(GenericModel):
     >>> torch_model.predict(...)
     """
 
+    _PREFIX = "pytorch"
+
     @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def __init__(
         self,
@@ -371,6 +373,7 @@ class PyTorchModel(GenericModel):
             pd.core.frame.DataFrame,
             "torch.Tensor",
         ],
+        data_type: str = None,
     ):
         """Returns serializable input data.
 
@@ -379,6 +382,8 @@ class PyTorchModel(GenericModel):
         data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
         pd.core.frame.DataFrame, torch.Tensor]
             Data expected by the model deployment predict API.
+        data_type: str
+            Type of the data.
 
         Returns
         -------
@@ -391,7 +396,19 @@ class PyTorchModel(GenericModel):
         TypeError
             if provided data type is not supported.
         """
-        data_type = type(data)
+        data_type = data_type if data_type else type(data)
+        if data_type == "image":
+            try:
+                import torchvision.transforms as transforms
+
+                convert_tensor = transforms.ToTensor()
+                data = convert_tensor(data)
+                data_type = str(type(data))
+            except ModuleNotFoundError:
+                raise ModuleNotFoundError(
+                    f"The `torchvision` module was not found. Please run "
+                    f"`pip install {OptionalDependency.PYTORCH}`."
+                )
         if isinstance(data, torch.Tensor):
             buffer = BytesIO()
             torch.save(data, buffer)
@@ -400,7 +417,7 @@ class PyTorchModel(GenericModel):
             return InputDataSerializer(data, data_type=data_type)
         except:
             raise TypeError(
-                "The supported data types are Dict, str, list, "
+                "The supported data types are Dict, str, list, bytes,"
                 "numpy.ndarray, pd.core.series.Series, "
                 "pd.core.frame.DataFrame, torch.Tensor. Please "
                 "convert to the supported data types first. "

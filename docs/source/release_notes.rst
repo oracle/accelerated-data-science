@@ -2,6 +2,20 @@
 Release Notes
 =============
 
+2.6.7
+-----
+Release date: October 27, 2022
+
+* Fixed a bug in ``PyTorchModel``. The ``score.py`` failed when ``torch.Tensor`` was used as input data.
+* Added support for flexible shapes for Data Flow Jobs.
+* Loading a model from Model Catalog (``GenericModel.from_model_catalog()``) and Model Deployment (``GenericModel.from_model_deployment()``) no longer requires a model file name.
+* Switched from using ``cx_Oracle`` interface to the ``oracledb`` driver to connect to Oracle Databases.
+* Added support for image attribute for the ``PyTorchModel.predict()`` and ``TensorFlowModel.predict()`` methods. Images can now be directly passed to the model Deployment predict.
+
+The following APIs are deprecated:
+
+* OracleAutoMLProvider
+
 2.6.6
 -----
 Release date: October 7, 2022

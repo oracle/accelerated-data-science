@@ -5,6 +5,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
-logger.setLevel("INFO")
+handler = logging.StreamHandler(sys.stdout)
+logger.addHandler(handler)
+
+
+def set_log_level(level):
+    handler.setLevel(level)

@@ -70,7 +70,7 @@ def wrap_output_string(decorator: Callable) -> Callable:
 
 @wrap_output_string(to_adsstring)
 class ADSString(str, FeatureType, CommonRegexMixin):
-    """Defines an enhanced string class for the purporse of performing NLP tasks.
+    """Defines an enhanced string class for the purpose of performing NLP tasks.
     Its functionalities can be extended by registering plugins.
 
     Attributes
@@ -86,10 +86,10 @@ class ADSString(str, FeatureType, CommonRegexMixin):
     >>> s = ADSString("Walking my dog on a breezy day is the best.")
     >>> s.lower() # regular string methods still work
     >>> s.replace("a", "e")
-    >>> s.nouns
-    >>> s.parts_of_speech
+    >>> s.noun
+    >>> s.pos #parts of speech
     >>> s = ADSString("get in touch with my associate at john.smith@gmail.com to schedule")
-    >>> s.emails
+    >>> s.email
     >>> ADSString.plugin_register(OCILanguage)
     >>> s = ADSString("This movie is awesome.")
     >>> s.absa

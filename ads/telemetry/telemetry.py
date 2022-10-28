@@ -50,5 +50,5 @@ def update_oci_client_config(config={}):
     if not config.get(USER_AGENT_KEY):
         config[
             USER_AGENT_KEY
-        ] = f"oracle-ads/version={__version__}/surface={Surface.surface().name}"  # To be enabled in future - /api={os.environ.get(EXTRA_USER_AGENT_INFO,UNKNOWN)}"
+        ] = f"Oracle-ads/version={__version__}/surface={Surface.surface().name}"  # To be enabled in future - /api={os.environ.get(EXTRA_USER_AGENT_INFO,UNKNOWN)}"
     return config

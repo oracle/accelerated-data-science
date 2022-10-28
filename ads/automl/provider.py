@@ -28,6 +28,7 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.common.decorator.deprecate import deprecated
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.dataset.helper import is_text_data
 
@@ -305,6 +306,10 @@ class BaselineAutoMLProvider(AutoMLProvider):
 
 # An installation of oracle labs automl is required only for this class
 class OracleAutoMLProvider(AutoMLProvider, ABC):
+    @deprecated(
+        "2.6.7",
+        details="Oracle AutoML is recommended to be directly instantiated by importing automlx package",
+    )
     def __init__(
         self, n_jobs=-1, loglevel=None, logger_override=None, model_n_jobs: int = 1
     ):

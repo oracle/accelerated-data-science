@@ -33,7 +33,7 @@ Prepare Model Artifact
 
     from ads.common.model_metadata import UseCaseType
     from ads.model.framework.pytorch_model import PyTorchModel
-    
+
     import tempfile
 
     # Prepare the model
@@ -46,10 +46,10 @@ Prepare Model Artifact
         force_overwrite=True,
     )
 
-    # The score.py generated requires you to create the class instance of the Model before the weights are loaded. 
+    # The score.py generated requires you to create the class instance of the Model before the weights are loaded.
     # More info here - https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended
 
-Open ``pytorch_model_artifact/score.py`` and edit the code to instantiate the model class. The edits are highlighted - 
+Open ``pytorch_model_artifact/score.py`` and edit the code to instantiate the model class. The edits are highlighted -
 
 .. code-block:: python3
     :emphasize-lines: 13,14
@@ -199,7 +199,6 @@ Deploy and Generate Endpoint
 
     https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx
 
-
 Run Prediction against Endpoint
 ===============================
 
@@ -229,9 +228,26 @@ Run Prediction against Endpoint
     prediction = pytorch_model.predict(input_batch)['prediction']
     print(np.argmax(prediction))
 
-.. parsed-literal:: 
+.. parsed-literal::
 
     258
+
+Predict with Image
+------------------
+.. versionadded:: 2.6.7
+
+Predict Image by passing a uri, which can be http(s), local path, or other URLs
+(e.g. starting with “oci://”, “s3://”, and “gcs://”), of the image or a PIL.Image.Image object
+using the `image` argument in `predict()` to predict a single image.
+The image will be converted to a tensor and then serialized so it can be passed to the endpoint.
+You can catch the tensor in `score.py` to perform further transformation.
+
+.. code-block:: python3
+
+    uri = ("https://github.com/pytorch/hub/raw/master/images/dog.jpg")
+
+    # Generate prediction by invoking the deployed endpoint
+    prediction = pytorch_model.predict(image=uri)['prediction']
 
 Example
 =======

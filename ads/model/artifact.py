@@ -90,7 +90,7 @@ def _validate_artifact_dir(
     # if not required artifact files found in provided artifact dir
     if None in result.values():
         raise ArtifactRequiredFilesError(required_files)
-    # if required artifact files plaxed in different nested folders
+    # if required artifact files placed in different nested folders
     if len(set(result.values())) > 1:
         raise AritfactFolderStructureError(required_files)
 
@@ -107,7 +107,10 @@ class ModelArtifact:
     """
 
     def __init__(
-        self, artifact_dir: str, model_file_name: str, reload: Optional[bool] = False
+        self,
+        artifact_dir: str,
+        model_file_name: str = None,
+        reload: Optional[bool] = False,
     ):
         """Initializes a ModelArtifact instance.
 
@@ -115,7 +118,7 @@ class ModelArtifact:
         ----------
         artifact_dir: str
             The local artifact folder to store the files needed for deployment.
-        model_file_name: str
+        model_file_name: (str, optional). Defaults to `None`.
             The file name of the serialized model.
         reload: (bool, optional). Defaults to False.
             Determine whether will reload the Model into the env.
@@ -129,19 +132,25 @@ class ModelArtifact:
         ------
         ValueError
             If `artifact_dir` not provided.
-            If `model_file_name` not provided.
         """
         if not artifact_dir:
             raise ValueError("The `artifact_dir` needs to be provided.")
-        if not model_file_name:
-            raise ValueError("The `model_file_name` needs to be provided.")
 
+        self.score = None
         self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
         sys.path.insert(0, self.artifact_dir)
         self.model_file_name = model_file_name
         self._env = Environment(loader=PackageLoader("ads", "templates"))
         if reload:
             self.reload()
+            # Extracts the model_file_name from the score.py.
+            if (
+                not self.model_file_name
+                and self.score
+                and hasattr(self.score, "model_name")
+                and self.score.model_name
+            ):
+                self.model_file_name = self.score.model_name
 
     def prepare_runtime_yaml(
         self,
@@ -263,21 +272,30 @@ class ModelArtifact:
         )
 
     def prepare_score_py(
-        self,
-        jinja_template_filename: str,
+        self, jinja_template_filename: str, model_file_name: str = None
     ):
-        """write score.py file.
+        """Prepares `score.py` file.
 
         Parameters
         ----------
         jinja_template_filename: str.
             The jinja template file name.
+        model_file_name: (str, optional). Defaults to `None`.
+            The file name of the serialized model.
 
         Returns
         -------
         None
-            Nothing
+
+        Raises
+        ------
+        ValueError
+            If `model_file_name` not provided.
         """
+        self.model_file_name = model_file_name or self.model_file_name
+        if not self.model_file_name:
+            raise ValueError("The `model_file_name` must be provided.")
+
         if not os.path.exists(
             os.path.join(
                 os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
@@ -321,7 +339,7 @@ class ModelArtifact:
         cls,
         uri: str,
         artifact_dir: str,
-        model_file_name: str,
+        model_file_name: str = None,
         force_overwrite: Optional[bool] = False,
         auth: Optional[Dict] = None,
     ):
@@ -334,7 +352,7 @@ class ModelArtifact:
             OCI object storage URI.
         artifact_dir: str
             The local artifact folder to store the files needed for deployment.
-        model_file_name: (str)
+        model_file_name: (str, optional). Defaults to `None`
             The file name of the serialized model.
         force_overwrite: (bool, optional). Defaults to False.
             Whether to overwrite existing files or not.

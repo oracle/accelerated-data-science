@@ -81,8 +81,10 @@ Update the ``script_bucket``, ``log_bucket``, and ``metastore_id``  variables to
     script_bucket = "oci://<bucket_name>@<namespace>/<prefix>"
 
     compartment_id = os.environ.get("NB_SESSION_COMPARTMENT_OCID")
-    drive_shape = "VM.Standard2.1"
-    executor_shape = "VM.Standard2.1"
+    driver_shape = "VM.Standard.E4.Flex"
+    driver_shape_config = {"ocpus":2, "memory_in_gbs":32}
+    executor_shape = "VM.Standard.E4.Flex"
+    executor_shape_config = {"ocpus":4, "memory_in_gbs":64}
     spark_version = "3.2.1"
 
 In the following example, a ``DataFlow`` is created and populated with the information that it needs to define the Data Flow service. Since, we are connecting to the Data Catalog Metastore to work with a Hive database, the metastore OCID must be given.
@@ -94,7 +96,9 @@ In the following example, a ``DataFlow`` is created and populated with the infor
     dataflow_configs = DataFlow(
         {"compartment_id": compartment_id,
          "driver_shape": driver_shape,
+         "driver_shape_config": driver_shape_config,
          "executor_shape": executor_shape,
+         "executor_shape_config": executor_shape_config,
          "logs_bucket_uri": log_bucket_uri,
          "metastore_id": metastore_id,
          "spark_version": spark_version}

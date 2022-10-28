@@ -117,11 +117,29 @@ Run Prediction against Endpoint
     # Generate prediction by invoking the deployed endpoint
     tensorflow_model.predict(testx[:3])['prediction']
 
-.. parsed-literal:: 
+.. parsed-literal::
 
-    [[-2.9461750984191895, -5.293642997741699, 0.4030594229698181, 3.0270071029663086, -6.470805644989014, -2.07453989982605, -9.646402359008789, 9.256569862365723, -2.6433541774749756, -0.8167083263397217], 
-    [-3.4297854900360107, 2.4863781929016113, 8.968724250793457, 3.162344217300415, -11.153030395507812, 0.15335027873516083, -0.5451826453208923, -7.817524433135986, -1.0585914850234985, -10.736929893493652], 
+    [[-2.9461750984191895, -5.293642997741699, 0.4030594229698181, 3.0270071029663086, -6.470805644989014, -2.07453989982605, -9.646402359008789, 9.256569862365723, -2.6433541774749756, -0.8167083263397217],
+    [-3.4297854900360107, 2.4863781929016113, 8.968724250793457, 3.162344217300415, -11.153030395507812, 0.15335027873516083, -0.5451826453208923, -7.817524433135986, -1.0585914850234985, -10.736929893493652],
     [-4.420501232147217, 5.841022491455078, -0.17066864669322968, -1.0071465969085693, -2.261953592300415, -3.0983355045318604, -2.0874621868133545, 1.0745809078216553, -1.2511857748031616, -2.273810625076294]]
+
+
+Predict with Image
+------------------
+.. versionadded:: 2.6.7
+
+Predict Image by passing a uri, which can be http(s), local path, or other URLs
+(e.g. starting with “oci://”, “s3://”, and “gcs://”), of the image or a PIL.Image.Image object
+using the `image` argument in `predict()` to predict a single image.
+The image will be converted to a tensor and then serialized so it can be passed to the endpoint.
+You can catch the tensor in `score.py` to perform further transformation.
+
+.. code-block:: python3
+
+    uri = ("https://github.com/pytorch/hub/raw/master/images/dog.jpg")
+
+    # Generate prediction by invoking the deployed endpoint
+    prediction = tensorflow_model.predict(image=uri)['prediction']
 
 
 Example

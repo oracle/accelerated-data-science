@@ -13,15 +13,11 @@ import shutil
 import sys
 import glob
 import stat
+import conda_pack
 
 import yaml
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
 
 
-@runtime_dependency(module="conda_pack", install_from=OptionalDependency.OPCTL)
 def main(pack_folder_path):
     slug = os.path.basename(pack_folder_path)
     manifest_path = glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
@@ -64,6 +60,12 @@ def main(pack_folder_path):
                 "Error creating the pack file using `conda_pack.pack()`."
             )
         shutil.copy(pack_file, pack_folder_path)
+        file_path = os.path.join(pack_folder_path, os.path.basename(pack_file))
+        print(
+            f"changing permission for {file_path}",
+            flush=True,
+        )
+        os.chmod(file_path, 0o755)
 
 
 if __name__ == "__main__":

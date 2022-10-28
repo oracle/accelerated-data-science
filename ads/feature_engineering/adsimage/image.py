@@ -135,7 +135,7 @@ class ADSImage:
             f.write(imgByteArr.getvalue())
 
     @classmethod
-    def open(cls, path: str, auth: Optional[Dict] = None) -> "ADSImage":
+    def open(cls, path: str, storage_options: Optional[Dict] = None) -> "ADSImage":
         """Opens the given image file.
 
         Parameters
@@ -143,7 +143,7 @@ class ADSImage:
         path: str
             The file path to open image. Can be local path or OCI object storage URI.
             Example: `oci://<bucket_name>@<namespace>/1.jpg`
-        auth: (Dict, optional). Defaults to None.
+        storage_options: (Dict, optional). Defaults to None.
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
@@ -153,12 +153,38 @@ class ADSImage:
         ADSImage
             The instance of `ADSImage`.
         """
-        auth = auth or authutil.default_signer()
-        with fsspec.open(path, mode="rb", **auth) as f:
+        if storage_options == None:
+            storage_options = authutil.default_signer()
+        with fsspec.open(path, mode="rb", **storage_options) as f:
             return cls(
                 img=Image.open(BytesIO(f.read())),
                 filename=os.path.basename(f.path),
             )
+
+    def to_bytes(self, **kwargs: Optional[Dict]) -> BytesIO:
+        """Converts image to bytes.
+        If no format is specified, the format to use is determined from the image object if it possible.
+
+        Parameters
+        ---------------
+        kwargs:
+            format: (str, optional). Defaults to None.
+                If omitted and `path` has a file extension the format of the image will be based on the extension.
+                Can be any format supported by PIL Image.
+                The available options are described in the PIL image format documentation:
+                https://pillow.readthedocs.io/en/stable/handbook/image-file-formats.html
+            Additional keyword arguments that would be passed to the PIL Image `save()` method.
+
+        Returns
+        -------
+        BytesIO
+            The image converted to bytes.
+        """
+        imgByteArr = BytesIO()
+        self.img.save(
+            imgByteArr, format=kwargs.get("format") or self.img.format, params=kwargs
+        )
+        return imgByteArr.getvalue()
 
     def __getattr__(self, key: str):
         if key == "img":

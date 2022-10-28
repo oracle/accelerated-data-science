@@ -131,6 +131,8 @@ class TensorFlowModel(GenericModel):
     >>> tf_model.predict(x_test[:1])
     """
 
+    _PREFIX = "tensorflow"
+
     @runtime_dependency(
         module="tensorflow",
         short_name="tf",
@@ -414,6 +416,7 @@ class TensorFlowModel(GenericModel):
             pd.core.frame.DataFrame,
             "tf.Tensor",
         ],
+        data_type: str = None,
     ):
         """Returns serializable input data.
 
@@ -422,6 +425,8 @@ class TensorFlowModel(GenericModel):
         data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
         pd.core.frame.DataFrame, tf.Tensor]
             Data expected by the model deployment predict API.
+        data_type: str
+            Type of the data.
 
         Returns
         -------
@@ -434,7 +439,10 @@ class TensorFlowModel(GenericModel):
             if provided data type is not supported.
         """
         try:
-            data_type = type(data)
+            data_type = data_type or type(data)
+            if data_type == "image":
+                data = tf.convert_to_tensor(data)
+                data_type = str(type(data))
             if isinstance(data, tf.Tensor):
                 data = data.numpy()
             return InputDataSerializer(data, data_type=data_type)
@@ -442,6 +450,6 @@ class TensorFlowModel(GenericModel):
             raise TypeError(
                 "The supported data types are Dict, str, list, "
                 "numpy.ndarray, pd.core.series.Series, "
-                "pd.core.frame.DataFrame, tf.Tensor. Please "
+                "pd.core.frame.DataFrame, tf.Tensor, bytes. Please "
                 "convert to the supported data types first. "
             )

@@ -92,10 +92,11 @@ Use the Pandas ADS accessor drop-in replacement, ``pd.DataFrame.ads.read_sql(...
 
 See :doc:`how to <../secrets/autonomous_database>` save and retrieve credentials from OCI Vault
 
-**Example**
+**Example using Wallet File**
 
   .. code-block:: python3 
 
+        # If you are using Wallet file, provide the zip file path for `wallet_location`
         connection_parameters = {
             "user_name": "<username>",
             "password": "<password>",
@@ -123,11 +124,49 @@ See :doc:`how to <../secrets/autonomous_database>` save and retrieve credentials
                 ROWNUM <= :max_rows
             """,
             bind_variables={
-                max_rows : 100
+                "max_rows" : 100
             }
             ,
             connection_parameters=connection_parameters,
         )
+
+
+**Example using TLS**
+
+  .. code-block:: python3 
+
+        connection_parameters = {
+            "user_name": "<username>",
+            "password": "<password>",
+            "dsn": "<connection string copied from console>",
+        }
+        import pandas as pd
+        import ads
+
+        # simple read of a SQL query into a dataframe with no bind variables    
+        df = pd.DataFrame.ads.read_sql(
+            "SELECT * FROM SH.SALES",
+            connection_parameters=connection_parameters,
+        )
+
+        # read of a SQL query into a dataframe with a bind variable. Use bind variables
+        # rather than string substitution to avoid the SQL injection attack vector.
+        df = pd.DataFrame.ads.read_sql(
+            """
+            SELECT
+            *
+            FROM
+            SH.SALES
+            WHERE
+                ROWNUM <= :max_rows
+            """,
+            bind_variables={
+                "max_rows" : 100
+            }
+            ,
+            connection_parameters=connection_parameters,
+        )
+
 
 Oracle Database to Pandas - No Wallet
 -------------------------------------
