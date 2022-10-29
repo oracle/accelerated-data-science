@@ -18,7 +18,7 @@ import importlib
 from typing import List, Union
 import fsspec
 
-from pandas.io.common import _compression_to_extension
+# from pandas.io.common import _compression_to_extension
 
 from numbers import Number
 from urllib.parse import urlparse
@@ -280,8 +280,19 @@ class ElaboratedPath:
 
     @staticmethod
     def _remove_compressions(filename: str):
-        for compression in _compression_to_extension.keys():
-            if filename.strip().endswith(_compression_to_extension[compression]):
+        _compression_to_extension = [
+            ".gz",
+            ".bz2",
+            ".zip",
+            ".xz",
+            ".zst",
+            ".tar",
+            ".tar.gz",
+            ".tar.xz",
+            ".tar.bz2",
+        ]
+        for compression in _compression_to_extension:
+            if filename.strip().endswith(compression):
                 return ElaboratedPath._remove_compressions(
                     os.path.splitext(filename.rstrip("/*"))[0]
                 )

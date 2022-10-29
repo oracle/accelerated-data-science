@@ -144,7 +144,8 @@ def _get_parallel_coordinate_plot(
     segments = [np.column_stack([x, y]) for x, y in zip(xs, dims_obj_base)]
     lc = LineCollection(segments, cmap=cmap)
     lc.set_array(np.asarray([target(t) for t in trials] + [0]))
-    axcb = fig.colorbar(lc, pad=0.1)
+    axcb = fig.colorbar(lc, pad=0.1, ax=fig.gca())
+
     axcb.set_label(target_name)
     plt.xticks(range(len(sorted_params) + 1), var_names, rotation=330)
 

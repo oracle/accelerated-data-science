@@ -2,11 +2,19 @@
 Release Notes
 =============
 
+2.6.8
+-----
+Release date: October 29, 2022
+
+* Fixed a bug in ``ads.dataset.helper`` to support Python 3.8 and Python 3.9.
+
+
 2.6.7
 -----
 Release date: October 27, 2022
 
 * Fixed a bug in ``PyTorchModel``. The ``score.py`` failed when ``torch.Tensor`` was used as input data.
+* Fixed a bug in ``ads opctl conda publish`` command.
 * Added support for flexible shapes for Data Flow Jobs.
 * Loading a model from Model Catalog (``GenericModel.from_model_catalog()``) and Model Deployment (``GenericModel.from_model_deployment()``) no longer requires a model file name.
 * Switched from using ``cx_Oracle`` interface to the ``oracledb`` driver to connect to Oracle Databases.
