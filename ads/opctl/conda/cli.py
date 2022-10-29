@@ -54,6 +54,12 @@ def commands():
     is_flag=True,
     default=False,
 )
+@click.option(
+    "--verbose",
+    is_flag=True,
+    default=False,
+    help="Set logging to debug for more information",
+)
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def create(**kwargs):

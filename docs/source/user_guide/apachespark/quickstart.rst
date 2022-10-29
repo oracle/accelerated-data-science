@@ -40,8 +40,10 @@ followed by the spark version, 3.2.1.
 			DataFlow()
 			.with_compartment_id("oci.xx.<compartment_id>")
 			.with_logs_bucket_uri("oci://<mybucket>@<mynamespace>/<dataflow-logs-prefix>")
-			.with_driver_shape("VM.Standard2.1")
-			.with_executor_shape("VM.Standard2.1")
+			.with_driver_shape("VM.Standard.E4.Flex")
+			.with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+			.with_executor_shape("VM.Standard.E4.Flex")
+			.with_executor_shape_config(ocpus=4, memory_in_gbs=64)
 			.with_spark_version("3.2.1")
 		)
 		runtime_config = (
@@ -83,8 +85,14 @@ Assuming you have the following two files written in your current directory as `
 			spec:
 				compartmentId: oci.xx.<compartment_id>
 				logsBucketUri: oci://<mybucket>@<mynamespace>/<dataflow-logs-prefix>
-				driverShape: VM.Standard2.1
-				executorShape: VM.Standard2.1
+				driverShape: VM.Standard.E4.Flex
+                driverShapeConfig:
+                  ocpus: 2
+                  memory_in_gbs: 32
+                executorShape: VM.Standard.E4.Flex
+                executorShapeConfig:
+                  ocpus: 4
+                  memory_in_gbs: 64
 				sparkVersion: 3.2.1
 				numExecutors: 1
 			type: dataFlow
@@ -172,8 +180,10 @@ From a Python Environment
 			DataFlow()
 			.with_compartment_id("oci.xx.<compartment_id>")
 			.with_logs_bucket_uri("oci://<mybucket>@<mynamespace>/<dataflow-logs-prefix>")
-			.with_driver_shape("VM.Standard2.1")
-			.with_executor_shape("VM.Standard2.1")
+			.with_driver_shape("VM.Standard.E4.Flex")
+			.with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+			.with_executor_shape("VM.Standard.E4.Flex")
+			.with_executor_shape_config(ocpus=4, memory_in_gbs=64)
 			.with_spark_version("3.2.1")
 		)
 		runtime_config = (
@@ -255,8 +265,14 @@ Again, assume you have the following two files written in your current directory
 			spec:
 				compartmentId: oci.xx.<compartment_id>
 				logsBucketUri: oci://<mybucket>@<mynamespace>/<dataflow-logs-prefix>
-				driverShape: VM.Standard2.1
-				executorShape: VM.Standard2.1
+				driverShape: VM.Standard.E4.Flex
+				driverShapeConfig:
+					ocpus: 2
+					memory_in_gbs: 32
+				executorShape: VM.Standard.E4.Flex
+				executorShapeConfig:
+					ocpus: 4
+					memory_in_gbs: 64
 				sparkVersion: 3.2.1
 				numExecutors: 1
 			type: dataFlow

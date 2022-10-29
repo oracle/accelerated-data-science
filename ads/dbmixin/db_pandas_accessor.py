@@ -36,11 +36,11 @@ class ConnectionFactory:
                 print("Requires mysql-connection-python package to use mysql engine")
             elif engine == "oracle":
                 print(
-                    f"The `cx_Oracle` module was not found. Please run "
+                    f"The `oracledb` or `cx_Oracle` module was not found. Please run "
                     f"`pip install {OptionalDependency.DATA}`."
                 )
             raise Exception(
-                f"Engine {engine} does not have either required depeendency or is not supported."
+                f"Engine {engine} does not have either required dependency or is not supported."
             )
         return Connection
 

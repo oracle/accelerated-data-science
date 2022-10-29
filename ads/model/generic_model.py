@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 import yaml
+from PIL import Image
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
@@ -52,6 +53,7 @@ from ads.config import (
     NB_SESSION_OCID,
     PROJECT_OCID,
 )
+from ads.feature_engineering import ADSImage
 from ads.feature_engineering.schema import Schema
 from ads.model.artifact import ModelArtifact
 from ads.model.common.utils import _extract_locals
@@ -59,7 +61,6 @@ from ads.model.deployment import (
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
     ModelDeployer,
-    ModelDeployment,
     ModelDeploymentProperties,
 )
 from ads.model.deployment.common.utils import State as ModelDeploymentState
@@ -114,6 +115,31 @@ class SerializeInputNotImplementedError(NotImplementedError):
 
 class RuntimeInfoInconsistencyError(Exception):
     pass
+
+
+def _prepare_artifact_dir(artifact_dir: str = None) -> str:
+    """Prepares artifact dir for the model.
+
+    Parameters
+    ----------
+    artifact_dir: (str, optional). Defaults to `None`.
+        The artifact dir that needs to be normalized.
+
+    Returns
+    -------
+    str
+        The artifact dir.
+    """
+    if artifact_dir and isinstance(artifact_dir, str):
+        return os.path.abspath(os.path.expanduser(artifact_dir))
+
+    artifact_dir = tempfile.mkdtemp()
+    logger.info(
+        f"The `artifact_dir` was not provided and "
+        f"automatically set to: {artifact_dir}"
+    )
+
+    return artifact_dir
 
 
 class GenericModel(MetadataMixin, Introspectable):
@@ -172,11 +198,11 @@ class GenericModel(MetadataMixin, Introspectable):
         Deletes the current model deployment.
     deploy(..., **kwargs)
         Deploys a model.
-    from_model_artifact(uri, model_file_name, artifact_dir, ..., **kwargs)
+    from_model_artifact(uri, ..., **kwargs)
         Loads model from the specified folder, or zip/tar archive.
-    from_model_catalog(model_id, model_file_name, artifact_dir, ..., **kwargs)
+    from_model_catalog(model_id, ..., **kwargs)
         Loads model from model catalog.
-    from_model_deployment(model_deployment_id, model_file_name, artifact_dir, ..., **kwargs)
+    from_model_deployment(model_deployment_id, ..., **kwargs)
         Loads model from model deployment.
     introspect(...)
         Runs model introspection.
@@ -208,20 +234,23 @@ class GenericModel(MetadataMixin, Introspectable):
 
     >>> model = GenericModel(estimator=estimator, artifact_dir=tempfile.mkdtemp())
     >>> model.summary_status()
-    >>> model.prepare(inference_conda_env="oci://service-conda-packs@id19sfcrra6z/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3",
-    ...              inference_python_version="3.7",
-    ...              model_file_name="toy_model.pkl",
-    ...              training_id=None,
-    ...              force_overwrite=True
-    ...            )
+    >>> model.prepare(
+    ...     inference_conda_env="dataexpl_p37_cpu_v3",
+    ...     inference_python_version="3.7",
+    ...     model_file_name="toy_model.pkl",
+    ...     training_id=None,
+    ...     force_overwrite=True
+    ... )
     >>> model.verify(2)
     >>> model.save()
     >>> model.deploy()
     >>> model.predict(2)
-    >>> model.delete_deployment()
+    >>> # Uncomment the line below to delete the model and the associated model deployment
+    >>> # model.delete(delete_associated_model_deployment = True)
     """
 
     _summary_status = None
+    _PREFIX = "generic"
 
     def __init__(
         self,
@@ -260,14 +289,7 @@ class GenericModel(MetadataMixin, Introspectable):
         self.schema_output = Schema()
         self.data_serializer_class = InputDataSerializer
         self.model_file_name = None
-        if artifact_dir:
-            self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
-        else:
-            self.artifact_dir = tempfile.mkdtemp()
-            print(
-                "`artifact_dir` is not provided and automatically set to be a temporary folder:"
-                + self.artifact_dir
-            )
+        self.artifact_dir = _prepare_artifact_dir(artifact_dir)
         self.model_artifact = None
         self.framework = None
         self.algorithm = None
@@ -299,7 +321,6 @@ class GenericModel(MetadataMixin, Introspectable):
         """Converts the model attributes to dictionary format."""
         attributes = {}
         for key in _ATTRIBUTES_TO_SHOW_:
-
             if key == "artifact_dir":
                 attributes[key] = {getattr(self, key): [self._get_files()]}
             else:
@@ -311,13 +332,11 @@ class GenericModel(MetadataMixin, Introspectable):
                     )
                 else:
                     attributes[key] = None
-
         return attributes
 
     def _to_yaml(self):
         """Converts the model attributes to yaml format."""
-        attributes = self._to_dict()
-        return yaml.safe_dump(attributes)
+        return yaml.safe_dump(self._to_dict())
 
     def serialize_model(
         self,
@@ -429,7 +448,7 @@ class GenericModel(MetadataMixin, Introspectable):
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
         **kwargs: Dict,
-    ) -> None:
+    ) -> "GenericModel":
         """Prepare and save the score.py, serialized model and runtime.yaml file.
 
         Parameters
@@ -446,8 +465,9 @@ class GenericModel(MetadataMixin, Introspectable):
             use the same value of `training_conda_env`.
         training_python_version: (str, optional). Defaults to None.
             Python version used during training.
-        model_file_name: (str).
+        model_file_name: (str, optional). Defaults to `None`.
             Name of the serialized model.
+            Will be auto generated if not provided.
         as_onnx: (bool, optional). Defaults to False.
             Whether to serialize as onnx model.
         initial_types: (list[Tuple], optional).
@@ -484,13 +504,16 @@ class GenericModel(MetadataMixin, Introspectable):
 
         Raises
         ------
-        FileExistsError: when files already exist but `force_overwrite` is False.
-        ValueError: when `inference_python_version` is not provided, but also cannot be found through manifest file.
+        FileExistsError
+            If files already exist but `force_overwrite` is False.
+        ValueError
+            If `inference_python_version` is not provided, but also cannot be found
+            through manifest file.
 
         Returns
         -------
-        None
-            Nothing
+        GenericModel
+            An instance of `GenericModel` class.
         """
         # Populate properties from args and kwargs.
         # empty values will be ignored.
@@ -525,6 +548,12 @@ class GenericModel(MetadataMixin, Introspectable):
         self.model_file_name = self._handle_model_file_name(
             as_onnx=as_onnx, model_file_name=model_file_name
         )
+        if (
+            not isinstance(self.model_file_name, str)
+            or self.model_file_name.strip() == ""
+        ):
+            raise ValueError("The `model_file_name` needs to be provided.")
+
         os.makedirs(self.artifact_dir, exist_ok=True)
         self.model_artifact = ModelArtifact(
             artifact_dir=self.artifact_dir,
@@ -567,7 +596,11 @@ class GenericModel(MetadataMixin, Introspectable):
             ):
                 self._summary_status.update_action(
                     detail="Serialized model",
-                    action=f"Model is not automatically serialized. Serialize the model as `{self.model_file_name}` and save to the {self.artifact_dir}.",
+                    action=(
+                        "Model is not automatically serialized. "
+                        f"Serialize the model as `{self.model_file_name}` and "
+                        f"save to the {self.artifact_dir}."
+                    ),
                 )
                 self._summary_status.update_status(
                     detail="Serialized model", status=ModelState.NEEDSACTION.value
@@ -578,7 +611,10 @@ class GenericModel(MetadataMixin, Introspectable):
                 )
                 self._summary_status.update_action(
                     detail="Generated score.py",
-                    action="`load_model` is not automatically generated. Finish implementing it and call .verify to check if it works.",
+                    action=(
+                        "`load_model` is not automatically generated. "
+                        "Finish implementing it and call .verify to check if it works."
+                    ),
                 )
         except Exception as e:
             raise e
@@ -601,7 +637,10 @@ class GenericModel(MetadataMixin, Introspectable):
                 jinja_template_filename = (
                     "score-pkl" if self._serialize else "score_generic"
                 )
-        self.model_artifact.prepare_score_py(jinja_template_filename)
+        self.model_artifact.prepare_score_py(
+            jinja_template_filename=jinja_template_filename,
+            model_file_name=self.model_file_name,
+        )
         self._summary_status.update_status(
             detail="Generated score.py", status=ModelState.DONE.value
         )
@@ -630,11 +669,23 @@ class GenericModel(MetadataMixin, Introspectable):
             detail="Uploaded artifact to model catalog",
             status=ModelState.AVAILABLE.value,
         )
+        return self
 
     def verify(
-        self, data: Any, reload_artifacts: bool = True, **kwargs
+        self, data: Any = None, reload_artifacts: bool = True, **kwargs
     ) -> Dict[str, Any]:
-        """test if deployment works in local environment.
+        """Test if deployment works in local environment.
+
+        Examples
+        --------
+        >>> uri = "https://github.com/pytorch/hub/raw/master/images/dog.jpg"
+        >>> prediction = model.verify(image=uri)['prediction']
+
+        >>> # examples on storage options
+        >>> prediction = model.verify(
+        ...        image="oci://<bucket>@<tenancy>/myimage.png",
+        ...        storage_options=ads.auth.default_signer()
+        ... )['prediction']
 
         Parameters
         ----------
@@ -644,15 +695,20 @@ class GenericModel(MetadataMixin, Introspectable):
             Whether to reload artifacts or not.
         kwargs:
             content_type: str, used to indicate the media type of the resource.
+            image: PIL.Image Object or uri for the image.
+               A valid string path for image file can be local path, http(s), oci, s3, gs.
+            storage_options: dict
+               Passed to `fsspec.open` for a particular storage connection.
+               Please see `fsspec` (https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.open) for more details.
 
         Returns
         -------
         Dict
             A dictionary which contains prediction results.
         """
+        data, data_type = self._handle_image_input(data, **kwargs)
         endpoint = f"http://127.0.0.1:8000/predict"
-
-        serialized_data = self.get_data_serializer(data)
+        serialized_data = self.get_data_serializer(data=data, data_type=data_type)
         request_body = serialized_data.send(endpoint, dry_run=True, **kwargs)
 
         if reload_artifacts:
@@ -687,8 +743,8 @@ class GenericModel(MetadataMixin, Introspectable):
     def from_model_artifact(
         cls,
         uri: str,
-        model_file_name: str,
-        artifact_dir: str,
+        model_file_name: str = None,
+        artifact_dir: str = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[ModelProperties] = None,
@@ -703,10 +759,12 @@ class GenericModel(MetadataMixin, Introspectable):
             seriliazed model(required) as well as any files needed for deployment including:
             serialized model, runtime.yaml, score.py and etc. The content of the folder will be
             copied to the `artifact_dir` folder.
-        model_file_name: str
+        model_file_name: (str, optional). Defaults to `None`.
             The serialized model file name.
-        artifact_dir: str
+            Will be extracted from artifacts if not provided.
+        artifact_dir: (str, optional). Defaults to `None`.
             The artifact directory to store the files needed for deployment.
+            Will be created if not exists.
         auth: (Dict, optional). Defaults to None.
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
@@ -726,13 +784,11 @@ class GenericModel(MetadataMixin, Introspectable):
         ValueError
             If `model_file_name` not provided.
         """
-        if not model_file_name or not isinstance(model_file_name, str):
-            raise ValueError("The `model_file_name` must be provided.")
 
         local_vars = _extract_locals(locals())
         properties = properties or ModelProperties()
         properties.with_dict(local_vars)
-
+        artifact_dir = _prepare_artifact_dir(artifact_dir)
         auth = auth or authutil.default_signer()
         model_artifact = ModelArtifact.from_uri(
             uri=uri,
@@ -741,14 +797,13 @@ class GenericModel(MetadataMixin, Introspectable):
             force_overwrite=force_overwrite,
             auth=auth,
         )
-
         model = cls(
             estimator=model_artifact.model,
             artifact_dir=artifact_dir,
             auth=auth,
             properties=properties,
         )
-        model.model_file_name = model_file_name
+        model.model_file_name = model_file_name or model_artifact.model_file_name
         model.model_artifact = model_artifact
         model.reload_runtime_info()
         model._summary_status.update_status(
@@ -770,8 +825,8 @@ class GenericModel(MetadataMixin, Introspectable):
     def from_model_catalog(
         cls,
         model_id: str,
-        model_file_name: str,
-        artifact_dir: str,
+        model_file_name: str = None,
+        artifact_dir: str = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
@@ -785,9 +840,9 @@ class GenericModel(MetadataMixin, Introspectable):
         ----------
         model_id: str
             The model OCID.
-        model_file_name: (str)
+        model_file_name: (str, optional). Defaults to `None`.
             The name of the serialized model.
-        artifact_dir: str
+        artifact_dir: (str, optional). Defaults to `None`.
             The artifact directory to store the files needed for deployment.
             Will be created if not exists.
         auth: (Dict, optional). Defaults to None.
@@ -819,9 +874,8 @@ class GenericModel(MetadataMixin, Introspectable):
         properties = properties or ModelProperties()
         properties.with_dict(local_vars)
         properties.compartment_id = properties.compartment_id or _COMPARTMENT_OCID
-
         auth = auth or authutil.default_signer()
-        artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
+        artifact_dir = _prepare_artifact_dir(artifact_dir)
 
         model_catalog = ModelCatalog(
             compartment_id=properties.compartment_id,
@@ -829,7 +883,6 @@ class GenericModel(MetadataMixin, Introspectable):
             identity_client_auth=auth,
             timeout=kwargs.pop("timeout", None),
         )
-
         model_catalog._download_artifact(
             model_id=model_id,
             target_dir=artifact_dir,
@@ -871,15 +924,14 @@ class GenericModel(MetadataMixin, Introspectable):
         result_model._summary_status.update_status(
             detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
         )
-
         return result_model
 
     @classmethod
     def from_model_deployment(
         cls,
         model_deployment_id: str,
-        model_file_name: str,
-        artifact_dir: str,
+        model_file_name: str = None,
+        artifact_dir: str = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
@@ -893,9 +945,9 @@ class GenericModel(MetadataMixin, Introspectable):
         ----------
         model_deployment_id: str
             The model deployment OCID.
-        model_file_name: (str)
+        model_file_name: (str, optional). Defaults to `None`.
             The name of the serialized model.
-        artifact_dir: str
+        artifact_dir: (str, optional). Defaults to `None`.
             The artifact directory to store the files needed for deployment.
             Will be created if not exists.
         auth: (Dict, optional). Defaults to None.
@@ -971,18 +1023,23 @@ class GenericModel(MetadataMixin, Introspectable):
             )
         self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
 
-    def reload(self) -> None:
+    def reload(self) -> "GenericModel":
         """Reloads the model artifact files: `score.py` and the `runtime.yaml`.
 
         Returns
         -------
-        None
-            Nothing.
+        GenericModel
+            An instance of GenericModel class.
         """
         # reload the score.py
         self.model_artifact.reload()
         # reload runtime.yaml
         self.reload_runtime_info()
+        return self
+
+    def _random_display_name(self):
+        """Generates a random display name."""
+        return f"{self._PREFIX}-{utils.get_random_name_for_resource()}"
 
     def save(
         self,
@@ -1039,11 +1096,11 @@ class GenericModel(MetadataMixin, Introspectable):
         Returns
         -------
         str
-            model id.
+            The model id.
         """
         # Set default display_name if not specified - randomly generated easy to remember name generated
         if not display_name:
-            display_name = utils.get_random_name_for_resource()
+            display_name = self._random_display_name()
         # populates properties from args and kwargs. Empty values will be ignored.
         self.properties.with_dict(_extract_locals(locals()))
         self.properties.compartment_id = (
@@ -1118,7 +1175,7 @@ class GenericModel(MetadataMixin, Introspectable):
         )
         self.model_deployment = None
 
-        return self.model_id
+        self.model_id
 
     def _get_files(self):
         """List out all the file names under the artifact_dir.
@@ -1144,7 +1201,7 @@ class GenericModel(MetadataMixin, Introspectable):
         deployment_memory_in_gbs: Optional[float] = None,
         deployment_ocpus: Optional[float] = None,
         **kwargs: Dict,
-    ) -> ModelDeployment:
+    ) -> "ModelDeployment":
         """
         Deploys a model. The model needs to be saved to the model catalog at first.
 
@@ -1329,7 +1386,7 @@ class GenericModel(MetadataMixin, Introspectable):
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
         **kwargs: Dict,
-    ) -> ModelDeployment:
+    ) -> "ModelDeployment":
         """Shortcut for prepare, save and deploy steps.
 
         Parameters
@@ -1346,7 +1403,7 @@ class GenericModel(MetadataMixin, Introspectable):
             use the same value of `training_conda_env`.
         training_python_version: (str, optional). Defaults to None.
             Python version used during training.
-        model_file_name: (str).
+        model_file_name: (str, optional). Defaults to `None`.
             Name of the serialized model.
         as_onnx: (bool, optional). Defaults to False.
             Whether to serialize as onnx model.
@@ -1444,7 +1501,8 @@ class GenericModel(MetadataMixin, Introspectable):
             defined_tags: (Dict[str, dict[str, object]], optional). Defaults to None.
                 Defined tags of the model deployment.
 
-            Also can be any keyword argument for initializing the `ads.model.deployment.ModelDeploymentProperties`.
+            Also can be any keyword argument for initializing the
+            `ads.model.deployment.ModelDeploymentProperties`.
             See `ads.model.deployment.ModelDeploymentProperties()` for details.
 
         Returns
@@ -1454,8 +1512,11 @@ class GenericModel(MetadataMixin, Introspectable):
 
         Raises
         ------
-        FileExistsError: when files already exist but `force_overwrite` is False.
-        ValueError: when `inference_python_version` is not provided, but also cannot be found through manifest file.
+        FileExistsError
+            If files already exist but `force_overwrite` is False.
+        ValueError
+            If `inference_python_version` is not provided,
+            but also cannot be found through manifest file.
         """
         locals_dict = _extract_locals(locals())
         locals_dict.pop("training_id", None)
@@ -1517,8 +1578,19 @@ class GenericModel(MetadataMixin, Introspectable):
         )
         return self.model_deployment
 
-    def predict(self, data: Any, **kwargs) -> Dict[str, Any]:
+    def predict(self, data: Any = None, **kwargs) -> Dict[str, Any]:
         """Returns prediction of input data run against the model deployment endpoint.
+
+        Examples
+        --------
+        >>> uri = "https://github.com/pytorch/hub/raw/master/images/dog.jpg"
+        >>> prediction = model.predict(image=uri)['prediction']
+
+        >>> # examples on storage options
+        >>> prediction = model.predict(
+        ...        image="oci://<bucket>@<tenancy>/myimage.png",
+        ...        storage_options=ads.auth.default_signer()
+        ... )['prediction']
 
         Parameters
         ----------
@@ -1526,11 +1598,12 @@ class GenericModel(MetadataMixin, Introspectable):
             Data for the prediction for onnx models, for local serialization
             method, data can be the data types that each framework support.
         kwargs:
-            content_type: str
-                Used to indicate the media type of the resource.
-                By default, it will be `application/octet-stream` for bytes input and `application/json` for other cases.
-                The content-type will be added into headers and passed in the call of model deployment endpoint.
-
+            content_type: str, used to indicate the media type of the resource.
+            image: PIL.Image Object or uri for the image.
+               A valid string path for image file can be local path, http(s), oci, s3, gs.
+            storage_options: dict
+               Passed to `fsspec.open` for a particular storage connection.
+               Please see `fsspec` (https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.open) for more details.
 
         Returns
         -------
@@ -1544,6 +1617,8 @@ class GenericModel(MetadataMixin, Introspectable):
         ValueError
             If `data` is empty or not JSON serializable.
         """
+        data, data_type = self._handle_image_input(data, **kwargs)
+
         if not self.model_deployment:
             raise ValueError("Use `deploy()` method to start model deployment.")
 
@@ -1551,7 +1626,7 @@ class GenericModel(MetadataMixin, Introspectable):
         if current_state != ModelDeploymentState.ACTIVE.name:
             raise NotActiveDeploymentError(current_state)
 
-        serialized_data = self.get_data_serializer(data)
+        serialized_data = self.get_data_serializer(data=data, data_type=data_type)
         prediction = self.model_deployment.predict(data=serialized_data, **kwargs)
 
         self._summary_status.update_status(
@@ -1559,7 +1634,7 @@ class GenericModel(MetadataMixin, Introspectable):
         )
         return prediction
 
-    def get_data_serializer(self, data: any):
+    def get_data_serializer(self, data: any, data_type: str = None):
         """The data_serializer_class class is set in ``init`` and used here.
         Frameworks should subclass the InputDataSerializer class, then
         set that as the ``self.data_serializer_class``.
@@ -1569,34 +1644,52 @@ class GenericModel(MetadataMixin, Introspectable):
         ----------
         data: (Any)
             data to be passed to model for prediction.
+        data_type: str
+            Type of the data.
 
         Returns
         -------
         data
             Serialized data.
         """
-        return self.data_serializer_class(data=data)
+        return self.data_serializer_class(data=data, data_type=data_type)
 
-    @staticmethod
-    def _is_json_serializable(data: Any) -> bool:
-        """Check is data input is json serialization.
+    def _handle_image_input(self, data, **kwargs) -> bytes:
+        """Validate the argument pass in verify and predict.
 
-        Parameters
+        Properties
         ----------
-        data: (Any)
-            data to be passed to model for prediction.
+        kwargs:
+            content_type: str, used to indicate the media type of the resource.
+            image: PIL.Image Object or uri.
+                image file path or opened image file.
+            storage_options: dict
+                Passed to ADSImage.open.
+
+        Raises
+        ------
+        ValueError: Either use `image` argument through kwargs to pass in image file or use `data` argument to pass the data.
 
         Returns
         -------
-        bool
-            Whether data is json serializable.
+        bytes: Binary data.
         """
-        result = True
-        try:
-            json.dumps(data)
-        except:
-            result = False
-        return result
+        if data is not None:
+            return data, None
+        ARGUMENT_ERROR_MSG = "Either use `image` argument through kwargs to pass in image file or use `data` argument to pass the data."
+        if "image" in kwargs.keys():
+            image = kwargs.get("image")
+            if not isinstance(image, Image.Image):
+                try:
+                    image = ADSImage.open(
+                        path=image, storage_options=kwargs.pop("storage_options", {})
+                    ).img
+                except Exception as e:
+                    raise ValueError(
+                        f"Cannot open or identify the given image file. See details: {e}"
+                    )
+            return image, "image"
+        raise ValueError(ARGUMENT_ERROR_MSG)
 
     def summary_status(self) -> pd.DataFrame:
         """A summary table of the current status.
@@ -1664,13 +1757,17 @@ class GenericModel(MetadataMixin, Introspectable):
 
         return self._summary_status.df.set_index(["Step", "Status", "Details"])
 
-    def delete_deployment(self, wait_for_completion: bool = False):
+    def delete_deployment(self, wait_for_completion: bool = True) -> None:
         """Deletes the current deployment.
 
         Parameters
         ----------
-        wait_for_completion: (bool, optional). Defaults to False.
+        wait_for_completion: (bool, optional). Defaults to `True`.
             Whether to wait till completion.
+
+        Returns
+        -------
+        None
 
         Raises
         ------

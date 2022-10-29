@@ -173,14 +173,30 @@ class MetadataMixin:
                 category=MetadataCustomCategory.TRAINING_ENV,
             )
         )
-        model_metadata_items.append(
-            ModelCustomMetadataItem(
-                key=MetadataCustomKeys.MODEL_SERIALIZATION_FORMAT,
-                value=self.model_file_name.split(".")[-1],
-                description="The model serialization format.",
-                category=MetadataCustomCategory.TRAINING_PROFILE,
+
+        if self.model_file_name:
+            model_metadata_items.append(
+                ModelCustomMetadataItem(
+                    key=MetadataCustomKeys.MODEL_SERIALIZATION_FORMAT,
+                    value=self.model_file_name.split(".")[-1],
+                    description="The model serialization format.",
+                    category=MetadataCustomCategory.TRAINING_PROFILE,
+                )
             )
-        )
+            model_metadata_items.append(
+                ModelCustomMetadataItem(
+                    key=MetadataCustomKeys.MODEL_FILE_NAME,
+                    value=self.model_file_name,
+                    description="The model file name.",
+                    category=MetadataCustomCategory.OTHER,
+                )
+            )
+        else:
+            logger.warning(
+                "Unable to extract a model serialization format. "
+                "The `model_file_name` is not provided."
+            )
+
         model_metadata_items.append(
             ModelCustomMetadataItem(
                 key=MetadataCustomKeys.CLIENT_LIBRARY,

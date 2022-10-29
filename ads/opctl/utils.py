@@ -323,22 +323,22 @@ def run_container(
     env_vars: Dict,
     command: str = None,
     entrypoint: str = None,
-    verbose: bool = True,
+    verbose: bool = False,
 ):
-    print("All ready to create a docker image. Recap:\n")
-    print(f"image: {image}")
-    print(f"bind_volumes: {bind_volumes}")
-    print(f"env_vars: {env_vars}")
-    print(f"command: {command}")
-    print(f"entrypoint: {entrypoint}")
+    if verbose:
+        ads.opctl.logger.setLevel(logging.INFO)
+    logger.info(f"Running container with image: {image}")
+    logger.info(f"bind_volumes: {bind_volumes}")
+    logger.info(f"env_vars: {env_vars}")
+    logger.info(f"command: {command}")
+    logger.info(f"entrypoint: {entrypoint}")
 
     client = get_docker_client()
     try:
         client.api.inspect_image(image)
     except docker.errors.ImageNotFound:
-        logger.info(f"Image {image} not found. Try pulling it now....")
+        logger.warn(f"Image {image} not found. Try pulling it now....")
         run_command(["docker", "pull", f"{image}"], None)
-    print("Now running container")
     container = client.containers.run(
         image=image,
         volumes=bind_volumes,
@@ -349,13 +349,11 @@ def run_container(
         user=0,
         # auto_remove=True,
     )
-    print("Return from container")
-    # auto_remove sometimes throws errors such as
-    # docker.errors.NotFound: 404 Client Error for
-    # http+docker://localhost/v1.41/containers/37b32d02b8ebccfb081952798123db714ccf8648bf0d00c1baa68ae3badaaf58/json:
-    # Not Found ("No such container: 37b32d02b8ebccfb081952798123db714ccf8648bf0d00c1baa68ae3badaaf58")
+    logger.info(f"Container ID: {container.id}")
 
-    # if verbose:
-    #     for line in container.logs(stream=True):
-    #         print(line.decode("utf-8").strip())
-    # container.remove()
+    for line in container.logs(stream=True, follow=True):
+        logger.info(line.decode("utf-8").strip())
+
+    result = container.wait()
+    container.remove()
+    return result.get("StatusCode", -1)

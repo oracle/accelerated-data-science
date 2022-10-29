@@ -9,15 +9,18 @@ import collections
 import datetime
 import json
 import time
-from typing import Dict, List, Union
+from typing import Dict, Union
 
 import oci.loggingsearch
 import pandas as pd
-import requests
 from ads.common.auth import default_signer
 from ads.common.data_serializer import InputDataSerializer
 from ads.common.oci_client import OCIClientFactory
-from ads.common.oci_logging import LOG_INTERVAL, LOG_RECORDS_LIMIT, OCILog
+from ads.common.oci_logging import (
+    LOG_RECORDS_LIMIT,
+    ConsolidatedLog,
+    OCILog,
+)
 
 from .common import utils
 from .common.utils import OCIClientManager, State
@@ -35,112 +38,8 @@ class ModelDeploymentLogType:
     ACCESS = "access"
 
 
-class ModelDeploymentLog(OCILog):
-    """The class representing model deployment logs."""
-
-    def __init__(self, model_deployment_id: str, **kwargs) -> None:
-        """Initializes an OCI log model for the model deployment.
-
-        Parameters
-        ----------
-        model_deployment_id: str
-            The OCID of the model deployment.
-            This parameter will be used as a source field to filter the log records.
-        kwargs: dict
-            Keyword arguments for initializing ModelDeploymentLog.
-        """
-        super().__init__(**kwargs)
-        self.model_deployment_id = model_deployment_id
-
-    @staticmethod
-    def _print(logs: List[Dict]) -> None:
-        """Prints the list of provided logs."""
-        for log in logs:
-            timestamp = log.get("time", "")
-            if timestamp:
-                timestamp = timestamp.split(".")[0].replace("T", " ")
-            else:
-                timestamp = ""
-            print(f"{timestamp} - {log.get('message')}")
-
-    def tail(
-        self, limit=LOG_RECORDS_LIMIT, time_start: datetime.datetime = None
-    ) -> None:
-        """Prints the most recent log records.
-
-        Parameters
-        ----------
-        limit: (int, optional). Defaults to 100.
-            Maximum number of records to be returned.
-        time_start: (datetime.datetime, optional)
-            Starting time for the log query.
-            Defaults to None. Logs up to 14 days from now will be returned.
-
-        Returns
-        -------
-        None
-            Nothing
-        """
-        self._print(
-            super().tail(
-                source=self.model_deployment_id, limit=limit, time_start=time_start
-            )
-        )
-
-    def head(
-        self, limit=LOG_RECORDS_LIMIT, time_start: datetime.datetime = None
-    ) -> None:
-        """Prints the preceding log records.
-
-        Parameters
-        ----------
-        limit: (int, optional). Defaults to 100.
-            Maximum number of records to be returned.
-        time_start: (datetime.datetime, optional)
-            Starting time for the log query.
-            Defaults to None. Logs up to 14 days from now will be returned.
-
-        Returns
-        -------
-        None
-            Nothing
-        """
-        self._print(
-            super().head(
-                source=self.model_deployment_id, limit=limit, time_start=time_start
-            )
-        )
-
-    def stream(
-        self,
-        interval: int = LOG_INTERVAL,
-        stop_condition: callable = None,
-        time_start: datetime.datetime = None,
-    ) -> None:
-        """Streams logs to console/terminal until `stop_condition()` returns true.
-
-        Parameters
-        ----------
-        interval: (int, optional). Defaults to 3 seconds.
-            The time interval between sending each request to pull logs from OCI.
-        stop_condition: (callable, optional). Defaults to None.
-            A function to determine if the streaming should stop.
-            The log streaming will stop if the function returns true.
-        time_start: datetime.datetime
-            Starting time for the log query.
-            Defaults to None. Logs up to 14 days from now will be returned.
-
-        Returns
-        -------
-        None
-            Nothing
-        """
-        super().stream(
-            source=self.model_deployment_id,
-            interval=interval,
-            stop_condition=stop_condition,
-            time_start=time_start,
-        )
+class LogNotConfiguredError(Exception):
+    pass
 
 
 class ModelDeployment:
@@ -253,6 +152,9 @@ class ModelDeployment:
             self.log_search_client = OCIClientFactory(**self.config).create_client(
                 oci.loggingsearch.LogSearchClient
             )
+
+        self._access_log = None
+        self._predict_log = None
 
     def deploy(
         self,
@@ -662,71 +564,98 @@ class ModelDeployment:
         if not self.properties.category_log_details or not getattr(
             self.properties.category_log_details, log_type
         ):
-            raise AttributeError(
+            raise LogNotConfiguredError(
                 f"Deployment `{self.model_deployment_id}` "
                 f"has no `{log_type}` log configuration."
             )
         return getattr(self.properties.category_log_details, log_type)
 
     @property
-    def predict_log(self) -> ModelDeploymentLog:
+    def predict_log(self) -> OCILog:
         """Gets the model deployment predict logs object.
 
         Returns
         -------
-        ModelDeploymentLog
-            The ModelDeploymentLog object containing the predict logs.
+        OCILog
+            The OCILog object containing the predict logs.
         """
-        log_details = self._log_details(log_type=ModelDeploymentLogType.PREDICT)
-        return ModelDeploymentLog(
-            model_deployment_id=self.model_deployment_id,
-            compartment_id=self.properties.compartment_id,
-            id=log_details.log_id,
-            log_group_id=log_details.log_group_id,
-        )
+        if not self._predict_log:
+            log_details = self._log_details(log_type=ModelDeploymentLogType.PREDICT)
+            self._predict_log = OCILog(
+                compartment_id=self.properties.compartment_id,
+                id=log_details.log_id,
+                log_group_id=log_details.log_group_id,
+                source=self.model_deployment_id,
+                annotation=ModelDeploymentLogType.PREDICT,
+            )
+        return self._predict_log
 
     @property
-    def access_log(self) -> ModelDeploymentLog:
-        """Gets the model deployment predict logs object.
+    def access_log(self) -> OCILog:
+        """Gets the model deployment access logs object.
 
         Returns
         -------
-        ModelDeploymentLog
-            The ModelDeploymentLog object containing the predict logs.
+        OCILog
+            The OCILog object containing the access logs.
         """
-        log_details = self._log_details(log_type=ModelDeploymentLogType.ACCESS)
-        return ModelDeploymentLog(
-            model_deployment_id=self.model_deployment_id,
-            compartment_id=self.properties.compartment_id,
-            id=log_details.log_id,
-            log_group_id=log_details.log_group_id,
-        )
+        if not self._access_log:
+            log_details = self._log_details(log_type=ModelDeploymentLogType.ACCESS)
+            self._access_log = OCILog(
+                compartment_id=self.properties.compartment_id,
+                id=log_details.log_id,
+                log_group_id=log_details.log_group_id,
+                source=self.model_deployment_id,
+                annotation=ModelDeploymentLogType.ACCESS,
+            )
+        return self._access_log
 
-    def logs(self, log_type: str = ModelDeploymentLogType.ACCESS, **kwargs):
+    def logs(self, log_type: str = None) -> ConsolidatedLog:
         """Gets the access or predict logs.
 
         Parameters
         ----------
-        log_type: (str, optional). Defaults to "access".
-            The log type. Can be "access" or "predict".
-        kwargs: dict
-            Back compatability arguments.
+        log_type: (str, optional). Defaults to None.
+            The log type. Can be "access", "predict" or None.
 
         Returns
         -------
-        ModelDeploymentLog
-            The ModelDeploymentLog object containing the logs.
+        ConsolidatedLog
+            The ConsolidatedLog object containing the logs.
         """
-        if log_type == ModelDeploymentLogType.ACCESS:
-            return self.access_log
-        return self.predict_log
+        loggers = []
+        if not log_type:
+            try:
+                loggers.append(self.access_log)
+            except LogNotConfiguredError:
+                pass
+
+            try:
+                loggers.append(self.predict_log)
+            except LogNotConfiguredError:
+                pass
+
+            if not loggers:
+                raise LogNotConfiguredError(
+                    "Neither `predict` nor `access` log was configured for the model deployment."
+                )
+        elif log_type == ModelDeploymentLogType.ACCESS:
+            loggers = [self.access_log]
+        elif log_type == ModelDeploymentLogType.PREDICT:
+            loggers = [self.predict_log]
+        else:
+            raise ValueError(
+                "Parameter log_type should be either access, predict or None."
+            )
+
+        return ConsolidatedLog(*loggers)
 
     def show_logs(
         self,
         time_start: datetime.datetime = None,
         time_end: datetime.datetime = None,
-        limit=LOG_RECORDS_LIMIT,
-        log_type=ModelDeploymentLogType.ACCESS,
+        limit: int = LOG_RECORDS_LIMIT,
+        log_type: str = None,
     ):
         """Shows deployment logs as a pandas dataframe.
 
@@ -740,8 +669,8 @@ class ModelDeployment:
             Defaults to None. Logs will be retrieved until now.
         limit: (int, optional). Defaults to 100.
             The maximum number of items to return.
-        log_type: (str, optional). Defaults to "access".
-            The log type. Can be "access" or "predict".
+        log_type: (str, optional). Defaults to None.
+            The log type. Can be "access", "predict" or None.
 
         Returns
         -------
@@ -754,6 +683,7 @@ class ModelDeployment:
             log_content = log.get("logContent", {})
             return collections.OrderedDict(
                 [
+                    ("type", log_content.get("type").split(".")[-1]),
                     ("id", log_content.get("id")),
                     ("message", log_content.get("data", {}).get("message")),
                     ("time", log_content.get("time")),

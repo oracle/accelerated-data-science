@@ -24,8 +24,8 @@ install_requires = [
     "matplotlib>=3.1.3",
     "numpy>=1.19.2",
     "oci>=2.82.0",
-    "ocifs>=0.1.5",
-    "pandas>1.2.1,<1.4",
+    "ocifs>=1.1.3",
+    "pandas>1.2.1,<1.6",
     "python_jsonschema_objects>=0.3.13",
     "PyYAML>=5.4,<6",
     "requests",
@@ -59,7 +59,7 @@ extras_require = {
         "datefinder>=0.7.1",
         "htmllistparse>=0.6.0",
         "sqlalchemy>=1.4.1",
-        "cx-Oracle>=8.0",
+        "oracledb>=1.0",
     ],
     "opctl": [
         "oci-cli",
@@ -90,7 +90,7 @@ def update_extra_with_internal_packages():
 
 extras_require.update(update_extra_with_internal_packages())
 
-extras_require["torch"] = extras_require["viz"] + ["torch"]
+extras_require["torch"] = extras_require["viz"] + ["torch"] + ["torchvision"]
 extras_require["tensorflow"] = extras_require["viz"] + [
     "tensorflow",
 ]
@@ -113,7 +113,7 @@ extras_require["all-optional"] = reduce(
     [
         extras_require[k]
         for k in extras_require
-        if k not in ["labs", "boosted", "opctl", "complete"]
+        if k not in ["boosted", "opctl", "complete"]
     ],
 )
 extras_require["all-public"] = reduce(
@@ -121,7 +121,7 @@ extras_require["all-public"] = reduce(
     [
         extras_require[k]
         for k in extras_require
-        if k not in ["labs", "all-optional", "complete"]
+        if k not in ["all-optional", "complete"]
     ],
 )
 # Only include pytest-runner in setup_requires if we're invoking tests
@@ -135,27 +135,6 @@ with open(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads", "ads_version.json")
 ) as version_file:
     ADS_VERSION = json.load(version_file)["version"]
-
-
-class CustomCommandMixin:
-    user_options = [("enable-cli", None, "flag to install ADS cli")]
-
-    def initialize_options(self):
-        super().initialize_options()
-        self.enable_cli = None
-
-    def run(self):
-        if self.enable_cli:
-            self.distribution.scripts = ["ads/ads"]
-        super().run()
-
-
-class InstallCommand(CustomCommandMixin, install):
-    user_options = install.user_options + CustomCommandMixin.user_options
-
-
-class DevelopCommand(CustomCommandMixin, develop):
-    user_options = develop.user_options + CustomCommandMixin.user_options
 
 
 long_description = (this_directory / "README.md").read_text()
@@ -191,6 +170,5 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html",
     },
-    scripts=["ads/ads"]
-    # cmdclass={"develop": DevelopCommand, "install": InstallCommand},
+    scripts=["ads/ads"],
 )

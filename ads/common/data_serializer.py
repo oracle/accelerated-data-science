@@ -66,10 +66,9 @@ class InputDataSerializer:
             pass
         else:
             raise TypeError(
-                "The provided data type is not json serializable. "
                 "The supported data types are Dict, str, list, "
                 "numpy.ndarray, pd.core.series.Series, "
-                "pd.core.frame.DataFrame. Please "
+                "pd.core.frame.DataFrame, bytes. Please "
                 "convert to the supported data types first. "
             )
 
@@ -106,6 +105,7 @@ class InputDataSerializer:
             )
             request_kwargs = {"json": self.to_dict()}
         request_kwargs["headers"] = headers
+
         if dry_run:
             request_kwargs["headers"]["Accept"] = "*/*"
             req = requests.Request("POST", endpoint, **request_kwargs).prepare()

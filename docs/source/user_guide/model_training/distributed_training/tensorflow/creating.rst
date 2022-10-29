@@ -407,7 +407,7 @@ In case of keras callback:
 
 Also, the sync feature ``SYNC_ARTIFACTS`` should be enabled ``'1'`` to sync the profiling logs to the configured object storage.
 
-Thereafter, use Tensorboard to view logs. Refer the :doc:`Tensorboard setup <../../tensorboard/tensorboard>` for set-up on your computer. <TBD fix the link>
+Thereafter, use Tensorboard to view logs. Refer the :doc:`Tensorboard setup <../../tensorboard/tensorboard>` for set-up on your computer.
 
 .. include:: ../_profiling.rst
 

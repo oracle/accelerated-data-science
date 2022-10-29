@@ -29,8 +29,10 @@ Define config. If you have not yet configured your dataflow setting, or would li
 
   dataflow_config = DataFlowConfig()
   dataflow_config.compartment_id = "ocid1.compartment.<your compartment ocid>"
-  dataflow_config.driver_shape = "VM.Standard2.1"
-  dataflow_config.executor_shape = "VM.Standard2.1"
+  dataflow_config.driver_shape = "VM.Standard.E4.Flex"
+  dataflow_config.driver_shape_config = oci.data_flow.models.ShapeConfig(ocpus=2, memory_in_gbs=32)
+  dataflow_config.executor_shape = "VM.Standard.E4.Flex"
+  dataflow_config.executor_shape_config = oci.data_flow.models.ShapeConfig(ocpus=4, memory_in_gbs=64)
   dataflow_config.logs_bucket_uri = "oci://<my-bucket>@<my-tenancy>/"
   dataflow_config.spark_version = "3.2.1"
   dataflow_config.configuration = {"spark.driver.memory": "512m"}
@@ -152,8 +154,10 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
         .with_compartment_id(
             "ocid1.compartment.oc1..aaaaaaaapvb3hearqum6wjvlcpzm5ptfxqa7xfftpth4h72xx46ygavkqteq"
         )
-        .with_driver_shape("VM.Standard2.1")
-        .with_executor_shape("VM.Standard2.1")
+        .with_driver_shape("VM.Standard.E4.Flex")
+		.with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+		.with_executor_shape("VM.Standard.E4.Flex")
+		.with_executor_shape_config(ocpus=4, memory_in_gbs=64)
         .with_logs_bucket_uri("oci://mybucket@mytenancy/")
     )
     rt = (
@@ -184,7 +188,9 @@ You can set them using the ``with_{property}`` functions:
 - ``with_compartment_id``
 - ``with_configuration``
 - ``with_driver_shape``
+- ``with_driver_shape_config``
 - ``with_executor_shape``
+- ``with_executor_shape_config``
 - ``with_language``
 - ``with_logs_bucket_uri``
 - ``with_metastore_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/hive-metastore.htm>`__)
@@ -211,8 +217,8 @@ object can be reused and combined with various ``DataFlowRuntime`` parameters to
 create applications.
 
 In the following "hello-world" example, ``DataFlow`` is populated with ``compartment_id``,
-``driver_shape``, ``executor_shape``, and ``spark_version``.
-``DataFlowRuntime`` is populated with ``script_uri`` and
+``driver_shape``, ``driver_shape_config``, ``executor_shape``, ``executor_shape_config`` 
+and ``spark_version``. ``DataFlowRuntime`` is populated with ``script_uri`` and
 ``script_bucket``. The ``script_uri`` specifies the path to the script. It can be
 local or remote (an Object Storage path). If the path is local, then
 ``script_bucket`` must be specified additionally because Data Flow
@@ -250,8 +256,10 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
             DataFlow()
             .with_compartment_id("oci.xx.<compartment_id>")
             .with_logs_bucket_uri("oci://mybucket@mynamespace/dflogs")
-            .with_driver_shape("VM.Standard2.1")
-            .with_executor_shape("VM.Standard2.1")
+            .with_driver_shape("VM.Standard.E4.Flex")
+		    .with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+		    .with_executor_shape("VM.Standard.E4.Flex")
+		    .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.0.2")
         )
         runtime_config = (
@@ -361,8 +369,10 @@ In the next example, ``archive_uri`` is given as an Object Storage location.
             DataFlow()
             .with_compartment_id("oci1.xxx.<compartment_ocid>")
             .with_logs_bucket_uri("oci://mybucket@mynamespace/prefix")
-            .with_driver_shape("VM.Standard2.1")
-            .with_executor_shape("VM.Standard2.1")
+            .with_driver_shape("VM.Standard.E4.Flex")
+		    .with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+		    .with_executor_shape("VM.Standard.E4.Flex")
+		    .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.0.2")
         )
         runtime_config = (
@@ -523,8 +533,14 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
       kind: infrastructure
       spec:
         compartmentId: <compartment_id>
-        driverShape: VM.Standard2.1
-        executorShape: VM.Standard2.1
+        driverShape: VM.Standard.E4.Flex
+        driverShapeConfig:
+          ocpus: 2
+          memory_in_gbs: 32
+        executorShape: VM.Standard.E4.Flex
+        executorShapeConfig:
+          ocpus: 4
+          memory_in_gbs: 64
         id: <dataflow_app_ocid>
         language: PYTHON
         logsBucketUri: <logs_bucket_uri>
@@ -561,9 +577,29 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
             driverShape:
                 required: false
                 type: string
+            driverShapeConfig:
+                required: false
+                type: dict
+                schema:
+                    ocpus:
+                        required: true
+                        type: float
+                    memory_in_gbs:
+                        required: true
+                        type: float
             executorShape:
                 required: false
                 type: string
+            executorShapeConfig:
+                required: false
+                type: dict
+                schema:
+                    ocpus:
+                        required: true
+                        type: float
+                    memory_in_gbs:
+                        required: true
+                        type: float
             id:
                 required: false
                 type: string

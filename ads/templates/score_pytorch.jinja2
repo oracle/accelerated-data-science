@@ -105,13 +105,13 @@ predict.
     if "numpy.ndarray" in data_type:
         load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
         return np.load(load_bytes, allow_pickle=True)
+    if "torch.Tensor" in data_type:
+        load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
+        return torch.load(load_bytes)
     if "pandas.core.series.Series" in data_type:
         return pd.Series(json_data)
     if "pandas.core.frame.DataFrame" in data_type or isinstance(json_data, str):
         return pd.read_json(json_data, dtype=fetch_data_type_from_schema(input_schema_path))
-    if "torch.Tensor" in data_type:
-        load_bytes = BytesIO(base64.b64decode(json_data.encode('utf-8')))
-        return torch.load(load_bytes)
 
     return json_data
 

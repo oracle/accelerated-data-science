@@ -120,6 +120,8 @@ class AutoMLModel(GenericModel):
     >>> model_deployment = automl_model.deploy(wait_for_completion=False)
     """
 
+    _PREFIX = "automl"
+
     def __init__(
         self,
         estimator: Callable,
@@ -229,35 +231,3 @@ class AutoMLModel(GenericModel):
 
             with open(model_path, "wb") as outfile:
                 cloudpickle.dump(self.estimator, outfile)
-
-    def get_data_serializer(
-        self,
-        data: Union[
-            Dict,
-            str,
-            List,
-            np.ndarray,
-            pd.core.series.Series,
-            pd.core.frame.DataFrame,
-        ],
-    ):
-        """Returns serializable input data.
-
-        Parameters
-        ----------
-        data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
-        pd.core.frame.DataFrame]
-            Data expected by the model deployment predict API.
-
-        Returns
-        -------
-        InputDataSerializer
-            A class containing serialized input data and original data type
-            information.
-
-        Raises
-        ------
-        TypeError
-            if provided data type is not supported.
-        """
-        return InputDataSerializer(data)

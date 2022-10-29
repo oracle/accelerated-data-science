@@ -130,6 +130,8 @@ class LightGBMModel(GenericModel):
     >>> lightgbm_model.predict(X_test)
     """
 
+    _PREFIX = "lightgbm"
+
     def __init__(
         self,
         estimator: Callable,
@@ -421,35 +423,3 @@ class LightGBMModel(GenericModel):
                 "`initial_types` can not be detected. Please directly pass initial_types."
             )
         return auto_generated_initial_types
-
-    def get_data_serializer(
-        self,
-        data: Union[
-            Dict,
-            str,
-            List,
-            np.ndarray,
-            pd.core.series.Series,
-            pd.core.frame.DataFrame,
-        ],
-    ):
-        """Returns serializable input data.
-
-        Parameters
-        ----------
-        data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
-        pd.core.frame.DataFrame]
-            Data expected by the model deployment predict API.
-
-        Returns
-        -------
-        InputDataSerializer
-            A class containing serialized input data and original data type
-            information.
-
-        Raises
-        ------
-        TypeError
-            if provided data type is not supported.
-        """
-        return InputDataSerializer(data)

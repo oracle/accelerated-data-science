@@ -226,6 +226,8 @@ class SparkPipelineModel(GenericModel):
     >>> spark_model.delete_deployment()
     """
 
+    _PREFIX = "spark"
+
     @runtime_dependency(
         module="pyspark",
         short_name="ml",

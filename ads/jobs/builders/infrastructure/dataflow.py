@@ -11,7 +11,7 @@ import logging
 import os
 import time
 import urllib.parse
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import fsspec
 import oci.data_flow
@@ -30,6 +30,7 @@ from ads.jobs.builders.infrastructure.utils import (
 from ads.jobs.builders.runtimes.python_runtime import DataFlowRuntime
 from ads.model.runtime.env_info import InferenceEnvInfo
 from oci.data_flow.models import CreateApplicationDetails, CreateRunDetails
+import oci.util as oci_util
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -339,6 +340,10 @@ class DataFlow(Infrastructure):
     CONST_NUM_EXECUTORS = "num_executors"
     CONST_SPARK_VERSION = "spark_version"
     CONST_WAREHOUSE_BUCKET_URI = "warehouse_bucket_uri"
+    CONST_DRIVER_SHAPE_CONFIG = "driver_shape_config"
+    CONST_EXECUTOR_SHAPE_CONFIG = "executor_shape_config"
+    CONST_MEMORY_IN_GBS = "memory_in_gbs"
+    CONST_OCPUS = "ocpus"
     CONST_ID = "id"
 
     attribute_map = {
@@ -352,6 +357,10 @@ class DataFlow(Infrastructure):
         CONST_NUM_EXECUTORS: "numExecutors",
         CONST_SPARK_VERSION: "sparkVersion",
         CONST_WAREHOUSE_BUCKET_URI: "warehouseBucketUri",
+        CONST_DRIVER_SHAPE_CONFIG: "driverShapeConfig",
+        CONST_EXECUTOR_SHAPE_CONFIG: "executorShapeConfig",
+        CONST_MEMORY_IN_GBS: "memoryInGBs",
+        CONST_OCPUS: CONST_OCPUS,
         CONST_ID: CONST_ID,
     }
 
@@ -383,13 +392,6 @@ class DataFlow(Infrastructure):
         dict
             a dictionary of default properties
         """
-        allowed_shapes = [
-            "VM.Standard2.1",
-            "VM.Standard2.2",
-            "VM.Standard2.4",
-            "VM.Standard2.8",
-            "VM.Standard2.16",
-        ]
         defaults = {}
         if "NB_SESSION_COMPARTMENT_OCID" in os.environ:
             defaults["compartment_id"] = os.environ["NB_SESSION_COMPARTMENT_OCID"]
@@ -400,11 +402,26 @@ class DataFlow(Infrastructure):
                     os.environ["NB_SESSION_OCID"]
                 ).data
                 nb_config = nb_session.notebook_session_configuration_details
-                if nb_config.shape in allowed_shapes:
-                    defaults["driver_shape"] = nb_config.shape
-                    logger.debug(f"Set driver shape to {nb_config.shape}")
-                    defaults["executor_shape"] = nb_config.shape
-                    logger.debug(f"Set executor shape to {nb_config.shape}")
+                defaults["driver_shape"] = nb_config.shape
+                logger.debug(f"Set driver shape to {nb_config.shape}")
+                defaults["executor_shape"] = nb_config.shape
+                logger.debug(f"Set executor shape to {nb_config.shape}")
+                if nb_config.notebook_session_shape_config_details:
+                    notebook_shape_config_details = oci_util.to_dict(
+                        nb_config.notebook_session_shape_config_details
+                    )
+                    defaults["driver_shape_config"] = copy.deepcopy(
+                        notebook_shape_config_details
+                    )
+                    logger.debug(
+                        f"Set driver shape config to {nb_config.notebook_session_shape_config_details}"
+                    )
+                    defaults["executor_shape_config"] = copy.deepcopy(
+                        notebook_shape_config_details
+                    )
+                    logger.debug(
+                        f"Set executor shape config to {nb_config.notebook_session_shape_config_details}"
+                    )
 
             except Exception as e:
                 logger.warning(
@@ -635,6 +652,68 @@ class DataFlow(Infrastructure):
             the Data Flow instance itself
         """
         return self.set_spec(self.CONST_ID, id)
+
+    def with_driver_shape_config(
+        self, memory_in_gbs: float, ocpus: float, **kwargs: Dict[str, Any]
+    ) -> "DataFlow":
+        """
+        Sets the driver shape config details of Data Flow job infrastructure.
+        Specify only when a flex shape is selected.
+        For example `VM.Standard.E3.Flex` allows the memory_in_gbs and cpu count to be specified.
+
+        Parameters
+        ----------
+        memory_in_gbs: float
+            The size of the memory in GBs.
+        ocpus: float
+            The OCPUs count.
+        kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        DataFlow
+            the Data Flow instance itself.
+        """
+        return self.set_spec(
+            self.CONST_DRIVER_SHAPE_CONFIG,
+            {
+                self.CONST_OCPUS: ocpus,
+                self.CONST_MEMORY_IN_GBS: memory_in_gbs,
+                **kwargs,
+            },
+        )
+
+    def with_executor_shape_config(
+        self, memory_in_gbs: float, ocpus: float, **kwargs: Dict[str, Any]
+    ) -> "DataFlow":
+        """
+        Sets the executor shape config details of Data Flow job infrastructure.
+        Specify only when a flex shape is selected.
+        For example `VM.Standard.E3.Flex` allows the memory_in_gbs and cpu count to be specified.
+
+        Parameters
+        ----------
+        memory_in_gbs: float
+            The size of the memory in GBs.
+        ocpus: float
+            The OCPUs count.
+        kwargs
+            Additional keyword arguments.
+
+        Returns
+        -------
+        DataFlow
+            the Data Flow instance itself.
+        """
+        return self.set_spec(
+            self.CONST_EXECUTOR_SHAPE_CONFIG,
+            {
+                self.CONST_OCPUS: ocpus,
+                self.CONST_MEMORY_IN_GBS: memory_in_gbs,
+                **kwargs,
+            },
+        )
 
     def __getattr__(self, item):
         if f"with_{item}" in self.__dir__():
