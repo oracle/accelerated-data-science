@@ -1,6 +1,6 @@
 .. _data-flow-8:
 
-[Legacy]  
+[Legacy]
 *********************
 .. deprecated:: v2.6.3 July 2022
 
@@ -15,6 +15,7 @@ Prerequisite
 To access , there are a number of steps that are needed to be completed.
 
 .. include:: ../_template/prerequisite/data_flow.rst
+* The ``core-site.xml`` file needs to be :ref:`configured<configuration-core_site_xml>`.
 
 Create a  Instance
 ===========================
@@ -243,7 +244,7 @@ Synchronizing is the default setting in ``app.run(...)``. If you don't want the 
 Arguments and Parameters
 ------------------------
 
-Passing arguments to PySpark scripts is done with the ``arguments`` value in ``prepare_app``. Additional to the arguments 
+Passing arguments to PySpark scripts is done with the ``arguments`` value in ``prepare_app``. Additional to the arguments
 supports, is a parameter dictionary that you can use to interpolate arguments. To just pass arguments, the ``script_parameter`` section
 may be ignored. However, any key-value pair defined in ``script_parameter`` can be referenced in arguments using the ``${key}`` syntax, and
 the value of that key is passed as the argument value.

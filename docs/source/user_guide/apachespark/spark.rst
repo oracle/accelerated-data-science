@@ -14,11 +14,12 @@ Apache Spark
 
 .. toctree::
     :maxdepth: 2
-    
+
     quickstart
     setup-installation
     dataflow
     spark-defaults_conf
     ../data_catalog_metastore/index
+    dataflow-spark-magic
     ../data_flow/legacy_dataflow
 
