@@ -21,7 +21,7 @@ You can choose to use the resource principal to authenticate while using the Acc
 
 .. code-block:: python
 
-  import ads 
+  import ads
   ads.set_auth(auth='resource_principal')
   compartment_id = os.environ['NB_SESSION_COMPARTMENT_OCID']
   pc = ProjectCatalog(compartment_id=compartment_id)
@@ -39,7 +39,7 @@ Use API Key setup when you are working from a local workstation or on platform w
 
 This is the default method of authentication. You can also authenticate as your own personal IAM user by creating or uploading OCI configuration and API key files inside your notebook session environment. The OCI configuration file contains the necessary credentials to authenticate your user against the model catalog and other OCI services like Object Storage. The example notebook, `api_keys.ipynb` demonstrates how to create these files.
 
-You can follow the steps in `api_keys.ipynb <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/ads_notebooks/api_keys.ipynb>` for step by step instruction on setting up API Keys. 
+You can follow the steps in `api_keys.ipynb <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/notebook_examples/api_keys.ipynb>` for step by step instruction on setting up API Keys.
 
 .. note::
    If you already have an OCI configuration file (``config``) and associated keys, you can upload them directly to the ``/home/datascience/.oci`` directory using the JupyterLab **Upload Files** or the drag-and-drop option.

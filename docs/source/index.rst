@@ -2,12 +2,20 @@
 .. meta::
     :description lang=en:
         Oracle Accelerated Data Science SDK (ORACLE-ADS)
-        is a Python library that is part of the Oracle Cloud Infrastructure Data Science service. ORACLE-ADS is the client 
-        library and CLI for Machine learning engineers to work with Cloud Infrastructure (CPU and GPU VMs, Storage etc, Spark) for Data, Models, 
+        is a Python library that is part of the Oracle Cloud Infrastructure Data Science service. ORACLE-ADS is the client
+        library and CLI for Machine learning engineers to work with Cloud Infrastructure (CPU and GPU VMs, Storage etc, Spark) for Data, Models,
         Notebooks, Pipelines and Jobs.
 
 Oracle Accelerated Data Science SDK (ADS)
 =========================================
+|PyPI|_ |Python|_ |Notebook Examples|_
+
+.. |PyPI| image:: https://img.shields.io/pypi/v/oracle-ads.svg
+..  _PyPI: https://pypi.org/project/oracle-ads/
+.. |Python| image:: https://img.shields.io/pypi/pyversions/oracle-ads.svg?style=plastic
+..  _Python: https://pypi.org/project/oracle-ads/
+.. |Notebook Examples| image:: https://img.shields.io/badge/docs-notebook--examples-blue
+..  _Notebook Examples: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples
 
 .. toctree::
    :hidden:
@@ -81,11 +89,6 @@ Oracle Accelerated Data Science SDK (ADS)
 
    python3 -m pip install oracle-ads
 
-   |PyPI|_
-
-.. |PyPI| image:: https://img.shields.io/pypi/v/oracle-ads.svg
-..  _PyPI: https://pypi.org/project/oracle-ads/
-
 
 .. admonition:: Source Code
 
@@ -138,7 +141,7 @@ Load data from Object Storage
 
 
 
-Load data from Autonomous DB 
+Load data from Autonomous DB
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This example uses SQL injection safe binding variables.
@@ -165,7 +168,7 @@ This example uses SQL injection safe binding variables.
       connection_parameters=connection_parameters,
   )
 
-More Examples 
+More Examples
 ~~~~~~~~~~~~~
 
 See :doc:`quick start<user_guide/quick_start/quick_start>` guide for more examples

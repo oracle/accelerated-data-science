@@ -14,20 +14,26 @@ Sklearn
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
 
-    # Load dataset and Prepare train and test split 
+    # Load dataset and Prepare train and test split
     iris = load_iris()
     X, y = iris.data, iris.target
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
-    
-    # Train a LogisticRegression model 
+
+    # Train a LogisticRegression model
     sklearn_estimator = LogisticRegression()
     sklearn_estimator.fit(X_train, y_train)
 
     # Instantite ads.model.framework.sklearn_model.SklearnModel using the sklearn LogisticRegression model
-    sklearn_model = SklearnModel(estimator=sklearn_estimator, artifact_dir=tempfile.mkdtemp())
+    sklearn_model = SklearnModel(
+        estimator=sklearn_estimator, artifact_dir=tempfile.mkdtemp()
+    )
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
-    sklearn_model.prepare(inference_conda_env="dataexpl_p37_cpu_v3", X_sample=trainx, y_sample=trainy)
+    sklearn_model.prepare(
+        inference_conda_env="dataexpl_p37_cpu_v3",
+        X_sample=X_train,
+        y_sample=y_train,
+    )
 
     # Verify generated artifacts
     sklearn_model.verify(X_test)
@@ -130,7 +136,8 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     test_data = torch.randn(1, 3, 224, 224)
 
     # Instantite ads.model.framework.pytorch_model.PyTorchModel using the pre-trained PyTorch Model
-    torch_model = PyTorchModel(torch_estimator, artifact_dir=tempfile.mkdtemp())
+    artifact_dir=tempfile.mkdtemp()
+    torch_model = PyTorchModel(torch_estimator, artifact_dir=artifact_dir)
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
     torch_model.prepare(inference_conda_env="computervision_p37_cpu_v1")
@@ -278,7 +285,7 @@ Other Frameworks
 
     # Check if the artifacts are generated correctly.
     # The verify method invokes the ``predict`` function defined inside ``score.py`` in the artifact_dir
-    generic_model.verify(2)
+    generic_model.verify([2])
 
     # Register the model
     model_id = generic_model.save(display_name="Custom Framework Model")
