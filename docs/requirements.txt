@@ -1,8 +1,13 @@
--e .
 autodoc
 nbsphinx
 sphinx
 sphinxcontrib-napoleon
 sphinx-rtd-theme
+sphinx_copybutton
+oracle_ads
+sphinx-autobuild
+IPython
 pandoc
-sphinx-copybutton
+rstcheck
+restructuredtext_lint
+doc8

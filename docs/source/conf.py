@@ -6,7 +6,8 @@ import datetime
 import os
 import sys
 
-autoclass_content = "both"  ##This causes documentation within the __init__ method to be pulled into the documentation properly
+# This causes documentation within the __init__ method to be pulled into the documentation properly
+autoclass_content = "both"
 
 sys.path.insert(0, os.path.abspath("../../advanced-ds"))
 
@@ -30,7 +31,7 @@ extensions = [
     "sphinx.ext.graphviz",
     "sphinx.ext.inheritance_diagram",
     "nbsphinx",
-    "sphinx_copybutton",
+    "sphinx_copybutton"
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -55,7 +56,8 @@ language = 'en'
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+# exclude_patterns = []
+exclude_patterns = ['build', '**.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = None
