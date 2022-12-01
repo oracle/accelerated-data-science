@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/oracle-ads.svg)](https://pypi.org/project/oracle-ads/)
 
-The [Oracle Accelerated Data Science (ADS) SDK](https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html) is maintained by the Oracle Cloud Infrastructure (OCI) [Data Science service](https://docs.oracle.com/en-us/iaas/data-science/using/data-science.htm) team. It speeds up common data science activities by providing tools that automate and simplify common data science tasks. Additionally, provides data scientists a friendly pythonic interface to OCI services. Some of the more notable services are OCI Data Science, Model Catalog, Model Deployment, Jobs, Data Flow, Object Storage, Vault, Big Data Service, Data Catalog, and the Autonomous Database. ADS gives you an interface to manage the life cycle of machine learning models, from data acquisition to model evaluation, interpretation, and model deployment.
+The [Oracle Accelerated Data Science (ADS) SDK](https://accelerated-data-science.readthedocs.io/en/latest/index.html) is maintained by the Oracle Cloud Infrastructure (OCI) [Data Science service](https://docs.oracle.com/en-us/iaas/data-science/using/data-science.htm) team. It speeds up common data science activities by providing tools that automate and simplify common data science tasks. Additionally, provides data scientists a friendly pythonic interface to OCI services. Some of the more notable services are OCI Data Science, Model Catalog, Model Deployment, Jobs, Data Flow, Object Storage, Vault, Big Data Service, Data Catalog, and the Autonomous Database. ADS gives you an interface to manage the life cycle of machine learning models, from data acquisition to model evaluation, interpretation, and model deployment.
 
 With ADS you can:
 
@@ -116,7 +116,7 @@ Multiple extra dependencies can be installed together. For example:
 
 ## Documentation
 
-  - [Oracle Accelerated Data Science SDK (ADS) Documentation](https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html)
+  - [Oracle Accelerated Data Science SDK (ADS) Documentation](https://accelerated-data-science.readthedocs.io/en/latest/index.html)
   - [OCI Data Science and AI services Examples](https://github.com/oracle/oci-data-science-ai-samples)
   - [Oracle AI & Data Science Blog](https://blogs.oracle.com/ai-and-datascience/)
   - [OCI Documentation](https://docs.oracle.com/en-us/iaas/data-science/using/data-science.htm)
