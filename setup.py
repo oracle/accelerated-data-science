@@ -168,7 +168,7 @@ setup(
     ],
     project_urls={
         "Github": "https://github.com/oracle/accelerated-data-science",
-        "Documentation": "https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/index.html",
+        "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
     scripts=["ads/ads"],
 )
