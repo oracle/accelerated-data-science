@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.7.0
+-----
+Release date: December 7, 2022
+
+* Fixed a bug in ``GenericModel.prepare``. The ``.model-ignore`` file was not included in the ``Manifest.in``.
+
+
 2.6.9
 -----
 Release date: December 7, 2022
