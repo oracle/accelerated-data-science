@@ -7,7 +7,7 @@
 import logging
 
 from ads.model.extractor.model_info_extractor import ModelInfoExtractor
-from ads.common.model_metadata import Framework
+from ads.model.model_metadata import Framework
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,

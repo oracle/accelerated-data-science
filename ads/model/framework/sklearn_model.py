@@ -17,7 +17,7 @@ from ads.common.decorator.runtime_dependency import (
 from ads.model.extractor.sklearn_extractor import SklearnExtractor
 from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import (
-    GenericModel,
+    FrameworkSpecificModel,
     DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME,
     DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME,
 )
@@ -26,7 +26,7 @@ from joblib import dump
 from pandas.api.types import is_numeric_dtype, is_string_dtype
 
 
-class SklearnModel(GenericModel):
+class SklearnModel(FrameworkSpecificModel):
     """SklearnModel class for estimators from sklearn framework.
 
     Attributes

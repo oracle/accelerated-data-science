@@ -20,11 +20,12 @@ from datetime import datetime
 import ocifs
 
 from ads.common.oci_client import OCIClientFactory
-from ads.common.auth import get_signer
+from ads.common.auth import create_signer
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.config import NO_CONTAINER
 
 from ads.opctl.constants import (
     ML_JOB_GPU_IMAGE,
@@ -179,7 +180,7 @@ def _create(
     manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
-    if is_in_notebook_session():
+    if is_in_notebook_session() or NO_CONTAINER:
         command = f"conda env create --prefix {pack_folder_path} --file {os.path.abspath(os.path.expanduser(env_file))}"
         run_command(command, shell=True)
     else:
@@ -223,16 +224,22 @@ def _create(
 
 
 def _fetch_pack_path(
-    slug: str, conda_pack_os_prefix: str, oci_config: str, oci_profile: str
+    slug: str,
+    conda_pack_os_prefix: str,
+    oci_config: str,
+    oci_profile: str,
+    auth_type: str,
 ) -> str:
-    oci_auth = get_signer(oci_config, oci_profile)
+    oci_auth = create_signer(auth_type, oci_config, oci_profile)
     fs = ocifs.OCIFileSystem(**oci_auth)
     fnames = fs.ls(conda_pack_os_prefix, detail=True, refresh=True)
     for f in fnames:
         if os.path.basename(f["name"]) == slug:
             return f"oci://{f['name']}"
         elif f["type"] == "directory":
-            path = _fetch_pack_path(slug, f"oci://{f['name']}", oci_config, oci_profile)
+            path = _fetch_pack_path(
+                slug, f"oci://{f['name']}", oci_config, oci_profile, auth_type
+            )
             if path:
                 return path
     return None
@@ -247,6 +254,7 @@ def install(**kwargs) -> None:
             exec_config["conda_pack_os_prefix"],
             exec_config.get("oci_config"),
             exec_config.get("oci_profile"),
+            exec_config.get("auth"),
         )
         if not conda_uri:
             raise FileNotFoundError(
@@ -265,6 +273,7 @@ def install(**kwargs) -> None:
         exec_config.get("oci_profile"),
         overwrite=exec_config.get("overwrite", False),
         debug=kwargs.get("debug", False),
+        auth_type=exec_config.get("auth"),
     )
 
 
@@ -275,6 +284,7 @@ def _install(
     oci_profile: str = None,
     overwrite: bool = False,
     debug: bool = False,
+    auth_type: str = None,
 ) -> None:
     """
     Install conda pack.
@@ -293,6 +303,8 @@ def _install(
         whether to overwrite existing pack
     debug: bool
         whether to turn on debug mode
+    auth_type : str
+        authentication method
     Returns
     -------
     None
@@ -302,7 +314,7 @@ def _install(
     pack_path = os.path.join(os.path.expanduser(conda_pack_folder), slug + ".tar.gz")
     pack_folder_path = os.path.join(os.path.expanduser(conda_pack_folder), slug)
 
-    if not is_in_notebook_session():
+    if not (is_in_notebook_session() or NO_CONTAINER):
         _check_job_image_exists(gpu=False)
 
     while os.path.exists(pack_folder_path):
@@ -340,7 +352,7 @@ def _install(
             "--file",
             pack_path,
             "--auth",
-            "resource_principal",
+            auth_type,
         ]
     else:
         oci_config = os.path.abspath(os.path.expanduser(oci_config))
@@ -395,7 +407,7 @@ def _install(
     # See https://conda.github.io/conda-pack/#commandline-usage
     unpack_script = os.path.join(pack_folder_path, "bin", "conda-unpack")
     if os.path.exists(unpack_script):
-        if is_in_notebook_session():
+        if is_in_notebook_session() or NO_CONTAINER:
             run_command(unpack_script)
         else:
             volumes = {
@@ -413,7 +425,7 @@ def _install(
             except Exception:
                 raise RuntimeError(f"Error unpacking environment {slug}.")
         if os.path.exists(os.path.join(pack_folder_path, "spark-defaults.conf")):
-            if is_in_notebook_session():
+            if is_in_notebook_session() or NO_CONTAINER:
                 if not os.path.exists(DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR):
                     os.makedirs(DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR)
                     shutil.copy(
@@ -476,6 +488,7 @@ def publish(**kwargs) -> None:
         oci_config=exec_config.get("oci_config"),
         oci_profile=exec_config.get("oci_profile"),
         overwrite=exec_config["overwrite"],
+        auth_type=exec_config["auth"],
     )
 
 
@@ -486,6 +499,7 @@ def _publish(
     oci_config: str,
     oci_profile: str,
     overwrite: bool,
+    auth_type: str,
 ) -> None:
     """Publish a local conda pack to object storage location
 
@@ -497,14 +511,14 @@ def _publish(
         object storage prefix to save conda pack
     conda_pack_folder : str
         path to local conda folder
-    gpu : bool
-        whether to build pack against GPU image
     oci_config : str
         oci config file path
     oci_profile : str
         oci config profile
     overwrite : bool
         whether to overwrite existing pack of the same slug
+    auth_type : str
+        authentication method
 
     Raises
     ------
@@ -544,7 +558,7 @@ def _publish(
     if "IP" in env["manifest"] and env["manifest"]["IP"].lower() == "y":
         raise RuntimeError("This environment has IP restricted packages.")
 
-    oci_auth = get_signer(oci_config, oci_profile)
+    oci_auth = create_signer(auth_type, oci_config, oci_profile)
     client = OCIClientFactory(**oci_auth).object_storage
     publish_slug = conda_slug
     if not overwrite:
@@ -561,7 +575,7 @@ def _publish(
                 publish_slug = "_".join(ans.lower().split(" "))
 
     pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
-    if is_in_notebook_session():
+    if is_in_notebook_session() or NO_CONTAINER:
         command = f"python {pack_script} {pack_folder_path}"
         run_command(command, shell=True)
     else:
@@ -618,9 +632,9 @@ def _publish(
     with open(manifest_location, "w") as f:
         yaml.safe_dump(env, f)
     if pack_size > 100:
-        MultiPartUploader(pack_file, pack_uri, 10, oci_config, oci_profile).upload(
-            manifest
-        )
+        MultiPartUploader(
+            pack_file, pack_uri, 10, oci_config, oci_profile, auth_type
+        ).upload(manifest)
     else:
         with open(pack_file, "rb") as pkf:
             client.put_object(

@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.model.extractor.model_info_extractor import ModelInfoExtractor
-from ads.common.model_metadata import Framework
+from ads.model.model_metadata import Framework
 
 
 class AutoMLExtractor(ModelInfoExtractor):

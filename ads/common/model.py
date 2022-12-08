@@ -4,21 +4,21 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import distutils
+from distutils import dir_util
 import os
 import shutil
-from collections import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 import pandas as pd
 from ads.common import logger, utils
 from ads.common.model_export_util import (
-    ONNXTransformer,
     Progress_Steps_W_Fn,
     Progress_Steps_Wo_Fn,
     prepare_generic_model,
     serialize_model,
 )
+from ads.model.transformer.onnx_transformer import ONNXTransformer
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
@@ -27,7 +27,6 @@ from ads.common.decorator.deprecate import deprecated
 from ads.common.utils import is_notebook
 from ads.dataset.pipeline import TransformerPipeline
 from sklearn.pipeline import Pipeline
-
 
 Unsupported_Model_Types = []
 NoTransformModels = ["torch", "tensorflow", "keras", "automl"]
@@ -173,7 +172,7 @@ class ADSModel(object):
 
     @deprecated(
         "2.6.6",
-        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
     )
     def predict(self, X):
         """
@@ -224,7 +223,7 @@ class ADSModel(object):
 
     @deprecated(
         "2.6.6",
-        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
     )
     def score(self, X, y_true, score_fn=None):
         """
@@ -260,7 +259,7 @@ class ADSModel(object):
 
     @deprecated(
         "2.6.6",
-        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
     )
     def summary(self):
         """
@@ -288,7 +287,7 @@ class ADSModel(object):
 
     @deprecated(
         "2.6.6",
-        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
     )
     def transform(self, X):
         """
@@ -328,7 +327,7 @@ class ADSModel(object):
 
     @deprecated(
         "2.6.6",
-        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
     )
     def feature_names(self, X=None):
         model_type = self._underlying_model
@@ -389,7 +388,7 @@ class ADSModel(object):
 
     @deprecated(
         "2.6.6",
-        details="Use framework specific Model utility class for saving and deploying model saving and deploying. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
     )
     def prepare(
         self,
@@ -496,7 +495,7 @@ class ADSModel(object):
                 ),
                 os.path.join(target_dir, ".model-ignore"),
             )
-            distutils.dir_util._path_created = {}
+            dir_util._path_created = {}
 
             progress.update("Serializing model")
             # Transform the data to be onnx-ready

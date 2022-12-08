@@ -117,7 +117,8 @@ def get_compute_accelerator_ncores():
 
 @deprecated(
     "2.5.10",
-    details="Deprecated, use: oci_config_location=oci_config_location(); profile=oci_key_profile()",
+    details="Deprecated, use: from ads.common.auth import AuthState;"
+    "oci_config_location=AuthState().oci_config_path; profile=AuthState().oci_key_profile",
 )
 def get_oci_config():
     """
@@ -130,7 +131,10 @@ def get_oci_config():
     return oci_config_location, oci_config_profile
 
 
-@deprecated("2.5.10", details="Deprecated, use: os.path.dirname(oci_config_location())")
+@deprecated(
+    "2.5.10",
+    details="Deprecated, use: from ads.common.auth import AuthState; os.path.dirname(AuthState().oci_config_path)",
+)
 def oci_key_location():
     """
     Returns the OCI key location
@@ -140,7 +144,10 @@ def oci_key_location():
     )
 
 
-@deprecated("2.5.10", details="Deprecated, use: oci_config_location()")
+@deprecated(
+    "2.5.10",
+    details="Deprecated, use: from ads.common.auth import AuthState; AuthState().oci_config_path",
+)
 def oci_config_file():
     """
     Returns the OCI config file location
@@ -148,7 +155,10 @@ def oci_config_file():
     return os.path.join(oci_key_location(), "config")
 
 
-@deprecated("2.5.10", details="Deprecated, use: oci_key_profile()")
+@deprecated(
+    "2.5.10",
+    details="Deprecated, use: from ads.common.auth import AuthState; AuthState().oci_key_profile",
+)
 def oci_config_profile():
     """
     Returns the OCI config profile location.
@@ -390,6 +400,10 @@ def is_test():  # pragma: no cover
     return test_mode
 
 
+@deprecated(
+    "2.6.8",
+    details="Deprecated, use: ads.set_auth(auth='resource_principal')",
+)
 def is_resource_principal_mode():  # pragma: no cover
     """
     Returns true if ADS is in resource principal mode.
@@ -399,22 +413,30 @@ def is_resource_principal_mode():  # pragma: no cover
     return resource_principal_mode
 
 
+@deprecated(
+    "2.6.8",
+    details="Deprecated, use: from ads.common.auth import AuthState; AuthState().oci_config_path",
+)
 def oci_config_location():  # pragma: no cover
     """
     Returns oci configuration file location.
     """
-    from ads import oci_config_path
+    from ads.common.auth import AuthState
 
-    return oci_config_path
+    return AuthState().oci_config_path
 
 
+@deprecated(
+    "2.6.8",
+    details="Deprecated, use: from ads.common.auth import AuthState; AuthState().oci_key_profile",
+)
 def oci_key_profile():  # pragma: no cover
     """
     Returns key profile value specified in oci configuration file.
     """
-    from ads import oci_key_profile
+    from ads.common.auth import AuthState
 
-    return oci_key_profile
+    return AuthState().oci_key_profile
 
 
 def is_documentation_mode():  # pragma: no cover
@@ -821,7 +843,7 @@ def flatten(d, parent_key=""):
     items = []
     for k, v in d.items():
         new_key = k if parent_key else k
-        if isinstance(v, collections.MutableMapping):
+        if isinstance(v, collections.abc.MutableMapping):
             items.extend(flatten(v, new_key).items())
         else:
             items.append((new_key, v))
@@ -1111,6 +1133,7 @@ def get_files(directory: str):
     List
         List of the files in the directory.
     """
+    directory = directory.rstrip("/")
     if os.path.exists(os.path.join(directory, ".model-ignore")):
         ignore_patterns = (
             Path(os.path.join(directory), ".model-ignore")
@@ -1350,6 +1373,12 @@ def folder_size(path: str) -> int:
     int
         The size fo the folder in bytes.
     """
+    if not path:
+        return 0
+
+    if os.path.isfile(path):
+        return os.path.getsize(path)
+
     path = os.path.join(path.rstrip("/"), "**")
     return sum(
         os.path.getsize(f) for f in glob.glob(path, recursive=True) if os.path.isfile(f)
@@ -1457,3 +1486,35 @@ def get_random_name_for_resource() -> str:
             datetime.utcnow().strftime("%Y-%m-%d-%H:%M.%S"),
         )
     )
+
+
+def batch_convert_case(spec: dict, to_fmt: str) -> Dict:
+    """
+    Convert the case of a dictionary of spec from camel to snake or vice versa.
+
+    Parameters
+    ----------
+    spec: dict
+        dictionary of spec to convert
+    to_fmt: str
+        format to convert to, can be "camel" or "snake"
+
+    Returns
+    -------
+    dict
+        dictionary of converted spec
+    """
+    if not spec:
+        return spec
+
+    converted = {}
+    if to_fmt == "camel":
+        converter = snake_to_camel
+    else:
+        converter = camel_to_snake
+    for k, v in spec.items():
+        if k == "spec":
+            converted[converter(k)] = batch_convert_case(v, to_fmt)
+        else:
+            converted[converter(k)] = v
+    return converted

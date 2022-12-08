@@ -26,12 +26,21 @@ class Builder(Serializable):
             If spec contains the same key as the one in kwargs, the value from kwargs will be used.
         """
         super().__init__()
-        if spec is None:
-            spec = {}
-        spec = self._standardize_spec(spec)
-        kwargs = self._standardize_spec(kwargs)
-        spec.update(kwargs)
-        self._spec = spec
+        self._spec = self._load_default_properties()
+        self._spec.update(self._standardize_spec(spec))
+        self._spec.update(self._standardize_spec(kwargs))
+
+    def _load_default_properties(self):
+        """
+        Load default properties from environment variables, notebook session, etc.
+        Should be implemented in the child classes.
+
+        Returns
+        -------
+        Dict
+            A dictionary of default properties.
+        """
+        return {}
 
     def _standardize_spec(self, spec):
         if not spec:

@@ -7,8 +7,9 @@
 
 import click
 
+from ads.common.auth import OCIAuthContext
 from ads.jobs import Job, DataFlowRun, DataScienceJobRun
-from ads.opctl.utils import OCIAuthContext, suppress_traceback
+from ads.opctl.utils import suppress_traceback
 
 
 @click.group("jobs")

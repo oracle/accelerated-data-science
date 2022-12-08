@@ -13,7 +13,7 @@ from ads.model.extractor.model_info_extractor import (
     ModelInfoExtractor,
     normalize_hyperparameter,
 )
-from ads.common.model_metadata import Framework
+from ads.model.model_metadata import Framework
 
 
 class SklearnExtractor(ModelInfoExtractor):

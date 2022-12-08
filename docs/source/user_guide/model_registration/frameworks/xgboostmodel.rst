@@ -54,8 +54,8 @@ Prepare Model Artifact
     artifact_dir = tempfile.mkdtemp()
     xgb_model = XGBoostModel(estimator=model, artifact_dir=artifact_dir)
     xgb_model.prepare(
-        inference_conda_env="generalml_p37_cpu_v1",
-        training_conda_env="generalml_p37_cpu_v1",
+        inference_conda_env="generalml_p38_cpu_v1",
+        training_conda_env="generalml_p38_cpu_v1",
         X_sample=trainx,
         y_sample=trainy,
         use_case_type=UseCaseType.BINARY_CLASSIFICATION,
@@ -151,8 +151,8 @@ Example
     artifact_dir = tempfile.mkdtemp()
     xgb_model = XGBoostModel(estimator=model, artifact_dir=artifact_dir)
     xgb_model.prepare(
-        inference_conda_env="generalml_p37_cpu_v1",
-        training_conda_env="generalml_p37_cpu_v1",
+        inference_conda_env="generalml_p38_cpu_v1",
+        training_conda_env="generalml_p38_cpu_v1",
         X_sample=trainx,
         y_sample=trainy,
         use_case_type=UseCaseType.BINARY_CLASSIFICATION,

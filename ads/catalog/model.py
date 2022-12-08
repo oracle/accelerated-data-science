@@ -4,6 +4,18 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import warnings
+
+warnings.warn(
+    (
+        "The `ads.catalog.model` is deprecated in `oracle-ads 2.6.9` and will be removed in `oracle-ads 3.0`. "
+        "Use framework specific Model utility class for saving and deploying model. "
+        "Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import json
 import os
 import shutil
@@ -23,7 +35,7 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
 )
 from ads.common.model_artifact import ConflictStrategy, ModelArtifact
-from ads.common.model_metadata import (
+from ads.model.model_metadata import (
     METADATA_SIZE_LIMIT,
     MetadataSizeTooLarge,
     ModelCustomMetadata,
@@ -100,6 +112,10 @@ class ModelSummaryList(SummaryList):
         Filters the model list according to a lambda filter function, or list comprehension.
     """
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def __init__(
         self,
         model_catalog,
@@ -217,6 +233,10 @@ class Model:
         "defined_metadata_list",
     ]
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def __init__(
         self,
         model: OCIModel,
@@ -301,7 +321,7 @@ class Model:
         metadata_taxonomy = ModelTaxonomyMetadata()
         if hasattr(model, "defined_metadata_list"):
             try:
-                metadata_taxonomy = ModelTaxonomyMetadata._from_oci_metadata_list(
+                metadata_taxonomy = ModelTaxonomyMetadata._from_oci_metadata(
                     model.defined_metadata_list
                 )
             except Exception as e:
@@ -314,7 +334,7 @@ class Model:
         metadata_custom = ModelCustomMetadata()
         if hasattr(model, "custom_metadata_list"):
             try:
-                metadata_custom = ModelCustomMetadata._from_oci_metadata_list(
+                metadata_custom = ModelCustomMetadata._from_oci_metadata(
                     model.custom_metadata_list
                 )
             except Exception as e:
@@ -430,13 +450,11 @@ class Model:
         }
 
         if hasattr(self, "metadata_custom"):
-            attributes[
-                "custom_metadata_list"
-            ] = self.metadata_custom._to_oci_metadata_list()
+            attributes["custom_metadata_list"] = self.metadata_custom._to_oci_metadata()
         if hasattr(self, "metadata_taxonomy"):
             attributes[
                 "defined_metadata_list"
-            ] = self.metadata_taxonomy._to_oci_metadata_list()
+            ] = self.metadata_taxonomy._to_oci_metadata()
 
         update_model_details = UpdateModelDetails(**attributes)
         # freeform_tags=self._model.freeform_tags, defined_tags=self._model.defined_tags)
@@ -589,6 +607,10 @@ class ModelCatalog:
         Uploads the model artifact to cloud storage.
     """
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def __init__(
         self,
         compartment_id: Optional[str] = None,
@@ -1208,17 +1230,15 @@ class ModelCatalog:
 
         if hasattr(model_response.data, "custom_metadata_list"):
             try:
-                result.metadata_custom = ModelCustomMetadata._from_oci_metadata_list(
+                result.metadata_custom = ModelCustomMetadata._from_oci_metadata(
                     model_response.data.custom_metadata_list
                 )
             except:
                 result.metadata_custom = ModelCustomMetadata()
         if hasattr(model_response.data, "defined_metadata_list"):
             try:
-                result.metadata_taxonomy = (
-                    ModelTaxonomyMetadata._from_oci_metadata_list(
-                        model_response.data.defined_metadata_list
-                    )
+                result.metadata_taxonomy = ModelTaxonomyMetadata._from_oci_metadata(
+                    model_response.data.defined_metadata_list
                 )
             except:
                 result.metadata_taxonomy = ModelTaxonomyMetadata()
@@ -1248,6 +1268,10 @@ class ModelCatalog:
             )
         return result
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def upload_model(
         self,
         model_artifact: ModelArtifact,
@@ -1335,10 +1359,10 @@ class ModelCatalog:
                 description=description,
                 project_id=project_id,
                 compartment_id=self.compartment_id,
-                custom_metadata_list=model_artifact.metadata_custom._to_oci_metadata_list()
+                custom_metadata_list=model_artifact.metadata_custom._to_oci_metadata()
                 if model_artifact.metadata_custom is not None
                 else [],
-                defined_metadata_list=model_artifact.metadata_taxonomy._to_oci_metadata_list()
+                defined_metadata_list=model_artifact.metadata_taxonomy._to_oci_metadata()
                 if model_artifact.metadata_taxonomy is not None
                 else [],
                 input_schema=model_artifact.schema_input.to_json()

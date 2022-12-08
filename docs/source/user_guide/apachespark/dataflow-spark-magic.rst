@@ -30,7 +30,7 @@ Prerequisite
 ============
 Data Flow Sessions are accessible through the following conda environment:
 
-* PySpark 3.2 and Data Flow 1.0 (pyspark32_p38_cpu_v1)
+* PySpark 3.2 and Data Flow 2.0 (pyspark32_p38_cpu_v2)
 
 You can customize **pypspark32_p38_cpu_v1**, publish it, and use it as a runtime environment for a Data Flow Session.
 
@@ -173,7 +173,7 @@ You can use a published conda environment as a Data Flow runtime environment.
 
 The path to the published conda environment can be copied from the `Environment Explorer <https://docs.oracle.com/iaas/data-science/using/conda_viewing.htm>`__.
 
-Example path : ``oci://<your-bucket>@<your-tenancy-namespace>/conda_environments/cpu/PySpark 3.2 and Data Flow/1.0/pyspark32_p38_cpu_v1#conda``
+Example path : ``oci://<your-bucket>@<your-tenancy-namespace>/conda_environments/cpu/PySpark 3.2 and Data Flow/2.0/pyspark32_p38_cpu_v2#conda``
 
 .. code-block:: python
 
@@ -188,7 +188,7 @@ Example path : ``oci://<your-bucket>@<your-tenancy-namespace>/conda_environments
     "executorShapeConfig":{"ocpus":1,"memoryInGBs":16},\
     "logsBucketUri" : "oci://<bucket_name>@<namespace>/"\
     "configuration":{\
-      "spark.archives": "oci://<your-bucket>@<your-tenancy-namespace>/conda_environments/cpu/PySpark 3.2 and Data Flow/1.0/pyspark32_p38_cpu_v1#conda>"}}'
+      "spark.archives": "oci://<your-bucket>@<your-tenancy-namespace>/conda_environments/cpu/PySpark 3.2 and Data Flow/2.0/pyspark32_p38_cpu_v2#conda>"}}'
 
 
 Update Session

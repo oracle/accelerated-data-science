@@ -10,6 +10,7 @@ import click
 import os
 from typing import Dict, List
 
+from ads.common.auth import OCIAuthContext
 from ads.common.oci_datascience import DSCNotebookSession
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.local import LocalBackend, LocalBackendDistributed
@@ -28,6 +29,7 @@ from ads.opctl.distributed.cmds import (
     docker_build_cmd,
     update_image,
     verify_and_publish_image,
+    update_config_image,
 )
 from ads.opctl.constants import (
     DEFAULT_OCI_CONFIG_FILE,
@@ -40,7 +42,6 @@ from ads.opctl.constants import (
 )
 from ads.opctl.utils import (
     is_in_notebook_session,
-    OCIAuthContext,
     get_service_pack_prefix,
 )
 import yaml
@@ -184,6 +185,7 @@ def run_diagnostics(config: Dict, **kwargs) -> Dict:
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
 
+        config = update_config_image(config)
         cluster_def = YamlSpecParser.parse_content(config)
 
         backend = MLJobDistributedBackend(p.config)

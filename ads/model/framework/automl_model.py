@@ -11,15 +11,14 @@ import cloudpickle
 import numpy as np
 import pandas as pd
 from ads.common import logger
-from ads.common.data_serializer import InputDataSerializer
 from ads.model.extractor.automl_extractor import AutoMLExtractor
-from ads.model.generic_model import GenericModel
+from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
 
 DEFAULT_PKL_FORMAT_MODEL_FILE_NAME = "model.pkl"
 
 
-class AutoMLModel(GenericModel):
+class AutoMLModel(FrameworkSpecificModel):
     """AutoMLModel class for estimators from AutoML framework.
 
     Attributes

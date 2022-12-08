@@ -17,14 +17,14 @@ from ads.common.decorator.runtime_dependency import (
 from ads.common.data_serializer import InputDataSerializer
 from ads.model.extractor.xgboost_extractor import XgboostExtractor
 from ads.model.generic_model import (
-    GenericModel,
+    FrameworkSpecificModel,
     DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME,
     DEFAULT_JSON_FORMAT_MODEL_FILE_NAME,
 )
 from ads.model.model_properties import ModelProperties
 
 
-class XGBoostModel(GenericModel):
+class XGBoostModel(FrameworkSpecificModel):
     """XGBoostModel class for estimators from xgboost framework.
 
     Attributes

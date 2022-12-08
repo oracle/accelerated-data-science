@@ -77,15 +77,46 @@ class ClusterProvider:
         self.code_execution_complete = False
         self.sync()
 
-    def sync(self, loop = True):
+    def sync(self, loop=True):
         sync_artifacts = os.environ.get("SYNC_ARTIFACTS", 0)
         print(f'sync_artifacts - {sync_artifacts}')
         if sync_artifacts == "1":
+            bkt_name, prefix = self.get_sync_loc()
+            if bkt_name is None:
+                print("WARNING: Sync 'WORKSPACE', 'WORKSPACE_PREFIX' or 'work_dir' not configured. Skipping Sync")
+                return
             sync_script_fn = self.SYNC_SCRIPT_PATH
             if not os.path.exists(sync_script_fn):
                 sync_script = self.get_sync_script()
-                self.create_sync_script(sync_script_fn,sync_script)
-            subprocess.Popen([sync_script_fn,'-l']) if loop else subprocess.Popen([sync_script_fn])
+                self.create_sync_script(sync_script_fn, sync_script)
+            subprocess.Popen([sync_script_fn, bkt_name, prefix, '-l']) if loop else subprocess.Popen(
+                [sync_script_fn, bkt_name, prefix])
+        if not loop:
+            sleep_duration = int(os.environ.get("POST_PROCESSING_WAIT", 60))
+            print(f"post processing wait..{sleep_duration} seconds")
+            sleep(sleep_duration)
+            print("..")
+
+    def get_sync_loc(self):
+        bckt_name = os.environ.get("WORKSPACE")
+        pfx = os.environ.get("WORKSPACE_PREFIX")
+        if bckt_name is None :
+            scheme = urlparse(
+                self.work_dir
+            )
+            if scheme.scheme == "oci":
+                bckt_name = scheme.netloc.split("@")[0]
+                pfx = scheme.path
+                pfx = pfx.strip('//')
+        return bckt_name, pfx
+
+    def profile_cmd(self):
+        profile = os.environ.get("PROFILE", '0')
+        cmd = []
+        if profile == '1':
+            print("Profiler ON")
+            cmd = os.environ.get("PROFILE_CMD").split(' ')
+        return cmd
 
     @staticmethod
     def create_sync_script(sync_script_fn,sync_script):
@@ -381,11 +412,11 @@ sync_script_str = '''#!/bin/bash
 
 loop=false
 
-if [ "$1" == "-l" ]; then
+if [ "$3" == "-l" ]; then
   loop=true;
 fi
 echo "loop: $loop"
-sleep_duration=30
+sleep_duration=${SYNC_SLEEP:-60}
 if [ "$OCI_IAM_TYPE" = 'api_key' ]; then
   auth_method=api_key
 else
@@ -393,11 +424,15 @@ else
 fi
 echo "auth method: $auth_method"
 echo "OCI__SYNC_DIR dir: $OCI__SYNC_DIR"
+echo "sleep duration is $sleep_duration"
+
+bucket=$1
+prefix=$2/sync/$JOB_OCID/$JOB_RUN_OCID/
 
 while true; do
   if [[ -d $OCI__SYNC_DIR && -n "$(ls -A $OCI__SYNC_DIR)" ]]; then
-    echo "syncing $OCI__SYNC_DIR to $WORKSPACE/$WORKSPACE_PREFIX/$JOB_OCID/$JOB_RUN_OCID/"
-    $HOME/bin/oci os object sync --auth $auth_method --bucket-name $WORKSPACE --prefix $WORKSPACE_PREFIX/$JOB_OCID/$JOB_RUN_OCID/ --src-dir $OCI__SYNC_DIR
+    echo "syncing $OCI__SYNC_DIR to $bucket/$prefix"
+    $HOME/bin/oci os object sync --auth $auth_method --bucket-name $bucket --prefix $prefix --src-dir $OCI__SYNC_DIR
   else
     echo "nothing to sync in $OCI__SYNC_DIR"
   fi

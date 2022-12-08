@@ -4,7 +4,7 @@
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.common.model_metadata import Framework
+from ads.model.model_metadata import Framework
 from ads.common import logger, utils
 from ads.model.extractor.sklearn_extractor import SklearnExtractor
 from ads.model.extractor.xgboost_extractor import XgboostExtractor

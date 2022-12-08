@@ -17,14 +17,14 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.model.extractor.tensorflow_extractor import TensorflowExtractor
 from ads.common.data_serializer import InputDataSerializer
-from ads.model.generic_model import GenericModel
+from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
 
 ONNX_MODEL_FILE_NAME = "model.onnx"
 TENSORFLOW_MODEL_FILE_NAME = "model.h5"
 
 
-class TensorFlowModel(GenericModel):
+class TensorFlowModel(FrameworkSpecificModel):
     """TensorFlowModel class for estimators from Tensorflow framework.
 
     Attributes

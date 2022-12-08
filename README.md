@@ -138,7 +138,7 @@ Multiple extra dependencies can be installed together. For example:
   df = pd.read_csv(f"oci://{bucket_name}@{namespace}/{key}", storage_options=default_signer())
 ```
 
-### Load data from ADB 
+### Load data from ADB
 
 This example uses SQL injection safe binding variables.
 

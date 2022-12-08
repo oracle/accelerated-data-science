@@ -35,6 +35,7 @@ DATAFLOW_RUN_OCID = os.environ.get("DATAFLOW_RUN_ID")
 RESOURCE_OCID = (
     NB_SESSION_OCID or JOB_RUN_OCID or MD_OCID
 )  # We can add DATAFLOW_RUN_OCID here. Needs impact analysis
+NO_CONTAINER = os.environ.get("NO_CONTAINER")
 
 
 @contextlib.contextmanager

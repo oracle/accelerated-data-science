@@ -19,14 +19,14 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
 )
 from ads.common.data_serializer import InputDataSerializer
-from ads.model.generic_model import GenericModel
+from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
 
 ONNX_MODEL_FILE_NAME = "model.onnx"
 PYTORCH_MODEL_FILE_NAME = "model.pt"
 
 
-class PyTorchModel(GenericModel):
+class PyTorchModel(FrameworkSpecificModel):
     """PyTorchModel class for estimators from Pytorch framework.
 
     Attributes
@@ -158,7 +158,6 @@ class PyTorchModel(GenericModel):
         self.algorithm = self._extractor.algorithm
         self.version = self._extractor.version
         self.hyperparameter = self._extractor.hyperparameter
-
         self.version = torch.__version__
 
     def _handle_model_file_name(self, as_onnx: bool, model_file_name: str) -> str:
@@ -213,6 +212,7 @@ class PyTorchModel(GenericModel):
                 pd.core.frame.DataFrame,
             ]
         ] = None,
+        use_torch_script: bool = None,
         **kwargs,
     ) -> None:
         """
@@ -226,6 +226,10 @@ class PyTorchModel(GenericModel):
             If set as True, overwrite serialized model if exists.
         X_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]. Defaults to None.
             A sample of input data that will be used to generate input schema and detect onnx_args.
+        use_torch_script:  (bool, optional). Defaults to None (If the default value has not been changed, it will be set as `False`).
+            If set as `True`, the model will be serialized as a TorchScript program. Check https://pytorch.org/tutorials/beginner/saving_loading_models.html#export-load-model-in-torchscript-format for more details.
+            If set as `False`, it will only save the trained model’s learned parameters, and the score.py
+            need to be modified to construct the model class instance first. Check https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended for more details.
         **kwargs: optional params used to serialize pytorch model to onnx,
         including the following:
             onnx_args: (tuple or torch.Tensor), default to None
@@ -252,6 +256,20 @@ class PyTorchModel(GenericModel):
 
         os.makedirs(self.artifact_dir, exist_ok=True)
 
+        if use_torch_script is None:
+            logger.warning(
+                "In future the models will be saved in TorchScript format by default. Currently saving it using torch.save method."
+                "Set `use_torch_script` as `True` to serialize the model as a TorchScript program by `torch.jit.save()` "
+                "and loaded using `torch.jit.load()` in score.py. "
+                "You don't need to modify `load_model()` in score.py to load the model."
+                "Check https://pytorch.org/tutorials/beginner/saving_loading_models.html#export-load-model-in-torchscript-format for more details."
+                "Set `use_torch_script` as `False` to save only the model parameters."
+                "The model class instance must be constructed before "
+                "loading parameters in the perdict function of score.py."
+                "Check https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended for more details."
+            )
+            use_torch_script = False
+
         if as_onnx:
             onnx_args = kwargs.get("onnx_args", None)
 
@@ -267,12 +285,12 @@ class PyTorchModel(GenericModel):
                 output_names=output_names,
                 dynamic_axes=dynamic_axes,
             )
+
+        elif use_torch_script:
+            compiled_model = torch.jit.script(self.estimator)
+            torch.jit.save(compiled_model, model_path)
+
         else:
-            logger.warning(
-                "The approach will save only the model parameters."
-                "The model class instance must be constructed before "
-                "loading parameters in the perdict function of score.py."
-            )
             torch.save(self.estimator.state_dict(), model_path)
 
     @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)

@@ -14,6 +14,7 @@ import re
 import traceback
 from datetime import date, datetime
 from typing import Callable, Optional, Union
+from enum import Enum
 
 import oci
 import yaml
@@ -28,6 +29,11 @@ from oci._vendor import six
 logger = logging.getLogger(__name__)
 
 LIFECYCLE_STOP_STATE = ("SUCCEEDED", "FAILED", "CANCELED", "DELETED")
+
+
+class MergeStrategy(Enum):
+    OVERRIDE = "override"
+    MERGE = "merge"
 
 
 class OCIModelNotExists(Exception):
@@ -587,7 +593,9 @@ class OCIModelMixin(OCISerializableMixin):
         super().__init__(config=config, signer=signer, client_kwargs=client_kwargs)
 
         if kwargs:
-            self.update_from_oci_model(self.deserialize(kwargs))
+            self.update_from_oci_model(
+                self.deserialize(kwargs), merge_strategy=MergeStrategy.MERGE
+            )
         # When from_oci_model is called to initialize the object from an OCI model,
         # _oci_attributes stores the attribute names from the OCI model
         # This is used to determine if an additional get request should be called to get additional attributes.
@@ -697,25 +705,37 @@ class OCIModelMixin(OCISerializableMixin):
             data = OCIModelMixin.flatten(data)
         return data
 
-    def update_from_oci_model(self, oci_model_instance):
+    def update_from_oci_model(
+        self, oci_model_instance, merge_strategy: MergeStrategy = MergeStrategy.OVERRIDE
+    ):
         """Updates the properties from OCI model with the same properties.
 
         Parameters
         ----------
         oci_model_instance :
             An instance of OCI model, which should have the same properties of this class.
-
         """
         for attr in self.swagger_types.keys():
-            if hasattr(oci_model_instance, attr) and getattr(oci_model_instance, attr):
+            if (
+                hasattr(oci_model_instance, attr)
+                and getattr(oci_model_instance, attr)
+                and (
+                    not hasattr(self, attr)
+                    or not getattr(self, attr)
+                    or merge_strategy == MergeStrategy.OVERRIDE
+                )
+            ):
                 setattr(self, attr, getattr(oci_model_instance, attr))
+
         if hasattr(oci_model_instance, "attribute_map"):
             self._oci_attributes = oci_model_instance.attribute_map
         return self
 
-    def sync(self):
+    def sync(self, merge_strategy: MergeStrategy = MergeStrategy.OVERRIDE):
         """Refreshes the properties of the object from OCI"""
-        return self.update_from_oci_model(self.from_ocid(self.id))
+        return self.update_from_oci_model(
+            self.from_ocid(self.id), merge_strategy=merge_strategy
+        )
 
     def delete(self):
         """Deletes the resource"""
@@ -747,7 +767,7 @@ class OCIModelMixin(OCISerializableMixin):
             # Sync only if there is no value
             if not super().__getattribute__(name):
                 try:
-                    self.sync()
+                    self.sync(merge_strategy=MergeStrategy.MERGE)
                 except Exception as ex:
                     logger.error(
                         "Failed to synchronize the properties of %s: %s", self, str(ex)

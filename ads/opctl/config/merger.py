@@ -11,6 +11,7 @@ import json
 
 import yaml
 
+from ads.common.auth import AuthType
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import read_from_ini, _DefaultNoneDict
@@ -107,12 +108,12 @@ class ConfigMerger(ConfigProcessor):
         # set default auth
         if not self.config["execution"].get("auth", None):
             if is_in_notebook_session():
-                self.config["execution"]["auth"] = "resource_principal"
+                self.config["execution"]["auth"] = AuthType.RESOURCE_PRINCIPAL
             else:
-                self.config["execution"]["auth"] = "api_key"
+                self.config["execution"]["auth"] = AuthType.API_KEY
         # determine profile
-        if self.config["execution"]["auth"] == "resource_principal":
-            profile = "RESOURCE_PRINCIPAL"
+        if self.config["execution"]["auth"] != AuthType.API_KEY:
+            profile = self.config["execution"]["auth"].upper()
             exec_config.pop("oci_profile", None)
             self.config["execution"]["oci_profile"] = None
         else:

@@ -20,13 +20,10 @@ from ads.common import utils
 from ads.common.auth import default_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_mixin import OCIModelMixin
-from ads.common.utils import camel_to_snake
+from ads.common.utils import camel_to_snake, batch_convert_case
 from ads.config import OCI_REGION_METADATA
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
-from ads.jobs.builders.infrastructure.utils import (
-    batch_convert_case,
-    normalize_config,
-)
+from ads.jobs.builders.infrastructure.utils import normalize_config
 from ads.jobs.builders.runtimes.python_runtime import DataFlowRuntime
 from ads.model.runtime.env_info import InferenceEnvInfo
 from oci.data_flow.models import CreateApplicationDetails, CreateRunDetails

@@ -82,8 +82,8 @@ Example
   artifact_dir = tempfile.mkdtemp()
   automl_model = AutoMLModel(estimator=model, artifact_dir=artifact_dir)
   automl_model.prepare(
-          inference_conda_env="generalml_p37_cpu_v1",
-          training_conda_env="generalml_p37_cpu_v1",
+          inference_conda_env="generalml_p38_cpu_v1",
+          training_conda_env="generalml_p38_cpu_v1",
           use_case_type=UseCaseType.BINARY_CLASSIFICATION,
           X_sample=test.X,
           force_overwrite=True,

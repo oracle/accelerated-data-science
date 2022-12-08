@@ -145,8 +145,13 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             getattr(nb_config, "notebook_session_shape_config_details", None) or {}
         )
         if isinstance(infra, dict):
-            infra_type = infra.get("jobInfrastructureType", self.DEFAULT_INFRA_TYPE)
             shape_name = infra.get("shapeName", nb_config.shape)
+
+            # Ignore notebook shape config details if shape names do not match.
+            if shape_name != nb_config.shape:
+                nb_shape_config_details = {}
+
+            infra_type = infra.get("jobInfrastructureType", self.DEFAULT_INFRA_TYPE)
             block_storage = infra.get(
                 "blockStorageSizeInGBs", nb_config.block_storage_size_in_gbs
             )
@@ -159,15 +164,19 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 "ocpus", nb_shape_config_details.get("ocpus")
             )
         else:
-            infra_type = (
-                infra.job_infrastructure_type
-                if getattr(infra, "job_infrastructure_type", None)
-                else self.DEFAULT_INFRA_TYPE
-            )
             shape_name = (
                 infra.shape_name
                 if getattr(infra, "shape_name", None)
                 else nb_config.shape
+            )
+            # Ignore notebook shape config details if shape names do not match.
+            if shape_name != nb_config.shape:
+                nb_shape_config_details = {}
+
+            infra_type = (
+                infra.job_infrastructure_type
+                if getattr(infra, "job_infrastructure_type", None)
+                else self.DEFAULT_INFRA_TYPE
             )
             block_storage = (
                 infra.block_storage_size_in_gbs

@@ -12,11 +12,9 @@ import logging
 
 model_name = '{{model_file_name}}'
 
-
 """
    Inference script. This script is used for prediction by scoring server when schema is known.
 """
-
 
 @lru_cache(maxsize=10)
 def load_model(model_file_name=model_name):
@@ -31,12 +29,18 @@ def load_model(model_file_name=model_name):
     if model_dir not in sys.path:
         sys.path.insert(0, model_dir)
     contents = os.listdir(model_dir)
-    if model_file_name in contents:
-        print(f'Start loading {model_file_name} from model directory {model_dir} ...')
-        model_state_dict = torch.load(os.path.join(model_dir, model_file_name))
-        print(f"loading {model_file_name} is complete.")
-    else:
+
+    if model_file_name not in contents:
         raise Exception(f'{model_file_name} is not found in model directory {model_dir}')
+
+{% if use_torch_script %}
+    print(f'Start loading {model_file_name} from model directory {model_dir} ...')
+    the_model = torch.jit.load(os.path.join(model_dir, model_file_name))
+    print(f"loading {model_file_name} is complete.")
+{% else %}
+    print(f'Start loading {model_file_name} from model directory {model_dir} ...')
+    model_state_dict = torch.load(os.path.join(model_dir, model_file_name))
+    print(f"loading {model_file_name} is complete.")
 
     # User would need to provide reference to the TheModelClass and
     # construct the the_model instance first before loading the parameters.
@@ -49,10 +53,10 @@ def load_model(model_file_name=model_name):
         raise e
 
     the_model.eval()
+{% endif %}
     print("Model is successfully loaded.")
 
     return the_model
-
 
 @lru_cache(maxsize=1)
 def fetch_data_type_from_schema(input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):
@@ -76,7 +80,6 @@ def fetch_data_type_from_schema(input_schema_path=os.path.join(os.path.dirname(o
     else:
         print("input_schema has to be passed in in order to recover the same data type. pass `X_sample` in `ads.model.framework.pytorch_model.PyTorchModel.prepare` function to generate the input_schema. Otherwise, the data type might be changed after serialization/deserialization.")
     return data_type
-
 
 def deserialize(data, input_schema_path):
     """
