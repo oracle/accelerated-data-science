@@ -46,7 +46,7 @@ extras_require = {
     ],
     "text": ["wordcloud>=1.8.1", "spacy"],
     "viz": [
-        "bokeh>=2.3.0",
+        "bokeh>=2.3.0, <=2.4.3",
         "folium>=0.12.1",
         "graphviz<0.17",
         "scipy>=1.5.4",
@@ -156,11 +156,12 @@ setup(
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
     ],
     keywords="Oracle Cloud Infrastructure, OCI, Machine Learning, ML, Artificial Intelligence, AI, Data Science, Cloud, Oracle",
     include_package_data=True,
     install_requires=install_requires,
-    python_requires=">=3.7, <3.10",
+    python_requires=">=3.7",
     setup_requires=setup_requires,
     extras_require=extras_require,
     tests_require=[

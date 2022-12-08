@@ -11,9 +11,8 @@ import shlex
 from typing import Dict
 
 from ads.opctl.backend.base import Backend
-from ads.common.auth import get_signer
+from ads.common.auth import get_signer, OCIAuthContext
 from ads.common.oci_client import OCIClientFactory
-from ads.opctl.utils import OCIAuthContext
 
 from ads.jobs import Job, DataFlow, DataFlowRuntime, DataFlowRun
 

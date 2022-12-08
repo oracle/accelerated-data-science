@@ -48,8 +48,8 @@ Prepare Model Artifact
     artifact_dir = tempfile.mkdtemp()
     tensorflow_model = TensorFlowModel(estimator=model, artifact_dir=artifact_dir)
     tensorflow_model.prepare(
-        inference_conda_env="tensorflow27_p37_cpu_v1",
-        training_conda_env="tensorflow27_p37_cpu_v1",
+        inference_conda_env="tensorflow28_p38_cpu_v1",
+        training_conda_env="tensorflow28_p38_cpu_v1",
         X_sample=trainx,
         y_sample=trainy,
         use_case_type=UseCaseType.MULTINOMIAL_CLASSIFICATION,
@@ -178,8 +178,8 @@ Example
     # Prepare Model Artifact for TensorFlow model
     tensorflow_model = TensorFlowModel(estimator=model, artifact_dir=artifact_dir)
     tensorflow_model.prepare(
-        inference_conda_env="tensorflow27_p37_cpu_v1",
-        training_conda_env="tensorflow27_p37_cpu_v1",
+        inference_conda_env="tensorflow28_p38_cpu_v1",
+        training_conda_env="tensorflow28_p38_cpu_v1",
         X_sample=trainx,
         y_sample=trainy,
         use_case_type=UseCaseType.MULTINOMIAL_CLASSIFICATION,

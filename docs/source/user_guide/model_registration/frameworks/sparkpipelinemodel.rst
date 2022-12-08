@@ -21,7 +21,7 @@ Generate a synthetic dataset:
 .. code-block:: python3
 
     from pyspark.sql import SparkSession
-    
+
 
     spark = SparkSession \
         .builder \
@@ -74,9 +74,9 @@ Prepare Model Artifact
     artifact_dir=tempfile.mkdtemp()
     spark_model = SparkPipelineModel(estimator=model, artifact_dir=artifact_dir)
 
-    spark_model.prepare(inference_conda_env="pyspark30_p37_cpu_v5",
+    spark_model.prepare(inference_conda_env="pyspark32_p38_cpu_v2",
                         X_sample=training,
-                        force_overwrite=True
+                        force_overwrite=True,
                         use_case_type=UseCaseType.BINARY_CLASSIFICATION)
 
 
@@ -189,9 +189,9 @@ Adapted from an example provided by Apache in the PySpark API Reference Document
 
     spark_model = SparkPipelineModel(estimator=model, artifact_dir=artifact_dir)
 
-    spark_model.prepare(inference_conda_env="pyspark30_p37_cpu_v5",
+    spark_model.prepare(inference_conda_env="pyspark32_p38_cpu_v2",
                         X_sample=training,
-                        force_overwrite=True
+                        force_overwrite=True,
                         use_case_type=UseCaseType.BINARY_CLASSIFICATION)
 
     # Check if the artifacts are generated correctly.

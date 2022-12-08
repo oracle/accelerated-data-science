@@ -6,8 +6,8 @@
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from locale import normalize
 from typing import Dict, List, Optional
+from copy import deepcopy
 
 import yaml
 from ads.common.serializer import DataClassSerializable
@@ -609,7 +609,8 @@ class Schema:
             return sc
         if not isinstance(schema, dict):
             raise TypeError("schema has to be of dictionary type.")
-        schema = {key.lower(): value for key, value in schema.items()}
+
+        schema = {key.lower(): value for key, value in deepcopy(schema).items()}
         for item in schema[SCHEMA_KEY]:
             domain = Domain(**item["domain"])
             domain.constraints = []
@@ -618,6 +619,22 @@ class Schema:
             item["domain"] = domain
             sc.add(Attribute(**item))
         return sc
+
+    @classmethod
+    def from_json(cls, schema: str):
+        """Constructs an instance of Schema from a Json.
+
+        Parameters
+        ----------
+        schema : str
+            Data schema in Json format.
+
+        Returns
+        -------
+        Schema
+            An instance of Schema.
+        """
+        return Schema.from_dict(json.loads(schema))
 
     @classmethod
     def from_file(cls, file_path: str):

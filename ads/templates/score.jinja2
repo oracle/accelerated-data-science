@@ -84,7 +84,7 @@ class ONNXTransformer(object):
 
     Examples
     --------
-    >>> from ads.common.model_export_util import ONNXTransformer
+    >>> from ads.model.transformer.onnx_transformer import ONNXTransformer
     >>> onnx_data_transformer = ONNXTransformer()
     >>> train_transformed = onnx_data_transformer.fit_transform(train.X, {"column_name1": "impute_value1", "column_name2": "impute_value2"}})
     >>> test_transformed = onnx_data_transformer.transform(test.X)

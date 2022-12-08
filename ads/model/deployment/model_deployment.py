@@ -9,7 +9,7 @@ import collections
 import datetime
 import json
 import time
-from typing import Dict, Union
+from typing import Dict, Union, Any
 
 import oci.loggingsearch
 import pandas as pd
@@ -21,7 +21,8 @@ from ads.common.oci_logging import (
     ConsolidatedLog,
     OCILog,
 )
-
+from ads.model.common.utils import _is_json_serializable
+from ads.model.deployment.common.utils import send_request
 from .common import utils
 from .common.utils import OCIClientManager, State
 from .model_deployment_properties import ModelDeploymentProperties
@@ -354,17 +355,25 @@ class ModelDeployment:
         return self.ds_client.list_work_request_logs(self.workflow_req_id).data
 
     def predict(
-        self, json_input: dict = None, data: InputDataSerializer = None, **kwargs
+        self,
+        json_input=None,
+        data: Any = None,
+        auto_serialize_data: bool = False,
+        **kwargs,
     ) -> dict:
         """Returns prediction of input data run against the model deployment endpoint
 
         Parameters
         ----------
-        json_input: dict
+        json_input: Json serializable
             Json payload for the prediction.
-        data: InputDataSerializer
-            Serialized Data  class instance
-
+        data: Any
+            Data for the prediction.
+        auto_serialize_data: bool.
+            Whether to auto serialize input data. Defauls to `False`.
+            If `auto_serialize_data=False`, `data` required to be bytes or json serializable
+            and `json_input` required to be json serializable. If `auto_serialize_data` set
+            to True, data will be serialized before sending to model deployment endpoint.
         kwargs:
             content_type: str
                 Used to indicate the media type of the resource.
@@ -379,6 +388,11 @@ class ModelDeployment:
         """
         endpoint = f"{self.url}/predict"
         signer = self.config.get("signer")
+        header = {
+            "signer": signer,
+            "content_type": kwargs.get("content_type", None),
+        }
+
         if data is None and json_input is None:
             raise AttributeError(
                 "Neither `data` nor `json_input` are provided. You need to provide one of them."
@@ -387,16 +401,30 @@ class ModelDeployment:
             raise AttributeError(
                 "`data` and `json_input` are both provided. You can only use one of them."
             )
-        if data is None:
-            data = InputDataSerializer(data=json_input)
-        elif not isinstance(data, InputDataSerializer):
-            data = InputDataSerializer(data=data)
 
-        send_kwargs = {
-            "signer": signer,
-            "content_type": kwargs.get("content_type", None),
-        }
-        return data.send(endpoint=endpoint, **send_kwargs)
+        if auto_serialize_data:
+            data = data or json_input
+            serialized_data = InputDataSerializer(data=data)
+            return serialized_data.send(endpoint, **header)
+
+        elif json_input is not None:
+            if not _is_json_serializable(json_input):
+                raise ValueError(
+                    "`json_input` must be json serializable. "
+                    "Set `auto_serialize_data` to True, or serialize the provided input data first,"
+                    "or using `data` to pass binary data."
+                )
+            utils.get_logger().warning(
+                "The `json_input` argument of `predict()` will be deprecated soon. "
+                "Please use `data` argument. "
+            )
+            data = json_input
+
+        is_json_payload = True if _is_json_serializable(data) else False
+        prediction = send_request(
+            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header
+        )
+        return prediction
 
     def _wait_for_deletion(
         self,

@@ -6,6 +6,7 @@
 
 import click
 
+from ads.common.auth import AuthType
 from ads.opctl.conda.cmds import create as create_cmd
 from ads.opctl.conda.cmds import install as install_cmd
 from ads.opctl.conda.cmds import publish as publish_cmd
@@ -112,7 +113,7 @@ def create(**kwargs):
     "--auth",
     "-a",
     help="authentication method",
-    type=click.Choice(["api_key", "resource_principal"]),
+    type=click.Choice(AuthType.values()),
     default=None,
 )
 def install(**kwargs):
@@ -184,7 +185,7 @@ def install(**kwargs):
     "--auth",
     "-a",
     help="authentication method",
-    type=click.Choice(["api_key", "resource_principal"]),
+    type=click.Choice(AuthType.values()),
     default=None,
 )
 def publish(**kwargs):

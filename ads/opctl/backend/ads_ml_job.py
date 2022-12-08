@@ -12,7 +12,7 @@ from distutils import dir_util
 from typing import Tuple, Dict
 import shlex
 
-from ads.common.auth import get_signer
+from ads.common.auth import get_signer, OCIAuthContext
 from ads.common.oci_client import OCIClientFactory
 from ads.jobs import (
     Job,
@@ -24,7 +24,6 @@ from ads.jobs import (
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend
 from ads.opctl.config.resolver import ConfigResolver
-from ads.opctl.utils import OCIAuthContext
 from ads.opctl.constants import DEFAULT_IMAGE_SCRIPT_DIR
 from jinja2 import Environment, PackageLoader
 from ads.opctl.distributed.common.cluster_config_helper import (

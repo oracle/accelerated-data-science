@@ -21,7 +21,7 @@ Data scientists can:
 *  Document the input data schema, and the returned inference schema.
 *  Run introspection tests on the model artifact to ensure that common model artifact errors are flagged. Thus, they can be remediated before the model is saved to the catalog.
 
-The ADS SDK automatically captures some of the metadata for you.  It captures provenance, taxonomy, and some custom metadata. 
+The ADS SDK automatically captures some of the metadata for you.  It captures provenance, taxonomy, and some custom metadata.
 
 Workflow
 --------
@@ -51,8 +51,6 @@ Register
   model_schema
   model_metadata
   model_file_customization
-  large_model_artifact
-  model_load
 
 Deploying model
 ---------------
@@ -62,6 +60,13 @@ Deploying model
 
   model_deploy
 
+Loading model
+-----------------
+
+.. toctree::
+  :maxdepth: 1
+
+  model_load
 
 Frameworks
 ----------

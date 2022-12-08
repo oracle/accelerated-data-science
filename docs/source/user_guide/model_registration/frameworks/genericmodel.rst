@@ -59,7 +59,7 @@ By default, the ``GenericModel`` serializes to a pickle file. The following exam
     generic_model.summary_status()
 
     generic_model.prepare(
-            inference_conda_env="dataexpl_p37_cpu_v3",
+            inference_conda_env="dbexp_p38_cpu_v1",
             model_file_name="toy_model.pkl",
             force_overwrite=True
          )
@@ -103,7 +103,7 @@ You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.p
     model.summary_status()
 
     # If you are running the code inside a notebook session and using a service pack, `inference_conda_env` can be omitted.
-    model.prepare_save_deploy(inference_conda_env="dataexpl_p37_cpu_v3")
+    model.prepare_save_deploy(inference_conda_env="dbexp_p38_cpu_v1")
     model.verify(2)
 
     # Generate prediction by invoking the deployed endpoint

@@ -29,6 +29,12 @@ Load a `ResNet18 <https://arxiv.org/pdf/1512.03385.pdf>`_ model and put it into 
 Prepare Model Artifact
 ======================
 
+Save as TorchScript
+-------------------
+.. versionadded:: 2.6.9
+
+Serializing model in TorchScript program by setting `use_torch_script` to `True`, you can load the model and run inference without defining the model class.
+
 .. code-block:: python3
 
     from ads.common.model_metadata import UseCaseType
@@ -40,8 +46,30 @@ Prepare Model Artifact
     artifact_dir = "pytorch_model_artifact"
     pytorch_model = PyTorchModel(model, artifact_dir=artifact_dir)
     pytorch_model.prepare(
-        inference_conda_env="computervision_p37_cpu_v1",
-        training_conda_env="computervision_p37_cpu_v1",
+        inference_conda_env="pytorch110_p38_cpu_v1",
+        training_conda_env="pytorch110_p38_cpu_v1",
+        use_case_type=UseCaseType.IMAGE_CLASSIFICATION,
+        force_overwrite=True,
+        use_torch_script=True,
+    )
+    # You don't need to modify the score.py generated. The model can be loaded without defining the model class.
+    # More info here - https://pytorch.org/tutorials/beginner/saving_loading_models.html#export-load-model-in-torchscript-format
+
+Save state_dict
+---------------
+.. code-block:: python3
+
+    from ads.common.model_metadata import UseCaseType
+    from ads.model.framework.pytorch_model import PyTorchModel
+
+    import tempfile
+
+    # Prepare the model
+    artifact_dir = "pytorch_model_artifact"
+    pytorch_model = PyTorchModel(model, artifact_dir=artifact_dir)
+    pytorch_model.prepare(
+        inference_conda_env="pytorch110_p38_cpu_v1",
+        training_conda_env="pytorch110_p38_cpu_v1",
         use_case_type=UseCaseType.IMAGE_CLASSIFICATION,
         force_overwrite=True,
     )
@@ -121,6 +149,7 @@ Instantiate a ``PyTorchModel()`` object with a PyTorch model. Each instance acce
 * ``properties: (ModelProperties, optional)``. Defaults to ``None``. The ``ModelProperties`` object required to save and deploy model.
 
 .. include:: ../_template/initialize.rst
+
 
 Verify Changes to Score.py
 ==========================
@@ -275,24 +304,12 @@ Example
     artifact_dir = tempfile.mkdtemp()
     pytorch_model = PyTorchModel(model, artifact_dir=artifact_dir)
     pytorch_model.prepare(
-        inference_conda_env="computervision_p37_cpu_v1",
-        training_conda_env="computervision_p37_cpu_v1",
+        inference_conda_env="pytorch110_p38_cpu_v1",
+        training_conda_env="pytorch110_p38_cpu_v1",
         use_case_type=UseCaseType.IMAGE_CLASSIFICATION,
         force_overwrite=True,
+        use_torch_script=True
     )
-
-    # The score.py generated requires you to create the class instance of the Model before the weights are loaded.
-    # More info here - https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended
-
-    # Update ``score.py`` by constructing the model class instance first.
-    added_line = """
-    import torchvision
-    the_model = torchvision.models.resnet18()
-    """
-    with open(artifact_dir + "/score.py", "r+") as f:
-        content = f.read()
-        f.seek(0, 0)
-        f.write(added_line.rstrip("\r\n") + "\n" + content)
 
 
     # Download an image for running inference

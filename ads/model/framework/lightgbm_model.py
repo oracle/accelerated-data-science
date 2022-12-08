@@ -18,7 +18,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import (
-    GenericModel,
+    FrameworkSpecificModel,
     DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME,
     DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME,
     DEFAULT_TXT_FORMAT_MODEL_FILE_NAME,
@@ -27,7 +27,7 @@ from ads.model.model_properties import ModelProperties
 from joblib import dump
 
 
-class LightGBMModel(GenericModel):
+class LightGBMModel(FrameworkSpecificModel):
     """LightGBMModel class for estimators from Lightgbm framework.
 
     Attributes

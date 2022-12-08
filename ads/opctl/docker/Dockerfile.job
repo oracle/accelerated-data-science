@@ -1,7 +1,7 @@
 # Copyright (c) 2021 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-FROM oraclelinux:7-slim
+FROM  --platform=linux/amd64 ghcr.io/oracle/oraclelinux:7-slim
 
 # Configure environment
 ENV DATASCIENCE_USER datascience

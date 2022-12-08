@@ -106,7 +106,7 @@ class ONNXTransformer(object):
 
     Examples
     --------
-    >>> from ads.common.model_export_util import ONNXTransformer
+    >>> from ads.model.transformer.onnx_transformer import ONNXTransformer
     >>> onnx_data_transformer = ONNXTransformer()
     >>> train_transformed = onnx_data_transformer.fit_transform(train.X, {"column_name1": "impute_value1", "column_name2": "impute_value2"}})
     >>> test_transformed = onnx_data_transformer.transform(test.X)
@@ -226,15 +226,15 @@ class ONNXTransformer(object):
         """
         Transforms the data for the OnnxTransformer.
 
-            Parameters
-            ----------
-            X: Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
-                The Dataframe for the training data
+        Parameters
+        ----------
+        X: Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
+            The Dataframe for the training data
 
-            Returns
-            -------
-            Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
-                The transformed X data
+        Returns
+        -------
+        Union[pandas.DataFrame, pandas.Series, np.ndarray, list]
+            The transformed X data
         """
         assert self._fitted, "Call fit_transform first!"
         if self.dtypes is not None and len(self.dtypes) > 0:
@@ -393,7 +393,8 @@ class ONNXTransformer(object):
             if "index" in export_dict["dtypes"]["value"]:
                 onnx_transformer.dtypes = pd.Series(
                     data=[
-                        np.dtype(val) for val in export_dict["dtypes"]["value"]["values"]
+                        np.dtype(val)
+                        for val in export_dict["dtypes"]["value"]["values"]
                     ],
                     index=export_dict["dtypes"]["value"]["index"],
                 )

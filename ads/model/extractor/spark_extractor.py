@@ -14,7 +14,7 @@ from ads.model.extractor.model_info_extractor import (
     ModelInfoExtractor,
     normalize_hyperparameter,
 )
-from ads.common.model_metadata import Framework
+from ads.model.model_metadata import Framework
 
 
 class SparkExtractor(ModelInfoExtractor):
@@ -51,7 +51,7 @@ class SparkExtractor(ModelInfoExtractor):
         str:
            The framework of the model.
         """
-        return Framework.OTHER
+        return Framework.SPARK
 
     @property
     def algorithm(self):

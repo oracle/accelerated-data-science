@@ -4,6 +4,18 @@
 # Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import warnings
+
+warnings.warn(
+    (
+        "The `ads.common.model_artifact` is deprecated in `oracle-ads 2.6.9` and will be removed in `oracle-ads 3.0`."
+        "Use framework specific Model utility class for saving and deploying model. "
+        "Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 import fnmatch
 import importlib
 import json
@@ -37,13 +49,13 @@ from ads.common import logger, utils
 from ads.common import auth as authutil
 from ads.common.data import ADSData
 from ads.common.error import ChangesNotCommitted
-from ads.common.model_introspect import (
+from ads.model.model_introspect import (
     TEST_STATUS,
     Introspectable,
     IntrospectionNotPassed,
     ModelIntrospect,
 )
-from ads.common.model_metadata import (
+from ads.model.model_metadata import (
     METADATA_SIZE_LIMIT,
     MetadataCustomCategory,
     MetadataCustomKeys,
@@ -66,8 +78,10 @@ from ads.config import (
     NB_SESSION_OCID,
     PROJECT_OCID,
 )
+from ads.common.decorator.deprecate import deprecated
 from ads.feature_engineering.schema import DataSizeTooWide, Schema, SchemaSizeTooLarge
 from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
+from ads.model.common.utils import fetch_manifest_from_conda_location
 from git import InvalidGitRepositoryError, Repo
 
 from oci.data_science.models import ModelProvenance
@@ -116,6 +130,10 @@ class PACK_TYPE(Enum):
 
 
 class ModelArtifact(Introspectable):
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def __init__(
         self,
         artifact_dir,
@@ -676,6 +694,10 @@ class ModelArtifact(Introspectable):
 
             return load(output_bstream)
 
+    @deprecated(
+        "2.6.6",
+        details="Use framework specific Model utility class for saving and deploying model. Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html",
+    )
     def save(
         self,
         display_name: str = None,
@@ -1724,28 +1746,3 @@ def execute(cmd):
     return_code = popen.wait()
     if return_code:
         raise subprocess.CalledProcessError(return_code, cmd)
-
-
-def fetch_manifest_from_conda_location(env_location: str):
-    """
-    Convence method to fetch the manifest file from a conda environment.
-
-    :param env_location: Absolute path to the environment.
-    :type env_location: str
-    """
-    manifest_location = None
-    for file in os.listdir(env_location):
-        if file.endswith("_manifest.yaml"):
-            manifest_location = f"{env_location}/{file}"
-            break
-    env = {}
-    if not manifest_location:
-        raise Exception(
-            f"Could not locate manifest file in the provided conda environment: {env_location}. Dir Listing - "
-            f"{os.listdir(env_location)}"
-        )
-
-    with open(manifest_location) as mlf:
-        env = yaml.load(mlf, Loader=yaml.FullLoader)
-    manifest = env["manifest"]
-    return manifest

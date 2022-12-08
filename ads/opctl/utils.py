@@ -294,28 +294,6 @@ def get_docker_client() -> "docker.client.DockerClient":
     return docker.from_env()
 
 
-class OCIAuthContext:
-    def __init__(self, profile: str = None):
-        self.profile = profile
-        self.prev_rp_mode = ads.resource_principal_mode
-        self.prev_profile = ads.oci_key_profile
-
-    def __enter__(self):
-        if self.profile:
-            ads.set_auth(auth="api_key", profile=self.profile)
-            logger.info(f"OCI profile set to {self.profile}")
-        else:
-            ads.set_auth(auth="resource_principal")
-            logger.info(f"OCI auth set to resource principal")
-        return self
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.prev_rp_mode:
-            ads.set_auth(auth="resource_principal")
-        else:
-            ads.set_auth(auth="api_key", profile=self.prev_profile)
-
-
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def run_container(
     image: str,
@@ -325,6 +303,16 @@ def run_container(
     entrypoint: str = None,
     verbose: bool = False,
 ):
+    if env_vars is None:
+        env_vars = {}
+    # If Proxy variables are setup, pass it on to the docker run
+    if "http_proxy" in os.environ:
+        env_vars.update(
+            {
+                "http_proxy": os.environ.get("http_proxy"),
+                "https_proxy": os.environ.get("https_proxy"),
+            }
+        )
     if verbose:
         ads.opctl.logger.setLevel(logging.INFO)
     logger.info(f"Running container with image: {image}")

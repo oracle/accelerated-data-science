@@ -2,6 +2,31 @@
 Release Notes
 =============
 
+2.6.9
+-----
+Release date: December 7, 2022
+
+* Added compatibility with Python ``3.10``.
+* Added ``update_deployment()`` method to the :doc:`framework-specific <framework_specific_instruction>` classes. Update model deployment associated with the model.
+* Added ``from_id()`` method to the :doc:`framework-specific <framework_specific_instruction>` classes. Load existing model by OCID directly from the model catalog and model deployment.
+* Added ``upload_artifact()`` to the :doc:`framework-specific <framework_specific_instruction>` classes. Upload model artifacts to Object Storage.
+* Added ``update()`` method to the :doc:`framework-specific <framework_specific_instruction>` classes. Update the model metadata for the registered model.
+* Added ``config``, ``singer``, ``signer_callable`` attributes to the ``ads.set_auth()`` to support additional signers.
+* Added support for ``Instance Principals`` authentication for the ``ads opctl conda publish`` and ``ads opctl conda install`` commands.
+* Added an option for ``PyTorchModel`` framework allowing to serialize model in a ``TorchScript`` format.
+* Added an option to import :doc:`framework-specific <framework_specific_instruction>` classes directly from the ``ads.model`` package. Example: ``from ads.model import LightGBMModel, AutoMLModel, GenericModel``.
+* Fixed a bug in ADSDataset ``get_recommendations`` when imbalanced correction depends on classes alpha order.
+* Fixed a bug in ADS jobs. The shape configuration details were incorrectly extracted from a notebook session.
+* Fixed a bug to replace the use of a deprecated API with latest API in the Model Evaluation module.
+
+Following modules are marked as deprecated:
+
+* ``ads.catalog.model.py``.
+* ``ads.catalog.notebook.py``
+* ``ads.catalog.project.py``
+* ``ads.catalog.summary.py``
+
+
 2.6.8
 -----
 Release date: October 29, 2022

@@ -13,6 +13,10 @@ import matplotlib as mpl
 import re
 
 from ads.common import logger
+import logging
+
+mlogger = logging.getLogger("matplotlib")
+mlogger.setLevel(logging.WARNING)
 
 mpl.rcParams["image.cmap"] = "BuGn"
 mpl.rcParams["axes.prop_cycle"] = cycler(
@@ -628,7 +632,7 @@ class ADSEvaluator(object):
                     HTML(
                         _pretty_label(df, labels)
                         .style.apply(highlight_max, axis=1)
-                        .set_precision(precision)
+                        .format(precision=precision)
                         .set_properties(**{"text-align": "center"})
                         .set_table_attributes("class=table")
                         .set_caption(
@@ -637,7 +641,7 @@ class ADSEvaluator(object):
                             + data_name
                             + "):</b></div>"
                         )
-                        .render()
+                        .to_html()
                     )
                 )
 

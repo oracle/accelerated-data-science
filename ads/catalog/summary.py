@@ -5,7 +5,15 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import print_function, absolute_import
+import warnings
 
+warnings.warn(
+    (
+        "The `ads.catalog.summary` is deprecated in `oracle-ads 2.6.9` and will be removed in `oracle-ads 3.0`."
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
 import abc
 import ads.common.utils as utils
 from oci.util import to_dict

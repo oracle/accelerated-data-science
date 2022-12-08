@@ -272,7 +272,7 @@ class ModelArtifact:
         )
 
     def prepare_score_py(
-        self, jinja_template_filename: str, model_file_name: str = None
+        self, jinja_template_filename: str, model_file_name: str = None, **kwargs
     ):
         """Prepares `score.py` file.
 
@@ -282,6 +282,8 @@ class ModelArtifact:
             The jinja template file name.
         model_file_name: (str, optional). Defaults to `None`.
             The file name of the serialized model.
+        **kwargs: (dict)
+            use_torch_script: bool
 
         Returns
         -------
@@ -305,12 +307,12 @@ class ModelArtifact:
         ):
             raise FileExistsError(f"{jinja_template_filename}.jinja2 does not exists.")
         scorefn_template = self._env.get_template(f"{jinja_template_filename}.jinja2")
+        context = {
+            "model_file_name": self.model_file_name,
+            "use_torch_script": kwargs.get("use_torch_script", False),
+        }
         with open(os.path.join(self.artifact_dir, "score.py"), "w") as sfl:
-            sfl.write(
-                scorefn_template.render(
-                    model_file_name=self.model_file_name,
-                )
-            )
+            sfl.write(scorefn_template.render(context))
 
     def reload(self):
         """Syncs the `score.py` to reload the model and predict function.

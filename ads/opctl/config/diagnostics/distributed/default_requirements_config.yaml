@@ -45,3 +45,18 @@ horovod:
       description: "Check Ports for Ingress"
     - checker: cluster-generic.check_internet
       description: "Check if internet access is available"
+tensorflow:
+  checkers:
+    - checker: cluster-generic.job_info_access_policy
+      description: "Check if job run has access to Job definition information"
+    - checker: cluster-generic.job_vcn_info_access_policy
+      description: "Check if job run has access to VCN information"
+    - checker: cluster-generic.work_dir_access
+      description: "Check if job run hass access to the WORK DIR (object storage) configured in the cluster definition file"
+    - checker: cluster-ports-check.check_ports
+      args:
+        ports:
+          - 'all'
+      description: "Check Ports for Ingress"
+    - checker: cluster-generic.check_internet
+      description: "Check if internet access is available"

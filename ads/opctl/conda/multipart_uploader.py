@@ -7,7 +7,7 @@
 from typing import Dict, List
 
 from ads.common.oci_client import OCIClientFactory
-from ads.common.auth import get_signer
+from ads.common.auth import create_signer
 from ads.opctl.utils import parse_conda_uri
 import oci
 import mmap
@@ -30,6 +30,7 @@ class MultiPartUploader:
         parts: int,
         oci_config: str = None,
         oci_profile: str = None,
+        auth_type: str = None,
     ) -> None:
         """Initialize the class.
 
@@ -45,10 +46,12 @@ class MultiPartUploader:
             path to oci config file, by default None
         oci_profile : str, optional
             oci profile to use, by default None
+        auth_type : str
+            authentication method, by default None
         """
         self.src = source_file
         self.dst = dst_uri
-        self.oci_auth = get_signer(oci_config, oci_profile)
+        self.oci_auth = create_signer(auth_type, oci_config, oci_profile)
         self.client = OCIClientFactory(**self.oci_auth).object_storage
         self.ns, self.bucket, self.path, _ = parse_conda_uri(dst_uri)
         self.file_size = os.path.getsize(self.src)
@@ -167,7 +170,7 @@ class MultiPartUploader:
                 total=length,
                 unit="B",
                 unit_scale=True,
-                unit_divisor=2 ** 10,
+                unit_divisor=2**10,
                 desc=f"Part {index + 1}",
                 position=index + 1,
                 leave=True,

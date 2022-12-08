@@ -17,6 +17,10 @@ class OCIDataScienceMixin(OCIModelMixin):
     def client(self) -> oci.data_science.DataScienceClient:
         return super().client
 
+    @property
+    def client_composite(self) -> oci.data_science.DataScienceClientCompositeOperations:
+        return oci.data_science.DataScienceClientCompositeOperations(self.client)
+
 
 class DSCNotebookSession(OCIDataScienceMixin, oci.data_science.models.NotebookSession):
     """Represents a data science notebook session

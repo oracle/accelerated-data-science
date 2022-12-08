@@ -46,8 +46,8 @@ Prepare Model Artifact
     
     sklearn_model = SklearnModel(estimator=model, artifact_dir="~/sklearn_artifact_dir")
     sklearn_model.prepare(
-        inference_conda_env="generalml_p37_cpu_v1",
-        training_conda_env="generalml_p37_cpu_v1",
+        inference_conda_env="generalml_p38_cpu_v1",
+        training_conda_env="generalml_p38_cpu_v1",
         X_sample=trainx,
         y_sample=trainy,
         use_case_type=UseCaseType.BINARY_CLASSIFICATION,
@@ -144,8 +144,8 @@ Examples
     artifact_dir = tempfile.mkdtemp()
     sklearn_model = SklearnModel(estimator=model, artifact_dir=artifact_dir)
     sklearn_model.prepare(
-        inference_conda_env="generalml_p37_cpu_v1",
-        training_conda_env="generalml_p37_cpu_v1",
+        inference_conda_env="generalml_p38_cpu_v1",
+        training_conda_env="generalml_p38_cpu_v1",
         use_case_type=UseCaseType.BINARY_CLASSIFICATION,
         X_sample=trainx,
         y_sample=trainy,
@@ -160,7 +160,7 @@ Examples
 
     # Deploy and create an endpoint for the RandomForest model
     sklearn_model.deploy(
-        display_name="Randome Forest Model For Classification",
+        display_name="Random Forest Model For Classification",
         deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxx",
         deployment_access_log_id="ocid1.log.oc1.xxx.xxxx",
         deployment_predict_log_id="ocid1.log.oc1.xxx.xxxx",

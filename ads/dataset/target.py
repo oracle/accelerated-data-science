@@ -16,6 +16,10 @@ from ads.type_discovery.typed_feature import CategoricalTypedFeature
 from ads.type_discovery.typed_feature import ContinuousTypedFeature
 from ads.type_discovery.typed_feature import OrdinalTypedFeature
 
+ABSOLUTE_SKEWNESS_THRESHOLD = 0.5
+# between 0 and 1, ratio of least / most represented class
+CLASS_IMBALANCE_THRESHOLD = 0.5
+
 
 class TargetVariable:
     """
@@ -32,13 +36,8 @@ class TargetVariable:
         self.target_vals = None
         if isinstance(self.type, CategoricalTypedFeature):
             self.target_vals = self.sampled_ds.sampled_df[target].unique().tolist()
-            self.skewness = np.abs(
-                skew(
-                    preprocessing.LabelEncoder().fit_transform(
-                        self.sampled_ds.sampled_df[target]
-                    )
-                )
-            )
+            val_counts = self.sampled_ds.sampled_df[target].value_counts()
+            self.class_imbalance_ratio = val_counts.min() / val_counts.max()
         elif isinstance(self.type, ContinuousTypedFeature):
             try:
                 self.skewness = np.abs(self.sampled_ds.sampled_df[target].skew())
@@ -79,7 +78,11 @@ class TargetVariable:
         else:
             self.sampled_ds.plot(self.name, verbose=False).show_in_notebook()
 
-    def is_balanced(self):
+    def is_balanced(
+        self,
+        skewness_threshold=ABSOLUTE_SKEWNESS_THRESHOLD,
+        class_imbalance_threshold=CLASS_IMBALANCE_THRESHOLD,
+    ):
         """
         Returns True if the target is balanced, False otherwise.
 
@@ -87,9 +90,9 @@ class TargetVariable:
         -------
         is_balanced: bool
         """
-        if isinstance(self.type, CategoricalTypedFeature) or isinstance(
-            self.type, ContinuousTypedFeature
-        ):
-            return self.skewness < 0.2
+        if isinstance(self.type, ContinuousTypedFeature):
+            return self.skewness < skewness_threshold
+        elif isinstance(self.type, CategoricalTypedFeature):
+            return self.class_imbalance_ratio > class_imbalance_threshold
         else:
             return True

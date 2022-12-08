@@ -12,11 +12,10 @@ import json
 import re
 import docker
 from configparser import ConfigParser
-from ads.common.auth import get_signer
+from ads.common.auth import get_signer, OCIAuthContext
 from urllib.parse import urlparse
 from ads.jobs import Job, DataScienceJobRun
 from ads.jobs.builders.runtimes.artifact import Artifact
-from ads.opctl.utils import OCIAuthContext
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import run_command
 
@@ -692,3 +691,32 @@ def verify_and_publish_image(nopush, config):
                     "Stopping the execution as image doesn't exist in OCI registry"
                 )
     return 1
+
+
+def update_config_image(config):
+    """
+    updates image name in config
+
+    Parameters
+    ----------
+    config
+        Job config
+
+    Returns
+        updated config dict
+    -------
+
+    """
+    ini = ConfigParser(allow_no_value=True)
+    img_name = (
+        config.get("spec", {}).get("cluster", {}).get("spec", {}).get("image")
+    )
+    if img_name.startswith("@"):
+        if os.path.isfile(ini_file):
+            ini.read(ini_file)
+            return update_image(config, ini)
+        else:
+            raise ValueError("Invalid image name: " + img_name + " and also not able to locate config.ini file. Please"
+                                                                 " update image name in Job config")
+    else:
+        return config

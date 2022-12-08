@@ -17,7 +17,7 @@ from ads.common.decorator.runtime_dependency import (
 from ads.model.extractor.spark_extractor import SparkExtractor
 from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import (
-    GenericModel,
+    FrameworkSpecificModel,
     DEFAULT_MODEL_FOLDER_NAME,
 )
 from ads.model.model_properties import ModelProperties
@@ -128,7 +128,7 @@ class SparkDataSerializer(InputDataSerializer):
             )
 
 
-class SparkPipelineModel(GenericModel):
+class SparkPipelineModel(FrameworkSpecificModel):
     """SparkPipelineModel class for estimators from the pyspark framework.
 
     Attributes

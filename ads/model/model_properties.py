@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from os import environ
 from typing import Union
 
-from ads.common.base_properties import BaseProperties
+from ads.model.base_properties import BaseProperties
 
 
 @dataclass(repr=False)

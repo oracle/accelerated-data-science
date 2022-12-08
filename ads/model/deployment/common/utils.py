@@ -14,6 +14,7 @@ import os
 import shutil
 import tempfile
 import time
+import requests
 from typing import Dict
 from enum import Enum, auto
 
@@ -26,10 +27,13 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.model.common.utils import _is_json_serializable
 from .progress_bar import TqdmProgressBar, DummyProgressBar
 
 
 logger = logging.getLogger(__name__)
+DEFAULT_CONTENT_TYPE_JSON = "application/json"
+DEFAULT_CONTENT_TYPE_BYTES = "application/octet-stream"
 
 
 def get_logger():
@@ -95,6 +99,50 @@ def is_notebook():
         return False
     except NameError:
         return False  # Probably standard Python interpreter
+
+
+def send_request(
+    data,
+    endpoint: str,
+    dry_run: bool = False,
+    is_json_payload: bool = False,
+    header: dict = {},
+):
+    """Sends the data to the predict endpoint.
+
+    Args:
+        data (bytes or Json serializable): data need to be sent to the endpoint.
+        endpoint (str): The model HTTP endpoint.
+        dry_run (bool, optional): Defaults to False.
+        is_json_payload (bool, optional): Indicate whether to send data with a `application/json` MIME TYPE. Defaults to False.
+        header (dict, optional): A dictionary of HTTP headers to send to the specified url. Defaults to {}.
+
+    Returns:
+        A JSON representive of a requests.Response object.
+    """
+    headers = dict()
+    if is_json_payload:
+        headers["Content-Type"] = (
+            header.get("content_type") or DEFAULT_CONTENT_TYPE_JSON
+        )
+        request_kwargs = {"json": data}
+    else:
+        headers["Content-Type"] = (
+            header.get("content_type") or DEFAULT_CONTENT_TYPE_BYTES
+        )
+        request_kwargs = {"data": data}  # should pass bytes when using data
+
+    request_kwargs["headers"] = headers
+
+    if dry_run:
+        request_kwargs["headers"]["Accept"] = "*/*"
+        req = requests.Request("POST", endpoint, **request_kwargs).prepare()
+        if is_json_payload:
+            return json.loads(req.body)
+        return req.body
+    else:
+        request_kwargs["auth"] = header.get("signer")
+        return requests.post(endpoint, **request_kwargs).json()
 
 
 def get_progress_bar(max_progress, description="Initializing"):

@@ -42,6 +42,8 @@ class OCIClientFactory:
     auth = authutil.resource_principal({"timeout": 6000})
     oc.OCIClientFactory(**auth).object_storage # Creates Object storage client with timeout set to 6000 using resource principal authentication
 
+    auth = authutil.create_signer("instance_principal")
+    oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
 
     def __init__(self, config={}, signer=None, client_kwargs=None):

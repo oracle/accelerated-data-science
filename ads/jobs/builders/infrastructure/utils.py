@@ -4,37 +4,6 @@
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import copy
-from ads.common.utils import camel_to_snake, snake_to_camel
-
-
-def batch_convert_case(spec: dict, to_fmt: str) -> dict:
-    """
-    Convert the case of a dictionary of spec from camel to snake or vice versa.
-
-    Parameters
-    ----------
-    spec: dict
-        dictionary of spec to convert
-    to_fmt: str
-        format to convert to, can be "camel" or "snake"
-
-    Returns
-    -------
-    dict
-        dictionary of converted spec
-    """
-    converted = {}
-    if to_fmt == "camel":
-        converter = snake_to_camel
-    else:
-        converter = camel_to_snake
-    for k, v in spec.items():
-        if k == "spec":
-            converted[converter(k)] = batch_convert_case(v, to_fmt)
-        else:
-            converted[converter(k)] = v
-    return converted
-
 
 ALIAS_MAP = {
     "file_uri": "script_uri",
