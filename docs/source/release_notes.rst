@@ -8,20 +8,19 @@ Release date: December 7, 2022
 
 * Fixed a bug in ``GenericModel.prepare``. The ``.model-ignore`` file was not included in the ``Manifest.in``.
 
-
 2.6.9
 -----
 Release date: December 7, 2022
 
 * Added compatibility with Python ``3.10``.
-* Added ``update_deployment()`` method to the :doc:`framework-specific <framework_specific_instruction>` classes. Update model deployment associated with the model.
-* Added ``from_id()`` method to the :doc:`framework-specific <framework_specific_instruction>` classes. Load existing model by OCID directly from the model catalog and model deployment.
-* Added ``upload_artifact()`` to the :doc:`framework-specific <framework_specific_instruction>` classes. Upload model artifacts to Object Storage.
-* Added ``update()`` method to the :doc:`framework-specific <framework_specific_instruction>` classes. Update the model metadata for the registered model.
-* Added ``config``, ``singer``, ``signer_callable`` attributes to the ``ads.set_auth()`` to support additional signers.
+* Added `update_deployment() <./ads.model.html#id19>`__ method to the :doc:`framework-specific <./user_guide/model_registration/framework_specific_instruction>` classes. Update model deployment associated with the model.
+* Added `from_id() <./ads.model.html#id2>`__ method to the :doc:`framework-specific <./user_guide/model_registration/framework_specific_instruction>` classes. Load existing model by OCID directly from the OCI Models and OCI Model Deployment.
+* Added :doc:`upload_artifact() <./user_guide/model_registration/model_artifact.html#export-model-artifact-to-object-storage>` to the :doc:`framework-specific <./user_guide/model_registration/framework_specific_instruction>` classes. Upload model artifacts to Object Storage.
+* Added `update() <./ads.model.html#ads.model.generic_model.GenericModel.update>`__ method to the :doc:`framework-specific <./user_guide/model_registration/framework_specific_instruction>` classes. Update the model metadata for the registered model.
+* Added ``config``, ``signer``, ``signer_callable`` attributes to the ``ads.set_auth()`` to support additional signers.
 * Added support for ``Instance Principals`` authentication for the ``ads opctl conda publish`` and ``ads opctl conda install`` commands.
 * Added an option for ``PyTorchModel`` framework allowing to serialize model in a ``TorchScript`` format.
-* Added an option to import :doc:`framework-specific <framework_specific_instruction>` classes directly from the ``ads.model`` package. Example: ``from ads.model import LightGBMModel, AutoMLModel, GenericModel``.
+* Added an option to import :doc:`framework-specific <./user_guide/model_registration/framework_specific_instruction>` classes directly from the ``ads.model`` package. Example: ``from ads.model import LightGBMModel, GenericModel``.
 * Fixed a bug in ADSDataset ``get_recommendations`` when imbalanced correction depends on classes alpha order.
 * Fixed a bug in ADS jobs. The shape configuration details were incorrectly extracted from a notebook session.
 * Fixed a bug to replace the use of a deprecated API with latest API in the Model Evaluation module.
