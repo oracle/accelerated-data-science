@@ -130,20 +130,101 @@ Predict with Image
 
 Predict Image by passing a uri, which can be http(s), local path, or other URLs
 (e.g. starting with “oci://”, “s3://”, and “gcs://”), of the image or a PIL.Image.Image object
-using the `image` argument in `predict()` to predict a single image.
+using the ``image`` argument in ``predict()`` to predict a single image.
 The image will be converted to a tensor and then serialized so it can be passed to the endpoint.
-You can catch the tensor in `score.py` to perform further transformation.
+You can catch the tensor in ``score.py`` to perform further transformation.
+
+Common example for model deployment prediction with image passed:
 
 .. code-block:: python3
 
-    uri = ("https://github.com/pytorch/hub/raw/master/images/dog.jpg")
-
     # Generate prediction by invoking the deployed endpoint
-    prediction = tensorflow_model.predict(image=uri)['prediction']
+    prediction = tensorflow_model.predict(image=<uri>)['prediction']
 
+Find executable example on PyTorch page in section `"Predict with Image" <https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/frameworks/pytorchmodel.html#predict-with-image>`_.
+
+Run Prediction with oci raw-request command
+===========================================
+
+Deploy can be invoked with the OCI-CLI. Example invokes a model deployment with the CLI with ``numpy.ndarray`` payload:
+
+`numpy.ndarray` payload example
+-------------------------------
+
+.. code-block:: python3
+
+    >>> # Prepare data sample for prediction and save it to file 'data-payload'
+    >>> from io import BytesIO
+    >>> import base64
+    >>> import numpy as np
+
+    >>> data = testx[:3]
+    >>> np_bytes = BytesIO()
+    >>> np.save(np_bytes, data, allow_pickle=True)
+    >>> data = base64.b64encode(np_bytes.getvalue()).decode("utf-8")
+    >>> with open('data-payload', 'w') as f:
+    >>>     f.write('{"data": "' + data + '", "data_type": "numpy.ndarray"}')
+
+File ``data-payload`` will have this information:
+
+.. code-block:: bash
+
+    {"data": "k05VTVBZAQB2AHsnZGVzY3InOiAnPGY4JywgJ2ZvcnRyYW5fb3JkZXInOi...
+    .......................................................................
+    ...................AAAAAAAAAAAAAAAAAAA=", "data_type": "numpy.ndarray"}
+
+Use file ``data-payload`` with data and endpoint to invoke prediction with raw-request command in terminal:
+
+.. code-block:: bash
+
+    export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
+    oci raw-request \
+        --http-method POST \
+        --target-uri $uri \
+        --request-body file://data-payload
+
+Expected output of raw-request command
+--------------------------------------
+
+.. code-block:: bash
+
+    {
+      "data": {
+        "prediction": [
+          [
+            -1.8818638324737549,
+            -6.04175329208374,
+            ..................,
+            -1.1257498264312744
+          ],
+          [
+            1.2170600891113281,
+            1.6379727125167847,
+            ..................,
+            -9.877771377563477
+          ],
+          [
+            -4.255424499511719,
+            5.320354461669922,
+            ..................,
+            -2.858555555343628
+          ]
+        ]
+      },
+      "headers": {
+        "Connection": "keep-alive",
+        "Content-Length": "594",
+        "Content-Type": "application/json",
+        "Date": "Thu, 08 Dec 2022 23:25:47 GMT",
+        "X-Content-Type-Options": "nosniff",
+        "opc-request-id": "E70002DAA3024F46B074F9B53DB6BEBB/421B34FCB12CF33F23C85D5619A62926/CAABF4A269C63B112482B2E57463CA13",
+        "server": "uvicorn"
+      },
+      "status": "200 OK"
+    }
 
 Example
-========
+=======
 
 .. code-block:: python3
 

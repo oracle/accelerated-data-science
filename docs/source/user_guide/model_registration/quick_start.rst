@@ -69,7 +69,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     xgboost_model = XGBoostModel(estimator=xgboost_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
-    xgboost_model.prepare(inference_conda_env="generalml_p38_cpu_v1")
+    xgboost_model.prepare(
+        inference_conda_env="generalml_p38_cpu_v1",
+        X_sample=X_train,
+        y_sample=y_train,
+    )
 
     # Verify generated artifacts
     xgboost_model.verify(X_test)
@@ -106,7 +110,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     lightgbm_model = LightGBMModel(estimator=lightgbm_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
-    lightgbm_model.prepare(inference_conda_env="generalml_p38_cpu_v1")
+    lightgbm_model.prepare(
+        inference_conda_env="generalml_p38_cpu_v1",
+        X_sample=X_train,
+        y_sample=y_train,
+    )
 
     # Verify generated artifacts
     lightgbm_model.verify(X_test)

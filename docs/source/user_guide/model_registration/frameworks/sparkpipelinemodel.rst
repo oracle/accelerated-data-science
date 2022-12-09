@@ -137,9 +137,60 @@ Run Prediction against Endpoint
     spark_model.predict(test)['prediction']
     # [0.0, 0.0, 1.0, 0.0]
 
+Run Prediction with oci raw-request command
+===========================================
+
+Deploy can be invoked with the OCI-CLI. Example invokes a model deployment with the CLI with ``json`` payload:
+
+`json` payload example
+----------------------
+
+.. code-block:: python3
+
+    >>> # Prepare data sample for prediction and save it to file 'payload'
+    >>> print(json.dumps(test.toJSON().collect()))
+    ["{\"id\":4,\"text\":\"spark i j k\"}", "{\"id\":5,\"text\":\"l m n\"}",
+    "{\"id\":6,\"text\":\"spark hadoop spark\"}", "{\"id\":7,\"text\":\"apache hadoop\"}"]
+
+Use printed output of the data and endpoint to invoke prediction with raw-request command in terminal:
+
+.. code-block:: bash
+
+    export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
+    export data='{"data": ["{\"id\":4,\"text\":\"spark i j k\"}", ... "{\"id\":7,\"text\":\"apache hadoop\"}"]}'
+    oci raw-request \
+        --http-method POST \
+        --target-uri $uri \
+        --request-body "$data"
+
+Expected output of raw-request command
+--------------------------------------
+
+.. code-block:: bash
+
+    {
+      "data": {
+        "prediction": [
+          0.0,
+          0.0,
+          1.0,
+          0.0
+        ]
+      },
+      "headers": {
+        "Connection": "keep-alive",
+        "Content-Length": "32",
+        "Content-Type": "application/json",
+        "Date": "Thu, 08 Dec 2022 18:45:12 GMT",
+        "X-Content-Type-Options": "nosniff",
+        "opc-request-id": "C2E73B1679B34BAD8358B49D20619055/0EE2E5F93F48142725525D7A5BA7F5FB/049A66AA38AA0163DBBC70F225285851",
+        "server": "uvicorn"
+      },
+      "status": "200 OK"
+    }
 
 Example
-========
+=======
 
 Adapted from an example provided by Apache in the PySpark API Reference Documentation.
 

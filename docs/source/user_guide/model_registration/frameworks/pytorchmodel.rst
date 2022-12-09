@@ -267,16 +267,150 @@ Predict with Image
 
 Predict Image by passing a uri, which can be http(s), local path, or other URLs
 (e.g. starting with “oci://”, “s3://”, and “gcs://”), of the image or a PIL.Image.Image object
-using the `image` argument in `predict()` to predict a single image.
+using the ``image`` argument in ``predict()`` to predict a single image.
 The image will be converted to a tensor and then serialized so it can be passed to the endpoint.
-You can catch the tensor in `score.py` to perform further transformation.
+You can catch the tensor in ``score.py`` to perform further transformation.
+
+.. note::
+    The payload size limit is 10 MB. Read more about invoking a model deployment `here <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-invoke.htm#model_dep_invoke>`_.
+
+With size limitation in example below we will use resized image. To pass image and invoke prediction additional code with processing inside score.py required. Open ``pytorch_model_artifact/score.py`` and update ``pre_inference()`` method. The edits are highlighted:
+
+.. code-block:: python3
+    :emphasize-lines: 15-26
+
+    def pre_inference(data, input_schema_path):
+        """
+        Preprocess json-serialized data to feed into predict function.
+
+        Parameters
+        ----------
+        data: Data format as expected by the predict API of the core estimator.
+        input_schema_path: path of input schema.
+
+        Returns
+        -------
+        data: Data format after any processing.
+        """
+        data = deserialize(data, input_schema_path)
+        import torchvision.transforms as transforms
+        preprocess = transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.Normalize(
+                mean=[0.485, 0.456, 0.406],
+                std=[0.229, 0.224, 0.225]
+            ),
+        ])
+        input_tensor = preprocess(data)
+        input_batch = input_tensor.unsqueeze(0)
+        return input_batch
+
+Save ``score.py`` and verify prediction works:
 
 .. code-block:: python3
 
-    uri = ("https://github.com/pytorch/hub/raw/master/images/dog.jpg")
+    >>> uri = ("https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/model_deploy_examples/images/dog_resized.jpg")
+    >>> prediction = pytorch_model.verify(image=uri)["prediction"]
+    >>> import numpy as np
+    >>> np.argmax(prediction)
+    258
+
+Re-deploy model with updated ``score.py``:
+
+.. code-block:: python3
+
+    pytorch_model.deploy(
+        display_name="PyTorch Model For Classification",
+        deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxxx",
+        deployment_access_log_id="ocid1.log.oc1.xxx.xxxxxx",
+        deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxxx",
+    )
+
+Run prediction with the image provided:
+
+.. code-block:: python3
+
+    uri = ("https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/model_deploy_examples/images/dog_resized.jpg")
 
     # Generate prediction by invoking the deployed endpoint
     prediction = pytorch_model.predict(image=uri)['prediction']
+
+Run Prediction with oci raw-request command
+===========================================
+
+Deploy can be invoked with the OCI-CLI. Example invokes a model deployment with the CLI with ``torch.Tensor`` payload:
+
+`torch.Tensor` payload example
+------------------------------
+
+.. code-block:: python3
+
+    >>> # Prepare data sample for prediction and save it to file 'data-payload'
+    >>> from io import BytesIO
+    >>> import base64
+
+    >>> buffer = BytesIO()
+    >>> torch.save(input_batch, buffer)
+    >>> data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    >>> with open('data-payload', 'w') as f:
+    >>>     f.write('{"data": "' + data + '", "data_type": "torch.Tensor"}')
+
+File ``data-payload`` will have this information:
+
+.. code-block:: bash
+
+    {"data": "UEsDBAAACAgAAAAAAAAAAAAAAAAAAAAAAAAQ ........................
+    .......................................................................
+    ...AAAAEAAABQSwUGAAAAAAMAAwC3AAAA0jEJAAAA", "data_type": "torch.Tensor"}
+
+Use file ``data-payload`` with data and endpoint to invoke prediction with raw-request command in terminal:
+
+.. code-block:: bash
+
+    export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
+    oci raw-request \
+        --http-method POST \
+        --target-uri $uri \
+        --request-body file://data-payload
+
+Expected output of raw-request command
+--------------------------------------
+
+.. code-block:: bash
+
+    {
+      "data": {
+        "prediction": [
+          [
+            0.0159152802079916,
+            -1.5496551990509033,
+            .......
+            2.5116958618164062
+          ]
+        ]
+      },
+      "headers": {
+        "Connection": "keep-alive",
+        "Content-Length": "19398",
+        "Content-Type": "application/json",
+        "Date": "Thu, 08 Dec 2022 18:28:41 GMT",
+        "X-Content-Type-Options": "nosniff",
+        "opc-request-id": "BD80D931A6EA4C718636ECE00730B255/86111E71C1B33C24988C59C27F15ECDE/E94BBB27AC3F48CB68F41135073FF46B",
+        "server": "uvicorn"
+      },
+      "status": "200 OK"
+    }
+
+Copy prediction output into `argmax` to retrieve result ofr image prediction:
+
+.. code-block:: python3
+
+    >>> print(np.argmax([[0.0159152802079916,
+    >>>                   -1.5496551990509033,
+    >>>                   .......
+    >>>                   2.5116958618164062]]))
+    258
 
 Example
 =======

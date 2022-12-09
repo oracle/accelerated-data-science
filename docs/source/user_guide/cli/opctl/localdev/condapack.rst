@@ -32,8 +32,7 @@ publish
 
   ads opctl conda publish -s <slug>
 
-Publish conda pack to the object storage bucket from your laptop or workstation. You can use this conda pack inside ``OCI Data Science Jobs``, ``OCI Data Science Notebooks`` and ``OCI Data Science Model Deployment``
-
+Publish conda pack to the object storage bucket from your laptop or workstation. You can use this conda pack inside ``OCI Data Science Jobs``, ``OCI Data Science Notebooks`` and ``OCI Data Science Model Deployment``.
 
 -------
 install
@@ -44,3 +43,11 @@ Install conda pack using its URI. The conda pack can be used inside the docker i
 .. code-block:: shell
 
   ads opctl conda install -u "oci://mybucket@namespace/conda_environment/path/to/my/conda"
+
+.. admonition:: Tip
+
+    Use not empty ``NO_CONTAINER`` environment variable to run ``install`` or ``publish`` commands except of ``OCI Data Science Notebooks``:
+
+    .. code-block:: shell
+
+        NO_CONTAINER=1 ads opctl conda publish -s <slug>
