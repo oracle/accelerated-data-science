@@ -1,10 +1,11 @@
 .. _model version set:
 
-###################
-Model Version Set
-###################
+########################
+Model Version Set |beta|
+########################
 
-.. versionadded:: 2.7.1
+.. |beta| image:: ../../_static/badge_beta.svg
+
 
 .. toctree::
    :maxdepth: 1
