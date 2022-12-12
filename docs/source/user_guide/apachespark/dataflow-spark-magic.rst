@@ -239,7 +239,7 @@ To connect to the existing session use the `%use_session` magic command.
 
 .. code-block:: python
 
-  %use_session -s "<application_id>"
+  %use_session -s <application_id>
 
 
 Basic Spark Usage Examples
