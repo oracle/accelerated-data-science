@@ -140,7 +140,7 @@ Run Prediction against Endpoint
 Run Prediction with oci raw-request command
 ===========================================
 
-Deploy can be invoked with the OCI-CLI. Example invokes a model deployment with the CLI with ``json`` payload:
+Model deployment endpoints can be invoked with the OCI-CLI. This example invokes a model deployment with the CLI with a ``json`` payload:
 
 `json` payload example
 ----------------------

@@ -141,12 +141,12 @@ Common example for model deployment prediction with image passed:
     # Generate prediction by invoking the deployed endpoint
     prediction = tensorflow_model.predict(image=<uri>)['prediction']
 
-Find executable example on PyTorch page in section `"Predict with Image" <https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/frameworks/pytorchmodel.html#predict-with-image>`_.
+See the "Predict with Image" example `here <https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/frameworks/pytorchmodel.html#predict-with-image>`_.
 
 Run Prediction with oci raw-request command
 ===========================================
 
-Deploy can be invoked with the OCI-CLI. Example invokes a model deployment with the CLI with ``numpy.ndarray`` payload:
+Model deployment endpoints can be invoked with the OCI-CLI. This example invokes a model deployment with the CLI with a ``numpy.ndarray`` payload:
 
 `numpy.ndarray` payload example
 -------------------------------

@@ -24,6 +24,14 @@ create
 
 Build conda packs from your workstation using ``ads opctl conda create`` subcommand.
 
+.. admonition:: Tip
+
+    To publish a conda pack that is natively installed on a oracle linux host (compute or laptop), use ``NO_CONTAINER`` environment variable to remove dependency on the ml-job container image:
+
+    .. code-block:: shell
+
+        NO_CONTAINER=1 ads opctl conda publish -s <slug> --auth <api_key/instance_principal/resource_principal>
+
 -------
 publish
 -------
@@ -32,7 +40,7 @@ publish
 
   ads opctl conda publish -s <slug>
 
-Publish conda pack to the object storage bucket from your laptop or workstation. You can use this conda pack inside ``OCI Data Science Jobs``, ``OCI Data Science Notebooks`` and ``OCI Data Science Model Deployment``.
+Publish conda pack to the object storage bucket from your laptop or workstation. You can use this conda pack inside ``OCI Data Science Service`` or ``Data Flow service``.
 
 -------
 install
@@ -43,11 +51,3 @@ Install conda pack using its URI. The conda pack can be used inside the docker i
 .. code-block:: shell
 
   ads opctl conda install -u "oci://mybucket@namespace/conda_environment/path/to/my/conda"
-
-.. admonition:: Tip
-
-    Use not empty ``NO_CONTAINER`` environment variable to run ``install`` or ``publish`` commands except of ``OCI Data Science Notebooks``:
-
-    .. code-block:: shell
-
-        NO_CONTAINER=1 ads opctl conda publish -s <slug>

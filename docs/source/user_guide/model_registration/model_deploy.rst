@@ -54,7 +54,7 @@ Here is an example of deploying LightGBM model:
     # Generate prediction by invoking the deployed endpoint
     lightgbm_model.predict(X_test)["prediction"]
 
-Deploy can be invoked with the OCI-CLI. This example invokes a model deployment with the CLI with ``json`` payload:
+Here example retrieve predictions from model deployment endpoint using oci-cli:
 
 .. code-block:: bash
 
@@ -63,7 +63,7 @@ Deploy can be invoked with the OCI-CLI. This example invokes a model deployment 
         --target-uri $model_deployment_url \
         --request-body '{"data": [[5.6, 2.7, 4.2, 1.3]]}'
 
-Find more information about oci raw-request command `here <https://docs.oracle.com/en-us/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/raw-request.html>`_.
+Find more information about oci raw-request command `here <https://docs.oracle.com/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/raw-request.html>`_.
 
 Deploy
 ------

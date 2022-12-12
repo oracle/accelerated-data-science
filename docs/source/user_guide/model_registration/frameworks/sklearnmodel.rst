@@ -113,7 +113,7 @@ Run Prediction against Endpoint
 Run Prediction with oci raw-request command
 ===========================================
 
-Deploy can be invoked with the OCI-CLI. Below examples invokes a model deployment with the CLI with different types of pyload: ``json``,  ``numpy.ndarray``, ``pandas.core.frame.DataFrame`` or ``dict``.
+Model deployment endpoints can be invoked with the OCI-CLI. The below examples invoke a model deployment with the CLI with different types of payload: ``json``,  ``numpy.ndarray``, ``pandas.core.frame.DataFrame`` or ``dict``.
 
 `json` payload example
 ----------------------

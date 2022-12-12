@@ -272,9 +272,9 @@ The image will be converted to a tensor and then serialized so it can be passed 
 You can catch the tensor in ``score.py`` to perform further transformation.
 
 .. note::
-    The payload size limit is 10 MB. Read more about invoking a model deployment `here <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-invoke.htm#model_dep_invoke>`_.
+    The payload size limit is 10 MB. Read more about invoking a model deployment `here <https://docs.oracle.com/iaas/data-science/using/model-dep-invoke.htm#model_dep_invoke>`_.
 
-With size limitation in example below we will use resized image. To pass image and invoke prediction additional code with processing inside score.py required. Open ``pytorch_model_artifact/score.py`` and update ``pre_inference()`` method. The edits are highlighted:
+Given the size limitation, the example below is with resized image. To pass an image and invoke prediction, additional code inside score.py is required to preprocess the data. Open ``pytorch_model_artifact/score.py`` and update the ``pre_inference()`` method. The edits are highlighted:
 
 .. code-block:: python3
     :emphasize-lines: 15-26
@@ -339,7 +339,7 @@ Run prediction with the image provided:
 Run Prediction with oci raw-request command
 ===========================================
 
-Deploy can be invoked with the OCI-CLI. Example invokes a model deployment with the CLI with ``torch.Tensor`` payload:
+Model deployment endpoints can be invoked with the OCI-CLI. This example invokes a model deployment with the CLI with a ``torch.Tensor`` payload:
 
 `torch.Tensor` payload example
 ------------------------------
@@ -402,7 +402,7 @@ Expected output of raw-request command
       "status": "200 OK"
     }
 
-Copy prediction output into `argmax` to retrieve result ofr image prediction:
+Copy prediction output into `argmax` to retrieve result of the image prediction:
 
 .. code-block:: python3
 
