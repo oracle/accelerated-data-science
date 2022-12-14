@@ -4,6 +4,12 @@ Release Notes
 
 2.7.0
 -----
+Release date: December 14, 2022
+
+* Fixed a bug with ads.set_auth('resource_principal') - https://github.com/oracle/accelerated-data-science/issues/38
+
+2.7.0
+-----
 Release date: December 7, 2022
 
 * Fixed a bug in ``GenericModel.prepare``. The ``.model-ignore`` file was not included in the ``Manifest.in``.
