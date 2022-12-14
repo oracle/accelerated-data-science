@@ -120,6 +120,129 @@ Run Prediction against Endpoint
     >>> xgb_model.predict(testx)['prediction']
     [0.22879330813884735, 0.2054443359375, 0.20657016336917877,...,0.8005291223526001]
 
+Run Prediction with oci raw-request command
+===========================================
+
+Model deployment endpoints can be invoked with the OCI-CLI. The below examples invoke a model deployment with the CLI with different types of payload: ``json``,  ``numpy.ndarray``, ``pandas.core.frame.DataFrame`` or ``dict``.
+
+`json` payload example
+----------------------
+
+.. code-block:: python3
+
+    >>> # Prepare data sample for prediction
+    >>> data = testx[[12]]
+    >>> data
+    array([[ 0.66098176, -1.06487896, -0.88581208,  0.05667259,  0.42884393,
+        -0.52552184,  0.75322749, -0.58112776, -0.81102029, -1.35854886,
+        -1.16440502, -0.67791303, -0.04810906,  0.72970972, -0.24120756]])
+
+Use printed output of the data and endpoint to invoke prediction with raw-request command in terminal:
+
+.. code-block:: bash
+
+    export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
+    export data='{"data": [[ 0.66098176, -1.06487896, ... , -0.24120756]]}'
+    oci raw-request \
+        --http-method POST \
+        --target-uri $uri \
+        --request-body "$data"
+
+`numpy.ndarray` payload example
+-------------------------------
+
+.. code-block:: python3
+
+    >>> # Prepare data sample for prediction
+    >>> from io import BytesIO
+    >>> import base64
+    >>> import numpy as np
+
+    >>> data = testx[[12]]
+    >>> np_bytes = BytesIO()
+    >>> np.save(np_bytes, data, allow_pickle=True)
+    >>> data = base64.b64encode(np_bytes.getvalue()).decode("utf-8")
+    >>> print(data)
+    k05VTVBZAQB2AHsnZGVzY......pePfzr8=
+
+Use printed output of ``base64`` data and endpoint to invoke prediction with raw-request command in terminal:
+
+.. code-block:: bash
+
+    export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
+    export data='{"data":"k05VTVBZAQB2AHsnZGVzY......pePfzr8=", "data_type": "numpy.ndarray"}'
+    oci raw-request \
+        --http-method POST \
+        --target-uri $uri \
+        --request-body "$data"
+
+`pandas.core.frame.DataFrame` payload example
+---------------------------------------------
+
+.. code-block:: python3
+
+    >>> # Prepare data sample for prediction
+    >>> import pandas as pd
+
+    >>> df = pd.DataFrame(testx[[12]])
+    >>> print(json.dumps(df.to_json())
+    "{\"0\":{\"0\":0.6609817554},\"1\":{\"0\":-1.0648789569},...,\"14\":{\"0\":-0.2412075575}}"
+
+Use printed output of `DataFrame` data and endpoint to invoke prediction with raw-request command in terminal:
+
+.. code-block:: bash
+
+    export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
+    export data='{"data":"{\"0\":{\"0\":0.6609817554},...,\"14\":{\"0\":-0.2412075575}}","data_type":"pandas.core.frame.DataFrame"}'
+    oci raw-request \
+        --http-method POST \
+        --target-uri $uri \
+        --request-body "$data"
+
+`dict` payload example
+----------------------
+
+    >>> # Prepare data sample for prediction
+    >>> import pandas as pd
+
+    >>> df = pd.DataFrame(testx[[12]])
+    >>> print(json.dumps(df.to_dict()))
+    {"0": {"0": -0.6712208871908425}, "1": {"0": 0.5266565978285116}, ...,"14": {"0": 0.9062102978188604}}
+
+Use printed output of ``dict`` data and endpoint to invoke prediction with raw-request command in terminal:
+
+.. code-block:: bash
+
+    export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
+    export data='{"data": {"0": {"0": -0.6712208871908425}, ...,"14": {"0": 0.9062102978188604}}}'
+    oci raw-request \
+        --http-method POST \
+        --target-uri $uri \
+        --request-body "$data"
+
+Expected output of raw-request command
+--------------------------------------
+
+.. code-block:: bash
+
+    {
+      "data": {
+        "prediction": [
+          0.5611757040023804
+        ]
+      },
+      "headers": {
+        "Connection": "keep-alive",
+        "Content-Length": "35",
+        "Content-Type": "application/json",
+        "Date": "Wed, 07 Dec 2022 17:27:17 GMT",
+        "X-Content-Type-Options": "nosniff",
+        "opc-request-id": "19E90A7F2AFE401BB437DBC6168D2F1C/4A1CC9969F40B9F0656DD0497A28B51A/FEB42D1B690E8A665244046C7A151AB5",
+        "server": "uvicorn"
+      },
+      "status": "200 OK"
+    }
+
 Example
 =======
 
