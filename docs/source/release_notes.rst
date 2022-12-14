@@ -2,7 +2,7 @@
 Release Notes
 =============
 
-2.7.0
+2.7.1
 -----
 Release date: December 14, 2022
 
