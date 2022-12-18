@@ -10,6 +10,8 @@ __pycache__/
 .Python
 env/
 build/
+docs/build/
+docs/docs_html/
 develop-eggs/
 dist/
 downloads/
@@ -24,6 +26,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+ads_latest.zip
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
