@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.7.2
+-----
+Release date: December 20, 2022
+
+* Fixed a bug in ADS jobs. The ``job_run.watch()`` sometimes stuck infinitely and threw an exception.
+
+
 2.7.1
 -----
 Release date: December 14, 2022

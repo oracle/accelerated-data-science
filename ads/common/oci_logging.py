@@ -205,7 +205,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
     """Represents the OCI Log resource.
 
     Usage: (OCI requires display_name to be unique and it cannot contain space)
-    >>> log = OCILog.create(display_name="My_Log", log_group_id=LOG_GROUP_ID)
+    >>> log = OCILog(display_name="My_Log", log_group_id=LOG_GROUP_ID).create()
     Usually it is better to create a log using the create_log() method in OCILogGroup.
     >>> log.delete() # Delete the resource
     Get a log object from OCID
@@ -269,7 +269,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             self.log_group_id, self.to_oci_model(oci.logging.models.CreateLogDetails)
         )
 
-    def sync(self) -> None:
+    def sync(self, **kwargs) -> None:
         """Refreshes the properties of the Log model
         OCI requires both Log OCID and Log group OCID to get the Log model.
 
@@ -277,7 +277,9 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         """
         if not self.log_group_id:
             self.log_group_id = self._get_log_group_id(self.id, self.compartment_id)
-        self.update_from_oci_model(self.client.get_log(self.log_group_id, self.id).data)
+        self.update_from_oci_model(
+            self.client.get_log(self.log_group_id, self.id).data, **kwargs
+        )
         return self
 
     def delete(self):
@@ -522,6 +524,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         limit: int = LOG_RECORDS_LIMIT,
         sort_by: str = "datetime",
         sort_order: str = SortOrder.DESC,
+        log_filter: str = None,
     ):
         """Returns the formatted log records.
 
@@ -539,6 +542,9 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             The field for sorting the logs.
         sort_order: (str, optional). Defaults to "DESC".
             The sort order for the log records. Can be "ASC" or "DESC".
+        log_filter : (str, optional). Defaults to None.
+            Expression for filtering the logs.
+            This will be the WHERE clause of the query.
 
         Returns
         -------
@@ -556,6 +562,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             limit=limit,
             sort_by=sort_by,
             sort_order=sort_order,
+            log_filter=log_filter,
         )
         logs = sorted((log.data for log in logs), key=lambda x: x.get("datetime"))
         logs = [log.get("logContent", {}) for log in logs]
@@ -573,6 +580,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         source: str = None,
         limit=LOG_RECORDS_LIMIT,
         time_start: datetime.datetime = None,
+        log_filter: str = None,
     ) -> List[dict]:
         """Returns the most recent log records.
 
@@ -586,6 +594,9 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         time_start: (datetime.datetime, optional)
             Starting time for the log query.
             Defaults to None. Logs up to 14 days from now will be returned.
+        log_filter : (str, optional). Defaults to None.
+            Expression for filtering the logs.
+            This will be the WHERE clause of the query.
 
         Returns
         -------
@@ -594,7 +605,11 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             Each log record is a dictionary with the following keys: `id`, `time`, `message`.
         """
         return self._search_and_format(
-            source=source, limit=limit, sort_order=SortOrder.DESC, time_start=time_start
+            source=source,
+            limit=limit,
+            sort_order=SortOrder.DESC,
+            time_start=time_start,
+            log_filter=log_filter,
         )
 
     def head(
@@ -632,6 +647,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         interval: int = LOG_INTERVAL,
         stop_condition: callable = None,
         time_start: datetime.datetime = None,
+        log_filter: str = None,
     ):
         """Streams logs to console/terminal until stop_condition() returns true.
 
@@ -646,6 +662,10 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         time_start: datetime.datetime
             Starting time for the log query.
             Defaults to None. Logs up to 14 days from now will be returned.
+        log_filter : str, optional
+            Expression for filtering the logs.
+            This will be the WHERE clause of the query.
+            Defaults to None.
 
         Returns
         -------
@@ -664,7 +684,9 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
                 next_time_start = datetime.datetime.utcnow() - datetime.timedelta(
                     seconds=180
                 )
-                logs = self.tail(source, limit=None, time_start=time_start)
+                logs = self.tail(
+                    source, limit=None, time_start=time_start, log_filter=log_filter
+                )
                 # Update time_start if the tail() is successful
                 time_start = next_time_start
             except Exception:
