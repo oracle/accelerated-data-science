@@ -99,7 +99,7 @@ All of these runtime options allow you to configure a `Data Science Conda Enviro
     runtime = (
         ScriptRuntime()
         .with_source("oci://bucket_name@namespace/path/to/script.py")
-        .with_service_conda("tensorflow26_p37_cpu_v2")
+        .with_service_conda("tensorflow28_p38_cpu_v1")
     )
 
 You can store your source code in a local file path or location supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including OCI Object Storage.
@@ -123,7 +123,7 @@ You can also configure the environment variables, command line arguments, and fr
     runtime = (
         ScriptRuntime()
         .with_source("oci://bucket_name@namespace/path/to/script.py")
-        .with_service_conda("tensorflow26_p37_cpu_v2")
+        .with_service_conda("tensorflow28_p38_cpu_v1")
         .with_environment_variable(ENV="value")
         .with_argument("argument", key="value")
         .with_freeform_tag(tag_name="tag_value")
@@ -249,7 +249,7 @@ Here is an example of a YAML file representing the job defined in the preceding 
         type: script
         spec:
           conda:
-            slug: tensorflow26_p37_cpu_v2
+            slug: tensorflow28_p38_cpu_v1
             type: service
           scriptPathURI: oci://bucket_name@namespace/path/to/script.py
 
