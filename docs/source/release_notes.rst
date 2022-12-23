@@ -2,6 +2,19 @@
 Release Notes
 =============
 
+2.7.2
+-----
+Release date: December 20, 2022
+
+* Fixed a bug in ADS jobs. The ``job_run.watch()`` method sometimes threw an exception due to an unexpected logging parameter.
+
+
+2.7.1
+-----
+Release date: December 14, 2022
+
+* Fixed a bug with ads.set_auth('resource_principal') - https://github.com/oracle/accelerated-data-science/issues/38
+
 2.7.0
 -----
 Release date: December 7, 2022

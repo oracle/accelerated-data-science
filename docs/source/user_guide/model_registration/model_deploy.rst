@@ -6,6 +6,7 @@ Here is an example of deploying LightGBM model:
 
     import lightgbm as lgb
     import tempfile
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.lightgbm_model import LightGBMModel
     from sklearn.datasets import load_iris
     from sklearn.model_selection import train_test_split
@@ -28,8 +29,8 @@ Here is an example of deploying LightGBM model:
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
     lightgbm_model.prepare(
         inference_conda_env="generalml_p38_cpu_v1",
-        X_sample=trainx,
-        y_sample=trainy,
+        X_sample=X_train,
+        y_sample=y_train,
         use_case_type=UseCaseType.BINARY_CLASSIFICATION,
     )
 
@@ -46,6 +47,23 @@ Here is an example of deploying LightGBM model:
             deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
             deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
         )
+
+    # Get endpoint of deployed model
+    model_deployment_url = lightgbm_model.model_deployment.url
+
+    # Generate prediction by invoking the deployed endpoint
+    lightgbm_model.predict(X_test)["prediction"]
+
+Here example retrieve predictions from model deployment endpoint using oci-cli:
+
+.. code-block:: bash
+
+    export model_deployment_url=<model_deployment_url>/predict
+    oci raw-request --http-method POST \
+        --target-uri $model_deployment_url \
+        --request-body '{"data": [[5.6, 2.7, 4.2, 1.3]]}'
+
+Find more information about oci raw-request command `here <https://docs.oracle.com/iaas/tools/oci-cli/latest/oci_cli_docs/cmdref/raw-request.html>`_.
 
 Deploy
 ------

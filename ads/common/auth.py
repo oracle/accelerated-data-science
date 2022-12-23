@@ -150,12 +150,13 @@ def set_auth(
 
     auth_state.oci_config = config
     auth_state.oci_key_profile = profile
-    if os.path.exists(os.path.expanduser(oci_config_location)):
-        auth_state.oci_config_path = oci_config_location
-    else:
-        raise ValueError(
-            f"{oci_config_location} path does not exist, please provide existing path to config file."
-        )
+    if auth == AuthType.API_KEY:
+        if os.path.exists(os.path.expanduser(oci_config_location)):
+            auth_state.oci_config_path = oci_config_location
+        else:
+            raise ValueError(
+                f"{oci_config_location} path does not exist, please provide existing path to config file."
+            )
 
     auth_state.oci_signer = signer
     auth_state.oci_signer_callable = signer_callable
