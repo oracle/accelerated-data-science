@@ -1,0 +1,84 @@
+name: Bug Report
+description: Bug observed in oracle-ads library
+title: "[Bug]: "
+labels: [Bug, Backlog]
+assignees:
+  - octocat
+body:
+  - type: markdown
+      attributes:
+        value: |
+          If you think you've found a security vulnerability, don't raise a GitHub issue and follow the instructions 
+          in our [security policy](https://github.com/oracle/accelerated-data-science/security/policy).
+          
+          ---
+          
+          Thank you for taking the time to file a bug report.
+  - type: checkboxes
+      id: checks
+      attributes:
+        label: Oracle-ads version used
+        options:
+          - label: >
+              I have checked that this issue has not already been reported.
+            required: true
+          - label: >
+              I have confirmed this bug exists on the
+              [latest version](https://https://github.com/oracle/accelerated-data-science/releases/) of oracle-ads.
+          - label: >
+              I have confirmed this bug exists on the main branch of oracle-ads.
+          - label: >
+              I agree to follow [Code of Conduct](https://github.com/oracle/.github/blob/main/CODE_OF_CONDUCT.md).
+            required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: >
+        Please provide a brief description of the problem, describe setup used as that may be the key to the issue.
+    validations:
+      required: true
+  - type: textarea
+    id: how-to-reproduce
+    attributes:
+      label: How to Reproduce
+      description: >
+        Please provide a copy-pastable short code example. 
+        If possible provide an ordered list of steps on how to reproduce the problem.
+      placeholder: >
+        import ads
+
+        ...
+      render: python
+    validations:
+      required: true
+  - type: textarea
+    id: what-was-observed
+    attributes:
+      label: What was Observed
+      description: >
+        Please provide snippets of output or describe wrong behavior.
+    validations:
+      required: true
+  - type: textarea
+    id: what-was-expected
+    attributes:
+      label: What was Expected
+      description: >
+        Please describe what should have happened and how it is different from what was observed.
+    validations:
+      required: true
+  - type: textarea
+    id: version
+    attributes:
+      label: Version
+      description: >
+        Please paste the output of ``ads.__version__``
+      value: >
+        <details>
+
+        Paste here the output of ads.__version__
+
+        </details>
+    validations:
+      required: true
