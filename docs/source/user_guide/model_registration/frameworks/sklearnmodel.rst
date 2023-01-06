@@ -19,7 +19,7 @@ The following steps take your trained ``scikit-learn`` model and deploy it into 
 
 .. code-block:: python3
 
-    from sklearn.ensemble import RandomForestClassifier 
+    from sklearn.ensemble import RandomForestClassifier
     from sklearn.datasets import make_classification
     from sklearn.model_selection import train_test_split
 
@@ -42,8 +42,8 @@ Prepare Model Artifact
 .. code-block:: python3
 
     from ads.model.framework.sklearn_model import SklearnModel
-    from ads.common.model_metadata import UseCaseType
-    
+    from ads.model.model_metadata import UseCaseType
+
     sklearn_model = SklearnModel(estimator=model, artifact_dir="~/sklearn_artifact_dir")
     sklearn_model.prepare(
         inference_conda_env="generalml_p38_cpu_v1",
@@ -239,7 +239,7 @@ Examples
 .. code-block:: python3
 
     from ads.model.framework.sklearn_model import SklearnModel
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
 
     from sklearn.ensemble import RandomForestClassifier
     from sklearn.datasets import make_classification

@@ -148,7 +148,7 @@ Example
 
   from ads.automl.driver import AutoML
   from ads.automl.provider import OracleAutoMLProvider
-  from ads.common.model_metadata import UseCaseType
+  from ads.model.model_metadata import UseCaseType
   from ads.dataset.dataset_browser import DatasetBrowser
   from ads.model.framework.automl_model import AutoMLModel
   from ads.catalog.model import ModelCatalog
