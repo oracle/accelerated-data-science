@@ -21,7 +21,7 @@ The ``XGBoostModel`` module in ADS supports serialization for models generated f
 .. code-block:: python3
 
     from ads.model.framework.xgboost_model import XGBoostModel
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
 
     from sklearn.datasets import make_classification
     from sklearn.model_selection import train_test_split
@@ -49,7 +49,7 @@ Prepare Model Artifact
 .. code-block:: python3
 
     from ads.model.framework.xgboost_model import XGBoostModel
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
 
     artifact_dir = tempfile.mkdtemp()
     xgb_model = XGBoostModel(estimator=model, artifact_dir=artifact_dir)
@@ -249,7 +249,7 @@ Example
 .. code-block:: python3
 
     from ads.model.framework.xgboost_model import XGBoostModel
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
 
     from sklearn.datasets import make_classification
     from sklearn.model_selection import train_test_split

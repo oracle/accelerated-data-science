@@ -6,7 +6,7 @@ Here is an example of deploying LightGBM model:
 
     import lightgbm as lgb
     import tempfile
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
     from ads.model.framework.lightgbm_model import LightGBMModel
     from sklearn.datasets import load_iris
     from sklearn.model_selection import train_test_split

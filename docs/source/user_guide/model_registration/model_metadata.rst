@@ -9,7 +9,7 @@ Taxonomy Metadata
 
 Taxonomy metadata includes the type of the model, use case type, libraries, framework, and so on. This metadata provides a way of documenting the schema of the model.  The ``UseCaseType``, ``FrameWork``, ``FrameWorkVersion``, ``Algorithm``, and ``Hyperparameters`` are fixed taxonomy metadata. These fields are automatically populated when the ``.prepare()`` method is called. You can also manually update the values of those fields.
 
-*  ``ads.common.model_metadata.UseCaseType``: The machine learning problem associated with the Estimator class.  The ``UseCaseType.values()`` method returns the most current list. This is a list of allowed values.:
+*  ``ads.model.model_metadata.UseCaseType``: The machine learning problem associated with the Estimator class.  The ``UseCaseType.values()`` method returns the most current list. This is a list of allowed values.:
 
    -  ``UseCaseType.ANOMALY_DETECTION``
    -  ``UseCaseType.BINARY_CLASSIFICATION``
@@ -26,7 +26,7 @@ Taxonomy metadata includes the type of the model, use case type, libraries, fram
    -  ``UseCaseType.TIME_SERIES_FORECASTING``
    -  ``UseCaseType.TOPIC_MODELING``
 
-*  ``ads.common.model_metadata.FrameWork``: The FrameWork of the ``estimator`` object.  You can get the list of allowed values using ``Framework.values()``:
+*  ``ads.model.model_metadata.FrameWork``: The FrameWork of the ``estimator`` object.  You can get the list of allowed values using ``Framework.values()``:
 
    -  ``FrameWork.BERT``
    -  ``FrameWork.CUML``
@@ -71,14 +71,14 @@ You can populate the ``use_case_type`` by passing it in the ``.prepare()`` metho
     from sklearn.datasets import load_iris
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
 
-    # Load dataset and Prepare train and test split 
+    # Load dataset and Prepare train and test split
     iris = load_iris()
     X, y = iris.data, iris.target
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
-    
-    # Train a LogisticRegression model 
+
+    # Train a LogisticRegression model
     sklearn_estimator = LogisticRegression()
     sklearn_estimator.fit(X_train, y_train)
 

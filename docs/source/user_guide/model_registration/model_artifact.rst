@@ -48,7 +48,7 @@ Here is an example for preparing a model artifact for ``TensorFlow`` model.
     from ads.model.framework.tensorflow_model import TensorFlowModel
     import tempfile
     import tensorflow as tf
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
 
     mnist = tf.keras.datasets.mnist
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
