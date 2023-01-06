@@ -15,8 +15,6 @@ If your code requires to use any oci services (like object bucket), you need to 
 
 **Submit the workload:**
 
-
-
 .. code-block:: bash
 
   ads opctl run -f train.yaml -b job
@@ -24,13 +22,7 @@ If your code requires to use any oci services (like object bucket), you need to 
 **Note:**: This will automatically push the docker image to the
 OCI `container registry repo <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_ .
 
-Once running, you will see on the terminal an output similar to the below. Note that this yaml
-can be used as input to ``ads opctl distributed-training show-config -f <info.yaml>`` - to both
-save and see the run info use ``tee`` - for example:
-
-.. code-block:: bash
-
-  ads opctl run -f train.yaml | tee info.yaml
+Once running, you will see on the terminal an output similar to the below
 
 .. code-block:: yaml
   :caption: info.yaml
@@ -43,3 +35,10 @@ save and see the run info use ``tee`` - for example:
     - workerJobRunIdName_1: oci.xxxx.<job_run_ocid>
     - workerJobRunIdName_2: oci.xxxx.<job_run_ocid>
     - workerJobRunIdName_3: oci.xxxx.<job_run_ocid>
+
+Note that this yaml can be used as input to ``ads opctl distributed-training show-config -f <info.yaml>``.
+You can use ``tee`` to both save and see the job run info, for example:
+
+.. code-block:: bash
+
+  ads opctl run -f train.yaml | tee info.yaml
