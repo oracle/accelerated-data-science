@@ -219,7 +219,7 @@ Example
     import xgboost as xgb
 
     from ads.catalog.model import ModelCatalog
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
     from ads.model.framework.xgboost_model import XGBoostModel
     from sklearn.compose import ColumnTransformer
     from sklearn.impute import SimpleImputer

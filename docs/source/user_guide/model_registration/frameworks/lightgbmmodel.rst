@@ -38,14 +38,14 @@ The Training API in ``LightGBM`` contains training and cross-validation routines
             trainx,
             trainy,
         )
-    
+
 
 Prepare Model Artifact
 ======================
 
 .. code-block:: python3
 
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
     from ads.model.framework.lightgbm_model import LightGBMModel
 
     artifact_dir = tempfile.mkdtemp()
@@ -117,7 +117,7 @@ Run Prediction against Endpoint
     # Generate prediction by invoking the deployed endpoint
     lightgbm_model.predict(testx)['prediction']
 
-.. parsed-literal:: 
+.. parsed-literal::
 
     [1,0,...,1]
 
@@ -250,7 +250,7 @@ Example
 .. code-block:: python3
 
     from ads.model.framework.lightgbm_model import LightGBMModel
-    from ads.common.model_metadata import UseCaseType
+    from ads.model.model_metadata import UseCaseType
 
     import lightgbm as lgb
 
