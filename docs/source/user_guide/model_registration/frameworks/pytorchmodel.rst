@@ -37,7 +37,7 @@ Serializing model in TorchScript program by setting `use_torch_script` to `True`
 
 .. code-block:: python3
 
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.pytorch_model import PyTorchModel
 
     import tempfile
@@ -59,7 +59,7 @@ Save state_dict
 ---------------
 .. code-block:: python3
 
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.pytorch_model import PyTorchModel
 
     import tempfile
@@ -417,7 +417,7 @@ Example
 
 .. code-block:: python3
 
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.pytorch_model import PyTorchModel
 
     import numpy as np

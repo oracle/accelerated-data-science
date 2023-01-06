@@ -150,7 +150,7 @@ Example
     import tensorflow as tf
 
     from ads.catalog.model import ModelCatalog
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.tensorflow_model import TensorFlowModel
 
     mnist = tf.keras.datasets.mnist

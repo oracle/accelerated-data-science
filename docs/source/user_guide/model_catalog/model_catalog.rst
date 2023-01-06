@@ -21,7 +21,7 @@ provenance, reproduced, and deployed.
     from ads.catalog.model import ModelCatalog
     from ads.common.model import ADSModel
     from ads.common.model_export_util import prepare_generic_model
-    from ads.model.model_metadata import (MetadataCustomCategory,
+    from ads.common.model_metadata import (MetadataCustomCategory,
                                            UseCaseType,
                                            Framework)
     from ads.dataset.factory import DatasetFactory

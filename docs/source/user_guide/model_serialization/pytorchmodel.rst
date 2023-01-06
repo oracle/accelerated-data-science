@@ -159,7 +159,7 @@ Example
     import tempfile
     import torchvision
     from ads.catalog.model import ModelCatalog
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.pytorch_model import PyTorchModel
 
     # Load the PyTorch Model
