@@ -69,7 +69,7 @@ Prepare Model Artifact
 
     import tempfile
     from ads.model.framework.spark_model import SparkPipelineModel
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
 
     artifact_dir=tempfile.mkdtemp()
     spark_model = SparkPipelineModel(estimator=model, artifact_dir=artifact_dir)
@@ -202,7 +202,7 @@ Adapted from an example provided by Apache in the PySpark API Reference Document
     from pyspark.ml.feature import HashingTF, Tokenizer
     from pyspark.sql import SparkSession
     from ads.model.framework.spark_model import SparkPipelineModel
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
 
     spark = SparkSession \
         .builder \

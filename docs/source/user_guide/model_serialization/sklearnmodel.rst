@@ -185,7 +185,7 @@ Examples
     import tempfile
 
     from ads.catalog.model import ModelCatalog
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.sklearn_model import SklearnModel
     from sklearn.pipeline import Pipeline
     from sklearn.compose import ColumnTransformer
