@@ -33,15 +33,15 @@ Once running, you will see on the terminal outputs similar to the below
   jobId: oci.xxxx.<job_ocid>
   mainJobRunId:
     mainJobRunIdName: oci.xxxx.<job_run_ocid>
-  workDir: oci://my-bucket@my-namespace/daskcluster-testing/005
+  workDir: oci://my-bucket@my-namespace/cluster-testing/005
   otherJobRunIds:
     - workerJobRunIdName_1: oci.xxxx.<job_run_ocid>
     - workerJobRunIdName_2: oci.xxxx.<job_run_ocid>
     - workerJobRunIdName_3: oci.xxxx.<job_run_ocid>
 
 This information can be saved as YAML file and used as input to ``ads opctl distributed-training show-config -f <info.yaml>``.
-You can use ``--yaml`` to save the job run info into YAML, for example:
+You can use ``--job-info`` to save the job run info into YAML, for example:
 
 .. code-block:: bash
 
-  ads opctl run -f train.yaml --yaml info.yaml
+  ads opctl run -f train.yaml --job-info info.yaml
