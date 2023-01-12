@@ -36,7 +36,7 @@ Python
                 path="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb",
                 encoding='utf-8'
             )
-            .with_service_conda(tensorflow26_p37_cpu_v2")
+            .with_service_conda("tensorflow28_p38_cpu_v1")
             .with_environment_variable(GREETINGS="Welcome to OCI Data Science")
             .with_output("oci://bucket_name@namespace/path/to/dir")
         )
@@ -86,7 +86,7 @@ You could use the following YAML to create the job:
 	    spec:
           notebookPathURI: /path/to/notebook
 	      conda:
-            slug: tensorflow26_p37_cpu_v1
+            slug: tensorflow28_p38_cpu_v1
             type: service
 
 **NotebookRuntime Schema**
