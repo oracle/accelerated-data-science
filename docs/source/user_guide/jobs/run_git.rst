@@ -1,3 +1,5 @@
+.. _job_run_git:
+
 Run a Git Repo
 **************
 

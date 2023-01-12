@@ -3,15 +3,15 @@ CLI Configuration
 
 **Prerequisite**
 
-* You have completed :doc:`ADS CLI installation <../quickstart>` 
+* You have completed :doc:`ADS CLI installation <../quickstart>`
 
 
 Setup default values for different options while running ``OCI Data Sciecne Jobs`` or ``OCI DataFlow``. By setting defaults, you can avoid inputing compartment ocid, project ocid, etc.
 
-To setup configuration run - 
+To setup configuration run -
 
 .. code-block:: shell
-  
+
   ads opctl configure
 
 This will prompt you to setup default ADS CLI configurations for each OCI profile defined in your OCI config. By default, all the files are generated in the ``~/.ads_ops`` folder.
@@ -20,8 +20,8 @@ This will prompt you to setup default ADS CLI configurations for each OCI profil
 
 ``~/.ads_ops/config.ini`` will contain OCI profile defaults and conda pack related information. For example:
 
-.. code-block:: 
-    
+.. code-block::
+
     [OCI]
     oci_config = ~/.oci/config
     oci_profile = ANOTHERPROF
@@ -30,7 +30,7 @@ This will prompt you to setup default ADS CLI configurations for each OCI profil
     conda_pack_folder = </local/path/for/saving/condapack>
     conda_pack_os_prefix = oci://my-bucket@mynamespace/conda_environments/
 
-``~/.ads_ops/ml_job_config.ini`` will contain defaults for running ``Data Science Job``. Defaults are set for each profile listed in your oci config file. Here is a sample - 
+``~/.ads_ops/ml_job_config.ini`` will contain defaults for running ``Data Science Job``. Defaults are set for each profile listed in your oci config file. Here is a sample -
 
 .. code-block::
 
@@ -53,7 +53,7 @@ This will prompt you to setup default ADS CLI configurations for each OCI profil
     block_storage_size_in_GBs = 50
 
 
-``~/.ads_ops/dataflow_config.ini`` will contain defaults for running ``Data Science Job``. Defaults are set for each profile listed in your oci config file. Here is a sample - 
+``~/.ads_ops/dataflow_config.ini`` will contain defaults for running ``Data Science Job``. Defaults are set for each profile listed in your oci config file. Here is a sample -
 
 .. code-block::
 
@@ -66,3 +66,30 @@ This will prompt you to setup default ADS CLI configurations for each OCI profil
     num_executors = 3
     spark_version = 3.0.2
     archive_bucket = oci://mybucket@mytenancy/dataflow/archive
+
+``~/.ads_ops/ml_pipeline.ini`` will contain defaults for running ``Data Science Pipeline``. Defaults are set for each profile listed in your oci config file. Here is a sample -
+
+.. code-block::
+
+    [DEFAULT]
+    compartment_id = oci.xxxx.<compartment_ocid>
+    project_id = oci.xxxx.<project_ocid>
+
+    [ANOTHERPROF]
+    compartment_id = oci.xxxx.<compartment_ocid>
+    project_id = oci.xxxx.<project_ocid>
+
+
+``~/.ads_ops/local_backend.ini`` will contain defaults for running jobs and pipeline steps locally. While local operations do not involve connections to OCI services, default
+configurations are still set for each profile listed in your oci config file for consistency. Here is a sample -
+
+.. code-block::
+
+    [DEFAULT]
+    max_parallel_containers = 4
+    pipeline_status_poll_interval_seconds = 5
+
+
+    [ANOTHERPROF]
+    max_parallel_containers = 4
+    pipeline_status_poll_interval_seconds = 5

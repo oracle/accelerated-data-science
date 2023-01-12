@@ -85,10 +85,7 @@ Runtime
 
 A job can have different types of *runtime* depending on the source code you want to run:
 
-* ``ScriptRuntime`` allows you to run Python, Bash, and Java scripts from a single source file (``.zip`` or ``.tar.gz``) or code directory, see `Run a Script <run_script.html>`__ and `Run a ZIP file or folder <run_zip.html>`__.
-* ``PythonRuntime`` allows you to run Python code with additional options, including setting a working directory, adding python paths, and copying output files, see `Run a ZIP file or folder <run_zip.html>`__.
-* ``NotebookRuntime`` allows you to run a JupyterLab Python notebook, see `Run a Notebook <run_notebook.html>`__.
-* ``GitPythonRuntime`` allows you to run source code from a Git repository, see `Run from Git <run_git.html>`__.
+.. include:: _template/runtime_types.rst
 
 All of these runtime options allow you to configure a `Data Science Conda Environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm>`__ for running your code. For example, to define a python script as a job runtime with a TensorFlow conda environment you could use:
 
@@ -99,7 +96,7 @@ All of these runtime options allow you to configure a `Data Science Conda Enviro
     runtime = (
         ScriptRuntime()
         .with_source("oci://bucket_name@namespace/path/to/script.py")
-        .with_service_conda("tensorflow28_p38_cpu_v1")
+        .with_service_conda("tensorflow26_p37_cpu_v2")
     )
 
 You can store your source code in a local file path or location supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including OCI Object Storage.
@@ -123,7 +120,7 @@ You can also configure the environment variables, command line arguments, and fr
     runtime = (
         ScriptRuntime()
         .with_source("oci://bucket_name@namespace/path/to/script.py")
-        .with_service_conda("tensorflow28_p38_cpu_v1")
+        .with_service_conda("tensorflow26_p37_cpu_v2")
         .with_environment_variable(ENV="value")
         .with_argument("argument", key="value")
         .with_freeform_tag(tag_name="tag_value")
@@ -249,7 +246,7 @@ Here is an example of a YAML file representing the job defined in the preceding 
         type: script
         spec:
           conda:
-            slug: tensorflow28_p38_cpu_v1
+            slug: tensorflow26_p37_cpu_v2
             type: service
           scriptPathURI: oci://bucket_name@namespace/path/to/script.py
 
