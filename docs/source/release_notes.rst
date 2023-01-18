@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+2.7.3
+-----
+Release date: January 18, 2023
+* Added support for the :ref:`MVS<https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_version_set/index.html>` (Model Version Set) feature.
+* Added --job-info option to ads opctl run CLI to save job run information to a YAML file.
+* Added AuthContext class with support for api key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or api keys configurations from specified locations.
+* Fixed a bug in to_sql(). The string length for the column created in Oracle Database table was counting characters, not bytes.
+* Fixed a bug where any exception that occurred in a notebook cell would print “ADS Exception” even if ADS code was not responsible for the error.
+
 2.7.2
 -----
 Release date: December 20, 2022
