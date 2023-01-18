@@ -8,7 +8,7 @@ Release date: January 18, 2023
 
 * Added support for the `MVS (Model Version Set) <./ads.model_version_set.index>`__ feature.
 * Added --job-info option to ads opctl run CLI to save job run information to a YAML file.
-* Added `AuthContext <./ads.common.auth.OCIAuthContext>`__ class with support for api key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or api keys configurations from specified locations.
+* Added `AuthContext <./ads.common.html#ads.common.auth.OCIAuthContext>`__ class with support for api key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or api keys configurations from specified locations.
 * Fixed a bug in to_sql(). The string length for the column created in Oracle Database table was counting characters, not bytes.
 * Fixed a bug where any exception that occurred in a notebook cell would print “ADS Exception” even if ADS code was not responsible for the error.
 
