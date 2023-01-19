@@ -35,6 +35,13 @@ logger = logging.getLogger(__name__)
 CONDA_PACK_SUFFIX = "#conda"
 
 
+def conda_pack_name_to_dataflow_config(conda_uri):
+    return {
+        "spark.archives": conda_uri + CONDA_PACK_SUFFIX,  # .replace(" ", "%20")
+        "dataflow.auth": "resource_principal",
+    }
+
+
 class DataFlowApp(OCIModelMixin, oci.data_flow.models.Application):
     @classmethod
     def init_client(cls, **kwargs) -> oci.data_flow.data_flow_client.DataFlowClient:
@@ -778,12 +785,7 @@ class DataFlow(Infrastructure):
             else:
                 raise ValueError(f"Conda built type not understood: {conda_type}.")
             runtime_config = runtime.configuration or dict()
-            runtime_config.update(
-                {
-                    "spark.archives": conda_uri.replace(" ", "%20") + CONDA_PACK_SUFFIX,
-                    "dataflow.auth": "resource_principal",
-                }
-            )
+            runtime_config.update(conda_pack_name_to_dataflow_config(conda_uri))
             runtime.with_configuration(runtime_config)
         payload.update(
             {

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.bds.big_data_service import ADSHiveConnection
@@ -33,7 +33,7 @@ class ConnectionFactory:
 
         if not Connection:
             if engine == "mysql":
-                print("Requires mysql-connection-python package to use mysql engine")
+                print("Requires mysql-connector-python package to use mysql engine")
             elif engine == "oracle":
                 print(
                     f"The `oracledb` or `cx_Oracle` module was not found. Please run "
@@ -102,6 +102,7 @@ class DBAccessMixin:
         if_exists: str = "fail",
         batch_size=100000,
         engine="oracle",
+        encoding="utf-8",
     ):
         """To save the dataframe df to database.
 
@@ -120,6 +121,8 @@ class DBAccessMixin:
             Inserting in batches improves insertion performance. Choose this value based on available memore and network bandwidth.
         engine: {'oracle', 'mysql'}, default 'oracle'
             Select the database type - MySQL or Oracle to store the data
+        encoding: str, default is "utf-8"
+            Encoding provided will be used for ecoding all columns, when inserting into table
 
 
         Returns
@@ -146,5 +149,5 @@ class DBAccessMixin:
 
         Connection = ConnectionFactory.get(engine)
         return Connection(**connection_parameters).insert(
-            table_name, self._obj, if_exists, batch_size
+            table_name, self._obj, if_exists, batch_size, encoding
         )

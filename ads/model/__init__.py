@@ -18,3 +18,8 @@ from ads.model.framework.spark_model import SparkPipelineModel
 from ads.model.deployment.model_deployer import ModelDeployer
 from ads.model.deployment.model_deployment import ModelDeployment
 from ads.model.deployment.model_deployment_properties import ModelDeploymentProperties
+from ads.model.model_version_set import ModelVersionSet, experiment
+from ads.model.service.oci_datascience_model_version_set import (
+    ModelVersionSetNotExists,
+    ModelVersionSetNotSaved,
+)

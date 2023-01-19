@@ -1034,7 +1034,7 @@ class ADSDataset(PandasDataset):
                 avro_dtype = "double"
             elif "float" in str(dtype):
                 avro_dtype = "float"
-            elif dtype == np.bool:
+            elif dtype == np.bool_:
                 avro_dtype = "boolean"
             else:
                 avro_dtype = "string"

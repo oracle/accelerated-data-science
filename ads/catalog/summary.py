@@ -68,6 +68,10 @@ class SummaryList(list, metaclass=ABCMeta):
             self.df["compartment_id"] = "..." + self.df["compartment_id"].str[-6:]
             if "project_id" in ordered_columns:
                 self.df["project_id"] = "..." + self.df["project_id"].str[-6:]
+            if "model_version_set_id" in ordered_columns:
+                self.df["model_version_set_id"] = (
+                    "..." + self.df["model_version_set_id"].str[-6:]
+                )
             self.df["time_created"] = pd.to_datetime(
                 self.df["time_created"]
             ).dt.strftime(datetime_format)

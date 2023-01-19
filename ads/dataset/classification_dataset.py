@@ -229,7 +229,7 @@ class BinaryClassificationDataset(ClassificationDataset):
                 df[column_name] = df[column_name].map(arg)
                 return df
 
-            df = df.map_partitions(mapper, target, update_arg)
+            df = mapper(df, target, update_arg)
             sampled_df = mapper(sampled_df, target, update_arg)
         ClassificationDataset.__init__(
             self, df, sampled_df, target, target_type, shape, **kwargs
