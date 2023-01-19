@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import inspect
@@ -65,6 +65,7 @@ from ads.model.deployment import (
 from ads.model.deployment.common.utils import State as ModelDeploymentState
 from ads.model.deployment.common.utils import send_request
 from ads.model.model_properties import ModelProperties
+from ads.model.model_version_set import ModelVersionSet, _extract_model_version_set_id
 from ads.model.runtime.env_info import DEFAULT_CONDA_BUCKET_NAME
 from ads.model.runtime.runtime_info import RuntimeInfo
 
@@ -224,6 +225,8 @@ class GenericModel(MetadataMixin, Introspectable):
         Shortcut for prepare, save and deploy steps.
     reload(...)
         Reloads the model artifact files: `score.py` and the `runtime.yaml`.
+    restart_deployment(...)
+        Restarts the model deployment.
     save(..., **kwargs)
         Saves model artifacts to the model catalog.
     summary_status(...)
@@ -409,6 +412,7 @@ class GenericModel(MetadataMixin, Introspectable):
         initial_types: List[Tuple] = None,
         force_overwrite: bool = False,
         X_sample: any = None,
+        **kwargs,
     ):
         """
         Serialize and save model using ONNX or model specific method.
@@ -1136,7 +1140,7 @@ class GenericModel(MetadataMixin, Introspectable):
             Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
         poll_interval: int
-            Poll interval in seconds (Defaults to 60).
+            Poll interval in seconds (Defaults to 10).
         kwargs:
             auth: (Dict, optional). Defaults to `None`.
                 The default authetication is set using `ads.set_auth` API.
@@ -1298,6 +1302,8 @@ class GenericModel(MetadataMixin, Introspectable):
         bucket_uri: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
+        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
+        version_label: Optional[str] = None,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -1325,6 +1331,10 @@ class GenericModel(MetadataMixin, Introspectable):
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
+            The model version set OCID, or model version set name, or `ModelVersionSet` instance.
+        version_label: (str, optional). Defaults to None.
+            The model version lebel.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1396,6 +1406,10 @@ class GenericModel(MetadataMixin, Introspectable):
                     detail="Conducted Introspect Test", action=""
                 )
 
+        # extract model_version_set_id from model_version_set attribute or environment
+        # variables in case of saving model in context of model version set.
+        model_version_set_id = _extract_model_version_set_id(model_version_set)
+
         self.dsc_model = (
             self.dsc_model.with_compartment_id(self.properties.compartment_id)
             .with_project_id(self.properties.project_id)
@@ -1404,6 +1418,8 @@ class GenericModel(MetadataMixin, Introspectable):
             .with_freeform_tags(**(freeform_tags or {}))
             .with_defined_tags(**(defined_tags or {}))
             .with_artifact(self.artifact_dir)
+            .with_model_version_set_id(model_version_set_id)
+            .with_version_label(version_label)
         ).create(
             bucket_uri=bucket_uri,
             overwrite_existing_artifact=overwrite_existing_artifact,
@@ -1483,7 +1499,7 @@ class GenericModel(MetadataMixin, Introspectable):
             max_wait_time : (int, optional). Defaults to 1200 seconds.
                 Maximum amount of time to wait in seconds.
                 Negative implies infinite wait time.
-            poll_interval : (int, optional). Defaults to 60 seconds.
+            poll_interval : (int, optional). Defaults to 10 seconds.
                 Poll interval in seconds.
             freeform_tags: (Dict[str, str], optional). Defaults to None.
                 Freeform tags of the model deployment.
@@ -1629,6 +1645,8 @@ class GenericModel(MetadataMixin, Introspectable):
         bucket_uri: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
+        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
+        version_label: Optional[str] = None,
         **kwargs: Dict,
     ) -> "ModelDeployment":
         """Shortcut for prepare, save and deploy steps.
@@ -1723,6 +1741,10 @@ class GenericModel(MetadataMixin, Introspectable):
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
+            The Model version set OCID, or name, or `ModelVersionSet` instance.
+        version_label: (str, optional). Defaults to None.
+            The model version lebel.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -1738,7 +1760,7 @@ class GenericModel(MetadataMixin, Introspectable):
             max_wait_time : (int, optional). Defaults to 1200 seconds.
                 Maximum amount of time to wait in seconds.
                 Negative implies infinite wait time.
-            poll_interval : (int, optional). Defaults to 60 seconds.
+            poll_interval : (int, optional). Defaults to 10 seconds.
                 Poll interval in seconds.
             freeform_tags: (Dict[str, str], optional). Defaults to None.
                 Freeform tags of the model deployment.
@@ -1804,6 +1826,8 @@ class GenericModel(MetadataMixin, Introspectable):
             bucket_uri=bucket_uri,
             overwrite_existing_artifact=overwrite_existing_artifact,
             remove_existing_artifact=remove_existing_artifact,
+            model_version_set=model_version_set,
+            version_label=version_label,
             region=kwargs.pop("region", None),
         )
         # Set default deployment_display_name if not specified - randomly generated easy to remember name generated
@@ -2038,6 +2062,49 @@ class GenericModel(MetadataMixin, Introspectable):
             raise ValueError("Use `deploy()` method to start model deployment.")
         self.model_deployment.delete(wait_for_completion=wait_for_completion)
 
+    def restart_deployment(
+        self,
+        max_wait_time: int = DEFAULT_WAIT_TIME,
+        poll_interval: int = DEFAULT_POLL_INTERVAL,
+    ) -> "ModelDeployment":
+        """Restarts the current deployment.
+
+        Parameters
+        ----------
+        max_wait_time : (int, optional). Defaults to 1200 seconds.
+            Maximum amount of time to wait for activate or deactivate in seconds.
+            Total amount of time to wait for restart deployment is twice as the value.
+            Negative implies infinite wait time.
+        poll_interval : (int, optional). Defaults to 10 seconds.
+            Poll interval in seconds.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance.
+        """
+        if not self.model_deployment:
+            raise ValueError("Use `deploy()` method to start model deployment.")
+        logger.info(
+            f"Deactivating model deployment {self.model_deployment.model_deployment_id}."
+        )
+        self.model_deployment.deactivate(
+            max_wait_time=max_wait_time, poll_interval=poll_interval
+        )
+        logger.info(
+            f"Model deployment {self.model_deployment.model_deployment_id} has successfully been deactivated."
+        )
+        logger.info(
+            f"Activating model deployment {self.model_deployment.model_deployment_id}."
+        )
+        self.model_deployment.activate(
+            max_wait_time=max_wait_time, poll_interval=poll_interval
+        )
+        logger.info(
+            f"Model deployment {self.model_deployment.model_deployment_id} has successfully been activated."
+        )
+        return self.model_deployment
+
     @class_or_instance_method
     def delete(
         cls,
@@ -2158,6 +2225,8 @@ class GenericModel(MetadataMixin, Introspectable):
                 Freeform tags for the model.
             defined_tags : (Dict(str, dict(str, object)), optional). Defaults to None.
                 Defined tags for the model.
+            version_label: (str, optional). Defaults to None.
+                The model version lebel.
 
             Additional kwargs arguments.
             Can be any attribute that `oci.data_science.models.Model` accepts.
@@ -2190,6 +2259,9 @@ class GenericModel(MetadataMixin, Introspectable):
             )
             .with_defined_tags(
                 **(kwargs.pop("defined_tags", self.dsc_model.defined_tags or {}) or {})
+            )
+            .with_version_label(
+                kwargs.pop("version_label", self.dsc_model.version_label)
             )
             .update(**kwargs)
         )

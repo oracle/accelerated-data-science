@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import json
 import os
 
 import click
 import yaml
 
+from ads.common.auth import AuthType
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import delete as delete_cmd
@@ -216,8 +216,8 @@ _options = [
     click.option(
         "--auth",
         "-a",
-        help="authentication method",
-        type=click.Choice(["api_key", "resource_principal"]),
+        help="" "entication method",
+        type=click.Choice(AuthType.values()),
         default=None,
     ),
 ]
@@ -330,26 +330,19 @@ def add_options(options):
     is_flag=True,
     help="Image is not pushed to OCIR",
 )
+@click.option("--tag", "-t", help="tag of image", required=False, default=None)
 @click.option(
-    "--tag",
-      "-t",
-      help="tag of image",
-      required=False,
-      default=None
-)
-@click.option(
-    "--registry",
-      "-reg",
-      help="registry to push to",
-      required=False,
-      default=None
+    "--registry", "-reg", help="registry to push to", required=False, default=None
 )
 @click.option(
     "--dockerfile",
-      "-df",
-      help="relative path to Dockerfile",
-      required=False,
-      default=None
+    "-df",
+    help="relative path to Dockerfile",
+    required=False,
+    default=None,
+)
+@click.option(
+    "--job-info", "-j", help="save job run OCIDs to YAML", required=False, default=None
 )
 def run(file, **kwargs):
     """

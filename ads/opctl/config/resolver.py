@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
@@ -13,7 +13,7 @@ from typing import Tuple
 import yaml
 import glob
 
-from ads.common.auth import get_signer
+from ads.common.auth import create_signer
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import NotSupportedError, convert_notebook
@@ -239,7 +239,8 @@ class ConfigResolver(ConfigProcessor):
             )
         elif self._is_ads_operator():
             image = self.ads_operators[exec_config["operator_name"]].get("image")
-            oci_auth = get_signer(
+            oci_auth = create_signer(
+                self.config["execution"].get("auth"),
                 self.config["execution"].get("oci_config"),
                 self.config["execution"].get("oci_profile"),
             )
