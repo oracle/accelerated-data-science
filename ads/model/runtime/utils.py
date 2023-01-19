@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -114,10 +114,10 @@ def get_service_packs(namespace: str, bucketname: str) -> Tuple[Dict, Dict]:
         Service pack path mapping(service pack path -> (slug, python version))
         and the service pack slug mapping(service pack slug -> (pack path, python version)).
     """
+    service_pack_path_mapping = {}
+    service_pack_slug_mapping = {}
     try:
         response = requests.request("GET", PAR_LINK)
-        service_pack_path_mapping = {}
-        service_pack_slug_mapping = {}
         if response.ok:
             service_pack_list = response.json().get("service_packs")
             for service_pack in service_pack_list:

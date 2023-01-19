@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import ads
@@ -35,12 +35,17 @@ class MySQLRDBMSConnection(connection.MySQLConnection):
         super().__init__(*args, **kwargs)
 
     def insert(
-        self, table_name: str, df: pd.DataFrame, if_exists: str, batch_size=100000
+        self,
+        table_name: str,
+        df: pd.DataFrame,
+        if_exists: str,
+        batch_size=100000,
+        encoding="utf-8",
     ):
 
         if if_exists not in ["fail", "replace", "append"]:
             raise ValueError(
-                "Unknown option `if_exists`={if_exists}. Valid options are 'fail', 'replace', 'append'"
+                f"Unknown option `if_exists`={if_exists}. Valid options are 'fail', 'replace', 'append'"
             )
         start_time = time()
 
@@ -82,18 +87,13 @@ class MySQLRDBMSConnection(connection.MySQLConnection):
                 "float64": "FLOAT",
                 "datetime64": "DATETIME",
             }
-            # add in any string types as Oracle's VARCHAR type setting length to accomodate longest
-            def get_max_str_len(df, column):
-                max_str_len = df[column].dropna().astype(str).str.len().max()
-                if max_str_len >= 4000:
-                    raise Exception(
-                        f'Error: Column "{column}" is too long to store in a VARCHAR2 column'
-                    )
-                return max_str_len
+            # add in any string types as Oracle's VARCHAR type setting length to accommodate longest
+            def get_max_str_len(df, column, encoding):
+                return df[column].dropna().str.encode(encoding).map(len).max()
 
             longest_string_column = max(
                 (
-                    get_max_str_len(df_orcl, c)
+                    get_max_str_len(df_orcl, c, encoding)
                     for c in df_orcl.select_dtypes(
                         include=["object", "category"]
                     ).columns
@@ -104,7 +104,7 @@ class MySQLRDBMSConnection(connection.MySQLConnection):
             logger.debug(f"Max string column value: {longest_string_column}")
 
             datatypes = {
-                c: f"VARCHAR({get_max_str_len(df_orcl, c)})"
+                c: f"VARCHAR({get_max_str_len(df_orcl, c, encoding)})"
                 for c in df_orcl.select_dtypes(include=["object", "category"]).columns
             }
 
@@ -135,7 +135,12 @@ class MySQLRDBMSConnection(connection.MySQLConnection):
                     + ")"
                 )
                 logger.info(sql)
-                cursor.execute(sql)
+                try:
+                    cursor.execute(sql)
+                except Exception as e:
+                    raise Exception(
+                        f"'{e if e.args else 'Unexpected error encountered'}' with query: '{sql}'"
+                    ) from e
 
             # insert
             bind_columns = ", ".join([f"{col}" for col in df_orcl.columns])
@@ -144,7 +149,7 @@ class MySQLRDBMSConnection(connection.MySQLConnection):
 
             logger.info(sql)
 
-            # prevent buffer reallocations by locking in the longest string value
+            # prevent buffer reallocation by locking in the longest string value
             # cursor.setinputsizes(None, longest_string_column)
 
             # replace NaN with None before turning into database records, important - don't

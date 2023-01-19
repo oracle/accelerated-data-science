@@ -1,10 +1,8 @@
 .. _model version set:
 
-########################
-Model Version Set |beta|
-########################
-
-.. |beta| image:: ../../_static/badge_beta.svg
+#################
+Model Version Set
+#################
 
 
 .. toctree::
