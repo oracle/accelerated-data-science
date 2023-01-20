@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -10,7 +10,7 @@ from xml.dom import minidom
 from xml.etree.ElementTree import Element
 from xml.etree import ElementTree as et
 
-from ads.common.auth import get_signer
+from ads.common.auth import AuthType, create_signer
 from ads.opctl.config.utils import read_from_ini
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -67,7 +67,9 @@ def generate_core_site_properties(
 
     region = os.getenv("NB_REGION", None)
     if oci_config and oci_profile:
-        region = region or get_oci_region(get_signer(oci_config, oci_profile))
+        region = region or get_oci_region(
+            create_signer(AuthType.API_KEY, oci_config, oci_profile)
+        )
 
     if authentication == "api_key":
         if not oci_config or not oci_profile:

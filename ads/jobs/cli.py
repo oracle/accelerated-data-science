@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import click
 
-from ads.common.auth import OCIAuthContext
+import ads
+from ads.common.auth import AuthType, AuthContext
 from ads.jobs import Job, DataFlowRun, DataScienceJobRun
 from ads.opctl.utils import suppress_traceback
 
@@ -25,7 +26,7 @@ def commands():
     "--auth",
     "-a",
     help="authentication method",
-    type=click.Choice(["api_key", "resource_principal"]),
+    type=click.Choice(AuthType.values()),
     default="api_key",
 )
 @click.option(
@@ -34,9 +35,8 @@ def commands():
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def run(file, auth, oci_profile, debug):
     def _run(file, auth, oci_profile):
-        if auth == "resource_principal":
-            oci_profile = None
-        with OCIAuthContext(profile=oci_profile):
+        with AuthContext():
+            ads.set_auth(auth=auth, profile=oci_profile)
             job = Job.from_yaml(uri=file)
             job.create()
             print(job.id)
@@ -53,7 +53,7 @@ def run(file, auth, oci_profile, debug):
     "--auth",
     "-a",
     help="authentication method",
-    type=click.Choice(["api_key", "resource_principal"]),
+    type=click.Choice(AuthType.values()),
     default="api_key",
 )
 @click.option(
@@ -62,9 +62,8 @@ def run(file, auth, oci_profile, debug):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def watch(ocid, auth, oci_profile, debug):
     def _watch(ocid, auth, oci_profile):
-        if auth == "resource_principal":
-            oci_profile = None
-        with OCIAuthContext(profile=oci_profile):
+        with AuthContext():
+            ads.set_auth(auth=auth, profile=oci_profile)
             if "datasciencejobrun" in ocid:
                 run = DataScienceJobRun.from_ocid(ocid)
             elif "dataflowrun" in ocid:
@@ -83,7 +82,7 @@ def watch(ocid, auth, oci_profile, debug):
     "--auth",
     "-a",
     help="authentication method",
-    type=click.Choice(["api_key", "resource_principal"]),
+    type=click.Choice(AuthType.values()),
     default="api_key",
 )
 @click.option(
@@ -92,9 +91,8 @@ def watch(ocid, auth, oci_profile, debug):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def delete(ocid, auth, oci_profile, debug):
     def _delete(ocid, auth, oci_profile):
-        if auth == "resource_principal":
-            oci_profile = None
-        with OCIAuthContext(profile=oci_profile):
+        with AuthContext():
+            ads.set_auth(auth=auth, profile=oci_profile)
             if "datasciencejobrun" in ocid:
                 run = DataScienceJobRun.from_ocid(ocid)
             elif "dataflowrun" in ocid:

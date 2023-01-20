@@ -828,9 +828,6 @@ class CustomFormatReaders:
             },
             **kwargs,
         )
-        df["time"] = df["time"].map_partitions(
-            pd.to_datetime, utc=True, meta="datetime64[ns]"
-        )
         return df
 
     @staticmethod
