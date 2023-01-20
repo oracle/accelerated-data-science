@@ -41,7 +41,7 @@ Prepare Model Artifact
 
 .. code-block:: python3
 
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.tensorflow_model import TensorFlowModel
     import tempfile
 
@@ -228,7 +228,7 @@ Example
 
 .. code-block:: python3
 
-    from ads.model.model_metadata import UseCaseType
+    from ads.common.model_metadata import UseCaseType
     from ads.model.framework.tensorflow_model import TensorFlowModel
 
     import tensorflow as tf
