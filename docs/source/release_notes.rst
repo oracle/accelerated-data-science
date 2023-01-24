@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+
+2.8.0
+-----
+Release date: January 25, 2023
+
+* Added support for the :doc:`machine learning pipelines <./user_guide/pipeline/index>` feature.
+* Fixed a bug in ``fetch_training_code_details()``. When git commit is empty string, set it as None to avoid service error.
+* Fixed a bug in ``fetch_training_code_details()``. Use the folder of ``training_script_path`` as the artifact directory, instead of ``.``.
+
 2.7.3
 -----
 Release date: January 18, 2023 

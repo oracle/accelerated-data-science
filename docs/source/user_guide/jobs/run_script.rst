@@ -1,3 +1,5 @@
+.. _job_run_script:
+
 Run a Script
 ************
 
@@ -244,32 +246,33 @@ You could create the preceding example job with the following YAML file:
 
 .. code-block:: yaml
 
-    kind: job
-    spec:
-      infrastructure:
-        kind: infrastructure
-        type: dataScienceJob
-        spec:
-          logGroupId: <log_group_ocid>
-          logId: <log_ocid>
-          compartmentId: <compartment_ocid>
-          projectId: <project_ocid>
-          subnetId: <subnet_ocid>
-          shapeName: VM.Standard.E3.Flex
-          shapeConfigDetails:
-            memoryInGBs: 16
-            ocpus: 1
-          blockStorageSize: 50
-      runtime:
-        kind: runtime
-        type: python
-        spec:
-          env:
-          - name: KEY1
-            value: <first_value>
-          - name: KEY2
-            value: <second_value>
-          scriptPathURI: job_script_env.py
+	kind: job
+	spec:
+	  infrastructure:
+	    kind: infrastructure
+      type: dataScienceJob
+	    spec:
+        logGroupId: <log_group_ocid>
+        logId: <log_ocid>
+        compartmentId: <compartment_ocid>
+        projectId: <project_ocid>
+        subnetId: <subnet_ocid>
+        shapeName: VM.Standard.E3.Flex
+        shapeConfigDetails:
+          memoryInGBs: 16
+          ocpus: 1
+        blockStorageSize: 50
+	  runtime:
+	    kind: runtime
+      type: python
+	    spec:
+	      env:
+	      - name: KEY1
+	        value: <first_value>
+	      - name: KEY2
+		      value: <second_value>
+	      scriptPathURI: job_script_env.py
+
 
 
 **ScriptRuntime YAML Schema**

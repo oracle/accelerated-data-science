@@ -1,3 +1,5 @@
+.. _job_run_a_notebook:
+
 Run a Notebook
 **************
 
