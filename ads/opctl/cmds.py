@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import configparser
-import click
-
 import os
+import configparser
 from typing import Dict, List
 
-from ads.common.auth import OCIAuthContext
+import click
+import fsspec
+import yaml
+
+import ads
+from ads.common.auth import AuthType, AuthContext
 from ads.common.oci_datascience import DSCNotebookSession
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.local import LocalBackend, LocalBackendDistributed
@@ -21,7 +24,6 @@ from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.config.utils import read_from_ini
 from ads.opctl.config.validator import ConfigValidator
 from ads.opctl.config.yaml_parsers import YamlSpecParser
-import fsspec
 
 from ads.opctl.distributed.cmds import (
     update_ini,
@@ -44,7 +46,6 @@ from ads.opctl.utils import (
     is_in_notebook_session,
     get_service_pack_prefix,
 )
-import yaml
 
 
 class _BackendFactory:
@@ -65,6 +66,27 @@ class _BackendFactory:
     @property
     def backend(self):
         return self.BACKENDS_MAP[self._backend](self.config)
+
+
+def _save_yaml(yaml_content, **kwargs):
+    """Saves job run info YAML to a local file.
+
+    Parameters
+    ----------
+    yaml_content : str
+        YAML content as string.
+    """
+    if kwargs["job_info"]:
+        yaml_path = os.path.abspath(os.path.expanduser(kwargs["job_info"]))
+        if os.path.isfile(yaml_path):
+            overwrite = input(
+                f"File {yaml_path} already exists. Overwrite the file? [yN]: "
+            )
+            if overwrite not in ["y", "Y"]:
+                return
+        with open(yaml_path, "w", encoding="utf-8") as f:
+            f.write(yaml_content)
+        print(f"Job run info saved to {yaml_path}")
 
 
 def run(config: Dict, **kwargs) -> Dict:
@@ -148,11 +170,12 @@ def run(config: Dict, **kwargs) -> Dict:
                         {wj.name: wj.id} for wj in cluster_run_info[2]
                     ]
                 yamlContent = yaml.dump(cluster_run)
-                print(yamlContent)
-                print(f"# \u2b50 To stream the logs of the main job run:")
-                print(
-                    f"# \u0024 ads opctl watch {list(cluster_run['mainJobRunId'].values())[0]}"
+                yamlContent += (
+                    "# \u2b50 To stream the logs of the main job run:\n"
+                    + f"# \u0024 ads opctl watch {list(cluster_run['mainJobRunId'].values())[0]}"
                 )
+                print(yamlContent)
+                _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     else:
         if p.config["execution"].get("job_id", None):
@@ -502,7 +525,8 @@ def _set_service_configurations(
 
     if rp:
         if "RESOURCE_PRINCIPAL" not in infra_parser:
-            with OCIAuthContext():
+            with AuthContext():
+                ads.set_auth(auth=AuthType.RESOURCE_PRINCIPAL)
                 notebook_session = DSCNotebookSession.from_ocid(
                     os.environ["NB_SESSION_OCID"]
                 )

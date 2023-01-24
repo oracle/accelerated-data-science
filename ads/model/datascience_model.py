@@ -79,6 +79,10 @@ class DataScienceModel(Builder):
         path to zip archive.
     status: Union[str, None]
         Model status.
+    model_version_set_id: str
+        Model version set ID
+    version_label: str
+        Model version label
 
     Methods
     -------
@@ -126,6 +130,11 @@ class DataScienceModel(Builder):
         Sets model provenance metadata.
     with_artifact(self, uri: str)
         Sets the artifact location. Can be a local.
+    with_model_version_set_id(self, model_version_set_id: str):
+        Sets the model version set ID.
+    with_version_label(self, version_label: str):
+        Sets the model version label.
+
 
     Examples
     --------
@@ -159,6 +168,8 @@ class DataScienceModel(Builder):
     CONST_DEFINED_METADATA = "definedMetadataList"
     CONST_PROVENANCE_METADATA = "provenanceMetadata"
     CONST_ARTIFACT = "artifact"
+    CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
+    CONST_MODEL_VERSION_LABEL = "versionLabel"
 
     attribute_map = {
         CONST_ID: "id",
@@ -174,6 +185,8 @@ class DataScienceModel(Builder):
         CONST_DEFINED_METADATA: "defined_metadata_list",
         CONST_PROVENANCE_METADATA: "provenance_metadata",
         CONST_ARTIFACT: "artifact",
+        CONST_MODEL_VERSION_SET_ID: "model_version_set_id",
+        CONST_MODEL_VERSION_LABEL: "version_label",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -491,6 +504,34 @@ class DataScienceModel(Builder):
         >>> .with_artifact(uri="./model1.zip")
         """
         return self.set_spec(self.CONST_ARTIFACT, uri)
+
+    @property
+    def model_version_set_id(self) -> str:
+        return self.get_spec(self.CONST_MODEL_VERSION_SET_ID)
+
+    def with_model_version_set_id(self, model_version_set_id: str):
+        """Sets the model version set ID.
+
+        Parameters
+        ----------
+        urmodel_version_set_idi: str
+            The Model version set OCID.
+        """
+        return self.set_spec(self.CONST_MODEL_VERSION_SET_ID, model_version_set_id)
+
+    @property
+    def version_label(self) -> str:
+        return self.get_spec(self.CONST_MODEL_VERSION_LABEL)
+
+    def with_version_label(self, version_label: str):
+        """Sets the model version label.
+
+        Parameters
+        ----------
+        version_label: str
+            The model version label.
+        """
+        return self.set_spec(self.CONST_MODEL_VERSION_LABEL, version_label)
 
     def create(self, **kwargs) -> "DataScienceModel":
         """Creates datascience model.

@@ -81,6 +81,7 @@ from ads.config import (
 from ads.common.decorator.deprecate import deprecated
 from ads.feature_engineering.schema import DataSizeTooWide, Schema, SchemaSizeTooLarge
 from ads.model.extractor.model_info_extractor_factory import ModelInfoExtractorFactory
+from ads.model.model_version_set import ModelVersionSet
 from ads.model.common.utils import fetch_manifest_from_conda_location
 from git import InvalidGitRepositoryError, Repo
 
@@ -714,6 +715,8 @@ class ModelArtifact(Introspectable):
         defined_tags=None,
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
+        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
+        version_label: Optional[str] = None,
     ):
         """
         Saves the model artifact in the model catalog.
@@ -757,6 +760,10 @@ class ModelArtifact(Introspectable):
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Whether artifacts uploaded to object storage bucket need to be removed or not.
+        model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
+            The Model version set OCID, or name, or `ModelVersionSet` instance.
+        version_label: (str, optional). Defaults to None.
+            The model version label.
 
         Examples
         ________
@@ -894,6 +901,8 @@ class ModelArtifact(Introspectable):
                 defined_tags=defined_tags,
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
+                model_version_set=model_version_set,
+                version_label=version_label,
             )
         except oci.exceptions.RequestException as e:
             if "The write operation timed out" in str(e):

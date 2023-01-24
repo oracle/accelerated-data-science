@@ -11,3 +11,4 @@
     frameworks/xgboostmodel
     frameworks/automlmodel
     frameworks/genericmodel
+    

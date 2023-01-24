@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
@@ -14,7 +14,7 @@ import inflection
 import yaml
 import glob
 
-from ads.common.auth import get_signer
+from ads.common.auth import create_signer
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import NotSupportedError, convert_notebook
@@ -31,15 +31,13 @@ from ads.opctl.utils import (
 
 
 YAML_STRUCTURES = {
-    "v0":
-        {
-            "infrastrucutre" : ["infrastructure"],
-            "image": ["execution", "image"],
-        },
-    "v1":
-        {
-            "infrastrucutre": ["spec", "Infrastructure", "spec"],
-        },
+    "v0": {
+        "infrastructure": ["infrastructure"],
+        "image": ["execution", "image"],
+    },
+    "v1": {
+        "infrastructure": ["spec", "Infrastructure", "spec"],
+    },
 }
 
 
