@@ -18,3 +18,4 @@ Oracle Cloud Infrastructure (OCI) Data Science jobs enable you to define and run
    run_zip
    ../cli/opctl/_template/jobs
    ../cli/opctl/_template/monitoring
+   ../cli/opctl/localdev/local_jobs
