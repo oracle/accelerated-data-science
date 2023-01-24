@@ -5,7 +5,7 @@ Pipeline
 ########
 
 
-.. versionadded:: 2.7.0
+.. versionadded:: 2.8.0
 
 .. toctree::
    :maxdepth: 1
