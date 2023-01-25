@@ -1,0 +1,71 @@
+{
+  "kind": {
+    "allowed": [
+      "pipeline"
+    ],
+    "required": true,
+    "type": "string"
+  },
+  "spec": {
+    "required": true,
+    "schema": {
+      "commandlineArguments": {
+        "required": false,
+        "type": "string"
+      },
+      "compartmentId": {
+        "required": true,
+        "type": "string"
+      },
+      "dag": {
+        "required": true,
+        "type": "list"
+      },
+      "definedTags": {
+        "required": false,
+        "type": "dict"
+      },
+      "description": {
+        "required": false,
+        "type": "string"
+      },
+      "displayName": {
+        "required": false,
+        "type": "string"
+      },
+      "enableServiceLog": {
+        "required": false,
+        "type": "boolean"
+      },
+      "environmentVariables": {
+        "required": false,
+        "type": "dict"
+      },
+      "freeformTags": {
+        "required": false,
+        "type": "dict"
+      },
+      "logGroupId": {
+        "required": false,
+        "type": "string"
+      },
+      "logId": {
+        "required": false,
+        "type": "string"
+      },
+      "maximumRuntimeInMinutes": {
+        "required": false,
+        "type": "integer"
+      },
+      "projectId": {
+        "required": true,
+        "type": "string"
+      },
+      "stepDetails": {
+        "required": true,
+        "type": "list"
+      }
+    },
+    "type": "dict"
+  }
+}

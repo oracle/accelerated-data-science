@@ -2,11 +2,20 @@
 Release Notes
 =============
 
+
+2.8.0
+-----
+Release date: January 25, 2023
+
+* Added support for the :doc:`machine learning pipelines <./user_guide/pipeline/index>` feature.
+* Fixed a bug in ``fetch_training_code_details()``. When git commit is empty string, set it as None to avoid service error.
+* Fixed a bug in ``fetch_training_code_details()``. Use the folder of ``training_script_path`` as the artifact directory, instead of ``.``.
+
 2.7.3
 -----
 Release date: January 18, 2023 
 
-* Added support for the :doc:`model version set <./user_guide/model_version_set/index>` feature.
+* Added support for the :doc:`model version set <./user_guide/model_registration/model_version_set>` feature.
 * Added ``--job-info`` option to ``ads opctl run`` CLI to save job run information to a YAML file.
 * Added the `AuthContext <./ads.common.html#ads.common.auth.OCIAuthContext>`__ class. It supports API key configuration, resource principal, and instance principal authentication. In addition, predefined signers, callable signers, or API keys configurations from specified locations.
 * Added `restart_deployment() <./ads.model.html#ads.model.generic_model.GenericModel.restart_deployment>`__ method to the :doc:`framework-specific <./user_guide/model_registration/framework_specific_instruction>` classes. Update model deployment associated with the model.

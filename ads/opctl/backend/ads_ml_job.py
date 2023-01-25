@@ -60,16 +60,29 @@ class MLJobBackend(Backend):
         self.profile = config["execution"].get("oci_profile", None)
         self.client = OCIClientFactory(**self.oci_auth).data_science
 
+    def apply(self) -> None:
+        """
+        Create Job and Job Run from YAML.
+        """
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
+            job = Job.from_dict(self.config)
+            job.create()
+            job_run = job.run()
+            print("JOB OCID:", job.id)
+            print("JOB RUN OCID:", job_run.id)
+
     def run(self) -> None:
+        """
+        Create Job and Job Run from OCID or cli parameters.
+        """
         # TODO Check that this still runs smoothly for distributed
         with AuthContext():
             ads.set_auth(auth=self.auth_type, profile=self.profile)
-            if self.config["execution"].get("job_id", None):
-                job_id = self.config["execution"]["job_id"]
+            if self.config["execution"].get("ocid", None):
+                job_id = self.config["execution"]["ocid"]
                 run_id = (
-                    Job.from_datascience_job(self.config["execution"]["job_id"])
-                    .run()
-                    .id
+                    Job.from_datascience_job(self.config["execution"]["ocid"]).run().id
                 )
             else:
                 payload = self._create_payload()  # create job with infrastructure
@@ -121,24 +134,36 @@ class MLJobBackend(Backend):
         return operator_folder
 
     def delete(self):
-        if self.config["execution"].get("job_id"):
-            job_id = self.config["execution"]["job_id"]
+        """
+        Delete Job or Job Run from OCID.
+        """
+        if self.config["execution"].get("id"):
+            job_id = self.config["execution"]["id"]
             with AuthContext():
                 ads.set_auth(auth=self.auth_type, profile=self.profile)
                 Job.from_datascience_job(job_id).delete()
+                print(f"Job {job_id} has been deleted.")
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
             with AuthContext():
                 ads.set_auth(auth=self.auth_type, profile=self.profile)
                 DataScienceJobRun.from_ocid(run_id).delete()
+                print(f"Job run {run_id} has been deleted.")
 
     def cancel(self):
+        """
+        Cancel Job Run from OCID.
+        """
         run_id = self.config["execution"]["run_id"]
         with AuthContext():
             ads.set_auth(auth=self.auth_type, profile=self.profile)
             DataScienceJobRun.from_ocid(run_id).cancel()
+            print(f"Job run {run_id} has been cancelled.")
 
     def watch(self):
+        """
+        Watch Job Run from OCID.
+        """
         run_id = self.config["execution"]["run_id"]
 
         with AuthContext():

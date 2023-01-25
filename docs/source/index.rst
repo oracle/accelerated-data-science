@@ -56,8 +56,8 @@ Oracle Accelerated Data Science SDK (ADS)
    user_guide/big_data_service/index
    user_guide/jobs/index
    user_guide/logs/logs
+   user_guide/pipeline/index
    user_guide/secrets/index
-   user_guide/model_version_set/index
 
 .. toctree::
    :hidden:

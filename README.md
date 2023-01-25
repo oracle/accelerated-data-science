@@ -28,7 +28,7 @@ You have various options when installing ADS.
 
 ### Installing extras libraries
 
-The `all-optional` module will install all optional dependencies.
+The `all-optional` module will install all optional dependencies. Note the single quotes around installation of extra libraries.
 
 ```bash
   $ python3 -m pip install 'oracle-ads[all-optional]'
