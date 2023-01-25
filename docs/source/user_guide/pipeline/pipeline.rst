@@ -196,10 +196,10 @@ You can call the ``run()`` method of the ``Pipeline`` instance to launch a new P
 It returns a ``PipelineRun`` instance.
 
 
-The ``.run()`` method gives you the option to override the configurations in a pipeline run. It takes the following optional parameters:
+The ``run()`` method gives you the option to override the configurations in a pipeline run. It takes the following optional parameters:
 
 - ``display_name: str, optional``. Defaults to ``None``. The display name of the run.
-- ``project_id: str, optional``. Defaults to ``None``. The project id to override the one defined previously. 
+- ``project_id: str, optional``. Defaults to ``None``. The project id to override the one defined previously.
 - ``compartment_id: str, optional``. Defaults to ``None``. The compartment id to override the one defined previously. 
 - ``configuration_override_details: dict, optional``. Defaults to ``None``. The configuration details dictionary to override the one defined previously. The ``configuration_override_details`` contains the following keys:
   ``type``: str, only ``DEFAULT`` is allowed; 
@@ -233,9 +233,9 @@ Use the ``from_ocid()`` method from the ``Pipeline`` class to load an existing p
 Visualize
 =========
 
-Use the ``.show()`` method on the ``Pipeline`` instance to visualize the pipeline in a graph.
+Use the ``show()`` method on the ``Pipeline`` instance to visualize the pipeline in a graph.
 
-The ``.show()`` method takes the following optional parameter:
+The ``show()`` method takes the following optional parameter:
 
 - ``rankdir: (str, optional)``. Defaults to ``TB``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
 
@@ -252,7 +252,7 @@ Below is an example of the output.
 Delete
 ======
 
-Use the ``.delete()`` method on the ``Pipeline`` instance to delete a pipeline. It takes the following optional parameters:
+Use the ``delete()`` method on the ``Pipeline`` instance to delete a pipeline. It takes the following optional parameters:
 
 - ``delete_related_pipeline_runs: (bool, optional)``. Specify whether to delete related PipelineRuns or not. Defaults to ``True``.
 - ``delete_related_job_runs: (bool, optional)``. Specify whether to delete related JobRuns or not. Defaults to ``True``.
