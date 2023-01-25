@@ -7,9 +7,19 @@
 from abc import abstractmethod
 from typing import Dict
 
+from ads.common.auth import get_signer
+
 
 class Backend:
     """Interface for backend"""
+
+    def __init__(self, config: Dict) -> None:
+        self.config = config
+        self.oci_auth = get_signer(
+            config["execution"].get("oci_config", None),
+            config["execution"].get("oci_profile", None),
+        )
+        self.profile = config["execution"].get("oci_profile", None)
 
     @abstractmethod
     def run(self) -> Dict:
@@ -20,7 +30,6 @@ class Backend:
         -------
         None
         """
-        pass  # pragma: no cover
 
     def delete(self) -> None:
         """
@@ -28,9 +37,8 @@ class Backend:
 
         Returns
         -------
-
+        None
         """
-        pass  # pragma: no cover
 
     def watch(self) -> None:
         """
@@ -40,7 +48,6 @@ class Backend:
         -------
         None
         """
-        pass  # pragma: no cover
 
     def cancel(self) -> None:
         """
@@ -50,10 +57,17 @@ class Backend:
         -------
         None
         """
-        pass  # pragma: no cover
+
+    def apply(self) -> None:
+        """
+        Initiate Data Science service from YAML.
+
+        Returns
+        -------
+        None
+        """
 
     def run_diagnostics(self):
         """
         Implement Diagnostics check appropriate for the backend
         """
-        pass

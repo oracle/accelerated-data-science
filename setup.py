@@ -23,7 +23,7 @@ install_requires = [
     "gitpython>=3.1.2",
     "matplotlib>=3.1.3",
     "numpy>=1.19.2",
-    "oci>=2.82.0",
+    "oci>=2.90.3",
     "ocifs>=1.1.3",
     "pandas>1.2.1,<1.6",
     "python_jsonschema_objects>=0.3.13",
@@ -97,7 +97,7 @@ extras_require["tensorflow"] = extras_require["viz"] + [
 extras_require["geo"] = extras_require["viz"] + ["geopandas"]
 extras_require["onnx"] = extras_require["viz"] + [
     "protobuf<=3.20",
-    "onnx~=1.10.2",
+    "onnx>=1.12.0",
     "onnxruntime>=1.10.0",
     "onnxmltools>=1.10.0",
     "skl2onnx>=1.10.4",

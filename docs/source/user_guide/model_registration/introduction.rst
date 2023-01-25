@@ -51,6 +51,7 @@ Register
   model_schema
   model_metadata
   model_file_customization
+  model_version_set
 
 Deploying model
 ---------------

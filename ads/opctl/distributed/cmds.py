@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -12,7 +12,8 @@ import json
 import re
 import docker
 from configparser import ConfigParser
-from ads.common.auth import get_signer, OCIAuthContext
+
+from ads.common.auth import create_signer, AuthType, AuthContext
 from urllib.parse import urlparse
 from ads.jobs import Job, DataScienceJobRun
 from ads.jobs.builders.runtimes.artifact import Artifact
@@ -74,10 +75,10 @@ def cancel_distributed_run(job_id, cluster_file_name, **kwargs):
             content = yaml.load(cf, yaml.SafeLoader)
             job_id = content["jobId"]
 
-    with OCIAuthContext(profile=kwargs.get("oci_profile", "DEFAULT")):
+    with AuthContext():
         import ads
 
-        ads.set_auth("api_key")
+        ads.set_auth(auth="api_key", profile=kwargs.get("oci_profile", "DEFAULT"))
 
         job = Job.from_datascience_job(job_id)
         runs = job.run_list()
@@ -103,7 +104,8 @@ def show_config_info(job_id, work_dir, cluster_file_name, worker_info, **kwargs)
     ).scheme
 
     oci_auth = (
-        get_signer(
+        create_signer(
+            AuthType.API_KEY,
             kwargs.get("oci_config") or os.path.expanduser("~/.oci/config"),
             kwargs.get("oci_profile") or "DEFAULT",
         )
@@ -625,7 +627,7 @@ def local_run(config, ini):
     else:
         raise RuntimeError(f"Framework not supported")
     try:
-        command += config["spec"]["runtime"]["spec"]["args"]
+        command += [str(arg) for arg in config["spec"]["runtime"]["spec"]["args"]]
     except KeyError:
         pass
     print("Running: ", " ".join(command))
@@ -708,15 +710,15 @@ def update_config_image(config):
 
     """
     ini = ConfigParser(allow_no_value=True)
-    img_name = (
-        config.get("spec", {}).get("cluster", {}).get("spec", {}).get("image")
-    )
+    img_name = config.get("spec", {}).get("cluster", {}).get("spec", {}).get("image")
     if img_name.startswith("@"):
         if os.path.isfile(ini_file):
             ini.read(ini_file)
             return update_image(config, ini)
         else:
-            raise ValueError("Invalid image name: " + img_name + " and also not able to locate config.ini file. Please"
-                                                                 " update image name in Job config")
+            raise ValueError(
+                f"Invalid image name: {img_name} and also not able to locate config.ini file. "
+                f"Please update image name in Job config."
+            )
     else:
         return config

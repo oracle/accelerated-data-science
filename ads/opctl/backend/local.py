@@ -4,9 +4,12 @@
 # Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import copy
 import json
 import os
 import tempfile
+from concurrent.futures import Future, ThreadPoolExecutor
+from time import sleep
 from typing import List, Dict
 
 from ads.opctl import logger
@@ -32,6 +35,8 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
+from oci.data_science.models import PipelineStepRun
 
 
 class CondaPackNotFound(Exception):
@@ -71,12 +76,17 @@ class LocalBackend(Backend):
                     ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
                 }
             if self.config["execution"].get("conda_slug", None):
-                self._run_with_conda_pack(bind_volumes)
+                exit_code = self._run_with_conda_pack(bind_volumes)
             elif self.config["execution"].get("image"):
-                self._run_with_image(bind_volumes)
+                exit_code = self._run_with_image(bind_volumes)
             else:
                 raise ValueError("Either conda pack info or image should be specified.")
-            return {}
+
+            if exit_code != 0:
+                raise RuntimeError(
+                    f"Job did not complete successfully. Exit code: {exit_code}. "
+                    f"Run with the --debug argument to view container logs."
+                )
 
     @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
     def init_vscode_container(self) -> None:
@@ -168,7 +178,7 @@ class LocalBackend(Backend):
                 f.write(json.dumps(dev_container, indent=2))
             print(f"File {os.path.abspath('.devcontainer.json')} created.")
 
-    def _run_with_conda_pack(self, bind_volumes: Dict) -> None:
+    def _run_with_conda_pack(self, bind_volumes: Dict) -> int:
         env_vars = self.config["execution"]["env_vars"]
         slug = self.config["execution"]["conda_slug"]
         image = self.config["execution"]["image"]
@@ -188,7 +198,7 @@ class LocalBackend(Backend):
             )
             if os.path.exists(os.path.join(conda_pack_path, "spark-defaults.conf")):
                 env_vars["SPARK_CONF_DIR"] = os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)
-            self._activate_conda_env_and_run(
+            return self._activate_conda_env_and_run(
                 image, slug, command, bind_volumes, env_vars
             )
 
@@ -244,7 +254,7 @@ class LocalBackend(Backend):
             command += f"{self.config['execution']['command']}"
         return command
 
-    def _run_with_image(self, bind_volumes: Dict) -> None:
+    def _run_with_image(self, bind_volumes: Dict) -> int:
         env_vars = self.config["execution"]["env_vars"]
         image = self.config["execution"]["image"]
         if ConfigResolver(self.config)._is_ads_operator():
@@ -262,9 +272,9 @@ class LocalBackend(Backend):
         if self.config["execution"].get("source_folder", None):
             bind_volumes.update(self._mount_source_folder_if_exists(bind_volumes))
         bind_volumes.update(self.config["execution"]["volumes"])
-        run_container(image, bind_volumes, env_vars, command, entrypoint)
+        return run_container(image, bind_volumes, env_vars, command, entrypoint)
 
-    def _run_with_image_v1(self, bind_volumes: Dict) -> None:
+    def _run_with_image_v1(self, bind_volumes: Dict) -> int:
         env_vars = [
             str(d["name"]) + "=" + str(d["value"])
             for d in self.config["spec"]["Runtime"]["spec"]["environmentVariables"]
@@ -275,7 +285,7 @@ class LocalBackend(Backend):
 
         print("looking to bind volume")
         bind_volumes.update(self.config["spec"]["Framework"]["spec"]["bindVolumes"])
-        run_container(
+        return run_container(
             image=image,
             bind_volumes=bind_volumes,
             env_vars=env_vars,
@@ -357,7 +367,7 @@ class LocalBackend(Backend):
     @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
     def _activate_conda_env_and_run(
         image: str, slug: str, command: List[str], bind_volumes: Dict, env_vars: Dict
-    ) -> None:
+    ) -> int:
         try:
             client = get_docker_client()
             client.api.inspect_image(image)
@@ -381,15 +391,12 @@ source {os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug, 'bin/activate')}
                 "bind": os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, "entryscript.sh")
             }
             env_vars["conda_slug"] = slug
-            run_container(
+            return run_container(
                 image,
                 bind_volumes,
                 env_vars,
                 command=f"bash {os.path.join(DEFAULT_IMAGE_SCRIPT_DIR, 'entryscript.sh')}",
             )
-            # Bad Request ("OCI runtime create failed: container_linux.go:380:
-            # starting container process caused: exec: "source": executable file not found in $PATH: unknown")
-            # command=["source", f"/home/datascience/conda/{slug}/bin/activate", "&&", command]
 
 
 class LocalBackendDistributed(LocalBackend):
@@ -408,3 +415,198 @@ class LocalBackendDistributed(LocalBackend):
 
     def run(self):
         local_run(self.config, load_ini())
+
+
+class LocalPipelineBackend(Backend):
+    LOG_PREFIX = "Local Pipeline:"
+    DEFAULT_PARALLEL_CONTAINER_MAXIMUM = 4
+    DEFAULT_STATUS_POLL_INTERVAL_SECONDS = 5
+
+    def __init__(self, config: Dict) -> None:
+        """
+        Initialize a LocalPipelineBackend object with given config.
+
+        Parameters
+        ----------
+        config: dict
+            dictionary of configurations
+        """
+        self.config = config
+
+    def run(self) -> None:
+        pipeline = Pipeline.from_dict(self.config)
+
+        self._log_orchestration_message(f"Starting pipeline {pipeline.name} locally.")
+        if pipeline.dag:
+            self._log_orchestration_message(f"Pipeline DAG:")
+            for d in pipeline.dag:
+                self._log_orchestration_message(f"  {d}")
+
+        completed_status = {}
+        waiting_steps = {}
+        for s in pipeline.step_details:
+            waiting_steps[s.name] = s
+        futures = {}
+        pipeline_failure = False
+        done = False
+
+        if "max_parallel_containers" in self.config["infrastructure"]:
+            max_parallel_containers = int(
+                self.config["infrastructure"]["max_parallel_containers"]
+            )
+        else:
+            max_parallel_containers = min(
+                self.DEFAULT_PARALLEL_CONTAINER_MAXIMUM, os.cpu_count()
+            )
+            logger.warn(
+                f"max_parallel_containers not specified in the config. Defaulting to {max_parallel_containers}."
+                " Run `ads opctl configure` to define your local backend config."
+            )
+
+        poll_interval_seconds = int(
+            self.config["infrastructure"].get(
+                "pipeline_status_poll_interval_seconds",
+                self.DEFAULT_STATUS_POLL_INTERVAL_SECONDS,
+            )
+        )
+
+        with ThreadPoolExecutor(max_workers=max_parallel_containers) as executor:
+            while not done:
+                # Check if any running steps have completed
+                for s in list(futures):
+                    if futures[s].done():
+                        if futures[s].exception() is None:
+                            self._log_orchestration_message(
+                                f"Step {s} completed successfully."
+                            )
+                            completed_status[
+                                s
+                            ] = PipelineStepRun.LIFECYCLE_STATE_SUCCEEDED
+                        else:
+                            pipeline_failure = True
+                            self._log_orchestration_message(f"Step {s} failed:")
+                            logger.error(futures[s].exception())
+                            completed_status[s] = PipelineStepRun.LIFECYCLE_STATE_FAILED
+                        del futures[s]
+
+                for s in list(waiting_steps):
+                    # Cancel all waiting steps if a failure is encountered
+                    if pipeline_failure:
+                        self._log_orchestration_message(
+                            f"Skipping step {s} - pipeline failure encountered."
+                        )
+                        completed_status[s] = PipelineStepRun.LIFECYCLE_STATE_SKIPPED
+                        del waiting_steps[s]
+                        continue
+
+                    # Start a waiting step if all of its dependencies have completed successfully
+                    completed_deps = [
+                        dep
+                        for dep in waiting_steps[s].depends_on
+                        if dep in completed_status
+                    ]
+                    if len(waiting_steps[s].depends_on) == len(completed_deps):
+                        self._log_orchestration_message(f"Starting step {s}")
+                        futures[s] = self._start_pipeline_step(
+                            waiting_steps[s], executor
+                        )
+                        del waiting_steps[s]
+
+                if len(completed_status) == len(pipeline.step_details):
+                    done = True
+                else:
+                    sleep(poll_interval_seconds)
+
+        self._log_orchestration_message("Pipeline run complete!")
+        self._log_orchestration_message("Summary:")
+        for step in pipeline.step_details:
+            self._log_orchestration_message(
+                f"  {step.name} - {completed_status[step.name]}"
+            )
+
+    def _start_pipeline_step(
+        self, step: PipelineStep, executor: ThreadPoolExecutor
+    ) -> Future:
+        """
+        Starts a single pipeline step.
+
+        Parameters
+        ----------
+        step: PipelineStep
+            The pipeline step to start
+        executor: ThreadPoolExecutor
+            The executor used to run the pipeline step.
+
+        Returns
+        -------
+        future: Future
+            The Future that can be used to query the status of the pipeline step.
+        """
+        step_config = self._create_step_config(step)
+
+        # Have a local job backend execute the step using the updated step config
+        local_job = LocalBackend(step_config)
+        return executor.submit(local_job.run)
+
+    def _create_step_config(self, pipeline_step: PipelineStep) -> Dict:
+        """
+        Creates the config for local execution of an individual pipeline step.
+
+        Parameters
+        ----------
+        pipeline_step: PipelineStep
+            The pipeline step whose config should be generated
+
+        Returns
+        -------
+        step_config: Dict
+            The config for the individual pipeline step.
+        """
+        if pipeline_step.kind.upper() != "CUSTOM_SCRIPT":
+            raise ValueError(
+                f"Step {pipeline_step.name} has unsupported kind. "
+                f"Local pipeline execution only supports pipeline steps with kind customScript."
+            )
+
+        step_config = copy.deepcopy(self.config)
+        step_config["kind"] = pipeline_step.kind
+        step_config["type"] = pipeline_step.type
+        del step_config["spec"]
+        step_execution_config = step_config["execution"]
+        step_execution_config["conda_slug"] = pipeline_step.runtime.conda["slug"]
+        step_execution_config["env_vars"] = pipeline_step.runtime.envs
+
+        if pipeline_step.runtime.type == "script":
+            step_execution_config["entrypoint"] = pipeline_step.runtime.script_uri
+        elif pipeline_step.runtime.type == "python":
+            step_execution_config["entrypoint"] = pipeline_step.runtime.script_uri
+            step_execution_config["source_folder"] = pipeline_step.runtime.working_dir
+        elif pipeline_step.runtime.type == "notebook":
+            step_execution_config["entrypoint"] = pipeline_step.runtime.notebook_uri
+        else:
+            raise ValueError(
+                f"Step {pipeline_step.name} has unsupported runtime. "
+                f"Supported values are: script, python, notebook"
+            )
+
+        if not step_execution_config.get("source_folder"):
+            logger.warn(
+                "No source_folder provided; defaulting to the current working directory. To specify a source"
+                "folder for all pipeline steps, use the --source-folder parameter. To specify a source folder"
+                "for individual steps, use a runtime with type python and specify the workingDir property."
+            )
+            step_execution_config["source_folder"] = os.getcwd()
+
+        ConfigResolver(step_config).process()
+        return step_config
+
+    def _log_orchestration_message(self, str: str) -> None:
+        """
+        Logs a message related to pipeline run orchestration
+
+        Parameters
+        ----------
+        str: str
+            The message to log
+        """
+        logger.info(f"{self.LOG_PREFIX}: {str}")

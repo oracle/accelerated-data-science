@@ -31,6 +31,7 @@ extensions = [
     "sphinx.ext.graphviz",
     "sphinx.ext.inheritance_diagram",
     "nbsphinx",
+    "sphinx_code_tabs",
     "sphinx_copybutton"
 ]
 

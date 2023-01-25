@@ -289,3 +289,39 @@ Other Frameworks
     # Register the model
     model_id = generic_model.save(display_name="Custom Framework Model")
 
+
+With Model Version Set
+----------------------
+.. code-block:: python3
+
+    import tempfile
+    from ads.model.generic_model import GenericModel
+
+    # Create custom framework model
+    class Toy:
+        def predict(self, x):
+            return x ** 2
+    model = Toy()
+
+    # Instantite ads.model.generic_model.GenericModel using the trained Custom Model
+    generic_model = GenericModel(estimator=model, artifact_dir=tempfile.mkdtemp())
+    generic_model.summary_status()
+
+    
+    # Within the context manager, you can save the :ref:`Model Serialization` model without specifying the ``model_version_set`` parameter because it's taken from the model context manager. If the model version set doesn't exist in the model catalog, the example creates a model version set named ``my_model_version_set``.  If the model version set exists in the model catalog, the models are saved to that model version set.
+    with ads.model.experiment(name="my_model_version_set", create_if_not_exists=True):
+
+        # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+        generic_model.prepare(
+                inference_conda_env="dbexp_p38_cpu_v1",
+                model_file_name="toy_model.pkl",
+                force_overwrite=True
+            )
+
+        # Check if the artifacts are generated correctly.
+        # The verify method invokes the ``predict`` function defined inside ``score.py`` in the artifact_dir
+        generic_model.verify([2])
+
+        # Register the model
+        model_id = generic_model.save(display_name="Custom Framework Model")
+    

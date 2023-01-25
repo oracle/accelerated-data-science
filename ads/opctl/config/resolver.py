@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import base64
@@ -13,13 +13,14 @@ from typing import Tuple
 import yaml
 import glob
 
-from ads.common.auth import get_signer
+from ads.common.auth import create_signer
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import NotSupportedError, convert_notebook
 from ads.opctl.constants import (
     ML_JOB_GPU_IMAGE,
     ML_JOB_IMAGE,
+    BACKEND_NAME,
 )
 from ads.opctl.utils import (
     list_ads_operators,
@@ -69,6 +70,12 @@ class ConfigResolver(ConfigProcessor):
         if self.config["execution"].get("job_id"):
             return self
 
+        if self.config.get("kind") == "pipeline":
+            # For pipelines, properties like the conda slug and source folder don't apply to the entire pipeline,
+            # so we can skip all this validation. Each individual step will have its own config with the required
+            # values set.
+            return self
+
         self._resolve_operator_name()
 
         if not (
@@ -84,7 +91,7 @@ class ConfigResolver(ConfigProcessor):
         if not (
             self.config["execution"].get("conda_slug")
             or self.config["execution"].get("image")
-            or self.config["execution"]["backend"] == "dataflow"
+            or self.config["execution"]["backend"] == BACKEND_NAME.DATAFLOW.value
         ):
             raise ValueError(
                 "If not running an operator, conda pack info or image name needs to be given."
@@ -239,7 +246,8 @@ class ConfigResolver(ConfigProcessor):
             )
         elif self._is_ads_operator():
             image = self.ads_operators[exec_config["operator_name"]].get("image")
-            oci_auth = get_signer(
+            oci_auth = create_signer(
+                self.config["execution"].get("auth"),
                 self.config["execution"].get("oci_config"),
                 self.config["execution"].get("oci_profile"),
             )

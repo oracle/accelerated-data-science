@@ -1,0 +1,31 @@
+{
+  "kind": {
+    "allowed": [
+      "dataScienceJob"
+    ],
+    "required": true,
+    "type": "string"
+  },
+  "spec": {
+    "required": true,
+    "schema": {
+      "dependsOn": {
+        "required": false,
+        "type": "list"
+      },
+      "description": {
+        "required": false,
+        "type": "string"
+      },
+      "jobId": {
+        "required": true,
+        "type": "string"
+      },
+      "name": {
+        "required": true,
+        "type": "string"
+      }
+    },
+    "type": "dict"
+  }
+}

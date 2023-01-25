@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import fsspec
 import json
 import os
 
 import click
 import yaml
 
+from ads.common.auth import AuthType
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import delete as delete_cmd
@@ -22,6 +24,7 @@ from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
 from ads.opctl.config.merger import ConfigMerger
+from ads.opctl.constants import BACKEND_NAME
 
 import ads.opctl.conda.cli
 import ads.opctl.spark.cli
@@ -162,7 +165,7 @@ def init_vscode(**kwargs):
 
 _options = [
     click.option(
-        "--file", "-f", help="path to operator YAML file", required=False, default=None
+        "--file", "-f", help="path to resource YAML file", required=False, default=None
     ),
     click.option(
         "--operator-name", "-n", help="operator name", required=False, default=None
@@ -170,7 +173,7 @@ _options = [
     click.option(
         "--backend",
         "-b",
-        type=click.Choice(["local", "job", "dataflow"]),
+        type=click.Choice([backend.value for backend in BACKEND_NAME]),
         help="backend to run the operator",
         required=False,
         default=None,
@@ -310,6 +313,12 @@ def add_options(options):
     help="During dry run, the actual operation is not performed, only the steps are enumerated.",
 )
 @click.option(
+    "--ocid",
+    required=False,
+    default=None,
+    help="create an OCI Data Science service run from existing ocid.",
+)
+@click.option(
     "--nobuild",
     "-nobuild",
     default=False,
@@ -330,40 +339,33 @@ def add_options(options):
     is_flag=True,
     help="Image is not pushed to OCIR",
 )
+@click.option("--tag", "-t", help="tag of image", required=False, default=None)
 @click.option(
-    "--tag",
-      "-t",
-      help="tag of image",
-      required=False,
-      default=None
-)
-@click.option(
-    "--registry",
-      "-reg",
-      help="registry to push to",
-      required=False,
-      default=None
+    "--registry", "-reg", help="registry to push to", required=False, default=None
 )
 @click.option(
     "--dockerfile",
-      "-df",
-      help="relative path to Dockerfile",
-      required=False,
-      default=None
+    "-df",
+    help="relative path to Dockerfile",
+    required=False,
+    default=None,
 )
 def run(file, **kwargs):
     """
-    Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science Jobs
+    Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science
+    Jobs
     """
     debug = kwargs["debug"]
     if file:
         if os.path.exists(file):
-            with open(file, "r") as f:
+            auth = kwargs["auth"] or authutil.default_signer()
+            with fsspec.open(file, "r", **auth) as f:
                 config = suppress_traceback(debug)(yaml.safe_load)(f.read())
         else:
             raise FileNotFoundError(f"{file} is not found")
     else:
-        config = {}
+        # If no yaml is provided, we assume there's cmdline args to define a job.
+        config = {"kind": "job"}
     suppress_traceback(debug)(run_cmd)(config, **kwargs)
 
 
@@ -426,10 +428,17 @@ def cancel(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
+@click.option(
+    "--log_type",
+    default=None,
+    required=False,
+    help="The type of logging.",
+)
 @add_options(_options)
 def watch(**kwargs):
     """
-    ``tail`` logs form a job run or dataflow run. Connects to the logging service that was configured with the JobRun or the Application Run and streams the logs.
+    ``tail`` logs form a job run, dataflow run or pipeline run.
+    Connects to the logging service that was configured with the JobRun, Application Run or Pipeline Run and streams the logs.
     """
     suppress_traceback(kwargs["debug"])(watch_cmd)(**kwargs)
 

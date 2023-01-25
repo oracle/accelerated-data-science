@@ -7,7 +7,7 @@ Creating PyTorch Distributed Workloads
 **Write your training code:**
 
 For this example, the code to run was inspired from an example
-`found here <https://github.com/Azure/azureml-examples/blob/main/python-sdk/workflows/train/pytorch/cifar-distributed/src/train.py>`_
+`found here <https://github.com/Azure/azureml-examples/blob/32eeda9e9f394bd6c3b687b55e2740abc50b116c/sdk/python/jobs/single-step/pytorch/distributed-training/src/train.py>`_
 
 Note that ``MASTER_ADDR``, ``MASTER_PORT``, ``WORLD_SIZE``, ``RANK``, and ``LOCAL_RANK`` are environment variables
 that will automatically be set.
@@ -20,7 +20,7 @@ that will automatically be set.
     # BSD 3-Clause License
     #
     # Script adapted from:
-    # https://github.com/Azure/azureml-examples/blob/main/python-sdk/workflows/train/pytorch/cifar-distributed/src/train.py
+    # https://github.com/Azure/azureml-examples/blob/32eeda9e9f394bd6c3b687b55e2740abc50b116c/sdk/python/jobs/single-step/pytorch/distributed-training/src/train.py
     # ==============================================================================
 
 
@@ -302,7 +302,7 @@ Specify image name and tag
   export TAG=latest
 
 
-Build the container image.
+Build the container image
 
 .. code-block:: bash
 
@@ -318,7 +318,7 @@ The code is assumed to be in the current working directory. To override the sour
   ads opctl distributed-training build-image \
       -t $TAG \
       -reg $IMAGE_NAME \
-       -df oci_dist_training_artifacts/horovod/v1/oci_dist_training_artifacts/pytorch/v1/Dockerfile
+       -df oci_dist_training_artifacts/pytorch/v1/Dockerfile
       -s <code_dir>
 
 If you are behind proxy, ads opctl will automatically use your proxy settings (defined via ``no_proxy``, ``http_proxy`` and ``https_proxy``).
@@ -397,7 +397,15 @@ the output from the dry run will show all the actions and infrastructure configu
 
 .. include:: ../_test_and_submit.rst
 
-.. _hvd_saving_artifacts:
+**Monitoring the workload logs**
+
+To view the logs from a job run, you could run -
+
+.. code-block:: bash
+
+  ads opctl watch oci.xxxx.<job_run_ocid>
+
+You could stream the logs from any of the job run ocid using ``ads opctl watch`` command. You could run this command from multiple terminal to watch all of the job runs. Typically, watching ``mainJobRunId`` should yield most informative log.
 
 .. include:: ../_save_artifacts.rst
 
