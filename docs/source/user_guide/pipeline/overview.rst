@@ -1,15 +1,15 @@
 Overview
 ********
 
-Oracle Cloud Infrastructure (OCI) Data Science Machine Learning (ML) Pipeline enables you to define and run an end-to-end machine learning orchestration covering all the steps of machine learning lifecycle that can be executed in a repeatable, continuous ML pipeline. 
+Oracle Cloud Infrastructure (OCI) Data Science Machine Learning (ML) Pipelines lets you define and run an end-to-end machine learning orchestration covering all the steps of machine learning lifecycle that can be executed in a repeatable, continuous ML pipeline.
 
-Machine learning lifecycle is composed of data acquisition and extraction, data preparation, featurization, training model including algorithm selection and hyper-parameter tuning, model evaluation, deployment, and then monitoring the deployed model and retraining.
+The machine learning lifecycle is composed of several steps: data acquisition and extraction, data preparation, featurization, model training including algorithm selection and hyper-parameter tuning, model evaluation, deployment, and finally monitoring the deployed model and possible retraining.
 
 
 Pipeline Step
 =============
 
-Pipeline step is a task in a pipeline. A pipeline step can be either a Data Science Job step or a Custom Script step.
+A pipeline step is a task in a pipeline. A pipeline step can be either a Data Science Job step or a Custom Script step.
 
 Pipeline
 ========
