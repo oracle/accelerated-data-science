@@ -20,6 +20,7 @@ from ads.opctl.config.utils import NotSupportedError, convert_notebook
 from ads.opctl.constants import (
     ML_JOB_GPU_IMAGE,
     ML_JOB_IMAGE,
+    BACKEND_NAME,
 )
 from ads.opctl.utils import (
     list_ads_operators,
@@ -69,6 +70,12 @@ class ConfigResolver(ConfigProcessor):
         if self.config["execution"].get("job_id"):
             return self
 
+        if self.config.get("kind") == "pipeline":
+            # For pipelines, properties like the conda slug and source folder don't apply to the entire pipeline,
+            # so we can skip all this validation. Each individual step will have its own config with the required
+            # values set.
+            return self
+
         self._resolve_operator_name()
 
         if not (
@@ -84,7 +91,7 @@ class ConfigResolver(ConfigProcessor):
         if not (
             self.config["execution"].get("conda_slug")
             or self.config["execution"].get("image")
-            or self.config["execution"]["backend"] == "dataflow"
+            or self.config["execution"]["backend"] == BACKEND_NAME.DATAFLOW.value
         ):
             raise ValueError(
                 "If not running an operator, conda pack info or image name needs to be given."

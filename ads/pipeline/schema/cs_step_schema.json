@@ -1,0 +1,35 @@
+{
+  "kind": {
+    "allowed": [
+      "customScript"
+    ],
+    "required": true,
+    "type": "string"
+  },
+  "spec": {
+    "required": true,
+    "schema": {
+      "dependsOn": {
+        "required": false,
+        "type": "list"
+      },
+      "description": {
+        "required": false,
+        "type": "string"
+      },
+      "infrastructure": {
+        "required": true,
+        "type": "dict"
+      },
+      "name": {
+        "required": true,
+        "type": "string"
+      },
+      "runtime": {
+        "required": true,
+        "type": "dict"
+      }
+    },
+    "type": "dict"
+  }
+}

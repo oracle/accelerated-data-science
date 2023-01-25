@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -38,6 +38,7 @@ METADATA_SIZE_LIMIT = 32000
 METADATA_VALUE_LENGTH_LIMIT = 255
 METADATA_DESCRIPTION_LENGTH_LIMIT = 255
 _METADATA_EMPTY_VALUE = "NA"
+CURRENT_WORKING_DIR = "."
 
 
 class MetadataSizeTooLarge(ValueError):
@@ -1594,7 +1595,16 @@ class ModelProvenanceMetadata(DataClassSerializable):
         ModelProvenanceMetadata
             A ModelProvenanceMetadata instance.
         """
-        repo = git.Repo(".", search_parent_directories=True)
+        git_dir = CURRENT_WORKING_DIR
+        if training_script_path:
+            if not os.path.exists(training_script_path):
+                logger.warning(
+                    f"Training script {os.path.abspath(training_script_path)} does not exist."
+                )
+            else:
+                training_script_path = os.path.abspath(training_script_path)
+                git_dir = os.path.dirname(training_script_path)
+        repo = git.Repo(git_dir, search_parent_directories=True)
         # get repository url
         if len(repo.remotes) > 0:
             repository_url = (
@@ -1608,19 +1618,11 @@ class ModelProvenanceMetadata(DataClassSerializable):
         # get git branch
         git_branch = format(repo.active_branch)
         # get git commit
-        git_commit = ""
+        git_commit = None
         try:
-            git_commit = format(str(repo.head.commit.hexsha))
-        except ValueError:
-            # do not set commit if there isn't any
+            git_commit = format(str(repo.head.commit.hexsha)) or None
+        except Exception:
             logger.warning("No commit found.")
-        if training_script_path is not None and training_script_path != "":
-            if not os.path.exists(training_script_path):
-                logger.warning(
-                    f"Training script {os.path.abspath(training_script_path)} does not exists."
-                )
-            else:
-                training_script_path = os.path.abspath(training_script_path)
         return cls(
             repo=repo,
             git_branch=git_branch,

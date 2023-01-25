@@ -46,14 +46,22 @@ class DataFlowBackend(Backend):
         self.profile = config["execution"].get("oci_profile", None)
         self.client = OCIClientFactory(**self.oci_auth).dataflow
 
+    def apply(self):
+        """
+        Create DataFlow and DataFlow Run from YAML.
+        """
+        # TODO add the logic for build dataflow and dataflow run from YAML.
+        raise NotImplementedError(f"`apply` hasn't been supported for data flow yet.")
+
     def run(self) -> None:
+        """
+        Create DataFlow and DataFlow Run from OCID or cli parameters.
+        """
         with AuthContext():
             ads.set_auth(auth=self.auth_type, profile=self.profile)
-            if self.config["execution"].get("job_id", None):
-                job_id = self.config["execution"]["job_id"]
-                run_id = (
-                    Job.from_dataflow_job(self.config["execution"]["job_id"]).run().id
-                )
+            if self.config["execution"].get("ocid", None):
+                data_flow_id = self.config["execution"]["ocid"]
+                run_id = Job.from_dataflow_job(data_flow_id).run().id
             else:
                 infra = self.config.get("infrastructure", {})
                 if any(k not in infra for k in REQUIRED_FIELDS):
@@ -85,6 +93,9 @@ class DataFlowBackend(Backend):
         return {"job_id": job_id, "run_id": run_id}
 
     def cancel(self):
+        """
+        Cancel DataFlow Run from OCID.
+        """
         if not self.config["execution"].get("run_id"):
             raise ValueError("Can only cancel a DataFlow run.")
         run_id = self.config["execution"]["run_id"]
@@ -93,11 +104,14 @@ class DataFlowBackend(Backend):
             DataFlowRun.from_ocid(run_id).delete()
 
     def delete(self):
-        if self.config["execution"].get("job_id"):
-            job_id = self.config["execution"]["job_id"]
+        """
+        Delete DataFlow or DataFlow Run from OCID.
+        """
+        if self.config["execution"].get("id"):
+            data_flow_id = self.config["execution"]["id"]
             with AuthContext():
                 ads.set_auth(auth=self.auth_type, profile=self.profile)
-                Job.from_dataflow_job(job_id).delete()
+                Job.from_dataflow_job(data_flow_id).delete()
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
             with AuthContext():
@@ -105,6 +119,9 @@ class DataFlowBackend(Backend):
                 DataFlowRun.from_ocid(run_id).delete()
 
     def watch(self):
+        """
+        Watch DataFlow Run from OCID.
+        """
         run_id = self.config["execution"]["run_id"]
         with AuthContext():
             ads.set_auth(auth=self.auth_type, profile=self.profile)
