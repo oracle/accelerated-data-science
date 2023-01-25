@@ -7,6 +7,7 @@ try:
     import click
     import ads.opctl.cli
     import ads.jobs.cli
+    import ads.pipeline.cli
     import os
     import json
 except:
@@ -14,6 +15,8 @@ except:
         "Please run `pip install oracle-ads[opctl]` to install the required dependencies for ADS CLI"
     )
     exit()
+
+
 with open(
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads_version.json")
 ) as version_file:
@@ -29,6 +32,7 @@ def cli():
 
 cli.add_command(ads.opctl.cli.commands)
 cli.add_command(ads.jobs.cli.commands)
+cli.add_command(ads.pipeline.cli.commands)
 
 
 if __name__ == "__main__":

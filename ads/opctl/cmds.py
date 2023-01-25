@@ -6,24 +6,31 @@
 
 import os
 import configparser
-from typing import Dict, List
-
 import click
-import fsspec
-import yaml
 
 import ads
-from ads.common.auth import AuthType, AuthContext
+
+from typing import Dict, List
+
+from ads.common.auth import AuthContext
 from ads.common.oci_datascience import DSCNotebookSession
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
-from ads.opctl.backend.local import LocalBackend, LocalBackendDistributed
+from ads.opctl.backend.local import (
+    LocalBackend,
+    LocalBackendDistributed,
+    LocalPipelineBackend,
+)
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
+from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.config.utils import read_from_ini
 from ads.opctl.config.validator import ConfigValidator
 from ads.opctl.config.yaml_parsers import YamlSpecParser
+import fsspec
+from ads.common.auth import AuthType
 
 from ads.opctl.distributed.cmds import (
     update_ini,
@@ -41,18 +48,55 @@ from ads.opctl.constants import (
     ADS_CONFIG_FILE_NAME,
     ADS_JOBS_CONFIG_FILE_NAME,
     ADS_DATAFLOW_CONFIG_FILE_NAME,
+    ADS_ML_PIPELINE_CONFIG_FILE_NAME,
+    ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+    BACKEND_NAME,
 )
 from ads.opctl.utils import (
     is_in_notebook_session,
     get_service_pack_prefix,
 )
+import yaml
+
+
+class DataScienceResource(str, metaclass=ExtendedEnumMeta):
+    JOB = "datasciencejob"
+    DATAFLOW = "dataflowapplication"
+    PIPELINE = "datasciencepipeline"
+
+
+class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
+    JOB_RUN = "datasciencejobrun"
+    DATAFLOW_RUN = "dataflowrun"
+    PIPELINE_RUN = "datasciencepipelinerun"
+
+
+DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
+    DataScienceResource.JOB: "job",
+    DataScienceResourceRun.JOB_RUN: "job",
+    DataScienceResource.DATAFLOW: "dataflow",
+    DataScienceResourceRun.DATAFLOW_RUN: "dataflow",
+    DataScienceResource.PIPELINE: "pipeline",
+    DataScienceResourceRun.PIPELINE_RUN: "pipeline",
+}
+
+DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
+    DataScienceResourceRun.JOB_RUN: "job",
+    DataScienceResourceRun.DATAFLOW_RUN: "dataflow",
+    DataScienceResourceRun.PIPELINE_RUN: "pipeline",
+}
 
 
 class _BackendFactory:
     BACKENDS_MAP = {
-        "local": LocalBackend,
-        "job": MLJobBackend,
-        "dataflow": DataFlowBackend,
+        BACKEND_NAME.JOB.value: MLJobBackend,
+        BACKEND_NAME.DATAFLOW.value: DataFlowBackend,
+        BACKEND_NAME.PIPELINE.value: PipelineBackend,
+    }
+
+    LOCAL_BACKENDS_MAP = {
+        BACKEND_NAME.JOB.value: LocalBackend,
+        BACKEND_NAME.PIPELINE.value: LocalPipelineBackend,
     }
 
     def __init__(self, config: Dict):
@@ -60,11 +104,26 @@ class _BackendFactory:
         self._backend = config["execution"].pop("backend", None)
         if self._backend is None:
             raise RuntimeError("Please specify backend.")
-        elif self._backend not in self.BACKENDS_MAP:
+        elif (
+            self._backend != BACKEND_NAME.LOCAL.value
+            and self._backend not in self.BACKENDS_MAP
+        ):
             raise NotImplementedError(f"backend {self._backend} is not implemented.")
 
     @property
     def backend(self):
+        if self._backend == BACKEND_NAME.LOCAL.value:
+            kind = self.config.get("kind")
+            if kind not in self.LOCAL_BACKENDS_MAP:
+                options = [backend for backend in self.LOCAL_BACKENDS_MAP.keys()]
+                # Special case local backend option not supported by this factory.
+                options.append("distributed")
+                raise RuntimeError(
+                    f"kind {kind} not supported by local backend. Please choose from: "
+                    f"[{str.join('|', options)}]"
+                )
+            return self.LOCAL_BACKENDS_MAP[kind](self.config)
+
         return self.BACKENDS_MAP[self._backend](self.config)
 
 
@@ -128,7 +187,7 @@ def run(config: Dict, **kwargs) -> Dict:
             docker_build_cmd(ini)
         config = update_image(config, ini)
 
-        if mode == "local":
+        if mode == BACKEND_NAME.LOCAL.value:
             print(
                 "\u26A0 Docker Image: "
                 + ini.get("main", "registry")
@@ -140,7 +199,7 @@ def run(config: Dict, **kwargs) -> Dict:
 
             backend = LocalBackendDistributed(config)
             backend.run()
-        elif mode == "dataflow":
+        elif mode == BACKEND_NAME.DATAFLOW.value:
             raise RuntimeError(
                 "backend operator for distributed training can either be local or job"
             )
@@ -178,14 +237,28 @@ def run(config: Dict, **kwargs) -> Dict:
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     else:
-        if p.config["execution"].get("job_id", None):
-            p.config["execution"]["backend"] = "job"
-            return _BackendFactory(p.config).backend.run()
-        p.step(ConfigResolver).step(ConfigValidator)
-        # spec may have changed during validation step (e.g. defaults filled in)
-        # thus command need to be updated since it encodes spec
-        p = ConfigResolver(p.config)
-        p._resolve_command()
+        if (
+            "kind" in p.config
+            and p.config["execution"].get("backend", None) != BACKEND_NAME.LOCAL.value
+        ):
+            p.config["execution"]["backend"] = p.config["kind"]
+            return _BackendFactory(p.config).backend.apply()
+
+        if "ocid" in p.config["execution"]:
+            resource_to_backend = {
+                DataScienceResource.JOB: BACKEND_NAME.JOB,
+                DataScienceResource.DATAFLOW: BACKEND_NAME.DATAFLOW,
+                DataScienceResource.PIPELINE: BACKEND_NAME.PIPELINE,
+            }
+            for r, b in resource_to_backend.items():
+                if r in p.config["execution"]["ocid"]:
+                    p.config["execution"]["backend"] = b.value
+        else:
+            p.step(ConfigResolver).step(ConfigValidator)
+            # spec may have changed during validation step (e.g. defaults filled in)
+            # thus command need to be updated since it encodes spec
+            p = ConfigResolver(p.config)
+            p._resolve_command()
         return _BackendFactory(p.config).backend.run()
 
 
@@ -280,15 +353,20 @@ def delete(**kwargs) -> None:
     -------
     None
     """
-    if "datascience" in kwargs["ocid"]:
-        kwargs["backend"] = "job"
-    elif "dataflow" in kwargs["ocid"]:
-        kwargs["backend"] = "dataflow"
+    kwargs["backend"] = _get_backend_from_ocid(kwargs["ocid"])
 
-    if "datasciencejobrun" in kwargs["ocid"] or "dataflowrun" in kwargs["ocid"]:
+    if (
+        DataScienceResourceRun.JOB_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.DATAFLOW_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
+    ):
         kwargs["run_id"] = kwargs.pop("ocid")
-    elif "datasciencejob" in kwargs["ocid"] or "dataflowapplication" in kwargs["ocid"]:
-        kwargs["job_id"] = kwargs.pop("ocid")
+    elif (
+        DataScienceResource.JOB in kwargs["ocid"]
+        or DataScienceResource.DATAFLOW in kwargs["ocid"]
+        or DataScienceResource.PIPELINE in kwargs["ocid"]
+    ):
+        kwargs["id"] = kwargs.pop("ocid")
     else:
         raise ValueError(f"{kwargs['ocid']} is valid or supported.")
 
@@ -310,12 +388,7 @@ def cancel(**kwargs) -> None:
     """
     kwargs["run_id"] = kwargs.pop("ocid")
     if not kwargs.get("backend"):
-        if "datasciencejobrun" in kwargs["run_id"]:
-            kwargs["backend"] = "job"
-        elif "dataflowrun" in kwargs["run_id"]:
-            kwargs["backend"] = "dataflow"
-        else:
-            raise ValueError("Must provide a job run OCID.")
+        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.cancel()
 
@@ -334,12 +407,7 @@ def watch(**kwargs) -> None:
     """
     kwargs["run_id"] = kwargs.pop("ocid")
     if not kwargs.get("backend"):
-        if "datasciencejobrun" in kwargs["run_id"]:
-            kwargs["backend"] = "job"
-        elif "dataflowrun" in kwargs["run_id"]:
-            kwargs["backend"] = "dataflow"
-        else:
-            raise ValueError("Must provide a job run OCID.")
+        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.watch()
 
@@ -492,6 +560,48 @@ def configure() -> None:
             is_in_notebook_session(),
         )
 
+    print("==== Setting configuration for OCI ML Pipeline ====")
+    if click.confirm(
+        f"Do you want to set up or update OCI ML Pipeline configuration?", default=True
+    ):
+        required_fields = [
+            ("compartment_id", ""),
+            ("project_id", ""),
+        ]
+
+        optional_fields = [
+            ("log_group_id", ""),
+            ("log_id", ""),
+        ]
+        _set_service_configurations(
+            ADS_ML_PIPELINE_CONFIG_FILE_NAME,
+            required_fields,
+            optional_fields,
+            folder,
+            oci_config_path,
+            is_in_notebook_session(),
+        )
+
+    print("==== Setting configuration for local backend ====")
+    if click.confirm(
+        f"Do you want to set up or update local backend configuration?", default=True
+    ):
+        required_fields = [
+            ("max_parallel_containers", str(min(os.cpu_count(), 4))),
+            ("pipeline_status_poll_interval_seconds", str(5)),
+        ]
+
+        optional_fields = []
+
+        _set_service_configurations(
+            ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+            required_fields,
+            optional_fields,
+            folder,
+            oci_config_path,
+            is_in_notebook_session(),
+        )
+
 
 def _set_service_configurations(
     config_file_name,
@@ -567,3 +677,17 @@ def _set_service_configurations(
     with open(os.path.join(config_folder, config_file_name), "w") as f:
         infra_parser.write(f)
     print(f"Configuration saved at {os.path.join(config_folder, config_file_name)}")
+
+
+def _get_backend_from_ocid(ocid: str) -> str:
+    for value in DataScienceResource.values():
+        if value in ocid:
+            return DATA_SCIENCE_RESOURCE_BACKEND_MAP[value]
+    raise ValueError("Must provide a resource OCID.")
+
+
+def _get_backend_from_run_id(ocid: str) -> str:
+    for value in DataScienceResourceRun.values():
+        if value in ocid:
+            return DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP[value]
+    raise ValueError("Must provide a resource run OCID.")

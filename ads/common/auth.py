@@ -7,18 +7,15 @@
 import copy
 import os
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Any
-
-import oci
-from oci.config import (
-    DEFAULT_LOCATION,  # "~/.oci/config"
-    DEFAULT_PROFILE,  # "DEFAULT"
-)
+from typing import Any, Callable, Dict, Optional
 
 import ads.telemetry
+import oci
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.extended_enum import ExtendedEnumMeta
+from oci.config import DEFAULT_LOCATION  # "~/.oci/config"
+from oci.config import DEFAULT_PROFILE  # "DEFAULT"
 
 
 class AuthType(str, metaclass=ExtendedEnumMeta):
@@ -314,7 +311,9 @@ def create_signer(
         )
         if config:
             auth_type = AuthType.API_KEY
+
         signer_generator = AuthFactory().signerGenerator(auth_type)
+
         return signer_generator(signer_args).create_signer()
 
 
