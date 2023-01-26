@@ -11,13 +11,13 @@ With a ``PipelineRun`` instance, you can watch the status of the run and stream 
 Watch status
 ============
 
-Use the ``.show()`` method of the ``PipelineRun`` instance to watch the status of pipeline run.
+Use the ``show()`` method of the ``PipelineRun`` instance to watch the status of pipeline run.
 
-The ``.show()`` method takes the following optional parameter:
+The ``show()`` method takes the following optional parameter:
 
-- ``mode: (str, optional)``. Defaults to ``graph``. The allowed values are ``text`` or ``graph``. This parameter renders the current status of pipeline run as either ``text`` or ``graph``.
-- ``wait: (bool, optional)``. Defaults to ``False`` and it only renders the current status of each step run in graph. If set to ``True``, it renders the current status of each step run until the entire pipeline is complete.
-- ``rankdir: (str, optional)``. Defaults to ``TB``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
+  - ``mode: (str, optional)``. Defaults to ``graph``. The allowed values are ``text`` or ``graph``. This parameter renders the current status of pipeline run as either ``text`` or ``graph``.
+  - ``wait: (bool, optional)``. Defaults to ``False`` and it only renders the current status of each step run in graph. If set to ``True``, it renders the current status of each step run until the entire pipeline is complete.
+  - ``rankdir: (str, optional)``. Defaults to ``TB``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
 
 To watch the live update of each step run status in text until the entire pipeline is complete
 
@@ -49,8 +49,8 @@ Below is an example of the output.
 Monitor Logs
 ============
 
-Use the ``.watch()`` method on the ``PipelineRun`` instance to stream the service, custom, or consolidated log of the pipeline run.
-The ``.watch()`` method takes the following optional parameters:
+Use the ``watch()`` method on the ``PipelineRun`` instance to stream the service, custom, or consolidated log of the pipeline run.
+The ``watch()`` method takes the following optional parameters:
 
 - ``steps: (list, optional)``. Defaults to ``None`` and streams the log of the pipeline run. If a list of the step names is provided, the method streams the log of the specified pipeline step runs.
 - ``log_type: (str, optional)``. Defaults to ``None``.  The allowed values are ``custom_log``, ``service_log``, or ``None``. If ``None`` is provided, the method streams both service and custom logs.
@@ -122,7 +122,7 @@ Use the ``from_ocid()`` method from the ``PipelineRun`` class to load an existin
 Cancel
 ======
 
-Use the ``.cancel()`` method on the ``PipelineRun`` instance to cancel a pipeline run.
+Use the ``cancel()`` method on the ``PipelineRun`` instance to cancel a pipeline run.
 
 Pipeline Runs can only be canceled when they are in the ACCEPTED or IN_PROGRESS state.
 
@@ -135,10 +135,10 @@ Pipeline Runs can only be canceled when they are in the ACCEPTED or IN_PROGRESS 
 Delete
 ======
 
-Use the ``.delete()`` method on the ``PipelineRun`` instance to delete a pipeline run. It takes the following optional parameter:
+Use the ``delete()`` method on the ``PipelineRun`` instance to delete a pipeline run. It takes the following optional parameter:
 
-- ``delete_related_job_runs: (bool, optional)``. Specify whether to delete related JobRuns or not. Defaults to ``True``.
-- ``max_wait_seconds: (int, optional)``. The maximum time to wait in seconds. Defaults to ``1800``.
+  * ``delete_related_job_runs: (bool, optional)``. Specify whether to delete related JobRuns or not. Defaults to ``True``.
+  * ``max_wait_seconds: (int, optional)``. The maximum time to wait in seconds. Defaults to ``1800``.
 
 Pipeline runs can only be deleted when they are already in a SUCCEEDED, FAILED, or CANCELED state.
 
