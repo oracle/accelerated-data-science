@@ -14,7 +14,7 @@ A pipeline step is a task in a pipeline. A pipeline step can be either a Data Sc
 Pipeline
 ========
 
-A pipeline is a workflow of tasks, called steps. Steps can run in sequence or in parallel, creating a Directed Acyclic Graph (DAG) of the steps.
+A pipeline is a workflow of tasks, called steps. Steps can run in sequence or in parallel resulting in a Directed Acyclic Graph (DAG) of the steps.
 
 In a machine learning context, ML Pipelines provide a workflow of data import, data transformation, model training, and model evaluation.
 
