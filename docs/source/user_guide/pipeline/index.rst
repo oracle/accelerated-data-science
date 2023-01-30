@@ -1,8 +1,8 @@
 .. _pipeline:
 
-#########
-Pipelines
-#########
+######################
+Data Science Pipelines
+######################
 
 
 .. versionadded:: 2.8.0

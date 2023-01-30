@@ -47,89 +47,6 @@ A ``Pipeline`` instance will be created.
 .. tabs::
 
   .. code-tab:: Python3
-    :caption: Python
-
-    from ads.pipeline import PipelineStep, Pipeline
-
-    pipeline_step_one = PipelineStep(
-        name="<pipeline_step_name>",
-        description="<pipeline_step_description>",
-        job_id="<job_id>"
-    )
-
-    infrastructure = CustomScriptStep(
-        block_storage_size=200,
-        shape_name="VM.Standard3.Flex",
-        shape_config_details={"ocpus": 4, "memory_in_gbs": 32},
-    )
-
-    runtime = ScriptRuntime(
-        script_path_uri=oci://<bucket_name>@<namespace>/<prefix>/<script.py>",
-        conda={"type": "service", "slug": "<slug>"}
-    )
-
-    pipeline_step_two = PipelineStep(
-        name="<pipeline_step_name>",
-        description="<pipeline_step_description>",
-        infrastructure=infrastructure,
-        runtime=runtime,
-    )
-
-    pipeline = Pipeline(
-        name="<pipeline_name>",
-        compartment_id="<compartment_id>",
-        project_id="<project_id>",
-        log_group_id="<log_group_id>",
-        log_id="<log_id>",
-        enable_service_log=True,     # to stream service log in pipeline runs
-        step_details=[pipeline_step_one, pipeline_step_two],
-        dag=["pipeline_step_name_1 >> pipeline_step_name_2"],
-    )    
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
-    
-    from ads.pipeline import PipelineStep, Pipeline
-
-    pipeline_step_one = (
-      PipelineStep("<pipeline_step_name_1>")
-      .with_description("<pipeline_step_description>")
-      .with_job_id("<job_id>")
-    )
-
-    infrastructure = (
-        CustomScriptStep()
-        .with_block_storage_size(200)
-        .with_shape_name("VM.Standard3.Flex")
-        .with_shape_config_details(ocpus=4, memory_in_gbs=32)
-    )
-
-    runtime = (
-        ScriptRuntime()
-        .with_source("oci://<bucket_name>@<namespace>/<prefix>/<script.py>")
-        .with_service_conda("<slug>")
-    )
-
-    pipeline_step_two = (
-        PipelineStep("<pipeline_step_name_2>")
-        .with_description("<step_description>")
-        .with_infrastructure(infrastructure)
-        .with_runtime(runtime)
-    )
-
-    pipeline = (
-        Pipeline("<pipeline_name>")
-        .with_compartment_id("<compartment_id>")
-        .with_project_id("<project_id>")
-        .with_log_group_id("<log_group_id>")
-        .with_log_id("<log_id>")
-        .with_enable_service_log(True)         # to stream service log in pipeline runs
-        .with_step_details([pipeline_step_one, pipeline_step_two])
-        .with_dag(["pipeline_step_name_1 >> pipeline_step_name_2"])
-    )
-
-
-  .. code-tab:: Python3
     :caption: YAML
     
     from ads.pipeline import Pipeline
@@ -177,6 +94,51 @@ A ``Pipeline`` instance will be created.
     """
 
     pipeline = Pipeline.from_yaml(yaml_string)
+      
+
+  .. code-tab:: Python3
+    :caption: Python
+    
+    from ads.pipeline import PipelineStep, Pipeline
+
+    pipeline_step_one = (
+      PipelineStep("<pipeline_step_name_1>")
+      .with_description("<pipeline_step_description>")
+      .with_job_id("<job_id>")
+    )
+
+    infrastructure = (
+        CustomScriptStep()
+        .with_block_storage_size(200)
+        .with_shape_name("VM.Standard3.Flex")
+        .with_shape_config_details(ocpus=4, memory_in_gbs=32)
+    )
+
+    runtime = (
+        ScriptRuntime()
+        .with_source("oci://<bucket_name>@<namespace>/<prefix>/<script.py>")
+        .with_service_conda("<slug>")
+    )
+
+    pipeline_step_two = (
+        PipelineStep("<pipeline_step_name_2>")
+        .with_description("<step_description>")
+        .with_infrastructure(infrastructure)
+        .with_runtime(runtime)
+    )
+
+    pipeline = (
+        Pipeline("<pipeline_name>")
+        .with_compartment_id("<compartment_id>")
+        .with_project_id("<project_id>")
+        .with_log_group_id("<log_group_id>")
+        .with_log_id("<log_id>")
+        .with_enable_service_log(True)         # to stream service log in pipeline runs
+        .with_step_details([pipeline_step_one, pipeline_step_two])
+        .with_dag(["pipeline_step_name_1 >> pipeline_step_name_2"])
+    )
+
+
 
 
 Create
