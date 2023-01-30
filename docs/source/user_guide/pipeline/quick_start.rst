@@ -5,9 +5,9 @@ Quick Start
 ADS Python SDK
 ==============
 
-The following sections provide sample code to define, create and run a pipeline, and watch the pipeline run status.
+The following sections provide sample code to define, create, and run a pipeline, including a visualization to track the pipeline run status.
 
-The following example shows creating and runnning a pipeline with multiple steps. The steps, ``step_1`` and ``step_2`` run in parallel and 
+The following example shows creating and runnning a pipeline with multiple steps. The steps ``step_1`` and ``step_2`` run in parallel and 
 ``step_3`` runs after ``step_1`` and ``step_2`` are complete. 
 
 .. figure:: figures/quick_start_example.png
@@ -353,7 +353,7 @@ Alternatively, to run an existing pipeline, provide the pipeline OCID with the `
 Visualize
 ---------
 
-To visualize a pipeline in a graph, provide the pipeline OCID
+To visualize a pipeline in a graph, use the pipeline OCID
 
 .. code-block:: shell
 
@@ -362,7 +362,7 @@ To visualize a pipeline in a graph, provide the pipeline OCID
 Watch status
 ------------
 
-To watch the status of pipeline run, provide the pipeline run OCID
+To watch the status of pipeline run, use the pipeline run OCID
 
 .. admonition:: Tip
 
@@ -383,7 +383,7 @@ Below is an example of watching the status of pipeline run in ``text`` mode
 Monitor logs
 ------------
 
-To monitor a pipeline run, provide the pipeline run OCID 
+To monitor a pipeline run, use the pipeline run OCID.
 
 .. admonition:: Tip
 
@@ -404,7 +404,7 @@ Below is an example of viewing the last 10 consolidated logs with ``tail``
 Cancel
 ------
 
-To cancel a pipeline run, provide the pipeline run OCID
+To cancel a pipeline run, use the pipeline run OCID
 
 .. code-block:: shell
 
@@ -419,7 +419,7 @@ Delete
 
   Get more information about deleting pipelines and pipeline runs by running ``%pipeline delete -h``
 
-To delete a pipeline run, provide the pipeline run OCID
+To delete a pipeline run, use the pipeline run OCID
 
 .. code-block:: shell
 
@@ -427,7 +427,7 @@ To delete a pipeline run, provide the pipeline run OCID
 
 Data Science Pipeline Runs can only be deleted when they are in the `SUCCEEDED`, `FAILED`, or `CANCELED` state.
 
-To delete a pipeline, provide the pipeline OCID
+To delete a pipeline, use the pipeline OCID
 
 .. code-block:: shell
 
