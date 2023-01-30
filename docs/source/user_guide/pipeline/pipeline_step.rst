@@ -58,7 +58,23 @@ When constructing a Custom Scrip step ``infrastructure``, you specify the Comput
   .. code-tab:: YAML
 
 
-    TBD
+    kind: pipeline
+    spec:
+      ...
+      stepDetails:
+      - kind: customScript
+        spec:
+          infrastructure:
+            kind: infrastructure
+            spec:
+              blockStorageSize: 200
+              shapeConfigDetails:
+                memoryInGBs: 32
+                ocpus: 4
+              shapeName: VM.Standard3.Flex
+          name: Python_Script_Step
+       ...
+    type: pipeline
     
 
   .. code-tab:: Python3
@@ -88,14 +104,24 @@ To define a Custom Script step with ``GitPythonRuntime`` you can use:
 
   .. code-tab:: YAML
 
-
-    TBD
+	kind: runtime
+	spec:
+	  conda:
+		slug: pytorch19_p37_gpu_v1
+		type: service
+	  entrypoint: beginner_source/examples_nn/polynomial_nn.py
+	  env:
+	  - name: GREETINGS
+		value: Welcome to OCI Data Science
+	  outputDir: ~/Code/tutorials/beginner_source/examples_nn
+	  outputUri: oci://<bucket_name>@<namespace>/<prefix>
+	  url: https://github.com/pytorch/tutorials.git
+	type: gitPython
 
 
   .. code-tab:: Python3
     :caption: Python
   
-
     from ads.pipeline import GitPythonRuntime
 
     runtime = (
@@ -117,7 +143,18 @@ To define a Custom Script step with ``NotebookRuntime`` you can use:
 
   .. code-tab:: YAML
 
-    TBD
+	kind: runtime
+	spec:
+	  conda:
+		slug: tensorflow26_p37_cpu_v2
+		type: service
+	  env:
+	  - name: GREETINGS
+		value: Welcome to OCI Data Science
+	  notebookEncoding: utf-8
+	  notebookPathURI: https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb
+	  outputURI: oci://bucket_name@namespace/path/to/dir
+	type: notebook
 
   .. code-tab:: Python3
     :caption: Python
@@ -142,7 +179,19 @@ To define a Custom Script step with ``PythonRuntime`` you can use:
 
   .. code-tab:: YAML
 
-    TBD
+	kind: runtime
+	spec:
+	  conda:
+		slug: pytorch19_p37_cpu_v1
+		type: service
+	  entrypoint: zip_or_dir/my_package/entry.py
+	  outputDir: output
+	  outputUri: oci://bucket_name@namespace/path/to/dir
+	  pythonPath:
+	  - my_python_packages
+	  scriptPathURI: local/path/to/zip_or_dir
+	  workingDir: zip_or_dir
+	type: python
 
   .. code-tab:: Python3
     :caption: Python
@@ -172,7 +221,13 @@ To define a Custom Script step with ``ScriptRuntime`` you can use:
 
   .. code-tab:: YAML
   
-    TBD
+	kind: runtime
+	spec:
+	  conda:
+		slug: tensorflow26_p37_cpu_v2
+		type: service
+	  scriptPathURI: oci://<bucket_name>@<namespace>/<prefix>/<script.py>
+	type: script
 
   .. code-tab:: Python3
     :caption: Python
