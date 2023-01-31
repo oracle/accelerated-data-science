@@ -81,9 +81,7 @@ Oracle Accelerated Data Science SDK (ADS)
     - Launch distributed ETL, data processing, and model training jobs in Spark with OCI Data Flow.
     - Train machine learning models in OCI Data Science Jobs.
     - Manage the lifecycle of conda environments through the ads conda command line interface (CLI).
-    - Distributed Training with PyTorch, Horovod and Dask |beta|
-
-.. |beta| image:: _static/badge_beta.svg
+    - Distributed Training with PyTorch, Horovod and Dask
 
 
 .. admonition:: Installation
