@@ -1,8 +1,6 @@
-===========================
-Distributed Training |beta|
-===========================
-
-.. |beta| image:: /_static/badge_beta.svg
+====================
+Distributed Training
+====================
 
 .. admonition:: Distributed Training with OCI Data Science
 
