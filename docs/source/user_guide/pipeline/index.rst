@@ -1,8 +1,8 @@
 .. _pipeline:
 
-########
-Pipeline
-########
+#########
+Pipelines
+#########
 
 
 .. versionadded:: 2.8.0
