@@ -1,0 +1,64 @@
+{
+  "schema": [
+    {
+      "description": "Names of animals",
+      "domain": {
+        "constraints": [
+          {
+            "expression": "in ['Dog', 'Cat', 'Python']",
+            "language": "python"
+          }
+        ],
+        "stats": {
+          "mode": "Dog"
+        },
+        "values": "Dog, Cat, Python"
+      },
+      "dtype": "category",
+      "feature_type": "category",
+      "name": "animals",
+      "order": null,
+      "required": true
+    },
+    {
+      "description": "Names of Car Brands",
+      "domain": {
+        "constraints": [
+          {
+            "expression": "in ['audi', 'bmw', 'benz']",
+            "language": "python"
+          }
+        ],
+        "stats": {
+          "mode": "Car"
+        },
+        "values": "audi, bmw, benz"
+      },
+      "dtype": "category",
+      "feature_type": "category",
+      "name": "cars",
+      "order": null,
+      "required": true
+    },
+    {
+      "description": "Names of fruits",
+      "domain": {
+        "constraints": [
+          {
+            "expression": "in ['Apple', 'Orange', 'Grapes']",
+            "language": "python"
+          }
+        ],
+        "stats": {
+          "mode": "Orange"
+        },
+        "values": "Apple, Orange, Grapes"
+      },
+      "dtype": "category",
+      "feature_type": "category",
+      "name": "fruits",
+      "order": null,
+      "required": true
+    }
+  ]
+}

@@ -21,8 +21,7 @@ from enum import Enum, auto
 import oci
 import fsspec
 from oci.data_science.models import CreateModelDetails
-from ads.common.auth import default_signer
-from ads.common.oci_client import OCIClientFactory
+from ads.common import auth, oci_client
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
@@ -214,9 +213,9 @@ class OCIClientManager:
 
     def __init__(self, config=None) -> None:
         if not config:
-            config = default_signer()
+            config = auth.default_signer()
         self.config = config
-        self.ds_client = OCIClientFactory(**config).data_science
+        self.ds_client = oci_client.OCIClientFactory(**config).data_science
         self.ds_composite_client = (
             oci.data_science.DataScienceClientCompositeOperations(self.ds_client)
         )

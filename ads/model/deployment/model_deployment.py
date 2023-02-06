@@ -13,9 +13,8 @@ from typing import Dict, Union, List, Any
 
 import oci.loggingsearch
 import pandas as pd
-from ads.common.auth import default_signer
+from ads.common import auth, oci_client
 from ads.common.data_serializer import InputDataSerializer
-from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_logging import (
     LOG_RECORDS_LIMIT,
     ConsolidatedLog,
@@ -120,7 +119,7 @@ class ModelDeployment:
 
         if config is None:
             utils.get_logger().info("Using default configuration.")
-            config = default_signer()
+            config = auth.default_signer()
 
         # self.config is ADS auth dictionary for OCI authentication.
         self.config = config
@@ -156,9 +155,9 @@ class ModelDeployment:
         self.workflow_req_id = workflow_req_id
 
         if self.ds_client:
-            self.log_search_client = OCIClientFactory(**self.config).create_client(
-                oci.loggingsearch.LogSearchClient
-            )
+            self.log_search_client = oci_client.OCIClientFactory(
+                **self.config
+            ).create_client(oci.loggingsearch.LogSearchClient)
 
         self._access_log = None
         self._predict_log = None

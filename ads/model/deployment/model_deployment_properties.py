@@ -7,8 +7,7 @@ from typing import Any, Dict, Optional, Union
 
 import oci.data_science.models as data_science_models
 from ads.common import utils
-from ads.common.auth import default_signer
-from ads.common.oci_client import OCIClientFactory
+from ads.common import auth, oci_client
 from ads.common.oci_datascience import OCIDataScienceMixin
 
 from .common.utils import OCIClientManager
@@ -125,12 +124,12 @@ class ModelDeploymentProperties(
             oci_model_deployment.model_deployment_configuration_details.model_configuration_details.
         """
         if not config:
-            config = default_signer()
+            config = auth.default_signer()
         self.config = config
         self.model_id = model_id
         self.model_uri = model_uri
 
-        self.ds_client = OCIClientFactory(**self.config).data_science
+        self.ds_client = oci_client.OCIClientFactory(**self.config).data_science
         oci_kwargs = {}
         if oci_model_deployment:
             # User specified oci_model_deployment, which could be an OCI model object or a dict

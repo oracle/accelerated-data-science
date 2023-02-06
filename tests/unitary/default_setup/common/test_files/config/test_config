@@ -1,0 +1,7 @@
+[DEFAULT]
+some_key1 = some_value_1
+some_key2 = some_value_2
+
+[MY_PROFILE]
+some_key1 = some_value_11
+some_key2 = some_value_22

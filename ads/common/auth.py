@@ -149,7 +149,7 @@ def set_auth(
 
     auth_state.oci_config = config
     auth_state.oci_key_profile = profile
-    if auth == AuthType.API_KEY:
+    if auth == AuthType.API_KEY and not signer and not signer_callable:
         if os.path.exists(os.path.expanduser(oci_config_location)):
             auth_state.oci_config_path = oci_config_location
         else:

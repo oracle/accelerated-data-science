@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Contains Mixins for integrating OCI data models
@@ -18,7 +18,7 @@ from enum import Enum
 
 import oci
 import yaml
-from ads.common.auth import default_signer
+from ads.common import auth
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.utils import camel_to_snake
 from ads.config import COMPARTMENT_OCID
@@ -79,16 +79,16 @@ class OCIClientMixin:
             client_kwargs.update(cls.kwargs)
 
         if cls.config is None and cls.signer is None:
-            auth = default_signer(client_kwargs)
+            oci_auth = auth.default_signer(client_kwargs)
         elif not cls.signer and cls.config:
-            auth = {"config": cls.config, "client_kwargs": client_kwargs}
+            oci_auth = {"config": cls.config, "client_kwargs": client_kwargs}
         else:
-            auth = {
+            oci_auth = {
                 "config": cls.config,
                 "signer": cls.signer,
                 "client_kwargs": client_kwargs,
             }
-        return auth
+        return oci_auth
 
     @class_or_instance_method
     def init_client(cls, **kwargs):
