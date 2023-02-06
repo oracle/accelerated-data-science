@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - main
-      - release/**
+      - 'release/**'
       - develop
     paths:
-      - !docs/**
+      - '!docs/**'
 
   pull_request:
 
