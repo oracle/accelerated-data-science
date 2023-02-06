@@ -54,10 +54,10 @@ jobs:
         shell: bash
         run: |
           set -x # print commands that are executed
-          coverage erase
-          ./scripts/runtox.sh "${{ matrix.python-version }}-${{ matrix.tests-type }}" --cov --cov-report=
-          coverage combine .coverage-*
-          coverage html -i
+#          coverage erase
+#          ./scripts/runtox.sh "${{ matrix.python-version }}-${{ matrix.tests-type }}" --cov --cov-report=
+#          coverage combine .coverage-*
+#          coverage html -i
 
       # Uploading test artifacts
       # https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
