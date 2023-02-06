@@ -6,6 +6,8 @@ on:
       - main
       - release/**
       - develop
+    paths:
+      - !docs/**
 
   pull_request:
 
@@ -21,7 +23,7 @@ permissions:
 jobs:
   test:
     name: ${{ matrix.tests-type }}, python ${{ matrix.python-version }}
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     timeout-minutes: 45
 
     strategy:
@@ -42,11 +44,11 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: !Setup test env
+      - name: "Setup test env"
         run: |
           pip install coverage pytest-codecov tox==4.2.8
 
-      - name: !Run unit tests
+      - name: "Run unit tests"
         timeout-minutes: 45
         shell: bash
         run: |
@@ -58,7 +60,7 @@ jobs:
 
       # Uploading test artifacts
       # https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
-#      - name: !Upload artifact
+#      - name: "Upload artifact"
 #        uses: actions/upload-artifact@v3
 #        with:
 #          name: code-coverage-report
