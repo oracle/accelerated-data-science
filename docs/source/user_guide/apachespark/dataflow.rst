@@ -36,6 +36,7 @@ Define config. If you have not yet configured your dataflow setting, or would li
   dataflow_config.logs_bucket_uri = "oci://<my-bucket>@<my-tenancy>/"
   dataflow_config.spark_version = "3.2.1"
   dataflow_config.configuration = {"spark.driver.memory": "512m"}
+  dataflow_config.private_endpoint_id = "ocid1.dataflowprivateendpoint.oc1.iad.<your private endpoint ocid>"
 
 Use the config defined above to submit the cell.
 
@@ -159,6 +160,7 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
 		.with_executor_shape("VM.Standard.E4.Flex")
 		.with_executor_shape_config(ocpus=4, memory_in_gbs=64)
         .with_logs_bucket_uri("oci://mybucket@mytenancy/")
+        .with_private_endpoint_id("ocid1.dataflowprivateendpoint.oc1.iad.<your private endpoint ocid>")
     )
     rt = (
         DataFlowNotebookRuntime()
@@ -167,6 +169,7 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
         )  # This could be local path or http path to notebook ipynb file
         .with_script_bucket("<my-bucket>")
         .with_exclude_tag(["ignore", "remove"])  # Cells to Ignore
+        .with_environment_variable(env1="test", env2= "test2") # will be propagated to both driver and executor
     )
     job = Job(infrastructure=df, runtime=rt).create(overwrite=True)
     df_run = job.run(wait=True)
@@ -197,6 +200,7 @@ You can set them using the ``with_{property}`` functions:
 - ``with_num_executors``
 - ``with_spark_version``
 - ``with_warehouse_bucket_uri``
+- ``with_private_endpoint_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pe-allowing.htm#pe-allowing>`__)
 
 For more details, see `DataFlow class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
 
@@ -209,6 +213,7 @@ The ``DataFlowRuntime`` properties are:
 - ``with_archive_uri`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__)
 - ``with_archive_bucket``
 - ``with_custom_conda``
+- ``with_environment_variable``
 
 For more details, see the `runtime class documentation <../../ads.jobs.html#module-ads.jobs.builders.runtimes.python_runtime>`__.
 
@@ -217,7 +222,7 @@ object can be reused and combined with various ``DataFlowRuntime`` parameters to
 create applications.
 
 In the following "hello-world" example, ``DataFlow`` is populated with ``compartment_id``,
-``driver_shape``, ``driver_shape_config``, ``executor_shape``, ``executor_shape_config`` 
+``driver_shape``, ``driver_shape_config``, ``executor_shape``, ``executor_shape_config``
 and ``spark_version``. ``DataFlowRuntime`` is populated with ``script_uri`` and
 ``script_bucket``. The ``script_uri`` specifies the path to the script. It can be
 local or remote (an Object Storage path). If the path is local, then
@@ -267,6 +272,7 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
             .with_script_uri(os.path.join(td, "script.py"))
             .with_script_bucket("oci://mybucket@namespace/prefix")
             .with_custom_conda("oci://<mybucket>@<mynamespace>/<path/to/conda_pack>")
+            .with_environment_variable(env1="test", env2= "test2") # will be propagated to both driver and executor
         )
         df = Job(name=name, infrastructure=dataflow_configs, runtime=runtime_config)
         df.create()
@@ -545,7 +551,8 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
         language: PYTHON
         logsBucketUri: <logs_bucket_uri>
         numExecutors: 1
-        sparkVersion: 2.4.4
+        sparkVersion: 3.2.1
+        privateEndpointId: <private_endpoint_ocid>
       type: dataFlow
     name: dataflow_app_name
     runtime:
@@ -553,6 +560,9 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
       spec:
         scriptBucket: bucket_name
         scriptPathURI: oci://<bucket_name>@<namespace>/<prefix>
+        env:
+        - name: env1
+          value: test1
       type: dataFlow
 
 **Data Flow Infrastructure YAML Schema**
@@ -616,6 +626,9 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
                 required: false
                 type: integer
             sparkVersion:
+                required: false
+                type: string
+            privateEndpointId:
                 required: false
                 type: string
     type:
