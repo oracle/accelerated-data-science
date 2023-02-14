@@ -1,8 +1,8 @@
 .. _model-catalog-8:
 
-##########################
-Register and Deploy Models
-##########################
+###################################
+Register, Manage, and Deploy Models
+###################################
 
 
 You could register your model with OCI Data Science service through ADS. Alternatively, the Oracle Cloud Infrastructure (OCI) Console can be used by going to the Data Science projects page, selecting a project, then click **Models**. The models page shows the model artifacts that are in the model catalog for a given project.
