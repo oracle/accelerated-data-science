@@ -534,9 +534,9 @@ def configure() -> None:
             is_in_notebook_session(),
         )
 
-    print("==== Setting configuration for OCI DataFlow ====")
+    print("==== Setting configuration for OCI Data Flow ====")
     if click.confirm(
-        f"Do you want to set up or update OCI DataFlow configuration?", default=True
+        f"Do you want to set up or update OCI Data Flow configuration?", default=True
     ):
         required_fields = [
             ("compartment_id", ""),

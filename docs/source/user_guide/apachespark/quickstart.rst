@@ -4,13 +4,13 @@ Quick Start
 
 Data Flow is a hosted Apache Spark server. It is quick to start, and can scale to handle large datasets in parallel. ADS provides a convenient API for creating and maintaining workloads on Data Flow.
 
-Submit a Dummy Python Script to DataFlow
-========================================
+Submit a Dummy Python Script to Data Flow
+=========================================
 
 From a Python Environment
 -------------------------
 
-Submit a python script to DataFlow entirely from your python environment. 
+Submit a python script to Data Flow entirely from your python environment.
 The following snippet uses a dummy python script that prints "Hello World" 
 followed by the spark version, 3.2.1.
 

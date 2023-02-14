@@ -6,7 +6,7 @@ CLI Configuration
 * You have completed :doc:`ADS CLI installation <../quickstart>`
 
 
-Setup default values for different options while running ``OCI Data Sciecne Jobs`` or ``OCI DataFlow``. By setting defaults, you can avoid inputing compartment ocid, project ocid, etc.
+Setup default values for different options while running ``OCI Data Sciecne Jobs`` or ``OCI Data Flow``. By setting defaults, you can avoid inputing compartment ocid, project ocid, etc.
 
 To setup configuration run -
 
