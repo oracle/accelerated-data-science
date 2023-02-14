@@ -2,15 +2,15 @@
 Quick Start
 ===========
 
-DataFlow is a hosted Apache Spark server. It is quick to start, and can scale to handle large datasets in parallel. ADS provides a convenient API for creating and maintaining workloads on Data Flow.
+Data Flow is a hosted Apache Spark server. It is quick to start, and can scale to handle large datasets in parallel. ADS provides a convenient API for creating and maintaining workloads on Data Flow.
 
-Submit a Dummy Python Script to DataFlow
-========================================
+Submit a Dummy Python Script to Data Flow
+=========================================
 
 From a Python Environment
 -------------------------
 
-Submit a python script to DataFlow entirely from your python environment. 
+Submit a python script to Data Flow entirely from your python environment. 
 The following snippet uses a dummy python script that prints "Hello World" 
 followed by the spark version, 3.2.1.
 
@@ -111,7 +111,7 @@ Assuming you have the following two files written in your current directory as `
 Real Data Flow Example with Conda Environment
 =============================================
 
-From PySpark v3.0.0 and onwards, Data Flow allows a published conda environment as the `Spark runtime environment <https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-conda>`_ when built with `ADS`. Data Flow supports published conda environments only. Conda packs are tar'd conda environments. When you publish your own conda packs to object storage, ensure that the DataFlow Resource has access to read the object or bucket.
+From PySpark v3.0.0 and onwards, Data Flow allows a published conda environment as the `Spark runtime environment <https://spark.apache.org/docs/latest/api/python/user_guide/python_packaging.html#using-conda>`_ when built with `ADS`. Data Flow supports published conda environments only. Conda packs are tar'd conda environments. When you publish your own conda packs to object storage, ensure that the Data Flow Resource has access to read the object or bucket.
 Below is a more built-out example using conda packs:
 
 From a Python Environment
