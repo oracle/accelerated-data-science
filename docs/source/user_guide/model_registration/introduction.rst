@@ -51,9 +51,16 @@ Register
   model_schema
   model_metadata
   model_file_customization
+
+Manage Model
+------------
+
+.. toctree::
+  :maxdepth: 1
+
   model_version_set
 
-Deploying model
+Deploying Model
 ---------------
 
 .. toctree::
