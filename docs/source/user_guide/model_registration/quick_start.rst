@@ -9,11 +9,13 @@ Sklearn
 .. code-block:: python3
 
     import tempfile
+
+    import ads
     from ads.model.framework.sklearn_model import SklearnModel
     from sklearn.datasets import load_iris
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
-    import ads
+
 
     ads.set_auth(auth="resource_principal")
 
@@ -53,12 +55,14 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 .. code-block:: python3
 
     import tempfile
+    
+    import ads
     import xgboost as xgb
     from ads.model.framework.xgboost_model import XGBoostModel
     from sklearn.datasets import load_iris
     from sklearn.datasets import make_classification
     from sklearn.model_selection import train_test_split
-    import ads
+    
 
     ads.set_auth(auth="resource_principal")
 
@@ -94,13 +98,15 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    import lightgbm as lgb
+    
     import tempfile
+
+    import ads
+    import lightgbm as lgb
     from ads.model.framework.lightgbm_model import LightGBMModel
     from sklearn.datasets import load_iris
     from sklearn.model_selection import train_test_split
-    import ads
-
+    
     ads.set_auth(auth="resource_principal")
 
     # Load dataset and Prepare train and test split
@@ -141,10 +147,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
     import tempfile
+
+    import ads
     import torch
     import torchvision
     from ads.model.framework.pytorch_model import PyTorchModel
-    import ads
 
     ads.set_auth(auth="resource_principal")
 
@@ -177,14 +184,15 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    import tempfile
     import os
-    from pyspark.sql import SparkSession
+    import tempfile
+
+    import ads
+    from ads.model.framework.spark_model import SparkPipelineModel
     from pyspark.ml import Pipeline
     from pyspark.ml.classification import LogisticRegression
     from pyspark.ml.feature import HashingTF, Tokenizer
-    from ads.model.framework.spark_model import SparkPipelineModel
-    import ads
+    from pyspark.sql import SparkSession
 
     ads.set_auth(auth="resource_principal")
 
@@ -240,10 +248,12 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    from ads.model.framework.tensorflow_model import TensorFlowModel
     import tempfile
-    import tensorflow as tf
+
     import ads
+    import tensorflow as tf
+    from ads.model.framework.tensorflow_model import TensorFlowModel
+
 
     ads.set_auth(auth="resource_principal")
 
@@ -280,11 +290,12 @@ Other Frameworks
 
 .. code-block:: python3
 
+    import tempfile
+
+    import ads
     from ads.model.generic_model import GenericModel
     from catboost import CatBoostRegressor
 
-    import tempfile
-    import ads
 
     ads.set_auth(auth="resource_principal")
 
@@ -298,15 +309,16 @@ Other Frameworks
                 [1, 4, 50, 60]]
 
     y_train = [10, 20, 30]
+
     # Initialize CatBoostRegressor
     catboost_estimator = CatBoostRegressor(iterations=2,
                             learning_rate=1,
                             depth=2)
-    # Train a CatBoost Classifier model
+    # Train a CatBoostRegressor model
     catboost_estimator.fit(X_train, y_train)
+
     # Get predictions
     preds = catboost_estimator.predict(X_test)
-
 
     # Instantite ads.model.generic_model.GenericModel using the trained Custom Model using the trained CatBoost Classifier  model
     catboost_model = GenericModel(estimator=catboost_estimator, artifact_dir=tempfile.mkdtemp())
