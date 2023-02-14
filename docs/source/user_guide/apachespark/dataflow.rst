@@ -1,5 +1,5 @@
 ===============================================
-Running your Spark Application on OCI Data Flow
+Running your Spark Application on OCI DataFlow
 ===============================================
 
 Submit your code to DataFlow for workloads that require larger resources.
@@ -119,7 +119,7 @@ ADS CLI
 
 .. admonition:: Tip
 
-    If, for some reason, you are unable to use CLI, instead skip to the ``Create, Run Data Flow Application Using ADS Python SDK`` section below.
+    If, for some reason, you are unable to use CLI, instead skip to the ``Create, Run DataFlow Application Using ADS Python SDK`` section below.
 
 Sometimes your code is too complex to run in a single cell, and it's better run as a notebook or file. In that case, use the ADS Opctl CLI.
 
@@ -176,12 +176,12 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
 ADS Python SDK
 ==============
 
-To create a Data Flow application using the ADS Python API you need two components:
+To create a DataFlow application using the ADS Python API you need two components:
 
 - ``DataFlow``, a subclass of ``Infrastructure``.
 - ``DataFlowRuntime``, a subclass of ``Runtime``.
 
-``DataFlow`` stores properties specific to Data Flow service, such as
+``DataFlow`` stores properties specific to DataFlow service, such as
 compartment_id, logs_bucket_uri, and so on.
 You can set them using the ``with_{property}`` functions:
 
@@ -221,7 +221,7 @@ In the following "hello-world" example, ``DataFlow`` is populated with ``compart
 and ``spark_version``. ``DataFlowRuntime`` is populated with ``script_uri`` and
 ``script_bucket``. The ``script_uri`` specifies the path to the script. It can be
 local or remote (an Object Storage path). If the path is local, then
-``script_bucket`` must be specified additionally because Data Flow
+``script_bucket`` must be specified additionally because DataFlow
 requires a script to be available in Object Storage. ADS
 performs the upload step for you, as long as you give the bucket name
 or the Object Storage path prefix to upload the script. Either can be
@@ -298,8 +298,8 @@ You should this in the log:
    ALLOW SERVICE dataflow TO READ objects IN tenancy WHERE target.bucket.name='dataflow-logs'
 
 
-Data Flow supports adding third-party libraries using a ZIP file, usually called ``archive.zip``, see the `Data Flow documentation <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__
-about how to create ZIP files. Similar to scripts, you can specify an archive ZIP for a Data Flow application using ``with_archive_uri``.
+DataFlow supports adding third-party libraries using a ZIP file, usually called ``archive.zip``, see the `DataFlow documentation <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__
+about how to create ZIP files. Similar to scripts, you can specify an archive ZIP for a DataFlow application using ``with_archive_uri``.
 In the next example, ``archive_uri`` is given as an Object Storage location.
 ``archive_uri`` can also be local so you must specify ``with_archive_bucket`` and follow the same rule as ``with_script_bucket``.
 
@@ -386,7 +386,7 @@ In the next example, ``archive_uri`` is given as an Object Storage location.
         df.create()
 
 
-You can pass arguments to a Data Flow run as a list of strings:
+You can pass arguments to a DataFlow run as a list of strings:
 
 .. code-block:: python
 
@@ -399,7 +399,7 @@ reuse. You could also use the ``json`` format.
 
     print(df.to_yaml("sample-df.yaml"))
 
-You can also load a Data Flow application directly from the YAML file saved in the
+You can also load a DataFlow application directly from the YAML file saved in the
 previous example:
 
 .. code-block:: python
@@ -419,7 +419,7 @@ Deleting a job cancels associated runs:
     df2.delete()
     df_run2.status
 
-You can also load a Data Flow application from an OCID:
+You can also load a DataFlow application from an OCID:
 
     df3 = Job.from_dataflow_job(df.id)
 
@@ -435,7 +435,7 @@ Now there are 2 runs under the ``df`` application:
 
     assert len(df.run_list()) == 2
 
-When you run a Data Flow application, a ``DataFlowRun`` object is created.
+When you run a DataFlow application, a ``DataFlowRun`` object is created.
 You can check the status, wait for a run to finish, check its logs
 afterwards, or cancel a run in progress. For example:
 
@@ -510,7 +510,7 @@ property:
 
     df_run.run_details_link
 
-To list Data Flow applications, a compartment id must be given
+To list DataFlow applications, a compartment id must be given
 with any optional filtering criteria. For example, you can filter by
 name of the application:
 
@@ -521,8 +521,8 @@ name of the application:
 YAML
 ++++
 
-You can create a Data Flow job directly from a YAML string. You can pass a YAML string
-into the ``Job.from_yaml()`` function to build a Data Flow job:
+You can create a DataFlow job directly from a YAML string. You can pass a YAML string
+into the ``Job.from_yaml()`` function to build a DataFlow job:
 
 .. code:: yaml
 
@@ -555,7 +555,7 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
         scriptPathURI: oci://<bucket_name>@<namespace>/<prefix>
       type: dataFlow
 
-**Data Flow Infrastructure YAML Schema**
+**DataFlow Infrastructure YAML Schema**
 
 .. code:: yaml
 
@@ -624,7 +624,7 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
         required: true
         type: string
 
-**Data Flow Runtime YAML Schema**
+**DataFlow Runtime YAML Schema**
 
 .. code:: yaml
 
