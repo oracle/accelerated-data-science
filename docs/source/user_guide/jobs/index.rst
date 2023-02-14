@@ -1,21 +1,36 @@
 .. _jobs-1:
 
 #################
-Data Science Jobs
+Training with OCI
 #################
 
-Oracle Cloud Infrastructure (OCI) Data Science jobs enable you to define and run a repeatable machine learning task on a fully managed infrastructure, such as **data preparation, model training, hyperparameter optimization, batch inference, and so on**.
+Oracle Cloud Infrastructure (OCI) `Data Science Jobs (Jobs) <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm>`__
+enables you to define and run repeatable machine learning tasks on a fully managed infrastructure.
+You can have Compute resource on demand and run applications that perform tasks such as
+data preparation, model training, hyperparameter tuning, and batch inference.
 
-.. toctree::
-   :maxdepth: 1
+Training with OCI involves two types resources: **Job** and **Job Run**.
 
-   overview
-   data_science_job
-   run_container
-   run_git
-   run_notebook
-   run_script
-   run_zip
-   ../cli/opctl/_template/jobs
-   ../cli/opctl/_template/monitoring
-   ../cli/opctl/localdev/local_jobs
+A **Job** is a template that describes the training task. It contains configurations about the *infrastructure*, such as
+`Compute Shape <https://docs.oracle.com/en-us/iaas/Content/Compute/References/computeshapes.htm>`__,
+`Block Storage <https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/overview.htm>`__,
+`Logging <https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/loggingoverview.htm>`__,
+and information about the *runtime*, such as the source code of your training workload, environment variables, and CLI arguments.
+
+A **Job Run** is an instantiation of a job. In each job run, you can override some of the job configurations,
+such as environment variables and CLI arguments.
+You can use the same job as a template and launch multiple simultaneous job runs to parallelize a large task.
+You can also sequence jobs and keep the state by writing state information to
+`Object Storage <https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm>`__
+
+For example, you may want to experiment with how different model classes perform on the same training data
+by using the ADSTuner to perform hyperparameter tuning on each model class.
+You could do this in parallel by having a different job run for each class of models.
+For a given job run, you could pass an environment variable that identifies the model class that you want to use.
+Each model cab write its results to the Logging service or Object Storage.
+Then you can run a final sequential job that uses the best model class, and trains the final model on the entire dataset.
+
+The following sections provides details on running training workloads with OCI Data Science Jobs using ADS Jobs APIs.
+You can use similar APIs to `Run a OCI DataFlow Application <run_data_flow.html>`__.
+
+.. include:: ../jobs/toc.rst
