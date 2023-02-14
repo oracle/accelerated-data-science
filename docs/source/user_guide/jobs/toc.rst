@@ -2,6 +2,7 @@
    :maxdepth: 1
 
    ../jobs/data_science_job
+   ../jobs/policies
    ../jobs/run_container
    ../jobs/run_git
    ../jobs/run_notebook
