@@ -368,7 +368,7 @@ With Model Version Set
 
         # Check if the artifacts are generated correctly.
         # The verify method invokes the ``predict`` function defined inside ``score.py`` in the artifact_dir
-        generic_model.verify([2])
+        generic_model.verify(2)
 
         # Register the model
         model_id = generic_model.save(display_name="Custom Framework Model")
