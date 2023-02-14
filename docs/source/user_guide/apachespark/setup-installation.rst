@@ -125,7 +125,7 @@ The values of these parameters are found in the OCI configuration file.
 Local Development
 ==================
 
-Follow these set up instructions to submit Spark Jobs to DataFlow from your local machine.
+Follow these set up instructions to submit Spark Jobs to Data Flow from your local machine.
 
 PySpark Environment
 --------------------
@@ -178,12 +178,12 @@ Once the development environment is setup, you could write your code and run it 
 ``core-site.xml`` is setup automatically when you install a pyspark conda pack.
 
 
-Logging From DataFlow
-=====================
+Logging From Data Flow
+======================
 
 If using the ADS Python SDK, 
 
-To create and run a DataFlow application, you must specify a
+To create and run a Data Flow application, you must specify a
 compartment and a bucket for storing logs under the same 
 compartment:
 
