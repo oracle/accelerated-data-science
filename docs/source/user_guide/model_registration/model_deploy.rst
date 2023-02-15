@@ -23,7 +23,7 @@ Here is an example of deploying LightGBM model:
     }
     lightgbm_estimator = lgb.train(param, train)
 
-    # Instantite ads.model.LightGBMModel using the trained LGBM Model
+    # Instantiate ads.model.LightGBMModel using the trained LGBM Model
     lightgbm_model = LightGBMModel(estimator=lightgbm_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json

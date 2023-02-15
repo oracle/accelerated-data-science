@@ -28,7 +28,7 @@ Sklearn
     sklearn_estimator = LogisticRegression()
     sklearn_estimator.fit(X_train, y_train)
 
-    # Instantite ads.model.framework.sklearn_model.SklearnModel using the sklearn LogisticRegression model
+    # Instantiate ads.model.framework.sklearn_model.SklearnModel using the sklearn LogisticRegression model
     sklearn_model = SklearnModel(
         estimator=sklearn_estimator, artifact_dir=tempfile.mkdtemp()
     )
@@ -75,7 +75,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     xgboost_estimator = xgb.XGBClassifier()
     xgboost_estimator.fit(X_train, y_train)
 
-    # Instantite ads.model.framework.xgboost_model.XGBoostModel using the trained XGBoost Model
+    # Instantiate ads.model.framework.xgboost_model.XGBoostModel using the trained XGBoost Model
     xgboost_model = XGBoostModel(estimator=xgboost_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
@@ -121,7 +121,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     }
     lightgbm_estimator = lgb.train(param, train)
 
-    # Instantite ads.model.lightgbm_model.XGBoostModel using the trained LGBM Model
+    # Instantiate ads.model.lightgbm_model.XGBoostModel using the trained LGBM Model
     lightgbm_model = LightGBMModel(estimator=lightgbm_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
@@ -162,7 +162,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # create random test data
     test_data = torch.randn(1, 3, 224, 224)
 
-    # Instantite ads.model.framework.pytorch_model.PyTorchModel using the pre-trained PyTorch Model
+    # Instantiate ads.model.framework.pytorch_model.PyTorchModel using the pre-trained PyTorch Model
     artifact_dir=tempfile.mkdtemp()
     torch_model = PyTorchModel(torch_estimator, artifact_dir=artifact_dir)
 
@@ -228,7 +228,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     pipeline = Pipeline(stages=[tokenizer, hashingTF, lr])
     model = pipeline.fit(training)
 
-    # Instantite ads.model.framework.spark_model.SparkPipelineModel using the pre-trained Spark Pipeline Model
+    # Instantiate ads.model.framework.spark_model.SparkPipelineModel using the pre-trained Spark Pipeline Model
     spark_model = SparkPipelineModel(estimator=model, artifact_dir=tempfile.mkdtemp())
     spark_model.prepare(inference_conda_env="pyspark32_p38_cpu_v2",
                         X_sample = training,
@@ -273,7 +273,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     tf_estimator.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy"])
     tf_estimator.fit(x_train, y_train, epochs=1)
 
-    # Instantite ads.model.framework.tensorflow_model.TensorFlowModel using the pre-trained TensorFlow Model
+    # Instantiate ads.model.framework.tensorflow_model.TensorFlowModel using the pre-trained TensorFlow Model
     tf_model = TensorFlowModel(tf_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
@@ -320,7 +320,7 @@ Other Frameworks
     # Get predictions
     preds = catboost_estimator.predict(X_test)
 
-    # Instantite ads.model.generic_model.GenericModel using the trained Custom Model using the trained CatBoost Classifier  model
+    # Instantiate ads.model.generic_model.GenericModel using the trained Custom Model using the trained CatBoost Classifier  model
     catboost_model = GenericModel(estimator=catboost_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
@@ -351,7 +351,7 @@ With Model Version Set
             return x ** 2
     model = Toy()
 
-    # Instantite ads.model.generic_model.GenericModel using the trained Custom Model
+    # Instantiate ads.model.generic_model.GenericModel using the trained Custom Model
     generic_model = GenericModel(estimator=model, artifact_dir=tempfile.mkdtemp())
     generic_model.summary_status()
 
