@@ -1,7 +1,7 @@
 Delete
 ******
 
-A model deployment can be deleted using a ``ModelDeployment`` objects.
+A model deployment can be deleted using a ``ModelDeployment`` object.
 
 When a model deployment is deleted, it deletes the load balancer instances associated with it. However, it doesn't delete other resources like log group, log, or model.
 
