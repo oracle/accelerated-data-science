@@ -28,7 +28,7 @@ Sklearn
         estimator=sklearn_estimator, artifact_dir=tempfile.mkdtemp()
     )
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     sklearn_model.prepare(
         inference_conda_env="dbexp_p38_cpu_v1",
         X_sample=X_train,
@@ -68,7 +68,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # Instantite ads.model.framework.xgboost_model.XGBoostModel using the trained XGBoost Model
     xgboost_model = XGBoostModel(estimator=xgboost_estimator, artifact_dir=tempfile.mkdtemp())
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     xgboost_model.prepare(
         inference_conda_env="generalml_p38_cpu_v1",
         X_sample=X_train,
@@ -109,7 +109,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # Instantite ads.model.lightgbm_model.XGBoostModel using the trained LGBM Model
     lightgbm_model = LightGBMModel(estimator=lightgbm_estimator, artifact_dir=tempfile.mkdtemp())
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     lightgbm_model.prepare(
         inference_conda_env="generalml_p38_cpu_v1",
         X_sample=X_train,
@@ -154,7 +154,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # Verify generated artifacts
     torch_model.verify(test_data)
 
-    #Register PyTorch model
+    # Register PyTorch model
     model_id = torch_model.save(display_name="PyTorch Model")
 
 
@@ -214,7 +214,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # Verify generated artifacts
     prediction = spark_model.verify(test)
 
-    #Register Spark model
+    # Register Spark model
     spark_model.save(display_name="Spark Pipeline Model")
 
 
@@ -248,13 +248,13 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # Instantite ads.model.framework.tensorflow_model.TensorFlowModel using the pre-trained TensorFlow Model
     tf_model = TensorFlowModel(tf_estimator, artifact_dir=tempfile.mkdtemp())
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     tf_model.prepare(inference_conda_env="tensorflow28_p38_cpu_v1")
 
     # Verify generated artifacts
     tf_model.verify(x_test[:1])
 
-    #Register TensorFlow model
+    # Register TensorFlow model
     model_id = tf_model.save(display_name="TensorFlow Model")
 
 HuggingFace Pipelines
@@ -284,20 +284,20 @@ HuggingFace Pipelines
     ## Initiate a HuggingFacePipelineModel instance
     zero_shot_image_classification_model = HuggingFacePipelineModel(classifier, artifact_dir=empfile.mkdtemp())
 
-    ## Prepare a model artifact
-    conda = "oci://bucket@namespace/path/to/conda/pack"
-    python_version = "3.8"
-    zero_shot_image_classification_model.prepare(inference_conda_env=conda, inference_python_version = python_version, force_overwrite=True)
+    # Autogenerate score.py, serialized model, runtime.yaml
+    conda_pack_path = "oci://bucket@namespace/path/to/conda/pack"
+    python_version = "3.x"
+    zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
 
     ## Test data
     data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
     body = cloudpickle.dumps(data) # convert image to bytes
 
-    ## Verify
+    # Verify generated artifacts
     zero_shot_image_classification_model.verify(data=data)
     zero_shot_image_classification_model.verify(data=body)
 
-    ## Save
+    # Register HuggingFace Pipeline model
     zero_shot_image_classification_model.save()
 
     ## Deploy
@@ -336,7 +336,7 @@ Other Frameworks
     generic_model = GenericModel(estimator=model, artifact_dir=tempfile.mkdtemp())
     generic_model.summary_status()
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     generic_model.prepare(
             inference_conda_env="dbexp_p38_cpu_v1",
             model_file_name="toy_model.pkl",
@@ -372,7 +372,7 @@ With Model Version Set
     # Within the context manager, you can save the :ref:`Model Serialization` model without specifying the ``model_version_set`` parameter because it's taken from the model context manager. If the model version set doesn't exist in the model catalog, the example creates a model version set named ``my_model_version_set``.  If the model version set exists in the model catalog, the models are saved to that model version set.
     with ads.model.experiment(name="my_model_version_set", create_if_not_exists=True):
 
-        # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+        # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
         generic_model.prepare(
                 inference_conda_env="dbexp_p38_cpu_v1",
                 model_file_name="toy_model.pkl",
