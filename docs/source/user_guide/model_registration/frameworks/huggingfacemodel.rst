@@ -203,20 +203,20 @@ Example
     ## Initiate a HuggingFacePipelineModel instance
     zero_shot_image_classification_model = HuggingFacePipelineModel(classifier, artifact_dir=empfile.mkdtemp())
 
-    ## Prepare a model artifact
-    conda = "oci://bucket@namespace/path/to/conda/pack"
-    python_version = "3.8"
-    zero_shot_image_classification_model.prepare(inference_conda_env=conda, inference_python_version = python_version, force_overwrite=True)
+    # Autogenerate score.py, serialized model, runtime.yaml
+    conda_pack_path = "oci://bucket@namespace/path/to/conda/pack"
+    python_version = "3.x"
+    zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
 
     ## Test data
     data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
     body = cloudpickle.dumps(data) # convert image to bytes
 
-    ## Verify
+    # Verify generated artifacts
     zero_shot_image_classification_model.verify(data=data)
     zero_shot_image_classification_model.verify(data=body)
 
-    ## Save
+    # Register HuggingFace Pipeline model
     zero_shot_image_classification_model.save()
 
     ## Deploy
