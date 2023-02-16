@@ -3,7 +3,7 @@ Attributes
 
 The ``ModelDeployment`` class has a number of attributes that are assigned by the system. They provide a mechanism to determine the state of the model deployment, the URI to make predictions, the model deployment OCID, etc.
 
-In the following code snippets, the variable ``deployment`` is a ``ModelDeployment`` object.  This object can be obtained from a call to ``.deploy()`` or ``.get_model_deployment()``.
+In the following code snippets, the variable ``deployment`` is a ``ModelDeployment`` object.  This object can be obtained from a call to ``.deploy()`` or ``.from_id()``.
 
 OCID
 ====
@@ -18,9 +18,9 @@ the OCID of the model deployment.
 State
 =====
 
-You can determine the state of the model deployment using the ``.current_state`` enum attribute of a ``ModelDeployment`` object.  This returns an enum object and the string value can be determined with ``.current_state.name``. It will have values like ‘ACTIVE’, ‘INACTIVE’, and ‘FAILED’.
+You can determine the state of the model deployment using the ``.current_state`` enum attribute of a ``ModelDeployment`` object.  This returns an enum object and the string value can be determined with ``.current_state.name``. It will have values like 'ACTIVE', 'INACTIVE', and 'FAILED'.
 
-In the following code snippets, the variable ``deployment`` is a ``ModelDeployment`` object.  This object can be obtained from a call to ``.deploy()`` or ``.get_model_deployment()``.
+In the following code snippets, the variable ``deployment`` is a ``ModelDeployment`` object.  This object can be obtained from a call to ``.deploy()`` or ``.from_id()``.
 
 .. code-block:: python3
 

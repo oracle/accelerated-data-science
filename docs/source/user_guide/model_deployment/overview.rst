@@ -16,5 +16,4 @@ The ``ads.model.deployment`` module provides the following classes, which are us
 
 * ``ModelDeployer``: It creates a new deployment. It is also used to delete, list, and update existing deployments.
 * ``ModelDeployment``: Encapsulates the information and actions for an existing deployment.
-* ``ModelDeploymentProperties``: Stores the properties used to deploy a model.
 

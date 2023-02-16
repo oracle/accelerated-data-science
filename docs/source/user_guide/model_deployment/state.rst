@@ -20,9 +20,9 @@ The ``.get_model_deployment_state()`` method of the ``ModelDeployer`` class acce
 ``ModelDeployment``
 ===================
 
-You can determine the state of the model deployment using the ``current_state.name`` attribute of a ``ModelDeployment`` object.  This returns a string with values like ‘ACTIVE’, ‘INACTIVE’, and ‘FAILED’.
+You can determine the state of the model deployment using the ``current_state.name`` attribute of a ``ModelDeployment`` object.  This returns a string with values like 'ACTIVE', 'INACTIVE', and 'FAILED'.
 
-In the following code snippets, the variable ``deployment`` is a ``ModelDeployment`` object.  This object can be obtained from a call to ``.deploy()`` or ``.get_model_deployment()``.
+In the following code snippets, the variable ``deployment`` is a ``ModelDeployment`` object.  This object can be obtained from a call to ``.deploy()`` or ``.from_id()``.
 
 .. code-block:: python3
 

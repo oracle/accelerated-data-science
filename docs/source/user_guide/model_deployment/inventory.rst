@@ -4,7 +4,7 @@ Inventory
 List
 ====
 
-The ``.list_deployments()`` method of the ``ModelDeployer`` class returns a list of ``ModelDeployment`` objects. The optional ``compartment_id`` parameter limits the search to a specific compartment. By default, it uses the same compartment that the notebook is in. The optional ``status`` parameter limits the returned ``ModelDeployment`` objects to those model deployments that have the specified status. Values for the ``status`` parameter would be ‘ACTIVE’, ‘INACTIVE’, or ‘FAILED’.
+The ``.list_deployments()`` method of the ``ModelDeployer`` class returns a list of ``ModelDeployment`` objects. The optional ``compartment_id`` parameter limits the search to a specific compartment. By default, it uses the same compartment that the notebook is in. The optional ``status`` parameter limits the returned ``ModelDeployment`` objects to those model deployments that have the specified status. Values for the ``status`` parameter would be 'ACTIVE', 'INACTIVE', or 'FAILED'.
 
 The code snippet obtains a list of active deployments in the compartment specified by ``compartment_id``, and prints the display name.
 
