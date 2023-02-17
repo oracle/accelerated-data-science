@@ -201,11 +201,14 @@ Suppose you want to run the following python script named ``job_script_env.py``:
 
   import os
   import sys
-  print("Hello " + os.environ["KEY1"] + " and " + os.environ["KEY2"])""")
+  print("Hello " + os.environ["KEY1"] + " and " + os.environ["KEY2"])
 
 This example runs a job with environment variables:
 
 .. code-block:: python3
+  from ads.jobs import Job
+  from ads.jobs import DataScienceJob
+  from ads.jobs import ScriptRuntime
 
   job = Job()
   job.with_infrastructure(
@@ -246,12 +249,12 @@ You could create the preceding example job with the following YAML file:
 
 .. code-block:: yaml
 
-	kind: job
-	spec:
+  kind: job
+  spec:
 	  infrastructure:
-	    kind: infrastructure
+      kind: infrastructure
       type: dataScienceJob
-	    spec:
+      spec:
         logGroupId: <log_group_ocid>
         logId: <log_ocid>
         compartmentId: <compartment_ocid>
@@ -263,11 +266,11 @@ You could create the preceding example job with the following YAML file:
           ocpus: 1
         blockStorageSize: 50
 	  runtime:
-	    kind: runtime
+      kind: runtime
       type: python
-	    spec:
-	      env:
-	      - name: KEY1
+      spec:
+        env:
+        - name: KEY1
 	        value: <first_value>
 	      - name: KEY2
 		      value: <second_value>
