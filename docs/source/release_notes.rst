@@ -2,6 +2,13 @@
 Release Notes
 =============
 
+2.8.1
+-----
+Release date: February 16, 2023
+
+* Fixed a bug for ``ads opctl run`` when ``--auth`` flag is passed and image is built by ads.
+* Fixed a bug in  ``OCIDataScienceModel._wait_for_work_request`` when the work requests are not successfully populated.
+* Fixed a bug in ``DataScienceModel.create`` to when the provenance metadata is not provided.
 
 2.8.0
 -----
