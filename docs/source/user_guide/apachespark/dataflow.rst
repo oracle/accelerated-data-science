@@ -161,6 +161,10 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
 		.with_executor_shape_config(ocpus=4, memory_in_gbs=64)
         .with_logs_bucket_uri("oci://mybucket@mytenancy/")
         .with_private_endpoint_id("ocid1.dataflowprivateendpoint.oc1.iad.<your private endpoint ocid>")
+        .with_configuration({
+            "spark.driverEnv.myEnvVariable": "value1",
+            "spark.executorEnv.myEnvVariable": "value2",
+        })
     )
     rt = (
         DataFlowNotebookRuntime()
@@ -169,7 +173,6 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
         )  # This could be local path or http path to notebook ipynb file
         .with_script_bucket("<my-bucket>")
         .with_exclude_tag(["ignore", "remove"])  # Cells to Ignore
-        .with_environment_variable(env1="test", env2= "test2") # will be propagated to both driver and executor
     )
     job = Job(infrastructure=df, runtime=rt).create(overwrite=True)
     df_run = job.run(wait=True)
@@ -213,7 +216,7 @@ The ``DataFlowRuntime`` properties are:
 - ``with_archive_uri`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_data_flow_library.htm#third-party-libraries>`__)
 - ``with_archive_bucket``
 - ``with_custom_conda``
-- ``with_environment_variable``
+- ``with_configuration``
 
 For more details, see the `runtime class documentation <../../ads.jobs.html#module-ads.jobs.builders.runtimes.python_runtime>`__.
 
@@ -272,7 +275,10 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
             .with_script_uri(os.path.join(td, "script.py"))
             .with_script_bucket("oci://mybucket@namespace/prefix")
             .with_custom_conda("oci://<mybucket>@<mynamespace>/<path/to/conda_pack>")
-            .with_environment_variable(env1="test", env2= "test2") # will be propagated to both driver and executor
+            .with_configuration({
+                "spark.driverEnv.myEnvVariable": "value1",
+                "spark.executorEnv.myEnvVariable": "value2",
+            })
         )
         df = Job(name=name, infrastructure=dataflow_configs, runtime=runtime_config)
         df.create()
@@ -380,6 +386,10 @@ In the next example, ``archive_uri`` is given as an Object Storage location.
 		    .with_executor_shape("VM.Standard.E4.Flex")
 		    .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.0.2")
+            .with_configuration({
+                "spark.driverEnv.myEnvVariable": "value1",
+                "spark.executorEnv.myEnvVariable": "value2",
+            })
         )
         runtime_config = (
             DataFlowRuntime()
@@ -558,11 +568,11 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
     runtime:
       kind: runtime
       spec:
+        configuration:
+            spark.driverEnv.myEnvVariable: value1
+            spark.executorEnv.myEnvVariable: value2
         scriptBucket: bucket_name
         scriptPathURI: oci://<bucket_name>@<namespace>/<prefix>
-        env:
-        - name: env1
-          value: test1
       type: dataFlow
 
 **Data Flow Infrastructure YAML Schema**
@@ -631,6 +641,9 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
             privateEndpointId:
                 required: false
                 type: string
+            configuration:
+                required: false
+                type: dict
     type:
         allowed:
             - dataFlow
@@ -675,11 +688,9 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
                             - service
                         required: true
                         type: string
-            env:
-                type: list
+            configuration:
                 required: false
-                schema:
-                    type: dict
+                type: dict
             freeform_tag:
                 required: false
                 type: dict
