@@ -128,6 +128,10 @@ This example runs a job with CLI arguments:
 
 .. code-block:: python3
 
+  from ads.jobs import Job
+  from ads.jobs import DataScienceJob
+  from ads.jobs import ScriptRuntime
+
   job = Job()
   job.with_infrastructure(
     DataScienceJob()
@@ -161,9 +165,9 @@ You could create the preceding example job with the following YAML file:
 
 .. code-block:: yaml
 
-	kind: job
-	spec:
-	  infrastructure:
+  kind: job
+  spec:
+    infrastructure:
       kind: infrastructure
       type: dataScienceJob
       spec:
@@ -177,14 +181,14 @@ You could create the preceding example job with the following YAML file:
           memoryInGBs: 16
           ocpus: 1
         blockStorageSize: 50
-	  runtime:
-	    kind: runtime
+    runtime:
+      kind: runtime
       type: python
-	    spec:
-	      args:
-	      - <first_argument>
-	      - <second_argument>
-	      scriptPathURI: job_script_argument.py
+      spec:
+        args:
+        - <first_argument>
+        - <second_argument>
+      scriptPathURI: job_script_env.py
 
 
 Environment Variables
@@ -206,6 +210,7 @@ Suppose you want to run the following python script named ``job_script_env.py``:
 This example runs a job with environment variables:
 
 .. code-block:: python3
+
   from ads.jobs import Job
   from ads.jobs import DataScienceJob
   from ads.jobs import ScriptRuntime
@@ -251,7 +256,7 @@ You could create the preceding example job with the following YAML file:
 
   kind: job
   spec:
-	  infrastructure:
+    infrastructure:
       kind: infrastructure
       type: dataScienceJob
       spec:
@@ -265,16 +270,16 @@ You could create the preceding example job with the following YAML file:
           memoryInGBs: 16
           ocpus: 1
         blockStorageSize: 50
-	  runtime:
+    runtime:
       kind: runtime
       type: python
       spec:
         env:
         - name: KEY1
-	        value: <first_value>
-	      - name: KEY2
-		      value: <second_value>
-	      scriptPathURI: job_script_env.py
+          value: <first_value>
+        - name: KEY2
+          value: <second_value>
+      scriptPathURI: job_script_env.py
 
 
 
