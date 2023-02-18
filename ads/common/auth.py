@@ -283,7 +283,7 @@ def create_signer(
     >>> auth = ads.auth.create_signer(config=config) # api_key type of authentication dictionary created based on provided config
 
     >>> singer = oci.auth.signers.get_resource_principals_signer()
-    >>> auth = ads.auth.create_signer(config={}, singer=signer) # resource principals authentication dictionary created
+    >>> auth = ads.auth.create_signer(config={}, signer=signer) # resource principals authentication dictionary created
 
     >>> auth = ads.auth.create_signer(auth_type='instance_principal') # instance principals authentication dictionary created
 
