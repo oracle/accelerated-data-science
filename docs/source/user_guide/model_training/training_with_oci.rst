@@ -1,1 +1,7 @@
-.. include:: ../jobs/index.rst
+#################
+Training with OCI
+#################
+
+.. include:: ../jobs/overview.rst
+
+.. include:: ../jobs/toc.rst
