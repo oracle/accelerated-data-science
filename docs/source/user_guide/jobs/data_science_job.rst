@@ -6,7 +6,7 @@ Quick Start
   Before creating a job, ensure that you have policies configured for Data Science resources.
   See also: :doc:`policies` and  `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_.
 
-In ADS, a job is defined by **infrastructure** and **runtime**.
+In ADS, a job is defined by :doc:`infrastructure` and :doc:`runtime`.
 The Data Science Job infrastructure is configured through a :py:class:`~ads.jobs.builders.infrastructure.dsc_job.DataScienceJob` instance.
 The runtime can be an instance of :py:class:`~ads.jobs.builders.runtimes.python_runtime.PythonRuntime`,
 :py:class:`~ads.jobs.builders.runtimes.python_runtime.GitPythonRuntime`,
@@ -14,10 +14,10 @@ The runtime can be an instance of :py:class:`~ads.jobs.builders.runtimes.python_
 :py:class:`~ads.jobs.builders.runtimes.python_runtime.ScriptRuntime`.
 
 
-Running a Python Job
+Create and Run a Job
 ====================
 
-Here is an example to define and run a Python job:
+Here is an example to define and run a Python :py:class:`~ads.jobs.Job`:
 
 .. tabs::
 
@@ -108,6 +108,9 @@ Here is an example to define and run a Python job:
           scriptPathURI: local/path/to/code_dir
           workingDir: code_dir
 
+In :py:class:`~ads.jobs.builders.runtimes.python_runtime.PythonRuntime`,
+the ``entrypoint`` can be a Python script, a Python function or a Jupyter notebook.
+For more details, see :doc:`infrastructure` configurations and :doc:`runtime` configurations.
 
 YAML
 ====
@@ -136,3 +139,12 @@ Here are some examples to load/save the YAML job configurations:
 
 The ``uri`` can be a local file path or a remote location supported by
 `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`_, including OCI object storage.
+
+With the YAML file, you can create and run the job with ADS CLI:
+
+.. code-block:: bash
+
+  ads opctl run -f your_job.yaml
+
+For more details on ``ads opctl``, see :doc:`../cli/opctl/_template/jobs`.
+
