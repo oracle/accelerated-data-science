@@ -1,5 +1,9 @@
-Data Science Jobs Policies
-**************************
+I AM Policies
+*************
+
+Oracle Cloud Infrastructure Identity and Access Management (IAM)
+lets you specify policies to control the access to your cloud resources.
+This section contain the policies recommended for Data Science Jobs.
 
 .. admonition:: Policy subject
 
