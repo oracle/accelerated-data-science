@@ -1,49 +1,30 @@
-Overview
-********
+Oracle Cloud Infrastructure (OCI) `Data Science Jobs (Jobs) <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm>`_
+enables you to define and run repeatable machine learning tasks on a fully managed infrastructure.
+You can have Compute resource on demand and run applications that perform tasks such as
+data preparation, model training, hyperparameter tuning, and batch inference.
 
-Data Science jobs allow you to run customized tasks outside of a notebook session. You can have Compute on demand and only pay for the Compute that you need. With jobs, you can run applications that perform tasks such as data preparation, model training, hyperparameter tuning, and batch inference. When the task is complete the compute automatically terminates. You can use the Logging service to capture output messages.
+Training with OCI involves two types resources: **Job** and **Job Run**.
 
-Using jobs, you can:
+A **Job** is a template that describes the training task.
+It contains configurations about the *infrastructure*, such as
+`Compute Shape <https://docs.oracle.com/en-us/iaas/Content/Compute/References/computeshapes.htm>`_,
+`Block Storage <https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/overview.htm>`_,
+`Logging <https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/loggingoverview.htm>`_,
+and information about the *runtime*,
+such as the source code of your training workload, environment variables, and CLI arguments.
 
-*  Run machine learning (ML) or data science tasks outside of your JupyterLab notebook session.
-*  Operationalize discrete data science and machine learning tasks, such as reusable runnable operations.
-*  Automate your MLOps or CI/CD pipeline.
-*  Run batch or workloads triggered by events or actions.
-*  Batch, mini batch, or distributed batch job inference.
-*  In a JupyterLab notebook session, you can launch long running tasks or computation intensive tasks in a Data Science job to keep your notebook free for you to continue your work.
+A **Job Run** is an instantiation of a job.
+In each job run, you can override some of the job configurations, such as environment variables and CLI arguments.
+You can use the same job as a template and launch multiple simultaneous job runs to parallelize a large task.
+You can also sequence jobs and keep the state by writing state information to
+`Object Storage <https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm>`_
 
-Typically, an ML and data science project is a series of steps including:
+For example, you may want to experiment with how different model classes perform on the same training data
+by using the ADSTuner to perform hyperparameter tuning on each model class.
+You could do this in parallel by having a different job run for each class of models.
+For a given job run, you could pass an environment variable that identifies the model class that you want to use.
+Each model cab write its results to the Logging service or Object Storage.
+Then you can run a final sequential job that uses the best model class, and trains the final model on the entire dataset.
 
-* Access
-* Explore
-* Prepare
-* Model
-* Train
-* Validate
-* Deploy
-* Test
-
-.. image:: figures/ml_steps.png
-   :alt: Machine Learning Project Steps
-
-After the steps are completed, you can automate the process of data exploration, model training, deploying, and testing using jobs. A single change in the data preparation or model training to experiment with hyperparameter tunings can be run as a job and independently tested.
-
-Data Science jobs consist of two types of resources: job and job run.
-
-Job
-===
-
-A job is a template that describes the task. It contains elements like the job artifact, which is immutable. It can’t be modified after being registered as a Data Science job. A job contains information about the Compute shape, logging configuration, Block Storage, and other options. You can configure environment variables can be configured that are used at run-time by the job run.  You can also pass in CLI arguments. This allows a job run to be customized while using the same job as a template.  You can override the environment variable and CLI parameters in job runs.  Only the job artifact is immutable though the settings can be changed.
-
-Job Run
-=======
-
-A job run is an instantiation of a job. In each job run, you can override some of the job configuration. The most common configurations to change are the environment variables and CLI arguments. You can use the same job as a template and launch multiple simultaneous job runs to parallelize a large task. You can also sequence jobs and keep the state by writing state information to Object Storage.
-
-For example, you could experiment with how different model classes perform on the same training data by using the ADSTuner to perform hyperparameter tuning on each model class. You could do this in parallel by having a different job run for each class of models. For a given job run, you could pass an environment variable that identifies the model class that you want to use. Each model cab write its results to the Logging service or Object Storage. Then you can run a final sequential job that uses the best model class, and trains the final model on the entire dataset.
-
-ADS Jobs
-========
-
-ADS jobs API calls separate the job configurations into infrastructure and runtime.  Infrastructure specifies the configurations of the OCI resources and service for running the job.  Runtime specifies the source code and the software environments for running the job.  These two types of infrastructure are supported: `Data Science job <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm>`__ and `Data Flow <https://docs.oracle.com/en-us/iaas/data-flow/using/home.htm>`__.
-
+The following sections provides details on running training workloads with OCI Data Science Jobs using ADS Jobs APIs.
+You can use similar APIs to `Run a OCI DataFlow Application <run_data_flow.html>`_.
