@@ -3,10 +3,11 @@
 
    ../jobs/data_science_job
    ../jobs/policies
-   ../jobs/run_container
-   ../jobs/run_git
+   ../jobs/infrastructure
+   ../jobs/runtime
    ../jobs/run_notebook
-   ../jobs/run_script
+   ../jobs/run_git
+   ../jobs/run_container
    ../jobs/run_zip
    ../cli/opctl/_template/jobs
    ../cli/opctl/_template/monitoring
