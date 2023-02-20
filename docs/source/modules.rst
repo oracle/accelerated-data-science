@@ -1,8 +1,7 @@
-=======================
-Class Documentation
-=======================
+ads
+===
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 4
 
    ads
