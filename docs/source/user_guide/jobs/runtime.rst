@@ -56,4 +56,27 @@ by passing the ``uri`` to the ``with_custom_conda()`` method, for example:
 For more details on custom conda environment, see
 `Publishing a Conda Environment to an Object Storage Bucket in Your Tenancy <https://docs.oracle.com/en-us/iaas/data-science/using/conda_publishs_object.htm>`__.
 
+Environment Variables
+=====================
 
+
+CLI Arguments
+=============
+
+
+Override Configuration
+======================
+
+When you call ``job.run()``, a new job run will be started with the configuration defined in the **job**.
+You may want to override the configuration with custom variables. For example,
+you can customize job run display name, override command line argument, specify additional environment variables,
+and add free form tags:
+
+.. code-block:: python3
+
+  job_run = job.run(
+    name="<my_job_run_name>",
+    args="new_arg --new_key new_val",
+    env_var={"new_env": "new_val"},
+    freeform_tags={"new_tag": "new_tag_val"}
+  )
