@@ -12,6 +12,7 @@ import click
 import yaml
 
 from ads.common.auth import AuthType
+from ads.common import auth as authutil
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import delete as delete_cmd
@@ -358,7 +359,12 @@ def run(file, **kwargs):
     debug = kwargs["debug"]
     if file:
         if os.path.exists(file):
-            auth = kwargs["auth"] or authutil.default_signer()
+            auth = {}
+            if kwargs["auth"]:
+                auth = authutil.create_signer(kwargs["auth"])
+            else:
+                auth = authutil.default_signer()
+
             with fsspec.open(file, "r", **auth) as f:
                 config = suppress_traceback(debug)(yaml.safe_load)(f.read())
         else:
