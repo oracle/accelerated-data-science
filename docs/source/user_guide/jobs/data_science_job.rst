@@ -10,8 +10,9 @@ In ADS, a job is defined by :doc:`infrastructure` and :doc:`runtime`.
 The Data Science Job infrastructure is configured through a :py:class:`~ads.jobs.builders.infrastructure.dsc_job.DataScienceJob` instance.
 The runtime can be an instance of :py:class:`~ads.jobs.builders.runtimes.python_runtime.PythonRuntime`,
 :py:class:`~ads.jobs.builders.runtimes.python_runtime.GitPythonRuntime`,
-:py:class:`~ads.jobs.builders.runtimes.python_runtime.NotebookRuntime` or
-:py:class:`~ads.jobs.builders.runtimes.python_runtime.ScriptRuntime`.
+:py:class:`~ads.jobs.builders.runtimes.python_runtime.NotebookRuntime`,
+:py:class:`~ads.jobs.builders.runtimes.python_runtime.ScriptRuntime`, or
+:py:class:`~ads.jobs.builders.runtimes.python_runtime.ContainerRuntime`
 
 
 Create and Run a Job
@@ -27,7 +28,7 @@ Here is an example to define and run a Python :py:class:`~ads.jobs.Job`:
     from ads.jobs import Job, DataScienceJob, PythonRuntime
 
     job = (
-      Job()
+      Job(name="My Job")
       .with_infrastructure(
         DataScienceJob()
         .with_log_group_id("<log_group_ocid>")
@@ -37,6 +38,7 @@ Here is an example to define and run a Python :py:class:`~ads.jobs.Job`:
         # The configurations of the notebook session will be used as defaults.
         .with_compartment_id("<compartment_ocid>")
         .with_project_id("<project_ocid>")
+        # For default networking, no need to specify subnet ID
         .with_subnet_id("<subnet_ocid>")
         .with_shape_name("VM.Standard.E3.Flex")
         # Shape config details are applicable only for the flexible shapes.
@@ -76,14 +78,14 @@ Here is an example to define and run a Python :py:class:`~ads.jobs.Job`:
 
     kind: job
     spec:
-      name:
+      name: "My Job"
       infrastructure:
         kind: infrastructure
         type: dataScienceJob
         spec:
           blockStorageSize: 50
           compartmentId: <compartment_ocid>
-          jobInfrastructureType: ME_STANDALONE
+          jobInfrastructureType: STANDALONE
           jobType: DEFAULT
           logGroupId: <log_group_ocid>
           logId: <log_ocid>
@@ -108,9 +110,30 @@ Here is an example to define and run a Python :py:class:`~ads.jobs.Job`:
           scriptPathURI: local/path/to/code_dir
           workingDir: code_dir
 
+For more details, see :doc:`infrastructure` configurations and see :doc:`runtime` configurations.
+
 In :py:class:`~ads.jobs.builders.runtimes.python_runtime.PythonRuntime`,
 the ``entrypoint`` can be a Python script, a Python function or a Jupyter notebook.
-For more details, see :doc:`infrastructure` configurations and :doc:`runtime` configurations.
+
+Once the job is created, the job OCID can be accessed through ``job.id``.
+Once the job run is created, the job run OCID can be accessed through ``run.id``.
+
+The ``watch()`` method is useful to monitor the progress of the job run if logging is configured.
+It will stream the logs to terminal and return once the job is finished.
+Here is an example of the logs:
+
+.. code-block:: text
+
+    2021-10-28 17:17:58 - Job Run ACCEPTED
+    2021-10-28 17:18:07 - Job Run ACCEPTED, Infrastructure provisioning.
+    2021-10-28 17:19:19 - Job Run ACCEPTED, Infrastructure provisioned.
+    2021-10-28 17:20:48 - Job Run ACCEPTED, Job run bootstrap starting.
+    2021-10-28 17:23:41 - Job Run ACCEPTED, Job run bootstrap complete. Artifact execution starting.
+    2021-10-28 17:23:50 - Job Run IN_PROGRESS, Job run artifact execution in progress.
+    2021-10-28 17:23:50 - <Log Message>
+    2021-10-28 17:23:50 - <Log Message>
+    2021-10-28 17:23:50 - ...
+
 
 YAML
 ====
@@ -148,3 +171,56 @@ With the YAML file, you can create and run the job with ADS CLI:
 
 For more details on ``ads opctl``, see :doc:`../cli/opctl/_template/jobs`.
 
+
+Loading Existing Job or Job Run
+===============================
+
+You can load an existing job or job run using the OCID from OCI:
+
+.. code-block:: python
+
+  from ads.jobs import Job, DataScienceJobRun
+
+  # Load a job
+  job = Job.from_datascience_job("<job_ocid>")
+
+  # Load a job run
+  job_run = DataScienceJobRun.from_ocid("<job_run_ocid>"")
+
+
+List Existing Jobs or Job Runs
+==============================
+
+To get a list of existing jobs in a specific compartment:
+
+.. code-block:: python
+
+  from ads.jobs import Job
+
+  # Load a job
+  jobs = Job.datascience_job("<compartment_ocid>")
+
+With a ``Job`` object, you can get a list of job runs:
+
+.. code-block:: python
+
+  # Gets a list of job runs for a specific job.
+  runs = job.run_list()
+
+Deleting a Job or Job Run
+=========================
+
+You can delete a job or job run by calling the ``delete()`` method.
+
+.. code-block:: python
+
+  # Delete a job and the corresponding job runs.
+  job.delete()
+  # Delete a job run
+  run.delete()
+
+You can also cancel a job run:
+
+.. code-block:: python
+
+  run.cancel()
