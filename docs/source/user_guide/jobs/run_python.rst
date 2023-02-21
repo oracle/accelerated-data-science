@@ -1,7 +1,7 @@
 .. _job_run_zip:
 
-Run Code in ZIP or Folder
-*************************
+Run a Python Workload
+*********************
 
 ScriptRuntime
 =============
