@@ -11,7 +11,7 @@ It contains configurations about the *infrastructure*, such as
 `Block Storage <https://docs.oracle.com/en-us/iaas/Content/Block/Concepts/overview.htm>`_,
 `Logging <https://docs.oracle.com/en-us/iaas/Content/Logging/Concepts/loggingoverview.htm>`_,
 and information about the *runtime*,
-such as the source code of your training workload, environment variables, and CLI arguments.
+such as the source code of your workload, environment variables, and CLI arguments.
 
 A **Job Run** is an instantiation of a job.
 In each job run, you can override some of the job configurations, such as environment variables and CLI arguments.
