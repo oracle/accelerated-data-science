@@ -1,8 +1,8 @@
 Infrastructure
 **************
 
-The Data Science Job infrastructure is defined by a
-:py:class:`~ads.jobs.builders.infrastructure.dsc_job.DataScienceJob` instance. For example:
+The Data Science Job infrastructure is defined by a :py:class:`~ads.jobs.DataScienceJob` instance.
+For example:
 
 
 .. code-block:: python3
@@ -23,14 +23,14 @@ The Data Science Job infrastructure is defined by a
         .with_log_id("<log_ocid>")
     )
 
-When creating a :py:class:`~ads.jobs.builders.infrastructure.dsc_job.DataScienceJob` instance,
-the following configurations are required:
+When creating a :py:class:`~ads.jobs.DataScienceJob` instance, the following configurations are required:
 
 * Compartment ID
 * Project ID
 * Compute Shape
 
 The following configurations are optional:
+
 * Block Storage Size, defaults to 50 (GB)
 * Log Group ID
 * Log ID
@@ -41,7 +41,7 @@ Using Configurations from Notebook
 If you are creating a job from an OCI Data Science
 `Notebook Session <https://docs.oracle.com/en-us/iaas/data-science/using/manage-notebook-sessions.htm>`_,
 the same infrastructure configurations from the notebook session will be used as defaults.
-You can initialize the :py:class:`~ads.jobs.builders.infrastructure.dsc_job.DataScienceJob`
+You can initialize the :py:class:`~ads.jobs.DataScienceJob`
 with the logging configurations and override the other options as needed. For example:
 
 .. code-block:: python3
@@ -62,9 +62,13 @@ with the logging configurations and override the other options as needed. For ex
 Compute Shapes
 ==============
 
-You can get a list of currently supported compute shapes by calling ``DataScienceJob.instance_shapes()``.
-Additionally, you can get a list of shapes are available for fast launch by calling ``DataScienceJob.fast_launch_shapes()``
-Specifying a fast launch shape will allow your job to start as fast as possible.
+The :py:class:`~ads.jobs.DataScienceJob` class provides two static methods to obtain the support compute shapes:
+
+* You can get a list of currently supported compute shapes by calling
+  :py:meth:`~ads.jobs.DataScienceJob.instance_shapes`.
+* can get a list of shapes are available for fast launch by calling
+  :py:meth:`~ads.jobs.DataScienceJob.fast_launch_shapes`.
+  Specifying a fast launch shape will allow your job to start as fast as possible.
 
 Networking
 ==========
@@ -77,7 +81,7 @@ You can control the network access through the subnet and security lists.
 If you specified a subnet ID, your job will be configured to have custom networking.
 Otherwise, default networking will be used. Note that when you are in a Data Science Notebook Session,
 the same networking configuration is be used by default.
-You can specify the networking manually by calling ``with_job_infrastructure_type()``.
+You can specify the networking manually by calling :py:meth:`~ads.jobs.DataScienceJob.with_job_infrastructure_type()`.
 
 Logging
 =======
@@ -86,7 +90,7 @@ Logging is not required to create the job.
 However, it is highly recommended to enable logging for debugging and monitoring purpose.
 
 In the preceding example, both the log OCID and corresponding log group OCID are specified
-with the ``DataScienceJob`` instance.
+with the :py:class:`~ads.jobs.DataScienceJob` instance.
 If your administrator configured the permission for you to search for logging resources,
 you can skip specifying the log group OCID because ADS can automatically retrieve it.
 
