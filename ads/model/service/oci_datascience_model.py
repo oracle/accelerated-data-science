@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -573,7 +573,8 @@ class OCIDataScienceModel(
                 work_request_logs = self.client.list_work_request_logs(
                     work_request_id
                 ).data
-                new_work_request_logs = work_request_logs[i:]
+                if work_request_logs:
+                    new_work_request_logs = work_request_logs[i:]
 
                 for wr_item in new_work_request_logs:
                     progress.update(wr_item.message)
@@ -581,6 +582,11 @@ class OCIDataScienceModel(
 
                 if work_request.data.status in STOP_STATE:
                     if work_request.data.status != WorkRequest.STATUS_SUCCEEDED:
-                        raise Exception(work_request_logs[-1].message)
+                        if work_request_logs:
+                            raise Exception(work_request_logs[-1].message)
+                        else:
+                            raise Exception(
+                                "An error occurred in attempt to perform the operation. Check the service logs to get more details."
+                            )
                     else:
                         break

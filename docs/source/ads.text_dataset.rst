@@ -1,11 +1,11 @@
 ads.text\_dataset package
-================================
+=========================
 
 Submodules
 ----------
 
 ads.text\_dataset.backends module
-------------------------------------------
+---------------------------------
 
 .. automodule:: ads.text_dataset.backends
    :members:
@@ -13,7 +13,7 @@ ads.text\_dataset.backends module
    :show-inheritance:
 
 ads.text\_dataset.dataset module
-------------------------------------------------------
+--------------------------------
 
 .. automodule:: ads.text_dataset.dataset
    :members:
@@ -21,7 +21,7 @@ ads.text\_dataset.dataset module
    :show-inheritance:
 
 ads.text\_dataset.extractor module
--------------------------------------------------------------
+----------------------------------
 
 .. automodule:: ads.text_dataset.extractor
    :members:
@@ -29,13 +29,28 @@ ads.text\_dataset.extractor module
    :show-inheritance:
 
 ads.text\_dataset.options module
-----------------------------------------------------------
+--------------------------------
 
 .. automodule:: ads.text_dataset.options
    :members:
    :undoc-members:
    :show-inheritance:
 
+ads.text\_dataset.udfs module
+-----------------------------
+
+.. automodule:: ads.text_dataset.udfs
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.text\_dataset.utils module
+------------------------------
+
+.. automodule:: ads.text_dataset.utils
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 Module contents
 ---------------
