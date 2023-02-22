@@ -7,12 +7,12 @@ Quick Start
   See also: :doc:`policies` and  `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_.
 
 In ADS, a job is defined by :doc:`infrastructure` and :doc:`runtime`.
-The Data Science Job infrastructure is configured through a :py:class:`~ads.jobs.builders.infrastructure.dsc_job.DataScienceJob` instance.
-The runtime can be an instance of :py:class:`~ads.jobs.builders.runtimes.python_runtime.PythonRuntime`,
-:py:class:`~ads.jobs.builders.runtimes.python_runtime.GitPythonRuntime`,
-:py:class:`~ads.jobs.builders.runtimes.python_runtime.NotebookRuntime`,
-:py:class:`~ads.jobs.builders.runtimes.python_runtime.ScriptRuntime`, or
-:py:class:`~ads.jobs.builders.runtimes.python_runtime.ContainerRuntime`
+The Data Science Job infrastructure is configured through a :py:class:`~ads.jobs.DataScienceJob` instance.
+The runtime can be an instance of :py:class:`~ads.jobs.PythonRuntime`,
+:py:class:`~ads.jobs.GitPythonRuntime`,
+:py:class:`~ads.jobs.NotebookRuntime`,
+:py:class:`~ads.jobs.ScriptRuntime`, or
+:py:class:`~ads.jobs.ContainerRuntime`
 
 
 Create and Run a Job
@@ -112,14 +112,16 @@ Here is an example to define and run a Python :py:class:`~ads.jobs.Job`:
 
 For more details, see :doc:`infrastructure` configurations and see :doc:`runtime` configurations.
 
-In :py:class:`~ads.jobs.builders.runtimes.python_runtime.PythonRuntime`,
+In :py:class:`~ads.jobs.PythonRuntime`,
 the ``entrypoint`` can be a Python script, a Python function or a Jupyter notebook.
 
 Once the job is created, the job OCID can be accessed through ``job.id``.
 Once the job run is created, the job run OCID can be accessed through ``run.id``.
 
-The ``watch()`` method is useful to monitor the progress of the job run if logging is configured.
+The :py:meth:`~ads.jobs.DataScienceJobRun.watch` method is useful to monitor the progress of the job run.
 It will stream the logs to terminal and return once the job is finished.
+Logging configurations are required for this method to show logs.
+
 Here is an example of the logs:
 
 .. code-block:: text
