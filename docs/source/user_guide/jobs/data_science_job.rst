@@ -155,4 +155,8 @@ and ``output_uri`` based on the environment variables ``JOB_RUN_OCID``:
 
 Note that ``JOB_RUN_OCID`` is an environment variable provided by the service after the job run is created.
 It is available for the ``output_uri`` but cannot be used in the job name.
-See also :ref:`Saving Outputs <_runtime_outputs>`
+
+See also:
+
+* :ref:`Saving Outputs <runtime_outputs>`
+* `Service Provided Environment Variables <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-env-vars.htm>`_

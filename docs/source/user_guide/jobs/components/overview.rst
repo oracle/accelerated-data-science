@@ -23,7 +23,7 @@ For example, you may want to experiment with how different model classes perform
 by using the ADSTuner to perform hyperparameter tuning on each model class.
 You could do this in parallel by having a different job run for each class of models.
 For a given job run, you could pass an environment variable that identifies the model class that you want to use.
-Each model cab write its results to the Logging service or Object Storage.
+Each model can write its results to the Logging service or Object Storage.
 Then you can run a final sequential job that uses the best model class, and trains the final model on the entire dataset.
 
 The following sections provides details on running training workloads with OCI Data Science Jobs using ADS Jobs APIs.

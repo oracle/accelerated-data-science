@@ -57,6 +57,12 @@ Note that:
 * Undefined variable enclosed by ``${...}`` will be ignored.
 * Double dollar signs ``$$`` will be substituted by a single one ``$``.
 
+See also:
+`Service Provided Environment Variables <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-env-vars.htm>`_
+
+
+.. _runtime_args:
+
 Command Line Arguments
 ======================
 

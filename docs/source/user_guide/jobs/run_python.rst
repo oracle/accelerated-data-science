@@ -33,6 +33,8 @@ the working directory.
 
 The entrypoint can be a Python script or a Jupyter Notebook.
 
+.. _runtime_working_dir:
+
 Working Directory
 =================
 
@@ -40,6 +42,11 @@ The working directory of your workload can be configured by :py:meth:`~ads.jobs.
 By default, :py:class:`~ads.jobs.PythonRuntime` will create a ``code`` directory as the working directory
 in the job run to store your source code (job artifact),
 for example ``/home/datascience/decompressed_artifact/code``.
+
+When the entrypoint is a Jupyter notebook,
+the working directory for the code running in the notebook will be the directory containing the notebook.
+
+When the entrypoint is not a notebook, the working directory depends on the source code.
 
 File Source Code
 ----------------
@@ -164,10 +171,13 @@ The paths should be relative paths from the working directory.
 
 .. _runtime_outputs:
 
-Saving Outputs
-==============
+Outputs
+=======
 
-The :py:meth:`~ads.jobs.PythonRuntime.with_output` method allows you to specify the output directory ``output_dir``
-in the job run and a remote URI (``output_uri``, for example, an OCI Object Storage URI).
-Files in the ``output_dir`` are copied to the remote output URI after the job run finishes successfully.
-Note that the ``output_dir`` should be a path relative to the working directory.
+The :py:meth:`~ads.jobs.PythonRuntime.with_output` method allows you to specify the output path ``output_path``
+in the job run and a remote URI (``output_uri``).
+Files in the ``output_path`` are copied to the remote output URI after the job run finishes successfully.
+Note that the ``output_path`` should be a path relative to the working directory.
+
+OCI object storage location can be specified in the format of ``oci://bucket_name@namespace/path/to/dir``.
+Please make sure you configure the I AM policy to allow the job run dynamic group to use object storage.
