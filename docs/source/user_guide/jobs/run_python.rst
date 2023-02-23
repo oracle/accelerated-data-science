@@ -29,7 +29,9 @@ For example, you can specify files on OCI object storage using URI like
 The source code can be a single file, a compressed file/archive (zip/tar), or a folder.
 When the source code is a compressed file/archive (zip/tar) or a folder, you need to also specify the entrypoint
 using :py:meth:`~ads.jobs.PythonRuntime.with_entrypoint`. The path of the entrypoint should be a path relative to
-the working directory. 
+the working directory.
+
+The entrypoint can be a Python script or a Jupyter Notebook.
 
 Working Directory
 =================
@@ -105,10 +107,10 @@ This will give you outputs similar to the following:
     Length      Date    Time    Name
   ---------  ---------- -----   ----
           0  02-22-2023 16:38   my_source_code/
-        1803  02-22-2023 16:38   my_source_code/my_module.py
-          91  02-22-2023 16:38   my_source_code/my_entrypoint.py
+       1803  02-22-2023 16:38   my_source_code/my_module.py
+         91  02-22-2023 16:38   my_source_code/my_entrypoint.py
   ---------                     -------
-        1894                     3 files
+       1894                     3 files
 
 In this case, a top level directory ``my_source_code/`` is presented in the archive.
 The file structure in the job run will look like:
@@ -130,10 +132,10 @@ If a top level directory is not presented, outputs for the archive will look lik
   Archive:  path/to/my_source_code.zip
     Length      Date    Time    Name
   ---------  ---------- -----   ----
-        1803  02-22-2023 16:38   my_module.py
-          91  02-22-2023 16:38   my_entrypoint.py
+       1803  02-22-2023 16:38   my_module.py
+         91  02-22-2023 16:38   my_entrypoint.py
   ---------                     -------
-        1894                     2 files
+       1894                     2 files
 
 In this case, the file structure in the job run will look like:
 
@@ -166,6 +168,6 @@ Saving Outputs
 ==============
 
 The :py:meth:`~ads.jobs.PythonRuntime.with_output` method allows you to specify the output directory ``output_dir``
-in the job run and a remote URI (for example, an OCI Object Storage URI).
+in the job run and a remote URI (``output_uri``, for example, an OCI Object Storage URI).
 Files in the ``output_dir`` are copied to the remote output URI after the job run finishes successfully.
 Note that the ``output_dir`` should be a path relative to the working directory.
