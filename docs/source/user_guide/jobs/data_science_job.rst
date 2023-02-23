@@ -85,10 +85,7 @@ Runtime
 
 A job can have different types of *runtime* depending on the source code you want to run:
 
-* ``ScriptRuntime`` allows you to run Python, Bash, and Java scripts from a single source file (``.zip`` or ``.tar.gz``) or code directory, see `Run a Script <run_script.html>`__ and `Run a ZIP file or folder <run_zip.html>`__.
-* ``PythonRuntime`` allows you to run Python code with additional options, including setting a working directory, adding python paths, and copying output files, see `Run a ZIP file or folder <run_zip.html>`__.
-* ``NotebookRuntime`` allows you to run a JupyterLab Python notebook, see `Run a Notebook <run_notebook.html>`__.
-* ``GitPythonRuntime`` allows you to run source code from a Git repository, see `Run from Git <run_git.html>`__.
+.. include:: _template/runtime_types.rst
 
 All of these runtime options allow you to configure a `Data Science Conda Environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm>`__ for running your code. For example, to define a python script as a job runtime with a TensorFlow conda environment you could use:
 

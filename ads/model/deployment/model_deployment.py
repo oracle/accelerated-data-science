@@ -9,7 +9,7 @@ import collections
 import datetime
 import json
 import time
-from typing import Dict, Union, Any
+from typing import Dict, Union, List, Any
 
 import oci.loggingsearch
 import pandas as pd
@@ -28,8 +28,10 @@ from .common.utils import OCIClientManager, State
 from .model_deployment_properties import ModelDeploymentProperties
 
 DEFAULT_WAIT_TIME = 1200
-DEFAULT_POLL_INTERVAL = 30
+DEFAULT_POLL_INTERVAL = 10
 DEFAULT_WORKFLOW_STEPS = 6
+DELETE_WORKFLOW_STEPS = 2
+DEACTIVATE_WORKFLOW_STEPS = 2
 DEFAULT_RETRYING_REQUEST_ATTEMPTS = 3
 TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 
@@ -78,6 +80,10 @@ class ModelDeployment:
         Deletes the current Model Deployment object
     update(wait_for_completion, **kwargs)
         Updates a model deployment
+    activate(wait_for_completion, max_wait_time, poll_interval)
+        Activates a model deployment
+    deactivate(wait_for_completion, max_wait_time, poll_interval)
+        Deactivates a model deployment
     list_workflow_logs()
         Returns a list of the steps involved in deploying a model
     """
@@ -168,13 +174,13 @@ class ModelDeployment:
         Parameters
         ----------
         wait_for_completion: bool
-            Flag set for whether to wait for deployment to complete before proceeding.
+            Flag set for whether to wait for deployment to be deployed before proceeding.
             Defaults to True.
         max_wait_time: int
-            Maximum amount of time to wait in seconds (Defaults to 600).
+            Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
         poll_interval: int
-            Poll interval in seconds (Defaults to 60).
+            Poll interval in seconds (Defaults to 10).
 
         Returns
         -------
@@ -191,7 +197,13 @@ class ModelDeployment:
         self.url = res_payload["model_deployment_url"]
         if wait_for_completion:
             try:
-                self._wait_for_activation(max_wait_time, poll_interval)
+                self._wait_for_progress_completion(
+                    State.ACTIVE.name,
+                    DEFAULT_WORKFLOW_STEPS,
+                    [State.FAILED.name, State.INACTIVE.name],
+                    max_wait_time,
+                    poll_interval,
+                )
             except Exception as e:
                 utils.get_logger().error(f"Error while trying to deploy: {str(e)}")
                 raise e
@@ -208,13 +220,13 @@ class ModelDeployment:
         Parameters
         ----------
         wait_for_completion: bool
-            Flag set for whether to wait for deployment to complete before proceeding.
+            Flag set for whether to wait for deployment to be deleted before proceeding.
             Defaults to True.
         max_wait_time: int
-            Maximum amount of time to wait in seconds (Defaults to 600).
+            Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
         poll_interval: int
-            Poll interval in seconds (Defaults to 60).
+            Poll interval in seconds (Defaults to 10).
 
         Returns
         -------
@@ -235,7 +247,13 @@ class ModelDeployment:
         )
         if wait_for_completion:
             try:
-                self._wait_for_deletion(max_wait_time, poll_interval)
+                self._wait_for_progress_completion(
+                    State.DELETED.name,
+                    DELETE_WORKFLOW_STEPS,
+                    [State.FAILED.name, State.INACTIVE.name],
+                    max_wait_time,
+                    poll_interval,
+                )
             except Exception as e:
                 utils.get_logger().error(f"Error while trying to delete: {str(e)}")
                 raise e
@@ -262,13 +280,13 @@ class ModelDeployment:
         properties: ModelDeploymentProperties or dict
             The properties for updating the deployment.
         wait_for_completion: bool
-            Flag set for whether to wait for deployment to complete before proceeding.
+            Flag set for whether to wait for deployment to be updated before proceeding.
             Defaults to True.
         max_wait_time: int
             Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
         poll_interval: int
-            Poll interval in seconds (Defaults to 60).
+            Poll interval in seconds (Defaults to 10).
         kwargs:
             dict
 
@@ -426,108 +444,155 @@ class ModelDeployment:
         )
         return prediction
 
-    def _wait_for_deletion(
+    def activate(
         self,
+        wait_for_completion: bool = True,
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
-    ):
-        """_wait_for_deletion blocks until deletion is complete
+    ) -> "ModelDeployment":
+        """Activates a model deployment
 
         Parameters
         ----------
+        wait_for_completion: bool
+            Flag set for whether to wait for deployment to be activated before proceeding.
+            Defaults to True.
         max_wait_time: int
             Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
         poll_interval: int
-            Poll interval in seconds (Defaults to 60).
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        ModelDeployment
+            The instance of ModelDeployment.
         """
-
-        start_time = time.time()
-        prev_message = ""
-        if max_wait_time > 0 and utils.seconds_since(start_time) >= max_wait_time:
-            utils.get_logger().error(
-                f"Max wait time ({max_wait_time} seconds) exceeded."
+        response = (
+            self.ds_composite_client.activate_model_deployment_and_wait_for_state(
+                self.model_deployment_id
             )
-        while (
-            max_wait_time < 0 or utils.seconds_since(start_time) < max_wait_time
-        ) and self.current_state.name.upper() != "DELETED":
-            if self.current_state.name.upper() == State.FAILED.name:
-                utils.get_logger().info(
-                    "Deletion Failed. Use Deployment ID for further steps."
-                )
-                break
-            if self.current_state.name.upper() == State.INACTIVE.name:
-                utils.get_logger().info("Deployment Inactive")
-                break
-            prev_state = self.current_state.name
-            try:
-                model_deployment_payload = json.loads(
-                    str(
-                        self.ds_client.get_model_deployment(
-                            self.model_deployment_id
-                        ).data
-                    )
-                )
-                self.current_state = (
-                    State._from_str(model_deployment_payload["lifecycle_state"])
-                    if "lifecycle_state" in model_deployment_payload
-                    else State.UNKNOWN
-                )
-                workflow_payload = self.ds_client.list_work_request_logs(
-                    self.workflow_req_id
-                ).data
-                if isinstance(workflow_payload, list) and len(workflow_payload) > 0:
-                    if prev_message != workflow_payload[-1].message:
-                        prev_message = workflow_payload[-1].message
-                if prev_state != self.current_state.name:
-                    if "model_deployment_url" in model_deployment_payload:
-                        self.url = model_deployment_payload["model_deployment_url"]
-                    utils.get_logger().info(
-                        f"Status Update: {self.current_state.name} in {utils.seconds_since(start_time)} seconds"
-                    )
-            except Exception as e:
-                # utils.get_logger().warning(
-                #     "Unable to update deployment status. Details: %s", format(
-                #         e)
-                # )
-                pass
-            time.sleep(poll_interval)
+        )
+        self.workflow_req_id = response.headers["opc-work-request-id"]
+        oci_model_deployment_object = self.ds_client.get_model_deployment(
+            self.model_deployment_id
+        ).data
+        self.current_state = State._from_str(
+            oci_model_deployment_object.lifecycle_state
+        )
+        self.model_deployment_id = oci_model_deployment_object.id
+        self.url = oci_model_deployment_object.model_deployment_url
 
-    def _wait_for_activation(
+        if wait_for_completion:
+            try:
+                self._wait_for_progress_completion(
+                    State.ACTIVE.name,
+                    DEFAULT_WORKFLOW_STEPS,
+                    [State.FAILED.name, State.INACTIVE.name],
+                    max_wait_time,
+                    poll_interval,
+                )
+            except Exception as e:
+                utils.get_logger().error(f"Error while trying to activate: {str(e)}")
+                raise e
+        return self
+
+    def deactivate(
         self,
+        wait_for_completion: bool = True,
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
-    ):
-        """_wait_for_activation blocks deployment until activation is complete
+    ) -> "ModelDeployment":
+        """Deactivates a model deployment
 
         Parameters
         ----------
+        wait_for_completion: bool
+            Flag set for whether to wait for deployment to be deactivated before proceeding.
+            Defaults to True.
         max_wait_time: int
             Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
         poll_interval: int
-            Poll interval in seconds (Defaults to 60).
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        ModelDeployment
+            The instance of ModelDeployment.
+        """
+        response = (
+            self.ds_composite_client.deactivate_model_deployment_and_wait_for_state(
+                self.model_deployment_id
+            )
+        )
+        self.workflow_req_id = response.headers["opc-work-request-id"]
+        oci_model_deployment_object = self.ds_client.get_model_deployment(
+            self.model_deployment_id
+        ).data
+        self.current_state = State._from_str(
+            oci_model_deployment_object.lifecycle_state
+        )
+        self.model_deployment_id = oci_model_deployment_object.id
+        self.url = oci_model_deployment_object.model_deployment_url
+
+        if wait_for_completion:
+            try:
+                self._wait_for_progress_completion(
+                    State.INACTIVE.name,
+                    DEACTIVATE_WORKFLOW_STEPS,
+                    [State.FAILED.name],
+                    max_wait_time,
+                    poll_interval,
+                )
+            except Exception as e:
+                utils.get_logger().error(f"Error while trying to deactivate: {str(e)}")
+                raise e
+        return self
+
+    def _wait_for_progress_completion(
+        self,
+        final_state: str,
+        work_flow_step: int,
+        disallowed_final_states: List[str],
+        max_wait_time: int = DEFAULT_WAIT_TIME,
+        poll_interval: int = DEFAULT_POLL_INTERVAL,
+    ):
+        """_wait_for_progress_completion blocks until progress is completed.
+
+        Parameters
+        ----------
+        final_state: str
+            Final state of model deployment aimed to be reached.
+        work_flow_step: int
+            Number of work flow step of the request.
+        disallowed_final_states: list[str]
+            List of disallowed final state to be reached.
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time.
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
         """
 
         start_time = time.time()
         prev_message = ""
         prev_workflow_stage_len = 0
-        with utils.get_progress_bar(self.workflow_steps) as progress:
+        with utils.get_progress_bar(work_flow_step) as progress:
             if max_wait_time > 0 and utils.seconds_since(start_time) >= max_wait_time:
-                utils.get_logger().error(f"Error: Max wait time exceeded")
+                utils.get_logger().error(
+                    f"Max wait time ({max_wait_time} seconds) exceeded."
+                )
             while (
                 max_wait_time < 0 or utils.seconds_since(start_time) < max_wait_time
-            ) and self.current_state.name.upper() != "ACTIVE":
-                if self.current_state.name.upper() == State.FAILED.name:
+            ) and self.current_state.name.upper() != final_state:
+                if self.current_state.name.upper() in disallowed_final_states:
                     utils.get_logger().info(
-                        "Deployment Failed. Use Deployment ID for further steps."
+                        f"Operation failed due to deployment reaching state {self.current_state.name.upper()}. Use Deployment ID for further steps."
                     )
                     break
-                if self.current_state.name.upper() == State.INACTIVE.name:
-                    utils.get_logger().info("Deployment Inactive")
-                    break
-                prev_state = self.current_state.name
 
+                prev_state = self.current_state.name
                 try:
                     model_deployment_payload = json.loads(
                         str(
@@ -541,7 +606,6 @@ class ModelDeployment:
                         if "lifecycle_state" in model_deployment_payload
                         else State.UNKNOWN
                     )
-
                     workflow_payload = self.ds_client.list_work_request_logs(
                         self.workflow_req_id
                     ).data
@@ -566,7 +630,6 @@ class ModelDeployment:
                     #         e)
                     # )
                     pass
-
                 time.sleep(poll_interval)
             progress.update("Done")
 

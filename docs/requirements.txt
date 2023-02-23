@@ -1,10 +1,10 @@
--e .
 autodoc
 nbsphinx
 sphinx
 sphinxcontrib-napoleon
 sphinx-rtd-theme
 sphinx_copybutton
+sphinx_code_tabs
 oracle_ads
 sphinx-autobuild
 IPython

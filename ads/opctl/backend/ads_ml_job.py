@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -12,7 +12,8 @@ from distutils import dir_util
 from typing import Tuple, Dict
 import shlex
 
-from ads.common.auth import get_signer, OCIAuthContext
+import ads
+from ads.common.auth import create_signer, AuthContext
 from ads.common.oci_client import OCIClientFactory
 from ads.jobs import (
     Job,
@@ -50,22 +51,38 @@ class MLJobBackend(Backend):
             dictionary of configurations
         """
         self.config = config
-        self.oci_auth = get_signer(
+        self.oci_auth = create_signer(
+            config["execution"].get("auth"),
             config["execution"].get("oci_config", None),
             config["execution"].get("oci_profile", None),
         )
+        self.auth_type = config["execution"].get("auth")
         self.profile = config["execution"].get("oci_profile", None)
         self.client = OCIClientFactory(**self.oci_auth).data_science
 
+    def apply(self) -> None:
+        """
+        Create Job and Job Run from YAML.
+        """
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
+            job = Job.from_dict(self.config)
+            job.create()
+            job_run = job.run()
+            print("JOB OCID:", job.id)
+            print("JOB RUN OCID:", job_run.id)
+
     def run(self) -> None:
+        """
+        Create Job and Job Run from OCID or cli parameters.
+        """
         # TODO Check that this still runs smoothly for distributed
-        with OCIAuthContext(profile=self.profile):
-            if self.config["execution"].get("job_id", None):
-                job_id = self.config["execution"]["job_id"]
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
+            if self.config["execution"].get("ocid", None):
+                job_id = self.config["execution"]["ocid"]
                 run_id = (
-                    Job.from_datascience_job(self.config["execution"]["job_id"])
-                    .run()
-                    .id
+                    Job.from_datascience_job(self.config["execution"]["ocid"]).run().id
                 )
             else:
                 payload = self._create_payload()  # create job with infrastructure
@@ -117,24 +134,40 @@ class MLJobBackend(Backend):
         return operator_folder
 
     def delete(self):
-        if self.config["execution"].get("job_id"):
-            job_id = self.config["execution"]["job_id"]
-            with OCIAuthContext(profile=self.profile):
+        """
+        Delete Job or Job Run from OCID.
+        """
+        if self.config["execution"].get("id"):
+            job_id = self.config["execution"]["id"]
+            with AuthContext():
+                ads.set_auth(auth=self.auth_type, profile=self.profile)
                 Job.from_datascience_job(job_id).delete()
+                print(f"Job {job_id} has been deleted.")
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
-            with OCIAuthContext(profile=self.profile):
+            with AuthContext():
+                ads.set_auth(auth=self.auth_type, profile=self.profile)
                 DataScienceJobRun.from_ocid(run_id).delete()
+                print(f"Job run {run_id} has been deleted.")
 
     def cancel(self):
+        """
+        Cancel Job Run from OCID.
+        """
         run_id = self.config["execution"]["run_id"]
-        with OCIAuthContext(profile=self.profile):
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
             DataScienceJobRun.from_ocid(run_id).cancel()
+            print(f"Job run {run_id} has been cancelled.")
 
     def watch(self):
+        """
+        Watch Job Run from OCID.
+        """
         run_id = self.config["execution"]["run_id"]
 
-        with OCIAuthContext(profile=self.profile):
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
             run = DataScienceJobRun.from_ocid(run_id)
             run.watch()
 
@@ -344,7 +377,8 @@ class MLJobDistributedBackend(MLJobBackend):
         return f"{worker_jobrun_conf['name']}-{i}"
 
     def run_diagnostics(self, cluster_info, dry_run=False, **kwargs):
-        with OCIAuthContext(profile=self.profile):
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
             main_jobrun_conf, worker_jobrun_conf_list = self.prepare_job_config(
                 cluster_info=cluster_info
             )
@@ -389,7 +423,8 @@ class MLJobDistributedBackend(MLJobBackend):
         * The Job Definition will contain all the environment variables defined at the cluster/spec/config level, environment variables defined by the user at runtime/spec/env level and `OCI__` derived from the yaml specification
         * The Job Run will have overrides provided by the user under cluster/spec/{main|worker}/config section and `OCI__MODE`={MASTER|WORKER} depending on the run type
         """
-        with OCIAuthContext(profile=self.profile):
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
             main_jobrun_conf, worker_jobrun_conf_list = self.prepare_job_config(
                 cluster_info=cluster_info
             )

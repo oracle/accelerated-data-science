@@ -1,3 +1,5 @@
+.. _job_run_script:
+
 Run a Script
 ************
 
@@ -126,6 +128,10 @@ This example runs a job with CLI arguments:
 
 .. code-block:: python3
 
+  from ads.jobs import Job
+  from ads.jobs import DataScienceJob
+  from ads.jobs import ScriptRuntime
+
   job = Job()
   job.with_infrastructure(
     DataScienceJob()
@@ -159,9 +165,9 @@ You could create the preceding example job with the following YAML file:
 
 .. code-block:: yaml
 
-	kind: job
-	spec:
-	  infrastructure:
+  kind: job
+  spec:
+    infrastructure:
       kind: infrastructure
       type: dataScienceJob
       spec:
@@ -175,14 +181,14 @@ You could create the preceding example job with the following YAML file:
           memoryInGBs: 16
           ocpus: 1
         blockStorageSize: 50
-	  runtime:
-	    kind: runtime
+    runtime:
+      kind: runtime
       type: python
-	    spec:
-	      args:
-	      - <first_argument>
-	      - <second_argument>
-	      scriptPathURI: job_script_argument.py
+      spec:
+        args:
+        - <first_argument>
+        - <second_argument>
+      scriptPathURI: job_script_env.py
 
 
 Environment Variables
@@ -199,11 +205,15 @@ Suppose you want to run the following python script named ``job_script_env.py``:
 
   import os
   import sys
-  print("Hello " + os.environ["KEY1"] + " and " + os.environ["KEY2"])""")
+  print("Hello " + os.environ["KEY1"] + " and " + os.environ["KEY2"])
 
 This example runs a job with environment variables:
 
 .. code-block:: python3
+
+  from ads.jobs import Job
+  from ads.jobs import DataScienceJob
+  from ads.jobs import ScriptRuntime
 
   job = Job()
   job.with_infrastructure(
@@ -244,32 +254,33 @@ You could create the preceding example job with the following YAML file:
 
 .. code-block:: yaml
 
-    kind: job
-    spec:
-      infrastructure:
-        kind: infrastructure
-        type: dataScienceJob
-        spec:
-          logGroupId: <log_group_ocid>
-          logId: <log_ocid>
-          compartmentId: <compartment_ocid>
-          projectId: <project_ocid>
-          subnetId: <subnet_ocid>
-          shapeName: VM.Standard.E3.Flex
-          shapeConfigDetails:
-            memoryInGBs: 16
-            ocpus: 1
-          blockStorageSize: 50
-      runtime:
-        kind: runtime
-        type: python
-        spec:
-          env:
-          - name: KEY1
-            value: <first_value>
-          - name: KEY2
-            value: <second_value>
-          scriptPathURI: job_script_env.py
+  kind: job
+  spec:
+    infrastructure:
+      kind: infrastructure
+      type: dataScienceJob
+      spec:
+        logGroupId: <log_group_ocid>
+        logId: <log_ocid>
+        compartmentId: <compartment_ocid>
+        projectId: <project_ocid>
+        subnetId: <subnet_ocid>
+        shapeName: VM.Standard.E3.Flex
+        shapeConfigDetails:
+          memoryInGBs: 16
+          ocpus: 1
+        blockStorageSize: 50
+    runtime:
+      kind: runtime
+      type: python
+      spec:
+        env:
+        - name: KEY1
+          value: <first_value>
+        - name: KEY2
+          value: <second_value>
+      scriptPathURI: job_script_env.py
+
 
 
 **ScriptRuntime YAML Schema**

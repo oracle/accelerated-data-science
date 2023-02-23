@@ -18,7 +18,7 @@ TensorBoard provides the visualization and the tooling that is needed to watch a
   :maxdepth: 1
 
   ads_tuner
-  Distributed Training [beta] <distributed_training/overview>
+  distributed_training/overview
   tensorboard/tensorboard
   model_evaluation/index
   model_explainability/index

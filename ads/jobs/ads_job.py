@@ -49,7 +49,7 @@ class Job(Builder):
             .with_runtime(
                 ScriptRuntime()
                 .with_source("oci://bucket_name@namespace/path/to/script.py")
-                .with_service_conda("tensorflow28_p38_cpu_v1")
+                .with_service_conda("tensorflow26_p37_cpu_v2")
                 .with_environment_variable(ENV="value")
                 .with_argument("argument", key="value")
                 .with_freeform_tag(tag_name="tag_value")
@@ -79,7 +79,7 @@ class Job(Builder):
             .with_runtime(
                 NotebookRuntime()
                 .with_notebook("path/to/notebook.ipynb")
-                .with_service_conda("tensorflow28_p38_cpu_v1")
+                .with_service_conda(tensorflow26_p37_cpu_v2")
                 # Saves the notebook with outputs to OCI object storage.
                 .with_output("oci://bucket_name@namespace/path/to/dir")
             )

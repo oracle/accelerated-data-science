@@ -1,22 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import copy
 import os
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Any
-
-import oci
-from oci.config import (
-    DEFAULT_LOCATION,  # "~/.oci/config"
-    DEFAULT_PROFILE,  # "DEFAULT"
-)
+from typing import Any, Callable, Dict, Optional
 
 import ads.telemetry
+import oci
 from ads.common import logger
+from ads.common.decorator.deprecate import deprecated
 from ads.common.extended_enum import ExtendedEnumMeta
+from oci.config import DEFAULT_LOCATION  # "~/.oci/config"
+from oci.config import DEFAULT_PROFILE  # "DEFAULT"
 
 
 class AuthType(str, metaclass=ExtendedEnumMeta):
@@ -255,7 +254,7 @@ def create_signer(
 
     Parameters
     ----------
-    auth: Optional[str], default 'api_key'
+    auth_type: Optional[str], default 'api_key'
         'api_key', 'resource_principal' or 'instance_principal'. Enable/disable resource principal identity,
          instance principal or keypair identity in a notebook session
     oci_config_location: Optional[str], default oci.config.DEFAULT_LOCATION, which is '~/.oci/config'
@@ -284,7 +283,7 @@ def create_signer(
     >>> auth = ads.auth.create_signer(config=config) # api_key type of authentication dictionary created based on provided config
 
     >>> singer = oci.auth.signers.get_resource_principals_signer()
-    >>> auth = ads.auth.create_signer(config={}, singer=signer) # resource principals authentication dictionary created
+    >>> auth = ads.auth.create_signer(config={}, signer=signer) # resource principals authentication dictionary created
 
     >>> auth = ads.auth.create_signer(auth_type='instance_principal') # instance principals authentication dictionary created
 
@@ -312,7 +311,9 @@ def create_signer(
         )
         if config:
             auth_type = AuthType.API_KEY
+
         signer_generator = AuthFactory().signerGenerator(auth_type)
+
         return signer_generator(signer_args).create_signer()
 
 
@@ -378,6 +379,10 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
         return signer_generator(signer_args).create_signer()
 
 
+@deprecated(
+    "2.7.3",
+    details="Deprecated, use: from ads.common.auth import create_signer. https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html#overriding-defaults.",
+)
 def get_signer(
     oci_config: Optional[str] = None, oci_profile: Optional[str] = None, **client_kwargs
 ) -> Dict:
@@ -686,6 +691,10 @@ class OCIAuthContext:
     >>>     df_run = DataFlowRun.from_ocid(run_id)
     """
 
+    @deprecated(
+        "2.7.3",
+        details="Deprecated, use: from ads.common.auth import AuthContext",
+    )
     def __init__(self, profile: str = None):
         """
         Initialize class OCIAuthContext and saves global state of authentication type and configuration profile.
@@ -700,6 +709,10 @@ class OCIAuthContext:
         self.prev_profile = AuthState().oci_key_profile
         self.oci_cli_auth = AuthState().oci_cli_auth
 
+    @deprecated(
+        "2.7.3",
+        details="Deprecated, use: from ads.common.auth import AuthContext",
+    )
     def __enter__(self):
         """
         When called by the 'with' statement and if 'profile' provided - 'api_key' authentication with 'profile' used.
@@ -718,3 +731,67 @@ class OCIAuthContext:
         When called by the 'with' statement restores initial state of authentication type and profile value.
         """
         ads.set_auth(auth=self.prev_mode, profile=self.prev_profile)
+
+
+class AuthContext:
+    """
+    AuthContext used in 'with' statement for properly managing global authentication type, signer, config
+    and global configuration parameters.
+
+    Examples
+    --------
+    >>> from ads import set_auth
+    >>> from ads.jobs import DataFlowRun
+    >>> with AuthContext(auth='resource_principal'):
+    >>>     df_run = DataFlowRun.from_ocid(run_id)
+
+    >>> from ads.model.framework.sklearn_model import SklearnModel
+    >>> model = SklearnModel.from_model_artifact(uri="model_artifact_path", artifact_dir="model_artifact_path")
+    >>> set_auth(auth='api_key', oci_config_location="~/.oci/config")
+    >>> with AuthContext(auth='api_key', oci_config_location="~/another_config_location/config"):
+    >>>     # upload model to Object Storage using config from another_config_location/config
+    >>>     model.upload_artifact(uri="oci://bucket@namespace/prefix/")
+    >>> # upload model to Object Storage using config from ~/.oci/config, which was set before 'with AuthContext():'
+    >>> model.upload_artifact(uri="oci://bucket@namespace/prefix/")
+    """
+
+    def __init__(self, **kwargs):
+        """
+        Initialize class AuthContext and saves global state of authentication type, signer, config
+        and global configuration parameters.
+
+        Parameters
+        ----------
+        **kwargs: optional, list of parameters passed to ads.set_auth() method, which can be:
+            auth: Optional[str], default 'api_key'
+                'api_key', 'resource_principal' or 'instance_principal'. Enable/disable resource principal
+                identity, instance principal or keypair identity
+            oci_config_location: Optional[str], default oci.config.DEFAULT_LOCATION, which is '~/.oci/config'
+                config file location
+            profile: Optional[str], default is DEFAULT_PROFILE, which is 'DEFAULT'
+                 profile name for api keys config file
+            config: Optional[Dict], default {}
+                created config dictionary
+            signer: Optional[Any], default None
+                created signer, can be resource principals signer, instance principal signer or other
+            signer_callable: Optional[Callable], default None
+                a callable object that returns signer
+            signer_kwargs: Optional[Dict], default None
+                parameters accepted by the signer
+        """
+        self.kwargs = kwargs
+
+    def __enter__(self):
+        """
+        When called by the 'with' statement current state of authentication type, signer, config
+        and configuration parameters saved.
+        """
+        self.previous_state = copy.deepcopy(AuthState())
+        set_auth(**self.kwargs)
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """
+        When called by the 'with' statement initial state of authentication type, signer, config
+        and configuration parameters restored.
+        """
+        AuthState().__dict__.update(self.previous_state.__dict__)

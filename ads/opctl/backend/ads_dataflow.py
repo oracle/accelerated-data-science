@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -10,8 +10,9 @@ import json
 import shlex
 from typing import Dict
 
+import ads
 from ads.opctl.backend.base import Backend
-from ads.common.auth import get_signer, OCIAuthContext
+from ads.common.auth import create_signer, AuthContext
 from ads.common.oci_client import OCIClientFactory
 
 from ads.jobs import Job, DataFlow, DataFlowRuntime, DataFlowRun
@@ -36,20 +37,31 @@ class DataFlowBackend(Backend):
             dictionary of configurations
         """
         self.config = config
-        self.oci_auth = get_signer(
+        self.oci_auth = create_signer(
+            config["execution"].get("auth"),
             config["execution"].get("oci_config", None),
             config["execution"].get("oci_profile", None),
         )
+        self.auth_type = config["execution"].get("auth")
         self.profile = config["execution"].get("oci_profile", None)
         self.client = OCIClientFactory(**self.oci_auth).dataflow
 
+    def apply(self):
+        """
+        Create DataFlow and DataFlow Run from YAML.
+        """
+        # TODO add the logic for build dataflow and dataflow run from YAML.
+        raise NotImplementedError(f"`apply` hasn't been supported for data flow yet.")
+
     def run(self) -> None:
-        with OCIAuthContext(profile=self.profile):
-            if self.config["execution"].get("job_id", None):
-                job_id = self.config["execution"]["job_id"]
-                run_id = (
-                    Job.from_dataflow_job(self.config["execution"]["job_id"]).run().id
-                )
+        """
+        Create DataFlow and DataFlow Run from OCID or cli parameters.
+        """
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
+            if self.config["execution"].get("ocid", None):
+                data_flow_id = self.config["execution"]["ocid"]
+                run_id = Job.from_dataflow_job(data_flow_id).run().id
             else:
                 infra = self.config.get("infrastructure", {})
                 if any(k not in infra for k in REQUIRED_FIELDS):
@@ -81,24 +93,37 @@ class DataFlowBackend(Backend):
         return {"job_id": job_id, "run_id": run_id}
 
     def cancel(self):
+        """
+        Cancel DataFlow Run from OCID.
+        """
         if not self.config["execution"].get("run_id"):
             raise ValueError("Can only cancel a DataFlow run.")
         run_id = self.config["execution"]["run_id"]
-        with OCIAuthContext(profile=self.profile):
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
             DataFlowRun.from_ocid(run_id).delete()
 
     def delete(self):
-        if self.config["execution"].get("job_id"):
-            job_id = self.config["execution"]["job_id"]
-            with OCIAuthContext(profile=self.profile):
-                Job.from_dataflow_job(job_id).delete()
+        """
+        Delete DataFlow or DataFlow Run from OCID.
+        """
+        if self.config["execution"].get("id"):
+            data_flow_id = self.config["execution"]["id"]
+            with AuthContext():
+                ads.set_auth(auth=self.auth_type, profile=self.profile)
+                Job.from_dataflow_job(data_flow_id).delete()
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
-            with OCIAuthContext(profile=self.profile):
+            with AuthContext():
+                ads.set_auth(auth=self.auth_type, profile=self.profile)
                 DataFlowRun.from_ocid(run_id).delete()
 
     def watch(self):
+        """
+        Watch DataFlow Run from OCID.
+        """
         run_id = self.config["execution"]["run_id"]
-        with OCIAuthContext(profile=self.profile):
+        with AuthContext():
+            ads.set_auth(auth=self.auth_type, profile=self.profile)
             run = DataFlowRun.from_ocid(run_id)
             run.watch()

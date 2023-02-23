@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -51,6 +51,7 @@ from ads.config import (
 )
 from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
 from ads.feature_engineering.schema import Schema
+from ads.model.model_version_set import ModelVersionSet, _extract_model_version_set_id
 from ads.model.deployment.model_deployer import ModelDeployer
 from oci.data_science.data_science_client import DataScienceClient
 from oci.data_science.models import (
@@ -72,6 +73,8 @@ _UPDATE_MODEL_DETAILS_ATTRIBUTES = [
     "description",
     "freeform_tags",
     "defined_tags",
+    "model_version_set_id",
+    "version_label",
 ]
 _MODEL_PROVENANCE_ATTRIBUTES = ModelProvenance().swagger_types.keys()
 _ETAG_KEY = "ETag"
@@ -1284,6 +1287,8 @@ class ModelCatalog:
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
         overwrite_existing_artifact: Optional[bool] = True,
+        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
+        version_label: Optional[str] = None,
     ):
         """
         Uploads the model artifact to cloud storage.
@@ -1315,6 +1320,10 @@ class ModelCatalog:
             Whether artifacts uploaded to object storage bucket need to be removed or not.
         overwrite_existing_artifact: (bool, optional). Defaults to `True`.
             Overwrite target bucket artifact if exists.
+        model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
+            The Model version set OCID, or name, or `ModelVersionSet` instance.
+        version_label: (str, optional). Defaults to None.
+            The model version label.
 
         Returns
         -------
@@ -1340,6 +1349,9 @@ class ModelCatalog:
                 )
             copy_artifact_to_os = True
 
+        # extract model_version_set_id from model_version_set attribute or environment
+        # variables in case of saving model in context of model version set.
+        model_version_set_id = _extract_model_version_set_id(model_version_set)
         # Set default display_name if not specified - randomly generated easy to remember name generated
         display_name = display_name or utils.get_random_name_for_resource()
 
@@ -1373,6 +1385,8 @@ class ModelCatalog:
                 else '{"schema": []}',
                 freeform_tags=freeform_tags,
                 defined_tags=defined_tags,
+                model_version_set_id=model_version_set_id,
+                version_label=version_label,
             )
             model = self.ds_client.create_model(create_model_details)
 
@@ -1545,7 +1559,8 @@ class ModelCatalog:
                 work_request_logs = self.ds_client.list_work_request_logs(
                     work_request_id
                 ).data
-                new_work_request_logs = work_request_logs[i:]
+                if work_request_logs:
+                    new_work_request_logs = work_request_logs[i:]
 
                 for wr_item in new_work_request_logs:
                     progress.update(wr_item.message)
@@ -1553,7 +1568,12 @@ class ModelCatalog:
 
                 if work_request.data.status in STOP_STATE:
                     if work_request.data.status != WorkRequest.STATUS_SUCCEEDED:
-                        raise Exception(work_request_logs[-1].message)
+                        if work_request_logs:
+                            raise Exception(work_request_logs[-1].message)
+                        else:
+                            raise Exception(
+                                "An error occurred in attempt to perform the operation. Check the service logs to get more details."
+                            )
                     else:
                         break
         return work_request
