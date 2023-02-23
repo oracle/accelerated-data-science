@@ -1,250 +1,171 @@
-.. _job_run_zip:
-
 Run a Python Workload
 *********************
 
-ScriptRuntime
-=============
+The :py:class:`~ads.jobs.PythonRuntime` is designed for running a Python workload.
+You can configure the environment variables, command line arguments and conda environment
+as described in :doc:`runtime`. This section shows the additional enhancements provided by
+:py:class:`~ads.jobs.PythonRuntime`.
 
-The ``ScriptRuntime`` class is designed for you to define job artifacts and configurations supported by OCI Data Science jobs natively.  It can be used with any script types that is supported by the OCI Data Science jobs, including a ZIP or compressed tar file or folder.  See `Preparing Job Artifacts <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-artifact.htm>`__ for more details.  In the job run, the working directory is the user's home directory. For example ``/home/datascience``.
+.. include:: ../jobs/components/toc_local.rst
 
-Python
-------
+Here is an example to define and run a job using :py:class:`~ads.jobs.PythonRuntime`:
 
-If you are in a notebook session, ADS can automatically fetch the infrastructure configurations, and use them in the job. If you aren't in a notebook session or you want to customize the infrastructure, you can specify them using the methods in the ``DataScienceJob`` class.
+.. include:: ../jobs/tabs/python_runtime.rst
 
-With the ``ScriptRuntime``, you can pass in a path to a ZIP file or directory.  For a ZIP file, the path can be any URI supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including OCI Object Storage.
+The :py:class:`~ads.jobs.PythonRuntime` uses an driver script from ADS as the entry point for the job run.
+It performs additional operations before and after invoking your code.
+You can examine the driver script by downloading the job artifact from the OCI Console.
 
-You must specify the ``entrypoint``, which is the relative path from the ZIP file or directory to the script starting your program. Note that the ``entrypoint`` contains the name of the directory, since the directory itself is also zipped as the job artifact.
+Source Code
+===========
 
-.. code-block:: python3
+In the :py:meth:`~ads.jobs.PythonRuntime.with_source` method, you can specify the location of your source code.
+The location can be a local path or a remote URI supported by
+`fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`_.
+For example, you can specify files on OCI object storage using URI like
+``oci://bucket@namespace/path/to/prefix``. ADS will use the authentication method configured by
+:py:meth:`ads.set_auth()` to fetch the files and upload them as job artifact.
 
-  from ads.jobs import Job, DataScienceJob, ScriptRuntime
+The source code can be a single file, a compressed file/archive (zip/tar), or a folder.
+When the source code is a compressed file/archive (zip/tar) or a folder, you need to also specify the entrypoint
+using :py:meth:`~ads.jobs.PythonRuntime.with_entrypoint`. The path of the entrypoint should be a path relative to
+the working directory. 
 
-  job = (
-    Job()
-    .with_infrastructure(
-      DataScienceJob()
-      .with_log_group_id("<log_group_ocid>")
-      .with_log_id("<log_ocid>")
-      # The following infrastructure configurations are optional
-      # if you are in an OCI data science notebook session.
-      # The configurations of the notebook session will be used as defaults
-      .with_compartment_id("<compartment_ocid>")
-      .with_project_id("<project_ocid>")
-      .with_subnet_id("<subnet_ocid>")
-      .with_shape_name("VM.Standard.E3.Flex")
-      .with_shape_config_details(memory_in_gbs=16, ocpus=1)
-      .with_block_storage_size(50)
-    )
-    .with_runtime(
-      ScriptRuntime()
-      .with_source("path/to/zip_or_dir", entrypoint="zip_or_dir/main.py")
-      .with_service_conda("pytorch19_p37_cpu_v1")
-    )
+Working Directory
+=================
+
+The working directory of your workload can be configured by :py:meth:`~ads.jobs.PythonRuntime.with_working_dir`.
+By default, :py:class:`~ads.jobs.PythonRuntime` will create a ``code`` directory as the working directory
+in the job run to store your source code (job artifact),
+for example ``/home/datascience/decompressed_artifact/code``.
+
+File Source Code
+----------------
+
+If your source code is a single file, for example, ``my_script.py``, the file structure in the job run will look like:
+  
+.. code-block:: text
+
+  code  <---This is the working directory
+  └── my_script.py
+
+You can refer your as ``./my_script.py``
+
+Folder Source Code
+------------------
+
+If your source code is a folder, for example ``my_source_code``, ADS will compress the folder as job artifact.
+In the job run, it will be decompressed under the working directory. The file structure in the job run will look like:
+
+.. code-block:: text
+
+  code  <---This is the working directory
+  └── my_source_code
+      ├── my_module.py
+      └── my_entrypoint.py
+
+In this case, the working directory is the parent of your source code folder.
+You will need to specify the entrypoint as ``my_source_code/my_entrypoint.py``.
+
+.. code-block:: python
+
+  runtime = (
+    PythonRuntime()
+    .with_source("path/to/my_source_code")
+    .with_entrypoint("my_source_code/my_entrypoint.py")
   )
 
-  # Create the job with OCI
-  job.create()
-  # Run the job and stream the outputs
-  job_run = job.run().watch()
+Alternatively, you can specify the working directory as ``my_source_code`` and the entrypoint as ``my_entrypoint.py``:
 
+.. code-block:: python
 
-YAML
-----
-
-You could use the following YAML example to create the same job with ``ScriptRuntime``:
-
-.. code-block:: yaml
-
-  kind: job
-  spec:
-    infrastructure:
-      kind: infrastructure
-      type: dataScienceJob
-      spec:
-        logGroupId: <log_group_ocid>
-        logId: <log_ocid>
-        compartmentId: <compartment_ocid>
-        projectId: <project_ocid>
-        subnetId: <subnet_ocid>
-        shapeName: VM.Standard.E3.Flex
-        shapeConfigDetails:
-          memoryInGBs: 16
-          ocpus: 1
-        blockStorageSize: 50
-    runtime:
-      kind: runtime
-      type: script
-      spec:
-        conda:
-          slug: pytorch19_p37_cpu_v1
-          type: service
-        entrypoint: zip_or_dir/main.py
-        scriptPathURI: path/to/zip_or_dir
-
-
-
-PythonRuntime
-=============
-
-The ``PythonRuntime`` class allows you to run Python code with ADS enhanced features like configuring the working directory and Python path.  It also allows you to copy the output files to OCI Object Storage. This is especially useful for Python code involving multiple files and packages in the job artifact.
-
-The ``PythonRuntime`` uses an ADS generated driver script as the entry point for the job run. It performs additional operations before and after invoking your code. You can examine the driver script by downloading the job artifact from the OCI Console.
-
-Python
-------
-
-Relative to ``ScriptRunTime`` the ``PythonRuntime`` has 3 additional methods:
-
-* ``.with_working_dir()``: Specify the working directory to use when running a job. By default, the working directory is also added to the Python paths. This should be a relative path from the parent of the job artifact directory.
-* ``.with_python_path()``: Add one or more Python paths to use when running a job. The paths should be relative paths from the working directory.
-* ``.with_output()``: Specify the output directory and a remote URI (for example, an OCI Object Storage URI) in the job run. Files in the output directory are copied to the remote output URI after the job run finishes successfully.
-
-Following is an example of creating a job with ``PythonRuntime``:
-
-.. code-block:: python3
-
-  from ads.jobs import Job, DataScienceJOb, PythonRuntime
-
-  job = (
-    Job()
-    .with_infrastructure(
-      DataScienceJob()
-      .with_log_group_id("<log_group_ocid>")
-      .with_log_id("<log_ocid>")
-      # The following infrastructure configurations are optional
-      # if you are in an OCI data science notebook session.
-      # The configurations of the notebook session will be used as defaults
-      .with_compartment_id("<compartment_ocid>")
-      .with_project_id("<project_ocid>")
-      .with_subnet_id("<subnet_ocid>")
-      .with_shape_name("VM.Standard.E3.Flex")
-      .with_shape_config_details(memory_in_gbs=16, ocpus=1) # Applicable only for the flexible shapes
-      .with_block_storage_size(50)
-    )
-    .with_runtime(
-      PythonRuntime()
-      .with_service_conda("pytorch19_p37_cpu_v1")
-      # The job artifact directory is named "zip_or_dir"
-      .with_source("local/path/to/zip_or_dir", entrypoint="zip_or_dir/my_package/entry.py")
-      # Change the working directory to be inside the job artifact directory
-      # Working directory a relative path from the parent of the job artifact directory
-      # Working directory is also added to Python paths
-      .with_working_dir("zip_or_dir")
-      # Add an additional Python path
-      # The "my_python_packages" folder is under "zip_or_dir" (working directory)
-      .with_python_path("my_python_packages")
-      # Files in "output" directory will be copied to OCI object storage once the job finishes
-      # Here we assume "output" is a folder under "zip_or_dir" (working directory)
-      .with_output("output", "oci://bucket_name@namespace/path/to/dir")
-    )
+  runtime = (
+    PythonRuntime()
+    .with_source("path/to/my_source_code")
+    .with_working_dir("my_source_code")
+    .with_entrypoint("my_entrypoint.py")
   )
 
-YAML
-----
+Archive Source Code
+-------------------
 
-You could use the following YAML to create the same job with ``PythonRuntime``:
+If your source code is a zip/tar file, the files in the archive will be decompressed under the working directory.
+The file structure in the job run depends on whether your archive has a top level directory.
+For example, you can inspect the structure of your zip file by running the ``unzip -l`` command:
 
-.. code-block:: yaml
+.. code-block:: bash
 
-  kind: job
-  spec:
-    infrastructure:
-      kind: infrastructure
-      type: dataScienceJob
-      spec:
-        logGroupId: <log_group_ocid>
-        logId: <log_ocid>
-        compartmentId: <compartment_ocid>
-        projectId: <project_ocid>
-        subnetId: <subnet_ocid>
-        shapeName: VM.Standard.E3.Flex
-        shapeConfigDetails:
-          memoryInGBs: 16
-          ocpus: 1
-        blockStorageSize: 50
-    runtime:
-      kind: runtime
-      type: python
-      spec:
-        conda:
-          slug: pytorch19_p37_cpu_v1
-          type: service
-        entrypoint: zip_or_dir/my_package/entry.py
-        scriptPathURI: path/to/zip_or_dir
-        workingDir: zip_or_dir
-        outputDir: zip_or_dir/output
-        outputUri: oci://bucket_name@namespace/path/to/dir
-        pythonPath:
-          - "zip_or_dir/python_path"
+  unzip -l my_source_code.zip
 
-**PythonRuntime YAML Schema**
+This will give you outputs similar to the following:
 
-.. code-block:: yaml
+.. code-block:: text
 
-  kind:
-    required: true
-    type: string
-    allowed:
-      - runtime
-  type:
-    required: true
-    type: string
-    allowed:
-      - script
-  spec:
-    required: true
-    type: dict
-    schema:
-      args:
-        nullable: true
-        required: false
-        type: list
-        schema:
-          type: string
-      conda:
-        nullable: false
-        required: false
-        type: dict
-        schema:
-          slug:
-            required: true
-            type: string
-          type:
-            allowed:
-              - service
-            required: true
-            type: string
-      env:
-        nullable: true
-        required: false
-        type: list
-        schema:
-          type: dict
-          schema:
-          name:
-            type: string
-          value:
-            type:
-              - number
-              - string
-      scriptPathURI:
-        required: true
-        type: string
-      entrypoint:
-        required: false
-        type: string
-      outputDir:
-        required: false
-        type: string
-      outputUri:
-        required: false
-        type: string
-      workingDir:
-        required: false
-        type: string
-      pythonPath:
-        required: false
-        type: list
+  Archive:  path/to/my_source_code.zip
+    Length      Date    Time    Name
+  ---------  ---------- -----   ----
+          0  02-22-2023 16:38   my_source_code/
+        1803  02-22-2023 16:38   my_source_code/my_module.py
+          91  02-22-2023 16:38   my_source_code/my_entrypoint.py
+  ---------                     -------
+        1894                     3 files
 
+In this case, a top level directory ``my_source_code/`` is presented in the archive.
+The file structure in the job run will look like:
+
+.. code-block:: text
+
+  code  <---This is the working directory
+  └── my_source_code
+      ├── my_module.py
+      └── my_entrypoint.py
+
+which is the same as the case when you specified a local folder as source code.
+You can configure the entrypoint and working directory similar to the examples above.
+
+If a top level directory is not presented, outputs for the archive will look like the following:
+
+.. code-block:: text
+
+  Archive:  path/to/my_source_code.zip
+    Length      Date    Time    Name
+  ---------  ---------- -----   ----
+        1803  02-22-2023 16:38   my_module.py
+          91  02-22-2023 16:38   my_entrypoint.py
+  ---------                     -------
+        1894                     2 files
+
+In this case, the file structure in the job run will look like:
+
+.. code-block:: text
+
+  code  <---This is the working directory
+  ├── my_module.py
+  └── my_entrypoint.py
+
+And, you can specify the entrypoint with the filename directly:
+
+.. code-block:: python
+
+  runtime = (
+    PythonRuntime()
+    .with_source("path/to/my_source_code.zip")
+    .with_entrypoint("my_entrypoint.py")
+  )
+
+Python Paths
+============
+
+The working directory is added to the Python paths automatically.
+You can call :py:meth:`~ads.jobs.PythonRuntime.with_python_path` to add additional python paths as needed.
+The paths should be relative paths from the working directory.
+
+.. _runtime_outputs:
+
+Saving Outputs
+==============
+
+The :py:meth:`~ads.jobs.PythonRuntime.with_output` method allows you to specify the output directory ``output_dir``
+in the job run and a remote URI (for example, an OCI Object Storage URI).
+Files in the ``output_dir`` are copied to the remote output URI after the job run finishes successfully.
+Note that the ``output_dir`` should be a path relative to the working directory.
