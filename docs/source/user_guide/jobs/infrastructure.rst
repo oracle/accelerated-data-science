@@ -4,7 +4,6 @@ Infrastructure
 The Data Science Job infrastructure is defined by a :py:class:`~ads.jobs.DataScienceJob` instance.
 For example:
 
-
 .. code-block:: python3
 
     from ads.jobs import DataScienceJob

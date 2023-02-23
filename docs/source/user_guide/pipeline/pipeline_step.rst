@@ -93,7 +93,7 @@ When constructing a Custom Scrip step ``infrastructure``, you specify the Comput
 
 A Custom Script step can have different types of ``runtime`` depending on the source code you run:
 
-.. include:: ../jobs/_template/runtime_types.rst
+.. include:: ../jobs/components/runtime_non_byoc.rst
 
 All of these runtime options allow you to configure a `Data Science Conda Environment <https://docs.oracle.com/iaas/data-science/using/conda_understand_environments.htm>`__ for running your code. 
 

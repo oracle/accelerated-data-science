@@ -4,25 +4,17 @@ Runtime
 The *runtime* of a job defines the source code of your workload, environment variables, CLI arguments
 and other configurations for the environment to run the workload.
 
+.. include:: ../jobs/components/toc_local.rst
+
 Depending on the source code, ADS provides different types of *runtime* for defining a data science job,
 including:
 
-* :py:class:`~ads.jobs.PythonRuntime`
-  for Python code stored locally, OCI object storage, or other remote location supported by
-  `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`_
-* :py:class:`~ads.jobs.GitPythonRuntime`
-  for Python code from a Git repository.
-* :py:class:`~ads.jobs.NotebookRuntime`
-  for a single Jupyter notebook stored locally, OCI object storage, or other remote location supported by
-  `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`_
-* :py:class:`~ads.jobs.ScriptRuntime`
-  for bash or shell scripts stored locally, OCI object storage, or other remote location supported by
-  `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`_
-* :py:class:`~ads.jobs.ContainerRuntime` for container images.
+.. include:: ../jobs/components/runtime_types.rst
 
 
 Environment Variables
 =====================
+
 You can set environment variables for a runtime by calling
 :py:meth:`~ads.jobs.PythonRuntime.with_environment_variable()`.
 Environment variables enclosed by ``${...}`` will be substituted. For example:
@@ -159,8 +151,8 @@ For more details on custom conda environment, see
 <https://docs.oracle.com/en-us/iaas/data-science/using/conda_publishs_object.htm>`__.
 
 
-Override Configuration
-======================
+Override Configurations
+=======================
 
 When you call :py:meth:`ads.jobs.Job.run`, a new job run will be started with the configuration defined in the **job**.
 You may want to override the configuration with custom variables. For example,

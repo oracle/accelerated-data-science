@@ -2,6 +2,6 @@
 Training with OCI
 #################
 
-.. include:: ../jobs/overview.rst
+.. include:: ../jobs/components/overview.rst
 
 .. include:: ../jobs/toc.rst
