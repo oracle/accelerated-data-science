@@ -1,9 +1,9 @@
 Oracle Cloud Infrastructure (OCI) `Data Science Jobs (Jobs) <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm>`_
 enables you to define and run repeatable machine learning tasks on a fully managed infrastructure.
-You can have Compute resource on demand and run applications that perform tasks such as
+You can create a compute resource on demand and run applications that perform tasks such as
 data preparation, model training, hyperparameter tuning, and batch inference.
 
-Training with OCI involves two types resources: **Job** and **Job Run**.
+Running workloads with Data Science Jobs involves two types resources: **Job** and **Job Run**.
 
 A **Job** is a template that describes the training task.
 It contains configurations about the *infrastructure*, such as
@@ -26,5 +26,5 @@ For a given job run, you could pass an environment variable that identifies the 
 Each model can write its results to the Logging service or Object Storage.
 Then you can run a final sequential job that uses the best model class, and trains the final model on the entire dataset.
 
-The following sections provides details on running training workloads with OCI Data Science Jobs using ADS Jobs APIs.
+The following sections provides details on running workloads with OCI Data Science Jobs using ADS Jobs APIs.
 You can use similar APIs to `Run a OCI DataFlow Application <run_data_flow.html>`_.

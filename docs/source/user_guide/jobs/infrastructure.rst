@@ -34,6 +34,8 @@ The following configurations are optional:
 * Log Group ID
 * Log ID
 
+For more details about the mandatory and optional parameters, see :py:class:`~ads.jobs.DataScienceJob`.
+
 Using Configurations from Notebook
 ==================================
 
