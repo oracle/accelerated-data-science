@@ -19,22 +19,9 @@ You can set environment variables for a runtime by calling
 :py:meth:`~ads.jobs.PythonRuntime.with_environment_variable()`.
 Environment variables enclosed by ``${...}`` will be substituted. For example:
 
-.. code-block:: python
+.. include:: ../jobs/tabs/runtime_envs.rst
 
-  from ads.jobs import PythonRuntime
-
-  runtime = (
-      PythonRuntime()
-      .with_environment_variable(
-          HOST="10.0.0.1",
-          PORT="443",
-          URL="http://${HOST}:${PORT}/path/",
-          ESCAPED_URL="http://$${HOST}:$${PORT}/path/",
-          MISSING_VAR="This is ${UNDEFINED}",
-          VAR_WITH_DOLLAR="$10",
-          DOUBLE_DOLLAR="$$10"
-      )
-  )
+.. code-block:: python3
 
   for k, v in runtime.environment_variables.items():
       print(f"{k}: {v}")
@@ -47,7 +34,7 @@ will show the following environment variables for the runtime:
   PORT: 443
   URL: http://10.0.0.1:443/path/
   ESCAPED_URL: http://${HOST}:${PORT}/path/
-  MISSING_VAR: This is This is ${UNDEFINED}
+  MISSING_VAR: This is ${UNDEFINED}
   VAR_WITH_DOLLAR: $10
   DOUBLE_DOLLAR: $10
 
@@ -69,19 +56,37 @@ Command Line Arguments
 The command line arguments for running your script or function can be configured by calling
 :py:meth:`~ads.jobs.PythonRuntime.with_argument()`. For example:
 
-.. code-block:: python
+.. tabs::
 
-  from ads.jobs import PythonRuntime
+  .. code-tab:: python
+    :caption: Python
 
-  runtime = (
-      PythonRuntime()
-      .with_source("oci://bucket_name@namespace/path/to/script.py")
-      .with_arguments(
-          "arg1", "arg2",
-          key1="val1",
-          key2="val2"
-      )
-  )
+    from ads.jobs import PythonRuntime
+
+    runtime = (
+        PythonRuntime()
+        .with_source("oci://bucket_name@namespace/path/to/script.py")
+        .with_argument(
+            "arg1", "arg2",
+            key1="val1",
+            key2="val2"
+        )
+    )
+
+  .. code-tab:: yaml
+    :caption: YAML
+
+    kind: runtime
+    type: python
+    spec:
+      scriptPathURI: oci://bucket_name@namespace/path/to/script.py
+      args:
+      - arg1
+      - arg2
+      - --key1
+      - val1
+      - --key2
+      - val2
 
 will configured the job to call your script by:
 
@@ -94,25 +99,7 @@ to your desired order. You can check ``runtime.args`` to see the added arguments
 
 Here are a few more examples:
 
-.. code-block:: python
-
-  runtime = PythonRuntime().with_argument(key1="val1", key2="val2").with_argument("pos1")
-  print(runtime.args)
-  # ["--key1", "val1", "--key2", "val2", "pos1"]
-
-  runtime = PythonRuntime()
-  runtime.with_argument("pos1")
-  runtime.with_argument(key1="val1", key2="val2.1 val2.2")
-  runtime.with_argument("pos2")
-  print(runtime.args)
-  # ['pos1', '--key1', 'val1', '--key2', 'val2.1 val2.2', 'pos2']
-
-  runtime = PythonRuntime()
-  runtime.with_argument("pos1")
-  runtime.with_argument(key1=None, key2="val2")
-  runtime.with_argument("pos2")
-  print(runtime.args)
-  # ["pos1", "--key1", "--key2", "val2", "pos2"]
+.. include:: ../jobs/tabs/runtime_args.rst
 
 Conda Environment
 =================
@@ -125,28 +112,13 @@ for your workload. You can use the slug name to specify a
 <https://docs.oracle.com/en-us/iaas/data-science/using/conda_viewing.htm#conda-dsenvironments>`_.
 For example, to use the TensorFlow conda environment:
 
-.. code-block:: python
-
-  from ads.jobs import PythonRuntime
-
-  runtime = (
-    PythonRuntime()
-    .with_source("oci://bucket_name@namespace/path/to/script.py")
-    # Use slug name for conda environment provided by data science service
-    .with_service_conda("tensorflow28_p38_cpu_v1")
-  )
+.. include:: ../jobs/tabs/runtime_service_conda.rst
 
 You can also use a custom conda environment published to OCI Object Storage
 by passing the ``uri`` to :py:meth:`~ads.jobs.PythonRuntime.with_custom_conda`,
 for example:
 
-.. code-block:: python
-
-    runtime = (
-        PythonRuntime()
-        .with_source("oci://bucket_name@namespace/path/to/script.py")
-        .with_custom_conda("oci://bucket@namespace/conda_pack/pack_name")
-    )
+.. include:: ../jobs/tabs/runtime_custom_conda.rst
 
 By default, ADS will try to determine the region based on the authenticated API key or resource principal.
 If your custom conda environment is stored in a different region,
