@@ -16,7 +16,7 @@ For example:
         .with_shape_name("VM.Standard.E3.Flex")
         # Shape config details are applicable only for the flexible shapes.
         .with_shape_config_details(memory_in_gbs=16, ocpus=1)
-        # Minimum block storage size is 50
+        # Minimum block storage size is 50 (GB)
         .with_block_storage_size(50)
         .with_log_group_id("<log_group_ocid>")
         .with_log_id("<log_ocid>")
@@ -65,7 +65,7 @@ The :py:class:`~ads.jobs.DataScienceJob` class provides two static methods to ob
 
 * You can get a list of currently supported compute shapes by calling
   :py:meth:`~ads.jobs.DataScienceJob.instance_shapes`.
-* can get a list of shapes are available for fast launch by calling
+* can get a list of shapes that are available for fast launch by calling
   :py:meth:`~ads.jobs.DataScienceJob.fast_launch_shapes`.
   Specifying a fast launch shape will allow your job to start as fast as possible.
 
@@ -86,7 +86,7 @@ Logging
 =======
 
 Logging is not required to create the job.
-However, it is highly recommended to enable logging for debugging and monitoring purpose.
+However, it is highly recommended to enable logging for debugging and monitoring.
 
 In the preceding example, both the log OCID and corresponding log group OCID are specified
 with the :py:class:`~ads.jobs.DataScienceJob` instance.

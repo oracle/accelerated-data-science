@@ -1,5 +1,5 @@
-I AM Policies
-*************
+IAM Policies
+************
 
 Oracle Cloud Infrastructure Identity and Access Management (IAM)
 lets you specify policies to control the access to your cloud resources.

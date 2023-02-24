@@ -18,7 +18,7 @@
       )
       .with_runtime(
         PythonRuntime()
-        .with_service_conda("pytorch19_p37_cpu_v1")
+        .with_service_conda("pytorch110_p38_gpu_v1")
         .with_environment_variable(DATASET_NAME="MyData")
         .with_source("local/path/to/training_script.py")
         .with_output("output", "oci://bucket_name@namespace/prefix/${JOB_RUN_OCID}")
