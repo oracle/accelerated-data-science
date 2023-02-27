@@ -3,7 +3,7 @@ Infrastructure and Runtime
 
 This page describes the configurations of **Infrastructure** and **Runtime** defining a Data Science Job.
 
-.. include:: ../jobs/components/toc_local.rst
+.. include:: ../jobs/toc_local.rst
 
 Example
 =======
@@ -122,7 +122,7 @@ and other configurations for the environment to run the workload.
 Depending on the source code, ADS provides different types of *runtime* for defining a data science job,
 including:
 
-.. include:: ../jobs/components/runtime_types.rst
+.. include:: ../jobs/runtime_types.rst
 
 
 Environment Variables

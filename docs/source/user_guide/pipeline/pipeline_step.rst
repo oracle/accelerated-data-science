@@ -93,7 +93,7 @@ When constructing a Custom Scrip step ``infrastructure``, you specify the Comput
 
 A Custom Script step can have different types of ``runtime`` depending on the source code you run:
 
-.. include:: ../jobs/components/runtime_non_byoc.rst
+.. include:: ../jobs/runtime_non_byoc.rst
 
 All of these runtime options allow you to configure a `Data Science Conda Environment <https://docs.oracle.com/iaas/data-science/using/conda_understand_environments.htm>`__ for running your code. 
 
@@ -182,7 +182,7 @@ To define a Custom Script step with ``PythonRuntime`` you can use:
 	kind: runtime
 	spec:
 	  conda:
-		slug: pytorch19_p37_cpu_v1
+		slug: pytorch110_p38_cpu_v1
 		type: service
 	  entrypoint: zip_or_dir/my_package/entry.py
 	  outputDir: output
@@ -200,7 +200,7 @@ To define a Custom Script step with ``PythonRuntime`` you can use:
 
     runtime = (
         PythonRuntime()
-        .with_service_conda("pytorch19_p37_cpu_v1")
+        .with_service_conda("pytorch110_p38_cpu_v1")
         # The job artifact directory is named "zip_or_dir"
         .with_source("local/path/to/zip_or_dir", entrypoint="zip_or_dir/my_package/entry.py")
         # Change the working directory to be inside the job artifact directory

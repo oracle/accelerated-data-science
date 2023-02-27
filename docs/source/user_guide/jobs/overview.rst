@@ -20,7 +20,8 @@ You can also sequence jobs and keep the state by writing state information to
 `Object Storage <https://docs.oracle.com/en-us/iaas/Content/Object/Concepts/objectstorageoverview.htm>`_
 
 For example, you may want to experiment with how different model classes perform on the same training data
-by using the [ADSTuner](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/ads_tuner.html) to perform hyperparameter tuning on each model class.
+by using the `ADSTuner <https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/ads_tuner.html>`_
+to perform hyperparameter tuning on each model class.
 You could do this in parallel by having a different job run for each class of models.
 For a given job run, you could pass an environment variable that identifies the model class that you want to use.
 Each model can write its results to the Logging service or Object Storage.

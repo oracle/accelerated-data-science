@@ -6,7 +6,7 @@ Quick Start
   Before creating a job, ensure that you have policies configured for Data Science resources.
   See also: :doc:`policies` and  `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_.
 
-.. include:: ../jobs/components/toc_local.rst
+.. include:: ../jobs/toc_local.rst
 
 Define a Job
 ============
@@ -15,20 +15,21 @@ In ADS, a job is defined by :doc:`infra_and_runtime`.
 The Data Science Job infrastructure is configured through a :py:class:`~ads.jobs.DataScienceJob` instance.
 The runtime can be an instance of:
 
-.. include:: ../jobs/components/runtime_types.rst
+.. include:: ../jobs/runtime_types.rst
 
-Here is an example to define and run a Python :py:class:`~ads.jobs.Job` with the source code from an http
-`link <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/432357b123b7401ef67b116fe19aec217ca920f0/jobs/python/job%2Bsamples/greeting-env-cmd.py>`_:
+Here is an example to define and run a Python :py:class:`~ads.jobs.Job`.
 
 .. include:: ../jobs/tabs/quick_start_job.rst
 
-The source code can be a script, a Jupyter notebook, a folder or a zip file.
-The source code location can be a local or remote, including OCI Object Storage.
-
 The :py:class:`~ads.jobs.PythonRuntime` is designed for :doc:`Running a Python Workload <run_python>`.
-You can also :doc:`run_notebook`, :doc:`run_script` and :doc:`run_git`
+The source code is specified by :py:meth:`~ads.jobs.PythonRuntime.with_source` (``path/to/script.py``).
+It can be a script, a Jupyter notebook, a folder or a zip file.
+The source code location can be a local or remote, including HTTP URL and OCI Object Storage.
+An `example Python script <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/jobs/python/job%2Bsamples/greeting-env-cmd.py>`_
+is available on `Data Science AI Sample GitHub Repository <https://github.com/oracle-samples/oci-data-science-ai-samples>`_.
 
 For more details, see :doc:`infra_and_runtime` configurations.
+You can also :doc:`run_notebook`, :doc:`run_script` and :doc:`run_git`.
 
 
 YAML

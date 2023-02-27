@@ -6,7 +6,7 @@ You can configure the environment variables, command line arguments and conda en
 as described in :doc:`infra_and_runtime`. This section shows the additional enhancements provided by
 :py:class:`~ads.jobs.PythonRuntime`.
 
-.. include:: ../jobs/components/toc_local.rst
+.. include:: ../jobs/toc_local.rst
 
 Here is an example to define and run a job using :py:class:`~ads.jobs.PythonRuntime`:
 
