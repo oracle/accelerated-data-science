@@ -21,7 +21,7 @@ TensorBoard provides the visualization and the tooling that is needed to watch a
   distributed_training/overview
   tensorboard/tensorboard
   model_evaluation/index
-  model_explainability/index
+  automl/index
 
 
  
