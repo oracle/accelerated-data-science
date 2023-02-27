@@ -8,44 +8,27 @@ Quick Start
 
 .. include:: ../jobs/components/toc_local.rst
 
-Create and Run a Job
-====================
+Define a Job
+============
 
-In ADS, a job is defined by :doc:`infrastructure` and :doc:`runtime`.
+In ADS, a job is defined by :doc:`infra_and_runtime`.
 The Data Science Job infrastructure is configured through a :py:class:`~ads.jobs.DataScienceJob` instance.
 The runtime can be an instance of:
 
 .. include:: ../jobs/components/runtime_types.rst
 
-Here is an example to define and run a Python :py:class:`~ads.jobs.Job`:
+Here is an example to define and run a Python :py:class:`~ads.jobs.Job` with the source code from an http
+`link <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/432357b123b7401ef67b116fe19aec217ca920f0/jobs/python/job%2Bsamples/greeting-env-cmd.py>`_:
 
-.. include:: ../jobs/tabs/python_runtime.rst
+.. include:: ../jobs/tabs/quick_start_job.rst
 
-For more details, see :doc:`infrastructure` configurations and see :doc:`runtime` configurations.
+The source code can be a script, a Jupyter notebook, a folder or a zip file.
+The source code location can be a local or remote, including OCI Object Storage.
 
-In :py:class:`~ads.jobs.PythonRuntime`,
-the ``entrypoint`` can be a Python script, a Python function or a Jupyter notebook.
+The :py:class:`~ads.jobs.PythonRuntime` is designed for :doc:`Running a Python Workload <run_python>`.
+You can also :doc:`run_notebook`, :doc:`run_script` and :doc:`run_git`
 
-Once the job is created, the job OCID can be accessed through ``job.id``.
-Once the job run is created, the job run OCID can be accessed through ``run.id``.
-
-The :py:meth:`~ads.jobs.DataScienceJobRun.watch` method is useful to monitor the progress of the job run.
-It will stream the logs to terminal and return once the job is finished.
-Logging configurations are required for this method to show logs.
-
-Here is an example of the logs:
-
-.. code-block:: text
-
-    2021-10-28 17:17:58 - Job Run ACCEPTED
-    2021-10-28 17:18:07 - Job Run ACCEPTED, Infrastructure provisioning.
-    2021-10-28 17:19:19 - Job Run ACCEPTED, Infrastructure provisioned.
-    2021-10-28 17:20:48 - Job Run ACCEPTED, Job run bootstrap starting.
-    2021-10-28 17:23:41 - Job Run ACCEPTED, Job run bootstrap complete. Artifact execution starting.
-    2021-10-28 17:23:50 - Job Run IN_PROGRESS, Job run artifact execution in progress.
-    2021-10-28 17:23:50 - <Log Message>
-    2021-10-28 17:23:50 - <Log Message>
-    2021-10-28 17:23:50 - ...
+For more details, see :doc:`infra_and_runtime` configurations.
 
 
 YAML
@@ -87,8 +70,47 @@ For more details on ``ads opctl``, see :doc:`../cli/opctl/_template/jobs`.
 The job infrastructure, runtime and job run also support YAML serialization/deserialization.
 
 
-Loading Existing Job or Job Run
-===============================
+Run a Job and Monitor outputs
+=============================
+
+Once the job is defined or loaded from YAML, you can call the :py:meth:`~ads.jobs.Job.create` method
+to create the job on OCI. To start a job run, you can call the :py:meth:`~ads.jobs.Job.run` method,
+which returns a :py:class:`~ads.jobs.DataScienceJobRun` instance.
+Once the job or job run is created, the job OCID can be accessed through ``job.id`` or ``run.id``.
+
+The :py:meth:`~ads.jobs.DataScienceJobRun.watch` method is useful to monitor the progress of the job run.
+It will stream the logs to terminal and return once the job is finished.
+Logging configurations are required for this method to show logs.
+
+.. code-block:: python
+
+  # Create the job on OCI Data Science
+  job.create()
+  # Start a job run
+  run = job.run()
+  # Stream the job run outputs
+  run.watch()
+
+Here is an example of the logs:
+
+.. code-block:: text
+
+  Job OCID: <job_ocid>
+  Job Run OCID: <job_run_ocid>
+  2023-02-27 15:58:01 - Job Run ACCEPTED
+  2023-02-27 15:58:11 - Job Run ACCEPTED, Infrastructure provisioning.
+  2023-02-27 15:59:06 - Job Run ACCEPTED, Infrastructure provisioned.
+  2023-02-27 15:59:29 - Job Run ACCEPTED, Job run bootstrap starting.
+  2023-02-27 16:01:08 - Job Run ACCEPTED, Job run bootstrap complete. Artifact execution starting.
+  2023-02-27 16:01:18 - Job Run IN_PROGRESS, Job run artifact execution in progress.
+  2023-02-27 16:01:11 - Good morning, your environment variable has value of (Welcome to OCI Data Science.)
+  2023-02-27 16:01:11 - Job Run 02-27-2023-16:01:11
+  2023-02-27 16:01:11 - Job Done.
+  2023-02-27 16:01:22 - Job Run SUCCEEDED, Job run artifact execution succeeded. Infrastructure de-provisioning.
+
+
+Load Existing Job or Job Run
+============================
 
 You can load an existing job or job run using the OCID from OCI:
 
@@ -122,8 +144,8 @@ With a ``Job`` object, you can get a list of job runs:
   # Gets a list of job runs for a specific job.
   runs = job.run_list()
 
-Deleting a Job or Job Run
-=========================
+Delete a Job or Job Run
+=======================
 
 You can delete a job or job run by calling the ``delete()`` method.
 
