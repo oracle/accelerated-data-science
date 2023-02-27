@@ -3,13 +3,7 @@ Run a Notebook
 
 The :py:class:`~ads.jobs.NotebookRuntime` allows you to run a single Jupyter notebook as a job.
 
-If your notebook needs extra dependencies like custom module or data files, you can use
-:py:class:`~ads.jobs.PythonRuntime` or :py:class:`~ads.jobs.GitPythonRuntime` and set your notebook as the entrypoint.
-
-See also:
-
-* :doc:`run_python`
-* :doc:`run_git`
+.. include:: ../jobs/toc_local.rst
 
 TensorFlow Example
 ==================
@@ -51,3 +45,18 @@ To tag cells in a notebook, see
 The :py:meth:`~ads.jobs.NotebookRuntime.with_exclude_tag` take a list of tags as argument
 Cells with any matching tags are excluded from the job run.
 In the above example, cells with ``ignore`` or ``remove`` are excluded.
+
+Notebook with Dependencies
+==========================
+
+If your notebook needs extra dependencies like custom module or data files, you can use
+:py:class:`~ads.jobs.PythonRuntime` or :py:class:`~ads.jobs.GitPythonRuntime` and set your notebook as the entrypoint.
+
+See also:
+
+* :doc:`run_python`
+* :doc:`run_git`
+
+Here is an example of running the `minGPT demo notebook <https://github.com/karpathy/minGPT/blob/master/demo.ipynb>`_.
+
+.. include:: ../jobs/tabs/git_notebook.rst
