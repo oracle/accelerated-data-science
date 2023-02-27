@@ -17,7 +17,7 @@ The following steps take your trained ``AutoML`` model and deploy it into produc
 
 **Creating an Oracle Labs AutoML Model**
 
-Create an ``OracleAutoMLProvider`` object and use it to define how an Oracle Labs ``AutoML`` model is trained.
+Train a model using AutoMLx.
 
 .. code-block:: python3
 

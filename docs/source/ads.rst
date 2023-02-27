@@ -6,7 +6,6 @@ Subpackages
 
 .. toctree::
 
-    ads.automl
     ads.catalog
     ads.common
     ads.bds

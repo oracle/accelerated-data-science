@@ -12,7 +12,6 @@ An AutoML Pipeline consists of these four main stages:
 The stages operate in sequence: 
  
 .. contents::
-
 -------------------
 Algorithm Selection
 -------------------
