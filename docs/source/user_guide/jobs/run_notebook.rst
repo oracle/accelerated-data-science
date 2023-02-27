@@ -35,7 +35,7 @@ Download the Outputs
 If you specify the output location using :py:meth:`~ads.jobs.NotebookRuntime.with_output`.
 All files in the working directory, including the notebook with outputs,
 will be saved to output location (``oci://bucket_name@namespace/path/to/dir``) after the job finishes running.
-You can download the output by calling the :py:meth:`~ads.jobs.NotebookRuntime.download` method.
+You can download the output by calling the :py:meth:`~ads.jobs.Job.download` method.
 
 Exclude Cells
 =============
