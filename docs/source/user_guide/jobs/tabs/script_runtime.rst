@@ -26,9 +26,13 @@
       .with_runtime(
         ScriptRuntime()
         # Specify the service conda environment by slug name.
-        .with_service_conda("pytorch19_p37_cpu_v1")
+        .with_service_conda("pytorch110_p38_cpu_v1")
         # The job artifact can be a single Python script, a directory or a zip file.
         .with_source("local/path/to/code_dir")
+        # Environment variable
+        .with_environment_variable(NAME="Welcome to OCI Data Science.")
+        # Command line argument
+        .with_argument("100 linux \"hi there\"")
         # The entrypoint is applicable only to directory or zip file as source
         # The entrypoint should be a path relative to the working dir.
         # Here my_script.sh is a file in the code_dir/my_package directory
@@ -62,10 +66,15 @@
         kind: runtime
         type: script
         spec:
+          args:
+          - 100 linux "hi there"
           conda:
-            slug: pytorch19_p37_cpu_v1
+            slug: pytorch110_p38_cpu_v1
             type: service
           entrypoint: my_package/my_script.sh
+          env:
+          - name: NAME
+            value: Welcome to OCI Data Science.
           scriptPathURI: local/path/to/code_dir
 
 .. code-block:: python

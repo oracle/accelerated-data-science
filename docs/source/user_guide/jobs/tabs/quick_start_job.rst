@@ -28,7 +28,7 @@
             # Specify the service conda environment by slug name.
             .with_service_conda("pytorch110_p38_cpu_v1")
             # Source code of the job, can be local or remote.
-            .with_source("https://raw.githubusercontent.com/oracle-samples/oci-data-science-ai-samples/432357b123b7401ef67b116fe19aec217ca920f0/jobs/python/job%2Bsamples/greeting-env-cmd.py")
+            .with_source("path/to/script.py")
             # Environment variable
             .with_environment_variable(NAME="Welcome to OCI Data Science.")
             # Command line argument
@@ -71,4 +71,4 @@
           env:
           - name: NAME
             value: Welcome to OCI Data Science.
-          scriptPathURI: https://raw.githubusercontent.com/oracle-samples/oci-data-science-ai-samples/432357b123b7401ef67b116fe19aec217ca920f0/jobs/python/job%2Bsamples/greeting-env-cmd.py
+          scriptPathURI: path/to/script.py

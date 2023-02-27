@@ -26,7 +26,7 @@
         .with_runtime(
             PythonRuntime()
             # Specify the service conda environment by slug name.
-            .with_service_conda("pytorch19_p37_cpu_v1")
+            .with_service_conda("pytorch110_p38_cpu_v1")
             # The job artifact can be a single Python script, a directory or a zip file.
             .with_source("local/path/to/code_dir")
             # Environment variable
@@ -79,7 +79,7 @@
           - --key
           - arg2
           conda:
-            slug: pytorch19_p37_cpu_v1
+            slug: pytorch110_p38_cpu_v1
             type: service
           entrypoint: my_package/my_script.py
           env:

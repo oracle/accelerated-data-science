@@ -49,7 +49,7 @@
         type: python
         spec:
           conda:
-            slug: pytorch19_p37_cpu_v1
+            slug: pytorch110_p38_cpu_v1
             type: service
           env:
           - name: DATASET_NAME
