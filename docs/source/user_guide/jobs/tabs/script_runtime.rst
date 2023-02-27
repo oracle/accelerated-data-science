@@ -36,13 +36,6 @@
       )
     )
 
-    # Create the job on OCI Data Science
-    job.create()
-    # Start a job run
-    run = job.run()
-    # Stream the job run outputs
-    run.watch()
-
   .. code-tab:: yaml
     :caption: YAML
 
@@ -74,3 +67,12 @@
             type: service
           entrypoint: my_package/my_script.sh
           scriptPathURI: local/path/to/code_dir
+
+.. code-block:: python
+
+  # Create the job on OCI Data Science
+  job.create()
+  # Start a job run
+  run = job.run()
+  # Stream the job run outputs
+  run.watch()

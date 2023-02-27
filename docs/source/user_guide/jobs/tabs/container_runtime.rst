@@ -32,13 +32,6 @@
       )
     )
 
-    # Create the job on OCI Data Science
-    job.create()
-    # Start a job run
-    run = job.run()
-    # Stream the job run outputs
-    run.watch()
-
   .. code-tab:: yaml
     :caption: YAML
 
@@ -73,3 +66,13 @@
           - name: GREETINGS
             value: Welcome to OCI Data Science
           image: <region>.ocir.io/<your_tenancy>/<your_image>
+
+
+.. code-block:: python
+
+  # Create the job on OCI Data Science
+  job.create()
+  # Start a job run
+  run = job.run()
+  # Stream the job run outputs
+  run.watch()

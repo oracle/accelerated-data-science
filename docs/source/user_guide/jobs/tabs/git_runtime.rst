@@ -41,13 +41,6 @@
       )
     )
 
-    # Create the job on OCI Data Science
-    job.create()
-    # Start a job run
-    run = job.run()
-    # Stream the job run outputs
-    run.watch()
-
   .. code-tab:: yaml
     :caption: YAML
 
@@ -84,3 +77,13 @@
           outputDir: beginner_source/examples_nn
           outputUri: oci://bucket_name@namespace/path/to/dir
           url: https://github.com/pytorch/tutorials.git
+
+
+.. code-block:: python
+
+  # Create the job on OCI Data Science
+  job.create()
+  # Start a job run
+  run = job.run()
+  # Stream the job run outputs
+  run.watch()

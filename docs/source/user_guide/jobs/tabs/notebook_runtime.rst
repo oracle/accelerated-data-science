@@ -36,15 +36,6 @@
       )
     )
 
-    # Create the job on OCI Data Science
-    job.create()
-    # Start a job run
-    run = job.run()
-    # Stream the job run outputs
-    run.watch()
-    # Download the notebook back to local
-    run.download("/path/to/local/dir")
-
   .. code-tab:: yaml
     :caption: YAML
 
@@ -83,3 +74,14 @@
           notebookEncoding: utf-8
           notebookPathURI: https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb
           outputUri: oci://bucket_name@namespace/path/to/dir
+
+.. code-block:: python
+
+  # Create the job on OCI Data Science
+  job.create()
+  # Start a job run
+  run = job.run()
+  # Stream the job run outputs
+  run.watch()
+  # Download the notebook back to local
+  run.download("/path/to/local/dir")
