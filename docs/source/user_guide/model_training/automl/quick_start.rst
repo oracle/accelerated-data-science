@@ -1,6 +1,5 @@
-============================================================
 Quick Start
-============================================================
+===========
 
 This section provides a quick introduction to build a classifier using the Oracle AutoMLx tool for Iris dataset.
 The dataset is a multi-class classification dataset, and more details about the dataset
