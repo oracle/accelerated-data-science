@@ -3,7 +3,12 @@ IAM Policies
 
 Oracle Cloud Infrastructure Identity and Access Management (IAM)
 lets you specify policies to control the access to your cloud resources.
-This section contain the policies recommended for Data Science Jobs.
+This section describe the policies you might need for running Data Science Jobs.
+
+.. warning::
+
+    The policies presented in this page are intended to show the ``resource_type`` used by the job and job runs.
+    You should further restrict the access to the resources base on your needs.
 
 .. admonition:: Policy subject
 
@@ -48,6 +53,9 @@ The following policy is needed for running a container job:
 
 See also:
 
+* `Learn Best Practices for Setting Up Your Tenancy <https://docs.oracle.com/en-us/iaas/Content/GSG/Concepts/settinguptenancy.htm#Setting_Up_Your_Tenancy>`_
+* `IAM with Identity Domains <https://docs.oracle.com/en-us/iaas/Content/Identity/home.htm>_`
+* `IAM without Identity Domains <https://docs.oracle.com/en-us/iaas/Content/Identity/home1.htm>_`
 * `Dynamic Group <https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/managingdynamicgroups.htm>`_
 * `Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_
 * `Object Storage <https://docs.oracle.com/en-us/iaas/Content/Identity/Reference/objectstoragepolicyreference.htm#Details_for_Object_Storage_Archive_Storage_and_Data_Transfer>`_

@@ -7,6 +7,9 @@ The :py:class:`~ads.jobs.ContainerRuntime` class allows you to run a container i
 
   To use the :py:class:`~ads.jobs.ContainerRuntime`, you need to first push the image to
   `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_.
+
+  Note that you cannot build a docker image inside an OCI Data Science Notebook Session.
+
   For more details, see:
   
   * `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_
