@@ -119,8 +119,10 @@ The method :obj:`explain_model() <automl.interface.mlx.MLExplainer.explain_model
 
 The oracle AutoMLx solution offers advanced configuration options and allows one to change the effect of feature interactions and interaction evaluations.
 It also provides other model and prediction explanation techniques, such as:
+
 #. `Local feature importance <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#baselfiexplanation>`__, for example, using Kernel SHAP or an enhanced LIME;
 #. `Feature Dependence Explanations <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#fdexplanation>`__, such as partial dependence plots or accumulated local effects;
 #. `Interactive What-IF explainers <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#tabularexplainer>`__, which let users explore a model's predictions; and
 #. `Counterfactual explanations <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#cfexplanation>`__, which show how to change a row to obtain a desired outcome.
+
 Please check out the `automl.interface.mlx.MLExplainer <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#automl.interface.mlx.MLExplainer>`__ documentation for more details.
