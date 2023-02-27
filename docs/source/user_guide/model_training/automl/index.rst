@@ -13,6 +13,6 @@ The Oracle AutoMLx
     :hidden:
     :maxdepth: 1
 
- 
-    overview
     quick_start
+    overview
+    

@@ -63,7 +63,7 @@ AutoMLx consists of five main modules:
 All these pieces are readily combined into a simple AutoMLx pipeline which
 automates the entire Machine Learning process with minimal user input/interaction.
 
-The AutoMLx API is quite simple to work with. We create a :obj:`automl.Pipeline<http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline>`__ instance.
+The AutoMLx API is quite simple to work with. We create a :obj:`automl.Pipeline <http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline>`__ instance.
 Next, the training data is passed to the `fit() <http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline.fit>`__ function which executes the previously mentioned steps.
 
 .. code-block:: python3
@@ -84,19 +84,19 @@ Here, we use the `F1_score` scoring metric to evaluate the performance of this m
     Score on test data : 0.975983436853002
 
 
-The `automl.Pipeline<http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline>`__ can also fit regression, forecasting and anomaly detection models.
+The `automl.Pipeline <http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline>`__ can also fit regression, forecasting and anomaly detection models.
 Please check out the rest of the documentation for more details about advanced configuration parameters.
 
 Explain a classifier
 --------------------
 For a variety of decision-making tasks, getting only a prediction as model output is not sufficient.
 A user may wish to know why the model outputs that prediction, or which data features are relevant for that prediction. 
-For that purpose the Oracle AutoMLx solution defines the `automl.interface.mlx.MLExplainer<http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#automl.interface.mlx.MLExplainer>`__ object, which allows to compute a variety of model explanations for any AutoMLx-trained pipeline or scikit-learn-like model.
-`automl.interface.mlx.MLExplainer<http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#automl.interface.mlx.MLExplainer>`__ takes as argument the trained model, the training data and labels, as well as the task.
+For that purpose the Oracle AutoMLx solution defines the `automl.interface.mlx.MLExplainer <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#automl.interface.mlx.MLExplainer>`__ object, which allows to compute a variety of model explanations for any AutoMLx-trained pipeline or scikit-learn-like model.
+`automl.interface.mlx.MLExplainer <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#automl.interface.mlx.MLExplainer>`__ takes as argument the trained model, the training data and labels, as well as the task.
 
 .. code-block:: python3
 
->>> explainer = automl.MLExplainer(est,
+    >>> explainer = automl.MLExplainer(est,
                                    X_train,
                                    y_train,
                                    task="classification")
@@ -106,6 +106,8 @@ if a given feature were dropped from the dataset, without retraining the model.
 This notion of feature importance considers each feature independently from all other features.
 
 The method :obj:`explain_model() <automl.interface.mlx.MLExplainer.explain_model>` allows to compute such feature importances. It also provides 95% confidence intervals for each feature importance attribution.
+
+.. code-block:: python3
 
     >>> result_explain_model_default = explainer.explain_model()
     >>> result_explain_model_default.to_dataframe()
@@ -117,8 +119,8 @@ The method :obj:`explain_model() <automl.interface.mlx.MLExplainer.explain_model
 
 The oracle AutoMLx solution offers advanced configuration options and allows one to change the effect of feature interactions and interaction evaluations.
 It also provides other model and prediction explanation techniques, such as:
-  - `Local feature importance <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#baselfiexplanation>`__, for example, using Kernel SHAP or an enhanced LIME;
-  - `Feature Dependence Explanations <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#fdexplanation>`__, such as partial dependence plots or accumulated local effects;
-  - `Interactive What-IF explainers <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#tabularexplainer>`__, which let users explore a model's predictions; and
-  - `Counterfactual explanations <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#cfexplanation>__`, which show how to change a row to obtain a desired outcome.
-Please check out the `automl.interface.mlx.MLExplainer<http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#automl.interface.mlx.MLExplainer>`__ documentation for more details.
+#. `Local feature importance <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#baselfiexplanation>`__, for example, using Kernel SHAP or an enhanced LIME;
+#. `Feature Dependence Explanations <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#fdexplanation>`__, such as partial dependence plots or accumulated local effects;
+#. `Interactive What-IF explainers <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#tabularexplainer>`__, which let users explore a model's predictions; and
+#. `Counterfactual explanations <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#cfexplanation>`__, which show how to change a row to obtain a desired outcome.
+Please check out the `automl.interface.mlx.MLExplainer <http://automl.oraclecorp.com/multiversion/v23.1.1/mlx.html#automl.interface.mlx.MLExplainer>`__ documentation for more details.
