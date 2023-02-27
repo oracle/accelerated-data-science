@@ -183,7 +183,7 @@ Example
 
 .. code-block:: python3
 
-  import pandas as pd
+    import pandas as pd
     import numpy as np
     import tempfile
     from sklearn.metrics import roc_auc_score, confusion_matrix, make_scorer, f1_score
