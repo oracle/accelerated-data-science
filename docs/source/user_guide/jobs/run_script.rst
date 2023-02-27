@@ -15,6 +15,9 @@ Here is an example:
 
 .. include:: ../jobs/tabs/script_runtime.rst
 
+An `example script <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/jobs/shell/shell-with-args.sh>`_
+is available on `Data Science AI Sample GitHub Repository <https://github.com/oracle-samples/oci-data-science-ai-samples>`_.
+
 Working Directory
 =================
 

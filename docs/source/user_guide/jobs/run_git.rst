@@ -3,11 +3,17 @@ Run Code from Git Repo
 
 The :py:class:`~ads.jobs.GitPythonRuntime` allows you to run source code from a Git repository as a job.
 
+.. include:: ../jobs/toc_local.rst
+
+PyTorch Example
+===============
+
 The following example shows how to run a
 `PyTorch Neural Network Example to train third order polynomial predicting y=sin(x) 
 <https://github.com/pytorch/tutorials/blob/master/beginner_source/examples_nn/polynomial_nn.py>`_.
 
 .. include:: ../jobs/tabs/git_runtime.rst
+
 
 Git Repository
 ==============
@@ -38,7 +44,7 @@ Entrypoint
 The entrypoint specifies how the source code is invoked.
 The :py:meth:`~ads.jobs.GitPythonRuntime.with_entrypoint` supports the following arguments:
 
-* ``path``: Required. The relative path for the script, module, or file to start the job.
+* ``path``: Required. The relative path of the script/module from the root of the Git repository.
 * ``func``: Optional. The function in the script specified by ``path`` to call.
   If you don't specify it, then the script specified by ``path`` is run as a Python script in a subprocess.
 
@@ -60,6 +66,18 @@ The arguments can be strings, ``list`` of strings or ``dict`` containing only st
 Arguments are not used when the entrypoint is a notebook.
 
 
+Working Directory
+=================
+
+By default, the working directory is the root of the git repository.
+This can be configured by can be configured by :py:meth:`~ads.jobs.GitPythonRuntime.with_working_dir`
+using a relative path from the root of the Git repository.
+
+Note that the entrypoint should always specified as a relative path from the root of the Git repository,
+regardless of the working directory.
+The python paths and output directory should be specified relative to the working directory.
+
+
 Python Paths
 ============
 
@@ -68,16 +86,18 @@ The working directory is added to the Python paths automatically.
 You can call :py:meth:`~ads.jobs.GitPythonRuntime.with_python_path` to add additional python paths as needed.
 The paths should be relative paths from the working directory.
 
+
 Outputs
 =======
 
-The :py:meth:`~ads.jobs.GitPythonRuntime.with_output` method allows you to specify the output path ``output_path``
+The :py:meth:`~ads.jobs.GitPythonRuntime.with_output` method allows you to specify the output path ``output_dir``
 in the job run and a remote URI (``output_uri``).
-Files in the ``output_path`` are copied to the remote output URI after the job run finishes successfully.
-Note that the ``output_path`` should be a path relative to the working directory.
+Files in the ``output_dir`` are copied to the remote output URI after the job run finishes successfully.
+Note that the ``output_dir`` should be a path relative to the working directory.
 
 OCI object storage location can be specified in the format of ``oci://bucket_name@namespace/path/to/dir``.
 Please make sure you configure the I AM policy to allow the job run dynamic group to use object storage.
+
 
 Metadata
 ========
@@ -93,6 +113,6 @@ after the job run finishes. The following tags are added automatically:
 The new values overwrite any existing tags.
 If you want to skip the metadata update, set ``skip_metadata_update`` to ``True`` when initializing the runtime:
 
-.. code-block:: python3
+.. code-block:: python
 
   runtime = GitPythonRuntime(skip_metadata_update=True)
