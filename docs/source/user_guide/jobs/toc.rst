@@ -3,8 +3,7 @@
 
    ../jobs/data_science_job
    ../jobs/policies
-   ../jobs/infrastructure
-   ../jobs/runtime
+   ../jobs/infra_and_runtime
    ../jobs/run_python
    ../jobs/run_notebook
    ../jobs/run_script
