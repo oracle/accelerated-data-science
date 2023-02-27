@@ -63,7 +63,7 @@ AutoMLx consists of five main modules:
 All these pieces are readily combined into a simple AutoMLx pipeline which
 automates the entire Machine Learning process with minimal user input/interaction.
 
-The AutoMLx API is quite simple to work with. We create a :obj:`automl.Pipeline <http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline>`__ instance.
+The AutoMLx API is quite simple to work with. We create a `automl.Pipeline <http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline>`__ instance.
 Next, the training data is passed to the `fit() <http://automl.oraclecorp.com/multiversion/v23.1.1/automl.html#automl.Pipeline.fit>`__ function which executes the previously mentioned steps.
 
 .. code-block:: python3
