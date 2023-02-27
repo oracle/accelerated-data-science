@@ -113,6 +113,8 @@ If you specify only the log group OCID and no log OCID,
 a new Log resource is automatically created within the log group to store the logs,
 see also `ADS Logging <../logging/logging.html>`_.
 
+With logging configured, you can call :py:meth:`~ads.jobs.DataScienceJobRun.watch` method to stream the logs.
+
 Runtime
 =======
 
@@ -217,10 +219,9 @@ Here are a few more examples:
 Conda Environment
 -----------------
 
-Except for :py:class:`~ads.jobs.ContainerRuntime`,
-all the other runtime options allow you to configure a
+You can configure a
 `Conda Environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm>`_
-for your workload. You can use the slug name to specify a
+for running your workload. You can use the slug name to specify a
 `conda environment provided by the data science service
 <https://docs.oracle.com/en-us/iaas/data-science/using/conda_viewing.htm#conda-dsenvironments>`_.
 For example, to use the TensorFlow conda environment:

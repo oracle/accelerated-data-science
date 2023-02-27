@@ -2,7 +2,7 @@ Run a Python Workload
 *********************
 
 The :py:class:`~ads.jobs.PythonRuntime` is designed for running a Python workload.
-You can configure the environment variables, command line arguments and conda environment
+You can configure the environment variables, command line arguments, and conda environment
 as described in :doc:`infra_and_runtime`. This section shows the additional enhancements provided by
 :py:class:`~ads.jobs.PythonRuntime`.
 

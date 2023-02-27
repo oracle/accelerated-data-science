@@ -1,10 +1,11 @@
 Quick Start
 ***********
 
-.. admonition:: OCI Data Science Policies
+.. admonition:: Prerequisite
 
   Before creating a job, ensure that you have policies configured for Data Science resources.
-  See also: :doc:`policies` and  `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_.
+
+  See :doc:`policies` and  `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_.
 
 .. include:: ../jobs/toc_local.rst
 
@@ -79,10 +80,6 @@ to create the job on OCI. To start a job run, you can call the :py:meth:`~ads.jo
 which returns a :py:class:`~ads.jobs.DataScienceJobRun` instance.
 Once the job or job run is created, the job OCID can be accessed through ``job.id`` or ``run.id``.
 
-The :py:meth:`~ads.jobs.DataScienceJobRun.watch` method is useful to monitor the progress of the job run.
-It will stream the logs to terminal and return once the job is finished.
-Logging configurations are required for this method to show logs.
-
 .. code-block:: python
 
   # Create the job on OCI Data Science
@@ -92,7 +89,9 @@ Logging configurations are required for this method to show logs.
   # Stream the job run outputs
   run.watch()
 
-Here is an example of the logs:
+The :py:meth:`~ads.jobs.DataScienceJobRun.watch` method is useful to monitor the progress of the job run.
+It will stream the logs to terminal and return once the job is finished.
+Logging configurations are required for this method to show logs. Here is an example of the logs:
 
 .. code-block:: text
 

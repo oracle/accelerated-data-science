@@ -5,14 +5,14 @@ Working with the CLI
 Prerequisite
 ------------
 
-.. include:: jobs_local_prerequisite.rst
+:doc:`Install ADS CLI <../../quickstart>`
 
 Running a Pre Defined Job 
 -------------------------
 
 .. code-block:: shell
 
-    aads opctl run -j <job ocid>
+    ads opctl run -j <job ocid>
 
 Delete Job or Job Run
 ---------------------
