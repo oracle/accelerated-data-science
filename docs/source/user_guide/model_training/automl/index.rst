@@ -3,7 +3,7 @@ Oracle AutoMLx
 ==============
 
 .. note::
-    The ADS AutoML is deprecated in 2.8.2 and will be removed in 3.0.0. This is to in favor of working directly with Oracle AutoMLx library.
+    The ADS `AutoML <https://accelerated-data-science.readthedocs.io/en/v2.8.1/ads.automl.html#module-ads.automl.driver>`__, `AutoMLProvider <https://accelerated-data-science.readthedocs.io/en/v2.8.1/ads.automl.html#ads.automl.provider.AutoMLProvider>`__, `MLXGlobalExplainer <https://accelerated-data-science.readthedocs.io/en/v2.8.1/ads.explanations.html>`, `MLXLocalExplainer <https://accelerated-data-science.readthedocs.io/en/v2.8.1/ads.explanations.html>`__ and `MLXWhatIfExplainer <https://accelerated-data-science.readthedocs.io/en/v2.8.1/ads.explanations.html>`__, `AutoMLModel <https://accelerated-data-science.readthedocs.io/en/v2.8.1/ads.explanations.html>`__, `AutoMLExtractor <https://accelerated-data-science.readthedocs.io/en/v2.8.1/ads.explanations.html>`__ are deprecated in 2.8.2 and will be removed in 3.0.0. This is to in favor of working directly with Oracle AutoMLx library.
     With AutoMLx moving into the open source domain, working directly with the library has many benefits.
     One of these is that ADS and AutoMLx can now have independent version cadences. 
     AutoMLx is under active development, and will be expanding into areas of explainability, fairness and deep learning. 
