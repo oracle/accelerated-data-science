@@ -5,7 +5,7 @@ AutoMLModel
 
 .. note::
 
-The ``ads.model.framework.automl_model.AutoMLModel`` class is deprecated. See this :ref:`link <_Oralce_AutoMlx>` for more detailed information.
+The ``ads.model.framework.automl_model.AutoMLModel`` class is deprecated. See this :ref:`link <Oralce_AutoMlx>` for more detailed information.
 
 To deploy an AutoMlx model, use `GenericModel <../../../ads.model.html#ads.model.generic_model.GenericModel>`__ class.
 
