@@ -14,7 +14,6 @@ Subpackages
     ads.dataflow
     ads.dataset
     ads.evaluations
-    ads.explanations
     ads.feature_engineering
     ads.hpo
     ads.jobs

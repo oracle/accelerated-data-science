@@ -52,14 +52,6 @@ ads.model.extractor.model\_artifact module
     :undoc-members:
     :show-inheritance:
 
-ads.model.extractor.automl\_extractor module
---------------------------------------------
-
-.. automodule:: ads.model.extractor.automl_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
 ads.model.extractor.xgboost\_extractor module
 ---------------------------------------------
 
