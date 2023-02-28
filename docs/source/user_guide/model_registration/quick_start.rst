@@ -321,7 +321,10 @@ Other Frameworks
     preds = catboost_estimator.predict(X_test)
 
     # Instantiate ads.model.generic_model.GenericModel using the trained Custom Model using the trained CatBoost Classifier  model
-    catboost_model = GenericModel(estimator=catboost_estimator, artifact_dir=tempfile.mkdtemp())
+    catboost_model = GenericModel(estimator=catboost_estimator,
+                                artifact_dir=tempfile.mkdtemp(),
+                                model_save_serializer="cloudpickle",
+                                model_input_serializer="json")
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
     catboost_model.prepare(
