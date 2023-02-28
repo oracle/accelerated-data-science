@@ -164,12 +164,19 @@ Model deployment endpoints can be invoked with the oci sdk. This example invokes
 
     >>> import requests
     >>> import oci
-    >>> import ads
+    >>> from ads.common.auth import default_signer
+    >>> import cloudpickle
+    >>> import PIL.Image
     >>> import cloudpickle
     >>> headers = {"Content-Type": "application/octet-stream"} 
     >>> endpoint = huggingface_pipeline_model.model_deployment.url + "/predict"
 
-    >>> preds = requests.post(endpoint, data=image_bytes, auth=ads.common.auth.default_signer()['signer'], headers=headers).json()
+    ## download the image
+    image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
+    image = PIL.Image.open(requests.get(image_link, stream=True).raw)
+    image_bytes = cloudpickle.dumps(image)
+
+    >>> preds = requests.post(endpoint, data=image_bytes, auth=default_signer()['signer'], headers=headers).json()
     >>> print([{"score": round(pred["score"], 4), "label": pred["label"]} for pred in preds['prediction']])
     [{'score': 0.9879, 'label': 'LABEL_184'},
     {'score': 0.9973, 'label': 'snow'},
@@ -182,9 +189,11 @@ Example
 .. code-block:: python3
 
     from transformers import pipeline
+    from ads.model import HuggingFacePipelineModel
+
     import tempfile
     import PIL.Image
-    import ads
+    from ads.common.auth import default_signer
     import requests
     import cloudpickle
 
@@ -205,10 +214,10 @@ Example
 
     # Autogenerate score.py, serialized model, runtime.yaml
     conda_pack_path = "oci://bucket@namespace/path/to/conda/pack"
-    python_version = "3.x"
+    python_version = "3.x" # Remember to update 3.x with your actual python version, e.g. 3.8
     zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
 
-    ## Test data
+    ## Convert payload to bytes
     data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
     body = cloudpickle.dumps(data) # convert image to bytes
 
@@ -231,7 +240,7 @@ Example
     zero_shot_image_classification_model.predict(body)
 
     ### Invoke the model by sending bytes
-    auth = ads.common.auth.default_signer()['signer']
+    auth = default_signer()['signer']
     endpoint = zero_shot_image_classification_model.model_deployment.url + "/predict"
     headers = {"Content-Type": "application/octet-stream"}
     requests.post(endpoint, data=body, auth=auth, headers=headers).json()

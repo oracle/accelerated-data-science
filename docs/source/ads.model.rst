@@ -116,6 +116,14 @@ ads.model.extractor.pytorch\_extractor module
     :undoc-members:
     :show-inheritance:
 
+ads.model.extractor.huggingface\_extractor module
+---------------------------------------------
+
+.. automodule:: ads.model.extractor.huggingface_extractor
+    :members:
+    :undoc-members:
+    :show-inheritance:
+
 Module contents
 ---------------
 
