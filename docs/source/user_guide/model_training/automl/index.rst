@@ -1,8 +1,9 @@
-The Oracle AutoMLx
-==================
+.. _Oralce_AutoMlx:
+Oracle AutoMLx
+==============
 
 .. note::
-    The ADS AutoML is deprecated in 2.8.2 and will be removed in 3.0.0. This is to in favor of working directly with the Oracle AutoMLx library.
+    The ADS AutoML is deprecated in 2.8.2 and will be removed in 3.0.0. This is to in favor of working directly with Oracle AutoMLx library.
     With AutoMLx moving into the open source domain, working directly with the library has many benefits.
     One of these is that ADS and AutoMLx can now have independent version cadences. 
     AutoMLx is under active development, and will be expanding into areas of explainability, fairness and deep learning. 
@@ -14,5 +15,4 @@ The Oracle AutoMLx
     :maxdepth: 1
 
     quick_start
-    overview
     

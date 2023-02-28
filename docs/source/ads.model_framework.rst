@@ -4,14 +4,6 @@ ads.model.framework package
 Submodules
 ----------
 
-ads.model.framework.automl\_model module
-----------------------------------------
-
-.. automodule:: ads.model.framework.automl_model
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ads.model.framework.lightgbm\_model module
 ------------------------------------------
 
