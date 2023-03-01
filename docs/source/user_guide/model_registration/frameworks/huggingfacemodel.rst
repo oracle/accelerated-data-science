@@ -103,7 +103,6 @@ Deploy and Generate Endpoint
     ...     deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
     ... )
     >>> print(f"Endpoint: {huggingface_pipeline_model.model_deployment.url}")
-    https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx
 
 Run Prediction against Endpoint
 ===============================
@@ -115,9 +114,7 @@ Run Prediction against Endpoint
     >>> import requests
     >>> import cloudpickle
     >>> image_url = "https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/pipeline-cat-chonk.jpeg"
-
     >>> image = PIL.Image.open(requests.get(image_url, stream=True).raw)
-    >>> image_bytes = cloudpickle.dumps(image)
 
     >>> # Generate prediction by invoking the deployed endpoint
     >>> preds = huggingface_pipeline_model.predict(image)["prediction"]
@@ -171,10 +168,10 @@ Model deployment endpoints can be invoked with the oci sdk. This example invokes
     >>> headers = {"Content-Type": "application/octet-stream"} 
     >>> endpoint = huggingface_pipeline_model.model_deployment.url + "/predict"
 
-    ## download the image
-    image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
-    image = PIL.Image.open(requests.get(image_link, stream=True).raw)
-    image_bytes = cloudpickle.dumps(image)
+    >>> ## download the image
+    >>> image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
+    >>> image = PIL.Image.open(requests.get(image_link, stream=True).raw)
+    >>> image_bytes = cloudpickle.dumps(image)
 
     >>> preds = requests.post(endpoint, data=image_bytes, auth=default_signer()['signer'], headers=headers).json()
     >>> print([{"score": round(pred["score"], 4), "label": pred["label"]} for pred in preds['prediction']])
@@ -200,7 +197,6 @@ Example
     ## download the image
     image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
     image = PIL.Image.open(requests.get(image_link, stream=True).raw)
-    image_bytes = cloudpickle.dumps(image)
 
     ## download the pretrained model
     classifier = pipeline(model="openai/clip-vit-large-patch14")
