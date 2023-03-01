@@ -18,23 +18,7 @@ Infrastructure
 The Data Science Job infrastructure is defined by a :py:class:`~ads.jobs.DataScienceJob` instance.
 For example:
 
-.. code-block:: python3
-
-    from ads.jobs import DataScienceJob
-
-    infrastructure = (
-        DataScienceJob()
-        .with_compartment_id("<compartment_ocid>")
-        .with_project_id("<project_ocid>")
-        .with_subnet_id("<subnet_ocid>")
-        .with_shape_name("VM.Standard.E3.Flex")
-        # Shape config details are applicable only for the flexible shapes.
-        .with_shape_config_details(memory_in_gbs=16, ocpus=1)
-        # Minimum block storage size is 50 (GB)
-        .with_block_storage_size(50)
-        .with_log_group_id("<log_group_ocid>")
-        .with_log_id("<log_ocid>")
-    )
+.. include:: ../jobs/tabs/infra_config.rst
 
 When creating a :py:class:`~ads.jobs.DataScienceJob` instance, the following configurations are required:
 
@@ -55,11 +39,21 @@ Using Configurations from Notebook
 
 If you are creating a job from an OCI Data Science
 `Notebook Session <https://docs.oracle.com/en-us/iaas/data-science/using/manage-notebook-sessions.htm>`_,
-the same infrastructure configurations from the notebook session will be used as defaults.
+the same infrastructure configurations from the notebook session will be used as defaults, including:
+
+* Compartment ID
+* Project ID
+* Subnet ID
+* Compute Shape
+* Block Storage Size
+
 You can initialize the :py:class:`~ads.jobs.DataScienceJob`
 with the logging configurations and override the other options as needed. For example:
 
-.. code-block:: python3
+.. tabs::
+
+  .. code-tab:: python
+    :caption: Python
 
     from ads.jobs import DataScienceJob
 
@@ -69,10 +63,21 @@ with the logging configurations and override the other options as needed. For ex
         .with_log_id("<log_ocid>")
         # Use a GPU shape for the job,
         # regardless of the shape used by the notebook session
-        .with_shape_name("VM.GPU2.1")
+        .with_shape_name("VM.GPU3.1")
         # compartment ID, project ID, subnet ID and block storage will be
         # the same as the ones set in the notebook session
     )
+
+  .. code-tab:: yaml
+    :caption: YAML
+
+    kind: infrastructure
+    type: dataScienceJob
+    spec:
+      logGroupId: <log_group_ocid>
+      logId: <log_ocid>
+      shapeName: VM.GPU3.1
+
 
 Compute Shapes
 --------------
@@ -136,7 +141,7 @@ Environment variables enclosed by ``${...}`` will be substituted. For example:
 
 .. include:: ../jobs/tabs/runtime_envs.rst
 
-.. code-block:: python3
+.. code-block:: python
 
   for k, v in runtime.environment_variables.items():
       print(f"{k}: {v}")

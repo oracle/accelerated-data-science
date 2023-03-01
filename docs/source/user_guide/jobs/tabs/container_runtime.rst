@@ -6,30 +6,32 @@
     from ads.jobs import Job, DataScienceJob, ContainerRuntime
 
     job = (
-      Job(name="My Job")
-      .with_infrastructure(
-        DataScienceJob()
-        .with_log_group_id("<log_group_ocid>")
-        .with_log_id("<log_ocid>")
-        # The following infrastructure configurations are optional
-        # if you are in an OCI data science notebook session.
-        # The configurations of the notebook session will be used as defaults.
-        .with_compartment_id("<compartment_ocid>")
-        .with_project_id("<project_ocid>")
-        # For default networking, no need to specify subnet ID
-        .with_subnet_id("<subnet_ocid>")
-        .with_shape_name("VM.Standard.E3.Flex")
-        # Shape config details are applicable only for the flexible shapes.
-        .with_shape_config_details(memory_in_gbs=16, ocpus=1)
-        .with_block_storage_size(50)
-      )
-      .with_runtime(
-        ContainerRuntime()
-        .with_image("<region>.ocir.io/<your_tenancy>/<your_image>")
-        .with_environment_variable(GREETINGS="Welcome to OCI Data Science")
-        .with_entrypoint(["/bin/sh", "-c"])
-        .with_cmd("sleep 5 && echo $GREETINGS")
-      )
+        Job(name="My Job")
+        .with_infrastructure(
+            DataScienceJob()
+            # Configure logging for getting the job run outputs.
+            .with_log_group_id("<log_group_ocid>")
+            # Log resource will be auto-generated if log ID is not specified.
+            .with_log_id("<log_ocid>")
+            # If you are in an OCI data science notebook session,
+            # the following configurations are not required.
+            # Configurations from the notebook session will be used as defaults.
+            .with_compartment_id("<compartment_ocid>")
+            .with_project_id("<project_ocid>")
+            .with_subnet_id("<subnet_ocid>")
+            .with_shape_name("VM.Standard.E3.Flex")
+            # Shape config details are applicable only for the flexible shapes.
+            .with_shape_config_details(memory_in_gbs=16, ocpus=1)
+            # Minimum/Default block storage size is 50 (GB).
+            .with_block_storage_size(50)
+        )
+        .with_runtime(
+            ContainerRuntime()
+            .with_image("<region>.ocir.io/<your_tenancy>/<your_image>")
+            .with_environment_variable(GREETINGS="Welcome to OCI Data Science")
+            .with_entrypoint(["/bin/sh", "-c"])
+            .with_cmd("sleep 5 && echo $GREETINGS")
+        )
     )
 
   .. code-tab:: yaml
@@ -45,7 +47,6 @@
           blockStorageSize: 50
           compartmentId: <compartment_ocid>
           jobInfrastructureType: STANDALONE
-          jobType: DEFAULT
           logGroupId: <log_group_ocid>
           logId: <log_ocid>
           projectId: <project_ocid>

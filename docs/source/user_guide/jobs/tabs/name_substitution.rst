@@ -36,7 +36,6 @@
         type: dataScienceJob
         spec:
           compartmentId: <compartment_ocid>
-          jobType: DEFAULT
           logGroupId: <log_group_ocid>
           logId: <log_ocid>
           projectId: <project_ocid>
