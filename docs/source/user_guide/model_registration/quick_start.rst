@@ -296,7 +296,6 @@ Other Frameworks
     from ads.model.generic_model import GenericModel
     from catboost import CatBoostRegressor
 
-
     ads.set_auth(auth="resource_principal")
 
     # Initialize data
