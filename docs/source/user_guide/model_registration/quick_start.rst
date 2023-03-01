@@ -333,9 +333,9 @@ Other Frameworks
         y_sample=y_train,
     )
 
-    # Verify generated artifacts
+    # Verify generated artifacts. The payload looks like this: [[2, 4, 6, 8], [1, 4, 50, 60]]
     catboost_model.verify(X_test, auto_serialize_data=True)
-
+    
     # Register CatBoostRegressor model
     model_id = catboost_model.save(display_name="CatBoost Model")
 
