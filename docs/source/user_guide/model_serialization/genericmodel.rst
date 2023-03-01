@@ -139,11 +139,9 @@ By default, the ``GenericModel`` serializes to a pickle file. The following exam
 .. code-block:: python3
 
     import tempfile
-
     import ads
     from ads.model.generic_model import GenericModel
     from catboost import CatBoostRegressor
-
 
     ads.set_auth(auth="resource_principal")
 
@@ -182,7 +180,7 @@ By default, the ``GenericModel`` serializes to a pickle file. The following exam
         y_sample=y_train,
     )
 
-    # Verify generated artifacts
+    # Verify generated artifacts. Payload looks like this: [[2, 4, 6, 8], [1, 4, 50, 60]]
     catboost_model.verify(X_test, auto_serialize_data=True)
 
     # Register CatBoostRegressor model
