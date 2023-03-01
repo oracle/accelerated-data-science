@@ -67,6 +67,8 @@ The Data Science Model Deployment supports service managed conda runtime and cus
 ModelDeploymentContainerRuntime
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+To use the ``ModelDeploymentContainerRuntime``, you need to first push the image to `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_. See `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ and `Pushing Images Using the Docker CLI <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ for more details.
+ 
 You can define the model deployment container runtime by passing the following properties to ``ModelDeploymentContainerRuntime`` object:
 
   * ``model_uri``: The model ocid or path to model artifacts directory that is used in the model deployment.
@@ -179,7 +181,7 @@ A ``ModelDeployment`` object can be serialized to a YAML file by calling ``to_ya
         kind: infrastructure
             ...
     """")
-    
+
     deployment.deploy(wait_for_completion=False)
 
 Here is an example of a YAML file representing the ``ModelDeployment`` with docker container runtime defined in the preceding examples:

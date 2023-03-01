@@ -15,6 +15,6 @@ Or, you could update the instance shape with:
 
 .. code-block:: python3
 
-    deployment.infrastructure.with_shape_name("VM.Standard.E4.Flex")
+    deployment.infrastructure.with_shape_name("VM.Standard.E4.Flex").with_shape_config_details(ocpus=2, memory_in_gbs=32)
     deployment.update()
 
