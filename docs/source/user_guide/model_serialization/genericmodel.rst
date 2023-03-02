@@ -188,7 +188,7 @@ By default, the ``GenericModel`` serializes to a pickle file. The following exam
     catboost_model.deploy()
     catboost_model.predict(X_test)
     catboost_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    catboost_model.delete() # delete the model
 
 You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.prepare()``, ``.save()`` and ``.deploy()`` seperately.
 

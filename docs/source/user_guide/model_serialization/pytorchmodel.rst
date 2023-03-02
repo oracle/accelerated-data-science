@@ -195,5 +195,5 @@ Example
     pytorch_model.deploy()
     pytorch_model.predict(test_data)
     pytorch_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    pytorch_model.delete()
 

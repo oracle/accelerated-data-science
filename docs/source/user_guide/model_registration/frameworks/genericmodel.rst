@@ -170,7 +170,7 @@ Here is a more realistic  example using CatBoost model.
     catboost_model.deploy()
     catboost_model.predict(X_test)
     catboost_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    catboost_model.delete() # delete the model
 
 
 Example -- Save Your Own Model
