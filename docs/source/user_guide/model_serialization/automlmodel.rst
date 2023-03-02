@@ -179,5 +179,4 @@ Example
   deploy = automl_model.deploy(display_name='Demo AutoMLModel deployment')
   automl_model.predict(test.X.iloc[:10])
   automl_model.delete_deployment(wait_for_completion=True)
-  ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
-
+  automl_model.delete()

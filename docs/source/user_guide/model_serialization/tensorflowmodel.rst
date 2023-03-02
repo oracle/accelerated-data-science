@@ -184,5 +184,5 @@ Example
     tensorflow_model_deployment = model.deploy()
     tensorflow_model.predict(x_test[:1])
     tensorflow_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    tensorflow_model.delete()
 

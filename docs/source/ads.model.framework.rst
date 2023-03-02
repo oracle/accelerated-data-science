@@ -1,5 +1,5 @@
 ads.model.framework package
-================================
+===========================
 
 Submodules
 ----------
@@ -32,6 +32,14 @@ ads.model.framework.sklearn\_model module
 -----------------------------------------
 
 .. automodule:: ads.model.framework.sklearn_model
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.model.framework.spark\_model module
+---------------------------------------
+
+.. automodule:: ads.model.framework.spark_model
    :members:
    :undoc-members:
    :show-inheritance:

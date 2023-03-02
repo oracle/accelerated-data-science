@@ -46,7 +46,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     deploy = automl_model.deploy(display_name='Demo AutoMLModel deployment')
     automl_model.predict(test.X.iloc[:10])
     automl_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    automl_model.delete()
 
 GenericModel
 ------------
@@ -72,7 +72,8 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model.deploy()
     model.predict(2)
     model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    model.delete()
+
 
 
 LightGBMModel
@@ -105,7 +106,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = lightgbm_model.deploy()
     lightgbm_model.predict(X_test)
     lightgbm_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    lightgbm_model.delete()
 
 
 PyTorchModel
@@ -148,7 +149,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = torch_model.deploy()
     torch_model.predict(test_data)
     torch_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    torch_model.delete()
 
 
 SklearnModel
@@ -178,7 +179,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = sklearn_model.deploy()
     sklearn_model.predict(X_test)
     sklearn_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    sklearn_model.delete()
 
 
 TensorFlowModel
@@ -216,7 +217,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = tf_model.deploy()
     tf_model.predict(x_test[:1])
     tf_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    tf_model.delete()
 
 
 XGBoostModel
@@ -247,7 +248,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = xgboost_model.deploy()
     xgboost_model.predict(X_test)
     xgboost_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    xgboost_model.delete()
 
 Shortcut
 ========
