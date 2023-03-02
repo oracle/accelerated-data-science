@@ -238,11 +238,15 @@ Open ``automl_model_artifact/score.py`` and edit the code to instantiate the mod
 
 
 Verify score.py changes by running inference locally.
+
+
  .. code-block:: python3
 
     automl_model.verify(X_test.iloc[:2], auto_serialize_data=True)
 
 Save model and Deploy the model. After it is successfully deployed, invoke the endpoint by calling .predict() function.
+
+
  .. code-block:: python3
 
     model_id = automl_model.save(display_name='Demo AutoMLModel model')
