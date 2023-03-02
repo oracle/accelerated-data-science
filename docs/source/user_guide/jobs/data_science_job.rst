@@ -20,6 +20,9 @@ The runtime can be an instance of:
 
 Here is an example to define and run a Python :py:class:`~ads.jobs.Job`.
 
+Note that a job can be defined either using Python APIs or YAML.
+See the next section for how to load and save the job with YAML.
+
 .. include:: ../jobs/tabs/quick_start_job.rst
 
 The :py:class:`~ads.jobs.PythonRuntime` is designed for :doc:`Running a Python Workload <run_python>`.
