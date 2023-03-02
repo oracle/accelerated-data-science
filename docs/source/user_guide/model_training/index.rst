@@ -18,6 +18,7 @@ TensorBoard provides the visualization and the tooling that is needed to watch a
   :maxdepth: 1
 
   ads_tuner
+  training_with_oci
   distributed_training/overview
   tensorboard/tensorboard
   model_evaluation/index
