@@ -181,46 +181,31 @@ The example is illustrated using an AutoMLx model.
 
 .. code-block:: python3
 
-    import automl
-    import ads
-    from automl import init
-    from sklearn.datasets import fetch_openml
-    from sklearn.model_selection import train_test_split
+    import tempfile
+    from ads import set_auth
     from ads.model import GenericModel
+    from sklearn.datasets import load_iris
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import train_test_split
 
-    dataset = fetch_openml(name='adult', as_frame=True)
-    df, y = dataset.data, dataset.target
+    set_auth(auth="resource_principal")
 
-    # Several of the columns are incorrectly labeled as category type in the original dataset
-    numeric_columns = ['age', 'capitalgain', 'capitalloss', 'hoursperweek']
-    for col in df.columns:
-        if col in numeric_columns:
-            df[col] = df[col].astype(int)
-        
+    # Load dataset and Prepare train and test split
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
 
-    X_train, X_test, y_train, y_test = train_test_split(df,
-                                                        y.map({'>50K': 1, '<=50K': 0}).astype(int),
-                                                        train_size=0.7,
-                                                        random_state=0)
-
-    X_train.shape, X_test.shape
-
-    # create a AutoMLx model
-    init(engine='local')
-
-    est = automl.Pipeline(task='classification')
-    est.fit(X_train, y_train)
-
-    # Authentication
-    ads.set_auth(auth="resource_principal")
+    # Train a LogisticRegression model
+    sklearn_estimator = LogisticRegression()
+    sklearn_estimator.fit(X_train, y_train)
 
     # Serialize your model. You can choose your own way to serialize your model.
     import cloudpickle
     with open("./model.pkl", "wb") as f:
-        cloudpickle.dump(est, f)
+        cloudpickle.dump(sklearn_estimator, f)
 
-    model = GenericModel(est, artifact_dir = "model_artifact_folder", serialize=False)
-    model.prepare(inference_conda_env="automlx_p38_cpu_v1",force_overwrite=True, model_file_name="model.pkl", X_sample=X_test)
+    model = GenericModel(sklearn_estimator, artifact_dir = "model_artifact_folder", serialize=False)
+    model.prepare(inference_conda_env="generalml_p38_cpu_v1",force_overwrite=True, model_file_name="model.pkl", X_sample=X_test)
 
 Now copy the model.pkl file and paste into the ``model_artifact_folder`` folder. And open the score.py in the ``model_artifact_folder`` folder to add implementation of the ``load_model`` function. You can also add your preprocessing steps in ``pre_inference`` function and postprocessing steps in ``post_inference`` function. Below is an example implementation of the score.py.
 Replace your score.py with the code below.
@@ -378,7 +363,7 @@ Save the score.py and now call ``.verify()`` to check if it works locally.
 
 .. code-block:: python3
 
-    model.verify(X_test.iloc[:2], auto_serialize_data=True)
+    model.verify(X_test[:2], auto_serialize_data=True)
 
 After verify run successfully, you can save the model to model catalog, deploy and call predict to invoke the endpoint.
 
@@ -386,7 +371,7 @@ After verify run successfully, you can save the model to model catalog, deploy a
 
     model_id = model.save(display_name='Demo AutoMLModel model')
     deploy = model.deploy(display_name='Demo AutoMLModel deployment')
-    model.predict(X_test.iloc[:2].to_json())
+    model.predict(X_test[:2].tolist())
 
 You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.prepare()``, ``.save()`` and ``.deploy()`` seperately.
 
