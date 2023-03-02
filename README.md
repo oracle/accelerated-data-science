@@ -166,7 +166,7 @@ This example uses SQL injection safe binding variables.
 
 ## Contributing
 
-This project welcomes contributions from the community. Before submitting a pull request, please review our contribution guide [CONTRIBUTING.md](https://github.com/oracle/accelerated-data-science/blob/main/CONTRIBUTING.md).
+This project welcomes contributions from the community. Before submitting a pull request, please [review our contribution guide](./CONTRIBUTING.md)
 
 Find Getting Started instructions for developers in [README-development.md](https://github.com/oracle/accelerated-data-science/blob/main/README-development.md)
 
