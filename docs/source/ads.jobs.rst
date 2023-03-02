@@ -1,6 +1,16 @@
 ads.jobs package
 ================
 
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   ads.jobs.builders
+   ads.jobs.schema
+   ads.jobs.templates
+
 Submodules
 ----------
 
@@ -12,26 +22,42 @@ ads.jobs.ads\_job module
    :undoc-members:
    :show-inheritance:
 
-ads.jobs.builders.runtimes.python\_runtime module
--------------------------------------------------
+ads.jobs.cli module
+-------------------
 
-.. automodule:: ads.jobs.builders.runtimes.python_runtime
+.. automodule:: ads.jobs.cli
    :members:
    :undoc-members:
    :show-inheritance:
 
-ads.jobs.builders.infrastructure.dataflow module
-------------------------------------------------
+ads.jobs.env\_var\_parser module
+--------------------------------
 
-.. automodule:: ads.jobs.builders.infrastructure.dataflow
+.. automodule:: ads.jobs.env_var_parser
    :members:
    :undoc-members:
    :show-inheritance:
 
-ads.jobs.builders.infrastructure.dsc\_job module
-------------------------------------------------
+ads.jobs.extension module
+-------------------------
 
-.. automodule:: ads.jobs.builders.infrastructure.dsc_job
+.. automodule:: ads.jobs.extension
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.jobs.serializer module
+--------------------------
+
+.. automodule:: ads.jobs.serializer
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.jobs.utils module
+---------------------
+
+.. automodule:: ads.jobs.utils
    :members:
    :undoc-members:
    :show-inheritance:

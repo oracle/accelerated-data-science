@@ -1,5 +1,20 @@
-ads.model.framework other package
-=================================
+ads.model package
+=================
+
+Subpackages
+-----------
+
+.. toctree::
+   :maxdepth: 4
+
+   ads.model.common
+   ads.model.deployment
+   ads.model.extractor
+   ads.model.framework
+   ads.model.model_artifact_boilerplate
+   ads.model.runtime
+   ads.model.service
+   ads.model.transformer
 
 Submodules
 ----------
@@ -12,10 +27,55 @@ ads.model.artifact module
    :undoc-members:
    :show-inheritance:
 
-ads.model.generic\_model module
--------------------------------
+ads.model.artifact\_downloader module
+-------------------------------------
+
+.. automodule:: ads.model.artifact_downloader
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.model.artifact\_uploader module
+-----------------------------------
+
+.. automodule:: ads.model.artifact_uploader
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.model.base\_properties module
+---------------------------------
+
+.. automodule:: ads.model.base_properties
+   :members:
+   :undoc-members:
+   :show-inheritance:
 
 .. automodule:: ads.model.generic_model
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.model.model\_introspect module
+----------------------------------
+
+.. automodule:: ads.model.model_introspect
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.model.model\_metadata module
+--------------------------------
+
+.. automodule:: ads.model.model_metadata
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.model.model\_metadata\_mixin module
+---------------------------------------
+
+.. automodule:: ads.model.model_metadata_mixin
    :members:
    :undoc-members:
    :show-inheritance:
@@ -28,85 +88,13 @@ ads.model.model\_properties module
    :undoc-members:
    :show-inheritance:
 
-ads.model.runtime.runtime\_info module
---------------------------------------
+ads.model.model\_version\_set module
+------------------------------------
 
-.. automodule:: ads.model.runtime.runtime_info
+.. automodule:: ads.model.model_version_set
    :members:
    :undoc-members:
    :show-inheritance:
-
-ads.model.extractor.model\_info\_extractor\_factory module
-----------------------------------------------------------
-
-.. automodule:: ads.model.extractor.model_info_extractor_factory
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ads.model.extractor.model\_artifact module
-------------------------------------------
-
-.. automodule:: ads.model.extractor.model_artifact
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ads.model.extractor.xgboost\_extractor module
----------------------------------------------
-
-.. automodule:: ads.model.extractor.xgboost_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ads.model.extractor.lightgbm\_extractor module
-----------------------------------------------
-
-.. automodule:: ads.model.extractor.lightgbm_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ads.model.extractor.model\_info\_extractor module
--------------------------------------------------
-
-.. automodule:: ads.model.extractor.model_info_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ads.model.extractor.sklearn\_extractor module
----------------------------------------------
-
-.. automodule:: ads.model.extractor.sklearn_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
- 
-ads.model.extractor.keras\_extractor module
--------------------------------------------
-
-.. automodule:: ads.model.extractor.keras_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ads.model.extractor.tensorflow\_extractor module
-------------------------------------------------
-
-.. automodule:: ads.model.extractor.tensorflow_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-ads.model.extractor.pytorch\_extractor module
----------------------------------------------
-
-.. automodule:: ads.model.extractor.pytorch_extractor
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 Module contents
 ---------------

@@ -36,7 +36,7 @@ Example
     for col in df.columns:
         if col in numeric_columns:
             df[col] = df[col].astype(int)
-        
+
     X_train, X_test, y_train, y_test = train_test_split(df,
                                                         y.map({'>50K': 1, '<=50K': 0}).astype(int),
                                                         train_size=0.7,
@@ -255,7 +255,7 @@ Save model and Deploy the model. After it is successfully deployed, invoke the e
 Run Prediction with oci raw-request command
 
  .. code-block:: python3
-    
+
 
     export uri=https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx/predict
 oci raw-request \

@@ -13,6 +13,7 @@ Model Serialization
     quick_start
     automlmodel
     genericmodel
+    huggingfacemodel
     lightgbmmodel
     pytorchmodel
     sklearnmodel

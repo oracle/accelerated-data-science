@@ -9,6 +9,7 @@
     frameworks/sparkpipelinemodel
     frameworks/lightgbmmodel
     frameworks/xgboostmodel
+    frameworks/huggingfacemodel
     frameworks/automlmodel
     frameworks/genericmodel
-    
+
