@@ -232,7 +232,7 @@ Example
                     deployment_log_group_id = log_group_id,
                     deployment_access_log_id = log_id,
                     deployment_predict_log_id = log_id)
-    zero_shot_image_classification_model.predict(image)
+    zero_shot_image_classification_model.predict(data)
     zero_shot_image_classification_model.predict(body)
 
     ### Invoke the model by sending bytes
