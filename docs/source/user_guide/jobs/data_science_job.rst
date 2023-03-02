@@ -36,13 +36,14 @@ You can also :doc:`run_notebook`, :doc:`run_script` and :doc:`run_git`.
 YAML
 ====
 
-A job can be defined using YAML, as shown in the "YAML" tab.
+A job can be defined using YAML, as shown in the "YAML" tab in the example above.
 Here are some examples to load/save the YAML job configurations:
 
 .. code-block:: python
 
   # Load a job from a YAML file
   job = Job.from_yaml(uri="oci://bucket_name@namespace/path/to/job.yaml")
+
   # Save a job to a YAML file
   job.to_yaml(uri="oci://bucket_name@namespace/path/to/job.yaml")
 
@@ -134,7 +135,7 @@ To get a list of existing jobs in a specific compartment:
 
   from ads.jobs import Job
 
-  # Load a job
+  # Get a list of jobs in a specific compartment.
   jobs = Job.datascience_job("<compartment_ocid>")
 
 With a ``Job`` object, you can get a list of job runs:

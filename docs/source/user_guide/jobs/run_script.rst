@@ -4,7 +4,7 @@ Run a Script
 This section shows how to create a job to run a script.
 
 The :py:class:`~ads.jobs.ScriptRuntime` is designed for you to define job artifacts and configurations supported by OCI
-Data Science jobs natively. It can be used with any script types that is supported by the OCI Data Science jobs,
+Data Science Jobs natively. It can be used with any script types that is supported by the OCI Data Science Jobs,
 including shell scripts and python scripts.
 
 The source code can be a single script, files in a folder or a zip/tar file.
