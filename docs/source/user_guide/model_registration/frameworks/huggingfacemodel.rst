@@ -206,7 +206,7 @@ Example
         )
 
     ## Initiate a HuggingFacePipelineModel instance
-    zero_shot_image_classification_model = HuggingFacePipelineModel(classifier, artifact_dir=empfile.mkdtemp())
+    zero_shot_image_classification_model = HuggingFacePipelineModel(classifier, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, serialized model, runtime.yaml
     conda_pack_path = "oci://bucket@namespace/path/to/conda/pack"
