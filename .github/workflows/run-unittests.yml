@@ -1,0 +1,69 @@
+name: Unit Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - develop
+    paths:
+      - '!docs/**'
+
+  pull_request:
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.tests-type }}, python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.7","3.8","3.9","3.10"]
+        tests-type: ["DefaultSetup"]
+
+    steps:
+      - uses: actions/checkout@v3
+#      - uses: actions/cache@v3
+#        with:
+#          path: ~/.cache/pip
+#          key: ${{ runner.os }}-pip-${{ hashFiles('**/test-requirements.txt') }}
+#          restore-keys: |
+#            ${{ runner.os }}-pip-
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: "Setup test env"
+        run: |
+          pip install coverage pytest-codecov tox==4.2.8
+
+      - name: "Run unit tests"
+        timeout-minutes: 45
+        shell: bash
+        run: |
+          set -x # print commands that are executed
+#          coverage erase
+#          ./scripts/runtox.sh "${{ matrix.python-version }}-${{ matrix.tests-type }}" --cov --cov-report=
+#          coverage combine .coverage-*
+#          coverage html -i
+
+      # Uploading test artifacts
+      # https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
+#      - name: "Upload artifact"
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: code-coverage-report
+#          path: htmlcov/
+#          retention-days: 10
