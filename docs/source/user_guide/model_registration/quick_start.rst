@@ -9,10 +9,15 @@ Sklearn
 .. code-block:: python3
 
     import tempfile
+
+    import ads
     from ads.model.framework.sklearn_model import SklearnModel
     from sklearn.datasets import load_iris
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
+
+
+    ads.set_auth(auth="resource_principal")
 
     # Load dataset and Prepare train and test split
     iris = load_iris()
@@ -23,7 +28,7 @@ Sklearn
     sklearn_estimator = LogisticRegression()
     sklearn_estimator.fit(X_train, y_train)
 
-    # Instantite ads.model.framework.sklearn_model.SklearnModel using the sklearn LogisticRegression model
+    # Instantiate ads.model.framework.sklearn_model.SklearnModel using the sklearn LogisticRegression model
     sklearn_model = SklearnModel(
         estimator=sklearn_estimator, artifact_dir=tempfile.mkdtemp()
     )
@@ -50,11 +55,16 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 .. code-block:: python3
 
     import tempfile
+    
+    import ads
     import xgboost as xgb
     from ads.model.framework.xgboost_model import XGBoostModel
     from sklearn.datasets import load_iris
     from sklearn.datasets import make_classification
     from sklearn.model_selection import train_test_split
+    
+
+    ads.set_auth(auth="resource_principal")
 
     # Load dataset and Prepare train and test split
     iris = load_iris()
@@ -65,7 +75,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     xgboost_estimator = xgb.XGBClassifier()
     xgboost_estimator.fit(X_train, y_train)
 
-    # Instantite ads.model.framework.xgboost_model.XGBoostModel using the trained XGBoost Model
+    # Instantiate ads.model.framework.xgboost_model.XGBoostModel using the trained XGBoost Model
     xgboost_model = XGBoostModel(estimator=xgboost_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
@@ -88,11 +98,16 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    import lightgbm as lgb
+    
     import tempfile
+
+    import ads
+    import lightgbm as lgb
     from ads.model.framework.lightgbm_model import LightGBMModel
     from sklearn.datasets import load_iris
     from sklearn.model_selection import train_test_split
+    
+    ads.set_auth(auth="resource_principal")
 
     # Load dataset and Prepare train and test split
     iris = load_iris()
@@ -106,7 +121,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     }
     lightgbm_estimator = lgb.train(param, train)
 
-    # Instantite ads.model.lightgbm_model.XGBoostModel using the trained LGBM Model
+    # Instantiate ads.model.lightgbm_model.XGBoostModel using the trained LGBM Model
     lightgbm_model = LightGBMModel(estimator=lightgbm_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
@@ -132,9 +147,13 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
     import tempfile
+
+    import ads
     import torch
     import torchvision
     from ads.model.framework.pytorch_model import PyTorchModel
+
+    ads.set_auth(auth="resource_principal")
 
     # Load a pre-trained resnet model
     torch_estimator = torchvision.models.resnet18(pretrained=True)
@@ -143,7 +162,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # create random test data
     test_data = torch.randn(1, 3, 224, 224)
 
-    # Instantite ads.model.framework.pytorch_model.PyTorchModel using the pre-trained PyTorch Model
+    # Instantiate ads.model.framework.pytorch_model.PyTorchModel using the pre-trained PyTorch Model
     artifact_dir=tempfile.mkdtemp()
     torch_model = PyTorchModel(torch_estimator, artifact_dir=artifact_dir)
 
@@ -165,13 +184,17 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    import tempfile
     import os
-    from pyspark.sql import SparkSession
+    import tempfile
+
+    import ads
+    from ads.model.framework.spark_model import SparkPipelineModel
     from pyspark.ml import Pipeline
     from pyspark.ml.classification import LogisticRegression
     from pyspark.ml.feature import HashingTF, Tokenizer
-    from ads.model.framework.spark_model import SparkPipelineModel
+    from pyspark.sql import SparkSession
+
+    ads.set_auth(auth="resource_principal")
 
     spark = SparkSession \
         .builder \
@@ -205,7 +228,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     pipeline = Pipeline(stages=[tokenizer, hashingTF, lr])
     model = pipeline.fit(training)
 
-    # Instantite ads.model.framework.spark_model.SparkPipelineModel using the pre-trained Spark Pipeline Model
+    # Instantiate ads.model.framework.spark_model.SparkPipelineModel using the pre-trained Spark Pipeline Model
     spark_model = SparkPipelineModel(estimator=model, artifact_dir=tempfile.mkdtemp())
     spark_model.prepare(inference_conda_env="pyspark32_p38_cpu_v2",
                         X_sample = training,
@@ -225,9 +248,14 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    from ads.model.framework.tensorflow_model import TensorFlowModel
     import tempfile
+
+    import ads
     import tensorflow as tf
+    from ads.model.framework.tensorflow_model import TensorFlowModel
+
+
+    ads.set_auth(auth="resource_principal")
 
     mnist = tf.keras.datasets.mnist
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
@@ -245,7 +273,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     tf_estimator.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy"])
     tf_estimator.fit(x_train, y_train, epochs=1)
 
-    # Instantite ads.model.framework.tensorflow_model.TensorFlowModel using the pre-trained TensorFlow Model
+    # Instantiate ads.model.framework.tensorflow_model.TensorFlowModel using the pre-trained TensorFlow Model
     tf_model = TensorFlowModel(tf_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
@@ -263,31 +291,53 @@ Other Frameworks
 .. code-block:: python3
 
     import tempfile
+
+    import ads
     from ads.model.generic_model import GenericModel
+    from catboost import CatBoostRegressor
 
-    # Create custom framework model
-    class Toy:
-        def predict(self, x):
-            return x ** 2
-    model = Toy()
+    ads.set_auth(auth="resource_principal")
 
-    # Instantite ads.model.generic_model.GenericModel using the trained Custom Model
-    generic_model = GenericModel(estimator=model, artifact_dir=tempfile.mkdtemp())
-    generic_model.summary_status()
+    # Initialize data
+
+    X_train = [[1, 4, 5, 6],
+                [4, 5, 6, 7],
+                [30, 40, 50, 60]]
+
+    X_test = [[2, 4, 6, 8],
+                [1, 4, 50, 60]]
+
+    y_train = [10, 20, 30]
+
+    # Initialize CatBoostRegressor
+    catboost_estimator = CatBoostRegressor(iterations=2,
+                            learning_rate=1,
+                            depth=2)
+    # Train a CatBoostRegressor model
+    catboost_estimator.fit(X_train, y_train)
+
+    # Get predictions
+    preds = catboost_estimator.predict(X_test)
+
+    # Instantiate ads.model.generic_model.GenericModel using the trained Custom Model using the trained CatBoost Classifier  model
+    catboost_model = GenericModel(estimator=catboost_estimator,
+                                artifact_dir=tempfile.mkdtemp(),
+                                model_save_serializer="cloudpickle",
+                                model_input_serializer="json")
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
-    generic_model.prepare(
-            inference_conda_env="dbexp_p38_cpu_v1",
-            model_file_name="toy_model.pkl",
-            force_overwrite=True
-         )
+    catboost_model.prepare(
+        inference_conda_env="oci://bucket@namespace/path/to/your/conda/pack",
+        inference_python_version="your_python_version",
+        X_sample=X_train,
+        y_sample=y_train,
+    )
 
-    # Check if the artifacts are generated correctly.
-    # The verify method invokes the ``predict`` function defined inside ``score.py`` in the artifact_dir
-    generic_model.verify([2])
-
-    # Register the model
-    model_id = generic_model.save(display_name="Custom Framework Model")
+    # Verify generated artifacts. The payload looks like this: [[2, 4, 6, 8], [1, 4, 50, 60]]
+    catboost_model.verify(X_test, auto_serialize_data=True)
+    
+    # Register CatBoostRegressor model
+    model_id = catboost_model.save(display_name="CatBoost Model")
 
 
 With Model Version Set
@@ -303,7 +353,7 @@ With Model Version Set
             return x ** 2
     model = Toy()
 
-    # Instantite ads.model.generic_model.GenericModel using the trained Custom Model
+    # Instantiate ads.model.generic_model.GenericModel using the trained Custom Model
     generic_model = GenericModel(estimator=model, artifact_dir=tempfile.mkdtemp())
     generic_model.summary_status()
 
@@ -320,7 +370,7 @@ With Model Version Set
 
         # Check if the artifacts are generated correctly.
         # The verify method invokes the ``predict`` function defined inside ``score.py`` in the artifact_dir
-        generic_model.verify([2])
+        generic_model.verify(2)
 
         # Register the model
         model_id = generic_model.save(display_name="Custom Framework Model")
