@@ -99,9 +99,42 @@ a service gateway, both are configured automatically. Custom networking requires
 You can control the network access through the subnet and security lists.
 
 If you specified a subnet ID, your job will be configured to have custom networking.
-Otherwise, default networking will be used. Note that when you are in a Data Science Notebook Session,
+Otherwise, default networking will be used.
+
+Note that when you are in a Data Science Notebook Session,
 the same networking configuration is be used by default.
 You can specify the networking manually by calling :py:meth:`~ads.jobs.DataScienceJob.with_job_infrastructure_type()`.
+For example, if you are using custom networking in the notebook session
+but you would like to use default networking for the job:
+
+.. tabs::
+
+  .. code-tab:: python
+    :caption: Python
+
+    from ads.jobs import DataScienceJob
+
+    infrastructure = (
+        DataScienceJob()
+        .with_log_group_id("<log_group_ocid>")
+        .with_log_id("<log_ocid>")
+        # Use default networking,
+        # regardless of the networking used by the notebook session
+        .with_job_infrastructure_type("ME_STANDALONE")
+        # compartment ID, project ID, compute shape and block storage will be
+        # the same as the ones set in the notebook session
+    )
+
+  .. code-tab:: yaml
+    :caption: YAML
+
+    kind: infrastructure
+    type: dataScienceJob
+    spec:
+      jobInfrastructureType: ME_STANDALONE
+      logGroupId: <log_group_ocid>
+      logId: <log_ocid>
+
 
 Logging
 -------
