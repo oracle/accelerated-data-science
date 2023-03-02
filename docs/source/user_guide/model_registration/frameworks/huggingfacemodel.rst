@@ -118,7 +118,7 @@ Run Prediction against Endpoint
 
     >>> # Generate prediction by invoking the deployed endpoint
     >>> preds = huggingface_pipeline_model.predict(image)["prediction"]
-    >>> print([{"score": round(pred["score"], 4), "label": pred["label"]} for pred in preds['prediction']])
+    >>> print([{"score": round(pred["score"], 4), "label": pred["label"]} for pred in preds])
     [{'score': 0.9879, 'label': 'LABEL_184'},
     {'score': 0.9973, 'label': 'snow'},
     {'score': 0.9972, 'label': 'cat'}]
@@ -196,7 +196,7 @@ Example
 
     ## download the image
     image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
-    image = PIL.Image.open(requests.get(image_link, stream=True).raw)
+    image = PIL.Image.open(requests.get(image_url, stream=True).raw)
 
     ## download the pretrained model
     classifier = pipeline(model="openai/clip-vit-large-patch14")
