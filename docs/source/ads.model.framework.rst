@@ -60,6 +60,14 @@ ads.model.framework.xgboost\_model module
    :undoc-members:
    :show-inheritance:
 
+ads.model.framework.huggingface\_model module
+-----------------------------------------
+
+.. automodule:: ads.model.framework.huggingface_model
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

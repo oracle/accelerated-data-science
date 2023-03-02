@@ -215,7 +215,7 @@ Deploy and Generate Endpoint
 
 .. code-block:: python3
 
-    >>> # Deploy and create an endpoint for the TensorFlow model
+    >>> # Deploy and create an endpoint for the PyTorch model
     >>> pytorch_model.deploy(
             display_name="PyTorch Model For Classification",
             deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",

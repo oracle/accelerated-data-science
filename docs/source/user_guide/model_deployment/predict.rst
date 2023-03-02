@@ -93,7 +93,7 @@ Model framework serialization
    pytorch_model.predict(byte_im)['prediction'][0][:10]
 
    pytorch_model.delete_deployment(wait_for_completion=True)
-   ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+   pytorch_model.delete()
 
 
 The change needed in `score.py`:
