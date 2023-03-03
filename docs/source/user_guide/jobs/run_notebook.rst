@@ -1,154 +1,62 @@
-.. _job_run_a_notebook:
-
 Run a Notebook
 **************
 
-In some cases, you may want to run an existing JupyterLab notebook as a job. You can do this using the ``NotebookRuntime()`` object.
+The :py:class:`~ads.jobs.NotebookRuntime` allows you to run a single Jupyter notebook as a job.
 
-The next example shows you how to run an the `TensorFlow 2 quick start for beginner <https://github.com/tensorflow/docs/blob/master/site/en/tutorials/quickstart/beginner.ipynb>`__ notebook from the internet and save the results to OCI Object Storage. The notebook path points to the raw file link from GitHub.  To run the following example, ensure that you have internet access to retrieve the notebook:
+.. include:: ../jobs/toc_local.rst
 
-Python
-======
+TensorFlow Example
+==================
 
-.. code-block:: python3
+The following example shows you how to run an the
+`TensorFlow 2 quick start for beginner
+<https://github.com/tensorflow/docs/blob/master/site/en/tutorials/quickstart/beginner.ipynb>`_
+notebook from the internet and save the results to OCI Object Storage.
+The notebook path points to the raw file link from GitHub.
+To run the example, ensure that you have internet access to retrieve the notebook:
 
-    from ads.jobs import Job, DataScienceJob, NotebookRuntime
+.. include:: ../jobs/tabs/notebook_runtime.rst
 
-    job = (
-        Job()
-        .with_infrastructure(
-            DataScienceJob()
-            .with_log_group_id("<log_group_ocid>")
-            .with_log_id("<log_ocid>")
-            # The following infrastructure configurations are optional
-            # if you are in an OCI data science notebook session.
-            # The configurations of the notebook session will be used as defaults
-            .with_compartment_id("<compartment_ocid>")
-            .with_project_id("<project_ocid>")
-            .with_subnet_id("<subnet_ocid>")
-            .with_shape_name("VM.Standard.E3.Flex")
-            .with_shape_config_details(memory_in_gbs=16, ocpus=1) # Applicable only for the flexible shapes
-            .with_block_storage_size(50)
-        )
-        .with_runtime(
-            NotebookRuntime()
-            .with_notebook(
-                path="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb",
-                encoding='utf-8'
-            )
-            .with_service_conda("tensorflow28_p38_cpu_v1")
-            .with_environment_variable(GREETINGS="Welcome to OCI Data Science")
-            .with_output("oci://bucket_name@namespace/path/to/dir")
-        )
-    )
+Working Directory
+=================
 
-    job.create()
-    run = job.run().watch()
+An empty directory in the job run will be created as the working directory for running the notebook.
+All relative paths used in the notebook will be base on the working directory.
 
-After the notebook finishes running, the notebook with results are saved to ``oci://bucket_name@namespace/path/to/dir``.  You can download the output by calling the ``download()`` method.
+Download the Outputs
+====================
 
-.. code-block:: python3
+If you specify the output location using :py:meth:`~ads.jobs.NotebookRuntime.with_output`.
+All files in the working directory, including the notebook with outputs,
+will be saved to output location (``oci://bucket_name@namespace/path/to/dir``) after the job finishes running.
+You can download the output by calling the :py:meth:`~ads.jobs.Job.download` method.
 
-    run.download("/path/to/local/dir")
+Exclude Cells
+=============
 
-The ``NotebookRuntime`` also allows you to use exclusion tags, which lets you exclude cells from a job run. For example, you could use these tags to do exploratory data analysis, and then train and evaluate your model in a notebook. Then you could use that same notebook to only build future models that are trained on a different dataset. So the job run only has to execute the cells that are related to training the model, and not the exploratory data analysis or model evaluation.
+The :py:class:`~ads.jobs.NotebookRuntime` also allows you to specify tags to exclude cells from being processed
+in a job run using :py:meth:`~ads.jobs.NotebookRuntime.with_exclude_tag` method.
+For example, you could do exploratory data analysis and visualization in a notebook,
+and you may want to exclude the visualization when running the notebook in a job.
 
-You tag the cells in the notebook, and then specify the tags using the ``.with_exclude_tag()`` method. Cells with any matching tags are excluded from the job run.  For example, if you tagged cells with ``ignore`` and ``remove``, you can pass in a list of the two tags to the method and those cells are excluded from the code that is executed as part of the job run. To tag cells in a notebook, see `Adding tags using notebook interfaces <https://jupyterbook.org/content/metadata.html#adding-tags-using-notebook-interfaces>`__.
+To tag cells in a notebook, see
+`Adding tags using notebook interfaces <https://jupyterbook.org/content/metadata.html#adding-tags-using-notebook-interfaces>`__.
 
-.. code-block:: python3
+The :py:meth:`~ads.jobs.NotebookRuntime.with_exclude_tag` take a list of tags as argument
+Cells with any matching tags are excluded from the job run.
+In the above example, cells with ``ignore`` or ``remove`` are excluded.
 
-    job.with_runtime(
-        NotebookRuntime()
-        .with_notebook("path/to/notebook")
-        .with_exclude_tag(["ignore", "remove"])
-    )
+Notebook with Dependencies
+==========================
 
-YAML
-====
+If your notebook needs extra dependencies like custom module or data files, you can use
+:py:class:`~ads.jobs.PythonRuntime` or :py:class:`~ads.jobs.GitPythonRuntime` and set your notebook as the entrypoint.
 
-You could use the following YAML to create the job:
+See also:
 
-.. code-block:: yaml
+* :doc:`run_python`
+* :doc:`run_git`
 
-	kind: job
-	spec:
-	  infrastructure:
-	    kind: infrastructure
-        type: dataScienceJob
-	    spec:
-	      jobInfrastructureType: STANDALONE
-	      jobType: DEFAULT
-	      logGroupId: <log_group_id>
-	      logId: <log.id>
-	  runtime:
-	    kind: runtime
-        type: notebook
-	    spec:
-          notebookPathURI: /path/to/notebook
-	      conda:
-            slug: tensorflow28_p38_cpu_v1
-            type: service
+Here is an example of running the `minGPT demo notebook <https://github.com/karpathy/minGPT/blob/master/demo.ipynb>`_.
 
-**NotebookRuntime Schema**
-
-.. code-block:: yaml
-
-    kind:
-      required: true
-      type: string
-      allowed:
-        - runtime
-    type:
-      required: true
-      type: string
-      allowed:
-        - notebook
-    spec:
-      required: true
-      type: dict
-      schema:
-        excludeTags:
-          required: false
-          type: list
-        notebookPathURI:
-          required: false
-          type: string
-        notebookEncoding:
-          required: false
-          type: string
-        outputUri:
-          required: false
-          type: string
-        args:
-          nullable: true
-          required: false
-          type: list
-          schema:
-            type: string
-        conda:
-          nullable: false
-          required: false
-          type: dict
-          schema:
-            slug:
-              required: true
-              type: string
-            type:
-              required: true
-              type: string
-              allowed:
-                - service
-        env:
-          nullable: true
-          required: false
-          type: list
-          schema:
-            type: dict
-            schema:
-            name:
-              type: string
-            value:
-              type:
-                - number
-                - string
-
+.. include:: ../jobs/tabs/git_notebook.rst
