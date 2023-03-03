@@ -1,4 +1,0 @@
-* ``GitPythonRuntime`` allows you to run source code from a Git repository, see :ref:`Run from Git <job_run_git>`.
-* ``NotebookRuntime`` allows you to run a JupyterLab Python notebook, see :ref:`Run a Notebook <job_run_a_notebook>`.
-* ``PythonRuntime`` allows you to run Python code with additional options, including setting a working directory, adding Python paths, and copying output files, see :ref:`Run a ZIP file or folder <job_run_zip>`.
-* ``ScriptRuntime`` allows you to run Python, Bash, and Java scripts from a single source file (``.zip`` or ``.tar.gz``) or code directory, see :ref:`Run a Script <job_run_script>` and :ref:`Run a ZIP file or folder <job_run_zip>`.

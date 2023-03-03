@@ -1,13 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import base64
-import os
-from io import BytesIO
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -18,9 +15,14 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
-from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
+from ads.model.serde.model_serializer import PyTorchModelSerializerType
+from ads.model.common.utils import (
+    DEPRECATE_AS_ONNX_WARNING,
+    DEPRECATE_USE_TORCH_SCRIPT_WARNING,
+)
+from ads.model.serde.common import SERDE
 
 ONNX_MODEL_FILE_NAME = "model.onnx"
 PYTORCH_MODEL_FILE_NAME = "model.pt"
@@ -39,8 +41,6 @@ class PyTorchModel(FrameworkSpecificModel):
         Default authentication is set using the `ads.set_auth` API. To override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create
         an authentication signer to instantiate an IdentityClient object.
-    ds_client: DataScienceClient
-        The data science client used by model deployment.
     estimator: Callable
         A trained pytorch estimator/model using Pytorch.
     framework: str
@@ -63,6 +63,7 @@ class PyTorchModel(FrameworkSpecificModel):
         The model ID.
     properties: ModelProperties
         ModelProperties object required to save and deploy model.
+        For more details, check https://accelerated-data-science.readthedocs.io/en/latest/ads.model.html#module-ads.model.model_properties.
     runtime_info: RuntimeInfo
         A RuntimeInfo instance.
     schema_input: Schema
@@ -115,6 +116,7 @@ class PyTorchModel(FrameworkSpecificModel):
     """
 
     _PREFIX = "pytorch"
+    model_save_serializer_type = PyTorchModelSerializerType
 
     @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def __init__(
@@ -123,6 +125,8 @@ class PyTorchModel(FrameworkSpecificModel):
         artifact_dir: str,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
+        model_save_serializer: Optional[SERDE] = model_save_serializer_type.TORCH,
+        model_input_serializer: Optional[SERDE] = None,
         **kwargs,
     ):
         """
@@ -140,6 +144,10 @@ class PyTorchModel(FrameworkSpecificModel):
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
+        model_save_serializer: (SERDE or str, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model.
+        model_input_serializer: (SERDE, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize data.
 
         Returns
         -------
@@ -151,6 +159,8 @@ class PyTorchModel(FrameworkSpecificModel):
             artifact_dir=artifact_dir,
             properties=properties,
             auth=auth,
+            model_save_serializer=model_save_serializer,
+            model_input_serializer=model_input_serializer,
             **kwargs,
         )
         self._extractor = PytorchExtractor(estimator)
@@ -160,43 +170,6 @@ class PyTorchModel(FrameworkSpecificModel):
         self.hyperparameter = self._extractor.hyperparameter
         self.version = torch.__version__
 
-    def _handle_model_file_name(self, as_onnx: bool, model_file_name: str) -> str:
-        """
-        Process file name for saving model.
-        For ONNX model file name must be ending with ".onnx".
-        For joblib model file name must be ending with ".joblib".
-        If not specified, use "model.onnx" for ONNX model and "model.joblib" for joblib model.
-
-        Parameters
-        ----------
-        as_onnx: bool
-            If set as True, convert into ONNX model.
-        model_file_name: str
-            File name for saving model.
-
-        Returns
-        -------
-        str
-            Processed file name.
-        """
-        if not model_file_name:
-            return ONNX_MODEL_FILE_NAME if as_onnx else PYTORCH_MODEL_FILE_NAME
-        if as_onnx:
-            if model_file_name and not model_file_name.endswith(".onnx"):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.onnx` for onnx format."
-                )
-        else:
-            if model_file_name and not (
-                model_file_name.endswith(".pt") or model_file_name.endswith(".pth")
-            ):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.pt` or `.pth` "
-                    "for Pytorch format."
-                )
-        return model_file_name
-
-    @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
     def serialize_model(
         self,
         as_onnx: bool = False,
@@ -247,15 +220,6 @@ class PyTorchModel(FrameworkSpecificModel):
         None
             Nothing.
         """
-        model_path = os.path.join(self.artifact_dir, self.model_file_name)
-
-        if os.path.exists(model_path) and not force_overwrite:
-            raise ValueError(
-                f"The {model_path} already exists, set force_overwrite to True if you wish to overwrite."
-            )
-
-        os.makedirs(self.artifact_dir, exist_ok=True)
-
         if use_torch_script is None:
             logger.warning(
                 "In future the models will be saved in TorchScript format by default. Currently saving it using torch.save method."
@@ -270,173 +234,33 @@ class PyTorchModel(FrameworkSpecificModel):
             )
             use_torch_script = False
 
+        if as_onnx and use_torch_script:
+            raise ValueError("You can only save Pytorch model into one format.")
+
         if as_onnx:
-            onnx_args = kwargs.get("onnx_args", None)
+            logger.warning(DEPRECATE_AS_ONNX_WARNING)
+            self.set_model_save_serializer(self.model_save_serializer_type.ONNX)
 
-            input_names = kwargs.get("input_names", ["input"])
-            output_names = kwargs.get("output_names", ["output"])
-            dynamic_axes = kwargs.get("dynamic_axes", None)
+        if use_torch_script:
+            logger.warning(DEPRECATE_USE_TORCH_SCRIPT_WARNING)
+            self.set_model_save_serializer(self.model_save_serializer_type.TORCHSCRIPT)
 
-            self.to_onnx(
-                path=model_path,
-                onnx_args=onnx_args,
-                X_sample=X_sample,
-                input_names=input_names,
-                output_names=output_names,
-                dynamic_axes=dynamic_axes,
-            )
-
-        elif use_torch_script:
-            compiled_model = torch.jit.script(self.estimator)
-            torch.jit.save(compiled_model, model_path)
-
-        else:
-            torch.save(self.estimator.state_dict(), model_path)
-
-    @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
-    def to_onnx(
-        self,
-        path: str = None,
-        onnx_args=None,
-        X_sample: Optional[
-            Union[
-                Dict,
-                str,
-                List,
-                Tuple,
-                np.ndarray,
-                pd.core.series.Series,
-                pd.core.frame.DataFrame,
-            ]
-        ] = None,
-        input_names: List[str] = ["input"],
-        output_names: List[str] = ["output"],
-        dynamic_axes=None,
-    ):
-        """
-        Exports the given Pytorch model into ONNX format.
-
-        Parameters
-        ----------
-        path: str, default to None
-            Path to save the serialized model.
-        onnx_args: (tuple or torch.Tensor), default to None
-            Contains model inputs such that model(onnx_args) is a valid
-            invocation of the model. Can be structured either as: 1) ONLY A
-            TUPLE OF ARGUMENTS; 2) A TENSOR; 3) A TUPLE OF ARGUMENTS ENDING
-            WITH A DICTIONARY OF NAMED ARGUMENTS
-        X_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]. Defaults to None.
-            A sample of input data that will be used to generate input schema and detect onnx_args.
-        input_names: (List[str], optional). Defaults to ["input"].
-            Names to assign to the input nodes of the graph, in order.
-        output_names: (List[str], optional). Defaults to ["output"].
-            Names to assign to the output nodes of the graph, in order.
-        dynamic_axes: (dict, optional). Defaults to None.
-            Specify axes of tensors as dynamic (i.e. known only at run-time).
-
-        Returns
-        -------
-        None
-            Nothing
-
-        Raises
-        ------
-        AssertionError
-            if onnx module is not support by the current version of torch
-        ValueError
-            if X_sample is not provided
-            if path is not provided
-        """
-
-        assert hasattr(torch, "onnx"), (
-            f"This version of pytorch {torch.__version__} does not appear to support onnx "
-            "conversion."
+        super().serialize_model(
+            as_onnx=as_onnx,
+            force_overwrite=force_overwrite,
+            X_sample=X_sample,
+            **kwargs,
         )
 
-        if onnx_args is None:
-            if X_sample is not None:
-                logger.warning(
-                    "Since `onnx_args` is not provided, `onnx_args` is "
-                    "detected from `X_sample` to export pytorch model as onnx."
-                )
-                onnx_args = X_sample
-            else:
-                raise ValueError(
-                    "`onnx_args` can not be detected. The parameter `onnx_args` must be provided to export pytorch model as onnx."
-                )
-
-        if not path:
-            raise ValueError(
-                "The parameter `path` must be provided to save the model file."
-            )
-
-        torch.onnx.export(
-            self.estimator,
-            args=onnx_args,
-            f=path,
-            input_names=input_names,
-            output_names=output_names,
-            dynamic_axes=dynamic_axes,
-        )
-
-    @runtime_dependency(module="torch", install_from=OptionalDependency.PYTORCH)
-    def get_data_serializer(
-        self,
-        data: Union[
-            Dict,
-            str,
-            List,
-            np.ndarray,
-            pd.core.series.Series,
-            pd.core.frame.DataFrame,
-            "torch.Tensor",
-        ],
-        data_type: str = None,
-    ):
-        """Returns serializable input data.
-
-        Parameters
-        ----------
-        data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
-        pd.core.frame.DataFrame, torch.Tensor]
-            Data expected by the model deployment predict API.
-        data_type: str
-            Type of the data.
-
-        Returns
-        -------
-        InputDataSerializer
-            A class containing serialized input data and original data type
-            information.
-
-        Raises
-        ------
-        TypeError
-            if provided data type is not supported.
-        """
-        data_type = data_type if data_type else type(data)
-        if data_type == "image":
-            try:
-                import torchvision.transforms as transforms
-
-                convert_tensor = transforms.ToTensor()
-                data = convert_tensor(data)
-                data_type = str(type(data))
-            except ModuleNotFoundError:
-                raise ModuleNotFoundError(
-                    f"The `torchvision` module was not found. Please run "
-                    f"`pip install {OptionalDependency.PYTORCH}`."
-                )
-        if isinstance(data, torch.Tensor):
-            buffer = BytesIO()
-            torch.save(data, buffer)
-            data = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    def _to_tensor(self, data):
         try:
-            return InputDataSerializer(data, data_type=data_type)
-        except:
-            raise TypeError(
-                "The supported data types are Dict, str, list, bytes,"
-                "numpy.ndarray, pd.core.series.Series, "
-                "pd.core.frame.DataFrame, torch.Tensor. Please "
-                "convert to the supported data types first. "
+            import torchvision.transforms as transforms
+
+            convert_tensor = transforms.ToTensor()
+            data = convert_tensor(data)
+        except ModuleNotFoundError:
+            raise ModuleNotFoundError(
+                f"The `torchvision` module was not found. Please run "
+                f"`pip install {OptionalDependency.PYTORCH}`."
             )
+        return data

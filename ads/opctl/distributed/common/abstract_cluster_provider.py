@@ -34,6 +34,7 @@ class ClusterProvider:
     The worker and main coordinate cluster configuration using the directory provided via `WORK_DIR`. The main node creates config.json in the `WORK_DIR`.
     The worker nodes polls the config.json and exports the configuration as environment variables
     """
+
     SYNC_SCRIPT_PATH = "/etc/datascience/sync.sh"
 
     DEFAULT_CODE_DIR = "/code"
@@ -79,18 +80,21 @@ class ClusterProvider:
 
     def sync(self, loop=True):
         sync_artifacts = os.environ.get("SYNC_ARTIFACTS", 0)
-        print(f'sync_artifacts - {sync_artifacts}')
+        print(f"sync_artifacts - {sync_artifacts}")
         if sync_artifacts == "1":
             bkt_name, prefix = self.get_sync_loc()
             if bkt_name is None:
-                print("WARNING: Sync 'WORKSPACE', 'WORKSPACE_PREFIX' or 'work_dir' not configured. Skipping Sync")
+                print(
+                    "WARNING: Sync 'WORKSPACE', 'WORKSPACE_PREFIX' or 'work_dir' not configured. Skipping Sync"
+                )
                 return
             sync_script_fn = self.SYNC_SCRIPT_PATH
             if not os.path.exists(sync_script_fn):
                 sync_script = self.get_sync_script()
                 self.create_sync_script(sync_script_fn, sync_script)
-            subprocess.Popen([sync_script_fn, bkt_name, prefix, '-l']) if loop else subprocess.Popen(
-                [sync_script_fn, bkt_name, prefix])
+            subprocess.Popen(
+                [sync_script_fn, bkt_name, prefix, "-l"]
+            ) if loop else subprocess.Popen([sync_script_fn, bkt_name, prefix])
         if not loop:
             sleep_duration = int(os.environ.get("POST_PROCESSING_WAIT", 60))
             print(f"post processing wait..{sleep_duration} seconds")
@@ -100,27 +104,25 @@ class ClusterProvider:
     def get_sync_loc(self):
         bckt_name = os.environ.get("WORKSPACE")
         pfx = os.environ.get("WORKSPACE_PREFIX")
-        if bckt_name is None :
-            scheme = urlparse(
-                self.work_dir
-            )
+        if bckt_name is None:
+            scheme = urlparse(self.work_dir)
             if scheme.scheme == "oci":
                 bckt_name = scheme.netloc.split("@")[0]
                 pfx = scheme.path
-                pfx = pfx.strip('//')
+                pfx = pfx.strip("//")
         return bckt_name, pfx
 
     def profile_cmd(self):
-        profile = os.environ.get("PROFILE", '0')
+        profile = os.environ.get("PROFILE", "0")
         cmd = []
-        if profile == '1':
+        if profile == "1":
             print("Profiler ON")
-            cmd = os.environ.get("PROFILE_CMD").split(' ')
+            cmd = os.environ.get("PROFILE_CMD").split(" ")
         return cmd
 
     @staticmethod
-    def create_sync_script(sync_script_fn,sync_script):
-        sync_script_fn_obj = open(sync_script_fn, 'w')
+    def create_sync_script(sync_script_fn, sync_script):
+        sync_script_fn_obj = open(sync_script_fn, "w")
         sync_script_fn_obj.write(sync_script)
         sync_script_fn_obj.close()
         os.chmod(sync_script_fn, 755)
@@ -148,12 +150,11 @@ class ClusterProvider:
         secret_ocid = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_SECRET_ID)
         # with GitSSHKey does nothing if secret_ocid is None or empty
         with GitSSHKey(secret_ocid):
-            GitManager(uri, code_dir).fetch_repo().setup_code(
+            GitManager(uri, code_dir=code_dir).fetch_repo().checkout_code(
                 branch=branch, commit=commit
             )
-        JobRunner.setup_python_path(
+        JobRunner(code_dir=code_dir).setup_python_path(
             python_path=os.environ.get(cluster_config_helper.OCI__RUNTIME_PYTHON_PATH),
-            code_dir=code_dir,
         )
 
     def _fetch_remote(self, code_dir):
@@ -280,7 +281,9 @@ class ClusterProvider:
         # tmpdir = self.my_work_dir
         # self.tmpdir = tmpdir
         config = config or self.configuration()
-        print(f"Writing configuration: {config} to file: {self.config_file}", flush=True)
+        print(
+            f"Writing configuration: {config} to file: {self.config_file}", flush=True
+        )
         with fsspec.open(self.config_file, "w", **self.authinfo) as conf:
             conf.write(json.dumps(config))
 
@@ -408,7 +411,8 @@ class ClusterProvider:
 
         func(*args, **kwargs)
 
-sync_script_str = '''#!/bin/bash
+
+sync_script_str = """#!/bin/bash
 
 loop=false
 
@@ -441,4 +445,4 @@ while true; do
   fi
   sleep $sleep_duration
 done
-    '''
+    """

@@ -4,14 +4,6 @@ ads.model.extractor package
 Submodules
 ----------
 
-ads.model.extractor.automl\_extractor module
---------------------------------------------
-
-.. automodule:: ads.model.extractor.automl_extractor
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ads.model.extractor.keras\_extractor module
 -------------------------------------------
 

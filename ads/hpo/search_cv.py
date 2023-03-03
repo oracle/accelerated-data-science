@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import importlib
@@ -102,6 +102,18 @@ class NoRestartError(Exception):
     """
 
     pass
+
+
+class DataScienceObjective:
+    """This class is to replace the previous lambda function to solve the problem that python does not allow pickle local function/lambda function."""
+
+    def __init__(self, objective, X_res, y_res):
+        self.objective = objective
+        self.X_res = X_res
+        self.y_res = y_res
+
+    def __call__(self, trial):
+        return self.objective(self.X_res, self.y_res, trial)
 
 
 class ADSTuner(BaseEstimator):
@@ -1146,8 +1158,6 @@ class ADSTuner(BaseEstimator):
             self._step_name,
         )
 
-        objective_func = lambda trial: objective(X_res, y_res, trial)
-
         if synchronous:
             logger.info(
                 "Optimizing hyperparameters using {} "
@@ -1162,7 +1172,7 @@ class ADSTuner(BaseEstimator):
                 self.sampler,
                 self.storage,
                 self.load_if_exists,
-                objective_func,
+                DataScienceObjective(objective, X_res, y_res),
                 self._global_start,
                 self._global_stop,
             ),

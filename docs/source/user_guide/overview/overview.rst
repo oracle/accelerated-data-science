@@ -85,34 +85,6 @@ Main Features
   Save and load a copy of any dataset in binary optimized Parquet format. By snapshotting a dataset, a URL is returned that can be used by anyone with access to the resource to load the data exactly how it was at that point with all transforms materialized.
 
 
-* **Model Training**
-
-  .. figure:: figures/dot-decision-tree.png
-     :align: center
-
-     **Example showing a visualized Decision Tree**
-
-  The Oracle AutoML engine, that produces ``ADSModel`` models, automates:
-
-  - Feature Selection
-  - Algorithm Selection
-  - Feature Encoding
-  - Hyperparameter Tuning
-
-
-  Create your own models using any library. If they resemble ``sklearn`` estimators, you can promote them to ``ADSModel`` objects and use them in evaluations, explanations, and model catalog operations. If they do not support the ``sklearn`` behavior, you can wrap them in a Lambda then use them.
-
-  .. figure:: figures/automl.png
-     :align: center
-
-     **Example showing how to invoke AutoML**
-
-  .. figure:: figures/automl-hyperparameter-tuning.png
-     :align: center
-
-     **Example showing the AutoML hyper-parameter tuning trials**
-
-
 * **Model Evaluations**
 
   Model evaluation generates a comprehensive suite of evaluation metrics and suitable visualizations to measure model performance against new data, and can rank models over time to ensure optimal behavior in production. Model evaluation goes beyond raw performance to take into account expected baseline behavior. It uses a cost API so that the different impacts of false positives and false negatives can be fully incorporated.
@@ -128,15 +100,6 @@ Main Features
      :align: center
 
      **Example showing some model evaluation plots**
-
-* **Model Interpretation and Explainablility**
-
-  Model explanation makes it easier to understand why machine learning models return the results that they do by identifying relative importance of features and relationships between features and predictions. Data Science offers the first commercial implementation
-  of model-agnostic explanation. For example, a compliance officer can be certain that a model is not making decisions in violation of GDPR or regulations against discrimination.
-
-  For data scientists, it enables them to ensure that any model they build is generating results based on predictors that make sense. Understanding why a model behaves the way it does is critical to users and regulators. Data Science ensures that deployed models are more accurate, robust, and compliant with relevant regulations.
-
-  Oracle provides Machine Learning Explainability (MLX), which is a package that explains the internal mechanics of a machine learning system to better understand models. Models are in the ``ADSModel`` format. You use MLX to explain models from different training platforms. You create an ``ADSModel`` from a REST end point then use the ADS model explainability to explain a model that's remote.
 
 
 * **Interact with the Model Catalog**

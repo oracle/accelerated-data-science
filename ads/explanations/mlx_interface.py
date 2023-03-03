@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from mlx import LimeExplainer
-from mlx import FDExplainer, AleExplainer
-from mlx import PermutationImportance
+try:
+    from mlx import LimeExplainer
+    from mlx import FDExplainer, AleExplainer
+    from mlx import PermutationImportance
+    from mlx.whatif import WhatIf
+except:
+    pass
 from ads.common import logger
 from ads.dataset.helper import is_text_data
-from mlx.whatif import WhatIf
+
 import pandas as pd
+from ads.common.decorator.deprecate import deprecated
 
 
 def _reset_index(x):
@@ -37,6 +42,10 @@ def check_tabular_or_text(est, X):
     return "text" if is_text_data(X) else "tabular"
 
 
+@deprecated(
+    details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+    raise_error=True,
+)
 def init_lime_explainer(
     explainer,
     est,
@@ -137,6 +146,10 @@ def init_lime_explainer(
     return exp
 
 
+@deprecated(
+    details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+    raise_error=True,
+)
 def init_permutation_importance_explainer(
     explainer,
     est,
@@ -215,6 +228,10 @@ def init_permutation_importance_explainer(
     return exp
 
 
+@deprecated(
+    details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+    raise_error=True,
+)
 def init_partial_dependence_explainer(
     explainer, est, X_train, y_train, mode, class_names=None, client=None
 ):
@@ -269,6 +286,10 @@ def init_partial_dependence_explainer(
     return exp
 
 
+@deprecated(
+    details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+    raise_error=True,
+)
 def init_ale_explainer(
     explainer, est, X_train, y_train, mode, class_names=None, client=None
 ):
@@ -322,6 +343,10 @@ def init_ale_explainer(
     return exp
 
 
+@deprecated(
+    details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+    raise_error=True,
+)
 def init_whatif_explainer(
     explainer,
     est,

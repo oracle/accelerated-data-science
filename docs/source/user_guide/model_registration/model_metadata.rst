@@ -82,7 +82,7 @@ You can populate the ``use_case_type`` by passing it in the ``.prepare()`` metho
     sklearn_estimator = LogisticRegression()
     sklearn_estimator.fit(X_train, y_train)
 
-    # Instantite ads.model.SklearnModel using the sklearn LogisticRegression model
+    # Instantiate ads.model.SklearnModel using the sklearn LogisticRegression model
     sklearn_model = SklearnModel(estimator=sklearn_estimator, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json

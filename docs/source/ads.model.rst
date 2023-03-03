@@ -51,17 +51,6 @@ ads.model.base\_properties module
    :undoc-members:
    :show-inheritance:
 
-ads.model.datascience\_model module
------------------------------------
-
-.. automodule:: ads.model.datascience_model
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-ads.model.generic\_model module
--------------------------------
-
 .. automodule:: ads.model.generic_model
    :members:
    :undoc-members:

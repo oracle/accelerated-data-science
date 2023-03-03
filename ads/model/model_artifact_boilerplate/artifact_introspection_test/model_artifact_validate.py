@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import argparse
@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 import oci
 import requests
 import yaml
+from ads.model.runtime.utils import SERVICE_PACKS
 
 logger = logging.getLogger()
 logging.basicConfig(level=logging.DEBUG)
@@ -174,7 +175,7 @@ def check_runtime_yml(file_path) -> Tuple[bool, str]:
             if VARIABLES["runtime_env_type"] == "data_science":
                 response = requests.request("GET", PAR_URL)
                 if response.ok:
-                    service_pack_list = response.json().get("service_packs")
+                    service_pack_list = response.json().get(SERVICE_PACKS)
                     service_pack = None
                     for service_pack_item in service_pack_list:
                         pack_path = urlparse(service_pack_item["pack_path"])
