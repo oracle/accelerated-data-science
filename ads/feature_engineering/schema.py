@@ -145,7 +145,7 @@ class Attribute(DataClassSerializable):
     * feature_type - Feature type of data - Integer, String, etc. Matches with ads feature types.
     * name - Name of the feature
     * domain - Represented by the Domain class
-    * required - Boolean - True of False
+    * required - Boolean - True or False
     * description - Description about the column/feature
     * order - order of the column/feature in the data
 

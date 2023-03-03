@@ -1,16 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, division, print_function
 
+import copy
+
 import numpy as np
 import pandas as pd
 import scipy
-import copy
+
 from ads.common import logger, utils
+from ads.common.decorator.deprecate import deprecated
 from ads.common.model import ADSModel
 from ads.dataset import helper
 from ads.dataset.classification_dataset import (
@@ -37,6 +40,10 @@ dataset_task_map = {
 }
 
 
+@deprecated(
+    details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+    raise_error=True,
+)
 def get_ml_task_type(X, y, classes):
     """
     Gets the ML task type and returns it.
@@ -79,6 +86,10 @@ def get_ml_task_type(X, y, classes):
 
 
 class AutoML:
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(
         self,
         training_data,
@@ -87,7 +98,7 @@ class AutoML:
         baseline="dummy",
         client=None,
     ):
-        r"""
+        """
         Creates an Automatic machine learning object.
 
         Parameters

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -40,7 +40,7 @@ class ConfigMerger(ConfigProcessor):
     """
 
     def process(self, **kwargs) -> None:
-        config_string = Template(json.dumps(self.config)).substitute(os.environ)
+        config_string = Template(json.dumps(self.config)).safe_substitute(os.environ)
         self.config = json.loads(config_string)
         # 1. merge and overwrite values from command line args
         self._merge_config_with_cmd_args(kwargs)

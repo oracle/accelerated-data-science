@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, print_function
 
-import base64
 import collections
 import contextlib
 import copy
@@ -21,11 +20,12 @@ import shutil
 import string
 import sys
 import tempfile
+from datetime import datetime
 from enum import Enum
-from io import DEFAULT_BUFFER_SIZE, BytesIO
+from io import DEFAULT_BUFFER_SIZE
 from pathlib import Path
 from textwrap import fill
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 from urllib import request
 from urllib.parse import urlparse
 
@@ -36,19 +36,23 @@ import pandas as pd
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from ads.dataset.progress import TqdmProgressBar
 from cycler import cycler
-from datetime import datetime
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from . import auth as authutil
-
+from ads.common import logger
+from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
     OptionalDependency,
+    runtime_dependency,
 )
+from ads.common.word_lists import adjectives, animals
+from ads import config
+from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+
+from . import auth as authutil
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
@@ -682,18 +686,28 @@ def replace_spaces(lst):
     return [s.replace(" ", "_") for s in lst]
 
 
-def get_progress_bar(max_progress, description="Initializing"):
-    """this will return an instance of ProgressBar, sensitive to the runtime environment"""
+def get_progress_bar(
+    max_progress: int, description: str = "Initializing", verbose: bool = False
+) -> TqdmProgressBar:
+    """Returns an instance of the TqdmProgressBar class.
 
-    #
-    # this will return either a DummyProgressBar (non-notebook) or TqdmProgressBar (notebook environement)
-    #
-    if is_notebook():  # pragma: no cover
-        return TqdmProgressBar(
-            max_progress, description=description, verbose=is_debug_mode()
-        )
-    else:
-        return DummyProgressBar()
+    Parameters
+    ----------
+    max_progress: int
+        The number of steps for the progressbar.
+    description: (str, optional). Defaults to "Initializing".
+        The first step description.
+    verbose: (bool, optional). Defaults to `False`
+        If the progress should show the debug information.
+
+    Returns
+    -------
+    TqdmProgressBar
+        An instance of the TqdmProgressBar.
+    """
+    return TqdmProgressBar(
+        max_progress, description=description, verbose=verbose or is_debug_mode()
+    )
 
 
 class JsonConverter(json.JSONEncoder):
@@ -1520,3 +1534,38 @@ def batch_convert_case(spec: dict, to_fmt: str) -> Dict:
         else:
             converted[converter(k)] = v
     return converted
+
+
+def extract_region(auth: Optional[Dict] = None) -> Union[str, None]:
+    """Extracts region information from the environment variables and signer.
+
+    Parameters
+    ----------
+    auth: Dict
+        The ADS authentication config used to initialize the client.
+        Contains keys - config, signer and client_kwargs.
+
+    Returns
+    -------
+    Union[str, None]
+        The region identifier. For example: `us-ashburn-1`.
+        Returns `None` if region cannot be extracted.
+    """
+    auth = auth or authutil.default_signer()
+
+    if auth.get("config", {}).get("region"):
+        return auth["config"]["region"]
+
+    if (
+        auth.get("signer")
+        and hasattr(auth["signer"], "region")
+        and auth["signer"].region
+    ):
+        return auth["signer"].region
+
+    try:
+        return json.loads(config.OCI_REGION_METADATA)["regionIdentifier"]
+    except:
+        pass
+
+    return None

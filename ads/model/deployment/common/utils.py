@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """Utilities used by the model deployment package
 """
@@ -21,14 +21,12 @@ from enum import Enum, auto
 import oci
 import fsspec
 from oci.data_science.models import CreateModelDetails
-from ads.common.auth import default_signer
-from ads.common.oci_client import OCIClientFactory
+from ads.common import auth, oci_client
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
-from ads.model.common.utils import _is_json_serializable
-from .progress_bar import TqdmProgressBar, DummyProgressBar
+from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 
 
 logger = logging.getLogger(__name__)
@@ -107,6 +105,7 @@ def send_request(
     dry_run: bool = False,
     is_json_payload: bool = False,
     header: dict = {},
+    **kwargs,
 ):
     """Sends the data to the predict endpoint.
 
@@ -143,24 +142,6 @@ def send_request(
     else:
         request_kwargs["auth"] = header.get("signer")
         return requests.post(endpoint, **request_kwargs).json()
-
-
-def get_progress_bar(max_progress, description="Initializing"):
-    """get_progress_bar return an instance of ProgressBar, sensitive to the runtime environment
-
-    Args:
-        max_progress (int): Progress bar max
-        description (str, optional): Progress bar description (defaults to "Initializing")
-
-    Returns:
-        An instance of ProgressBar. Either a DummyProgressBar (non-notebook) or TqdmProgressBar
-        (notebook environement)
-    """
-
-    if is_notebook():  # pragma: no cover
-        return TqdmProgressBar(max_progress, description=description, verbose=False)
-    else:
-        return DummyProgressBar()
 
 
 # State Constants
@@ -214,9 +195,9 @@ class OCIClientManager:
 
     def __init__(self, config=None) -> None:
         if not config:
-            config = default_signer()
+            config = auth.default_signer()
         self.config = config
-        self.ds_client = OCIClientFactory(**config).data_science
+        self.ds_client = oci_client.OCIClientFactory(**config).data_science
         self.ds_composite_client = (
             oci.data_science.DataScienceClientCompositeOperations(self.ds_client)
         )
@@ -267,6 +248,7 @@ class OCIClientManager:
         Returns:
             str: model ocid
         """
+        properties_dict = {}
         if properties:
             properties_dict = (
                 properties
@@ -307,10 +289,18 @@ class OCIClientManager:
         Returns:
             str: model ocid
         """
+        project_id = properties.get("project_id", PROJECT_OCID)
+        compartment_id = properties.get("compartment_id", COMPARTMENT_OCID)
+
+        if not project_id or not compartment_id:
+            raise ValueError(
+                "Both `project_id` and `compartment_id` need to be provided. You can pass them through kwargs or `ModelDeploymentProperties` object."
+            )
+
         create_model_details = CreateModelDetails(
             display_name=properties.get("display_name", None),
-            project_id=properties["project_id"],
-            compartment_id=properties["compartment_id"],
+            project_id=project_id,
+            compartment_id=compartment_id,
         )
 
         model = self.ds_client.create_model(create_model_details).data
