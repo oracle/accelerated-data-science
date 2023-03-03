@@ -7,7 +7,6 @@ Subpackages
 .. toctree::
    :maxdepth: 4
 
-   ads.automl
    ads.bds
    ads.catalog
    ads.common

@@ -58,7 +58,6 @@ The ADS SDK automatically captures some of the metadata for you.  It captures pr
 A model can be saved to the model catalog using the generic approach or the ``ADSModel`` approach:
 
 *  The generic approach creates a generic model artifact using ``.prepare_generic_model()``, and saves it to the model catalog.
-*  The ``ADSModel`` approach prepares an artifact from the ``ADSModel`` object, and saves it to the model catalog using the ``.prepare()`` method.  ``ADSModel`` objects are typically created from the AutoML engine.  Data scientists can also convert models trained with other machine learning libraries into an ``ADSModel`` object (using the ``.from_estimator()`` method).
 
 **Notes:**
 

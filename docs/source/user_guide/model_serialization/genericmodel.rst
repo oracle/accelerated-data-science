@@ -8,7 +8,7 @@ Overview
 
 The ``GenericModel`` class in ADS provides an efficient way to serialize almost any model class. This section demonstrates how to use the ``GenericModel`` class to prepare model artifacts, verify models, save models to the model catalog, deploy models, and perform predictions on model deployment endpoints.
 
-The ``GenericModel`` class works with any unsupported model framework that has a ``.predict()`` method. For the most common model classes such as scikit-learn, XGBoost, LightGBM, TensorFlow, and PyTorch, and AutoML, we recommend that you use the ADS provided, framework-specific serializations models. For example, for a scikit-learn model, use SKLearnmodel. For other models, use the ``GenericModel`` class.
+The ``GenericModel`` class works with any unsupported model framework that has a ``.predict()`` method. For the most common model classes such as scikit-learn, XGBoost, LightGBM, TensorFlow, and PyTorch, we recommend that you use the ADS provided, framework-specific serializations models. For example, for a scikit-learn model, use SKLearnmodel. For other models, use the ``GenericModel`` class.
 
 .. include:: _template/overview.rst
 
@@ -190,83 +190,46 @@ By default, the ``GenericModel`` serializes to a pickle file. The following exam
     catboost_model.delete_deployment(wait_for_completion=True)
     catboost_model.delete() # delete the model
 
-You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.prepare()``, ``.save()`` and ``.deploy()`` seperately.
-
-.. code-block:: python3
-
-    import tempfile
-    from ads.catalog.model import ModelCatalog
-    from ads.model.generic_model import GenericModel
-
-    class Toy:
-        def predict(self, x):
-            return x ** 2
-    estimator = Toy()
-
-    model = GenericModel(estimator=estimator)
-    model.summary_status()
-    # If you are running the code inside a notebook session and using a service pack, `inference_conda_env` can be omitted.
-    model.prepare_save_deploy(inference_conda_env="dataexpl_p37_cpu_v3")
-    model.verify(2)
-    model.predict(2)
-    model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model.model_id)
-
 
 Example -- Save Your Own Model
 ==============================
 
 By default, the ``serialize`` in ``GenericModel`` class is True, and it will serialize the model using cloudpickle. However, you can set ``serialize=False`` to disable it. And serialize the model on your own. You just need to copy the serialized model into the ``.artifact_dir``. This example shows step by step how you can do that.
-The example is illustrated using an AutoMLx model.
+The example is illustrated using a Sklearn model.
 
 .. code-block:: python3
 
-    import automl
-    import ads
-    from automl import init
-    from sklearn.datasets import fetch_openml
-    from sklearn.model_selection import train_test_split
+    import tempfile
+    from ads import set_auth
     from ads.model import GenericModel
+    from sklearn.datasets import load_iris
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.model_selection import train_test_split
 
-    dataset = fetch_openml(name='adult', as_frame=True)
-    df, y = dataset.data, dataset.target
+    set_auth(auth="resource_principal")
 
-    # Several of the columns are incorrectly labeled as category type in the original dataset
-    numeric_columns = ['age', 'capitalgain', 'capitalloss', 'hoursperweek']
-    for col in df.columns:
-        if col in numeric_columns:
-            df[col] = df[col].astype(int)
-        
+    # Load dataset and Prepare train and test split
+    iris = load_iris()
+    X, y = iris.data, iris.target
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25)
 
-    X_train, X_test, y_train, y_test = train_test_split(df,
-                                                        y.map({'>50K': 1, '<=50K': 0}).astype(int),
-                                                        train_size=0.7,
-                                                        random_state=0)
-
-    X_train.shape, X_test.shape
-
-    # create a AutoMLx model
-    init(engine='local')
-
-    est = automl.Pipeline(task='classification')
-    est.fit(X_train, y_train)
-
-    # Authentication
-    ads.set_auth(auth="resource_principal")
+    # Train a LogisticRegression model
+    sklearn_estimator = LogisticRegression()
+    sklearn_estimator.fit(X_train, y_train)
 
     # Serialize your model. You can choose your own way to serialize your model.
     import cloudpickle
     with open("./model.pkl", "wb") as f:
-        cloudpickle.dump(est, f)
+        cloudpickle.dump(sklearn_estimator, f)
 
-    model = GenericModel(est, artifact_dir = "model_artifact_folder", serialize=False)
-    model.prepare(inference_conda_env="automlx_p38_cpu_v1",force_overwrite=True, model_file_name="model.pkl", X_sample=X_test)
+    model = GenericModel(sklearn_estimator, artifact_dir = "model_artifact_folder", serialize=False)
+    model.prepare(inference_conda_env="generalml_p38_cpu_v1",force_overwrite=True, model_file_name="model.pkl", X_sample=X_test)
 
-Now copy the model.pkl file and paste into the ``model_artifact_folder`` folder. And open the score.py in the ``model_artifact_folder`` folder and add implement the ``load_model`` function. You can also edit ``pre_inference`` and ``post_inference`` function. Below is an example implementation of the score.py.
+Now copy the model.pkl file and paste into the ``model_artifact_folder`` folder. And open the score.py in the ``model_artifact_folder`` folder to add implementation of the ``load_model`` function. You can also add your preprocessing steps in ``pre_inference`` function and postprocessing steps in ``post_inference`` function. Below is an example implementation of the score.py.
 Replace your score.py with the code below.
 
 .. code-block:: python3
-    :emphasize-lines: 28, 29, 30, 31, 122
+    :emphasize-lines: 28, 29, 30, 31, 123
 
     # score.py 1.0 generated by ADS 2.8.2 on 20230301_065458
     import os
@@ -414,16 +377,38 @@ Replace your score.py with the code below.
         )
         return {'prediction': yhat}
 
-Save the score.py and now call verify to check if it works locally.
+Save the score.py and now call ``.verify()`` to check if it works locally.
 
 .. code-block:: python3
 
-    model.verify(X_test.iloc[:2], auto_serialize_data=True)
+    model.verify(X_test[:2], auto_serialize_data=True)
 
 After verify run successfully, you can save the model to model catalog, deploy and call predict to invoke the endpoint.
 
 .. code-block:: python3
 
-    model_id = model.save(display_name='Demo AutoMLModel model')
-    deploy = model.deploy(display_name='Demo AutoMLModel deployment')
-    model.predict(X_test.iloc[:2].to_json())
+    model_id = model.save(display_name='Demo Sklearn model')
+    deploy = model.deploy(display_name='Demo Sklearn deployment')
+    model.predict(X_test[:2].tolist())
+
+You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.prepare()``, ``.save()`` and ``.deploy()`` seperately.
+
+.. code-block:: python3
+
+    import tempfile
+    from ads.catalog.model import ModelCatalog
+    from ads.model.generic_model import GenericModel
+
+    class Toy:
+        def predict(self, x):
+            return x ** 2
+    estimator = Toy()
+
+    model = GenericModel(estimator=estimator)
+    model.summary_status()
+    # If you are running the code inside a notebook session and using a service pack, `inference_conda_env` can be omitted.
+    model.prepare_save_deploy(inference_conda_env="dataexpl_p37_cpu_v3")
+    model.verify(2)
+    model.predict(2)
+    model.delete_deployment(wait_for_completion=True)
+    model.delete()
