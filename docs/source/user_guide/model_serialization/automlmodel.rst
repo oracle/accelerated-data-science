@@ -9,7 +9,7 @@ The ``ads.model.framework.automl_model.AutoMLModel`` class is deprecated. See th
 
 To deploy an AutoMlx model, use `GenericModel <../../../ads.model.html#ads.model.generic_model.GenericModel>`__ class.
 
-The following example take your trained ``AutoML`` model using ``GenericModel`` and deploy it into production with a few lines of code.
+The following example takes your trained ``AutoML`` model using ``GenericModel`` and deploys it into production with a few lines of code.
 
 
 Example
@@ -245,7 +245,7 @@ Verify score.py changes by running inference locally
 
     automl_model.verify(X_test.iloc[:2])
 
-Save model and Deploy the model. After it is successfully deployed, invoke the endpoint by calling .predict() function.
+Save model, and Deploy the model. After it is successfully deployed, invoke the endpoint by calling .predict() function.
  .. code-block:: python3
 
     model_id = automl_model.save(display_name='Demo AutoMLModel model')

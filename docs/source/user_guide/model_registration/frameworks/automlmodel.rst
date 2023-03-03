@@ -8,7 +8,7 @@ AutoMLModel
 Working with AutoML has moved from within ADS to working directly with the automlx library.
 To deploy an AutoMlx model, use `GenericModel <../../../ads.model.html#ads.model.generic_model.GenericModel>`__ class.
 
-The following example take your trained ``AutoML`` model using ``GenericModel`` and deploy it into production.
+The following example takes your trained ``AutoML`` model using ``GenericModel`` and deploys it into production.
 
 
 Example
@@ -244,7 +244,7 @@ Verify score.py changes by running inference locally.
 
     automl_model.verify(X_test.iloc[:2], auto_serialize_data=True)
 
-Save model and Deploy the model. After it is successfully deployed, invoke the endpoint by calling .predict() function.
+Save the model, and Deploy the model. After it is successfully deployed, invoke the endpoint by calling .predict() function.
 
 
  .. code-block:: python3
