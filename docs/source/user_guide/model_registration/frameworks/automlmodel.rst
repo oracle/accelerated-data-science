@@ -3,55 +3,12 @@
 AutoMLModel
 ***********
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.automl_model.AutoMLModel>`__
+.. note::
 
-Overview
-========
+Working with AutoML has moved from within ADS to working directly with the automlx library.
+To deploy an AutoMlx model, use `GenericModel <../../../ads.model.html#ads.model.generic_model.GenericModel>`__ class.
 
-The ``ads.model.framework.automl_model.AutoMLModel`` class in ADS is designed to rapidly get your AutoML model into production. The ``.prepare()`` method creates the model artifacts needed to deploy the model without you having to configure it or write code. The ``.prepare()`` method serializes the model and generates a ``runtime.yaml`` and a ``score.py`` file that you can later customize.
-
-.. include:: ../_template/overview.rst
-
-The following steps take your trained ``AutoML`` model and deploy it into production with a few lines of code.
-
-
-**Creating an Oracle Labs AutoML Model**
-
-Create an ``OracleAutoMLProvider`` object and use it to define how an Oracle Labs ``AutoML`` model is trained.
-
-.. code-block:: python3
-
-    import logging
-    from ads.automl.driver import AutoML
-    from ads.automl.provider import OracleAutoMLProvider
-    from ads.dataset.dataset_browser import DatasetBrowser
-
-    ds = DatasetBrowser.sklearn().open("wine").set_target("target")
-    train, test = ds.train_test_split(test_size=0.1, random_state = 42)
-
-    ml_engine = OracleAutoMLProvider(n_jobs=-1, loglevel=logging.ERROR)
-    oracle_automl = AutoML(train, provider=ml_engine)
-    model, baseline = oracle_automl.train(
-                          model_list=['LogisticRegression', 'DecisionTreeClassifier'],
-                          random_state = 42, time_budget = 500)
-
-
-Initialize
-==========
-
-Instantiate an ``AutoMLModel()`` object with an ``AutoML`` model. Each instance accepts the following parameters:
-
-* ``artifact_dir: str``: Artifact directory to store the files needed for deployment.
-* ``auth: (Dict, optional)``: Defaults to ``None``. The default authentication is set using the ``ads.set_auth`` API. To override the default, use ``ads.common.auth.api_keys()`` or ``ads.common.auth.resource_principal()`` and create the appropriate authentication signer and the ``**kwargs`` required to instantiate the ``IdentityClient`` object.
-* ``estimator: (Callable)``: Trained AutoML model.
-* ``properties: (ModelProperties, optional)``: Defaults to ``None``. The ``ModelProperties`` object required to save and deploy a  model.
-
-.. include:: ../_template/initialize.rst
-
-Summary Status
-==============
-
-.. include:: ../_template/summary_status.rst
+The following example takes your trained ``AutoML`` model using ``GenericModel`` and deploys it into production.
 
 
 Example
@@ -59,39 +16,239 @@ Example
 
 .. code-block:: python3
 
-  import logging
-  import tempfile
+    import pandas as pd
+    import numpy as np
+    from sklearn.datasets import fetch_openml
+    from sklearn.model_selection import train_test_split
 
-  from ads.automl.driver import AutoML
-  from ads.automl.provider import OracleAutoMLProvider
-  from ads.common.model_metadata import UseCaseType
-  from ads.dataset.dataset_browser import DatasetBrowser
-  from ads.model.framework.automl_model import AutoMLModel
+    import ads
+    import automl
+    from automl import init
+    from ads.model import GenericModel
+    from ads.common.model_metadata import UseCaseType
 
-  ds = DatasetBrowser.sklearn().open("wine").set_target("target")
-  train, test = ds.train_test_split(test_size=0.1, random_state = 42)
+    dataset = fetch_openml(name='adult', as_frame=True)
+    df, y = dataset.data, dataset.target
 
-  ml_engine = OracleAutoMLProvider(n_jobs=-1, loglevel=logging.ERROR)
-  oracle_automl = AutoML(train, provider=ml_engine)
-  model, baseline = oracle_automl.train(
-              model_list=['LogisticRegression', 'DecisionTreeClassifier'],
-              random_state = 42,
-              time_budget = 500
-      )
+    # Several of the columns are incorrectly labeled as category type in the original dataset
+    numeric_columns = ['age', 'capitalgain', 'capitalloss', 'hoursperweek']
+    for col in df.columns:
+        if col in numeric_columns:
+            df[col] = df[col].astype(int)
+        
+    X_train, X_test, y_train, y_test = train_test_split(df,
+                                                        y.map({'>50K': 1, '<=50K': 0}).astype(int),
+                                                        train_size=0.7,
+                                                        random_state=0)
 
-  artifact_dir = tempfile.mkdtemp()
-  automl_model = AutoMLModel(estimator=model, artifact_dir=artifact_dir)
-  automl_model.prepare(
-          inference_conda_env="generalml_p38_cpu_v1",
-          training_conda_env="generalml_p38_cpu_v1",
-          use_case_type=UseCaseType.BINARY_CLASSIFICATION,
-          X_sample=test.X,
-          force_overwrite=True,
-          training_id=None
-      )
-  automl_model.verify(test.X.iloc[:10])
-  model_id = automl_model.save(display_name='Demo AutoMLModel model')
-  deploy = automl_model.deploy(display_name='Demo AutoMLModel deployment')
-  automl_model.predict(test.X.iloc[:10])
-  automl_model.delete_deployment(wait_for_completion=True)
+    init(engine='local')
+    est = automl.Pipeline(task='classification')
+    est.fit(X_train, y_train)
 
+    ads.set_auth("resource_principal")
+    automl_model = GenericModel(estimator=est, artifact_dir="automl_model_artifact")
+    automl_model.prepare(inference_conda_env="automlx_p38_cpu_v1",
+                         training_conda_env="automlx_p38_cpu_v1",
+                         use_case_type=UseCaseType.BINARY_CLASSIFICATION,
+                         X_sample=X_test,
+                         force_overwrite=True)
+
+
+Open ``automl_model_artifact/score.py`` and edit the code to instantiate the model class. The edits are highlighted -
+
+.. code-block:: python3
+    :emphasize-lines: 21,22,23,24,25,26,27,28,29,30,101,102,103,104,105,106,107,108,109,110,171
+
+    # score.py 1.0 generated by ADS 2.8.1 on 20230226_214703
+    import json
+    import os
+    import sys
+    import importlib
+    from cloudpickle import cloudpickle
+    from functools import lru_cache
+    from io import StringIO
+    import logging
+    import sys
+    import automl
+    import pandas as pd
+    import numpy as np
+
+    model_name = 'model.pkl'
+
+    """
+    Inference script. This script is used for prediction by scoring server when schema is known.
+    """
+
+    def init_automl_logger():
+        logger = logging.getLogger("automl")
+        handler = logging.StreamHandler(sys.stdout)
+        handler.setLevel(logging.ERROR)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
+        handler.setFormatter(formatter)
+        logger.addHandler(handler)
+        automl.init(engine="local", engine_opts={"n_jobs": 1}, logger=logger)
+
+    @lru_cache(maxsize=10)
+    def load_model(model_file_name=model_name):
+        """
+        Loads model from the serialized format
+
+        Returns
+        -------
+        model:  a model instance on which predict API can be invoked
+        """
+        init_automl_logger()
+        model_dir = os.path.dirname(os.path.realpath(__file__))
+        if model_dir not in sys.path:
+            sys.path.insert(0, model_dir)
+        contents = os.listdir(model_dir)
+        if model_file_name in contents:
+            print(f'Start loading {model_file_name} from model directory {model_dir} ...')
+            with open(os.path.join(os.path.dirname(os.path.realpath(__file__)), model_file_name), "rb") as file:
+                loaded_model = cloudpickle.load(file)
+
+            print("Model is successfully loaded.")
+            return loaded_model
+        else:
+            raise Exception(f'{model_file_name} is not found in model directory {model_dir}')
+
+    @lru_cache(maxsize=1)
+    def fetch_data_type_from_schema(input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):
+        """
+        Returns data type information fetch from input_schema.json.
+
+        Parameters
+        ----------
+        input_schema_path: path of input schema.
+
+        Returns
+        -------
+        data_type: data type fetch from input_schema.json.
+
+        """
+        data_type = {}
+        if os.path.exists(input_schema_path):
+            schema = json.load(open(input_schema_path))
+            for col in schema['schema']:
+                data_type[col['name']] = col['dtype']
+        else:
+            print("input_schema has to be passed in in order to recover the same data type. pass `X_sample` in `ads.model.framework.automl_model.AutoMLModel.prepare` function to generate the input_schema. Otherwise, the data type might be changed after serialization/deserialization.")
+        return data_type
+
+    def deserialize(data, input_schema_path, task=None):
+        """
+        Deserialize json serialization data to data in original type when sent to predict.
+
+        Parameters
+        ----------
+        data: serialized input data.
+        input_schema_path: path of input schema.
+        task: Machine learning task, supported: classification, regression, anomaly_detection, forecasting. Defaults to None.
+
+        Returns
+        -------
+        data: deserialized input data.
+
+        """
+
+        if isinstance(data, bytes):
+            return pd.read_json(StringIO(data.decode("utf-8")))
+
+        data_type = data.get('data_type', '') if isinstance(data, dict) else ''
+        json_data = data.get('data', data) if isinstance(data, dict) else data
+
+        if task and task == "forecasting":
+            try:
+                data_type = data_type.split("'")[1]
+                module, spec = ".".join(data_type.split(".")[:-1]), data_type.split(".")[-1]
+                lib = importlib.import_module(name=module)
+                func = getattr(lib, spec)
+                return pd.DataFrame(index=func(json_data))
+            except:
+                logging.warning("Cannot autodetect the type of the model input data. By default, convert input data to pd.DatetimeIndex and feed the model with an empty pandas DataFrame with index as input data. If assumption is not correct, modify the score.py and check with .verify() before saving model with .save().")
+                return pd.DataFrame(index=pd.DatetimeIndex(json_data))
+        if "pandas.core.series.Series" in data_type:
+            return pd.Series(json_data)
+        if "pandas.core.frame.DataFrame" in data_type or isinstance(json_data, str):
+            return pd.read_json(json_data, dtype=fetch_data_type_from_schema(input_schema_path))
+        if isinstance(json_data, dict):
+            return pd.DataFrame.from_dict(json_data)
+
+        return json_data
+
+    def pre_inference(data, input_schema_path, task=None):
+        """
+        Preprocess data
+
+        Parameters
+        ----------
+        data: Data format as expected by the predict API of the core estimator.
+        input_schema_path: path of input schema.
+        task: Machine learning task, supported: classification, regression, anomaly_detection, forecasting. Defaults to None.
+
+        Returns
+        -------
+        data: Data format after any processing.
+
+        """
+        data = deserialize(data, input_schema_path, task)
+        return data
+
+    def post_inference(yhat):
+        """
+        Post-process the model results
+
+        Parameters
+        ----------
+        yhat: Data format after calling model.predict.
+
+        Returns
+        -------
+        yhat: Data format after any processing.
+
+        """
+        if isinstance(yhat, pd.core.frame.DataFrame):
+            yhat = yhat.values
+        return yhat.tolist()
+
+    def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):
+        """
+        Returns prediction given the model and data to predict
+
+        Parameters
+        ----------
+        model: Model instance returned by load_model API
+        data: Data format as expected by the predict API of the core estimator. For eg. in case of sckit models it could be numpy array/List of list/Pandas DataFrame
+        input_schema_path: path of input schema.
+
+        Returns
+        -------
+        predictions: Output from scoring server
+            Format: {'prediction': output from model.predict method}
+
+        """
+        task = model.task if hasattr(model, "task") else None
+        features = pre_inference(data, input_schema_path, task)
+        yhat = post_inference(
+            model.predict(features)
+        )
+        return {'prediction': yhat}
+
+
+Verify score.py changes by running inference locally.
+
+
+ .. code-block:: python3
+
+    automl_model.verify(X_test.iloc[:2], auto_serialize_data=True)
+
+Save the model, and Deploy the model. After it is successfully deployed, invoke the endpoint by calling .predict() function.
+
+
+ .. code-block:: python3
+
+    model_id = automl_model.save(display_name='Demo AutoMLModel model')
+    deploy = automl_model.deploy(display_name='Demo AutoMLModel deployment')
+    automl_model.predict(X_test.iloc[:2], auto_serialize_data=True)

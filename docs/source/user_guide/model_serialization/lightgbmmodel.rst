@@ -283,5 +283,5 @@ Example
     lightgbm_model.deploy()
     lightgbm_model.predict(X_test_transformed[:10])['prediction']
     lightgbm_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    lightgbm_model.delete()
 

@@ -285,5 +285,4 @@ Example
     xgboost_model.deploy()
     xgboost_model.predict(X_test_transformed[:10])['prediction']
     xgboost_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
-
+    xgboost_model.delete()
