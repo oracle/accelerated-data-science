@@ -11,7 +11,7 @@ Overview
 
 The ``ads.model.generic_model.GenericModel`` class in ADS provides an efficient way to serialize almost any model class. This section demonstrates how to use the ``GenericModel`` class to prepare model artifacts, verify models, save models to the model catalog, deploy models, and perform predictions on model deployment endpoints.
 
-The ``GenericModel`` class works with any unsupported model framework that has a ``.predict()`` method. For the most common model classes such as scikit-learn, XGBoost, LightGBM, TensorFlow, and PyTorch, and AutoML, we recommend that you use the ADS provided, framework-specific serializations models. For example, for a scikit-learn model, use SKLearnmodel. For other models, use the ``GenericModel`` class.
+The ``GenericModel`` class works with any unsupported model framework that has a ``.predict()`` method. For the most common model classes such as scikit-learn, XGBoost, LightGBM, TensorFlow, and PyTorch, we recommend that you use the ADS provided, framework-specific serializations models. For example, for a scikit-learn model, use SKLearnmodel. For other models, use the ``GenericModel`` class.
 
 .. include:: ../_template/overview.rst
 
@@ -177,7 +177,7 @@ Example -- Save Your Own Model
 ==============================
 
 By default, the ``serialize`` in ``GenericModel`` class is True, and it will serialize the model using cloudpickle. However, you can set ``serialize=False`` to disable it. And serialize the model on your own. You just need to copy the serialized model into the ``.artifact_dir``. This example shows step by step how you can do that.
-The example is illustrated using an AutoMLx model.
+The example is illustrated using a Sklearn model.
 
 .. code-block:: python3
 
@@ -369,8 +369,8 @@ After verify run successfully, you can save the model to model catalog, deploy a
 
 .. code-block:: python3
 
-    model_id = model.save(display_name='Demo AutoMLModel model')
-    deploy = model.deploy(display_name='Demo AutoMLModel deployment')
+    model_id = model.save(display_name='Demo Sklearn model')
+    deploy = model.deploy(display_name='Demo Sklearn deployment')
     model.predict(X_test[:2].tolist())
 
 You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.prepare()``, ``.save()`` and ``.deploy()`` seperately.
@@ -393,4 +393,4 @@ You can also use the shortcut ``.prepare_save_deploy()`` instead of calling ``.p
     model.verify(2)
     model.predict(2)
     model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model.model_id)
+    model.delete()

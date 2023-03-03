@@ -3,7 +3,7 @@ Train Models
 ============
 
 In this section you will learn about model training on the Data Science cloud service using a variety of popular frameworks. This section
-covers the popular ``sklearn``  framework, along with gradient boosted tree estimators like LightGBM and XGBoost, Oracle AutoML  and
+covers the popular ``sklearn``  framework, along with gradient boosted tree estimators like LightGBM and XGBoost, and
 deep learning packages likes TensorFlow and PyTorch.
 
 The section covers how to serialize models and make use of the OCI Model Catalog to store model artifacts and meta data all using
@@ -21,7 +21,7 @@ TensorBoard provides the visualization and the tooling that is needed to watch a
   distributed_training/overview
   tensorboard/tensorboard
   model_evaluation/index
-  model_explainability/index
+  automl/index
 
 
  
