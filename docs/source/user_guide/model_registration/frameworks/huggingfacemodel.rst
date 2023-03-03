@@ -42,7 +42,7 @@ Load a `ImageSegmentationPipeline <https://huggingface.co/docs/transformers/main
 Prepare a Custom Conda Pack
 ===========================
 
-You can start with the PyTorch conda pack with slug ``pytorch110_p38_cpu_v1``. 
+To do a image segmentation model, you can start with the PyTorch conda pack with slug ``pytorch110_p38_cpu_v1``. 
 
 #. Run ``pip install timm`` since image segmentation model requires ``timm``. 
 #. Then use ``odsc conda init -b your_bucket_name -n bucket_namespace`` to config where to store the published conda pack if you have not done this yet. 
