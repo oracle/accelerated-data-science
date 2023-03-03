@@ -6,11 +6,12 @@ ads.jobs package
 
    ads.jobs
 
+
 Subpackages
 -----------
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 3
 
    ads.jobs.builders
    ads.jobs.schema
