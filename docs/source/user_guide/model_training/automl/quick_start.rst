@@ -1,11 +1,9 @@
-Prerequisites
-=============
-
-You need to check if AutoMLx library is installed in your environment. For more information on the conda environments that contain AutoMLx, check `this page <https://docs.oracle.com/en-us/iaas/data-science/using/conda-automlx-fam.htm>`__.
-
-
 Quick Start
 ===========
+
+.. admonition:: Prerequisite
+
+    You need to check if AutoMLx library is installed in your environment. For more information on the conda environments that contain AutoMLx, check `this page <https://docs.oracle.com/en-us/iaas/data-science/using/conda-automlx-fam.htm>`__.
 
 This section provides a quick introduction to build a classifier using the Oracle AutoMLx tool for Iris dataset.
 The dataset is a multi-class classification dataset, and more details about the dataset
