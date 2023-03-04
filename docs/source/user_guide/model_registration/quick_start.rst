@@ -278,6 +278,68 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_id = tf_model.save(display_name="TensorFlow Model")
 
 
+HuggingFace Pipelines
+---------------------
+
+.. code-block:: python3
+
+    from transformers import pipeline
+    from ads.model import HuggingFacePipelineModel
+
+    import tempfile
+    import PIL.Image
+    from ads.common.auth import default_signer
+    import requests
+    import cloudpickle
+
+    ## download the image
+    image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
+    image = PIL.Image.open(requests.get(image_url, stream=True).raw)
+
+    ## download the pretrained model
+    classifier = pipeline(model="openai/clip-vit-large-patch14")
+    classifier(
+            images=image,
+            candidate_labels=["animals", "humans", "landscape"],
+        )
+
+    ## Initiate a HuggingFacePipelineModel instance
+    zero_shot_image_classification_model = HuggingFacePipelineModel(classifier, artifact_dir=tempfile.mkdtemp())
+
+    # Autogenerate score.py, serialized model, runtime.yaml
+    conda_pack_path = "oci://bucket@namespace/path/to/conda/pack"
+    python_version = "3.x" # Remember to update 3.x with your actual python version, e.g. 3.8
+    zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
+
+    ## Convert payload to bytes
+    data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
+    body = cloudpickle.dumps(data) # convert image to bytes
+
+    # Verify generated artifacts
+    zero_shot_image_classification_model.verify(data=data)
+    zero_shot_image_classification_model.verify(data=body)
+
+    # Register HuggingFace Pipeline model
+    zero_shot_image_classification_model.save()
+
+    ## Deploy
+    log_group_id = "<log_group_id>"
+    log_id = "<log_id>"
+    zero_shot_image_classification_model.deploy(deployment_bandwidth_mbps=100,
+                    wait_for_completion=False,
+                    deployment_log_group_id = log_group_id,
+                    deployment_access_log_id = log_id,
+                    deployment_predict_log_id = log_id)
+    zero_shot_image_classification_model.predict(data)
+    zero_shot_image_classification_model.predict(body)
+
+    ### Invoke the model by sending bytes
+    auth = default_signer()['signer']
+    endpoint = zero_shot_image_classification_model.model_deployment.url + "/predict"
+    headers = {"Content-Type": "application/octet-stream"}
+    requests.post(endpoint, data=body, auth=auth, headers=headers).json()
+
+
 Other Frameworks
 ----------------
 

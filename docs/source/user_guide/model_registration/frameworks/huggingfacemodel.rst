@@ -219,7 +219,7 @@ Example
     zero_shot_image_classification_model = HuggingFacePipelineModel(classifier, artifact_dir=tempfile.mkdtemp())
 
     # Autogenerate score.py, serialized model, runtime.yaml
-    conda_pack_path = "oci://bucket@namespace/path/to/conda/pack"
+    conda_pack_path = "oci://bucket@namespace/path/to/conda/pack" # your published conda pack
     python_version = "3.x" # Remember to update 3.x with your actual python version, e.g. 3.8
     zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
 
