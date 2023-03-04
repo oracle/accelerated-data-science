@@ -1,3 +1,9 @@
+Prerequisites
+=============
+
+You need to check if AutoMLx library is installed in your environment. For more information on the conda environments that contain AutoMLx, check `this page <https://docs.oracle.com/en-us/iaas/data-science/using/conda-automlx-fam.htm>`__.
+
+
 Quick Start
 ===========
 
@@ -5,6 +11,8 @@ This section provides a quick introduction to build a classifier using the Oracl
 The dataset is a multi-class classification dataset, and more details about the dataset
 can be found at `Iris dataset <https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html>`_. We demonstrate
 the preliminary steps required to train a model with the Oracle AutoMLx tool. We then explain the tuned model.
+
+
 
 Load dataset
 ------------

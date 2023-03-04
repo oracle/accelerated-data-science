@@ -92,8 +92,9 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     verify(data, ...)
         Tests if deployment works in local environment.
 
-    Examples - Image Classification
-    -------------------------------
+    Examples
+    --------
+    >>> # Image Classification
     >>> from transformers import pipeline
     >>> import tempfile
     >>> import PIL.Image
@@ -133,8 +134,9 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> headers = {"Content-Type": "application/octet-stream"}
     >>> requests.post(endpoint, data=image_bytes, auth=auth, headers=headers).json()
 
-    Examples - Image Segmentation
-    -----------------------------
+    Examples
+    --------
+    >>> # Image Segmentation
     >>> from transformers import pipeline
     >>> import tempfile
     >>> import PIL.Image
@@ -177,8 +179,9 @@ class HuggingFacePipelineModel(FrameworkSpecificModel):
     >>> headers = {"Content-Type": "application/octet-stream"}
     >>> requests.post(endpoint, data=image_bytes, auth=auth, headers=headers).json()
 
-    Examples - Zero Shot Image Classification
-    -----------------------------------------
+    Examples
+    --------
+    >>> # Zero Shot Image Classification
     >>> from transformers import pipeline
     >>> import tempfile
     >>> import PIL.Image
