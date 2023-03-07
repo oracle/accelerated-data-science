@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -14,14 +13,12 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
-from ads.common.data_serializer import InputDataSerializer
 from ads.model.extractor.xgboost_extractor import XgboostExtractor
-from ads.model.generic_model import (
-    FrameworkSpecificModel,
-    DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME,
-    DEFAULT_JSON_FORMAT_MODEL_FILE_NAME,
-)
+from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
+from ads.model.serde.model_serializer import XgboostModelSerializerType
+from ads.model.common.utils import DEPRECATE_AS_ONNX_WARNING
+from ads.model.serde.common import SERDE
 
 
 class XGBoostModel(FrameworkSpecificModel):
@@ -37,8 +34,6 @@ class XGBoostModel(FrameworkSpecificModel):
         Default authentication is set using the `ads.set_auth` API. To override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create
         an authentication signer to instantiate an IdentityClient object.
-    ds_client: DataScienceClient
-        The data science client used by model deployment.
     estimator: Callable
         A trained xgboost estimator/model using Xgboost.
     framework: str
@@ -61,6 +56,7 @@ class XGBoostModel(FrameworkSpecificModel):
         The model ID.
     properties: ModelProperties
         ModelProperties object required to save and deploy model.
+        For more details, check https://accelerated-data-science.readthedocs.io/en/latest/ads.model.html#module-ads.model.model_properties.
     runtime_info: RuntimeInfo
         A RuntimeInfo instance.
     schema_input: Schema
@@ -123,6 +119,7 @@ class XGBoostModel(FrameworkSpecificModel):
     """
 
     _PREFIX = "xgboost"
+    model_save_serializer_type = XgboostModelSerializerType
 
     @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
     def __init__(
@@ -131,6 +128,8 @@ class XGBoostModel(FrameworkSpecificModel):
         artifact_dir: str,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
+        model_save_serializer: Optional[SERDE] = model_save_serializer_type.XGBOOST,
+        model_input_serializer: Optional[SERDE] = None,
         **kwargs,
     ):
         """
@@ -149,6 +148,10 @@ class XGBoostModel(FrameworkSpecificModel):
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
+        model_save_serializer: (SERDE or str, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model.
+        model_input_serializer: (SERDE, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize data.
 
         Returns
         -------
@@ -191,6 +194,8 @@ class XGBoostModel(FrameworkSpecificModel):
             artifact_dir=artifact_dir,
             properties=properties,
             auth=auth,
+            model_save_serializer=model_save_serializer,
+            model_input_serializer=model_input_serializer,
             **kwargs,
         )
         self._extractor = XgboostExtractor(estimator)
@@ -198,48 +203,6 @@ class XGBoostModel(FrameworkSpecificModel):
         self.algorithm = self._extractor.algorithm
         self.version = self._extractor.version
         self.hyperparameter = self._extractor.hyperparameter
-
-    @staticmethod
-    def _handle_model_file_name(as_onnx: bool, model_file_name: str):
-        """
-        Process file name for saving model.
-        For ONNX model file name must be ending with ".onnx".
-        For JSON model file name must be ending with ".json".
-        If not specified, use "model.onnx" for ONNX model and "model.json" for JSON model.
-
-        Parameters
-        ----------
-        as_onnx: bool
-            If set as True, convert into ONNX model.
-        model_file_name: str
-            File name for saving model.
-
-        Returns
-        -------
-        str
-            Processed file name.
-
-        Raises
-        ------
-        ValueError: If the input model_file_name does not corresponding to serialize format.
-        """
-        if not model_file_name:
-            return (
-                DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME
-                if as_onnx
-                else DEFAULT_JSON_FORMAT_MODEL_FILE_NAME
-            )
-        if as_onnx:
-            if model_file_name and not model_file_name.endswith(".onnx"):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.onnx` for onnx format."
-                )
-        else:
-            if model_file_name and not model_file_name.endswith(".json"):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.json` for JSON format."
-                )
-        return model_file_name
 
     @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
     def serialize_model(
@@ -282,185 +245,14 @@ class XGBoostModel(FrameworkSpecificModel):
         None
             Nothing.
         """
-        self.model_file_name = self._handle_model_file_name(
-            as_onnx, self.model_file_name
+        if as_onnx:
+            logger.warning(DEPRECATE_AS_ONNX_WARNING)
+            self.set_model_save_serializer(self.model_save_serializer_type.ONNX)
+
+        super().serialize_model(
+            as_onnx=as_onnx,
+            initial_types=initial_types,
+            force_overwrite=force_overwrite,
+            X_sample=X_sample,
+            **kwargs,
         )
-        model_path = os.path.join(self.artifact_dir, self.model_file_name)
-        if os.path.exists(model_path) and not force_overwrite:
-            raise ValueError(
-                "Model file already exists and will not be overwritten. "
-                "Set `force_overwrite` to True if you wish to overwrite."
-            )
-        else:
-            if not os.path.exists(self.artifact_dir):
-                os.makedirs(self.artifact_dir)
-            if as_onnx:
-                onx = self.to_onnx(
-                    initial_types=initial_types, X_sample=X_sample, **kwargs
-                )
-                with open(model_path, "wb") as f:
-                    f.write(onx.SerializeToString())
-            else:
-                self.estimator.save_model(model_path)
-
-    @runtime_dependency(module="onnx", install_from=OptionalDependency.ONNX)
-    @runtime_dependency(module="xgboost", install_from=OptionalDependency.BOOSTED)
-    @runtime_dependency(
-        module="skl2onnx",
-        object="convert_sklearn",
-        install_from=OptionalDependency.ONNX,
-    )
-    @runtime_dependency(
-        module="skl2onnx",
-        object="update_registered_converter",
-        install_from=OptionalDependency.ONNX,
-    )
-    @runtime_dependency(
-        module="skl2onnx.common.data_types",
-        object="FloatTensorType",
-        install_from=OptionalDependency.ONNX,
-    )
-    @runtime_dependency(
-        module="skl2onnx.common.shape_calculator",
-        object="calculate_linear_classifier_output_shapes",
-        install_from=OptionalDependency.ONNX,
-    )
-    @runtime_dependency(
-        module="skl2onnx.common.shape_calculator",
-        object="calculate_linear_regressor_output_shapes",
-        install_from=OptionalDependency.ONNX,
-    )
-    @runtime_dependency(module="onnxmltools", install_from=OptionalDependency.ONNX)
-    @runtime_dependency(
-        module="onnxmltools.convert.xgboost.operator_converters.XGBoost",
-        object="convert_xgboost",
-        install_from=OptionalDependency.ONNX,
-    )
-    def to_onnx(
-        self,
-        initial_types: List[Tuple] = None,
-        X_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
-        **kwargs,
-    ):
-        """
-        Produces an equivalent ONNX model of the given Xgboost model.
-
-        Parameters
-        ----------
-        initial_types: (List[Tuple], optional). Defaults to None.
-            Each element is a tuple of a variable name and a type.
-        X_sample: Union[Dict, str, List, np.ndarray, pd.core.series.Series, pd.core.frame.DataFrame,]. Defaults to None.
-            Contains model inputs such that model(X_sample) is a valid invocation of the model.
-            Used to generate initial_types.
-
-        Returns
-        -------
-        onnx.onnx_ml_pb2.ModelProto
-            An ONNX model (type: ModelProto) which is equivalent to the input xgboost model.
-        """
-        auto_generated_initial_types = None
-        if not initial_types:
-            auto_generated_initial_types = self.generate_initial_types(X_sample)
-
-        model_types = []
-        if str(type(self.estimator)).startswith("<class 'xgboost.sklearn."):
-            model_types.append(type(self.estimator))
-
-        if model_types:
-            if xgboost.sklearn.XGBClassifier in model_types:
-                update_registered_converter(
-                    xgboost.XGBClassifier,
-                    "XGBoostXGBClassifier",
-                    calculate_linear_classifier_output_shapes,
-                    convert_xgboost,
-                    options={"nocl": [True, False], "zipmap": [True, False]},
-                )
-            elif xgboost.sklearn.XGBRegressor in model_types:
-                update_registered_converter(
-                    xgboost.XGBRegressor,
-                    "XGBoostXGBRegressor",
-                    calculate_linear_regressor_output_shapes,
-                    convert_xgboost,
-                )
-            if initial_types:
-                return convert_sklearn(
-                    self.estimator, initial_types=initial_types, **kwargs
-                )
-            else:
-                try:
-                    return convert_sklearn(
-                        self.estimator,
-                        initial_types=auto_generated_initial_types,
-                        **kwargs,
-                    )
-                except:
-                    raise ValueError(
-                        "`initial_types` can not be autodetected. Please directly pass `initial_types`."
-                    )
-        else:
-            # xgboost api
-            if initial_types:
-                return onnxmltools.convert_xgboost(
-                    self.estimator,
-                    initial_types=initial_types,
-                    target_opset=kwargs.pop("target_opset", None),
-                    targeted_onnx=onnx.__version__,
-                    **kwargs,
-                )
-            else:
-                try:
-                    return onnxmltools.convert_xgboost(
-                        self.estimator,
-                        initial_types=auto_generated_initial_types,
-                        target_opset=kwargs.pop("target_opset", None),
-                        targeted_onnx=onnx.__version__,
-                        **kwargs,
-                    )
-                except:
-                    raise ValueError(
-                        "`initial_types` can not be autodetected. Please directly pass `initial_types`."
-                    )
-
-    @runtime_dependency(
-        module="skl2onnx.common.data_types",
-        object="FloatTensorType",
-        install_from=OptionalDependency.ONNX,
-    )
-    def generate_initial_types(self, X_sample: Any) -> List:
-        """Auto generate intial types.
-
-        Parameters
-        ----------
-        X_sample: (Any)
-            Train data.
-
-        Returns
-        -------
-        List
-            Initial types.
-        """
-        if hasattr(self.estimator, "n_features_in_"):
-            # sklearn api
-            n_cols = self.estimator.n_features_in_
-            return [("input", FloatTensorType([None, n_cols]))]
-        elif hasattr(self.estimator, "feature_names") and self.estimator.feature_names:
-            # xgboost learning api
-            n_cols = len(self.estimator.feature_names)
-            return [("input", FloatTensorType([None, n_cols]))]
-        if X_sample is None:
-            raise ValueError(
-                " At least one of `X_sample` or `initial_types` must be provided."
-            )
-        if (
-            X_sample is not None
-            and hasattr(X_sample, "shape")
-            and len(X_sample.shape) >= 2
-        ):
-            auto_generated_initial_types = [
-                ("input", FloatTensorType([None, X_sample.shape[1]]))
-            ]
-        else:
-            raise ValueError(
-                "`initial_types` can not be detected. Please directly pass initial_types."
-            )
-        return auto_generated_initial_types

@@ -49,7 +49,7 @@ from ads.config import (
     OCI_REGION_METADATA,
     PROJECT_OCID,
 )
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from ads.dataset.progress import TqdmProgressBar
 from ads.feature_engineering.schema import Schema
 from ads.model.model_version_set import ModelVersionSet, _extract_model_version_set_id
 from ads.model.deployment.model_deployer import ModelDeployer
@@ -1045,7 +1045,7 @@ class ModelCatalog:
         model_id: str,
         target_dir: str,
         bucket_uri: str,
-        progress: Union[TqdmProgressBar, DummyProgressBar],
+        progress: TqdmProgressBar,
         remove_existing_artifact: Optional[bool] = True,
     ) -> None:
         """
@@ -1062,7 +1062,7 @@ class ModelCatalog:
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for downloading large artifacts with
             size is greater than 2GB. Example: `bucket_uri=oci://<bucket_name>@<namespace>/prefix/`.
-        progress: Union[TqdmProgressBar, DummyProgressBar]
+        progress: TqdmProgressBar
             The progress bar.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Whether artifacts uploaded to object storage bucket need to be removed or not.
@@ -1125,7 +1125,7 @@ class ModelCatalog:
         self,
         model_id: str,
         target_dir: str,
-        progress: Union[TqdmProgressBar, DummyProgressBar],
+        progress: TqdmProgressBar,
     ) -> None:
         """
         Downloads the model artifacts from model catalog to target_dir based on `model_id`.
@@ -1137,7 +1137,7 @@ class ModelCatalog:
             The OCID of the model to download.
         target_dir: str
             The target location of model artifacts.
-        progress: Union[TqdmProgressBar, DummyProgressBar]
+        progress: TqdmProgressBar
             The progress bar.
 
         Returns
@@ -1422,9 +1422,7 @@ class ModelCatalog:
             progress.update("Done")
         return self.get_model(model.data.id)
 
-    def _prepare_model_artifact(
-        self, model_artifact, progress: Union[TqdmProgressBar, DummyProgressBar]
-    ) -> str:
+    def _prepare_model_artifact(self, model_artifact, progress: TqdmProgressBar) -> str:
         """Prepares model artifacts to save in the Model Catalog.
 
         Returns

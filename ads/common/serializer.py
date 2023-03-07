@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-# Copyright (c) 2021, 2022 Oracle and its affiliates.
+
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -209,11 +210,15 @@ class Serializable(ABC):
             For other storage connections consider e.g. host, port, username, password, etc.
 
         Returns:
-            string: Serialized version of object
+            Union[str, None]
+                Serialized version of object.
+                None in case when `uri` provided.
         """
         yaml_string = yaml.dump(self.to_dict(**kwargs), Dumper=dumper)
         if uri:
             self._write_to_file(s=yaml_string, uri=uri, **kwargs)
+            return None
+
         return yaml_string
 
     @classmethod

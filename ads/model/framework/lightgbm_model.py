@@ -1,30 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import os
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import pandas as pd
 from ads.common import logger
 from ads.model.extractor.lightgbm_extractor import LightgbmExtractor
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.common.data_serializer import InputDataSerializer
-from ads.model.generic_model import (
-    FrameworkSpecificModel,
-    DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME,
-    DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME,
-    DEFAULT_TXT_FORMAT_MODEL_FILE_NAME,
-)
+from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
-from joblib import dump
+from ads.model.serde.model_serializer import LightGBMModelSerializerType
+from ads.model.common.utils import DEPRECATE_AS_ONNX_WARNING
+from ads.model.serde.common import SERDE
 
 
 class LightGBMModel(FrameworkSpecificModel):
@@ -40,8 +31,6 @@ class LightGBMModel(FrameworkSpecificModel):
         Default authentication is set using the `ads.set_auth` API. To override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create
         an authentication signer to instantiate an IdentityClient object.
-    ds_client: DataScienceClient
-        The data science client used by model deployment.
     estimator: Callable
         A trained lightgbm estimator/model using Lightgbm.
     framework: str
@@ -64,6 +53,7 @@ class LightGBMModel(FrameworkSpecificModel):
         The model ID.
     properties: ModelProperties
         ModelProperties object required to save and deploy model.
+        For more details, check https://accelerated-data-science.readthedocs.io/en/latest/ads.model.html#module-ads.model.model_properties.
     runtime_info: RuntimeInfo
         A RuntimeInfo instance.
     schema_input: Schema
@@ -131,6 +121,7 @@ class LightGBMModel(FrameworkSpecificModel):
     """
 
     _PREFIX = "lightgbm"
+    model_save_serializer_type = LightGBMModelSerializerType
 
     def __init__(
         self,
@@ -138,6 +129,8 @@ class LightGBMModel(FrameworkSpecificModel):
         artifact_dir: str,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
+        model_save_serializer: Optional[SERDE] = None,
+        model_input_serializer: Optional[SERDE] = None,
         **kwargs,
     ):
         """
@@ -156,6 +149,10 @@ class LightGBMModel(FrameworkSpecificModel):
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
+        model_save_serializer: (SERDE or str, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model.
+        model_input_serializer: (SERDE, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize data.
 
         Returns
         -------
@@ -197,11 +194,19 @@ class LightGBMModel(FrameworkSpecificModel):
             or model_type.startswith("<class 'onnxruntime.")
         ):
             raise TypeError(f"{model_type} is not supported in LightGBMModel.")
+
+        default_model_save_serializer = "joblib"
+        if model_type.startswith("<class 'lightgbm.basic."):
+            default_model_save_serializer = "lightgbm"
+
         super().__init__(
             estimator=estimator,
             artifact_dir=artifact_dir,
             properties=properties,
             auth=auth,
+            model_save_serializer=model_save_serializer
+            or default_model_save_serializer,
+            model_input_serializer=model_input_serializer,
             **kwargs,
         )
         self._extractor = LightgbmExtractor(estimator)
@@ -209,62 +214,6 @@ class LightGBMModel(FrameworkSpecificModel):
         self.algorithm = self._extractor.algorithm
         self.version = self._extractor.version
         self.hyperparameter = self._extractor.hyperparameter
-
-    def _handle_model_file_name(self, as_onnx: bool, model_file_name: str):
-        """
-        Process file name for saving model.
-        For ONNX model file name must be ending with ".onnx".
-        For joblib model file name must be ending with ".joblib".
-        For TXT model file name must be ending with ".txt".
-        If not specified, use "model.onnx" for ONNX model, "model.txt" for TXT model and "model.joblib" for joblib model.
-
-        Parameters
-        ----------
-        as_onnx: bool
-            If set as True, convert into ONNX model.
-        model_file_name: str
-            File name for saving model.
-
-        Returns
-        -------
-        str
-            Processed file name.
-
-        Raises
-        ------
-        ValueError: If the input model_file_name does not corresponding to serialize format.
-        """
-        is_sklearn = str(type(self.estimator)).startswith("<class 'lightgbm.sklearn.")
-        if not model_file_name:
-            if as_onnx:
-                return DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME
-            elif is_sklearn:
-                return DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME
-            else:
-                return DEFAULT_TXT_FORMAT_MODEL_FILE_NAME
-        if as_onnx:
-            if model_file_name and not model_file_name.endswith(".onnx"):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.onnx` for onnx format."
-                )
-        else:
-            if (
-                is_sklearn
-                and model_file_name
-                and not model_file_name.endswith(".joblib")
-            ):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.joblib` for joblib format."
-                )
-            if (
-                not is_sklearn
-                and model_file_name
-                and not model_file_name.endswith(".txt")
-            ):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.txt` for TXT format."
-                )
-        return model_file_name
 
     def serialize_model(
         self,
@@ -285,141 +234,33 @@ class LightGBMModel(FrameworkSpecificModel):
         **kwargs: Dict,
     ):
         """
-        Serialize and save Lightgbm model using ONNX or model specific method.
+        Serialize and save Lightgbm model.
 
         Parameters
         ----------
-        artifact_dir: str
-            Directory for generate artifact.
         as_onnx: (boolean, optional). Defaults to False.
-            If set as True, provide initial_types or X_sample to convert into ONNX.
+            If set as True, provide `initial_types` or `X_sample` to convert into ONNX.
         initial_types: (List[Tuple], optional). Defaults to None.
             Each element is a tuple of a variable name and a type.
         force_overwrite: (boolean, optional). Defaults to False.
             If set as True, overwrite serialized model if exists.
         X_sample: Union[Dict, str, List, np.ndarray, pd.core.series.Series, pd.core.frame.DataFrame,]. Defaults to None.
-            Contains model inputs such that model(X_sample) is a valid invocation of the model.
-            Used to generate initial_types.
+            Contains model inputs such that model(`X_sample`) is a valid invocation of the model.
+            Used to generate `initial_types`.
 
         Returns
         -------
         None
             Nothing.
         """
-        model_path = os.path.join(self.artifact_dir, self.model_file_name)
-        if os.path.exists(model_path) and not force_overwrite:
-            raise ValueError(
-                "Model file already exists and will not be overwritten. "
-                "Set `force_overwrite` to True if you wish to overwrite."
-            )
-        else:
-            if not os.path.exists(self.artifact_dir):
-                os.makedirs(self.artifact_dir)
-            if as_onnx:
-                onx = self.to_onnx(
-                    initial_types=initial_types, X_sample=X_sample, **kwargs
-                )
-                with open(model_path, "wb") as f:
-                    f.write(onx.SerializeToString())
-            else:
-                if str(type(self.estimator)).startswith("<class 'lightgbm.basic."):
-                    self.estimator.save_model(model_path)
-                elif str(type(self.estimator)).startswith("<class 'lightgbm.sklearn"):
-                    dump(self.estimator, model_path)
+        if as_onnx:
+            logger.warning(DEPRECATE_AS_ONNX_WARNING)
+            self.set_model_save_serializer("lightgbm_onnx")
 
-    @runtime_dependency(
-        module="skl2onnx.common.data_types",
-        object="FloatTensorType",
-        install_from=OptionalDependency.ONNX,
-    )
-    @runtime_dependency(
-        module="onnxmltools.convert",
-        object="convert_lightgbm",
-        install_from=OptionalDependency.ONNX,
-    )
-    def to_onnx(
-        self,
-        initial_types: List[Tuple] = None,
-        X_sample: Optional[
-            Union[
-                Dict,
-                str,
-                List,
-                Tuple,
-                np.ndarray,
-                pd.core.series.Series,
-                pd.core.frame.DataFrame,
-            ]
-        ] = None,
-        **kwargs,
-    ):
-        """
-        Produces an equivalent ONNX model of the given Lightgbm model.
-
-        Parameters
-        ----------
-        initial_types: (List[Tuple], optional). Defaults to None.
-            Each element is a tuple of a variable name and a type.
-        X_sample: Union[Dict, str, List, np.ndarray, pd.core.series.Series, pd.core.frame.DataFrame,]. Defaults to None.
-            Contains model inputs such that model(X_sample) is a valid invocation of the model.
-            Used to generate initial_types.
-
-        Returns
-        ------
-            An ONNX model (type: ModelProto) which is equivalent to the input Lightgbm model.
-        """
-        auto_generated_initial_types = None
-        if not initial_types:
-            auto_generated_initial_types = self.generate_initial_types(X_sample)
-            try:
-                return convert_lightgbm(
-                    self.estimator,
-                    initial_types=auto_generated_initial_types,
-                    target_opset=kwargs.pop("target_opset", None),
-                    **kwargs,
-                )
-            except:
-                raise ValueError(
-                    "`initial_types` can not be detected. Please directly pass initial_types."
-                )
-        else:
-            return convert_lightgbm(
-                self.estimator,
-                initial_types=initial_types,
-                target_opset=kwargs.pop("target_opset", None),
-                **kwargs,
-            )
-
-    @runtime_dependency(
-        module="skl2onnx.common.data_types",
-        object="FloatTensorType",
-        install_from=OptionalDependency.ONNX,
-    )
-    def generate_initial_types(self, X_sample: Any) -> List:
-        """Auto generate intial types.
-
-        Parameters
-        ----------
-        X_sample: (Any)
-            Train data.
-
-        Returns
-        -------
-        List
-            Initial types.
-        """
-        if X_sample is not None and hasattr(X_sample, "shape"):
-            auto_generated_initial_types = [
-                ("input", FloatTensorType([None, X_sample.shape[1]]))
-            ]
-        elif hasattr(self.estimator, "num_feature"):
-            n_cols = self.estimator.num_feature()
-            auto_generated_initial_types = [("input", FloatTensorType([None, n_cols]))]
-        elif hasattr(self.estimator, "n_features_in_"):
-            n_cols = self.estimator.n_features_in_
-            auto_generated_initial_types = [("input", FloatTensorType([None, n_cols]))]
-        else:
-            raise ValueError(
-                "`initial_types` can not be detected. Please directly pass initial_types."
-            )
-        return auto_generated_initial_types
+        super().serialize_model(
+            as_onnx=as_onnx,
+            initial_types=initial_types,
+            force_overwrite=force_overwrite,
+            X_sample=X_sample,
+            **kwargs,
+        )

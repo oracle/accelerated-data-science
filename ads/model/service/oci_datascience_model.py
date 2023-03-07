@@ -16,7 +16,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
-from ads.model.common.utils import extract_region
+from ads.common.utils import extract_region
 from ads.model.deployment.model_deployer import ModelDeployer
 from oci.data_science.models import (
     ArtifactExportDetailsObjectStorage,
@@ -346,7 +346,7 @@ class OCIDataScienceModel(
             If model artifact not found.
         """
         bucket_details = ObjectStorageDetails.from_path(bucket_uri)
-        region = region or extract_region()
+        region = region or extract_region(self.auth)
         try:
             work_request_id = self.client.import_model_artifact(
                 model_id=self.id,
@@ -393,7 +393,7 @@ class OCIDataScienceModel(
         None
         """
         bucket_details = ObjectStorageDetails.from_path(bucket_uri)
-        region = region or extract_region()
+        region = region or extract_region(self.auth)
 
         work_request_id = self.client.export_model_artifact(
             model_id=self.id,
@@ -551,7 +551,7 @@ class OCIDataScienceModel(
         work_request_id: str
             Work Request OCID.
         num_steps: (int, optional). Defaults to 3.
-            Number of steps for progress indicator.
+            Number of steps for the progress indicator.
 
         Returns
         -------
@@ -560,33 +560,41 @@ class OCIDataScienceModel(
         STOP_STATE = (
             WorkRequest.STATUS_SUCCEEDED,
             WorkRequest.STATUS_CANCELED,
-            WorkRequest.STATUS_CANCELING,
             WorkRequest.STATUS_FAILED,
         )
-        work_request_logs = None
+        work_request_logs = []
 
         i = 0
         with utils.get_progress_bar(num_steps) as progress:
             while not work_request_logs or len(work_request_logs) < num_steps:
                 time.sleep(_REQUEST_INTERVAL_IN_SEC)
-                work_request = self.client.get_work_request(work_request_id)
-                work_request_logs = self.client.list_work_request_logs(
-                    work_request_id
-                ).data
-                if work_request_logs:
-                    new_work_request_logs = work_request_logs[i:]
+                new_work_request_logs = []
+
+                try:
+                    work_request = self.client.get_work_request(work_request_id).data
+                    work_request_logs = self.client.list_work_request_logs(
+                        work_request_id
+                    ).data
+                except Exception as ex:
+                    logger.warn(ex)
+
+                new_work_request_logs = (
+                    work_request_logs[i:] if work_request_logs else []
+                )
 
                 for wr_item in new_work_request_logs:
                     progress.update(wr_item.message)
                     i += 1
 
-                if work_request.data.status in STOP_STATE:
-                    if work_request.data.status != WorkRequest.STATUS_SUCCEEDED:
-                        if work_request_logs:
-                            raise Exception(work_request_logs[-1].message)
+                if work_request and work_request.status in STOP_STATE:
+                    if work_request.status != WorkRequest.STATUS_SUCCEEDED:
+                        if new_work_request_logs:
+                            raise Exception(new_work_request_logs[-1].message)
                         else:
                             raise Exception(
-                                "An error occurred in attempt to perform the operation. Check the service logs to get more details."
+                                "Error occurred in attempt to perform the operation. "
+                                "Check the service logs to get more details. "
+                                f"{work_request}"
                             )
                     else:
                         break
