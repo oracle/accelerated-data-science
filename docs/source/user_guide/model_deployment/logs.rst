@@ -1,7 +1,7 @@
 Logs
 ****
 
-The model deployment process creates a set of workflow logs. Optionally, you can also configure the Logging service to capture access and predict logs.
+The model deployment process creates a set of workflow logs. Optionally, you can also configure the logging service to capture access and predict logs.
 
 In the following code snippets, the variable ``deployment`` is a ``ModelDeployment`` object.  This object can be obtained from a call to ``.deploy()`` or ``.from_id()``.
 
