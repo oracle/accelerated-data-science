@@ -30,4 +30,14 @@ This method returns a dataframe where each row represents a log entry.
 
     deployment.show_logs(log_type="access", limit=10)
 
+``Watch``
+---------
+
+You can stream the predict and access log of a model deployment using the ``.watch()`` method of a ``ModelDeployment`` object.
+
+.. code-block:: python3
+
+   deployment.watch() # stream predict and access log
+   deployment.watch(log_type="access") # stream access log
+
 

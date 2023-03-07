@@ -6,15 +6,15 @@ Model Deployment
 .. toctree::
     :maxdepth: 1
 
-    overview
-    access_a_model_deployment
+    start
+    activate
     attributes
+    deactivate
     delete
     deploy
-    inventory
+    list
     logs
     predict
     properties
-    state
     update
 

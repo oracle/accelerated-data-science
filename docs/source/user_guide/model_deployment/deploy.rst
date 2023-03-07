@@ -1,37 +1,27 @@
 Deploy
 ******
 
-The ``.deploy()`` method of the ``ModelDeployment`` class is used to create a model deployment.  It has the following parameters:
+To deploy a model deployment, you'll need to define a ``ModelDeployment`` object and call the ``.deploy()`` of it. You could either use API or YAML to define the ``ModelDeployment`` object.
 
-  * ``max_wait_time``: The timeout limit, in seconds, for the deployment process to wait until it is active. Defaults to 1200 seconds.
-  * ``poll_interval``: The interval between checks of the deployment status in seconds. Defaults to 30 seconds.
-  * ``wait_for_completion``: Blocked process until the deployment has been completed. Defaults to ``True``.
+Deploy a ModelDeployment on Docker Container Runtime
+====================================================
 
-To deploy a ``ModelDeployment``, you need to define a ``ModelDeployment`` object first and then call ``.deploy()``. There are two ways to define a ``ModelDeployment`` object.
+The ADS ``ModelDeploymentContainerRuntime`` class allows you to run a container image using OCI data science model deployment.
 
-Builder Pattern
-===============
+To use the ``ModelDeploymentContainerRuntime``, you need to first build a docker container image. See `<build_container_image>` for the end-to-end example. Once you have the image, push it to `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_. See `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ and `Pushing Images Using the Docker CLI <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ for more details.
 
-Infrastructure
---------------
+To configure ``ModelDeploymentContainerRuntime``, you must specify the container ``image``. You can optionally specify the `entrypoint` and `cmd` for running the container (See `Understand how CMD and ENTRYPOINT interact <https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact>`_).
 
-You define the model deployment infrastructure by passing the following properties to ``ModelDeploymentInfrastructure``:
+Below is an example of deploying model on docker container runtime:
 
-  * ``access_log``: Log group OCID and log OCID for the access logs.
-  * ``bandwidth_mbps``: The bandwidth limit on the load balancer in Mbps.
-  * ``compartment_id``: Compartment OCID that the model deployment belongs to.
-  * ``replica``: The number of instances to deploy.
-  * ``shape_name``: The instance shape name to use. For example, "VM.Standard.E4.Flex".
-  * ``shape_config_details``: The instance shape configure details to use if flexible shape is selected for ``shape_name``. 
-  * ``predict_log``: Log group OCID and log OCID for the predict logs.
-  * ``project_id``: Project OCID that the model deployment will belong to.
-  * ``web_concurrency``: The web concurrency to use. 
+.. tabs::
 
-Below is an example to define a ``ModelDeploymentInfrastructure`` object
-
-.. code-block:: python3
+  .. code-tab:: Python3
+    :caption: Python
 
     from ads.model.deployment.model_deployment_infrastructure import ModelDeploymentInfrastructure
+    from ads.model.deployment.model_deployment_runtime import ModelDeploymentContainerRuntime
+    from ads.model.deployment import ModelDeployment
 
     infrastructure = (
         ModelDeploymentInfrastructure()
@@ -55,40 +45,6 @@ Below is an example to define a ``ModelDeploymentInfrastructure`` object
         )
     )
 
-
-Runtime
--------
-
-The Data Science Model Deployment supports service managed conda runtime and customized docker container runtime.
-
-  * ``ModelDeploymentContainerRuntime`` allows you to deploy model deployment on customized docker container runtime.
-  * ``ModelDeploymentCondaRuntime`` allows you to deploy model deployment on service-managed conda runtime.
-
-ModelDeploymentContainerRuntime
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To use the ``ModelDeploymentContainerRuntime``, you need to first push the image to `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_. See `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ and `Pushing Images Using the Docker CLI <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ for more details.
- 
-You can define the model deployment container runtime by passing the following properties to ``ModelDeploymentContainerRuntime`` object:
-
-  * ``model_uri``: The model ocid or path to model artifacts directory that is used in the model deployment.
-  * ``deployment_mode``: The mode of model deployment. Allowed deployment modes are ``HTTPS_ONLY`` and ``STREAM_ONLY``. Optional.
-  * ``input_stream_ids``: The input stream ids for model deployment. Required when deployment mode is ``STREAM_ONLY``.
-  * ``output_stream_ids``: The output stream ids for model deployment. Required when deployment mode is ``STREAM_ONLY``.
-  * ``env``: The environment variables. Optional.
-  * ``image``: The full path of docker container image to the OCIR registry. The acceptable formats are: ``<region>.ocir.io/<registry>/<image>:<tag>`` and ``<region>.ocir.io/<registry>/<image>:<tag>@digest``. Required.
-  * ``image_digest``: The docker container image digest. Optional.
-  * ``entrypoint``: The entrypoint to docker container image. Optional.
-  * ``server_port``: The server port of docker container image. Optional.
-  * ``health_check_port``: The health check port of docker container image. Optional.
-  * ``cmd``: The additional commands to docker container image. The commands can be args to the entrypoint or the only command to execute in the absence of an entrypoint. Optional.
-
-Below is an example to define a ``ModelDeploymentContainerRuntime`` object
-
-.. code-block:: python3
-
-    from ads.model.deployment.model_deployment_runtime import ModelDeploymentContainerRuntime
-
     container_runtime = (
         ModelDeploymentContainerRuntime()
         .with_image("<IMAGE_PATH_TO_OCIR>")
@@ -101,50 +57,6 @@ Below is an example to define a ``ModelDeploymentContainerRuntime`` object
         .with_model_uri("<MODEL_URI>")
     )
 
-
-ModelDeploymentCondaRuntime
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-You can define the model deployment conda runtime by passing the following properties to ``ModelDeploymentCondaRuntime`` object:
-
-  * ``model_uri``: The model ocid or path to model artifacts that is used in the model deployment.
-  * ``deployment_mode``: The deployment mode. The allowed deployment modes are ``HTTPS_ONLY`` and ``STREAM_ONLY``. Optional.
-  * ``input_stream_ids``: The input stream ids for model deployment. Required when deployment mode is ``STREAM_ONLY``.
-  * ``output_stream_ids``: The output stream ids for model deployment. Required when deployment mode is ``STREAM_ONLY``.
-  * ``env``: The environment variables. Optional.
-
-Below is an example to define a ``ModelDeploymentCondaRuntime`` object
-
-.. code-block:: python3
-
-    from ads.model.deployment.model_deployment_runtime import ModelDeploymentCondaRuntime
-
-    conda_runtime = (
-        ModelDeploymentCondaRuntime()
-        .with_env({"key":"value"})
-        .with_deployment_mode("HTTPS_ONLY")
-        .with_model_uri("<MODEL_URI>")
-    )
-
-
-ModelDeployment
-~~~~~~~~~~~~~~~
-
-You can define the model deployment by passing the following properties to ``ModelDeployment`` object:
-
-  * ``defined_tags``: A dictionary of defined tags to be attached to the model deployment. Optional.
-  * ``description``: A description of the model deployment. Optional.
-  * ``display_name``: A name that identifies the model deployment in the Console.
-  * ``freeform_tags``: A dictionary of freeform tags to be attached to the model deployment. Optional.
-  * ``runtime``: The runtime configuration to be attached to the model deployment.
-  * ``infrastructure``: The infrastructure configuration to be attached to the model deployment.
-
-Below is an example to define and deploy a ``ModelDeployment`` object with custom docker container runtime
-
-.. code-block:: python3
-
-    from ads.model.deployment import ModelDeployment
-
     deployment = (
         ModelDeployment()
         .with_display_name("Model Deployment Demo using ADS")
@@ -154,41 +66,14 @@ Below is an example to define and deploy a ``ModelDeployment`` object with custo
         .with_runtime(container_runtime)
     )
 
-    deployment.deploy(wait_for_completion=False)
+    deployment.deploy()
 
+  .. code-tab:: Python3
+    :caption: YAML
 
-YAML Serialization
-==================
+    from ads.model.deployment import ModelDeployment
 
-A ``ModelDeployment`` object can be serialized to a YAML file by calling ``to_yaml()``, which returns the YAML as a string.  You can easily share the YAML with others, and reload the configurations by calling ``from_yaml()``.  The ``to_yaml()`` and ``from_yaml()`` methods also take an optional ``uri`` argument for saving and loading the YAML file.  This argument can be any URI to the file location supported by `fsspec <https://filesystem-spec.readthedocs.io/en/latest/>`__, including Object Storage. For example:
-
-.. code-block:: python3
-
-    # Save the model deployment configurations to YAML file
-    deployment.to_yaml(uri="oci://bucket_name@namespace/path/to/deployment.yaml")
-
-    # Load the model deployment configurations from YAML file
-    deployment = ModelDeployment.from_yaml(uri="oci://bucket_name@namespace/path/to/deployment.yaml")
-
-    # Save the model deployment configurations to YAML in a string
-    yaml_string = ModelDeployment.to_yaml()
-
-    # Load the model deployment configurations from a YAML string
-    deployment = ModelDeployment.from_yaml("""
-    kind: deployment
-    spec:
-        infrastructure:
-        kind: infrastructure
-            ...
-    """")
-
-    deployment.deploy(wait_for_completion=False)
-
-Here is an example of a YAML file representing the ``ModelDeployment`` with docker container runtime defined in the preceding examples:
-
-
-.. code-block:: yaml
-
+    yaml_string = """
     kind: deployment
     spec:
       displayName: Model Deployment Demo using ADS
@@ -213,6 +98,7 @@ Here is an example of a YAML file representing the ``ModelDeployment`` with dock
             ocpus: 1
           replica: 1
           bandWidthMbps: 10
+          webConcurrency: 10
       runtime:
         kind: runtime
         type: container
@@ -226,6 +112,111 @@ Here is an example of a YAML file representing the ``ModelDeployment`` with dock
           env:
             WEB_CONCURRENCY: "10"
           deploymentMode: HTTPS_ONLY
+    """
+
+    deployment = ModelDeployment.from_yaml(yaml_string)
+    deployment.deploy()
+
+
+Deploy a ModelDeployment on Conda Runtime
+=========================================
+
+To deploy a model deployment on conda runtime, you need to configure ``ModelDeploymentCondaRuntime``.
+
+Below is an example of deploying model on conda runtime:
+
+.. tabs::
+
+  .. code-tab:: Python3
+    :caption: Python
+
+    from ads.model.deployment.model_deployment_infrastructure import ModelDeploymentInfrastructure
+    from ads.model.deployment.model_deployment_runtime import ModelDeploymentCondaRuntime
+    from ads.model.deployment import ModelDeployment
+
+    infrastructure = (
+        ModelDeploymentInfrastructure()
+        .with_project_id("<PROJECT_OCID>")
+        .with_compartment_id("<COMPARTMENT_OCID>")    
+        .with_shape_name("VM.Standard.E4.Flex")
+        .with_shape_config_details(
+            ocpus=1,
+            memory_in_gbs=16
+        )
+        .with_replica(1)
+        .with_bandwidth_mbps(10)
+        .with_web_concurrency(10)
+        .with_access_log(
+            log_group_id="<ACCESS_LOG_GROUP_OCID>", 
+            log_id="<ACCESS_LOG_OCID>"
+        )
+        .with_predict_log(
+            log_group_id="<PREDICT_LOG_GROUP_OCID>", 
+            log_id="<PREDICT_LOG_OCID>"
+        )
+    )
+
+    conda_runtime = (
+        ModelDeploymentCondaRuntime()
+        .with_env({"key":"value"})
+        .with_deployment_mode("HTTPS_ONLY")
+        .with_model_uri("<MODEL_URI>")
+    )
+
+    deployment = (
+        ModelDeployment()
+        .with_display_name("Model Deployment Demo using ADS")
+        .with_description("The model deployment description")
+        .with_freeform_tags({"key1":"value1"})
+        .with_infrastructure(infrastructure)
+        .with_runtime(conda_runtime)
+    )
+
+    deployment.deploy()
+
+  .. code-tab:: Python3
+    :caption: YAML
+
+    from ads.model.deployment import ModelDeployment
+
+    yaml_string = """
+    kind: deployment
+    spec:
+      displayName: Model Deployment Demo using ADS
+      description: The model deployment description
+      freeform_tags:
+        key1: value1
+      infrastructure:
+        kind: infrastructure
+        type: datascienceModelDeployment
+        spec:
+          compartmentId: <COMPARTMENT_OCID>
+          projectId: <PROJECT_OCID>
+          accessLog:
+            logGroupId: <ACCESS_LOG_GROUP_OCID>
+            logId: <ACCESS_LOG_OCID>
+          predictLog:
+            logGroupId: <PREDICT_LOG_GROUP_OCID>
+            logId: <PREDICT_LOG_OCID>
+          shapeName: VM.Standard.E4.Flex
+          shapeConfigDetails:
+            memoryInGBs: 16
+            ocpus: 1
+          replica: 1
+          bandWidthMbps: 10
+          webConcurrency: 10
+      runtime:
+        kind: runtime
+        type: conda
+        spec:
+          modelUri: <MODEL_URI>
+          env:
+            WEB_CONCURRENCY: "10"
+          deploymentMode: HTTPS_ONLY
+    """
+
+    deployment = ModelDeployment.from_yaml(yaml_string)
+    deployment.deploy()
 
 
 **ADS ModelDeployment YAML schema**
