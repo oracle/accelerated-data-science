@@ -14,7 +14,7 @@ This section describe the policies you might need for running Data Science Jobs.
 
     In the following example, ``group <your_data_science_users>`` is the subject of the policy
     when using OCI API keys for authentication. For resource principal authentication,
-    the subject should be a ``dynamic-group``, for example, ``dynamic-group <your_resources>``
+    the subject should be a ``dynamic-group``, for example, ``dynamic-group <your_dynamic_group>``
 
 Here is an example defining a dynamic group for all job runs in a compartment:
 
@@ -37,19 +37,19 @@ The following policies are for job runs to access other OCI resources:
 
 .. code-block::
 
-    Allow dynamic-group <your_resources> to read repos in compartment <your_compartment_name>
-    Allow dynamic-group <your_resources> to use data-science-family in compartment <your_compartment_name>
-    Allow dynamic-group <your_resources> to use virtual-network-family in compartment <your_compartment_name>
-    Allow dynamic-group <your_resources> to use log-groups in compartment <your_compartment_name>
-    Allow dynamic-group <your_resources> to use logging-family in compartment <your_compartment_name>
-    Allow dynamic-group <your_resources> to manage objects in compartment <your_compartment_name> where all {target.bucket.name=<your_bucket_name>}
-    Allow dynamic-group <your_resources> to use buckets in compartment <your_compartment_name> where all {target.bucket.name=<your_bucket_name>}
+    Allow dynamic-group <your_dynamic_group> to read repos in compartment <your_compartment_name>
+    Allow dynamic-group <your_dynamic_group> to use data-science-family in compartment <your_compartment_name>
+    Allow dynamic-group <your_dynamic_group> to use virtual-network-family in compartment <your_compartment_name>
+    Allow dynamic-group <your_dynamic_group> to use log-groups in compartment <your_compartment_name>
+    Allow dynamic-group <your_dynamic_group> to use logging-family in compartment <your_compartment_name>
+    Allow dynamic-group <your_dynamic_group> to manage objects in compartment <your_compartment_name> where all {target.bucket.name=<your_bucket_name>}
+    Allow dynamic-group <your_dynamic_group> to use buckets in compartment <your_compartment_name> where all {target.bucket.name=<your_bucket_name>}
 
 The following policy is needed for running a container job:
 
 .. code-block::
 
-    Allow dynamic-group <your_resources> to read repos in compartment <your_compartment_name>
+    Allow dynamic-group <your_dynamic_group> to read repos in compartment <your_compartment_name>
 
 See also:
 
