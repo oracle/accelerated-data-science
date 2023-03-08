@@ -171,8 +171,11 @@ If you don't have an Object Storage bucket, create one using the OCI SDK or the 
 
         Allow service datascience to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
-        Allow service objectstorage to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
+        Allow service objectstorage-<region_identifier> to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
+Because Object Storage is a regional service, you must authorize the Object Storage service for each region.
+To determine the region identifier value of an Oracle Cloud Infrastructure region,
+see `Regions and Availability Domains <https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm#top>`_.
 See `API documentation <../../ads.model.html#id15>`__ for more details.
 
 The following saves the :doc:`framework specific wrapper <quick_start>` object, ``model``, to the model catalog and returns the OCID from the model catalog:
