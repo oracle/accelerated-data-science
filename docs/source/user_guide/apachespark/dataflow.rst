@@ -153,7 +153,7 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
     df = (
         DataFlow()
         .with_compartment_id(
-            "ocid1.compartment.oc1..aaaaaaaapvb3hearqum6wjvlcpzm5ptfxqa7xfftpth4h72xx46ygavkqteq"
+            "ocid1.compartment.oc1.<your compartment id>"
         )
         .with_driver_shape("VM.Standard.E4.Flex")
 		.with_driver_shape_config(ocpus=2, memory_in_gbs=32)
