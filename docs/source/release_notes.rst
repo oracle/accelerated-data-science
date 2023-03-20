@@ -2,6 +2,12 @@
 Release Notes
 =============
 
+2.8.3
+-----
+Release date: March 21, 2023
+
+* Added support for BYOC and environment variables for :py:class:`~ads.model.GenericModel`.
+
 2.8.2
 -----
 Release date: March 2, 2023
