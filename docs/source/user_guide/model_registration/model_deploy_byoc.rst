@@ -3,12 +3,12 @@ Deploy Model on Container Runtime
 
 The ADS ``GenericModel`` and ``ModelDeployment`` classes allow you to run a container image using OCI data science model deployment.
 
-To deploy model on container runtime, you need to first build a docker container image. See `<build_container_image>` for the end-to-end example. Once you have the image, push it to `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_. See `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ and `Pushing Images Using the Docker CLI <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ for more details.
+To deploy model on container runtime, you need to first build a docker container image. See `Bring Your Own Container <https://docs.oracle.com/en-us/iaas/data-science/using/mod-dep-byoc.htm#construct-container>`_ for the end-to-end example. Once you have the image, push it to `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_. See `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ and `Pushing Images Using the Docker CLI <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ for more details.
 
 Deploy Using GenericModel Class
 ===============================
 
-When the container runtime is ready, you can call ``deploy`` function to deploy the model and generate the endpoint. You must specify the container ``deployment_image``. You can optionally specify the `entrypoint` and `cmd` for running the container (See `Understand how CMD and ENTRYPOINT interact <https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact>`_). For more details regarding the parameters allowed for container runtime, see `<build_container_image_parameters>`.
+When the container runtime is ready, you can call ``deploy`` function to deploy the model and generate the endpoint. You must specify the container ``deployment_image``. You can optionally specify the `entrypoint` and `cmd` for running the container (See `Understand how CMD and ENTRYPOINT interact <https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact>`_). For more details regarding the parameters allowed for container runtime, see `BYOC Required Interfaces <https://docs.oracle.com/en-us/iaas/data-science/using/mod-dep-byoc.htm#model-dep-byoc-interfaces>`_.
 
 Below is an example of deploying Sklearn model on container runtime using ``SklearnModel`` class:
 
@@ -68,7 +68,7 @@ Deploy Using ModelDeployment Class
 
 To deploy a model deployment, you can define a ``ModelDeployment`` object and call the ``.deploy()`` of it. You could either use API or YAML to define the ``ModelDeployment`` object.
 
-When configuring the ``ModelDeploymentContainerRuntime`` object, you must specify the container `image`. You can optionally specify the `entrypoint` and `cmd` for running the container (See `Understand how CMD and ENTRYPOINT interact <https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact>`_). For more details regarding the parameters allowed for container runtime, see `<build_container_image_parameters>`.
+When configuring the ``ModelDeploymentContainerRuntime`` object, you must specify the container `image`. You can optionally specify the `entrypoint` and `cmd` for running the container (See `Understand how CMD and ENTRYPOINT interact <https://docs.docker.com/engine/reference/builder/#understand-how-cmd-and-entrypoint-interact>`_). For more details regarding the parameters allowed for container runtime, see `BYOC Required Interfaces <https://docs.oracle.com/en-us/iaas/data-science/using/mod-dep-byoc.htm#model-dep-byoc-interfaces>`_.
 
 Below is an example of deploying model on container runtime using ``ModelDeployment`` class: 
 
