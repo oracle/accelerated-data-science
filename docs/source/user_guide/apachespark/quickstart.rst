@@ -33,7 +33,7 @@ followed by the spark version, 3.2.1.
 
 				if __name__ == "__main__":
 					main()
-			"""
+				"""
 		)
 
 		name = f"dataflow-app-{str(uuid4())}"
