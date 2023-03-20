@@ -1,3 +1,6 @@
+Deploy Model on Conda Runtime
+*****************************
+
 Once you have ADS Model object, you can call ``deploy`` function to deploy the model and generate the endpoint.
 
 Here is an example of deploying LightGBM model:
@@ -83,6 +86,12 @@ Observability
 .. code-block:: python3
 
   lightgbm_model.model_deployment.logs().tail()
+
+You cal also call the ``.watch()`` from model deployment instance to stream the logs
+
+.. code-block:: python3
+
+  lightgbm_model.model_deployment.watch()
 
 Update Model Deployment
 -------------------------
