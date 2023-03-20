@@ -4,15 +4,6 @@ ads.model.framework package
 Submodules
 ----------
 
-ads.model.framework.automl\_model module
-----------------------------------------
-
-.. automodule:: ads.model.framework.automl_model
-   :members:
-   :undoc-members:
-   :show-inheritance:
-   :inherited-members:
-
 ads.model.framework.huggingface\_model module
 ---------------------------------------------
 
