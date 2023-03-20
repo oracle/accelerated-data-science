@@ -7,6 +7,7 @@ Release Notes
 Release date: March 21, 2023
 
 * Added support for BYOC and environment variables for :py:class:`~ads.model.GenericModel`.
+* Added default values for configuring parameters in :py:class:`~ads.model.ModelDeployment`, such as default flex shape, ocpus, memory in gbs, bandwidth, instance count.
 
 2.8.2
 -----
