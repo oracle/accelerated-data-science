@@ -1,7 +1,7 @@
-Deploy Model on Container Runtime
-*********************************
+Deploy Model with Container Runtime
+***********************************
 
-The ADS ``GenericModel`` and ``ModelDeployment`` classes allow you to run a container image using OCI data science model deployment.
+The ADS ``GenericModel`` and ``ModelDeployment`` classes allow you to deploy model using container images.
 
 To deploy model on container runtime, you need to first build a docker container image. See `Bring Your Own Container <https://docs.oracle.com/en-us/iaas/data-science/using/mod-dep-byoc.htm#construct-container>`_ for the end-to-end example. Once you have the image, push it to `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_. See `Creating a Repository <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ and `Pushing Images Using the Docker CLI <https://docs.oracle.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm>`_ for more details.
 

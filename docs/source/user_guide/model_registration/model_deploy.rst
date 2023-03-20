@@ -1,5 +1,5 @@
-Deploy Model on Conda Runtime
-*****************************
+Deploy Model with Conda Runtime
+*******************************
 
 Once you have ADS Model object, you can call ``deploy`` function to deploy the model and generate the endpoint.
 
