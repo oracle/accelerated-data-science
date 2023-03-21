@@ -246,7 +246,6 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 .. code-block:: python3
 
     from ads.model.framework.tensorflow_model import TensorFlowModel
-    import tempfile
     import tensorflow as tf
 
     mnist = tf.keras.datasets.mnist
@@ -266,7 +265,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     tf_estimator.fit(x_train, y_train, epochs=1)
 
     # Instantite ads.model.framework.tensorflow_model.TensorFlowModel using the pre-trained TensorFlow Model
-    tf_model = TensorFlowModel(tf_estimator, artifact_dir=tempfile.mkdtemp())
+    tf_model = TensorFlowModel(tf_estimator, artifact_dir="./")
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
     tf_model.prepare(inference_conda_env="tensorflow28_p38_cpu_v1")
