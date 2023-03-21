@@ -24,16 +24,16 @@ followed by the spark version, 3.2.1.
 	with tempfile.TemporaryDirectory() as td:
 		with open(os.path.join(td, "script.py"), "w") as f:
 			f.write(
-				"""
-				import pyspark
+		"""
+		import pyspark
 
-				def main():
-					print("Hello World")
-					print("Spark version is", pyspark.__version__)
+		def main():
+			print("Hello World")
+			print("Spark version is", pyspark.__version__)
 
-				if __name__ == "__main__":
-					main()
-				"""
+		if __name__ == "__main__":
+			main()
+		"""
 		)
 
 		name = f"dataflow-app-{str(uuid4())}"
