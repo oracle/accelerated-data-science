@@ -160,7 +160,7 @@ From a Python Environment
                 zipcode,
                 CONCAT(latitude,',', longitude) AS lat_long
             FROM berlin
-        """
+            """
         ).limit(limit)
 
         # Convert the filtered Spark DataFrame into JSON format
@@ -232,13 +232,13 @@ Again, assume you have the following two files written in your current directory
         Create a temp view and do some SQL operations
         df.createOrReplaceTempView("berlin")
         query_result_df = spark.sql(
-        """
-		SELECT
-			city,
-			zipcode,
-			CONCAT(latitude,',', longitude) AS lat_long
-		FROM berlin
-        """
+            """
+            SELECT
+                city,
+                zipcode,
+                CONCAT(latitude,',', longitude) AS lat_long
+            FROM berlin
+            """
         ).limit(limit)
 
         # Convert the filtered Spark DataFrame into JSON format
