@@ -43,8 +43,9 @@ Prepare Model Artifact
 
     from ads.common.model_metadata import UseCaseType
     from ads.model.framework.tensorflow_model import TensorFlowModel
+    from uuid import uuid4
 
-    tensorflow_model = TensorFlowModel(estimator=model, artifact_dir="./")
+    tensorflow_model = TensorFlowModel(estimator=model, artifact_dir=f"./model-artifact-{str(uuid4())}")
     tensorflow_model.prepare(
         inference_conda_env="tensorflow28_p38_cpu_v1",
         training_conda_env="tensorflow28_p38_cpu_v1",
@@ -230,6 +231,7 @@ Example
     from ads.model.framework.tensorflow_model import TensorFlowModel
 
     import tensorflow as tf
+    from uuid import uuid4
 
     # Load MNIST Data
     mnist = tf.keras.datasets.mnist
@@ -250,7 +252,7 @@ Example
     model.fit(trainx, trainy, epochs=1)
 
     # Prepare Model Artifact for TensorFlow model
-    tensorflow_model = TensorFlowModel(estimator=model, artifact_dir="./")
+    tensorflow_model = TensorFlowModel(estimator=model, artifact_dir=f"./model-artifact-{str(uuid4())}")
     tensorflow_model.prepare(
         inference_conda_env="tensorflow28_p38_cpu_v1",
         training_conda_env="tensorflow28_p38_cpu_v1",

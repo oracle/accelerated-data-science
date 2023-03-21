@@ -46,7 +46,7 @@ Here is an example for preparing a model artifact for ``TensorFlow`` model.
 .. code-block:: python3
 
     from ads.model.framework.tensorflow_model import TensorFlowModel
-    import tempfile
+    from uuid import uuid4
     import tensorflow as tf
     from ads.common.model_metadata import UseCaseType
 
@@ -66,7 +66,7 @@ Here is an example for preparing a model artifact for ``TensorFlow`` model.
     tf_estimator.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy"])
     tf_estimator.fit(x_train, y_train, epochs=1)
 
-    tf_model = TensorFlowModel(tf_estimator, artifact_dir=tempfile.mkdtemp())
+    tf_model = TensorFlowModel(tf_estimator, artifact_dir=f"./model-artifact-{str(uuid4())}")
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
     tf_model.prepare(inference_conda_env="generalml_p38_cpu_v1",
