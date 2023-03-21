@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import os
 from typing import Dict, List, Optional, Tuple, Union
 
 import numpy as np
@@ -16,12 +15,11 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
 )
 from ads.model.extractor.tensorflow_extractor import TensorflowExtractor
-from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
-
-ONNX_MODEL_FILE_NAME = "model.onnx"
-TENSORFLOW_MODEL_FILE_NAME = "model.h5"
+from ads.model.serde.model_serializer import TensorflowModelSerializerType
+from ads.model.common.utils import DEPRECATE_AS_ONNX_WARNING
+from ads.model.serde.common import SERDE
 
 
 class TensorFlowModel(FrameworkSpecificModel):
@@ -37,8 +35,6 @@ class TensorFlowModel(FrameworkSpecificModel):
         Default authentication is set using the `ads.set_auth` API. To override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create
         an authentication signer to instantiate an IdentityClient object.
-    ds_client: DataScienceClient
-        The data science client used by model deployment.
     estimator: Callable
         A trained tensorflow estimator/model using Tensorflow.
     framework: str
@@ -61,6 +57,7 @@ class TensorFlowModel(FrameworkSpecificModel):
         The model ID.
     properties: ModelProperties
         ModelProperties object required to save and deploy model.
+        For more details, check https://accelerated-data-science.readthedocs.io/en/latest/ads.model.html#module-ads.model.model_properties.
     runtime_info: RuntimeInfo
         A RuntimeInfo instance.
     schema_input: Schema
@@ -132,6 +129,7 @@ class TensorFlowModel(FrameworkSpecificModel):
     """
 
     _PREFIX = "tensorflow"
+    model_save_serializer_type = TensorflowModelSerializerType
 
     @runtime_dependency(
         module="tensorflow",
@@ -144,6 +142,8 @@ class TensorFlowModel(FrameworkSpecificModel):
         artifact_dir: str,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
+        model_save_serializer: Optional[SERDE] = model_save_serializer_type.TENSORFLOW,
+        model_input_serializer: Optional[SERDE] = None,
         **kwargs,
     ):
         """
@@ -161,6 +161,10 @@ class TensorFlowModel(FrameworkSpecificModel):
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
+        model_save_serializer: (SERDE or str, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model.
+        model_input_serializer: (SERDE, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize data.
 
         Returns
         -------
@@ -172,6 +176,8 @@ class TensorFlowModel(FrameworkSpecificModel):
             artifact_dir=artifact_dir,
             properties=properties,
             auth=auth,
+            model_save_serializer=model_save_serializer,
+            model_input_serializer=model_input_serializer,
             **kwargs,
         )
         self._extractor = TensorflowExtractor(estimator)
@@ -182,45 +188,6 @@ class TensorFlowModel(FrameworkSpecificModel):
 
         self.version = tf.version.VERSION
 
-    def _handle_model_file_name(self, as_onnx: bool, model_file_name: str) -> str:
-        """
-        Process file name for saving model.
-        For ONNX model file name must be ending with ".onnx".
-        For joblib model file name must be ending with ".joblib".
-        If not specified, use "model.onnx" for ONNX model and "model.joblib" for joblib model.
-
-        Parameters
-        ----------
-        as_onnx: bool
-            If set as True, convert into ONNX model.
-        model_file_name: str
-            File name for saving model.
-
-        Returns
-        -------
-        str
-            Processed file name.
-        """
-        if not model_file_name:
-            return ONNX_MODEL_FILE_NAME if as_onnx else TENSORFLOW_MODEL_FILE_NAME
-        if as_onnx:
-            if model_file_name and not model_file_name.endswith(".onnx"):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.onnx` for onnx format."
-                )
-        else:
-            if model_file_name and not model_file_name.endswith(".h5"):
-                raise ValueError(
-                    "`model_file_name` has to be ending with `.h5` "
-                    "for Tensorflow model format."
-                )
-        return model_file_name
-
-    @runtime_dependency(
-        module="tensorflow",
-        short_name="tf",
-        install_from=OptionalDependency.TENSORFLOW,
-    )
     def serialize_model(
         self,
         as_onnx: bool = False,
@@ -261,195 +228,27 @@ class TensorFlowModel(FrameworkSpecificModel):
             Nothing.
         """
 
-        model_path = os.path.join(self.artifact_dir, self.model_file_name)
-
-        if os.path.exists(model_path) and not force_overwrite:
-            raise ValueError(
-                f"The {model_path} already exists, set force_overwrite to True if you wish to overwrite."
-            )
-
-        os.makedirs(self.artifact_dir, exist_ok=True)
-
         if as_onnx:
             logger.warning(
                 "This approach supports converting tensorflow.keras models to "
                 "onnx format. If the defined model includes other tensorflow "
                 "modules (e.g., tensorflow.function), please use GenericModel instead."
             )
-            opset_version = kwargs.get("opset_version", None)
-            input_signature = kwargs.get("input_signature", None)
+            logger.warning(DEPRECATE_AS_ONNX_WARNING)
+            self.set_model_save_serializer(self.model_save_serializer_type.ONNX)
 
-            self.to_onnx(
-                path=model_path,
-                input_signature=input_signature,
-                X_sample=X_sample,
-                opset_version=opset_version,
-            )
-
-        else:
-            self.estimator.save(model_path)
-
-    @runtime_dependency(module="tf2onnx", install_from=OptionalDependency.ONNX)
-    @runtime_dependency(
-        module="tensorflow",
-        short_name="tf",
-        install_from=OptionalDependency.TENSORFLOW,
-    )
-    def to_onnx(
-        self,
-        path: str = None,
-        input_signature=None,
-        X_sample: Optional[
-            Union[
-                Dict,
-                str,
-                List,
-                Tuple,
-                np.ndarray,
-                pd.core.series.Series,
-                pd.core.frame.DataFrame,
-            ]
-        ] = None,
-        opset_version=None,
-    ):
-        """
-        Exports the given Tensorflow model into ONNX format.
-
-        Parameters
-        ----------
-        path: str, default to None
-            Path to save the serialized model.
-        input_signature: a tuple or a list of tf.TensorSpec objects. default to None.
-            Define the shape/dtype of the input so that model(input_signature) is a valid invocation of the model.
-        X_sample: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]. Defaults to None.
-            A sample of input data that will be used to generate input schema and detect input_signature.
-        opset_version: int. Defaults to None.
-            The opset to be used for the ONNX model.
-
-        Returns
-        -------
-        None
-            Nothing
-
-        Raises
-        ------
-        ValueError
-            if path is not provided
-        """
-
-        if not path:
-            raise ValueError(
-                "The parameter `path` must be provided to save the model file."
-            )
-        if input_signature is None:
-            if hasattr(self.estimator, "input_shape"):
-                if not isinstance(self.estimator.input, list):
-                    # single input
-                    detected_input_signature = (
-                        tf.TensorSpec(
-                            self.estimator.input_shape,
-                            dtype=self.estimator.input.dtype,
-                            name="input",
-                        ),
-                    )
-                else:
-                    # multiple input
-                    detected_input_signature = []
-                    for i in range(len(self.estimator.input)):
-                        detected_input_signature.append(
-                            tf.TensorSpec(
-                                self.estimator.input_shape[i],
-                                dtype=self.estimator.input[i].dtype,
-                            )
-                        )
-
-            elif X_sample is not None and hasattr(X_sample, "shape"):
-                logger.warning(
-                    "Since `input_signature` is not provided, `input_signature` is "
-                    "detected from `X_sample` to export tensorflow model as "
-                    "onnx."
-                )
-                X_sample_shape = list(X_sample.shape)
-                X_sample_shape[0] = None
-                detected_input_signature = (
-                    tf.TensorSpec(X_sample_shape, dtype=X_sample.dtype, name="input"),
-                )
-            else:
-                raise ValueError(
-                    "The parameter `input_signature` must be provided to export "
-                    "tensorflow model as onnx."
-                )
-            try:
-                tf2onnx.convert.from_keras(
-                    self.estimator,
-                    input_signature=detected_input_signature,
-                    opset=opset_version,
-                    output_path=path,
-                )
-            except:
-                raise ValueError(
-                    "`input_signature` can not be autodetected. The parameter `input_signature` must be provided to export "
-                    "tensorflow model as onnx."
-                )
-
-        else:
-            tf2onnx.convert.from_keras(
-                self.estimator,
-                input_signature=input_signature,
-                opset=opset_version,
-                output_path=path,
-            )
+        super().serialize_model(
+            as_onnx=as_onnx,
+            force_overwrite=force_overwrite,
+            X_sample=X_sample,
+            **kwargs,
+        )
 
     @runtime_dependency(
         module="tensorflow",
         short_name="tf",
         install_from=OptionalDependency.TENSORFLOW,
     )
-    def get_data_serializer(
-        self,
-        data: Union[
-            Dict,
-            str,
-            List,
-            np.ndarray,
-            pd.core.series.Series,
-            pd.core.frame.DataFrame,
-            "tf.Tensor",
-        ],
-        data_type: str = None,
-    ):
-        """Returns serializable input data.
-
-        Parameters
-        ----------
-        data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
-        pd.core.frame.DataFrame, tf.Tensor]
-            Data expected by the model deployment predict API.
-        data_type: str
-            Type of the data.
-
-        Returns
-        -------
-        InputDataSerializer
-            A class containing serialized input data and original data type information.
-
-        Raises
-        ------
-        TypeError
-            if provided data type is not supported.
-        """
-        try:
-            data_type = data_type or type(data)
-            if data_type == "image":
-                data = tf.convert_to_tensor(data)
-                data_type = str(type(data))
-            if isinstance(data, tf.Tensor):
-                data = data.numpy()
-            return InputDataSerializer(data, data_type=data_type)
-        except:
-            raise TypeError(
-                "The supported data types are Dict, str, list, "
-                "numpy.ndarray, pd.core.series.Series, "
-                "pd.core.frame.DataFrame, tf.Tensor, bytes. Please "
-                "convert to the supported data types first. "
-            )
+    def _to_tensor(self, data):
+        data = tf.convert_to_tensor(data)
+        return data

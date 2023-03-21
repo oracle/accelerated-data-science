@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import contextlib
@@ -638,10 +638,6 @@ class ModelVersionSet(Builder):
             The model version set instance.
         """
         return cls(spec=batch_convert_case(config.get("spec"), "snake"))
-
-    def __repr__(self) -> str:
-        """Displays the object as YAML."""
-        return self.to_yaml()
 
     def __getattr__(self, item):
         if f"with_{item}" in self.__dir__():

@@ -221,20 +221,6 @@ Close the cursor and connection using the ``.close()`` method:
      connection.close()
 
 
-Train a Models with ADB
-========================
-
-After you load your data from ADB, the ``ADSDataset`` object is created, which allows you to build models using AutoML.
-
-.. code-block:: python3
-
-    from ads.automl.driver import AutoML
-    from ads.automl.provider import OracleAutoMLProvider
-
-    train, test = ds.train_test_split()
-    model, baseline = AutoML(train, provider= OracleAutoMLProvider()).train(model_list=["LGBMClassifier"])
-
-
 Update ADB Tables
 =================
 

@@ -13,40 +13,59 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    import logging
+    import pandas as pd
+    import numpy as np
     import tempfile
-    import warnings
-    from ads.automl.driver import AutoML
-    from ads.automl.provider import OracleAutoMLProvider
-    from ads.catalog.model import ModelCatalog
+    from sklearn.metrics import roc_auc_score, confusion_matrix, make_scorer, f1_score
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.compose import make_column_selector as selector
+    from sklearn.impute import SimpleImputer
+    from sklearn.preprocessing import StandardScaler, OneHotEncoder
+    from sklearn.compose import ColumnTransformer
+    from sklearn.pipeline import Pipeline
+    from sklearn.datasets import fetch_openml
+    from sklearn.model_selection import train_test_split
+
+    import ads
+    import automl
+    from automl import init
+    from ads.model import AutoMLModel
     from ads.common.model_metadata import UseCaseType
-    from ads.dataset.dataset_browser import DatasetBrowser
     from ads.model.framework.automl_model import AutoMLModel
 
-    ds = DatasetBrowser.sklearn().open("wine").set_target("target")
-    train, test = ds.train_test_split(test_size=0.1, random_state = 42)
+    dataset = fetch_openml(name='adult', as_frame=True)
+    df, y = dataset.data, dataset.target
 
-    ml_engine = OracleAutoMLProvider(n_jobs=-1, loglevel=logging.ERROR)
-    oracle_automl = AutoML(train, provider=ml_engine)
-    model, baseline = oracle_automl.train(
-            model_list=['LogisticRegression', 'DecisionTreeClassifier'],
-            random_state = 42,
-            time_budget = 500
-        )
+    # Several of the columns are incorrectly labeled as category type in the original dataset
+    numeric_columns = ['age', 'capitalgain', 'capitalloss', 'hoursperweek']
+    for col in df.columns:
+        if col in numeric_columns:
+            df[col] = df[col].astype(int)
+        
 
+    X_train, X_test, y_train, y_test = train_test_split(df,
+                                                        y.map({'>50K': 1, '<=50K': 0}).astype(int),
+                                                        train_size=0.7,
+                                                        random_state=0)
+
+    init(engine='local')
+    est = automl.Pipeline(task='classification')
+    est.fit(X_train, y_train)
+
+    ads.set_auth("resource_principal")
     artifact_dir = tempfile.mkdtemp()
     automl_model = AutoMLModel(estimator=model, artifact_dir=artifact_dir)
-    automl_model.prepare(inference_conda_env="generalml_p37_cpu_v1",
-                         training_conda_env="generalml_p37_cpu_v1",
+    automl_model.prepare(inference_conda_env="automlx_p38_cpu_v1",
+                         training_conda_env="automlx_p38_cpu_v1",
                          use_case_type=UseCaseType.BINARY_CLASSIFICATION,
-                         X_sample=test.X,
+                         X_sample=X_test,
                          force_overwrite=True)
-    automl_model.verify(test.X.iloc[:10])
+    automl_model.verify(X_test.iloc[:2])
     model_id = automl_model.save(display_name='Demo AutoMLModel model')
     deploy = automl_model.deploy(display_name='Demo AutoMLModel deployment')
-    automl_model.predict(test.X.iloc[:10])
+    automl_model.predict(X_test.iloc[:2])
     automl_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    automl_model.delete()
 
 GenericModel
 ------------
@@ -72,7 +91,8 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model.deploy()
     model.predict(2)
     model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    model.delete()
+
 
 
 LightGBMModel
@@ -105,7 +125,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = lightgbm_model.deploy()
     lightgbm_model.predict(X_test)
     lightgbm_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    lightgbm_model.delete()
 
 
 PyTorchModel
@@ -148,7 +168,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = torch_model.deploy()
     torch_model.predict(test_data)
     torch_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    torch_model.delete()
 
 
 SklearnModel
@@ -178,7 +198,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = sklearn_model.deploy()
     sklearn_model.predict(X_test)
     sklearn_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    sklearn_model.delete()
 
 
 TensorFlowModel
@@ -216,7 +236,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = tf_model.deploy()
     tf_model.predict(x_test[:1])
     tf_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    tf_model.delete()
 
 
 XGBoostModel
@@ -247,7 +267,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     model_deployment = xgboost_model.deploy()
     xgboost_model.predict(X_test)
     xgboost_model.delete_deployment(wait_for_completion=True)
-    ModelCatalog(compartment_id=os.environ['NB_SESSION_COMPARTMENT_OCID']).delete_model(model_id)
+    xgboost_model.delete()
 
 Shortcut
 ========

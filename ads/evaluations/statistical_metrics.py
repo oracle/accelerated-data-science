@@ -11,13 +11,57 @@ import numpy as np
 import pandas as pd
 from sklearn import metrics
 from sklearn.preprocessing import LabelEncoder
-from ads.common import utils, logger
+from ads.common import logger
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
 
 __all__ = ["ModelEvaluator"]
+
+DEFAULT_BIN_CLASS_METRICS = [
+    "accuracy",
+    "hamming_loss",
+    "precision",
+    "recall",
+    "f1",
+    "auc",
+]
+DEFAULT_MULTI_CLASS_METRICS = [
+    "accuracy",
+    "hamming_loss",
+    "precision_weighted",
+    "precision_micro",
+    "recall_weighted",
+    "recall_micro",
+    "f1_weighted",
+    "f1_micro",
+]
+DEFAULT_REG_METRICS = ["r2_score", "mse", "mae"]
+DEFAULT_BIN_CLASS_LABELS_MAP = {
+    "accuracy": "Accuracy",
+    "hamming_loss": "Hamming distance",
+    "kappa_score": "Cohen's kappa coefficient",
+    "precision": "Precision",
+    "recall": "Recall",
+    "f1": "F1",
+    "auc": "ROC AUC",
+}
+DEFAULT_MULTI_CLASS_LABELS_MAP = {
+    "accuracy": "Accuracy",
+    "hamming_loss": "Hamming distance",
+    "precision_weighted": "Precision Weighted Average",
+    "precision_micro": "Precision Micro Average",
+    "recall_weighted": "Recall Weighted Average",
+    "recall_micro": "Recall Micro Average",
+    "f1_weighted": "F1 Weighted Average",
+    "f1_micro": "F1 Micro Average",
+}
+DEFAULT_REG_LABELS_MAP = {
+    "r2_score": "r-Squared Score",
+    "root_mean_squared_error": "Root Mean Squared Error",
+    "median_absolute_error": "Median Absolute Error",
+}
 
 
 class ModelEvaluator:
@@ -105,34 +149,38 @@ class ModelEvaluator:
                 )
 
     def _get_general_metrics(self):
-        args = [self.y_true, self.y_pred, self.classes]
-        scoring_functions = {
-            "classification_report": ("classification_report", len(args)),
-            "kappa_score": ("cohen_kappa_score", len(args)),
-            "raw_confusion_matrix": ("confusion_matrix", len(args)),
-            "hamming_loss": ("hamming_loss", len(args) - 1),
-            "hinge_loss": ("hinge_loss", len(args)),
-        }
+        try:
+            args = [self.y_true, self.y_pred]
+            kwargs = {"labels": self.classes}
 
-        self.safe_metrics_call(scoring_functions, *args)
+            scoring_functions = {
+                "classification_report": ("classification_report", len(args)),
+                "kappa_score": ("cohen_kappa_score", len(args)),
+                "raw_confusion_matrix": ("confusion_matrix", len(args)),
+                "hinge_loss": ("hinge_loss", len(args)),
+            }
+            self.safe_metrics_call(scoring_functions, *args, **kwargs)
 
-        args = [self.y_true, self.y_pred]
-        scoring_functions_without_labs = {
-            "accuracy": ("accuracy_score", len(args)),
-            "zero_one_loss": ("zero_one_loss", len(args)),
-        }
-        self.safe_metrics_call(scoring_functions_without_labs, *args)
+            args = [self.y_true, self.y_pred]
+            scoring_functions_without_labs = {
+                "accuracy": ("accuracy_score", len(args)),
+                "zero_one_loss": ("zero_one_loss", len(args)),
+                "hamming_loss": ("hamming_loss", len(args)),
+            }
+            self.safe_metrics_call(scoring_functions_without_labs, *args)
 
-        # could still add: brier_score_loss, log_loss, matthews_corrcoef
+            cm = self.metrics["raw_confusion_matrix"]
+            a = cm.astype("float")
+            b = cm.sum(axis=1)[:, np.newaxis]
+            normalized_cm = np.divide(a, b, out=np.zeros_like(a), where=b != 0).tolist()
+            self.metrics["confusion_matrix"] = normalized_cm
 
-        cm = self.metrics["raw_confusion_matrix"]
-        a = cm.astype("float")
-        b = cm.sum(axis=1)[:, np.newaxis]
-        normalized_cm = np.divide(a, b, out=np.zeros_like(a), where=b != 0).tolist()
-        self.metrics["confusion_matrix"] = normalized_cm
-
-        vc = pd.DataFrame(self.y_true).value_counts()
-        self.metrics["class_balance"] = min(vc) / max(vc)
+            vc = pd.DataFrame(self.y_true).value_counts()
+            self.metrics["class_balance"] = min(vc) / max(vc)
+        except:
+            raise ValueError(
+                f"Errors arose when attempting to compute metrics. Metrics broke in the state: {self.metrics}"
+            )
 
     def _get_binary_metrics(self):
         self._get_general_metrics()
@@ -453,7 +501,7 @@ class ModelEvaluator:
         ]
         self.metrics["residual_quantiles"] = scipy.stats.zscore(resid_quant)
 
-    def safe_metrics_call(self, scoring_functions, *args):
+    def safe_metrics_call(self, scoring_functions, *args, **kwargs):
         """Applies the sklearn function in `scoring_functions` to parameters in `args`.
 
         Parameters
@@ -474,9 +522,15 @@ class ModelEvaluator:
             try:
                 if fn == "confusion_matrix":
                     self.metrics[name] = getattr(metrics, fn)(
-                        **{"y_true": args[0], "y_pred": args[1], "labels": args[2]}
+                        **{
+                            "y_true": args[0],
+                            "y_pred": args[1],
+                            "labels": kwargs["labels"],
+                        }
                     )
                 else:
-                    self.metrics[name] = getattr(metrics, fn)(*(args[:n_params]))
+                    self.metrics[name] = getattr(metrics, fn)(
+                        *(args[:n_params]), **kwargs
+                    )
             except Exception as e:
                 self.metrics[name] = f"Error unable to compute {fn}, due to: {e}"

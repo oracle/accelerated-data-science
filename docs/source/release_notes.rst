@@ -2,6 +2,31 @@
 Release Notes
 =============
 
+2.8.2
+-----
+Release date: March 2, 2023
+
+* Remove support for Python 3.7.
+* Improved the DataScienceMode.create() to support timeout argument and auto extract region from the signer and signer config.
+* Support Jupyter Notebook as ``entrypoint`` when defining Data Science jobs with ``PythonRuntime`` and ``GitPythonRuntime``.
+* Support environment variable substitution in Data Science job names and output URI.
+* Support JSON serialization of list/dictionary when assigning them as Data Science jobs environment variables.
+* Support saving the notebook to output URI even if the job run failed when running a Data Science job using ``NotebookRuntime``.
+* Added ``job.build()`` method to Data Science job to load default values from environment.
+* Added ``DataScienceJob.fast_launch_shapes()`` method to list fast launch shapes available for Data Science job.
+* Added :doc:`HuggingFacePipelineModel <./user_guide/model_registration/frameworks/huggingfacemodel>` class to support prepare, save, deploy and predict for HuggingFace pipelines.
+* Updated Data Science job run YAML representation to include configurations inherited from the job.
+* Fixed custom conda environment not showing in Data Science Job YAML specification.
+* Fixed an issue where model saving was failing in notebook session without ipywidgets installed.
+* Fixed "Unknown archive format" error in ads.jobs.PythonRuntime, when the source code folder name ends with "zip". List of supported archive files are: "zip", "tar.gz", "tar" and "tgz".
+
+2.8.1
+-----
+Release date: February 16, 2023
+
+* Fixed a bug for ``ads opctl run`` when ``--auth`` flag is passed and image is built by ADS.
+* Fixed a bug in  ``GenericModel.save()`` when the work requests are not successfully populated.
+* Fixed a bug in ``DataScienceModel.create()`` to when the provenance metadata is not provided.
 
 2.8.0
 -----

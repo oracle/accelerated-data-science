@@ -11,6 +11,15 @@ class ContainerRuntime(Runtime):
     """Represents a container job runtime
 
     To define container runtime:
+
+    >>> ContainerRuntime()
+    >>> .with_image("iad.ocir.io/<your_tenancy>/<your_image>")
+    >>> .with_cmd("sleep 5 && echo Hello World")
+    >>> .with_entrypoint(["/bin/sh", "-c"])
+    >>> .with_environment_variable(MY_ENV="MY_VALUE")
+
+    Alternatively, you can define the ``entrypoint`` and ``cmd`` along with the image.
+
     >>> ContainerRuntime()
     >>> .with_image(
     >>>     "iad.ocir.io/<your_tenancy>/<your_image>",
@@ -18,22 +27,17 @@ class ContainerRuntime(Runtime):
     >>>     cmd="sleep 5 && echo Hello World",
     >>> )
     >>> .with_environment_variable(MY_ENV="MY_VALUE")
-    or
-    >>> ContainerRuntime()
-    >>> .with_image("iad.ocir.io/<your_tenancy>/<your_image>")
-    >>> .with_cmd("sleep 5 && echo Hello World")
-    >>> .with_entrypoint(["/bin/sh", "-c"])
-    >>> .with_environment_variable(MY_ENV="MY_VALUE")
 
-    Docker ENTRYPOINT and CMD can be either "exec form" or "shell form" (See references).
+    The entrypoint and cmd can be either "exec form" or "shell form" (See references).
     The exec form is used when a list is passed in.
     The shell form is used when a space separated string is passed in.
 
     When using the ContainerRuntime with OCI Data Science Job, the exec form is recommended.
-    For most images, when the entrypoint is set to ["/bin/sh", "-c"],
-        cmd can be a string as if you are running shell command.
+    For most images, when the entrypoint is set to ``["/bin/sh", "-c"]``,
+    ``cmd`` can be a string as if you are running shell command.
 
-    Reference:
+    References
+    ----------
     https://docs.docker.com/engine/reference/builder/#entrypoint
     https://docs.docker.com/engine/reference/builder/#cmd
 
@@ -45,7 +49,7 @@ class ContainerRuntime(Runtime):
     attribute_map = {
         CONST_IMAGE: CONST_IMAGE,
         CONST_ENTRYPOINT: CONST_ENTRYPOINT,
-        CONST_CMD: CONST_CMD
+        CONST_CMD: CONST_CMD,
     }
     attribute_map.update(Runtime.attribute_map)
 
@@ -54,7 +58,9 @@ class ContainerRuntime(Runtime):
         """The container image"""
         return self.get_spec(self.CONST_IMAGE)
 
-    def with_image(self, image: str, entrypoint: Union[str, list, None] = None, cmd: str = None):
+    def with_image(
+        self, image: str, entrypoint: Union[str, list, None] = None, cmd: str = None
+    ) -> "ContainerRuntime":
         """Specify the image for the container job.
 
         Parameters
@@ -68,7 +74,7 @@ class ContainerRuntime(Runtime):
 
         Returns
         -------
-        self
+        ContainerRuntime
             The runtime instance.
         """
         self.with_entrypoint(entrypoint)
@@ -80,7 +86,7 @@ class ContainerRuntime(Runtime):
         """Entrypoint of the container job"""
         return self.get_spec(self.CONST_ENTRYPOINT)
 
-    def with_entrypoint(self, entrypoint: Union[str, list]):
+    def with_entrypoint(self, entrypoint: Union[str, list]) -> "ContainerRuntime":
         """Specifies the entrypoint for the container job.
 
         Parameters
@@ -90,7 +96,7 @@ class ContainerRuntime(Runtime):
 
         Returns
         -------
-        self
+        ContainerRuntime
             The runtime instance.
         """
         self._spec[self.CONST_ENTRYPOINT] = entrypoint
@@ -101,7 +107,7 @@ class ContainerRuntime(Runtime):
         """Command of the container job"""
         return self.get_spec(self.CONST_CMD)
 
-    def with_cmd(self, cmd: str):
+    def with_cmd(self, cmd: str) -> "ContainerRuntime":
         """Specifies the command for the container job.
 
         Parameters
@@ -111,7 +117,7 @@ class ContainerRuntime(Runtime):
 
         Returns
         -------
-        self
+        ContainerRuntime
             The runtime instance.
         """
         self._spec[self.CONST_CMD] = cmd

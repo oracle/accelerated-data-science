@@ -4,18 +4,26 @@ ads.secrets package
 Submodules
 ----------
 
-ads.secrets.secrets module
---------------------------
-
-.. automodule:: ads.secrets.secrets
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 ads.secrets.adb module
 ----------------------
 
 .. automodule:: ads.secrets.adb
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.secrets.auth\_token module
+------------------------------
+
+.. automodule:: ads.secrets.auth_token
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.secrets.big\_data\_service module
+-------------------------------------
+
+.. automodule:: ads.secrets.big_data_service
    :members:
    :undoc-members:
    :show-inheritance:
@@ -36,18 +44,10 @@ ads.secrets.oracledb module
    :undoc-members:
    :show-inheritance:
 
-ads.secrets.big\_data\_service module
--------------------------------------
+ads.secrets.secrets module
+--------------------------
 
-.. automodule:: ads.secrets.big_data_service
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-ads.secrets.auth\_token module
-------------------------------
-
-.. automodule:: ads.secrets.auth_token
+.. automodule:: ads.secrets.secrets
    :members:
    :undoc-members:
    :show-inheritance:
@@ -56,7 +56,6 @@ Module contents
 ---------------
 
 .. automodule:: ads.secrets
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
+   :members:
+   :undoc-members:
+   :show-inheritance:

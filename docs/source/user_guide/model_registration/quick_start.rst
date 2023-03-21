@@ -9,10 +9,15 @@ Sklearn
 .. code-block:: python3
 
     import tempfile
+
+    import ads
     from ads.model.framework.sklearn_model import SklearnModel
     from sklearn.datasets import load_iris
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
+
+
+    ads.set_auth(auth="resource_principal")
 
     # Load dataset and Prepare train and test split
     iris = load_iris()
@@ -23,12 +28,12 @@ Sklearn
     sklearn_estimator = LogisticRegression()
     sklearn_estimator.fit(X_train, y_train)
 
-    # Instantite ads.model.framework.sklearn_model.SklearnModel using the sklearn LogisticRegression model
+    # Instantiate ads.model.framework.sklearn_model.SklearnModel using the sklearn LogisticRegression model
     sklearn_model = SklearnModel(
         estimator=sklearn_estimator, artifact_dir=tempfile.mkdtemp()
     )
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     sklearn_model.prepare(
         inference_conda_env="dbexp_p38_cpu_v1",
         X_sample=X_train,
@@ -50,11 +55,16 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 .. code-block:: python3
 
     import tempfile
+
+    import ads
     import xgboost as xgb
     from ads.model.framework.xgboost_model import XGBoostModel
     from sklearn.datasets import load_iris
     from sklearn.datasets import make_classification
     from sklearn.model_selection import train_test_split
+
+
+    ads.set_auth(auth="resource_principal")
 
     # Load dataset and Prepare train and test split
     iris = load_iris()
@@ -65,10 +75,10 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     xgboost_estimator = xgb.XGBClassifier()
     xgboost_estimator.fit(X_train, y_train)
 
-    # Instantite ads.model.framework.xgboost_model.XGBoostModel using the trained XGBoost Model
+    # Instantiate ads.model.framework.xgboost_model.XGBoostModel using the trained XGBoost Model
     xgboost_model = XGBoostModel(estimator=xgboost_estimator, artifact_dir=tempfile.mkdtemp())
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     xgboost_model.prepare(
         inference_conda_env="generalml_p38_cpu_v1",
         X_sample=X_train,
@@ -88,11 +98,15 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    import lightgbm as lgb
     import tempfile
+
+    import ads
+    import lightgbm as lgb
     from ads.model.framework.lightgbm_model import LightGBMModel
     from sklearn.datasets import load_iris
     from sklearn.model_selection import train_test_split
+
+    ads.set_auth(auth="resource_principal")
 
     # Load dataset and Prepare train and test split
     iris = load_iris()
@@ -106,10 +120,10 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     }
     lightgbm_estimator = lgb.train(param, train)
 
-    # Instantite ads.model.lightgbm_model.XGBoostModel using the trained LGBM Model
+    # Instantiate ads.model.lightgbm_model.XGBoostModel using the trained LGBM Model
     lightgbm_model = LightGBMModel(estimator=lightgbm_estimator, artifact_dir=tempfile.mkdtemp())
 
-    # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
+    # Autogenerate score.py, serialized model, runtime.yaml, input_schema.json and output_schema.json
     lightgbm_model.prepare(
         inference_conda_env="generalml_p38_cpu_v1",
         X_sample=X_train,
@@ -132,9 +146,13 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 
     import tempfile
+
+    import ads
     import torch
     import torchvision
     from ads.model.framework.pytorch_model import PyTorchModel
+
+    ads.set_auth(auth="resource_principal")
 
     # Load a pre-trained resnet model
     torch_estimator = torchvision.models.resnet18(pretrained=True)
@@ -143,7 +161,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # create random test data
     test_data = torch.randn(1, 3, 224, 224)
 
-    # Instantite ads.model.framework.pytorch_model.PyTorchModel using the pre-trained PyTorch Model
+    # Instantiate ads.model.framework.pytorch_model.PyTorchModel using the pre-trained PyTorch Model
     artifact_dir=tempfile.mkdtemp()
     torch_model = PyTorchModel(torch_estimator, artifact_dir=artifact_dir)
 
@@ -154,7 +172,7 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
     # Verify generated artifacts
     torch_model.verify(test_data)
 
-    #Register PyTorch model
+    # Register PyTorch model
     model_id = torch_model.save(display_name="PyTorch Model")
 
 
@@ -165,9 +183,11 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
 .. code-block:: python3
 
-    import tempfile
     import os
-    from pyspark.sql import SparkSession
+    import tempfile
+
+    import ads
+    from ads.model.framework.spark_model import SparkPipelineModel
     from pyspark.ml import Pipeline
     from pyspark.ml.classification import LogisticRegression
     from pyspark.ml.feature import HashingTF, Tokenizer
@@ -256,6 +276,69 @@ Create a model, prepare it, verify that it works, save it to the model catalog, 
 
     #Register TensorFlow model
     model_id = tf_model.save(display_name="TensorFlow Model")
+
+
+HuggingFace Pipelines
+---------------------
+
+.. code-block:: python3
+
+    from transformers import pipeline
+    from ads.model import HuggingFacePipelineModel
+
+    import tempfile
+    import PIL.Image
+    from ads.common.auth import default_signer
+    import requests
+    import cloudpickle
+
+    ## download the image
+    image_url = "https://huggingface.co/datasets/Narsil/image_dummy/raw/main/parrots.png"
+    image = PIL.Image.open(requests.get(image_url, stream=True).raw)
+
+    ## download the pretrained model
+    classifier = pipeline(model="openai/clip-vit-large-patch14")
+    classifier(
+            images=image,
+            candidate_labels=["animals", "humans", "landscape"],
+        )
+
+    ## Initiate a HuggingFacePipelineModel instance
+    zero_shot_image_classification_model = HuggingFacePipelineModel(classifier, artifact_dir=tempfile.mkdtemp())
+
+    # Autogenerate score.py, serialized model, runtime.yaml
+    conda_pack_path = "oci://bucket@namespace/path/to/conda/pack"
+    python_version = "3.x" # Remember to update 3.x with your actual python version, e.g. 3.8
+    zero_shot_image_classification_model.prepare(inference_conda_env=conda_pack_path, inference_python_version = python_version, force_overwrite=True)
+
+    ## Convert payload to bytes
+    data = {"images": image, "candidate_labels": ["animals", "humans", "landscape"]}
+    body = cloudpickle.dumps(data) # convert image to bytes
+
+    # Verify generated artifacts
+    zero_shot_image_classification_model.verify(data=data)
+    zero_shot_image_classification_model.verify(data=body)
+
+    # Register HuggingFace Pipeline model
+    zero_shot_image_classification_model.save()
+
+    ## Deploy
+    log_group_id = "<log_group_id>"
+    log_id = "<log_id>"
+    zero_shot_image_classification_model.deploy(deployment_bandwidth_mbps=100,
+                    wait_for_completion=False,
+                    deployment_log_group_id = log_group_id,
+                    deployment_access_log_id = log_id,
+                    deployment_predict_log_id = log_id)
+    zero_shot_image_classification_model.predict(data)
+    zero_shot_image_classification_model.predict(body)
+
+    ### Invoke the model by sending bytes
+    auth = default_signer()['signer']
+    endpoint = zero_shot_image_classification_model.model_deployment.url + "/predict"
+    headers = {"Content-Type": "application/octet-stream"}
+    requests.post(endpoint, data=body, auth=auth, headers=headers).json()
+
 
 Other Frameworks
 ----------------

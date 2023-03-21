@@ -5,14 +5,16 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import fsspec
-import json
 import os
 
 import click
 import yaml
 
 from ads.common.auth import AuthType
+from ads.common import auth as authutil
+from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
+from ads.opctl.cmds import deactivate as deactivate_cmd
 from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
@@ -223,6 +225,42 @@ _options = [
         type=click.Choice(["api_key", "resource_principal"]),
         default=None,
     ),
+    click.option(
+        "--wait-for-completion",
+        help="either to wait for process to complete or not",
+        is_flag=True,
+        required=False,
+    ),
+    click.option(
+        "--max-wait-time",
+        help="maximum wait time in seconds for progress to complete",
+        type=int,
+        required=False,
+        default=1200,
+    ),
+    click.option(
+        "--poll-interval",
+        help="poll interval in seconds",
+        type=int,
+        required=False,
+        default=10,
+    ),
+    click.option(
+        "--log-type", help="the type of logging.", required=False, default=None
+    ),
+    click.option(
+        "--log-filter",
+        help="expression for filtering the logs.",
+        required=False,
+        default=None,
+    ),
+    click.option(
+        "--interval",
+        help="log interval in seconds",
+        type=int,
+        required=False,
+        default=3,
+    ),
 ]
 
 
@@ -327,7 +365,6 @@ def add_options(options):
 )
 @click.option(
     "--auto_increment",
-    "-i",
     default=False,
     is_flag=True,
     help="Increments tag of the image while rebuilding",
@@ -358,7 +395,12 @@ def run(file, **kwargs):
     debug = kwargs["debug"]
     if file:
         if os.path.exists(file):
-            auth = kwargs["auth"] or authutil.default_signer()
+            auth = {}
+            if kwargs["auth"]:
+                auth = authutil.create_signer(kwargs["auth"])
+            else:
+                auth = authutil.default_signer()
+
             with fsspec.open(file, "r", **auth) as f:
                 config = suppress_traceback(debug)(yaml.safe_load)(f.read())
         else:
@@ -428,12 +470,6 @@ def cancel(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@click.option(
-    "--log_type",
-    default=None,
-    required=False,
-    help="The type of logging.",
-)
 @add_options(_options)
 def watch(**kwargs):
     """
@@ -443,10 +479,29 @@ def watch(**kwargs):
     suppress_traceback(kwargs["debug"])(watch_cmd)(**kwargs)
 
 
+@commands.command()
+@click.argument("ocid", nargs=1)
+@add_options(_options)
+def activate(**kwargs):
+    """
+    Activates a data science service.
+    """
+    suppress_traceback(kwargs["debug"])(activate_cmd)(**kwargs)
+
+
+@commands.command()
+@click.argument("ocid", nargs=1)
+@add_options(_options)
+def deactivate(**kwargs):
+    """
+    Deactivates a data science service.
+    """
+    suppress_traceback(kwargs["debug"])(deactivate_cmd)(**kwargs)
+
+
 commands.add_command(ads.opctl.conda.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)
-
 
 # @commands.command()
 # @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)

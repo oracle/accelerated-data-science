@@ -46,9 +46,10 @@ class AuthState(metaclass=SingletonMeta):
     oci_config_path: str = None
     oci_key_profile: str = None
     oci_config: str = None
-    oci_signer: str = None
-    oci_signer_callable: str = None
-    oci_signer_kwargs: str = None
+    oci_signer: Any = None
+    oci_signer_callable: Callable = None
+    oci_signer_kwargs: Dict = None
+    oci_client_kwargs: Dict = None
 
     def __post_init__(self):
         self.oci_iam_type = self.oci_iam_type or os.environ.get(
@@ -67,6 +68,7 @@ class AuthState(metaclass=SingletonMeta):
         self.oci_signer = self.oci_signer
         self.oci_signer_callable = self.oci_signer_callable
         self.oci_signer_kwargs = self.oci_signer_kwargs or {}
+        self.oci_client_kwargs = self.oci_client_kwargs or {}
 
 
 def set_auth(
@@ -77,6 +79,7 @@ def set_auth(
     signer: Optional[Any] = None,
     signer_callable: Optional[Callable] = None,
     signer_kwargs: Optional[Dict] = {},
+    client_kwargs: Optional[Dict] = {},
 ) -> None:
     """
     Save type of authentication, profile, config location, config (keypair identity) or signer, which will be used
@@ -101,6 +104,9 @@ def set_auth(
     signer_kwargs: Optional[Dict], default None
         parameters accepted by the signer.
         Check documentation: https://docs.oracle.com/en-us/iaas/tools/python/latest/api/signing.html
+    client_kwargs: Optional[Dict], default None
+        Additional keyword arguments for initializing the OCI client.
+        Example: client_kwargs = {"timeout": 60}
 
     Examples
     --------
@@ -109,6 +115,8 @@ def set_auth(
     >>> ads.set_auth("api_key", profile = "TEST") # default signer is set to api keys and to use TEST profile
 
     >>> ads.set_auth("api_key", oci_config_location = "other_config_location") # use non-default oci_config_location
+
+    >>> ads.set_auth("api_key", client_kwargs={"timeout": 60}) # default signer with connection and read timeouts set to 60 seconds for the client.
 
     >>> other_config = oci.config.from_file("other_config_location", "OTHER_PROFILE") # Create non-default config
     >>> ads.set_auth(config=other_config) # Set api keys type of authentication based on provided config
@@ -149,7 +157,7 @@ def set_auth(
 
     auth_state.oci_config = config
     auth_state.oci_key_profile = profile
-    if auth == AuthType.API_KEY:
+    if auth == AuthType.API_KEY and not signer and not signer_callable:
         if os.path.exists(os.path.expanduser(oci_config_location)):
             auth_state.oci_config_path = oci_config_location
         else:
@@ -160,6 +168,7 @@ def set_auth(
     auth_state.oci_signer = signer
     auth_state.oci_signer_callable = signer_callable
     auth_state.oci_signer_kwargs = signer_kwargs
+    auth_state.oci_client_kwargs = client_kwargs
 
 
 def api_keys(
@@ -283,7 +292,7 @@ def create_signer(
     >>> auth = ads.auth.create_signer(config=config) # api_key type of authentication dictionary created based on provided config
 
     >>> singer = oci.auth.signers.get_resource_principals_signer()
-    >>> auth = ads.auth.create_signer(config={}, singer=signer) # resource principals authentication dictionary created
+    >>> auth = ads.auth.create_signer(config={}, signer=signer) # resource principals authentication dictionary created
 
     >>> auth = ads.auth.create_signer(auth_type='instance_principal') # instance principals authentication dictionary created
 
@@ -326,6 +335,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
     ----------
     client_kwargs : dict
         kwargs that are required to instantiate the Client if we need to override the defaults.
+        Example: client_kwargs = {"timeout": 60}
 
     Returns
     -------
@@ -364,7 +374,10 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
         signer_dict = {
             "config": configuration,
             "signer": signer,
-            "client_kwargs": client_kwargs,
+            "client_kwargs": {
+                **(auth_state.oci_client_kwargs or {}),
+                **(client_kwargs or {}),
+            },
         }
         logger.info(f"Using authentication signer type {type(signer)}.")
         return signer_dict
@@ -373,7 +386,10 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
             oci_config_location=auth_state.oci_config_path,
             oci_key_profile=auth_state.oci_key_profile,
             oci_config=auth_state.oci_config,
-            client_kwargs=client_kwargs,
+            client_kwargs={
+                **(auth_state.oci_client_kwargs or {}),
+                **(client_kwargs or {}),
+            },
         )
         signer_generator = AuthFactory().signerGenerator(auth_state.oci_iam_type)
         return signer_generator(signer_args).create_signer()
@@ -778,6 +794,9 @@ class AuthContext:
                 a callable object that returns signer
             signer_kwargs: Optional[Dict], default None
                 parameters accepted by the signer
+            client_kwargs: Optional[Dict], default None
+                Additional keyword arguments for initializing the OCI client.
+                Example: client_kwargs = {"timeout": 60}
         """
         self.kwargs = kwargs
 

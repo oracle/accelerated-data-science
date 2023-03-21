@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import contextlib
 import logging
@@ -35,6 +35,8 @@ class Artifact:
         # Files are cleaned up when exit or if there is an exception.
 
     """
+
+    CONST_DRIVER_UTILS = "driver_utils.py"
 
     def __init__(self, source, runtime=None) -> None:
         # Get the full path of source file if it is local file.
@@ -125,7 +127,12 @@ class Artifact:
         scheme = urlparse(uri).scheme
         # temp_dir is used only if the uri is zip/tar file
         with tempfile.TemporaryDirectory() as temp_dir:
-            if unpack and (str(uri).endswith("zip") or str(uri).endswith("tar.gz")):
+            if unpack and (
+                str(uri).endswith(".zip")
+                or str(uri).endswith(".tar.gz")
+                or str(uri).endswith(".tar")
+                or str(uri).endswith(".tgz")
+            ):
                 unpack_path = to_path
                 to_path = temp_dir
             else:
@@ -175,6 +182,9 @@ class NotebookArtifact(Artifact):
         driver_script = os.path.join(
             os.path.dirname(__file__), "../../templates", self.CONST_DRIVER_SCRIPT
         )
+        driver_utils = os.path.join(
+            os.path.dirname(__file__), "../../templates", self.CONST_DRIVER_UTILS
+        )
         notebook_path = os.path.join(self.temp_dir.name, os.path.basename(self.source))
         output_path = (
             os.path.join(
@@ -187,6 +197,7 @@ class NotebookArtifact(Artifact):
         with zipfile.ZipFile(output_path, "w") as zip_file:
             zip_file.write(notebook_path, os.path.basename(notebook_path))
             zip_file.write(driver_script, os.path.basename(driver_script))
+            zip_file.write(driver_utils, os.path.basename(driver_utils))
         self.path = output_path
 
 
@@ -209,7 +220,9 @@ class ScriptArtifact(Artifact):
                     "Please specify entrypoint when script source is a directory."
                 )
             output = os.path.join(self.temp_dir.name, basename)
-            shutil.make_archive(output, "zip", os.path.dirname(source), base_dir=basename)
+            shutil.make_archive(
+                output, "zip", os.path.dirname(source), base_dir=basename
+            )
             self.path = output + ".zip"
             return
         # Otherwise, use the artifact directly
@@ -227,20 +240,23 @@ class PythonArtifact(Artifact):
     USER_CODE_DIR = "code"
 
     def build(self):
-        """Prepares job artifact for script runtime.
-        If the source is a file, it will be returned as is.
-        If the source is a directory, it will be compressed as a zip file.
-        """
-        driver_script = os.path.join(
-            os.path.dirname(__file__), "../../templates", self.CONST_DRIVER_SCRIPT
-        )
+        """Prepares job artifact for PythonRuntime."""
         basename = os.path.basename(str(self.source).rstrip("/")).split(".", 1)[0]
         artifact_dir = os.path.join(self.temp_dir.name, basename)
         code_dir = os.path.join(artifact_dir, self.USER_CODE_DIR)
         os.makedirs(artifact_dir, exist_ok=True)
 
         # Copy the driver script
-        shutil.copy(driver_script, os.path.join(artifact_dir, self.CONST_DRIVER_SCRIPT))
+        for filename in [
+            self.CONST_DRIVER_UTILS,
+            self.CONST_DRIVER_SCRIPT,
+            NotebookArtifact.CONST_DRIVER_SCRIPT,
+        ]:
+            file_path = os.path.join(
+                os.path.dirname(__file__), "../../templates", filename
+            )
+
+            shutil.copy(file_path, os.path.join(artifact_dir, filename))
 
         # Copy user code
         os.makedirs(code_dir, exist_ok=True)
@@ -269,10 +285,38 @@ class PythonArtifact(Artifact):
                     f"Invalid entrypoint. {self.runtime.entrypoint} does not exist."
                 )
                 if os.path.exists(possible_entrypoint):
-                    err_message += f" Do you mean {os.path.join(self.runtime.working_dir, basename, self.runtime.entrypoint)}?"
-                raise ValueError(err_message)
+                    suggested_entrypoint = os.path.join(basename, self.runtime.entrypoint)
+                    err_message += f" Do you mean {suggested_entrypoint}?"
+                logger.warning(err_message)
 
         # Zip the job artifact
         output = os.path.join(self.temp_dir.name, basename)
         shutil.make_archive(output, "zip", artifact_dir, base_dir="./")
         self.path = output + ".zip"
+
+
+class GitPythonArtifact(Artifact):
+
+    CONST_DRIVER_SCRIPT = "driver_oci.py"
+
+    def __init__(self) -> None:
+        super().__init__("", runtime=None)
+
+    def build(self):
+        """Prepares job artifact for GitPythonRuntime."""
+        artifact_dir = os.path.join(self.temp_dir.name, "ads_driver")
+        os.makedirs(artifact_dir, exist_ok=True)
+        for filename in [
+            self.CONST_DRIVER_UTILS,
+            self.CONST_DRIVER_SCRIPT,
+            NotebookArtifact.CONST_DRIVER_SCRIPT,
+        ]:
+            file_path = os.path.join(
+                os.path.dirname(__file__), "../../templates", filename
+            )
+
+            shutil.copy(file_path, os.path.join(artifact_dir, filename))
+
+        # Zip the job artifact
+        shutil.make_archive(artifact_dir, "zip", artifact_dir, base_dir="./")
+        self.path = artifact_dir + ".zip"
