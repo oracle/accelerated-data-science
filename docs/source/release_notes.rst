@@ -6,8 +6,9 @@ Release Notes
 -----
 Release date: March 21, 2023
 
-* Added support for BYOC and environment variables for :py:class:`~ads.model.GenericModel`.
-* Added default values for configuring parameters in :py:class:`~ads.model.ModelDeployment`, such as default flex shape, ocpus, memory in gbs, bandwidth, instance count.
+* Added support for :py:class:`~ads.jobs.NotebookRuntime` to use directory as job artifact.
+* Added support for custom containers (Bring Your Own Container or BYOC) and environment variables for :py:class:`~ads.model.GenericModel`.
+* Added default values for configuring parameters in :py:class:`~ads.model.ModelDeployment`, such as default flex shape, ocpus, memory in gbs, bandwidth, and instance count.
 
 2.8.2
 -----
