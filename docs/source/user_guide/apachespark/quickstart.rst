@@ -21,21 +21,20 @@ followed by the spark version, 3.2.1.
 	import os
 	import tempfile
 
+	SCRIPT_CONTENT = """
+	import pyspark
+
+	def main():
+		print("Hello World")
+		print("Spark version is", pyspark.__version__)
+
+	if __name__ == "__main__":
+		main()
+	"""
+
 	with tempfile.TemporaryDirectory() as td:
 		with open(os.path.join(td, "script.py"), "w") as f:
-			f.write(
-		"""
-		import pyspark
-
-		def main():
-			print("Hello World")
-			print("Spark version is", pyspark.__version__)
-
-		if __name__ == "__main__":
-			main()
-		"""
-		)
-
+			f.write(SCRIPT_CONTENT)
 		name = f"dataflow-app-{str(uuid4())}"
 		dataflow_configs = (
 			DataFlow()
