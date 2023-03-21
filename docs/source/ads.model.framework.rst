@@ -4,6 +4,15 @@ ads.model.framework package
 Submodules
 ----------
 
+ads.model.framework.huggingface\_model module
+---------------------------------------------
+
+.. automodule:: ads.model.framework.huggingface_model
+   :members:
+   :undoc-members:
+   :show-inheritance:
+   :inherited-members:
+
 ads.model.framework.lightgbm\_model module
 ------------------------------------------
 
@@ -11,6 +20,7 @@ ads.model.framework.lightgbm\_model module
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
 ads.model.framework.pytorch\_model module
 -----------------------------------------
@@ -19,6 +29,7 @@ ads.model.framework.pytorch\_model module
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
 ads.model.framework.sklearn\_model module
 -----------------------------------------
@@ -27,6 +38,7 @@ ads.model.framework.sklearn\_model module
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
 ads.model.framework.spark\_model module
 ---------------------------------------
@@ -35,6 +47,7 @@ ads.model.framework.spark\_model module
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
 ads.model.framework.tensorflow\_model module
 --------------------------------------------
@@ -43,6 +56,7 @@ ads.model.framework.tensorflow\_model module
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
 
 ads.model.framework.xgboost\_model module
 -----------------------------------------
@@ -51,14 +65,7 @@ ads.model.framework.xgboost\_model module
    :members:
    :undoc-members:
    :show-inheritance:
-
-ads.model.framework.huggingface\_model module
------------------------------------------
-
-.. automodule:: ads.model.framework.huggingface_model
-   :members:
-   :undoc-members:
-   :show-inheritance:
+   :inherited-members:
 
 Module contents
 ---------------
@@ -67,3 +74,4 @@ Module contents
    :members:
    :undoc-members:
    :show-inheritance:
+   :inherited-members:
