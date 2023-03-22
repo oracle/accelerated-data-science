@@ -41,8 +41,7 @@ class ModelDeploymentBackend(Backend):
         wait_for_completion = self.config["execution"].get("wait_for_completion")
         max_wait_time = self.config["execution"].get("max_wait_time")
         poll_interval = self.config["execution"].get("poll_interval")
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_dict(self.config)
             model_deployment.deploy(
                 wait_for_completion=wait_for_completion,
@@ -59,8 +58,7 @@ class ModelDeploymentBackend(Backend):
         wait_for_completion = self.config["execution"].get("wait_for_completion")
         max_wait_time = self.config["execution"].get("max_wait_time")
         poll_interval = self.config["execution"].get("poll_interval")
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(model_deployment_id)
             if model_deployment.lifecycle_state in [
                 OCIModelDeployment.LIFECYCLE_STATE_DELETED
@@ -95,8 +93,7 @@ class ModelDeploymentBackend(Backend):
         wait_for_completion = self.config["execution"].get("wait_for_completion")
         max_wait_time = self.config["execution"].get("max_wait_time")
         poll_interval = self.config["execution"].get("poll_interval")
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(model_deployment_id)
             if (
                 model_deployment.lifecycle_state
@@ -132,8 +129,7 @@ class ModelDeploymentBackend(Backend):
         wait_for_completion = self.config["execution"].get("wait_for_completion")
         max_wait_time = self.config["execution"].get("max_wait_time")
         poll_interval = self.config["execution"].get("poll_interval")
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(model_deployment_id)
             if (
                 model_deployment.lifecycle_state
@@ -169,8 +165,7 @@ class ModelDeploymentBackend(Backend):
         log_type = self.config["execution"].get("log_type")
         interval = self.config["execution"].get("interval")
         log_filter = self.config["execution"].get("log_filter")
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(model_deployment_id)
             model_deployment.watch(
                 log_type=log_type, interval=interval, log_filter=log_filter

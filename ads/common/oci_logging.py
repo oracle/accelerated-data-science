@@ -11,6 +11,7 @@ from typing import Dict, Union, List
 
 import oci.logging
 import oci.loggingsearch
+import oci.exceptions
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 from ads.common.oci_resource import OCIResource, ResourceNotFoundError
@@ -370,12 +371,21 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             time_end=self.format_datetime(time_end),
             search_query=search_query,
         )
-        response = self.search_client.search_logs(
-            search_details, limit=LIMIT_PER_REQUEST
-        )
-        records = response.data.results
-        logger.debug("%d logs received.", len(records))
-        if len(records) >= LIMIT_PER_REQUEST:
+        result_too_large = False
+        try:
+            response = self.search_client.search_logs(
+                search_details, limit=LIMIT_PER_REQUEST
+            )
+            records = response.data.results
+            logger.debug("%d logs received.", len(records))
+        except oci.exceptions.ServiceError as ex:
+            if ex.status == 400 and "search result is too large" in ex.message:
+                logger.debug(ex.message)
+                records = []
+                result_too_large = True
+            else:
+                raise oci.exceptions.ServiceError from ex
+        if result_too_large or len(records) >= LIMIT_PER_REQUEST:
             mid = time_start + (time_end - time_start) / 2
             # The log search API used RFC3339 time format.
             # The minimum time unit of RFC3339 format is 1000 microseconds.

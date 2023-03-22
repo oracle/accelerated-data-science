@@ -139,7 +139,7 @@ class TensorFlowModel(FrameworkSpecificModel):
     def __init__(
         self,
         estimator: callable,
-        artifact_dir: str,
+        artifact_dir: Optional[str] = None,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
         model_save_serializer: Optional[SERDE] = model_save_serializer_type.TENSORFLOW,

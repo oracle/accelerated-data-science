@@ -1259,12 +1259,13 @@ def copy_from_uri(
             to_path = temp_dir
         else:
             unpack_path = None
+
         fs = fsspec.filesystem(scheme, **auth)
-        try:
-            fs.get(uri, to_path, recursive=True)
-        except IsADirectoryError:
+
+        if not (uri.endswith("/") or fs.isdir(uri)) and os.path.isdir(to_path):
             to_path = os.path.join(to_path, os.path.basename(str(uri).rstrip("/")))
-            fs.get(uri, to_path, recursive=True)
+
+        fs.get(uri, to_path, recursive=True)
 
         if unpack_path:
             shutil.unpack_archive(to_path, unpack_path)

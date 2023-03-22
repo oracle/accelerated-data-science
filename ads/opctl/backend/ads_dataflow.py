@@ -57,8 +57,7 @@ class DataFlowBackend(Backend):
         """
         Create DataFlow and DataFlow Run from OCID or cli parameters.
         """
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             if self.config["execution"].get("ocid", None):
                 data_flow_id = self.config["execution"]["ocid"]
                 run_id = Job.from_dataflow_job(data_flow_id).run().id
@@ -99,8 +98,7 @@ class DataFlowBackend(Backend):
         if not self.config["execution"].get("run_id"):
             raise ValueError("Can only cancel a DataFlow run.")
         run_id = self.config["execution"]["run_id"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             DataFlowRun.from_ocid(run_id).delete()
 
     def delete(self):
@@ -109,13 +107,11 @@ class DataFlowBackend(Backend):
         """
         if self.config["execution"].get("id"):
             data_flow_id = self.config["execution"]["id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 Job.from_dataflow_job(data_flow_id).delete()
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 DataFlowRun.from_ocid(run_id).delete()
 
     def watch(self):
@@ -123,7 +119,6 @@ class DataFlowBackend(Backend):
         Watch DataFlow Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataFlowRun.from_ocid(run_id)
             run.watch()

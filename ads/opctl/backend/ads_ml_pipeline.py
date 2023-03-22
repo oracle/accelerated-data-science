@@ -36,8 +36,7 @@ class PipelineBackend(Backend):
         """
         Create Pipeline and Pipeline Run from YAML.
         """
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             pipeline = Pipeline.from_dict(self.config)
             pipeline.create()
             pipeline_run = pipeline.run()
@@ -49,8 +48,7 @@ class PipelineBackend(Backend):
         Create Pipeline and Pipeline Run from OCID.
         """
         pipeline_id = self.config["execution"]["ocid"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             pipeline = Pipeline.from_ocid(ocid=pipeline_id)
             pipeline_run = pipeline.run()
             print("PIPELINE RUN OCID:", pipeline_run.id)
@@ -61,14 +59,12 @@ class PipelineBackend(Backend):
         """
         if self.config["execution"].get("id"):
             pipeline_id = self.config["execution"]["id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 Pipeline.from_ocid(pipeline_id).delete()
                 print(f"Pipeline {pipeline_id} has been deleted.")
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 PipelineRun.from_ocid(run_id).delete()
                 print(f"Pipeline run {run_id} has been deleted.")
 
@@ -77,8 +73,7 @@ class PipelineBackend(Backend):
         Cancel Pipeline Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             PipelineRun.from_ocid(run_id).cancel()
             print(f"Pipeline run {run_id} has been cancelled.")
 
@@ -88,6 +83,5 @@ class PipelineBackend(Backend):
         """
         run_id = self.config["execution"]["run_id"]
         log_type = self.config["execution"]["log_type"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             PipelineRun.from_ocid(run_id).watch(log_type=log_type)

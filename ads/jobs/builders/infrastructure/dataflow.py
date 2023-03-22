@@ -791,10 +791,10 @@ class DataFlow(Infrastructure):
         if not self.name:
             self.name = utils.get_random_name_for_resource()
         payload = copy.deepcopy(self._spec)
-        runtime.convert(overwrite=kwargs.get("overwrite", False))
+        overwrite = kwargs.pop("overwrite", runtime.overwrite) or False
+        runtime.convert(overwrite=overwrite)
         if not runtime.script_uri:
             raise ValueError("script uri must be specified in runtime.")
-        overwrite = kwargs.get("overwrite", False)
         if runtime.script_uri.split(":")[0] != "oci":
             if runtime.script_bucket:
                 runtime.with_script_uri(

@@ -270,6 +270,7 @@ class MetadataMixin:
         training_id: str = None,
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
+        ignore_conda_error: bool = False,
     ):
         """Populates input schema and output schema.
         If the schema exceeds the limit of 32kb, save as json files to the artifact directory.
@@ -313,7 +314,8 @@ class MetadataMixin:
         self._populate_metadata_taxonomy(
             model=self.estimator, use_case_type=use_case_type
         )
-        self._populate_metadata_custom()
+        if not ignore_conda_error:
+            self._populate_metadata_custom()
         self.populate_schema(
             data_sample=data_sample,
             X_sample=X_sample,
@@ -326,7 +328,8 @@ class MetadataMixin:
             training_id=training_id,
         )
         self._summary_status.update_action(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)", action=""
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            action="",
         )
         self._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
