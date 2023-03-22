@@ -8,11 +8,13 @@ import json
 import logging
 import os
 import runpy
+import shlex
+import stat
 import subprocess
 import sys
 import time
 import traceback
-from typing import List
+from typing import List, Optional, Any
 from urllib.parse import urlparse
 
 
@@ -245,49 +247,11 @@ class ArgumentParser:
         """
         self.argument_list = argument_list
 
-    @staticmethod
-    def decode_arg(val: str):
-        """Decodes the value of the argument if it is a JSON payload.
-
-        Parameters
-        ----------
-        val : str
-            The argument value in a string.
-
-        Returns
-        -------
-        Any
-            None, if the val is None.
-            String value, if the val is a string but not a JSON payload.
-            Otherwise, the object after JSON decoded.
-        """
-        if val is None:
-            return None
-        try:
-            return json.loads(val)
-        except json.decoder.JSONDecodeError:
-            return val
-
-    @staticmethod
-    def join_values(value_list: list):
-        """Joins the values of a keyword argument.
-
-        Parameters
-        ----------
-        value_list : list
-            Values in a list of strings.
-
-        Returns
-        -------
-        str or None
-            The value of the argument as a string.
-        """
-        if value_list:
-            return " ".join(value_list)
-        return None
-
     def parse(self):
-        """Parses the arguments
+        """Parses the arguments into args and kwargs.
+        args is a list of positional arguments.
+        kwargs is a dictionary of keyword arguments.
+        The "--" will be removed from the keywords.
 
         Returns
         -------
@@ -296,29 +260,19 @@ class ArgumentParser:
         """
         args = []
         kwargs = {}
-        parsing_kwargs = False
         key = None
-        val = []
         for arg in self.argument_list:
-            arg = str(arg)
-            if len(arg) > 2 and arg.startswith("--"):
-                if key:
-                    # Save previous key and val
-                    kwargs[key] = self.join_values(val)
-                parsing_kwargs = True
+            if not isinstance(arg, str):
+                args.append(arg)
+            elif len(arg) > 2 and arg.startswith("--"):
                 key = arg[2:]
-                # Reset val
-                val = []
-            elif parsing_kwargs:
-                val.append(arg)
+                kwargs[key] = None
+            elif key:
+                kwargs[key] = arg
+                key = None
             else:
                 args.append(arg)
-        # Save the last key and val
-        if key:
-            kwargs[key] = self.join_values(val)
 
-        args = [self.decode_arg(arg) for arg in args]
-        kwargs = {k: self.decode_arg(v) for k, v in kwargs.items()}
         return args, kwargs
 
 
@@ -336,7 +290,7 @@ class JobRunner:
 
     @staticmethod
     def run_command(
-        command: str, activate_conda: bool = False, level: int = logging.INFO
+        command: str, activate_conda: bool = False, level: Optional[int] = None
     ) -> int:
         """Runs a shell command and logs the outputs with specific log level.
 
@@ -347,7 +301,10 @@ class JobRunner:
         activate_conda : bool, optional
             Indicate if conda environment should be activated for running the command, by default False
         level : int, optional
-            Logging level for the command outputs, by default logging.INFO
+            Logging level for the command outputs, by default None.
+            If this is set to a log level from logging, e.g. logging.DEBUG,
+            the command outputs will be logged with the level.
+            If this is None, the command outputs will be printed.
 
         Returns
         -------
@@ -374,19 +331,26 @@ class JobRunner:
             env=os.environ.copy(),
             shell=True,
         )
-        # Steam the outputs
+        # Stream the outputs
         while True:
             output = process.stdout.readline()
             if process.poll() is not None and output == b"":
                 break
             if output:
-                # logging will flush outputs by default
-                logger.log(level=level, msg=output.decode().strip())
-            time.sleep(0.5)
+                msg = output.decode()
+                if level is None:
+                    # output already contains the line break
+                    print(msg, flush=True, end="")
+                else:
+                    # logging will flush outputs by default
+                    logger.log(level=level, msg=msg)
+            # Add a small delay so that
+            # outputs from the subsequent code will have different timestamp for oci logging
+            time.sleep(0.05)
         return process.returncode
 
     def conda_unpack(self):
-        if self.run_command("conda-unpack"):
+        if self.run_command("conda-unpack", level=logging.DEBUG):
             logger.info("conda-unpack exits with non-zero return code.")
         return self
 
@@ -412,7 +376,7 @@ class JobRunner:
         return self
 
     def setup_python_path(
-        self, python_paths: str = os.environ.get(CONST_ENV_PYTHON_PATH, "")
+        self, python_path: str = os.environ.get(CONST_ENV_PYTHON_PATH, "")
     ):
         """Adds additional python paths.
         Relative paths are expanded based on the current working directory.
@@ -420,18 +384,20 @@ class JobRunner:
 
         Parameters
         ----------
-        python_paths : str
+        python_path : str
             Additional python paths to be added to sys.path,
             by default, os.environ.get("PYTHON_PATH", "")
             Multiple paths can be separated by os.pathsep, which is colon(:) for Linux and Mac.
 
         """
-        path_list = python_paths.split(os.pathsep)
+        if not python_path:
+            return self
+        path_list = python_path.split(os.pathsep)
         path_list.append(self.code_dir)
         for path in path_list:
-            python_path = os.path.abspath(os.path.expanduser(path))
-            if python_path not in sys.path:
-                sys.path.append(python_path)
+            abs_path = os.path.abspath(os.path.expanduser(path))
+            if abs_path not in sys.path:
+                sys.path.append(abs_path)
         logger.debug("Python Path: %s", sys.path)
         return self
 
@@ -463,6 +429,38 @@ class JobRunner:
         )
         method(*args, **kwargs)
 
+    def _run_script(self, entrypoint: str):
+        if (
+            os.path.isdir(entrypoint)
+            or entrypoint.endswith(".py")
+            or entrypoint.endswith(".zip")
+        ):
+            logger.info("Running script: %s", entrypoint)
+            # The file path may refer directly to a Python script
+            # or else it may refer to a zipfile or directory containing a top level __main__.py script.
+            # See https://docs.python.org/3/library/runpy.html#runpy.run_path
+            # Arguments from sys.argv will be passed into the script
+            runpy.run_path(entrypoint, run_name="__main__")
+        else:
+            if os.path.exists(entrypoint):
+                # User should make the file executable before committing it to Git
+                # e.g. git update-index --chmod=+x my_script.sh
+                # Here we make the entrypoint executable just in case
+                try:
+                    st = os.stat(entrypoint)
+                    os.chmod(entrypoint, st.st_mode | stat.S_IEXEC)
+                except Exception:
+                    # Ignore any error here and continue to try to run the script.
+                    # Show the exception for debugging
+                    logger.debug(traceback.format_exc())
+            # Run the entrypoint as shell command with conda activated
+            cmd = shlex.join([entrypoint] + sys.argv[1:])
+            return_code = self.run_command(cmd, activate_conda=True)
+            # Exit the job run with the same return code if it is non-zero.
+            if return_code:
+                logger.error("CMD exited with return code %s.", return_code)
+                sys.exit(return_code)
+
     def run(
         self,
         entrypoint: str = os.environ.get(CONST_ENV_ENTRYPOINT),
@@ -484,6 +482,10 @@ class JobRunner:
         """
         if not entrypoint:
             raise ValueError(f"Invalid entrypoint: {str(entrypoint)}")
+        entrypoint_abs_path = os.path.abspath(os.path.expanduser(entrypoint))
+        if not os.path.exists(entrypoint_abs_path):
+            raise ValueError(f"Entrypoint {entrypoint_abs_path} not found.")
+
         if entry_function:
             logger.info("Running function: %s in %s", entry_function, entrypoint)
             self._run_function(entrypoint, entry_function, sys.argv[1:])
@@ -491,10 +493,14 @@ class JobRunner:
             from driver_notebook import run_notebook
 
             logger.info("Running notebook: %s", entrypoint)
+            # Exclude tags
+            tags = os.environ.get("NOTEBOOK_EXCLUDE_TAGS")
+            if tags:
+                tags = json.loads(tags)
+                logger.info("Excluding cells with any of the following tags: %s", tags)
             # Pass in the absolute path to make sure the working dir is notebook directory
-            run_notebook(os.path.abspath(os.path.expanduser(entrypoint)))
+            run_notebook(os.path.abspath(os.path.expanduser(entrypoint)), exclude_tags=tags)
         else:
-            logger.info("Running script: %s", entrypoint)
-            runpy.run_path(entrypoint, run_name="__main__")
+            self._run_script(entrypoint_abs_path)
         logger.info("Job run completed.")
         return self

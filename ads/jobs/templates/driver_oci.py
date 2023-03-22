@@ -61,6 +61,7 @@ import os
 import random
 import shutil
 import string
+import sys
 import traceback
 import uuid
 from time import sleep, time
@@ -74,25 +75,11 @@ import requests
 from oci.data_science import DataScienceClient
 
 try:
-    # This is used by ADS and testing
-    from .driver_utils import (
-        OCIHelper,
-        JobRunner,
-        set_log_level,
-        CONST_ENV_ENTRY_FUNC,
-        CONST_ENV_CODE_DIR,
-        CONST_ENV_JOB_RUN_OCID,
-    )
+    # This is used in a job run.
+    import driver_utils
 except ImportError:
-    # This is used when the script is in a job run.
-    from driver_utils import (
-        OCIHelper,
-        JobRunner,
-        set_log_level,
-        CONST_ENV_ENTRY_FUNC,
-        CONST_ENV_CODE_DIR,
-        CONST_ENV_JOB_RUN_OCID,
-    )
+    # This is used when importing by other ADS module and testing.
+    from . import driver_utils
 
 
 CONST_ENV_ENTRYPOINT = "GIT_ENTRYPOINT"
@@ -108,14 +95,16 @@ SSH_CONFIG_FILE_PATH = os.path.join(SSH_DIR, "config")
 
 
 logger = logging.getLogger(__name__)
-logger = set_log_level(logger)
+logger = driver_utils.set_log_level(logger)
 
 
 class GitManager:
     """Contains methods for fetching code from Git repository"""
 
     def __init__(
-        self, repo_url: str, code_dir: str = os.environ.get(CONST_ENV_CODE_DIR)
+        self,
+        repo_url: str,
+        code_dir: str = os.environ.get(driver_utils.CONST_ENV_CODE_DIR),
     ):
         """Initialize the GitManager
 
@@ -163,7 +152,9 @@ class GitManager:
         self.commit = None
 
     def _config_ssh_proxy(self, proxy):
-        return_code = JobRunner.run_command("command -v socat", level=logging.DEBUG)
+        return_code = driver_utils.JobRunner.run_command(
+            "command -v socat", level=logging.DEBUG
+        )
         if return_code:
             logger.warning(
                 "You have ssh_proxy configured. "
@@ -178,7 +169,7 @@ class GitManager:
             logger.debug("SSH config saved to %s", SSH_CONFIG_FILE_PATH)
 
     def _config_known_hosts(self, host: str):
-        if JobRunner.run_command(
+        if driver_utils.JobRunner.run_command(
             f"ssh-keyscan -H {host} >> {SSH_DIR}/known_hosts", level=logging.DEBUG
         ):
             logger.debug("Added %s to known hosts.", host)
@@ -275,7 +266,9 @@ class CredentialManager:
         str
             The value of the secret decoded with ASCII.
         """
-        secret_client = OCIHelper.init_oci_client(oci.secrets.SecretsClient)
+        secret_client = driver_utils.OCIHelper.init_oci_client(
+            oci.secrets.SecretsClient
+        )
         secret_bundle = secret_client.get_secret_bundle(secret_id)
         base64_secret_bytes = secret_bundle.data.secret_bundle_content.content.encode(
             "ascii"
@@ -346,13 +339,13 @@ class GitSSHKey:
                 pass
 
 
-class GitJobRunner(JobRunner):
+class GitJobRunner(driver_utils.JobRunner):
     """Contains methods for running the job."""
 
     def __init__(
         self,
         git_manager: GitManager,
-        job_run_ocid: str = os.environ.get(CONST_ENV_JOB_RUN_OCID),
+        job_run_ocid: str = os.environ.get(driver_utils.CONST_ENV_JOB_RUN_OCID),
     ):
         """Initialize the job runner
 
@@ -371,7 +364,7 @@ class GitJobRunner(JobRunner):
     def run(
         self,
         entrypoint: str = os.environ.get(CONST_ENV_ENTRYPOINT),
-        entry_function: str = os.environ.get(CONST_ENV_ENTRY_FUNC),
+        entry_function: str = os.environ.get(driver_utils.CONST_ENV_ENTRY_FUNC),
     ):
         """Runs the job
 
@@ -388,7 +381,9 @@ class GitJobRunner(JobRunner):
             "method": entry_function if entry_function else "",
         }
 
+        # For git, the entrypoint is relative to the root of the repository
         entrypoint = os.path.join(self.code_dir, entrypoint)
+
         return super().run(entrypoint=entrypoint, entry_function=entry_function)
 
     @staticmethod
@@ -454,7 +449,7 @@ class GitJobRunner(JobRunner):
             logger.debug("Job output: %s", prefix)
             tags["outputs"] = prefix
 
-        client = OCIHelper.init_oci_client(DataScienceClient)
+        client = driver_utils.OCIHelper.init_oci_client(DataScienceClient)
         oci.retry.DEFAULT_RETRY_STRATEGY.make_retrying_call(
             self.update_job_run_metadata_with_rest_api, client, tags
         )
@@ -479,11 +474,11 @@ def main():
     runner.set_working_dir().setup_python_path().run()
 
     # Copy outputs
-    runner.artifacts = OCIHelper.copy_outputs()
+    runner.artifacts = driver_utils.OCIHelper.copy_outputs()
 
     # Save metadata only if job run OCID is available
     if (
-        os.environ.get(CONST_ENV_JOB_RUN_OCID)
+        os.environ.get(driver_utils.CONST_ENV_JOB_RUN_OCID)
         and "SKIP_METADATA_UPDATE" not in os.environ
     ):
         try:

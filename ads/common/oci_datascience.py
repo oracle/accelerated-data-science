@@ -1,15 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import oci.data_science
 from ads.common.oci_mixin import OCIModelMixin
+from ads.common.decorator.utils import class_or_instance_method
 
 
 class OCIDataScienceMixin(OCIModelMixin):
-    @classmethod
+    @class_or_instance_method
     def init_client(cls, **kwargs) -> oci.data_science.DataScienceClient:
         return cls._init_client(client=oci.data_science.DataScienceClient, **kwargs)
 

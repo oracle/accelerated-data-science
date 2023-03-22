@@ -407,7 +407,7 @@ class PythonRuntime(ScriptRuntime, _PythonRuntimeMixin):
 class NotebookRuntime(CondaRuntime):
     """Represents a job runtime with Jupyter notebook
 
-    To run a job with a Jupyter notebook,
+    To run a job with a single Jupyter notebook,
     you can define the run time as::
 
         runtime = (
@@ -422,6 +422,9 @@ class NotebookRuntime(CondaRuntime):
             .with_output("oci://bucket_name@namespace/path/to/dir")
         )
 
+    Note that the notebook path can be local or remote path supported by fsspec,
+    including OCI object storage path like ``oci://bucket@namespace/path/to/notebook``
+
     """
 
     CONST_NOTEBOOK_PATH = "notebookPathURI"
@@ -429,12 +432,16 @@ class NotebookRuntime(CondaRuntime):
     CONST_OUTPUT_URI = "outputUri"
     CONST_OUTPUT_URI_ALT = "outputURI"
     CONST_EXCLUDE_TAG = "excludeTags"
+    CONST_SOURCE = "source"
+    CONST_ENTRYPOINT = "entrypoint"
 
     attribute_map = {
         CONST_NOTEBOOK_PATH: "notebook_path_uri",
         CONST_NOTEBOOK_ENCODING: "notebook_encoding",
         CONST_OUTPUT_URI: "output_uri",
         CONST_EXCLUDE_TAG: "exclude_tags",
+        CONST_SOURCE: "source",
+        CONST_ENTRYPOINT: "entrypoint",
     }
     attribute_map.update(CondaRuntime.attribute_map)
 
@@ -459,11 +466,15 @@ class NotebookRuntime(CondaRuntime):
 
     def with_notebook(self, path: str, encoding="utf-8") -> NotebookRuntime:
         """Specifies the notebook to be run as a job.
+        Use this method if you would like to run a single notebook.
+        Use ``with_source()`` method if you would like to run a notebook with additional dependency files.
 
         Parameters
         ----------
         path : str
             The path of the Jupyter notebook
+        encoding : str
+            The encoding for opening the notebook. Defaults to utf-8.
 
         Returns
         -------
@@ -506,11 +517,12 @@ class NotebookRuntime(CondaRuntime):
 
     def with_output(self, output_uri: str) -> NotebookRuntime:
         """Specifies the output URI for storing the output notebook and files.
+        All files in the directory containing the notebook will be saved.
 
         Parameters
         ----------
         output_uri : str
-            URI for storing the output notebook and files.
+            URI for a directory storing the output notebook and files.
             For example, oci://bucket@namespace/path/to/dir
 
         Returns
@@ -519,6 +531,46 @@ class NotebookRuntime(CondaRuntime):
             The runtime instance.
         """
         return self.set_spec(self.CONST_OUTPUT_URI, output_uri)
+
+    def with_source(self, uri: str, notebook: str, encoding="utf-8"):
+        """Specify source code directory containing the notebook and dependencies for the job.
+        Use this method if you would like to run a notebook with additional dependency files.
+        Use the `with_notebook()` method if you would like to run a single notebook.
+
+        In the following example, local folder "path/to/source" contains the notebook and dependencies,
+        The local path of the notebook is "path/to/source/relative/path/to/notebook.ipynb"::
+
+            runtime.with_source(uri="path/to/source", notebook="relative/path/to/notebook.ipynb")
+
+        Parameters
+        ----------
+        uri : str
+            URI of the source code directory. This can be local or on OCI object storage.
+        notebook : str
+            The relative path of the notebook from the source URI.
+        encoding : str
+            The encoding for opening the notebook. Defaults to utf-8.
+
+        Returns
+        -------
+        Self
+            The runtime instance.
+
+        """
+        self.set_spec(self.CONST_SOURCE, uri)
+        self.set_spec(self.CONST_ENTRYPOINT, notebook)
+        self.set_spec(self.CONST_NOTEBOOK_ENCODING, encoding)
+        return self
+
+    @property
+    def source(self) -> str:
+        """The source code location."""
+        return self.get_spec(self.CONST_SOURCE)
+
+    @property
+    def notebook(self) -> str:
+        """The path of the notebook relative to the source."""
+        return self.get_spec(self.CONST_ENTRYPOINT)
 
 
 class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
@@ -622,52 +674,6 @@ class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
         """Git commit ID (SHA1 hash)"""
         return self.get_spec(self.CONST_COMMIT)
 
-    @staticmethod
-    def _serialize_arg(arg: Any) -> str:
-        """Serialize the argument.
-        This returns the argument "as is" if it is a string AND not a valid JSON payload.
-        Otherwise the argument will be serialized with JSON.
-
-        Parameters
-        ----------
-        arg : Any
-            argument to be serialized
-
-        Returns
-        -------
-        str
-            Serialized argument as a string
-        """
-        if arg is None:
-            return None
-        if isinstance(arg, str):
-            try:
-                json.loads(arg)
-            except json.JSONDecodeError:
-                return arg
-        return json.dumps(arg)
-
-    def with_argument(self, *args, **kwargs):
-        """Specifies the arguments for running the script/function.
-
-        When running a python script, the arguments will be the command line arguments.
-        For example, with_argument("arg1", "arg2", key1="val1", key2="val2")
-        will generate the command line arguments: "arg1 arg2 --key1 val1 --key2 val2"
-
-        When running a function, the arguments will be passed into the function.
-        Arguments can also be list, dict or any JSON serializable object.
-        For example, with_argument("arg1", "arg2", key1=["val1a", "val1b"], key2="val2")
-        will be passed in as "your_function("arg1", "arg2", key1=["val1a", "val1b"], key2="val2")
-
-        Returns
-        -------
-        self
-            The runtime instance.
-        """
-        args = [self._serialize_arg(arg) for arg in args]
-        kwargs = {k: self._serialize_arg(v) for k, v in kwargs.items()}
-        return super().with_argument(*args, **kwargs)
-
     @property
     def ssh_secret_ocid(self) -> str:
         """The OCID of the OCI Vault secret storing the Git SSH key."""
@@ -682,6 +688,7 @@ class DataFlowRuntime(CondaRuntime):
     CONST_SCRIPT_PATH = "scriptPathURI"
     CONST_CONFIGURATION = "configuration"
     CONST_CONDA_AUTH_TYPE = "condaAuthType"
+    CONST_OVERWRITE = "overwrite"
     attribute_map = {
         CONST_SCRIPT_BUCKET: "script_bucket",
         CONST_ARCHIVE_URI: "archive_bucket",
@@ -689,6 +696,7 @@ class DataFlowRuntime(CondaRuntime):
         CONST_SCRIPT_PATH: "script_path_uri",
         CONST_CONFIGURATION: CONST_CONFIGURATION,
         CONST_CONDA_AUTH_TYPE: "conda_auth_type",
+        CONST_OVERWRITE: CONST_OVERWRITE,
     }
     attribute_map.update(Runtime.attribute_map)
 
@@ -773,13 +781,13 @@ class DataFlowRuntime(CondaRuntime):
         """The URI of the source code"""
         return self.get_spec(self.CONST_SCRIPT_PATH)
 
-    def with_script_uri(self, path) -> "DataFlowRuntime":
+    def with_script_uri(self, path: str) -> "DataFlowRuntime":
         """
         Set script uri.
 
         Parameters
         ----------
-        uri: str
+        path: str
             uri to the script
 
         Returns
@@ -853,6 +861,29 @@ class DataFlowRuntime(CondaRuntime):
     def configuration(self) -> dict:
         """Configuration for Spark"""
         return self.get_spec(self.CONST_CONFIGURATION)
+
+    def with_overwrite(self, overwrite: bool) -> "DataFlowRuntime":
+        """
+        Whether to overwrite the existing script in object storage (script bucket).
+        If the Object Storage bucket already contains a script with the same name,
+        then it will be overwritten with the new one if the `overwrite` flag equal to `True`.
+
+        Parameters
+        ----------
+        overwrite: bool
+            Whether to overwrite the existing script in object storage (script bucket).
+
+        Returns
+        -------
+        DataFlowRuntime
+             The DataFlowRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_OVERWRITE, overwrite)
+
+    @property
+    def overwrite(self) -> str:
+        """Whether to overwrite the existing script in object storage (script bucket)."""
+        return self.get_spec(self.CONST_OVERWRITE)
 
     def convert(self, **kwargs):
         pass

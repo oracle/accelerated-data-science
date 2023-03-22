@@ -4,7 +4,7 @@ Release Notes
 
 2.8.3
 -----
-Release date: March 21, 2023
+Release date: March 22, 2023
 
 * Added support for custom containers (Bring Your Own Container or BYOC) and environment variables for :py:class:`~ads.model.GenericModel`.
 * Added default values for configuring parameters in :py:class:`~ads.model.ModelDeployment`, such as default flex shape, ocpus, memory in gbs, bandwidth, and instance count.

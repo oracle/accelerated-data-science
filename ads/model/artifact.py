@@ -38,7 +38,7 @@ class ArtifactRequiredFilesError(Exception):
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "Not all required files presented in artifact folder. "
-            f"Required files: {required_files}"
+            f"Required files for conda runtime: {required_files}. If you are using container runtime, set `ignore_conda_error=True`."
         )
 
 
@@ -115,6 +115,7 @@ class ModelArtifact:
         artifact_dir: str,
         model_file_name: str = None,
         reload: Optional[bool] = False,
+        ignore_conda_error: Optional[bool] = False,
     ):
         """Initializes a ModelArtifact instance.
 
@@ -145,7 +146,9 @@ class ModelArtifact:
         sys.path.insert(0, self.artifact_dir)
         self.model_file_name = model_file_name
         self._env = Environment(loader=PackageLoader("ads", "templates"))
-        if reload:
+        self.ignore_conda_error = ignore_conda_error
+        self.model = None
+        if reload and not ignore_conda_error:
             self.reload()
             # Extracts the model_file_name from the score.py.
             if (
@@ -166,6 +169,7 @@ class ModelArtifact:
         namespace: str = CONDA_BUCKET_NS,
         bucketname: str = CONDA_BUCKET_NAME,
         auth: dict = None,
+        ignore_conda_error: bool = False,
     ) -> None:
         """Generate a runtime yaml file and save it to the artifact
         directory.
@@ -207,6 +211,12 @@ class ModelArtifact:
         """
         runtime_info = RuntimeInfo.from_env()
         runtime_info.model_artifact_version = MODEL_ARTIFACT_VERSION
+        if ignore_conda_error:
+            runtime_info.model_provenance.training_code.artifact_directory = (
+                self.artifact_dir
+            )
+            runtime_info.save()
+            return runtime_info
         inference_conda_env = ModelArtifact._populate_env_info(
             InferenceEnvInfo,
             conda_pack=inference_conda_env,
@@ -369,6 +379,7 @@ class ModelArtifact:
         model_file_name: str = None,
         force_overwrite: Optional[bool] = False,
         auth: Optional[Dict] = None,
+        ignore_conda_error: Optional[bool] = False,
     ):
         """Constructs a ModelArtifact object from the existing model artifacts.
 
@@ -418,19 +429,32 @@ class ModelArtifact:
                 force_overwrite=force_overwrite,
                 auth=auth,
             )
-        try:
-            _validate_artifact_dir(artifact_dir)
-        except ArtifactNestedFolderError as exc:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                utils.copy_from_uri(
-                    uri=exc.folder, to_path=temp_dir, force_overwrite=True
-                )
-                utils.copy_from_uri(
-                    uri=temp_dir, to_path=artifact_dir, force_overwrite=True
-                )
+        if not ignore_conda_error:
+            try:
+                _validate_artifact_dir(artifact_dir)
+            except ArtifactNestedFolderError as exc:
+                with tempfile.TemporaryDirectory() as temp_dir:
+                    utils.copy_from_uri(
+                        uri=exc.folder, to_path=temp_dir, force_overwrite=True
+                    )
+                    utils.copy_from_uri(
+                        uri=temp_dir, to_path=artifact_dir, force_overwrite=True
+                    )
 
-        return cls(artifact_dir, model_file_name, reload=True)
+        return cls(
+            artifact_dir,
+            model_file_name,
+            reload=True,
+            ignore_conda_error=ignore_conda_error,
+        )
 
     def __getattr__(self, item):
         """Makes the functions in `score.py` directly accessable by ModelArtifact class."""
-        return getattr(self.score, item)
+
+        try:
+            return getattr(self.score, item)
+        except:
+            if self.ignore_conda_error:
+                logger.warn("`verify` is not guarenteed to work for byoc case.")
+            else:
+                raise

@@ -182,7 +182,7 @@ class RuntimeHandler:
         if runtime.args:
             # shlex.join() is not available until python 3.8
             job_configuration_details["command_line_arguments"] = " ".join(
-                shlex.quote(arg) for arg in runtime.args
+                shlex.quote(arg) for arg in runtime.get_spec(runtime.CONST_ARGS)
             )
         return job_configuration_details
 
@@ -207,7 +207,7 @@ class RuntimeHandler:
         Returns
         -------
         dict
-            A dictionary contianing environment variables for OCI data science job.
+            A dictionary containing environment variables for OCI data science job.
         """
         envs = {}
         for spec_key, dsc_key in spec_mappings.items():
@@ -225,7 +225,7 @@ class RuntimeHandler:
         Parameters
         ----------
         envs : dict
-            A dictionary contianing environment variables from OCI data science job.
+            A dictionary containing environment variables from OCI data science job.
         spec_mappings : dict
             Mapping from runtime properties to environment variables.
             This mapping is the same as the one in _translate_spec().
@@ -680,6 +680,32 @@ class PythonRuntimeHandler(CondaRuntimeHandler):
             spec[PythonRuntime.CONST_ENV_VAR] = envs
         return spec
 
+    def _extract_artifact(self, dsc_job):
+        """Extract the job artifact from data science job.
+
+        Parameters
+        ----------
+        dsc_job : DSCJob or oci.datascience.models.Job
+            The data science job containing runtime information.
+
+        Returns
+        -------
+        dict
+            A runtime specification dictionary for initializing a runtime.
+        """
+        spec = super()._extract_artifact(dsc_job)
+        # It is not possible to get the actual script path
+        # since the information is not stored in the job.
+        # Here we only extract the name of the artifact.
+        spec.update(
+            {
+                PythonRuntime.CONST_SCRIPT_PATH: os.path.splitext(
+                    str(dsc_job.artifact)
+                )[0]
+            }
+        )
+        return spec
+
 
 class NotebookRuntimeHandler(CondaRuntimeHandler):
     """Runtime Handler for NotebookRuntime"""
@@ -692,18 +718,36 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
     CONST_NOTEBOOK_ENCODING = "NOTEBOOK_ENCODING"
 
     SPEC_MAPPINGS = {
-        NotebookRuntime.CONST_NOTEBOOK_PATH: CONST_NOTEBOOK_NAME,
         NotebookRuntime.CONST_OUTPUT_URI: CONST_OUTPUT_URI,
         NotebookRuntime.CONST_EXCLUDE_TAG: CONST_EXCLUDE_TAGS,
         NotebookRuntime.CONST_NOTEBOOK_ENCODING: CONST_NOTEBOOK_ENCODING,
     }
 
     def _translate_artifact(self, runtime: NotebookRuntime):
-        return NotebookArtifact(runtime.notebook_uri, runtime)
+        source = runtime.source if runtime.source else runtime.notebook_uri
+        return NotebookArtifact(source, runtime)
 
     def _translate_env(self, runtime: NotebookRuntime) -> dict:
         envs = super()._translate_env(runtime)
-        envs[self.CONST_NOTEBOOK_NAME] = os.path.basename(runtime.notebook_uri)
+
+        if runtime.notebook:
+            # runtime.notebook should always be a relative path from the root of the source.
+            # In NotebookArtifact, when zipping the files,
+            # a top level folder having the same name as the basename of runtime.source
+            # is used to contain all the user artifacts.
+            # The basename of runtime.source will also be used as the name of the artifact zip file.
+            envs[self.CONST_NOTEBOOK_NAME] = os.path.join(
+                os.path.basename(runtime.source), runtime.notebook
+            )
+        elif runtime.notebook_uri:
+            # For running a single notebook.
+            envs[self.CONST_NOTEBOOK_NAME] = os.path.basename(runtime.notebook_uri)
+        else:
+            raise ValueError(
+                "Notebook not specified. "
+                "Please specify the notebook using with_notebook_uri() or with_source() method."
+            )
+
         envs[self.CONST_ENTRYPOINT] = NotebookArtifact.CONST_DRIVER_SCRIPT
         if runtime.notebook_encoding:
             envs[self.CONST_NOTEBOOK_ENCODING] = runtime.notebook_encoding
@@ -728,15 +772,12 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
         """
         spec = super()._extract_envs(dsc_job)
         envs = spec.pop(NotebookRuntime.CONST_ENV_VAR, {})
-        if not (
-            self.CONST_NOTEBOOK_NAME in envs
-            and NotebookRuntimeHandler.CONST_ENTRYPOINT in envs
-        ):
+        if not (self.CONST_NOTEBOOK_NAME in envs and self.CONST_ENTRYPOINT in envs):
             raise IncompatibleRuntime()
         # Remove job run entrypoint since it is the same for notebook runtime.
-        envs.pop(NotebookRuntimeHandler.CONST_ENTRYPOINT)
+        envs.pop(self.CONST_ENTRYPOINT)
         # Extract exclude tags
-        exclude_tags = envs.pop(NotebookRuntimeHandler.CONST_EXCLUDE_TAGS, None)
+        exclude_tags = envs.pop(self.CONST_EXCLUDE_TAGS, None)
         if exclude_tags:
             # Exclude tags are in a JSON serialized string
             try:
@@ -745,6 +786,21 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
                 # Ignore de-serialization error
                 pass
             spec[NotebookRuntime.CONST_EXCLUDE_TAG] = exclude_tags
+
+        # Extract notebook name
+        notebook = envs.pop(self.CONST_NOTEBOOK_NAME)
+        if "/" in notebook:
+            # This indicate notebook is uploaded as part of a folder/zip
+            # When the source is a folder, the notebook name will have the format of
+            # folder/path/to/notebook.ipynb
+            (
+                spec[NotebookRuntime.CONST_SOURCE],
+                spec[NotebookRuntime.CONST_ENTRYPOINT],
+            ) = str(notebook).split("/", 1)
+        else:
+            # When the source is a single notebook, the notebook name will be the filename only.
+            # notebook.ipynb
+            spec[NotebookRuntime.CONST_NOTEBOOK_PATH] = notebook
 
         spec.update(self._extract_specs(envs, self.SPEC_MAPPINGS))
         spec[NotebookRuntime.CONST_ENV_VAR] = envs
@@ -783,7 +839,7 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
         GitPythonRuntime.CONST_GIT_SSH_SECRET_ID: CONST_GIT_SSH_SECRET_ID,
         GitPythonRuntime.CONST_OUTPUT_DIR: CONST_OUTPUT_DIR,
         GitPythonRuntime.CONST_OUTPUT_URI: CONST_OUTPUT_URI,
-        GitPythonRuntime.CONST_WORKING_DIR: CONST_WORKING_DIR
+        GitPythonRuntime.CONST_WORKING_DIR: CONST_WORKING_DIR,
     }
 
     def _translate_artifact(self, runtime: Runtime):

@@ -8,35 +8,51 @@ import inspect
 import os
 import shutil
 import tempfile
-import yaml
+from enum import Enum
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
+
 import numpy as np
 import pandas as pd
 import requests
 import yaml
 from PIL import Image
-from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-from ads.common import utils
+
 from ads.common import auth as authutil
-from ads.common import logger
-from ads.model.serde.model_input import (
-    ModelInputSerializer,
-    ModelInputDeserializer,
-    ModelInputSerializerType,
-    ModelInputSerializerFactory,
-    SUPPORTED_MODEL_INPUT_SERIALIZERS,
-)
-from ads.model.serde.model_serializer import (
-    ModelSerializerType,
-    ModelSerializer,
-    ModelSerializerFactory,
-    ModelDeserializer,
-    CloudPickleModelSerializer,
-    SUPPORTED_MODEL_SERIALIZERS,
-)
+from ads.common import logger, utils
 from ads.common.decorator.utils import class_or_instance_method
+from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
+from ads.config import (
+    CONDA_BUCKET_NS,
+    JOB_RUN_COMPARTMENT_OCID,
+    JOB_RUN_OCID,
+    NB_SESSION_COMPARTMENT_OCID,
+    NB_SESSION_OCID,
+    PROJECT_OCID,
+)
 from ads.evaluations import EvaluatorMixin
-from ads.model.transformer.onnx_transformer import ONNXTransformer
+from ads.feature_engineering import ADSImage
+from ads.feature_engineering.schema import Schema
+from ads.model.artifact import ModelArtifact
+from ads.model.common.utils import (
+    _extract_locals,
+    _is_json_serializable,
+    fetch_manifest_from_conda_location,
+    zip_artifact,
+)
+from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment import (
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_WAIT_TIME,
+    ModelDeployer,
+    ModelDeployment,
+    ModelDeploymentMode,
+    ModelDeploymentProperties,
+    ModelDeploymentCondaRuntime,
+    ModelDeploymentInfrastructure,
+    ModelDeploymentContainerRuntime,
+)
+from ads.model.deployment.common.utils import State as ModelDeploymentState
+from ads.model.deployment.common.utils import send_request
 from ads.model.model_introspect import (
     TEST_STATUS,
     Introspectable,
@@ -51,45 +67,34 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.model_metadata_mixin import MetadataMixin
-from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
-from ads.config import (
-    CONDA_BUCKET_NS,
-    JOB_RUN_COMPARTMENT_OCID,
-    JOB_RUN_OCID,
-    NB_SESSION_COMPARTMENT_OCID,
-    NB_SESSION_OCID,
-    PROJECT_OCID,
-)
-from ads.feature_engineering import ADSImage
-from ads.feature_engineering.schema import Schema
-from ads.model.artifact import ModelArtifact
-from ads.model.common.utils import (
-    _extract_locals,
-    fetch_manifest_from_conda_location,
-    _is_json_serializable,
-)
-from ads.model.deployment import (
-    DEFAULT_POLL_INTERVAL,
-    DEFAULT_WAIT_TIME,
-    ModelDeployer,
-    ModelDeployment,
-    ModelDeploymentProperties,
-)
-from ads.model.deployment.common.utils import State as ModelDeploymentState
-from ads.model.deployment.common.utils import send_request
 from ads.model.model_properties import ModelProperties
 from ads.model.model_version_set import ModelVersionSet, _extract_model_version_set_id
 from ads.model.runtime.env_info import DEFAULT_CONDA_BUCKET_NAME
 from ads.model.runtime.runtime_info import RuntimeInfo
-
-from ads.model.datascience_model import DataScienceModel
-from ads.model.common.utils import zip_artifact
 from ads.model.serde.common import SERDE
+from ads.model.serde.model_input import (
+    SUPPORTED_MODEL_INPUT_SERIALIZERS,
+    ModelInputDeserializer,
+    ModelInputSerializer,
+    ModelInputSerializerFactory,
+    ModelInputSerializerType,
+)
+from ads.model.serde.model_serializer import (
+    SUPPORTED_MODEL_SERIALIZERS,
+    CloudPickleModelSerializer,
+    ModelDeserializer,
+    ModelSerializer,
+    ModelSerializerFactory,
+    ModelSerializerType,
+)
+from ads.model.transformer.onnx_transformer import ONNXTransformer
 
 _TRAINING_RESOURCE_ID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
 
-MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard2.1"
+MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
+MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
+MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
@@ -116,6 +121,13 @@ INITIATE_STATUS_NAME = "initiate"
 SAVE_STATUS_NAME = "save()"
 DEPLOY_STATUS_NAME = "deploy()"
 PREDICT_STATUS_NAME = "predict()"
+
+Self = TypeVar("Self", bound="GenericModel")
+
+
+class ModelDeploymentRuntimeType:
+    CONDA = "conda"
+    CONTAINER = "container"
 
 
 class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
@@ -301,7 +313,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     def __init__(
         self,
-        estimator: Callable,
+        estimator: Callable = None,
         artifact_dir: Optional[str] = None,
         properties: Optional[ModelProperties] = None,
         auth: Optional[Dict] = None,
@@ -309,7 +321,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model_save_serializer: Optional[SERDE] = None,
         model_input_serializer: Optional[SERDE] = None,
         **kwargs: dict,
-    ):
+    ) -> Self:
         """GenericModel Constructor.
 
         Parameters
@@ -332,6 +344,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model_input_serializer: (SERDE or str, optional). Defaults to None.
             Instance of ads.model.SERDE. Used for serialize/deserialize model input.
         """
+
         self.estimator = estimator
         self.auth = auth or authutil.default_signer()
         self.dsc_model = (
@@ -351,7 +364,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self.version = None
         self.hyperparameter = None
         self._introspect = ModelIntrospect(self)
-        self.model_deployment = None
+        self.model_deployment = (
+            ModelDeployment()
+            .with_infrastructure(ModelDeploymentInfrastructure())
+            .with_runtime(ModelDeploymentContainerRuntime())
+        )
         self.runtime_info = None
         self._as_onnx = kwargs.pop("as_onnx", False)
         self._score_args = {}
@@ -371,6 +388,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             model_input_serde=model_input_serializer,
             model_save_serializer=model_save_serializer,
         )
+        self.ignore_conda_error = False
 
     def _init_serde(
         self,
@@ -633,6 +651,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if self._serialize:
             if not self.model_file_name:
                 self.model_file_name = self._handle_model_file_name(as_onnx=as_onnx)
+            if not self.estimator:
+                raise ValueError(
+                    "Parameter `estimator` has to be provided when `serialize=True`, or you can set `serialize=False`."
+                )
             self._serialize_model_helper(
                 initial_types, force_overwrite, X_sample, **kwargs
             )
@@ -766,6 +788,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         training_id: str = _TRAINING_RESOURCE_ID,
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
+        ignore_conda_error: bool = False,
         **kwargs: Dict,
     ) -> "GenericModel":
         """Prepare and save the score.py, serialized model and runtime.yaml file.
@@ -816,6 +839,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         max_col_num: (int, optional). Defaults to utils.DATA_SCHEMA_MAX_COL_NUM.
             Do not generate the input schema if the input has more than this
             number of features(columns).
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -846,6 +871,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         elif not self.properties.training_id:
             self.properties.training_id = _TRAINING_RESOURCE_ID
 
+        self.ignore_conda_error = ignore_conda_error
+        if self.ignore_conda_error:
+            logger.info(
+                "`ignore_conda_error` is set to True and `.verify()` is targeted to test the generated score.py on the local conda environment, not the container."
+            )
         if not self.properties.inference_conda_env:
             try:
                 conda_prefix = os.environ.get("CONDA_PREFIX", None)
@@ -853,7 +883,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 if "pack_path" in manifest:
                     self.properties.inference_conda_env = manifest["pack_path"]
                 else:
-                    raise ValueError("`inference_conda_env` must be specified.")
+                    if not self.ignore_conda_error:
+                        raise ValueError(
+                            "`inference_conda_env` must be specified for conda runtime. If you are using container runtime, set `ignore_conda_error=True`."
+                        )
                 self.properties.inference_python_version = (
                     manifest["python"]
                     if "python" in manifest
@@ -861,7 +894,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                     else self.properties.inference_python_version
                 )
             except:
-                raise ValueError("`inference_conda_env` must be specified.")
+                if not self.ignore_conda_error:
+                    raise ValueError(
+                        "`inference_conda_env` must be specified for conda runtime. If you are using container runtime, set `ignore_conda_error=True`."
+                    )
 
         self._as_onnx = as_onnx
         if as_onnx:
@@ -900,61 +936,60 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             namespace=namespace,
             bucketname=DEFAULT_CONDA_BUCKET_NAME,
             auth=self.auth,
+            ignore_conda_error=self.ignore_conda_error,
         )
 
         self._summary_status.update_status(
             detail="Generated runtime.yaml", status=ModelState.DONE.value
         )
 
-        if as_onnx:
-            X_sample = self._onnx_data_transformer(
-                X_sample,
-                impute_values=kwargs.pop("impute_values", {}),
-                force_overwrite=force_overwrite,
-            )
-        try:
-            self.serialize_model(
-                as_onnx=as_onnx,
-                force_overwrite=force_overwrite,
-                initial_types=initial_types,
-                X_sample=X_sample,
-                **kwargs,
-            )
-            self._summary_status.update_status(
-                detail="Serialized model", status=ModelState.DONE.value
-            )
-        except SerializeModelNotImplementedError as e:
-            if not os.path.exists(
-                os.path.join(self.artifact_dir, self.model_file_name)
-            ):
-                self._summary_status.update_action(
-                    detail="Serialized model",
-                    action=(
-                        "Model is not automatically serialized. "
-                        f"Serialize the model as `{self.model_file_name}` and "
-                        f"save to the {self.artifact_dir}."
-                    ),
+        if self.estimator:
+            if as_onnx:
+                X_sample = self._onnx_data_transformer(
+                    X_sample,
+                    impute_values=kwargs.pop("impute_values", {}),
+                    force_overwrite=force_overwrite,
+                )
+            try:
+                self.serialize_model(
+                    as_onnx=as_onnx,
+                    force_overwrite=force_overwrite,
+                    initial_types=initial_types,
+                    X_sample=X_sample,
+                    **kwargs,
                 )
                 self._summary_status.update_status(
-                    detail="Serialized model", status=ModelState.NEEDSACTION.value
+                    detail="Serialized model", status=ModelState.DONE.value
                 )
-                logger.warning(
-                    f"{self.model_file_name} not found in {self.artifact_dir}. "
-                    f"Save the serialized model under {self.artifact_dir}."
-                )
-                self._summary_status.update_action(
-                    detail="Generated score.py",
-                    action=(
-                        "`load_model` is not automatically generated. "
-                        "Finish implementing it and call .verify to check if it works."
-                    ),
-                )
-        except Exception as e:
-            raise e
+            except SerializeModelNotImplementedError as e:
+                if not os.path.exists(
+                    os.path.join(self.artifact_dir, self.model_file_name)
+                ):
+                    self._summary_status.update_action(
+                        detail="Serialized model",
+                        action=(
+                            "Model is not automatically serialized. "
+                            f"Serialize the model as `{self.model_file_name}` and "
+                            f"save to the {self.artifact_dir}."
+                        ),
+                    )
+                    self._summary_status.update_status(
+                        detail="Serialized model", status=ModelState.NEEDSACTION.value
+                    )
+                    logger.warning(
+                        f"{self.model_file_name} not found in {self.artifact_dir}. "
+                        f"Save the serialized model under {self.artifact_dir}."
+                    )
+                    self._summary_status.update_action(
+                        detail="Generated score.py",
+                        action=(
+                            "`load_model` is not automatically generated. "
+                            "Finish implementing it and call .verify to check if it works."
+                        ),
+                    )
+            except Exception as e:
+                raise e
 
-        self._summary_status.update_status(
-            detail="Generated runtime.yaml", status=ModelState.DONE.value
-        )
         if as_onnx:
             jinja_template_filename = "score_onnx_new"
         else:
@@ -986,19 +1021,24 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             training_id=self.properties.training_id,
             ignore_pending_changes=ignore_pending_changes,
             max_col_num=max_col_num,
+            ignore_conda_error=self.ignore_conda_error,
         )
 
         self._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
             status=ModelState.DONE.value,
         )
+
         self._summary_status.update_status(
             detail="Local tested .predict from score.py",
             status=ModelState.AVAILABLE.value,
         )
-        self._summary_status.update_status(
-            detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
-        )
+
+        if not self.ignore_conda_error:
+            self._summary_status.update_status(
+                detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
+            )
+
         self._summary_status.update_status(
             detail="Uploaded artifact to model catalog",
             status=ModelState.AVAILABLE.value,
@@ -1197,15 +1237,16 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     @classmethod
     def from_model_artifact(
-        cls,
+        cls: Type[Self],
         uri: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[ModelProperties] = None,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs: dict,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from a folder, or zip/tar archive.
 
         Parameters
@@ -1229,10 +1270,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Whether to overwrite existing files or not.
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of `GenericModel` class.
 
         Raises
@@ -1252,21 +1295,26 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             model_file_name=model_file_name,
             force_overwrite=force_overwrite,
             auth=auth,
+            ignore_conda_error=ignore_conda_error,
         )
         model = cls(
             estimator=model_artifact.model,
             artifact_dir=artifact_dir,
             auth=auth,
             properties=properties,
+            **kwargs,
         )
         model.model_file_name = model_file_name or model_artifact.model_file_name
         model.model_artifact = model_artifact
+        model.ignore_conda_error = ignore_conda_error
         model.reload_runtime_info()
         model._summary_status.update_status(
-            detail="Generated score.py", status=ModelState.DONE.value
+            detail="Generated score.py",
+            status=ModelState.DONE.value,
         )
         model._summary_status.update_status(
-            detail="Generated runtime.yaml", status=ModelState.DONE.value
+            detail="Generated runtime.yaml",
+            status=ModelState.DONE.value,
         )
         model._summary_status.update_status(
             detail="Serialized model", status=ModelState.DONE.value
@@ -1279,17 +1327,18 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     @classmethod
     def from_model_catalog(
-        cls,
+        cls: Type[Self],
         model_id: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from model catalog.
 
         Parameters
@@ -1315,6 +1364,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -1326,7 +1377,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of GenericModel class.
         """
         local_vars = _extract_locals(locals())
@@ -1353,6 +1404,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             auth=auth,
             force_overwrite=force_overwrite,
             properties=properties,
+            ignore_conda_error=ignore_conda_error,
+            **kwargs,
         )
         result_model.dsc_model = dsc_model
 
@@ -1361,30 +1414,35 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             status=ModelState.DONE.value,
         )
         result_model._summary_status.update_action(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)", action=""
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            action="",
         )
         result_model._summary_status.update_status(
             detail="Local tested .predict from score.py",
             status=ModelState.AVAILABLE.value,
         )
         result_model._summary_status.update_status(
-            detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
+            detail="Conducted Introspect Test",
+            status=ModelState.AVAILABLE.value
+            if not result_model.ignore_conda_error
+            else ModelState.NOTAVAILABLE.value,
         )
         return result_model
 
     @classmethod
     def from_model_deployment(
-        cls,
+        cls: Type[Self],
         model_deployment_id: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from model deployment.
 
         Parameters
@@ -1410,6 +1468,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -1421,7 +1481,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of GenericModel class.
         """
         model_deployment = ModelDeployer(config=auth).get_model_deployment(
@@ -1441,6 +1501,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             properties=properties,
             bucket_uri=bucket_uri,
             remove_existing_artifact=remove_existing_artifact,
+            ignore_conda_error=ignore_conda_error,
             **kwargs,
         )
         model._summary_status.update_status(
@@ -1538,17 +1599,18 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     @classmethod
     def from_id(
-        cls,
+        cls: Type[Self],
         ocid: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from model OCID or model deployment OCID.
 
         Parameters
@@ -1582,7 +1644,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of GenericModel class.
         """
         ocid = ocid.lower()
@@ -1596,6 +1658,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 properties=properties,
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
+                ignore_conda_error=ignore_conda_error,
                 **kwargs,
             )
         elif DataScienceModelType.MODEL in ocid:
@@ -1608,6 +1671,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 properties=properties,
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
+                ignore_conda_error=ignore_conda_error,
                 **kwargs,
             )
         else:
@@ -1626,10 +1690,13 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # reload runtime.yaml
         runtime_yaml_file = os.path.join(self.artifact_dir, "runtime.yaml")
         if not os.path.exists(runtime_yaml_file):
-            raise FileNotFoundError(
-                f"`runtime.yaml` does not exist in {self.artifact_dir}. "
-                "Use `RuntimeInfo` class to populate it."
-            )
+            if self.ignore_conda_error:
+                return self.runtime_info
+            else:
+                raise FileNotFoundError(
+                    f"`runtime.yaml` does not exist in {self.artifact_dir}. "
+                    "Use `RuntimeInfo` class to populate it."
+                )
         self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
 
     def reload(self) -> "GenericModel":
@@ -1729,19 +1796,23 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self.properties.project_id = self.properties.project_id or PROJECT_OCID
 
         # check if the runtime_info sync with the runtime.yaml.
-        runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
-        runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
-        if self.runtime_info != runtime_info_from_yaml:
-            raise RuntimeInfoInconsistencyError(
-                "`.runtime_info` does not sync with runtime.yaml file. Call "
-                "`.runtime_info.save()` if you updated `runtime_info`. "
-                "Call `.reload()` if you updated runtime.yaml file."
-            )
-        # reload to check if load_model works in score.py, i.e.
-        # whether the model file has been serialized, and whether it can be loaded
-        # successfully.
-        self.reload()
-        if not ignore_introspection:
+        try:
+            runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
+            runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
+            if self.runtime_info != runtime_info_from_yaml:
+                raise RuntimeInfoInconsistencyError(
+                    "`.runtime_info` does not sync with runtime.yaml file. Call "
+                    "`.runtime_info.save()` if you updated `runtime_info`. "
+                    "Call `.reload()` if you updated runtime.yaml file."
+                )
+            # reload to check if load_model works in score.py, i.e.
+            # whether the model file has been serialized, and whether it can be loaded
+            # successfully.
+            self.reload()
+        except:
+            if not self.ignore_conda_error:
+                raise
+        if not self.ignore_conda_error and not ignore_introspection:
             self._introspect()
             if self._introspect.status == TEST_STATUS.NOT_PASSED:
                 msg = (
@@ -1793,7 +1864,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self._summary_status.update_status(
             detail="Deployed the model", status=ModelState.AVAILABLE.value
         )
-        self.model_deployment = None
+        self.model_deployment = (
+            ModelDeployment()
+            .with_infrastructure(ModelDeploymentInfrastructure())
+            .with_runtime(ModelDeploymentContainerRuntime())
+        )
 
         return self.model_id
 
@@ -1820,10 +1895,34 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_predict_log_id: Optional[str] = None,
         deployment_memory_in_gbs: Optional[float] = None,
         deployment_ocpus: Optional[float] = None,
+        deployment_image: Optional[str] = None,
         **kwargs: Dict,
     ) -> "ModelDeployment":
         """
-        Deploys a model. The model needs to be saved to the model catalog at first.
+        Deploys a model. The model needs to be saved to the model catalog at first. You can deploy the model
+        on either conda or container runtime. The customized runtime allows you to bring your own service container.
+        To deploy model on container runtime, make sure to build the container and push it to OCIR.
+        For more information, see https://docs.oracle.com/en-us/iaas/data-science/using/mod-dep-byoc.htm.
+
+        Example
+        -------
+        # This is an example to deploy model on container runtime
+        >>> model = GenericModel(estimator=estimator, artifact_dir=tempfile.mkdtemp())
+        >>> model.summary_status()
+        >>> model.prepare(
+        ...     model_file_name="toy_model.pkl",
+        ...     ignore_conda_error=True, # set ignore_conda_error=True for container runtime
+        ...     force_overwrite=True
+        ... )
+        >>> model.verify()
+        >>> model.save()
+        >>> model.deploy(
+        ...     deployment_image="iad.ocir.io/<namespace>/<image>:<tag>",
+        ...     entrypoint=["python", "/opt/ds/model/deployed_model/api.py"],
+        ...     server_port=5000,
+        ...     health_check_port=5000,
+        ...     environment_variables={"key":"value"}
+        ... )
 
         Parameters
         ----------
@@ -1851,6 +1950,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The access log OCID for the access logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
         deployment_predict_log_id: (str, optional). Defaults to None.
             The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
+        deployment_image: (str, optional). Defaults to None.
+            The OCIR path of docker container image. Required for deploying model on container runtime.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken from the environment variables.
@@ -1865,6 +1966,24 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 Freeform tags of the model deployment.
             defined_tags: (Dict[str, dict[str, object]], optional). Defaults to None.
                 Defined tags of the model deployment.
+            image_digest: (str, optional). Defaults to None.
+                The digest of docker container image.
+            cmd: (List, optional). Defaults to empty.
+                The command line arguments for running docker container image.
+            entrypoint: (List, optional). Defaults to empty.
+                The entrypoint for running docker container image.
+            server_port: (int, optional). Defaults to 8080.
+                The server port for docker container image.
+            health_check_port: (int, optional). Defaults to 8080.
+                The health check port for docker container image.
+            deployment_mode: (str, optional). Defaults to HTTPS_ONLY.
+                The deployment mode. Allowed values are: HTTPS_ONLY and STREAM_ONLY.
+            input_stream_ids: (List, optional). Defaults to empty.
+                The input stream ids. Required for STREAM_ONLY mode.
+            output_stream_ids: (List, optional). Defaults to empty.
+                The output stream ids. Required for STREAM_ONLY mode.
+            environment_variables: (Dict, optional). Defaults to empty.
+                The environment variables for model deployment.
 
             Also can be any keyword argument for initializing the `ads.model.deployment.ModelDeploymentProperties`.
             See `ads.model.deployment.ModelDeploymentProperties()` for details.
@@ -1906,8 +2025,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             self.properties.deployment_bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
         )
 
-        self.model_deployment = None
-
         if not self.model_id:
             raise ValueError(
                 "The model needs to be saved to the Model Catalog "
@@ -1924,43 +2041,169 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 "cannot be used without `deployment_log_group_id`."
             )
 
-        model_deployment_properties = (
-            ModelDeploymentProperties(self.model_id, config=self.auth, **kwargs)
-            .with_prop("display_name", display_name)
-            .with_prop("description", description)
-            .with_prop("project_id", self.properties.project_id)
-            .with_prop("compartment_id", self.properties.compartment_id)
-            .with_instance_configuration(
-                {
-                    "INSTANCE_SHAPE": self.properties.deployment_instance_shape,
-                    "INSTANCE_COUNT": self.properties.deployment_instance_count,
-                    "bandwidth_mbps": self.properties.deployment_bandwidth_mbps,
-                    "memory_in_gbs": self.properties.deployment_memory_in_gbs,
-                    "ocpus": self.properties.deployment_ocpus,
-                }
+        existing_infrastructure = self.model_deployment.infrastructure
+        existing_runtime = self.model_deployment.runtime
+
+        web_concurrency = (
+            kwargs.pop("web_concurrency", None)
+            or existing_infrastructure.web_concurrency
+        )
+        if not (
+            self.properties.compartment_id or existing_infrastructure.compartment_id
+        ):
+            raise ValueError("`compartment_id` has to be provided.")
+        if not (self.properties.project_id or existing_infrastructure.project_id):
+            raise ValueError("`project_id` has to be provided.")
+        infrastructure = (
+            ModelDeploymentInfrastructure()
+            .with_compartment_id(
+                self.properties.compartment_id or existing_infrastructure.compartment_id
             )
+            .with_project_id(
+                self.properties.project_id or existing_infrastructure.project_id
+            )
+            .with_bandwidth_mbps(
+                self.properties.deployment_bandwidth_mbps
+                or existing_infrastructure.bandwidth_mbps
+            )
+            .with_shape_name(
+                self.properties.deployment_instance_shape
+                or existing_infrastructure.shape_name
+            )
+            .with_replica(
+                self.properties.deployment_instance_count
+                or existing_infrastructure.replica
+            )
+            .with_web_concurrency(web_concurrency)
+        )
+
+        ocpus = (
+            self.properties.deployment_ocpus
+            or existing_infrastructure.shape_config_details.get("ocpus")
+        )
+        memory_in_gbs = (
+            self.properties.deployment_memory_in_gbs
+            or existing_infrastructure.shape_config_details.get("memory_in_gbs")
+        )
+
+        if infrastructure.shape_name.endswith("Flex"):
+            infrastructure.with_shape_config_details(
+                ocpus=ocpus or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+                memory_in_gbs=memory_in_gbs or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+            )
+
+        access_log_id = (
+            self.properties.deployment_access_log_id
+            or existing_infrastructure.access_log.get("log_id")
+        )
+        access_log_group_id = (
+            self.properties.deployment_log_group_id
+            or existing_infrastructure.access_log.get("log_group_id")
         )
 
         # specifies the access log id
-        if self.properties.deployment_access_log_id:
-            model_deployment_properties.with_access_log(
-                self.properties.deployment_log_group_id,
-                self.properties.deployment_access_log_id,
+        if access_log_id:
+            infrastructure.with_access_log(
+                log_group_id=access_log_group_id,
+                log_id=access_log_id,
             )
+
+        predict_log_id = (
+            self.properties.deployment_predict_log_id
+            or existing_infrastructure.predict_log.get("log_id")
+        )
+        predict_log_group_id = (
+            self.properties.deployment_log_group_id
+            or existing_infrastructure.predict_log.get("log_group_id")
+        )
 
         # specifies the predict log id
-        if self.properties.deployment_predict_log_id:
-            model_deployment_properties.with_predict_log(
-                self.properties.deployment_log_group_id,
-                self.properties.deployment_predict_log_id,
+        if predict_log_id:
+            infrastructure.with_predict_log(
+                log_group_id=predict_log_group_id,
+                log_id=predict_log_id,
             )
 
-        self.model_deployment = ModelDeployer(config=self.auth).deploy(
-            properties=model_deployment_properties,
+        environment_variables = (
+            kwargs.pop("environment_variables", {}) or existing_runtime.env
+        )
+        deployment_mode = (
+            kwargs.pop("deployment_mode", ModelDeploymentMode.HTTPS)
+            or existing_runtime.deployment_mode
+        )
+
+        runtime = None
+        image = self.properties.deployment_image or existing_runtime.image
+        if image:
+            image_digest = (
+                kwargs.pop("image_digest", None) or existing_runtime.image_digest
+            )
+            cmd = kwargs.pop("cmd", []) or existing_runtime.cmd
+            entrypoint = kwargs.pop("entrypoint", []) or existing_runtime.entrypoint
+            server_port = (
+                kwargs.pop("server_port", None) or existing_runtime.server_port
+            )
+            health_check_port = (
+                kwargs.pop("health_check_port", None)
+                or existing_runtime.health_check_port
+            )
+            runtime = (
+                ModelDeploymentContainerRuntime()
+                .with_image(image)
+                .with_image_digest(image_digest)
+                .with_cmd(cmd)
+                .with_entrypoint(entrypoint)
+                .with_server_port(server_port)
+                .with_health_check_port(health_check_port)
+                .with_deployment_mode(deployment_mode)
+                .with_model_uri(self.model_id)
+                .with_env(environment_variables)
+            )
+        else:
+            runtime = (
+                ModelDeploymentCondaRuntime()
+                .with_env(environment_variables)
+                .with_deployment_mode(deployment_mode)
+                .with_model_uri(self.model_id)
+            )
+
+        if deployment_mode == ModelDeploymentMode.STREAM:
+            input_stream_ids = (
+                kwargs.pop("input_stream_ids", []) or existing_runtime.input_stream_ids
+            )
+            output_stream_ids = (
+                kwargs.pop("output_stream_ids", [])
+                or existing_runtime.output_stream_ids
+            )
+            if not (input_stream_ids and output_stream_ids):
+                raise ValueError(
+                    "Parameter `input_stream_ids` and `output_stream_ids` need to be provided for `STREAM_ONLY` mode."
+                )
+
+            runtime.with_input_stream_ids(input_stream_ids)
+            runtime.with_output_stream_ids(output_stream_ids)
+
+        freeform_tags = (
+            kwargs.pop("freeform_tags", {}) or self.model_deployment.freeform_tags
+        )
+        defined_tags = (
+            kwargs.pop("defined_tags", {}) or self.model_deployment.defined_tags
+        )
+
+        model_deployment = (
+            ModelDeployment()
+            .with_display_name(display_name or self.model_deployment.display_name)
+            .with_description(description or self.model_deployment.description)
+            .with_defined_tags(**defined_tags)
+            .with_freeform_tags(**freeform_tags)
+            .with_infrastructure(infrastructure)
+            .with_runtime(runtime)
+        )
+
+        self.model_deployment = model_deployment.deploy(
             wait_for_completion=wait_for_completion,
             max_wait_time=max_wait_time,
             poll_interval=poll_interval,
-            **kwargs,
         )
         self._summary_status.update_status(
             detail="Deployed the model",
@@ -1986,6 +2229,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         training_id: str = _TRAINING_RESOURCE_ID,
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
+        ignore_conda_error: bool = False,
         model_display_name: Optional[str] = None,
         model_description: Optional[str] = None,
         model_freeform_tags: Optional[dict] = None,
@@ -2002,6 +2246,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_predict_log_id: Optional[str] = None,
         deployment_memory_in_gbs: Optional[float] = None,
         deployment_ocpus: Optional[float] = None,
+        deployment_image: Optional[str] = None,
         bucket_uri: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
@@ -2056,6 +2301,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         max_col_num: (int, optional). Defaults to utils.DATA_SCHEMA_MAX_COL_NUM.
             Do not generate the input schema if the input has more than this
             number of features(columns).
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
         model_display_name: (str, optional). Defaults to None.
             The name of the model. If a model_display_name is not provided in kwargs,
             a randomly generated easy to remember name with timestamp will be generated,
@@ -2093,6 +2340,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Specifies the size of the memory of the model deployment instance in GBs.
         deployment_ocpus: (float, optional). Defaults to None.
             Specifies the ocpus count of the model deployment instance.
+        deployment_image: (str, optional). Defaults to None.
+            The OCIR path of docker container image. Required for deploying model on container runtime.
         bucket_uri: (str, optional). Defaults to None.
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for downloading large artifacts with
@@ -2115,6 +2364,24 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             compartment_id : (str, optional).
                 Compartment OCID. If not specified, the value will be taken either
                 from the environment variables or model properties.
+            image_digest: (str, optional). Defaults to None.
+                The digest of docker container image.
+            cmd: (List, optional). Defaults to empty.
+                The command line arguments for running docker container image.
+            entrypoint: (List, optional). Defaults to empty.
+                The entrypoint for running docker container image.
+            server_port: (int, optional). Defaults to 8080.
+                The server port for docker container image.
+            health_check_port: (int, optional). Defaults to 8080.
+                The health check port for docker container image.
+            deployment_mode: (str, optional). Defaults to HTTPS_ONLY.
+                The deployment mode. Allowed values are: HTTPS_ONLY and STREAM_ONLY.
+            input_stream_ids: (List, optional). Defaults to empty.
+                The input stream ids. Required for STREAM_ONLY mode.
+            output_stream_ids: (List, optional). Defaults to empty.
+                The output stream ids. Required for STREAM_ONLY mode.
+            environment_variables: (Dict, optional). Defaults to empty.
+                The environment variables for model deployment.
             timeout: (int, optional). Defaults to 10 seconds.
                 The connection timeout in seconds for the client.
             max_wait_time : (int, optional). Defaults to 1200 seconds.
@@ -2168,6 +2435,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             training_id=self.properties.training_id,
             ignore_pending_changes=ignore_pending_changes,
             max_col_num=max_col_num,
+            ignore_conda_error=ignore_conda_error,
             impute_values=kwargs.pop("impute_values", None),
         )
         # Set default model_display_name if not specified - randomly generated easy to remember name generated
@@ -2206,6 +2474,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             deployment_predict_log_id=self.properties.deployment_predict_log_id,
             deployment_memory_in_gbs=self.properties.deployment_memory_in_gbs,
             deployment_ocpus=self.properties.deployment_ocpus,
+            deployment_image=deployment_image,
             kwargs=kwargs,
         )
         return self.model_deployment
@@ -2285,8 +2554,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         pd.DataFrame
             The summary stable of the current status.
         """
-        if self.model_file_name and not os.path.exists(
-            os.path.join(self.artifact_dir, self.model_file_name)
+        if (
+            not self.ignore_conda_error
+            and self.model_file_name
+            and not os.path.exists(
+                os.path.join(self.artifact_dir, self.model_file_name)
+            )
         ):
             self._summary_status.update_action(
                 detail="Serialized model",

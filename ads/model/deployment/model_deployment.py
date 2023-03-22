@@ -64,6 +64,12 @@ TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
 
+MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
+MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
+MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
+MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
+MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
+
 
 class ModelDeploymentLogType:
     PREDICT = "predict"
@@ -1443,7 +1449,8 @@ class ModelDeployment(Builder):
             self.CONST_DESCRIPTION: self.description,
             self.CONST_DEFINED_TAG: self.defined_tags,
             self.CONST_FREEFORM_TAG: self.freeform_tags,
-            self.runtime.CONST_DEPLOYMENT_MODE: self.runtime.deployment_mode,
+            self.runtime.CONST_DEPLOYMENT_MODE: self.runtime.deployment_mode
+            or ModelDeploymentMode.HTTPS,
             self.infrastructure.CONST_COMPARTMENT_ID: self.infrastructure.compartment_id
             or COMPARTMENT_OCID,
             self.infrastructure.CONST_PROJECT_ID: self.infrastructure.project_id
@@ -1493,13 +1500,30 @@ class ModelDeployment(Builder):
         runtime = self.runtime
 
         instance_configuration = {
-            infrastructure.CONST_INSTANCE_SHAPE_NAME: infrastructure.shape_name,
-            infrastructure.CONST_MODEL_DEPLOYMENT_INSTANCE_SHAPE_CONFIG_DETAILS: infrastructure.shape_config_details,
+            infrastructure.CONST_INSTANCE_SHAPE_NAME: infrastructure.shape_name
+            or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
         }
+
+        if instance_configuration[infrastructure.CONST_INSTANCE_SHAPE_NAME].endswith(
+            "Flex"
+        ):
+            instance_configuration[
+                infrastructure.CONST_MODEL_DEPLOYMENT_INSTANCE_SHAPE_CONFIG_DETAILS
+            ] = {
+                infrastructure.CONST_OCPUS: infrastructure.shape_config_details.get(
+                    "ocpus", None
+                )
+                or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+                infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
+                    "memory_in_gbs", None
+                )
+                or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+            }
 
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
-            infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica,
+            infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
+            or MODEL_DEPLOYMENT_INSTANCE_COUNT,
         }
 
         if not runtime.model_uri:
@@ -1520,11 +1544,21 @@ class ModelDeployment(Builder):
             )
 
         model_configuration_details = {
-            infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps,
+            infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
+            or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
             infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
             runtime.CONST_MODEL_ID: model_id,
             infrastructure.CONST_SCALING_POLICY: scaling_policy,
         }
+
+        if runtime.env:
+            if not hasattr(
+                oci.data_science.models,
+                "ModelDeploymentEnvironmentConfigurationDetails",
+            ):
+                raise EnvironmentError(
+                    "Environment variable hasn't been supported in the current OCI SDK installed."
+                )
 
         environment_variables = runtime.env
         if infrastructure.web_concurrency:
@@ -1592,24 +1626,27 @@ class ModelDeployment(Builder):
                 self.infrastructure.CONST_PREDICT: log_group_details,
             }
 
-        return {
-            self.infrastructure.CONST_ACCESS: {
+        logs = {}
+        if self.infrastructure.access_log:
+            logs[self.infrastructure.CONST_ACCESS] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.access_log.get(
                     "logGroupId", None
                 ),
                 self.infrastructure.CONST_LOG_ID: self.infrastructure.access_log.get(
                     "logId", None
                 ),
-            },
-            self.infrastructure.CONST_PREDICT: {
+            }
+        if self.infrastructure.predict_log:
+            logs[self.infrastructure.CONST_PREDICT] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.predict_log.get(
                     "logGroupId", None
                 ),
                 self.infrastructure.CONST_LOG_ID: self.infrastructure.predict_log.get(
                     "logId", None
                 ),
-            },
-        }
+            }
+
+        return logs
 
     def _random_display_name(self):
         """Generates a random display name."""
