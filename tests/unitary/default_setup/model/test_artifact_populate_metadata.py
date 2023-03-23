@@ -3,6 +3,7 @@
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import git
 import os
 import shutil
 from unittest.mock import MagicMock, patch
@@ -140,8 +141,9 @@ class TestModelArtifactPopulateMetadata:
 
         shutil.rmtree(tmp_model_dir)
 
+    @patch.object(git.Repo, "active_branch")
     def test_prepare_generic_model_extract_metadata_custom(
-        self, monkeypatch, conda_file
+        self, mock_active_branch, monkeypatch, conda_file
     ):
         monkeypatch.setenv(
             "NB_SESSION_OCID", "ocid1.datasciencenotebook.oc1.iad.<unique_ocid>"
