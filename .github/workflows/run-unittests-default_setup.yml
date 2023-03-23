@@ -1,13 +1,15 @@
-name: Unit Tests - unitary/default_setup/*
+name: tests/unitary/default_setup/**
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
       - 'release/**'
       - develop
     paths:
+      - 'ads/**'
+      - setup.py
+      - '**requirements.txt'
       - '!docs/**'
 
   pull_request:
