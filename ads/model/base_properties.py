@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import dataclasses
@@ -191,7 +191,7 @@ class BaseProperties(Serializable):
         force_overwrite: (bool, optional). Defaults to False.
             Whether to overwrite existing files or not.
         auth: (Dict, optional). Defaults to None.
-            The default authetication is set using `ads.set_auth` API. If you need to override the
+            The default authentication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -202,7 +202,7 @@ class BaseProperties(Serializable):
         """
         config = Config(uri=uri, auth=auth)
         config.section_set(key=profile, info=self.to_dict(), replace=force_overwrite)
-        config.save()
+        config.save(force_overwrite=force_overwrite)
 
     @classmethod
     def from_config(
@@ -221,7 +221,7 @@ class BaseProperties(Serializable):
         profile: str
             The config profile name.
         auth: (Dict, optional). Defaults to None.
-            The default authetication is set using `ads.set_auth` API. If you need to override the
+            The default authentication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
 

@@ -1,21 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
-from typing import Callable, Dict, List, Optional, Tuple, Union
 
-import cloudpickle
-import numpy as np
-import pandas as pd
+from typing import Callable, Dict, List, Optional
 from ads.common import logger
 from ads.model.extractor.automl_extractor import AutoMLExtractor
 from ads.model.generic_model import FrameworkSpecificModel
 from ads.model.model_properties import ModelProperties
-
-DEFAULT_PKL_FORMAT_MODEL_FILE_NAME = "model.pkl"
+from ads.model.serde.common import SERDE
+from ads.common.decorator.deprecate import deprecated
 
 
 class AutoMLModel(FrameworkSpecificModel):
@@ -31,8 +27,6 @@ class AutoMLModel(FrameworkSpecificModel):
         Default authentication is set using the `ads.set_auth` API. To override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create
         an authentication signer to instantiate an IdentityClient object.
-    ds_client: DataScienceClient
-        The data science client used by model deployment.
     estimator: Callable
         A trained automl estimator/model using oracle automl.
     framework: str
@@ -55,6 +49,7 @@ class AutoMLModel(FrameworkSpecificModel):
         The model ID.
     properties: ModelProperties
         ModelProperties object required to save and deploy model.
+        For more details, check https://accelerated-data-science.readthedocs.io/en/latest/ads.model.html#module-ads.model.model_properties.
     runtime_info: RuntimeInfo
         A RuntimeInfo instance.
     schema_input: Schema
@@ -101,7 +96,7 @@ class AutoMLModel(FrameworkSpecificModel):
     >>> from ads.automl.provider import OracleAutoMLProvider
     >>> from ads.dataset.dataset_browser import DatasetBrowser
     >>> from ads.model.framework.automl_model import AutoMLModel
-    >>> from ads.common.model_metadata import UseCaseType
+    >>> from ads.model.model_metadata import UseCaseType
     >>> ds = DatasetBrowser.sklearn().open("wine").set_target("target")
     >>> train, test = ds.train_test_split(test_size=0.1, random_state = 42)
 
@@ -121,12 +116,18 @@ class AutoMLModel(FrameworkSpecificModel):
 
     _PREFIX = "automl"
 
+    @deprecated(
+        details=f"Working with AutoML has moved from within ADS to working directly with the automlx library. Please use `GenericModel` https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/frameworks/genericmodel.html class instead. An example can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/frameworks/automlmodel.html",
+        raise_error=True,
+    )
     def __init__(
         self,
         estimator: Callable,
         artifact_dir: str,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
+        model_save_serializer: Optional[SERDE] = None,
+        model_input_serializer: Optional[SERDE] = None,
         **kwargs,
     ):
         """
@@ -144,6 +145,10 @@ class AutoMLModel(FrameworkSpecificModel):
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
+        model_save_serializer: (SERDE or str, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model.
+        model_input_serializer: (SERDE, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize data.
 
         Returns
         -------
@@ -162,6 +167,8 @@ class AutoMLModel(FrameworkSpecificModel):
             artifact_dir=artifact_dir,
             properties=properties,
             auth=auth,
+            model_save_serializer=model_save_serializer,
+            model_input_serializer=model_input_serializer,
             **kwargs,
         )
         self._extractor = AutoMLExtractor(estimator)
@@ -169,64 +176,3 @@ class AutoMLModel(FrameworkSpecificModel):
         self.algorithm = self._extractor.algorithm
         self.version = self._extractor.version
         self.hyperparameter = self._extractor.hyperparameter
-
-    @staticmethod
-    def _handle_model_file_name(as_onnx: bool, model_file_name: str):
-        if as_onnx:
-            raise NotImplementedError(
-                "AutoML framework does not support onnx serialization."
-            )
-
-        if not model_file_name:
-            return DEFAULT_PKL_FORMAT_MODEL_FILE_NAME
-
-        if model_file_name and not model_file_name.endswith(".pkl"):
-            raise ValueError(
-                "`model_file_name` has to be ending with `.pkl` for pkl format."
-            )
-        return model_file_name
-
-    def serialize_model(
-        self,
-        force_overwrite: Optional[bool] = False,
-        X_sample: Optional[
-            Union[
-                Dict,
-                str,
-                List,
-                Tuple,
-                np.ndarray,
-                pd.core.series.Series,
-                pd.core.frame.DataFrame,
-            ]
-        ] = None,
-        **kwargs: Dict,
-    ):
-        """
-        Serialize and save AutoML model using pkl.
-
-        Parameters
-        ----------
-        force_overwrite: (bool, optional). Defaults to False.
-            If set as True, overwrite serialized model if exists.
-        X_sample: Union[Dict, str, List, np.ndarray, pd.core.series.Series, pd.core.frame.DataFrame,]. Defaults to None.
-            Contains model inputs such that model(X_sample) is a valid invocation of the model.
-            Used to generate input schema.
-
-        Returns
-        -------
-        None
-            Nothing.
-        """
-        model_path = os.path.join(self.artifact_dir, self.model_file_name)
-        if os.path.exists(model_path) and not force_overwrite:
-            raise ValueError(
-                "Model file already exists and will not be overwritten. "
-                "Set `force_overwrite` to True if you wish to overwrite."
-            )
-        else:
-            if not os.path.exists(self.artifact_dir):
-                os.makedirs(self.artifact_dir)
-
-            with open(model_path, "wb") as outfile:
-                cloudpickle.dump(self.estimator, outfile)

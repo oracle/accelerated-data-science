@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -81,17 +81,17 @@ def high_cardinality_handler(s: pd.Series) -> pd.DataFrame:
     """
     num_unique = s.nunique(dropna=False)
     df = pd.DataFrame([], columns=["Warning", "Message", "Metric", "Value"])
-    if num_unique >= 15:
-        df.loc[0] = [
-            "high-cardinality",
-            f"{num_unique} unique values",
-            "count",
-            num_unique,
-        ]
-    elif num_unique == len(s):
+    if num_unique == len(s):
         df.loc[0] = [
             "high-cardinality",
             f"every value is distinct",
+            "count",
+            num_unique,
+        ]
+    elif num_unique >= 15:
+        df.loc[0] = [
+            "high-cardinality",
+            f"{num_unique} unique values",
             "count",
             num_unique,
         ]

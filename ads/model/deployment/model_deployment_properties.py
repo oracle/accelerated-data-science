@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import Any, Dict, Optional, Union
+import warnings
 
 import oci.data_science.models as data_science_models
 from ads.common import utils
-from ads.common.auth import default_signer
-from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_datascience import OCIDataScienceMixin
 
 from .common.utils import OCIClientManager
@@ -124,14 +123,16 @@ class ModelDeploymentProperties(
             model_id is None AND not specified in
             oci_model_deployment.model_deployment_configuration_details.model_configuration_details.
         """
-        if not config:
-            config = default_signer()
-        self.config = config
+        if config:
+            warnings.warn(
+                "`config` will be deprecated in 3.0.0 and will be ignored now."
+            )
+
         self.model_id = model_id
         self.model_uri = model_uri
 
-        self.ds_client = OCIClientFactory(**self.config).data_science
         oci_kwargs = {}
+        self.oci_model_deployment = oci_model_deployment
         if oci_model_deployment:
             # User specified oci_model_deployment, which could be an OCI model object or a dict
             if isinstance(oci_model_deployment, dict):
@@ -452,7 +453,7 @@ class ModelDeploymentProperties(
 
         """
         if self.model_uri:
-            self.model_id = OCIClientManager(self.config).prepare_artifact(
+            self.model_id = OCIClientManager().prepare_artifact(
                 model_uri=self.model_uri,
                 properties=dict(
                     display_name="testing",

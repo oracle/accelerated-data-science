@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -9,10 +9,12 @@ from collections import defaultdict
 from configparser import ConfigParser
 from copy import copy
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Tuple, Union, Any
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from urllib.parse import urlparse
 
 import fsspec
 import yaml
+
 from ads.common import auth as authutil
 from ads.common.decorator.argument_to_case import ArgumentCase, argument_to_case
 
@@ -287,6 +289,7 @@ class Config:
         self._config_parser = ExtendedConfigParser(uri=self.uri, auth=self.auth)
 
     def _on_change(self):
+        """This method will be called when config modified."""
         pass
 
     def default(self) -> ConfigSection:
@@ -345,7 +348,7 @@ class Config:
         The new config section will be added in case if it doesn't exist.
         Otherwise the existing config section will be merged with the new fields.
 
-        Paramaters
+        Parameters
         ----------
         key: str
             A key of a config section.
@@ -362,7 +365,7 @@ class Config:
         Raises
         ------
         ValueError
-            If section with goven key is already exist and `replace` flag set to False.
+            If section with given key is already exist and `replace` flag set to False.
         TypeError
             If input `info` has a wrong format.
         """
@@ -389,7 +392,7 @@ class Config:
         return self._config[key]
 
     @argument_to_case(case=ArgumentCase.UPPER, arguments=["key"])
-    def section_remove(self, key: str) -> None:
+    def section_remove(self, key: str) -> "Config":
         """Removes config section form config.
 
         Parameters
@@ -404,26 +407,62 @@ class Config:
         """
         self._config.pop(key, None)
         self._on_change()
+        return self
 
-    def save(self) -> None:
-        """Saves config data to a config file.
+    def save(
+        self,
+        uri: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+    ) -> "Config":
+        """Saves config to a config file.
+
+        Parameters
+        ----------
+        uri: (str, optional). Defaults to `~/.ads/config`.
+            The path to the config file. Can be local or Object Storage file.
+        auth: (Dict, optional). Defaults to None.
+            The default authentication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
+        force_overwrite: (bool, optional). Defaults to `False`.
+            Overwrites the config if exists.
 
         Returns
         -------
         None
             Nothing
         """
-        self._config_parser.with_dict(self.to_dict()).save()
+        uri = uri or self.uri
+        auth = auth or self.auth or authutil.default_signer()
+        self._config_parser.with_dict(self.to_dict()).save(
+            uri=uri, auth=auth, force_overwrite=force_overwrite
+        )
+        return self
 
-    def load(self) -> "Config":
-        """Loads config data from a config file.
+    def load(self, uri: Optional[str] = None, auth: Optional[Dict] = None) -> "Config":
+        """Loads config from a config file.
+
+        Parameters
+        ----------
+        uri: (str, optional). Defaults to `~/.ads/config`.
+            The path where the config file needs to be saved. Can be local or Object Storage file.
+        auth: (Dict, optional). Defaults to None.
+            The default authentication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
 
         Returns
         -------
         Config
             A config object.
         """
-        return self.with_dict(self._config_parser.read().to_dict())
+        uri = uri or self.uri
+        auth = auth or self.auth or authutil.default_signer()
+
+        return self.with_dict(
+            self._config_parser.read(uri=uri, auth=auth).to_dict(), replace=True
+        )
 
     def with_dict(
         self,
@@ -507,7 +546,7 @@ class ExtendedConfigParser(ConfigParser):
         uri: (str, optional). Defaults to `~/.ads/config`.
             The path to the config file. Can be local or Object Storage file.
         auth: (Dict, optional). Defaults to None.
-            The default authetication is set using `ads.set_auth` API. If you need to override the
+            The default authentication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
         """
@@ -515,15 +554,46 @@ class ExtendedConfigParser(ConfigParser):
         self.auth = auth or authutil.default_signer()
         self.uri = uri
 
-    def save(self) -> None:
+    def save(
+        self,
+        uri: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+    ) -> None:
         """Saves the config to the file.
+
+        Parameters
+        ----------
+        uri: (str, optional). Defaults to `~/.ads/config`.
+            The path to the config file. Can be local or Object Storage file.
+        auth: (Dict, optional). Defaults to None.
+            The default authentication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
+        force_overwrite: (bool, optional). Defaults to `False`.
+            Overwrites the config if exists.
 
         Returns
         -------
         None
-            nothing
+
+        Raise
+        -----
+        FileExistsError
+            In case if file exists and force_overwrite is false.
         """
-        with fsspec.open(self.uri, mode="w", **self.auth) as f:
+        uri = uri or self.uri
+        auth = auth or self.auth or authutil.default_signer()
+
+        if not force_overwrite:
+            dst_path_scheme = urlparse(uri).scheme or "file"
+            if fsspec.filesystem(dst_path_scheme, **auth).exists(uri):
+                raise FileExistsError(
+                    f"The `{uri}` exists. Set `force_overwrite` to True "
+                    "if you wish to overwrite."
+                )
+
+        with fsspec.open(uri, mode="w", **auth) as f:
             self.write(f)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -532,19 +602,31 @@ class ExtendedConfigParser(ConfigParser):
         Returns
         -------
         Dict[str, Any]
-            Cofig in a dictionary format.
+            Config in a dictionary format.
         """
         return {s: dict(self[s]) for s in self.keys() if self[s]}
 
-    def read(self) -> "ExtendedConfigParser":
+    def read(
+        self, uri: Optional[str] = None, auth: Optional[Dict] = None
+    ) -> "ExtendedConfigParser":
         """Reads config file.
+
+        uri: (str, optional). Defaults to `~/.ads/config`.
+            The path to the config file. Can be local or Object Storage file.
+        auth: (Dict, optional). Defaults to None.
+            The default authentication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
 
         Returns
         -------
         ExtendedConfigParser
            Config parser object.
         """
-        with fsspec.open(self.uri, "r", **self.auth) as f:
+        uri = uri or self.uri
+        auth = auth or self.auth or authutil.default_signer()
+
+        with fsspec.open(uri, "r", **auth) as f:
             self.read_string(f.read())
         return self
 

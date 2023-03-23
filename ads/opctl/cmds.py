@@ -16,6 +16,7 @@ from ads.common.auth import AuthContext
 from ads.common.oci_datascience import DSCNotebookSession
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
+from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
@@ -63,12 +64,14 @@ class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     JOB = "datasciencejob"
     DATAFLOW = "dataflowapplication"
     PIPELINE = "datasciencepipeline"
+    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
 
 
 class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
     JOB_RUN = "datasciencejobrun"
     DATAFLOW_RUN = "dataflowrun"
     PIPELINE_RUN = "datasciencepipelinerun"
+    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
 
 
 DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
@@ -78,12 +81,14 @@ DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
     DataScienceResourceRun.DATAFLOW_RUN: "dataflow",
     DataScienceResource.PIPELINE: "pipeline",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
+    DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
 }
 
 DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
     DataScienceResourceRun.JOB_RUN: "job",
     DataScienceResourceRun.DATAFLOW_RUN: "dataflow",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
+    DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
 }
 
 
@@ -92,6 +97,7 @@ class _BackendFactory:
         BACKEND_NAME.JOB.value: MLJobBackend,
         BACKEND_NAME.DATAFLOW.value: DataFlowBackend,
         BACKEND_NAME.PIPELINE.value: PipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
     }
 
     LOCAL_BACKENDS_MAP = {
@@ -206,7 +212,6 @@ def run(config: Dict, **kwargs) -> Dict:
         else:
             if not kwargs["dry_run"]:
                 verify_and_publish_image(kwargs["nopush"], config)
-
                 print("running image: " + config["spec"]["cluster"]["spec"]["image"])
             cluster_def = YamlSpecParser.parse_content(config)
 
@@ -359,6 +364,7 @@ def delete(**kwargs) -> None:
         DataScienceResourceRun.JOB_RUN in kwargs["ocid"]
         or DataScienceResourceRun.DATAFLOW_RUN in kwargs["ocid"]
         or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.MODEL_DEPLOYMENT in kwargs["ocid"]
     ):
         kwargs["run_id"] = kwargs.pop("ocid")
     elif (
@@ -410,6 +416,46 @@ def watch(**kwargs) -> None:
         kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.watch()
+
+
+def activate(**kwargs) -> None:
+    """
+    Activate a ModelDeployment.
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+
+    Returns
+    -------
+    None
+    """
+    kwargs["run_id"] = kwargs.pop("ocid")
+    if not kwargs.get("backend"):
+        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    return _BackendFactory(p.config).backend.activate()
+
+
+def deactivate(**kwargs) -> None:
+    """
+    Deactivate a ModelDeployment.
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+
+    Returns
+    -------
+    None
+    """
+    kwargs["run_id"] = kwargs.pop("ocid")
+    if not kwargs.get("backend"):
+        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    return _BackendFactory(p.config).backend.deactivate()
 
 
 def init_vscode(**kwargs) -> None:

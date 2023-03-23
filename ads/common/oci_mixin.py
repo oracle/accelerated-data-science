@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Contains Mixins for integrating OCI data models
@@ -18,7 +18,7 @@ from enum import Enum
 
 import oci
 import yaml
-from ads.common.auth import default_signer
+from ads.common import auth
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.utils import camel_to_snake
 from ads.config import COMPARTMENT_OCID
@@ -79,16 +79,16 @@ class OCIClientMixin:
             client_kwargs.update(cls.kwargs)
 
         if cls.config is None and cls.signer is None:
-            auth = default_signer(client_kwargs)
+            oci_auth = auth.default_signer(client_kwargs)
         elif not cls.signer and cls.config:
-            auth = {"config": cls.config, "client_kwargs": client_kwargs}
+            oci_auth = {"config": cls.config, "client_kwargs": client_kwargs}
         else:
-            auth = {
+            oci_auth = {
                 "config": cls.config,
                 "signer": cls.signer,
                 "client_kwargs": client_kwargs,
             }
-        return auth
+        return oci_auth
 
     @class_or_instance_method
     def init_client(cls, **kwargs):
@@ -98,7 +98,7 @@ class OCIClientMixin:
         Parameters
         ----------
         **kwargs :
-            Additional keyword arguments for initalizing the OCI client.
+            Additional keyword arguments for initializing the OCI client.
 
         Returns
         -------
@@ -116,7 +116,7 @@ class OCIClientMixin:
         client :
             The OCI client class to be initialized, e.g., oci.data_science.DataScienceClient
         **kwargs :
-            Additional keyword arguments for initalizing the OCI client.
+            Additional keyword arguments for initializing the OCI client.
 
         Returns
         -------
@@ -545,18 +545,21 @@ class OCIModelMixin(OCISerializableMixin):
         return cls.create_instance(**data)
 
     @classmethod
-    def deserialize(cls, data, to_cls=None):
+    def deserialize(cls, data: dict, to_cls: str = None):
         """Deserialize data
 
         Parameters
         ----------
-        data :
+        data : dict
+            A dictionary containing the data to be deserialized.
 
-        to_cls :
-             (Default value = None)
-
-        Returns
-        -------
+        to_cls : str
+            The name of the OCI model class to be initialized using the data.
+            The OCI model class must be from the same OCI service of the OCI client (self.client).
+            Defaults to None, the parent OCI model class name will be used
+            if current class is inherited from an OCI model.
+            If parent OCI model class is not found or not from the same OCI service,
+            the data will be returned as is.
 
         """
         if to_cls is None:
@@ -744,12 +747,24 @@ class OCIModelMixin(OCISerializableMixin):
         return self
 
     def __getattribute__(self, name: str):
+        """Returns an attribute value of the resource.
+
+        This method will try to sync the values from OCI service when it is not already available locally.
+        Some attribute value may not be available locally if the previous OCI API call returns an OCI model
+        that contains only a subset of the attributes.
+        For example, JobSummary model contains only a subset of the attributes from the Job model.
+
+        Parameters
+        ----------
+        name : str
+            Attribute name.
+        """
         skip_lookup = ["id", "attribute_map", "_oci_attributes"]
 
         if name in skip_lookup or name.startswith("_"):
             return super().__getattribute__(name)
 
-        # Ignore if _oci_attributes is not intialized
+        # Ignore if _oci_attributes is not initialized
         if not hasattr(self, "_oci_attributes"):
             return super().__getattribute__(name)
 
@@ -757,6 +772,7 @@ class OCIModelMixin(OCISerializableMixin):
             hasattr(self, "attribute_map")
             and name in self.attribute_map
             and name not in self._oci_attributes
+            and hasattr(self, "id")
             and self.id
         ):
             # Do not sync if it is in the sync process
@@ -768,9 +784,23 @@ class OCIModelMixin(OCISerializableMixin):
             if not super().__getattribute__(name):
                 try:
                     self.sync(merge_strategy=MergeStrategy.MERGE)
+                except oci.exceptions.ServiceError as ex:
+                    # 400 errors are usually cause by the user
+                    if ex.status == 400:
+                        logger.error("%s - %s: %s", self.__class__, ex.code, ex.message)
+                        self._oci_attributes = self.attribute_map
+                    else:
+                        logger.error(
+                            "Failed to synchronize the properties of %s due to service error:\n%s",
+                            self.__class__,
+                            str(ex),
+                        )
                 except Exception as ex:
                     logger.error(
-                        "Failed to synchronize the properties of %s: %s", self, str(ex)
+                        "Failed to synchronize the properties of %s: %s\n%s",
+                        self.__class__,
+                        type(ex),
+                        str(ex),
                     )
         return super().__getattribute__(name)
 

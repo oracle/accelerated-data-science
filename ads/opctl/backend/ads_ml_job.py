@@ -64,8 +64,7 @@ class MLJobBackend(Backend):
         """
         Create Job and Job Run from YAML.
         """
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             job = Job.from_dict(self.config)
             job.create()
             job_run = job.run()
@@ -77,8 +76,7 @@ class MLJobBackend(Backend):
         Create Job and Job Run from OCID or cli parameters.
         """
         # TODO Check that this still runs smoothly for distributed
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             if self.config["execution"].get("ocid", None):
                 job_id = self.config["execution"]["ocid"]
                 run_id = (
@@ -139,14 +137,12 @@ class MLJobBackend(Backend):
         """
         if self.config["execution"].get("id"):
             job_id = self.config["execution"]["id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 Job.from_datascience_job(job_id).delete()
                 print(f"Job {job_id} has been deleted.")
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 DataScienceJobRun.from_ocid(run_id).delete()
                 print(f"Job run {run_id} has been deleted.")
 
@@ -155,8 +151,7 @@ class MLJobBackend(Backend):
         Cancel Job Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             DataScienceJobRun.from_ocid(run_id).cancel()
             print(f"Job run {run_id} has been cancelled.")
 
@@ -166,8 +161,7 @@ class MLJobBackend(Backend):
         """
         run_id = self.config["execution"]["run_id"]
 
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataScienceJobRun.from_ocid(run_id)
             run.watch()
 
@@ -377,8 +371,7 @@ class MLJobDistributedBackend(MLJobBackend):
         return f"{worker_jobrun_conf['name']}-{i}"
 
     def run_diagnostics(self, cluster_info, dry_run=False, **kwargs):
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             main_jobrun_conf, worker_jobrun_conf_list = self.prepare_job_config(
                 cluster_info=cluster_info
             )
@@ -423,8 +416,7 @@ class MLJobDistributedBackend(MLJobBackend):
         * The Job Definition will contain all the environment variables defined at the cluster/spec/config level, environment variables defined by the user at runtime/spec/env level and `OCI__` derived from the yaml specification
         * The Job Run will have overrides provided by the user under cluster/spec/{main|worker}/config section and `OCI__MODE`={MASTER|WORKER} depending on the run type
         """
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             main_jobrun_conf, worker_jobrun_conf_list = self.prepare_job_config(
                 cluster_info=cluster_info
             )
