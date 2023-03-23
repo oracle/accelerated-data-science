@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import List, Union
 from urllib.parse import urlparse
@@ -23,36 +23,57 @@ from ads.jobs.builders.runtimes.python_runtime import (
 
 
 class Job(Builder):
-    """Represents a Job containing infrastructure and runtime.
+    """Represents a Job defined by infrastructure and runtime.
 
-    Example
-    -------
-    Here is an example for creating and running a job:
-
-    .. code-block:: python
+    Examples
+    --------
+    Here is an example for creating and running a job::
 
         from ads.jobs import Job, DataScienceJob, PythonRuntime
+
         # Define an OCI Data Science job to run a python script
         job = (
             Job(name="<job_name>")
             .with_infrastructure(
                 DataScienceJob()
+                # Configure logging for getting the job run outputs.
+                .with_log_group_id("<log_group_ocid>")
+                # Log resource will be auto-generated if log ID is not specified.
+                .with_log_id("<log_ocid>")
+                # If you are in an OCI data science notebook session,
+                # the following configurations are not required.
+                # Configurations from the notebook session will be used as defaults.
                 .with_compartment_id("<compartment_ocid>")
                 .with_project_id("<project_ocid>")
                 .with_subnet_id("<subnet_ocid>")
                 .with_shape_name("VM.Standard.E3.Flex")
+                # Shape config details are applicable only for the flexible shapes.
                 .with_shape_config_details(memory_in_gbs=16, ocpus=1)
+                # Minimum/Default block storage size is 50 (GB).
                 .with_block_storage_size(50)
-                .with_log_group_id("<log_group_ocid>")
-                .with_log_id("<log_ocid>")
             )
             .with_runtime(
-                ScriptRuntime()
-                .with_source("oci://bucket_name@namespace/path/to/script.py")
-                .with_service_conda("tensorflow26_p37_cpu_v2")
-                .with_environment_variable(ENV="value")
-                .with_argument("argument", key="value")
-                .with_freeform_tag(tag_name="tag_value")
+                PythonRuntime()
+                # Specify the service conda environment by slug name.
+                .with_service_conda("pytorch110_p38_cpu_v1")
+                # The job artifact can be a single Python script, a directory or a zip file.
+                .with_source("local/path/to/code_dir")
+                # Environment variable
+                .with_environment_variable(NAME="Welcome to OCI Data Science.")
+                # Command line argument, arg1 --key arg2
+                .with_argument("arg1", key="arg2")
+                # Set the working directory
+                # When using a directory as source, the default working dir is the parent of code_dir.
+                # Working dir should be a relative path beginning from the source directory (code_dir)
+                .with_working_dir("code_dir")
+                # The entrypoint is applicable only to directory or zip file as source
+                # The entrypoint should be a path relative to the working dir.
+                # Here my_script.py is a file in the code_dir/my_package directory
+                .with_entrypoint("my_package/my_script.py")
+                # Add an additional Python path, relative to the working dir (code_dir/other_packages).
+                .with_python_path("other_packages")
+                # Copy files in "code_dir/output" to object storage after job finishes.
+                .with_output("output", "oci://bucket_name@namespace/path/to/dir")
             )
         )
         # Create and Run the job
@@ -62,11 +83,10 @@ class Job(Builder):
 
     If you are in an OCI notebook session and you would like to use the same infrastructure
     configurations, the infrastructure configuration can be simplified.
-    Here is another example of creating and running a jupyter notebook as a job:
-
-    .. code-block:: python
+    Here is another example of creating and running a jupyter notebook as a job::
 
         from ads.jobs import Job, DataScienceJob, NotebookRuntime
+
         # Define an OCI Data Science job to run a jupyter Python notebook
         job = (
             Job(name="<job_name>")
@@ -79,7 +99,7 @@ class Job(Builder):
             .with_runtime(
                 NotebookRuntime()
                 .with_notebook("path/to/notebook.ipynb")
-                .with_service_conda(tensorflow26_p37_cpu_v2")
+                .with_service_conda(tensorflow28_p38_cpu_v1")
                 # Saves the notebook with outputs to OCI object storage.
                 .with_output("oci://bucket_name@namespace/path/to/dir")
             )
@@ -125,6 +145,7 @@ class Job(Builder):
         -------
         Job
             A job instance.
+
         """
         dsc_infra = DataScienceJob.from_id(job_id)
         job = (
@@ -204,7 +225,7 @@ class Job(Builder):
          or by calling with_infrastructure() and with_runtime().
 
         The infrastructure should be a subclass of ADS job Infrastructure, e.g., DataScienceJob, DataFlow.
-        The runtime should be a subclass of ADS job Runtime, e.g., PythonRuntime, ScriptRuntime.
+        The runtime should be a subclass of ADS job Runtime, e.g., PythonRuntime, NotebookRuntime.
 
         Parameters
         ----------
@@ -219,6 +240,7 @@ class Job(Builder):
             Job infrastructure, by default None
         runtime : Runtime, optional
             Job runtime, by default None.
+
         """
         super().__init__()
         if name:
@@ -332,6 +354,15 @@ class Job(Builder):
         """
         return self.set_spec("name", name)
 
+    def build(self) -> "Job":
+        """Load default values from the environment for the job infrastructure."""
+        build_method = getattr(self.infrastructure, "build", None)
+        if build_method and callable(build_method):
+            build_method()
+        else:
+            raise NotImplementedError
+        return self
+
     def create(self, **kwargs) -> "Job":
         """Creates the job on the infrastructure.
 
@@ -378,6 +409,18 @@ class Job(Builder):
         -------
         Job Run Instance
             A job run instance, depending on the infrastructure.
+
+        Examples
+        --------
+        To run a job and override the configurations::
+
+            job_run = job.run(
+                name="<my_job_run_name>",
+                args="new_arg --new_key new_val",
+                env_var={"new_env": "new_val"},
+                freeform_tags={"new_tag": "new_tag_val"}
+            )
+
         """
         return self.infrastructure.run(
             name=name,

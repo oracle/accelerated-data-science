@@ -1,0 +1,65 @@
+name: Unit Tests unitary/default_setup/*
+
+on:
+  workflow_dispatch:
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: python ${{ matrix.python-version }}, tests/unitary/default_setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Caching python libraries installed with pip
+      # https://github.com/actions/cache/blob/main/examples.md#python---pip
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/test-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+#      - name: "Test config setup"
+#        shell: bash
+#        env:
+#          ADS_OCI_CONFIG_REALLIKE: ${{ secrets.ADS_OCI_CONFIG_REALLIKE }}
+#          ADS_OCI_PRIVATE_KEY_REALLIKE: ${{ secrets.ADS_OCI_PRIVATE_KEY_REALLIKE }}
+#        run: |
+#          set -x # print commands that are executed
+#          mkdir -p /home/runner/.oci
+#          ls -lha
+#          echo "$ADS_OCI_CONFIG_REALLIKE" > "/home/runner/.oci/config"
+#          echo "$ADS_OCI_PRIVATE_KEY_REALLIKE" > "/home/runner/.oci/oci_ads_user.pem"
+#          echo "key_file=/home/runner/.oci/oci_ads_user.pem" >> "/home/runner/.oci/config"
+
+#      - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
+#        timeout-minutes: 15
+#        shell: bash
+#        env:
+#          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
+#          NoDependency: True
+#        run: |
+#          set -x # print commands that are executed
+#          $CONDA/bin/conda init
+#          source /home/runner/.bashrc
+#          pip install -r test-requirements.txt
+#          python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from abc import abstractmethod
@@ -66,6 +66,26 @@ class Backend:
         -------
         None
         """
+
+    def activate(self) -> None:
+        """
+        Activate a remote service.
+
+        Returns
+        -------
+        None
+        """
+        raise NotImplementedError("`activate` has not been implemented yet.")
+
+    def deactivate(self) -> None:
+        """
+        Deactivate a remote service.
+
+        Returns
+        -------
+        None
+        """
+        raise NotImplementedError("`deactivate` has not been implemented yet.")
 
     def run_diagnostics(self):
         """

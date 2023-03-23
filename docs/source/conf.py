@@ -9,7 +9,7 @@ import sys
 # This causes documentation within the __init__ method to be pulled into the documentation properly
 autoclass_content = "both"
 
-sys.path.insert(0, os.path.abspath("../../advanced-ds"))
+sys.path.insert(0, os.path.abspath("../.."))
 
 # -- Project information -----------------------------------------------------
 

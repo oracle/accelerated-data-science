@@ -20,7 +20,7 @@ For a guide on ADS features, check out the overview. This Quick Start guide is a
 * `Model Training with ADS`_
 * `Creating an ADSModel from Other Machine Learning Libraries`_
 * `Saving and Loading Models to the Model Catalog`_
-* `Model Evaluations and Explanations with ADS`_
+* `Model Evaluations with ADS`_
 
 Setting up ADS
 --------------
@@ -166,99 +166,11 @@ or the ``ads_data_visualizations`` notebook example in the notebook session envi
   :height: 150
   :alt: ADS Model Training
 
-Model Training with ADS
------------------------
-
-ADS includes the ``Oracle AutoML Provider``. It is an automated machine learning module that is simple to use, fast to
-run, and performs comparably with its alternatives. You can also create your own machine learning provider and let ADS
-take care of the housekeeping.
-
-Detailed examples are included in the ``ads-example`` folder in the notebook session environment.
-
-AutoML provides these features:
-
-- An ideal feature set.
-- Minimal sampling size.
-- The best algorithm to use (you can also restrict AutoML to your favorite algorithms).
-- The best set of algorithm specific hyperparameters.
-
-How to train a model using  ``ADSDataset``:
-
-.. code-block:: python3
-
-  import pandas as pd
-  from ads.automl.provider import OracleAutoMLProvider
-  from ads.automl.driver import AutoML
-  from ads.dataset.factory import DatasetFactory
-
-  # this is the default AutoML provider for regression and classification problem types.
-  # over time Oracle will introduce other providers for other training tasks.
-  ml_engine = OracleAutoMLProvider()
-
-  # use an example where Pandas opens the dataset
-  df = pd.read_csv("https://raw.githubusercontent.com/darenr/public_datasets/master/iris_dataset.csv")
-  ds = DatasetFactory.open(df, target='variety')
-
-  train, test = ds.train_test_split()
-
-  automl = AutoML(train, provider=ml_engine)
-
-  model, baseline = automl.train(model_list=[
-      'LogisticRegression',
-      'LGBMClassifier',
-      'XGBClassifier',
-      'RandomForestClassifier'], time_budget=10)
-
-At this point, AutoML has built a baseline model. In this
-case, it is a Zero-R model (majority class is always predicted), along with a tuned model.
-
-You can use ``print(model)`` to get a model's parameters and their values:
-
-.. code-block:: python3
-
-  print(model)
-
-
-.. code-block:: python3
-
-  Framework: automl.models.classification.sklearn.lgbm
-  Estimator class: LGBMClassifier
-  Model Parameters: {'boosting_type': 'dart', 'class_weight': None, 'learning_rate': 0.1, 'max_depth': -1, 'min_child_weight': 0.001, 'n_estimators': 100, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0}
-
-
-You can get details about a model, such as its selected algorithm, training data size,
-and initial features using the ``show_in_notebook()`` method:
-
-.. code-block:: python3
-
-  model.show_in_notebook()
-
-
-.. code-block:: python3
-
-  Model Name                  AutoML Classifier
-  Target Variable             variety
-  Selected Algorithm          LGBMClassifier
-  Task                        classification
-  Training Dataset Size       (128, 4)
-  CV                          5
-  Optimization Metric         recall_macro
-  Selected Hyperparameters    {'boosting_type': 'dart', 'class_weight': None, 'learning_rate': 0.1, 'max_depth': -1, 'min_child_weight': 0.001, 'n_estimators': 100, 'num_leaves': 31, 'reg_alpha': 0, 'reg_lambda': 0}
-  Is Regression               None
-  Initial Number of Features  4
-  Initial Features            [sepal.length, sepal.width, petal.length, petal.width]
-  Selected Number of Features 1
-  Selected Features           [petal.width]
-
-
-From here you have two ``ADSModel`` objects that can be used in ADS's evaluation and explanation
-modules along with any other ``ADSModel`` instances.
-
 
 Creating an ADSModel from Other Machine Learning Libraries
 ----------------------------------------------------------
 
-You are not limited to using models that were created using Oracle AutoML. You can `promote` other models to ADS
+You can `promote` models to ADS
 so that they too can be used in evaluations and explanations.
 
 ADS provides a static method that promotes an estimator-like object to an ``ADSModel``.
@@ -348,7 +260,7 @@ Then construct or reconstruct the ``ADSModel`` object with:
 
 There's more details to interacting with the model catalog in :ref:`Model Catalog <model-catalog-8>`.
 
-Model Evaluations and Explanations with ADS
+Model Evaluations with ADS
 -------------------------------------------
 
 Model Evaluations
@@ -390,82 +302,3 @@ the ``calculate_cost()`` method.
 
 You can also add in your own custom metrics, see the :ref:`Model Evaluation <model-evaluation-8>`
 for more details.
-
-Model Explanations
-==================
-
-ADS provides a module called Machine learning explainability (MLX), which is the process
-of explaining and interpreting machine learning and deep learning models.
-
-MLX can help machine learning developers to:
-
-  - Better understand and interpret the model's behavior. For example:
-    - Which features does the model consider important?
-    - What is the relationship between the feature values and the target predictions?
-
-  - Debug and improve the quality of the model. For example:
-    - Did the model learn something unexpected?
-    - Does the model generalize or did it learn something specific to the train/validation/test datasets?
-
-  - Increase confidence in deploying the model.
-
-MLX can help end users of machine learning algorithms to:
-
-  - Understand why the model has made a certain prediction. For example:
-    - Why was my bank loan denied?
-
-
-Some useful terms for MLX:
-
-  - **Explainability**: The ability to explain the reasons behind a machine learning model’s prediction.
-  - **Interpretability**: The level at which a human can understand the explanation.
-  - **Global Explanations**: Understand the behavior of a machine learning model as a whole.
-  - **Local Explanations**: Understand why the machine learning model made a single prediction.
-  - **Model-Agnostic Explanations**: Explanations treat the machine learning model (and feature pre-processing) as a black-box,
-    instead of using properties from the model to guide the explanation.
-
-MLX provides interpretable model-agnostic local and global explanations.
-
-How to get global explanations:
-
-.. code-block:: python3
-
-  from ads.explanations.explainer import ADSExplainer
-  from ads.explanations.mlx_global_explainer import MLXGlobalExplainer
-
-  # our model explainer class
-  explainer = ADSExplainer(test, model)
-
-  # let's created a global explainer
-  global_explainer = explainer.global_explanation(provider=MLXGlobalExplainer())
-
-  # Generate the global feature importance explanation
-  importances = global_explainer.compute_feature_importance()
-
-Visualize the top six features in a bar chart (the default).
-
-.. code-block:: python3
-
-  # Visualize the top 6 features as a bar chart
-  importances.show_in_notebook(n_features=6)
-
-Visualize the top five features in a detailed scatter plot:
-
-.. code-block:: python3
-
-  # Visualize a detailed scatter plot
-  importances.show_in_notebook(n_features=5, mode='detailed')
-
-Get the dictionary object that is used to generate the visualizations so that you can create your own:
-
-.. code-block:: python3
-
-  # Get the dictionary object used to generate the visualizations
-  importances.get_global_explanation()
-
-MLX can also do much more. For example, Partial Dependence Plots (PDP) and Individual
-Conditional Expectation explanations along with local explanations can provide insights
-into why a machine learning model made a specific prediction.
-
-For more detailed examples and a thorough overview of MLX, see the :ref:`MLX documentation <mlx-8>` and
-the ``ads_OracleMLXProvider`` examples in the ``ads-example`` folder of the notebook session environment.

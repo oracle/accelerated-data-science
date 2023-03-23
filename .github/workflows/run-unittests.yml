@@ -1,0 +1,94 @@
+name: Unit Tests unitary
+
+on:
+  workflow_dispatch:
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+
+# hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
+env:
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+
+jobs:
+  test:
+    name: python ${{ matrix.python-version }}, ${{ matrix.test-path }}, ignore ${{ matrix.ignore-path }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        include:
+          - test-path: "tests/unitary"
+            ignore-path: "tests/unitary/with_extras/model"
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Caching python libraries installed with pip
+      # https://github.com/actions/cache/blob/main/examples.md#python---pip
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/dev-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+#      - name: "Test config setup"
+#        shell: bash
+#        env:
+#          ADS_OCI_CONFIG_REALLIKE: ${{ secrets.ADS_OCI_CONFIG_REALLIKE }}
+#          ADS_OCI_PRIVATE_KEY_REALLIKE: ${{ secrets.ADS_OCI_PRIVATE_KEY_REALLIKE }}
+#        run: |
+#          set -x # print commands that are executed
+#          mkdir -p /home/runner/.oci
+#          ls -lha
+#          echo "$ADS_OCI_CONFIG_REALLIKE" > "/home/runner/.oci/config"
+#          echo "$ADS_OCI_PRIVATE_KEY_REALLIKE" > "/home/runner/.oci/oci_ads_user.pem"
+#          echo "key_file=/home/runner/.oci/oci_ads_user.pem" >> "/home/runner/.oci/config"
+
+#      - name: "Test env setup"
+#        timeout-minutes: 20
+#        shell: bash
+#        run: |
+#          set -x # print commands that are executed
+#          sudo apt-get install libkrb5-dev graphviz
+#          $CONDA/bin/conda init
+#          source /home/runner/.bashrc
+#          pip install setuptools
+#          pip install -r dev-requirements.txt
+
+#      - name: "Run unitary tests folder with maximum ADS dependencies"
+#        timeout-minutes: 60
+#        shell: bash
+#        env:
+#          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
+#          CONDA_PREFIX: /usr/share/miniconda
+#        run: |
+#          python -m pytest -v -p no:warnings --durations=5 \
+#          ${{ matrix.test-path }} \
+#          --ignore "${{ matrix.ignore-path }}" \
+#          --cov --cov-append --cov-report=html
+
+#       Uploading test artifacts
+#       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
+#      - name: "Save html coverage report"
+#        uses: actions/upload-artifact@v3
+#        with:
+#          name: code-coverage-report
+#          path: htmlcov/
+#          retention-days: 10

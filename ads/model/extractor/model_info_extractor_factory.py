@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.model.model_metadata import Framework
@@ -14,6 +14,7 @@ from ads.model.extractor.automl_extractor import AutoMLExtractor
 from ads.model.extractor.spark_extractor import SparkExtractor
 from ads.model.extractor.pytorch_extractor import PytorchExtractor
 from ads.model.extractor.tensorflow_extractor import TensorflowExtractor
+from ads.model.extractor.huggingface_extractor import HuggingFaceExtractor
 
 
 ORDERED_FRAMEWORKS = [
@@ -42,6 +43,7 @@ class ModelInfoExtractorFactory:
         Framework.TENSORFLOW: TensorflowExtractor,
         Framework.PYTORCH: PytorchExtractor,
         Framework.SPARK: SparkExtractor,
+        Framework.TRANSFORMERS: HuggingFaceExtractor,
     }
 
     @staticmethod

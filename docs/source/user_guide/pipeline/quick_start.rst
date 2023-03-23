@@ -16,143 +16,6 @@ The following example shows creating and runnning a pipeline with multiple steps
 .. tabs::
 
   .. code-tab:: Python3
-    :caption: Python
-
-    from ads.pipeline import Pipeline, PipelineStep, CustomScriptStep, ScriptRuntime, NotebookRuntime
-    import os 
-
-    with open("script.py", "w") as f:
-        f.write("print('Hello World!')")
-
-    infrastructure = CustomScriptStep(
-        block_storage_size=200,
-        shape_name="VM.Standard3.Flex",
-        shape_config_details={"ocpus": 4, "memory_in_gbs": 32},
-    )
-
-    script_runtime = ScriptRuntime(
-        script_path_uri="script.py",
-        conda={"type": "service", "slug": "tensorflow26_p37_cpu_v2"}
-    )
-
-    notebook_runtime = NotebookRuntime(
-        notebook_path_uri="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb",
-        conda={"type": "service", "slug": "tensorflow26_p37_cpu_v2"}
-    )
-
-    pipeline_step_1 = PipelineStep(
-        name="step_1",
-        description="A step running a python script",
-        infrastructure=infrastructure,
-        runtime=script_runtime
-    )
-
-    pipeline_step_2 = PipelineStep(
-        name="step_2",
-        description="A step running a notebook",
-        infrastructure=infrastructure,
-        runtime=notebook_runtime
-    )
-
-    pipeline_step_3 = PipelineStep(
-        name="step_3",
-        description="A step running a python script",
-        infrastructure=infrastructure,
-        runtime=script_runtime
-    )
-
-    compartment_id = os.environ['NB_SESSION_COMPARTMENT_OCID']
-    project_id = os.environ["PROJECT_OCID"]
-
-    pipeline = Pipeline(
-        name="An example pipeline",
-        compartment_id=compartment_id,
-        project_id=project_id,
-        step_details=[pipeline_step_1, pipeline_step_2, pipeline_step_3],
-        dag=["(step_1, step_2) >> step_3"],
-      )
-
-    pipeline.create()      # create the pipeline
-    pipeline.show()       # visualize the pipeline
-
-    pipeline_run = pipeline.run()   # run the pipeline
-
-    pipeline_run.show()     # watch the pipeline run status
-
-
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
-
-    from ads.pipeline import Pipeline, PipelineStep, CustomScriptStep, ScriptRuntime, NotebookRuntime
-    import os
-
-    with open("script.py", "w") as f:
-        f.write("print('Hello World!')")
-
-    infrastructure = (
-        CustomScriptStep()
-        .with_block_storage_size(200)
-        .with_shape_name("VM.Standard3.Flex")
-        .with_shape_config_details(ocpus=4, memory_in_gbs=32)
-    )
-
-    script_runtime = (
-        ScriptRuntime()
-        .with_source("script.py")
-        .with_service_conda("generalml_p37_cpu_v1")
-    )
-
-    notebook_runtime = (
-        NotebookRuntime()
-        .with_notebook(
-            path="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb",
-            encoding='utf-8'
-        )
-        .with_service_conda("tensorflow26_p37_cpu_v2")
-    )
-
-    pipeline_step_1 = (
-        PipelineStep("step_1")
-        .with_description("A step running a python script")
-        .with_infrastructure(infrastructure)
-        .with_runtime(script_runtime)
-    )
-
-    pipeline_step_2 = (
-        PipelineStep("step_2")
-        .with_description("A step running a notebook")
-        .with_infrastructure(infrastructure)
-        .with_runtime(notebook_runtime)
-    )
-
-    pipeline_step_3 = (
-        PipelineStep("step_3")
-        .with_description("A step running a python script")
-        .with_infrastructure(infrastructure)
-        .with_runtime(script_runtime)
-    )
-
-    compartment_id = os.environ['NB_SESSION_COMPARTMENT_OCID']
-    project_id = os.environ["PROJECT_OCID"]
-
-    pipeline = (
-          Pipeline("An example pipeline")
-          .with_compartment_id(compartment_id)
-          .with_project_id(project_id)
-          .with_step_details([pipeline_step_1, pipeline_step_2, pipeline_step_3])
-          .with_dag(["(step_1, step_2) >> step_3"])
-      )
-
-    pipeline.create()      # create the pipeline
-    pipeline.show()       # visualize the pipeline
-
-    pipeline_run = pipeline.run()   # run the pipeline
-
-    pipeline_run.show()     # watch the pipeline run status
-
-
-  .. code-tab:: Python3
     :caption: YAML
     
     from ads.pipeline import Pipeline
@@ -238,6 +101,77 @@ The following example shows creating and runnning a pipeline with multiple steps
     """.format(compartment_id=compartment_id, project_id=project_id)
 
     pipeline = Pipeline.from_yaml(yaml_string)
+
+    pipeline.create()      # create the pipeline
+    pipeline.show()       # visualize the pipeline
+
+    pipeline_run = pipeline.run()   # run the pipeline
+
+    pipeline_run.show()     # watch the pipeline run status
+
+
+  .. code-tab:: Python3
+    :caption: Python
+
+    from ads.pipeline import Pipeline, PipelineStep, CustomScriptStep, ScriptRuntime, NotebookRuntime
+    import os
+
+    with open("script.py", "w") as f:
+        f.write("print('Hello World!')")
+
+    infrastructure = (
+        CustomScriptStep()
+        .with_block_storage_size(200)
+        .with_shape_name("VM.Standard3.Flex")
+        .with_shape_config_details(ocpus=4, memory_in_gbs=32)
+    )
+
+    script_runtime = (
+        ScriptRuntime()
+        .with_source("script.py")
+        .with_service_conda("generalml_p37_cpu_v1")
+    )
+
+    notebook_runtime = (
+        NotebookRuntime()
+        .with_notebook(
+            path="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb",
+            encoding='utf-8'
+        )
+        .with_service_conda("tensorflow26_p37_cpu_v2")
+    )
+
+    pipeline_step_1 = (
+        PipelineStep("step_1")
+        .with_description("A step running a python script")
+        .with_infrastructure(infrastructure)
+        .with_runtime(script_runtime)
+    )
+
+    pipeline_step_2 = (
+        PipelineStep("step_2")
+        .with_description("A step running a notebook")
+        .with_infrastructure(infrastructure)
+        .with_runtime(notebook_runtime)
+    )
+
+    pipeline_step_3 = (
+        PipelineStep("step_3")
+        .with_description("A step running a python script")
+        .with_infrastructure(infrastructure)
+        .with_runtime(script_runtime)
+    )
+
+    compartment_id = os.environ['NB_SESSION_COMPARTMENT_OCID']
+    project_id = os.environ["PROJECT_OCID"]
+
+    pipeline = (
+          Pipeline("An example pipeline")
+          .with_compartment_id(compartment_id)
+          .with_project_id(project_id)
+          .with_step_details([pipeline_step_1, pipeline_step_2, pipeline_step_3])
+          .with_dag(["(step_1, step_2) >> step_3"])
+      )
 
     pipeline.create()      # create the pipeline
     pipeline.show()       # visualize the pipeline

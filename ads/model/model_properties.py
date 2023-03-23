@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from dataclasses import dataclass
@@ -35,6 +35,7 @@ class ModelProperties(BaseProperties):
     deployment_predict_log_id: str = None
     deployment_memory_in_gbs: Union[float, int] = None
     deployment_ocpus: Union[float, int] = None
+    deployment_image: str = None
 
     def _adjust_with_env(self) -> None:
         """Adjusts env variables. This method is used within `with_env` method."""

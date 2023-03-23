@@ -5,16 +5,18 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
-import logging
 import os
 from functools import lru_cache
 from typing import Dict, Tuple
+import logging
 
+import fsspec
 import requests
 import yaml
-from ads.common.utils import PAR_LINK
-from ads.common.object_storage_details import ObjectStorageDetails
 from cerberus import DocumentError, Validator
+
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.utils import PAR_LINK
 
 MODEL_PROVENANCE_SCHEMA_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
@@ -31,6 +33,7 @@ TRAINING_ENV_SCHEMA_PATH = os.path.join(
     "schemas",
     "training_env_info_schema.yaml",
 )
+SERVICE_PACKS = "service_packs"
 
 
 class SchemaValidator:
@@ -96,8 +99,44 @@ class SchemaValidator:
         return schema_validator
 
 
-@lru_cache(maxsize=1)
-def get_service_packs(namespace: str, bucketname: str) -> Tuple[Dict, Dict]:
+def _get_index_json_through_bucket(
+    namespace: str, bucketname: str, auth: dict = None
+) -> list:
+    """get the index json from the object storage.
+
+    Parameters
+    ----------
+    namespace: str
+        The Object Storage namespace.
+    bucketname: str
+        The Object Storage bucketname.
+    auth: (Dict, optional). Defaults to None.
+        The default authetication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    list: A list of dictionary which contains service packs information.
+    """
+    auth = auth or {}
+    service_pack_list = []
+    try:
+        uri = f"oci://{bucketname}@{namespace}/service_pack/index.json"
+        with fsspec.open(uri, "r", **auth) as f:
+            service_packs = json.loads(f.read())
+        service_pack_list = service_packs.get(SERVICE_PACKS)
+    except Exception as e:
+        logging.warn(e)
+        logging.warn(
+            "Failed to retrieve the full conda pack path from slug. Pass conda pack path 'oci://<bucketname>@<namespace>/<path_to_conda>' instead of slug."
+        )
+    return service_pack_list
+
+
+def get_service_packs(
+    namespace: str, bucketname: str, auth: dict = None
+) -> Tuple[Dict, Dict]:
     """Get the service pack path mapping and service pack slug mapping.
     Note: deprecated packs are also included.
 
@@ -107,6 +146,10 @@ def get_service_packs(namespace: str, bucketname: str) -> Tuple[Dict, Dict]:
         namespace of the service pack.
     bucketname: str
         bucketname of the service pack.
+    auth: (Dict, optional). Defaults to None.
+        The default authetication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
 
     Returns
     -------
@@ -118,34 +161,41 @@ def get_service_packs(namespace: str, bucketname: str) -> Tuple[Dict, Dict]:
     service_pack_slug_mapping = {}
     try:
         response = requests.request("GET", PAR_LINK)
+
+        # if there is internet
         if response.ok:
-            service_pack_list = response.json().get("service_packs")
-            for service_pack in service_pack_list:
-                # Here we need to replace the namespace and bucketname
-                # with the bucket and namespace of the region that
-                # user is in. The reason is that the mapping is generated
-                # from the index.json file which has static namespace
-                # and bucket of prod. however, namespace will change based
-                # on the region. also, dev has different bucketname.
-                pack_path = ObjectStorageDetails(
-                    bucket=bucketname,
-                    namespace=namespace,
-                    filepath=ObjectStorageDetails.from_path(
-                        service_pack.get("pack_path")
-                    ).filepath,
-                ).path
-                service_pack_path_mapping[pack_path] = (
-                    service_pack.get("slug"),
-                    service_pack.get("python"),
-                )
-                service_pack_slug_mapping[service_pack["slug"]] = (
-                    pack_path,
-                    service_pack.get("python"),
-                )
+            service_pack_list = response.json().get(SERVICE_PACKS)
+        # response not good.
+        else:
+            service_pack_list = _get_index_json_through_bucket(
+                namespace=namespace, bucketname=bucketname, auth=auth
+            )
     except Exception as e:
-        logging.warning(e)
-        logging.warning(
-            "Failed to auto generate the `service_pack_path_mapping`. "
-            "Hence, the slug, environment type and python version field are not populated."
+        # not internet
+        service_pack_list = _get_index_json_through_bucket(
+            namespace=namespace, bucketname=bucketname, auth=auth
+        )
+
+    for service_pack in service_pack_list:
+        # Here we need to replace the namespace and bucketname
+        # with the bucket and namespace of the region that
+        # user is in. The reason is that the mapping is generated
+        # from the index.json file which has static namespace
+        # and bucket of prod. however, namespace will change based
+        # on the region. also, dev has different bucketname.
+        pack_path = ObjectStorageDetails(
+            bucket=bucketname,
+            namespace=namespace,
+            filepath=ObjectStorageDetails.from_path(
+                service_pack.get("pack_path")
+            ).filepath,
+        ).path
+        service_pack_path_mapping[pack_path] = (
+            service_pack.get("slug"),
+            service_pack.get("python"),
+        )
+        service_pack_slug_mapping[service_pack.get("slug")] = (
+            pack_path,
+            service_pack.get("python"),
         )
     return service_pack_path_mapping, service_pack_slug_mapping

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -13,7 +13,7 @@ from typing import Dict, Optional
 from zipfile import ZipFile
 
 from ads.common import utils
-from ads.model.common.utils import extract_region
+from ads.common.utils import extract_region
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
 
@@ -139,8 +139,8 @@ class LargeArtifactDownloader(ArtifactDownloader):
         super().__init__(
             dsc_model=dsc_model, target_dir=target_dir, force_overwrite=force_overwrite
         )
-        self.auth = auth
-        self.region = region or extract_region()
+        self.auth = auth or dsc_model.auth
+        self.region = region or extract_region(self.auth)
         self.bucket_uri = bucket_uri
         self.overwrite_existing_artifact = overwrite_existing_artifact
         self.remove_existing_artifact = remove_existing_artifact

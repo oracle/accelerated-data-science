@@ -1,11 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import print_function, absolute_import, division
 
+import base64
+from io import BytesIO
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
@@ -27,6 +29,15 @@ MAX_PLOTS_PER_ROW = 2
 MAX_PLOTTING_CLASSES = 10
 # Maximum characters in class label able to be shown without being truncated
 MAX_CHARACTERS_LEN = 13
+
+
+def _fig_to_html(fig):
+    tmpfile = BytesIO()
+    fig.savefig(tmpfile, format="png")
+    encoded = base64.b64encode(tmpfile.getvalue()).decode("utf-8")
+
+    html = "<img src='data:image/png;base64,{}'>".format(encoded)
+    return html
 
 
 class EvaluationPlot:
@@ -199,11 +210,11 @@ class EvaluationPlot:
                 pd.Series(label_dict, index=label_dict.keys()),
                 columns=["Shortened labels"],
             )
-            from IPython.core.display import display
+            from IPython.core.display import display, HTML
 
             display(
                 HTML(
-                    encodings.style.set_precision(4)
+                    encodings.style.format(precision=4)
                     .set_properties(**{"text-align": "center"})
                     .set_table_styles(
                         [dict(selector="", props=[("text-align", "center")])]
@@ -213,7 +224,7 @@ class EvaluationPlot:
                         '<div align="left"><b style="font-size:20px;">'
                         + "Legend for labels of the target feature:</b></div>"
                     )
-                    .render()
+                    .to_html()
                 )
             )
 
@@ -226,7 +237,7 @@ class EvaluationPlot:
                 cls.legend_labels = legend_labels
             else:
                 logger.error(
-                    "The provided `legend_labels` is neither a Python dict nor does not possess all possible class labels."
+                    "The provided `legend_labels` is either not a Python dict or does not possess all possible class labels."
                 )
             return
 
@@ -374,6 +385,7 @@ class EvaluationPlot:
             cls.get_legend_labels(legend_labels)
 
         mpl.style.use("default")
+        html_raw = []
         for i, plot_type in enumerate(plots):
             fig_title, fig = None, None
             try:
@@ -389,6 +401,7 @@ class EvaluationPlot:
                     transform=ax_title.transAxes,
                 )
                 ax_title.axis("off")
+                html_raw.append(_fig_to_html(fig_title))
                 if cls.prob_type == "_bin" and plot_type in cls.double_overlay_plots:
                     fig, ax = plt.subplots(1, 2, figsize=(12, 4.5), dpi=144)
                 elif cls.prob_type == "_bin" and plot_type in ["roc_curve", "pr_curve"]:
@@ -410,6 +423,7 @@ class EvaluationPlot:
                     ax = ax.flatten()
                 getattr(cls, "_" + plot_type)(ax, evaluation)
                 fig.tight_layout()
+                html_raw.append(_fig_to_html(fig))
             except KeyError as e:
                 try:
                     if fig_title:
@@ -424,6 +438,7 @@ class EvaluationPlot:
                     f"metrics had complications. Ensure that `predict` and `predict_proba` "
                     f"are valid."
                 )
+        return html_raw
 
     @classmethod
     def _lift_and_gain_chart(cls, ax, evaluation):

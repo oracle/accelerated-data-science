@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -9,7 +9,6 @@ import shutil
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
-from ads.common import auth as authutil
 from ads.common import utils
 from ads.model.common import utils as model_utils
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
@@ -63,7 +62,7 @@ class ArtifactUploader(ABC):
 
         Parameters
         ----------
-        progress: (Union[TqdmProgressBar, DummyProgressBar], optional). Defaults to `None`.
+        progress: (TqdmProgressBar, optional). Defaults to `None`.
             The progress indicator.
 
         Returns
@@ -101,7 +100,7 @@ class SmallArtifactUploader(ArtifactUploader):
         """Uploads model artifacts to the model catalog."""
         self.progress.update("Uploading model artifacts to the catalog")
         with open(self.artifact_zip_path, "rb") as file_data:
-            self.dsc_model.create_model_artifact(file_data.read())
+            self.dsc_model.create_model_artifact(file_data)
 
 
 class LargeArtifactUploader(ArtifactUploader):
@@ -146,8 +145,8 @@ class LargeArtifactUploader(ArtifactUploader):
             raise ValueError("The `bucket_uri` must be provided.")
 
         super().__init__(dsc_model=dsc_model, artifact_path=artifact_path)
-        self.auth = auth or authutil.default_signer()
-        self.region = region or model_utils.extract_region()
+        self.auth = auth or dsc_model.auth
+        self.region = region or utils.extract_region(self.auth)
         self.bucket_uri = bucket_uri
         self.overwrite_existing_artifact = overwrite_existing_artifact
         self.remove_existing_artifact = remove_existing_artifact

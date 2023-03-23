@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """
 APIs to interact with Oracle's Model Deployment service.
@@ -38,6 +38,7 @@ Examples
 >>> deployer.list_deployments() # Optionally pass in a status
 """
 from typing import Dict, Union
+import warnings
 
 import oci.pagination
 import pandas as pd
@@ -93,6 +94,11 @@ class ModelDeployer:
          ds_client: oci.data_science.data_science_client.DataScienceClient
             The Oracle DataScience client.
         """
+        if config:
+            warnings.warn(
+                "`config` will be deprecated in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
+            )
+
         self.ds_client = None
         self.ds_composite_client = None
 
@@ -103,11 +109,7 @@ class ModelDeployer:
             )
 
         if not (self.ds_client != None and self.ds_composite_client != None):
-            if not config:
-                config = default_signer()
-            self.config = config
-
-            self.client_manager = OCIClientManager(config)
+            self.client_manager = OCIClientManager()
             self.ds_client = self.client_manager.ds_client
             self.ds_composite_client = self.client_manager.ds_composite_client
 
@@ -143,9 +145,11 @@ class ModelDeployer:
         ModelDeployment
             A ModelDeployment instance.
         """
+        warnings.warn(
+            "Make sure to provide `compartment_id`, `project_id`, `instance_count`, `instance_shape`, `memory_in_gbs` and `ocpus` either through `kwargs` or `properties`"
+        )
         model_deployment = ModelDeployment(
             properties,
-            config=self.config,
             **kwargs,
         )
         return model_deployment.deploy(
@@ -187,6 +191,9 @@ class ModelDeployer:
             A ModelDeployment instance
 
         """
+        warnings.warn(
+            "Make sure to provide `compartment_id`, `project_id`, `instance_count`, `instance_shape`, `memory_in_gbs` and `ocpus` either through `kwargs` or `properties`"
+        )
         if properties:
             model_id = self.client_manager.prepare_artifact(
                 model_uri=model_uri, properties=properties
@@ -275,9 +282,11 @@ class ModelDeployer:
             ).data
             model_deployment_object = ModelDeployment(
                 oci_model_deployment_object,
-                config=self.config,
             )
-            return model_deployment_object
+            model_deployment_object.set_spec(
+                model_deployment_object.CONST_ID, oci_model_deployment_object.id
+            )
+            return model_deployment_object.sync()
         except Exception as e:
             utils.get_logger().error(
                 "Getting model deployment failed with error: %s", e
@@ -382,10 +391,13 @@ class ModelDeployer:
             self.ds_client.list_model_deployments, compartment_id, **kwargs
         ).data
 
-        return [
-            ModelDeployment(deployment, config=self.config)
-            for deployment in deployments
-        ]
+        result = []
+        for deployment in deployments:
+            model_deployment = ModelDeployment(deployment)
+            model_deployment.set_spec(model_deployment.CONST_ID, deployment.id)
+            result.append(model_deployment.sync())
+
+        return result
 
     def show_deployments(
         self,

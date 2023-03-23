@@ -17,28 +17,6 @@ Create a Data Science Job step with the OCID of an existing Job.
 
 .. tabs::
 
-  .. code-tab:: Python3
-    :caption: Python
-
-    from ads.pipeline import PipelineStep
-
-    pipeline_step = PipelineStep(
-        name="<pipeline_step_name>",
-        description="<pipeline_step_description>",
-        job_id="<job_id>"
-    )
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
-
-    from ads.pipeline import PipelineStep
-
-    pipeline_step = (
-        PipelineStep("<pipeline_step_name>")
-        .with_description("<pipeline_step_description>")
-        .with_job_id("<job_id>")
-    )
-
   .. code-tab:: YAML
 
     kind: pipeline
@@ -53,7 +31,17 @@ Create a Data Science Job step with the OCID of an existing Job.
           name: <pipeline_step_name>
       ...
     type: pipeline
+    
+  .. code-tab:: Python3
+    :caption: Python
 
+    from ads.pipeline import PipelineStep
+
+    pipeline_step = (
+        PipelineStep("<pipeline_step_name>")
+        .with_description("<pipeline_step_description>")
+        .with_job_id("<job_id>")
+    )
 
 
 Custom Script Step
@@ -67,20 +55,30 @@ When constructing a Custom Scrip step ``infrastructure``, you specify the Comput
 
 .. tabs::
 
-  .. code-tab:: Python3
-    :caption: Python
+  .. code-tab:: YAML
 
-    from ads.pipeline import CustomScriptStep
 
-    infrastructure = CustomScriptStep(
-        block_storage_size=200,
-        shape_name="VM.Standard3.Flex",
-        shape_config_details={"ocpus": 4, "memory_in_gbs": 32},
-    )
+    kind: pipeline
+    spec:
+      ...
+      stepDetails:
+      - kind: customScript
+        spec:
+          infrastructure:
+            kind: infrastructure
+            spec:
+              blockStorageSize: 200
+              shapeConfigDetails:
+                memoryInGBs: 32
+                ocpus: 4
+              shapeName: VM.Standard3.Flex
+          name: Python_Script_Step
+       ...
+    type: pipeline
     
 
   .. code-tab:: Python3
-    :caption: Python (Alternative)
+    :caption: Python
   
     from ads.pipeline import CustomScriptStep
 
@@ -95,7 +93,7 @@ When constructing a Custom Scrip step ``infrastructure``, you specify the Comput
 
 A Custom Script step can have different types of ``runtime`` depending on the source code you run:
 
-.. include:: ../jobs/_template/runtime_types.rst
+.. include:: ../jobs/runtime_non_byoc.rst
 
 All of these runtime options allow you to configure a `Data Science Conda Environment <https://docs.oracle.com/iaas/data-science/using/conda_understand_environments.htm>`__ for running your code. 
 
@@ -104,25 +102,26 @@ To define a Custom Script step with ``GitPythonRuntime`` you can use:
 
 .. tabs::
 
+  .. code-tab:: YAML
+
+	kind: runtime
+	spec:
+	  conda:
+		slug: pytorch19_p37_gpu_v1
+		type: service
+	  entrypoint: beginner_source/examples_nn/polynomial_nn.py
+	  env:
+	  - name: GREETINGS
+		value: Welcome to OCI Data Science
+	  outputDir: ~/Code/tutorials/beginner_source/examples_nn
+	  outputUri: oci://<bucket_name>@<namespace>/<prefix>
+	  url: https://github.com/pytorch/tutorials.git
+	type: gitPython
+
+
   .. code-tab:: Python3
     :caption: Python
-
-    from ads.pipeline import GitPythonRuntime
-
-    runtime = GitPythonRuntime(
-          env={"GREETINGS": "Welcome to OCI Data Science"}
-          conda={"type": "service", "slug": "pytorch19_p37_gpu_v1"}
-          url="https://github.com/pytorch/tutorials.git",
-          entrypoint="beginner_source/examples_nn/polynomial_nn.py",
-          output_dir="~/Code/tutorials/beginner_source/examples_nn",
-          outputURI="oci://<bucket_name>@<namespace>/<prefix>",
-        )
-
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
   
-
     from ads.pipeline import GitPythonRuntime
 
     runtime = (
@@ -142,22 +141,23 @@ To define a Custom Script step with ``NotebookRuntime`` you can use:
 
 .. tabs::
 
+  .. code-tab:: YAML
+
+	kind: runtime
+	spec:
+	  conda:
+		slug: tensorflow26_p37_cpu_v2
+		type: service
+	  env:
+	  - name: GREETINGS
+		value: Welcome to OCI Data Science
+	  notebookEncoding: utf-8
+	  notebookPathURI: https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb
+	  outputURI: oci://bucket_name@namespace/path/to/dir
+	type: notebook
+
   .. code-tab:: Python3
     :caption: Python
-
-    from ads.pipeline import NotebookRuntime
-
-    runtime = NotebookRuntime(
-        notebook_path_uri="https://raw.githubusercontent.com/tensorflow/docs/master/site/en/tutorials/customization/basics.ipynb",
-        notebook_encoding="utf-8",
-        conda={"type": "service", "slug": "tensorflow26_p37_cpu_v2"}
-        env={"GREETINGS": "Welcome to OCI Data Science"}
-        outputURI="oci://<bucket_name>@<namespace>/<prefix>",
-    )
-
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
 
     from ads.pipeline import NotebookRuntime
 
@@ -177,29 +177,30 @@ To define a Custom Script step with ``PythonRuntime`` you can use:
 
 .. tabs::
 
+  .. code-tab:: YAML
+
+	kind: runtime
+	spec:
+	  conda:
+		slug: pytorch110_p38_cpu_v1
+		type: service
+	  entrypoint: zip_or_dir/my_package/entry.py
+	  outputDir: output
+	  outputUri: oci://bucket_name@namespace/path/to/dir
+	  pythonPath:
+	  - my_python_packages
+	  scriptPathURI: local/path/to/zip_or_dir
+	  workingDir: zip_or_dir
+	type: python
+
   .. code-tab:: Python3
     :caption: Python
-
-    from ads.pipeline import PythonRuntime
-
-    runtime = PythonRuntime(
-        script_path_uri="local/path/to/zip_or_dir",
-        entrypoint="zip_or_dir/my_package/entry.py",
-        working_dir="zip_or_dir",
-        python_path=["my_python_packages"],
-        output_uri="oci://<bucket_name>@<namespace>/<prefix>",
-        conda={"type": "service", "slug": "pytorch19_p37_cpu_v1"}
-    )
-
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
   
     from ads.pipeline import PythonRuntime
 
     runtime = (
         PythonRuntime()
-        .with_service_conda("pytorch19_p37_cpu_v1")
+        .with_service_conda("pytorch110_p38_cpu_v1")
         # The job artifact directory is named "zip_or_dir"
         .with_source("local/path/to/zip_or_dir", entrypoint="zip_or_dir/my_package/entry.py")
         # Change the working directory to be inside the job artifact directory
@@ -218,19 +219,18 @@ To define a Custom Script step with ``ScriptRuntime`` you can use:
 
 .. tabs::
 
+  .. code-tab:: YAML
+  
+	kind: runtime
+	spec:
+	  conda:
+		slug: tensorflow26_p37_cpu_v2
+		type: service
+	  scriptPathURI: oci://<bucket_name>@<namespace>/<prefix>/<script.py>
+	type: script
+
   .. code-tab:: Python3
     :caption: Python
-
-    from ads.pipeline import ScriptRuntime
-
-    runtime = ScriptRuntime(
-        script_path_uri="oci://<bucket_name>@<namespace>/<prefix>/<script.py>",
-        conda={"type": "service", "slug": "tensorflow26_p37_cpu_v2"}
-    )
-
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
   
     from ads.pipeline import ScriptRuntime
 
@@ -243,32 +243,6 @@ To define a Custom Script step with ``ScriptRuntime`` you can use:
 With ``Infrastructure`` and ``runtime`` provided, create a pipeline step of the Custom Script type.
 
 .. tabs::
-
-  .. code-tab:: Python3
-    :caption: Python
-
-    from ads.pipeline import PipelineStep
-
-    pipeline_step = PipelineStep(
-        name="<pipeline_step_name>",
-        description="<pipeline_step_description>",
-        infrastructure=infrastructure,
-        runtime=runtime,
-    )
-  
-
-  .. code-tab:: Python3
-    :caption: Python (Alternative)
-
-    from ads.pipeline import PipelineStep
-
-    pipeline_step = (
-        PipelineStep("<pipeline_step_name>")
-        .with_description("<pipeline_step_description>")
-        .with_infrastructure(infrastructure)
-        .with_runtime(runtime)
-    )
-
 
   .. code-tab:: YAML
 
@@ -299,6 +273,17 @@ With ``Infrastructure`` and ``runtime`` provided, create a pipeline step of the 
             type: script
       ...
     type: pipeline
+    
+  .. code-tab:: Python3
+    :caption: Python
 
+    from ads.pipeline import PipelineStep
+
+    pipeline_step = (
+        PipelineStep("<pipeline_step_name>")
+        .with_description("<pipeline_step_description>")
+        .with_infrastructure(infrastructure)
+        .with_runtime(runtime)
+    )
 
 
