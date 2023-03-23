@@ -1,4 +1,4 @@
-name: Unit Tests unitary
+name: Unit Tests unitary/default_setup/*
 
 on:
   workflow_dispatch:
@@ -21,24 +21,16 @@ concurrency:
 permissions:
   contents: read
 
-# hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
-env:
-  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
-
 jobs:
   test:
-    name: python ${{ matrix.python-version }}, ${{ matrix.test-path }}, ignore ${{ matrix.ignore-path }}
+    name: python ${{ matrix.python-version }}, tests/unitary/default_setup
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 20
 
     strategy:
       fail-fast: false
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
-        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        include:
-          - test-path: "tests/unitary"
-            ignore-path: "tests/unitary/with_extras/model"
 
     steps:
       - uses: actions/checkout@v3
@@ -48,7 +40,7 @@ jobs:
       - uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/dev-requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/test-requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
       - uses: actions/setup-python@v4
@@ -68,34 +60,15 @@ jobs:
           echo "$ADS_OCI_PRIVATE_KEY_REALLIKE" > "/home/runner/.oci/oci_ads_user.pem"
           echo "key_file=/home/runner/.oci/oci_ads_user.pem" >> "/home/runner/.oci/config"
 
-      - name: "Test env setup"
-        timeout-minutes: 20
-        shell: bash
-        run: |
-          set -x # print commands that are executed
-          sudo apt-get install libkrb5-dev graphviz
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-          pip install setuptools
-          pip install -r dev-requirements.txt
-
-      - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 60
+      - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
+        timeout-minutes: 15
         shell: bash
         env:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
-          CONDA_PREFIX: /usr/share/miniconda
+          NoDependency: True
         run: |
-          python -m pytest -v -p no:warnings --durations=5 \
-          ${{ matrix.test-path }} \
-          --ignore "${{ matrix.ignore-path }}" \
-          --cov --cov-append --cov-report=html
-
-#       Uploading test artifacts
-#       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
-      - name: "Save html coverage report"
-        uses: actions/upload-artifact@v3
-        with:
-          name: code-coverage-report
-          path: htmlcov/
-          retention-days: 10
+          set -x # print commands that are executed
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc
+          pip install -r test-requirements.txt
+          python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup
