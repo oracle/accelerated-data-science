@@ -1,0 +1,7 @@
+-e .
+coverage
+faker
+mock
+pip
+pytest
+pytest-codecov

@@ -1,0 +1,11 @@
+"schema:\n- description: Names of animals\n  domain:\n    constraints:\n    - expression:\
+  \ in ['Dog', 'Cat', 'Python']\n      language: python\n    stats:\n      mode: Dog\n\
+  \    values: Dog, Cat, Python\n  dtype: category\n  feature_type: category\n  name:\
+  \ animals\n  order: null\n  required: true\n- description: Names of Car Brands\n\
+  \  domain:\n    constraints:\n    - expression: in ['audi', 'bmw', 'benz']\n   \
+  \   language: python\n    stats:\n      mode: Car\n    values: audi, bmw, benz\n\
+  \  dtype: category\n  feature_type: category\n  name: cars\n  order: null\n  required:\
+  \ true\n- description: Names of fruits\n  domain:\n    constraints:\n    - expression:\
+  \ in ['Apple', 'Orange', 'Grapes']\n      language: python\n    stats:\n      mode:\
+  \ Orange\n    values: Apple, Orange, Grapes\n  dtype: category\n  feature_type:\
+  \ category\n  name: fruits\n  order: null\n  required: true\nversion: '1.1'\n"
