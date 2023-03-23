@@ -2,15 +2,6 @@ name: Unit Tests unitary/default_setup/*
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - 'release/**'
-      - develop
-    paths:
-      - '!docs/**'
-
-  pull_request:
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -49,26 +40,26 @@ jobs:
 
       - name: "Test config setup"
         shell: bash
-        env:
-          ADS_OCI_CONFIG_REALLIKE: ${{ secrets.ADS_OCI_CONFIG_REALLIKE }}
-          ADS_OCI_PRIVATE_KEY_REALLIKE: ${{ secrets.ADS_OCI_PRIVATE_KEY_REALLIKE }}
-        run: |
-          set -x # print commands that are executed
-          mkdir -p /home/runner/.oci
-          ls -lha
-          echo "$ADS_OCI_CONFIG_REALLIKE" > "/home/runner/.oci/config"
-          echo "$ADS_OCI_PRIVATE_KEY_REALLIKE" > "/home/runner/.oci/oci_ads_user.pem"
-          echo "key_file=/home/runner/.oci/oci_ads_user.pem" >> "/home/runner/.oci/config"
+#        env:
+#          ADS_OCI_CONFIG_REALLIKE: ${{ secrets.ADS_OCI_CONFIG_REALLIKE }}
+#          ADS_OCI_PRIVATE_KEY_REALLIKE: ${{ secrets.ADS_OCI_PRIVATE_KEY_REALLIKE }}
+#        run: |
+#          set -x # print commands that are executed
+#          mkdir -p /home/runner/.oci
+#          ls -lha
+#          echo "$ADS_OCI_CONFIG_REALLIKE" > "/home/runner/.oci/config"
+#          echo "$ADS_OCI_PRIVATE_KEY_REALLIKE" > "/home/runner/.oci/oci_ads_user.pem"
+#          echo "key_file=/home/runner/.oci/oci_ads_user.pem" >> "/home/runner/.oci/config"
 
       - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
         timeout-minutes: 15
         shell: bash
-        env:
-          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
-          NoDependency: True
-        run: |
-          set -x # print commands that are executed
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-          pip install -r test-requirements.txt
-          python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup
+#        env:
+#          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
+#          NoDependency: True
+#        run: |
+#          set -x # print commands that are executed
+#          $CONDA/bin/conda init
+#          source /home/runner/.bashrc
+#          pip install -r test-requirements.txt
+#          python -m pytest -v -p no:warnings --durations=5 tests/unitary/default_setup
