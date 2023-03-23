@@ -48,8 +48,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: "Test config setup"
-        shell: bash
+#      - name: "Test config setup"
+#        shell: bash
 #        env:
 #          ADS_OCI_CONFIG_REALLIKE: ${{ secrets.ADS_OCI_CONFIG_REALLIKE }}
 #          ADS_OCI_PRIVATE_KEY_REALLIKE: ${{ secrets.ADS_OCI_PRIVATE_KEY_REALLIKE }}
@@ -61,9 +61,9 @@ jobs:
 #          echo "$ADS_OCI_PRIVATE_KEY_REALLIKE" > "/home/runner/.oci/oci_ads_user.pem"
 #          echo "key_file=/home/runner/.oci/oci_ads_user.pem" >> "/home/runner/.oci/config"
 
-      - name: "Test env setup"
-        timeout-minutes: 20
-        shell: bash
+#      - name: "Test env setup"
+#        timeout-minutes: 20
+#        shell: bash
 #        run: |
 #          set -x # print commands that are executed
 #          sudo apt-get install libkrb5-dev graphviz
@@ -72,9 +72,9 @@ jobs:
 #          pip install setuptools
 #          pip install -r dev-requirements.txt
 
-      - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 60
-        shell: bash
+#      - name: "Run unitary tests folder with maximum ADS dependencies"
+#        timeout-minutes: 60
+#        shell: bash
 #        env:
 #          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
 #          CONDA_PREFIX: /usr/share/miniconda
