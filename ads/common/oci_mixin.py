@@ -225,7 +225,7 @@ class OCISerializableMixin(OCIClientMixin):
 
         return parsed_kwargs
 
-    @classmethod
+    @class_or_instance_method
     def deserialize(cls, data, to_cls):
         """De-serialize data from dictionary to an OCI model"""
         if cls.type_mappings is None:
@@ -544,7 +544,7 @@ class OCIModelMixin(OCISerializableMixin):
         """
         return cls.create_instance(**data)
 
-    @classmethod
+    @class_or_instance_method
     def deserialize(cls, data: dict, to_cls: str = None):
         """Deserialize data
 
