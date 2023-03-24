@@ -931,6 +931,9 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
     CONST_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
 
+    CONST_OCI_PIP_REQUIREMENTS = "OCI__PIP_REQUIREMENTS"
+    CONST_OCI_PIP_INSTALL = "OCI__PIP_INSTALL"
+
     GIT_SPEC_MAPPINGS = {
         cluster_config_helper.OCI__RUNTIME_URI: GitPythonRuntime.CONST_GIT_URL,
         cluster_config_helper.OCI__RUNTIME_GIT_BRANCH: GitPythonRuntime.CONST_BRANCH,
@@ -943,7 +946,8 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
 
     def _translate_env(self, runtime: PyTorchDistributedRuntime) -> dict:
         envs = super()._translate_env(runtime)
-        envs[self.CONST_WORKER_COUNT] = str(runtime.replica - 1)
+        replica = runtime.replica if runtime.replica else 1
+        envs[self.CONST_WORKER_COUNT] = str(replica - 1)
         envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
         if runtime.inputs:
             envs[self.CONST_INPUT_MAPPINGS] = json.dumps(runtime.inputs)

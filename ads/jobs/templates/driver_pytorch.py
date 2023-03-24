@@ -183,7 +183,13 @@ class TorchRunner(driver_utils.JobRunner):
 
 
 def main():
-    runner = TorchRunner().fetch_code().set_working_dir().setup_python_path()
+    runner = (
+        TorchRunner()
+        .fetch_code()
+        .set_working_dir()
+        .setup_python_path()
+        .install_dependencies()
+    )
     driver_utils.OCIHelper.copy_inputs()
     runner.wait_for_main_ip_address().run()
     driver_utils.OCIHelper.copy_outputs()

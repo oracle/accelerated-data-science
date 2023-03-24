@@ -33,6 +33,8 @@ CONST_ENV_OUTPUT_URI = "OUTPUT_URI"
 CONST_ENV_OCI_RP = "OCI_RESOURCE_PRINCIPAL_VERSION"
 CONST_ENV_ADS_IAM = "OCI_IAM_TYPE"
 CONST_ENV_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
+CONST_ENV_PIP_REQ = "OCI__PIP_REQUIREMENTS"
+CONST_ENV_PIP_INSTALL = "OCI__PIP_INSTALL"
 CONST_API_KEY = "api_key"
 
 
@@ -313,10 +315,11 @@ class JobRunner:
         """
         logger.info("Job Run ID is: %s", os.environ.get(CONST_ENV_JOB_RUN_OCID))
         self.code_dir = code_dir
+        self.conda_prefix = sys.executable.split("/bin/python", 1)[0]
 
     @staticmethod
     def run_command(
-        command: str, activate_conda: bool = False, level: Optional[int] = None
+        command: str, conda_prefix: str = None, level: Optional[int] = None, check=False
     ) -> int:
         """Runs a shell command and logs the outputs with specific log level.
 
@@ -324,8 +327,9 @@ class JobRunner:
         ----------
         command : str
             The shell command
-        activate_conda : bool, optional
-            Indicate if conda environment should be activated for running the command, by default False
+        conda_prefix : str, optional
+            Prefix of the conda environment for running the command.
+            Defaults to None.
         level : int, optional
             Logging level for the command outputs, by default None.
             If this is set to a log level from logging, e.g. logging.DEBUG,
@@ -338,10 +342,9 @@ class JobRunner:
             The return code of the command.
         """
         logger.debug(">>> %s", command)
-        if activate_conda:
+        if conda_prefix:
             # Conda activate
             # https://docs.conda.io/projects/conda/en/latest/release-notes.html#id241
-            conda_prefix = sys.executable.split("/bin/python", 1)[0]
             cmd = (
                 "CONDA_BASE=$(conda info --base) && "
                 + "source $CONDA_BASE/etc/profile.d/conda.sh && "
@@ -373,12 +376,47 @@ class JobRunner:
             # Add a small delay so that
             # outputs from the subsequent code will have different timestamp for oci logging
             time.sleep(0.05)
+        if check and process.returncode != 0:
+            # If there is an error, exit the main process with the same return code.
+            sys.exit(process.returncode)
         return process.returncode
 
     def conda_unpack(self):
         if self.run_command("conda-unpack", level=logging.DEBUG):
             logger.info("conda-unpack exits with non-zero return code.")
         return self
+
+    def create_conda_env(self, conda_yaml=os.environ.get(CONST_ENV_CONDA_CREATE_YAML)):
+        if not conda_yaml:
+            return self
+        conda_prefix = "custom_conda"
+        cmd = f"conda env create --name {conda_prefix} --file {conda_yaml}"
+        self.run_command(cmd)
+        self.conda_prefix = conda_prefix
+        return self
+
+    def install_pip_requirements(
+        self, req_path: str = os.environ.get(CONST_ENV_PIP_REQ)
+    ):
+        if not req_path:
+            return self
+        self.run_command(
+            f"pip install -r {req_path}", conda_prefix=self.conda_prefix, check=True
+        )
+        return self
+
+    def install_pip_packages(
+        self, packages: str = os.environ.get(CONST_ENV_PIP_INSTALL)
+    ):
+        if not packages:
+            return self
+        self.run_command(
+            f"pip install {packages}", conda_prefix=self.conda_prefix, check=True
+        )
+        return self
+
+    def install_dependencies(self):
+        return self.install_pip_requirements().install_pip_packages()
 
     def set_working_dir(self, working_dir: str = os.environ.get(CONST_ENV_WORKING_DIR)):
         """Sets the working directory for the job run.
@@ -481,7 +519,7 @@ class JobRunner:
                     logger.debug(traceback.format_exc())
             # Run the entrypoint as shell command with conda activated
             cmd = shlex.join([entrypoint] + sys.argv[1:])
-            return_code = self.run_command(cmd, activate_conda=True)
+            return_code = self.run_command(cmd, conda_prefix=self.conda_prefix)
             # Exit the job run with the same return code if it is non-zero.
             if return_code:
                 logger.error("CMD exited with return code %s.", return_code)
