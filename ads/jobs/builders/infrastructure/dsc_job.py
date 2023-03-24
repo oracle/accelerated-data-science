@@ -1411,13 +1411,16 @@ class DataScienceJob(Infrastructure):
                 envs.update(env_var)
             name = Template(name).safe_substitute(envs)
 
-        return self.dsc_job.run(
+        kwargs = dict(
             display_name=name,
             command_line_arguments=args,
             environment_variables=env_var,
             freeform_tags=tags,
             wait=wait,
         )
+        if hasattr(self.runtime, "run"):
+            return self.runtime.run(self.dsc_job, **kwargs)
+        return self.dsc_job.run(**kwargs)
 
     def delete(self) -> None:
         """Deletes a job"""
