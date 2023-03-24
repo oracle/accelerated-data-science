@@ -929,6 +929,8 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
 class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     RUNTIME_CLASS = PyTorchDistributedRuntime
     CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
+    CONST_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
+
     GIT_SPEC_MAPPINGS = {
         cluster_config_helper.OCI__RUNTIME_URI: GitPythonRuntime.CONST_GIT_URL,
         cluster_config_helper.OCI__RUNTIME_GIT_BRANCH: GitPythonRuntime.CONST_BRANCH,
@@ -943,6 +945,8 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
         envs = super()._translate_env(runtime)
         envs[self.CONST_WORKER_COUNT] = str(runtime.replica - 1)
         envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
+        if runtime.inputs:
+            envs[self.CONST_INPUT_MAPPINGS] = json.dumps(runtime.inputs)
         if runtime.git:
             envs[GitPythonRuntimeHandler.CONST_ENTRYPOINT] = envs.pop(
                 PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
@@ -958,7 +962,12 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
         envs = spec.pop(PythonRuntime.CONST_ENV_VAR, {})
         if self.CONST_WORKER_COUNT not in envs:
             raise IncompatibleRuntime()
-        spec[PyTorchDistributedRuntime.CONST_REPLICA] = envs.pop(self.CONST_WORKER_COUNT)
+        spec[PyTorchDistributedRuntime.CONST_REPLICA] = envs.pop(
+            self.CONST_WORKER_COUNT
+        )
+        input_mappings = envs.pop(self.CONST_INPUT_MAPPINGS)
+        if input_mappings:
+            spec[PyTorchDistributedRuntime.CONST_INPUT] = input_mappings
         if envs:
             spec[PythonRuntime.CONST_ENV_VAR] = envs
         return spec

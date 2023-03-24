@@ -32,6 +32,7 @@ CONST_ENV_OUTPUT_DIR = "OUTPUT_DIR"
 CONST_ENV_OUTPUT_URI = "OUTPUT_URI"
 CONST_ENV_OCI_RP = "OCI_RESOURCE_PRINCIPAL_VERSION"
 CONST_ENV_ADS_IAM = "OCI_IAM_TYPE"
+CONST_ENV_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
 CONST_API_KEY = "api_key"
 
 
@@ -232,6 +233,31 @@ class OCIHelper:
         return OCIHelper.copy_to_oci_object_storage(
             output_dir, namespace, bucket, prefix
         )
+
+    @staticmethod
+    def copy_inputs(mappings: dict = None):
+        if not mappings and CONST_ENV_INPUT_MAPPINGS in os.environ:
+            mappings = json.loads(os.environ[CONST_ENV_INPUT_MAPPINGS])
+
+        if not mappings:
+            logger.debug("No inputs specified.")
+            return
+
+        import fsspec
+
+        fs = fsspec.filesystem("oci")
+        for oci_uri, rel_path in mappings.items():
+            if str(rel_path).endswith("/"):
+                dest_dir = rel_path
+            else:
+                dest_dir = os.path.dirname(rel_path)
+            os.makedirs(dest_dir)
+            fs.get(
+                oci_uri,
+                rel_path,
+                recursive=True,
+                callback=fsspec.callbacks.TqdmCallback(),
+            )
 
 
 class ArgumentParser:
@@ -499,7 +525,9 @@ class JobRunner:
                 tags = json.loads(tags)
                 logger.info("Excluding cells with any of the following tags: %s", tags)
             # Pass in the absolute path to make sure the working dir is notebook directory
-            run_notebook(os.path.abspath(os.path.expanduser(entrypoint)), exclude_tags=tags)
+            run_notebook(
+                os.path.abspath(os.path.expanduser(entrypoint)), exclude_tags=tags
+            )
         else:
             self._run_script(entrypoint_abs_path)
         logger.info("Job run completed.")

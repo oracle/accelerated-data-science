@@ -43,8 +43,12 @@ class PyTorchDistributedRuntime(PythonRuntime):
     def git(self) -> str:
         return self.get_spec(self.CONST_GIT)
 
-    def with_input(self, mappings: dict):
+    def with_inputs(self, mappings: dict):
         return self.set_spec(self.CONST_INPUT, mappings)
+
+    @property
+    def inputs(self) -> dict:
+        return self.get_spec(self.CONST_INPUT)
 
     def with_replica(self, count: int):
         return self.set_spec(self.CONST_REPLICA, count)
