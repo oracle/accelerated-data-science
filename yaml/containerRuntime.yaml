@@ -1,0 +1,41 @@
+kind:
+  required: true
+  type: string
+  allowed:
+    - runtime
+type:
+  required: true
+  type: string
+  allowed:
+    - container
+spec:
+  type: dict
+  required: true
+  schema:
+    image:
+      required: true
+      type: string
+    entrypoint:
+      required: false
+      type:
+      - string
+      - list
+    cmd:
+      required: false
+      type:
+      - string
+      - list
+    env:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: dict
+        schema:
+          name:
+            type: string
+          value:
+            type:
+            - number
+            - string
+

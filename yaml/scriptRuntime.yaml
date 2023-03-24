@@ -1,0 +1,52 @@
+kind:
+  required: true
+  type: string
+  allowed:
+    - runtime
+type:
+  required: true
+  type: string
+  allowed:
+    - script
+spec:
+  required: true
+  type: dict
+  schema:
+    args:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: string
+    conda:
+      nullable: false
+      required: false
+      type: dict
+      schema:
+        slug:
+          required: true
+          type: string
+        type:
+          allowed:
+            - service
+          required: true
+          type: string
+    env:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: dict
+        schema:
+        name:
+          type: string
+        value:
+          type:
+            - number
+            - string
+    scriptPathURI:
+      required: true
+      type: string
+    entrypoint:
+      required: false
+      type: string

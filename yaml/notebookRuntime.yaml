@@ -1,0 +1,58 @@
+kind:
+  required: true
+  type: string
+  allowed:
+    - runtime
+type:
+  required: true
+  type: string
+  allowed:
+    - notebook
+spec:
+  required: true
+  type: dict
+  schema:
+    excludeTags:
+      required: false
+      type: list
+    notebookPathURI:
+      required: false
+      type: string
+    notebookEncoding:
+      required: false
+      type: string
+    outputUri:
+      required: false
+      type: string
+    args:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: string
+    conda:
+      nullable: false
+      required: false
+      type: dict
+      schema:
+        slug:
+          required: true
+          type: string
+        type:
+          required: true
+          type: string
+          allowed:
+            - service
+    env:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: dict
+        schema:
+        name:
+          type: string
+        value:
+          type:
+            - number
+            - string

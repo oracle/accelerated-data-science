@@ -1,0 +1,47 @@
+kind:
+  required: true
+  type: "string"
+  allowed:
+    - "infrastructure"
+type:
+  required: true
+  type: "string"
+  allowed:
+    - "dataScienceJob"
+spec:
+  required: true
+  type: "dict"
+  schema:
+    blockStorageSize:
+      default: 50
+      min: 50
+      required: false
+      type: "integer"
+    compartmentId:
+      required: false
+      type: "string"
+    displayName:
+      required: false
+      type: "string"
+    id:
+      required: false
+      type: "string"
+    logGroupId:
+      required: false
+      type: "string"
+    logId:
+      required: false
+      type: "string"
+    projectId:
+      required: false
+      type: "string"
+    shapeName:
+      required: false
+      type: "string"
+    subnetId:
+      required: false
+      type: "string"
+    shapeConfigDetails:
+      required: false
+      type: "dict"
+
