@@ -11,6 +11,7 @@ from ads.common.auth import default_signer
 from ads.jobs.builders.base import Builder
 from ads.jobs.builders.infrastructure.dataflow import DataFlow, DataFlowRun
 from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob, DataScienceJobRun
+from ads.jobs.builders.runtimes.pytorch_runtime import PyTorchDistributedRuntime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import (
     DataFlowRuntime,
@@ -128,6 +129,7 @@ class Job(Builder):
             ContainerRuntime,
             ScriptRuntime,
             NotebookRuntime,
+            PyTorchDistributedRuntime,
             DataFlowRuntime,
         ]
     }

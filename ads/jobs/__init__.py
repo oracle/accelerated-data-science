@@ -17,6 +17,7 @@ try:
         DataFlowRuntime,
         DataFlowNotebookRuntime,
     )
+    from ads.jobs.builders.runtimes.pytorch_runtime import PyTorchDistributedRuntime
     from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
     from ads.jobs.ads_job import Job
     from ads.jobs.builders import infrastructure
@@ -44,6 +45,7 @@ __all__ = [
     "NotebookRuntime",
     "ScriptRuntime",
     "ContainerRuntime",
+    "PyTorchDistributedRuntime",
     "DataFlow",
     "DataFlowRun",
     "DataFlowRuntime",

@@ -1,0 +1,76 @@
+from ads.jobs.builders.runtimes.python_runtime import (
+    PythonRuntime,
+    GitPythonRuntime,
+)
+
+
+class PyTorchDistributedRuntime(PythonRuntime):
+    CONST_GIT = "git"
+    CONST_REPLICA = "replicas"
+    CONST_INPUT = "inputs"
+
+    def with_git(
+        self, url: str, branch: str = None, commit: str = None, secret_ocid: str = None
+    ):
+        """Specifies the Git repository and branch/commit for the job source code.
+
+        Parameters
+        ----------
+        url : str
+            URL of the Git repository.
+        branch : str, optional
+            Git branch name, by default None, the default branch will be used.
+        commit : str, optional
+            Git commit ID (SHA1 hash), by default None, the most recent commit will be used.
+        secret_ocid : str
+            The secret OCID storing the SSH key content for checking out the Git repository.
+
+        Returns
+        -------
+        self
+            The runtime instance.
+        """
+        git_spec = {GitPythonRuntime.CONST_GIT_URL: url}
+        if branch:
+            git_spec[GitPythonRuntime.CONST_BRANCH] = branch
+        if commit:
+            git_spec[GitPythonRuntime.CONST_COMMIT] = commit
+        if secret_ocid:
+            git_spec[GitPythonRuntime.CONST_GIT_SSH_SECRET_ID] = secret_ocid
+        return self.set_spec(self.CONST_GIT, git_spec)
+
+    @property
+    def git(self) -> str:
+        return self.get_spec(self.CONST_GIT)
+
+    def with_input(self, mappings: dict):
+        return self.set_spec(self.CONST_INPUT, mappings)
+
+    def with_replica(self, count: int):
+        return self.set_spec(self.CONST_REPLICA, count)
+
+    @property
+    def replica(self) -> int:
+        return self.get_spec(self.CONST_REPLICA)
+
+    def run(self, dsc_job, **kwargs):
+        replicas = self.replica if self.replica else 1
+        main_run = None
+        for i in range(replicas):
+            replica_kwargs = kwargs.copy()
+            envs = replica_kwargs.get("environment_variables")
+            if not envs:
+                envs = {}
+            envs["RANK"] = str(i)
+            if main_run:
+                envs["MAIN_JOB_RUN_OCID"] = main_run.id
+            name = replica_kwargs.get("name")
+            if not name:
+                name = None
+
+            replica_kwargs["name"] = f"{name}-RANK-{str(i)}"
+            replica_kwargs["environment_variables"] = envs
+            run = dsc_job.run(**replica_kwargs)
+            if i == 0:
+                main_run = run
+        return main_run
