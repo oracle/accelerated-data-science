@@ -1,7 +1,18 @@
-name: Unit Tests unitary
+name: tests/unitary/**
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'release/**'
+      - develop
+    paths:
+      - 'ads/**'
+      - setup.py
+      - '**requirements.txt'
+      - '!docs/**'
+
+  pull_request:
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -11,7 +22,6 @@ concurrency:
 
 permissions:
   contents: read
-
 
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
@@ -43,52 +53,58 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/dev-requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-#      - name: "Test config setup"
-#        shell: bash
-#        env:
-#          ADS_OCI_CONFIG_REALLIKE: ${{ secrets.ADS_OCI_CONFIG_REALLIKE }}
-#          ADS_OCI_PRIVATE_KEY_REALLIKE: ${{ secrets.ADS_OCI_PRIVATE_KEY_REALLIKE }}
-#        run: |
-#          set -x # print commands that are executed
-#          mkdir -p /home/runner/.oci
-#          ls -lha
-#          echo "$ADS_OCI_CONFIG_REALLIKE" > "/home/runner/.oci/config"
-#          echo "$ADS_OCI_PRIVATE_KEY_REALLIKE" > "/home/runner/.oci/oci_ads_user.pem"
-#          echo "key_file=/home/runner/.oci/oci_ads_user.pem" >> "/home/runner/.oci/config"
+      - name: "Test config setup"
+        shell: bash
+        env:
+          HOME_RUNNER_DIR: /home/runner
+        run: |
+          set -x # print commands that are executed
+          mkdir -p "$HOME_RUNNER_DIR"/.oci
+          openssl genrsa -out $HOME_RUNNER_DIR/.oci/oci_ads_user.pem 2048
+          cat <<EOT >> "$HOME_RUNNER_DIR/.oci/config"
+          [DEFAULT]
+          user=ocid1.user.oc1..xxx
+          fingerprint=00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
+          tenancy=ocid1.tenancy.oc1..xxx
+          region=test_region
+          key_file=$HOME_RUNNER_DIR/.oci/oci_ads_user.pem
+          EOT
+          ls -lha "$HOME_RUNNER_DIR"/.oci
+          echo "Test config file:"
+          cat $HOME_RUNNER_DIR/.oci/config
 
-#      - name: "Test env setup"
-#        timeout-minutes: 20
-#        shell: bash
-#        run: |
-#          set -x # print commands that are executed
-#          sudo apt-get install libkrb5-dev graphviz
-#          $CONDA/bin/conda init
-#          source /home/runner/.bashrc
-#          pip install setuptools
-#          pip install -r dev-requirements.txt
+      - name: "Test env setup"
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -x # print commands that are executed
+          sudo apt-get install libkrb5-dev graphviz
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc
+          pip install setuptools
+          pip install -r dev-requirements.txt
 
-#      - name: "Run unitary tests folder with maximum ADS dependencies"
-#        timeout-minutes: 60
-#        shell: bash
-#        env:
-#          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
-#          CONDA_PREFIX: /usr/share/miniconda
-#        run: |
-#          python -m pytest -v -p no:warnings --durations=5 \
-#          ${{ matrix.test-path }} \
-#          --ignore "${{ matrix.ignore-path }}" \
-#          --cov --cov-append --cov-report=html
+      - name: "Run unitary tests folder with maximum ADS dependencies"
+        timeout-minutes: 60
+        shell: bash
+        env:
+          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
+          CONDA_PREFIX: /usr/share/miniconda
+        run: |
+          python -m pytest -v -p no:warnings --durations=5 \
+          ${{ matrix.test-path }} \
+          --ignore "${{ matrix.ignore-path }}" \
+          --cov --cov-append --cov-report=html
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
-#      - name: "Save html coverage report"
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: code-coverage-report
-#          path: htmlcov/
-#          retention-days: 10
+      - name: "Save html coverage report"
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-coverage-report
+          path: htmlcov/
+          retention-days: 10

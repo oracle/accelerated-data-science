@@ -1,0 +1,45 @@
+[paths]
+source =
+    ads/
+
+[run]
+branch = true
+parallel = true
+source =
+    ads
+omit =
+    docs/*
+    tests/*
+    ads/automl/*
+    ads/common/artifact/*
+    ads/environment/*
+    ads/experiments/*
+    ads/templates/*
+    */constants.py
+    */_imports.py
+    */__init__.py
+    */__main__.py
+    */.*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if __name__ == .__main__.:
+omit =
+    ads/automl/*
+    ads/common/artifact/*
+    ads/environment/*
+    ads/experiments/*
+    ads/templates/*
+    */constants.py
+    */_imports.py
+    */__init__.py
+    */__main__.py
+    __init.py__
+show_missing = true
+skip_empty = true
+precision = 2
+
+[html]
+directory = htmlcov

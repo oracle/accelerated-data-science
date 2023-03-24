@@ -1,0 +1,11 @@
+NOT_REQUIRED:
+  type: string
+  required: false
+REQUIRED_NULLABLE:
+  type: string
+  required: true
+  nullable: true
+REQUIRED_NOT_NULLABLE:
+  type: string
+  required: true
+  nullable: false

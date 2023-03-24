@@ -1,0 +1,49 @@
+kind: pipeline
+spec:
+  compartmentId: ocid1.compartment.oc1..<unique_ocid>
+  logGroupId: ocid1.loggroup.oc1..<unique_ocid>
+  logId: ocid1.log.oc1..<unique_ocid>
+  displayName: ADS Pipeline
+  projectId: ocid1.datascienceproject.oc1...<unique_ocid>
+  dag:
+  - PipelineStepOne >> PipelineStepTwo
+  stepDetails:
+  - kind: customScript
+    spec:
+      description: A step running a custom script
+      infrastructure:
+        kind: infrastructure
+        spec:
+          blockStorageSize: 200
+          shapeName: VM.Standard2.1
+      name: PipelineStepOne
+      runtime:
+        kind: runtime
+        spec:
+          conda:
+            slug: tensorflow26_p37_cpu_v2
+            type: service
+          scriptPathURI: oci://xxx@xxx/xxx.py
+        type: script
+  - kind: customScript
+    spec:
+      description: A step running a notebook
+      infrastructure:
+        kind: infrastructure
+        spec:
+          blockStorageSize: 200
+          shapeName: VM.Standard2.1
+      name: PipelineStepTwo
+      runtime:
+        kind: runtime
+        spec:
+          conda:
+            slug: tensorflow26_p37_cpu_v2
+            type: service
+          env:
+          - name: GREETINGS
+            value: Welcome to OCI Data Science
+          notebookEncoding: utf-8
+          notebookPathURI: https://xxx.com/basics.ipynb
+          outputUri: oci://xxx@xxx/<prefix>
+        type: notebook
