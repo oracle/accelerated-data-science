@@ -120,7 +120,7 @@ Below is an example of deploying model on container runtime using ``ModelDeploym
         ModelDeployment()
         .with_display_name("Model Deployment Demo using ADS")
         .with_description("The model deployment description")
-        .with_freeform_tags({"key1":"value1"})
+        .with_freeform_tags(**{"key1":"value1"})
         .with_infrastructure(infrastructure)
         .with_runtime(container_runtime)
     )
