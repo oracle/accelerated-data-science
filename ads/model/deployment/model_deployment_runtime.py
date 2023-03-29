@@ -330,6 +330,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
     CONST_ENTRYPOINT = "entrypoint"
     CONST_SERVER_PORT = "serverPort"
     CONST_HEALTH_CHECK_PORT = "healthCheckPort"
+    CONST_TRITON = "triton"
 
     attribute_map = {
         **ModelDeploymentRuntime.attribute_map,
@@ -339,6 +340,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         CONST_ENTRYPOINT: "entrypoint",
         CONST_SERVER_PORT: "server_port",
         CONST_HEALTH_CHECK_PORT: "health_check_port",
+        CONST_TRITON: "triton"
     }
 
     payload_attribute_map = {
@@ -532,3 +534,29 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
             The ModelDeploymentContainerRuntime instance (self).
         """
         return self.set_spec(self.CONST_HEALTH_CHECK_PORT, health_check_port)
+    
+    @property
+    def triton(self) -> str:
+        """Whether container is triton or not.
+
+        Returns
+        -------
+        bool
+            Whether container is triton or not.
+        """
+        return self.get_spec(self.CONST_TRITON, False)
+
+    def with_triton(self, triton: bool = True) -> "ModelDeploymentRuntime":
+        """Sets the flag for triton.
+
+        Parameters
+        ----------
+        triton: bool
+            Whether it is a triton container.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_TRITON, triton)

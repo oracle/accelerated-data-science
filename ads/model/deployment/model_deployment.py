@@ -878,6 +878,7 @@ class ModelDeployment(Builder):
             "signer": signer,
             "content_type": kwargs.get("content_type", None),
         }
+        header.update(kwargs.pop("headers", {}))
 
         if data is None and json_input is None:
             raise AttributeError(
@@ -1390,6 +1391,10 @@ class ModelDeployment(Builder):
             infrastructure.CONST_WEB_CONCURRENCY,
             runtime.env.get("WEB_CONCURRENCY", None),
         )
+        if runtime.env.get("CONTAINER_TYPE", None) == "TRITON":
+            runtime.set_spec(
+                runtime.CONST_TRITON, True
+            )
 
         self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)
         self.set_spec(self.CONST_RUNTIME, runtime)
@@ -1565,6 +1570,9 @@ class ModelDeployment(Builder):
             environment_variables["WEB_CONCURRENCY"] = str(
                 infrastructure.web_concurrency
             )
+            runtime.set_spec(runtime.CONST_ENV, environment_variables)
+        if runtime.triton:
+            environment_variables["CONTAINER_TYPE"] = "TRITON"
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
             runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
