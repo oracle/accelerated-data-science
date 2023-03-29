@@ -2054,7 +2054,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             raise ValueError("`compartment_id` has to be provided.")
         if not (self.properties.project_id or existing_infrastructure.project_id):
             raise ValueError("`project_id` has to be provided.")
-        
         infrastructure = (
             ModelDeploymentInfrastructure()
             .with_compartment_id(
