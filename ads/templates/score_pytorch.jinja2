@@ -10,8 +10,21 @@ import pandas as pd
 from io import BytesIO
 import base64
 import logging
+from random import randint
+
+
+def get_torch_device():
+    num_devices = torch.cuda.device_count()
+    if num_devices == 0:
+        return "cpu"
+    if num_devices == 1:
+        return "cuda:0"
+    else:
+        return f"cuda:{randint(0, num_devices-1)}"
+
 
 model_name = '{{model_file_name}}'
+device = torch.device(get_torch_device())
 
 """
    Inference script. This script is used for prediction by scoring server when schema is known.
@@ -59,6 +72,7 @@ def load_model(model_file_name=model_name):
 
 {% endif %}
     print("Model is successfully loaded.")
+    the_model = the_model.to(device)
     return the_model
 
 @lru_cache(maxsize=1)
@@ -158,6 +172,7 @@ def pre_inference(data, input_schema_path):
     data = deserialize(data, input_schema_path)
 
     # Add further data preprocessing if needed
+    data = data.to(device)
     return data
 
 def post_inference(yhat):
@@ -199,6 +214,6 @@ def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dir
 
     with torch.no_grad():
         yhat = post_inference(
-        model(inputs)
+        model(inputs).to("cpu")
     )
     return {'prediction': yhat}
