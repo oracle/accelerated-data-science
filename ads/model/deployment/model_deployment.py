@@ -17,7 +17,6 @@ import oci.loggingsearch
 from ads.common import auth as authutil
 import pandas as pd
 from ads.model.serde.model_input import JsonModelInputSERDE
-from ads.common import auth, oci_client
 from ads.common.oci_logging import (
     LOG_INTERVAL,
     LOG_RECORDS_LIMIT,
@@ -39,6 +38,7 @@ from ads.model.deployment.model_deployment_runtime import (
     ModelDeploymentRuntime,
     ModelDeploymentRuntimeType,
     OCIModelDeploymentRuntimeType,
+    ModelDeploymentTritonContainerRuntime
 )
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
@@ -1304,6 +1304,7 @@ class ModelDeployment(Builder):
             cls.CONST_RUNTIME: {
                 ModelDeploymentRuntimeType.CONDA: ModelDeploymentCondaRuntime,
                 ModelDeploymentRuntimeType.CONTAINER: ModelDeploymentContainerRuntime,
+                ModelDeploymentRuntimeType.TRITON_CONTAINER: ModelDeploymentTritonContainerRuntime,
             },
         }
         model_deployment = cls()
@@ -1375,16 +1376,21 @@ class ModelDeployment(Builder):
             "environment_configuration_details",
             None,
         )
-        runtime = (
-            ModelDeploymentContainerRuntime()
-            if getattr(
+        if getattr(
                 environment_configuration_details,
                 "environment_configuration_type",
                 None,
-            )
-            == OCIModelDeploymentRuntimeType.CONTAINER
-            else ModelDeploymentCondaRuntime()
-        )
+            ) == OCIModelDeploymentRuntimeType.CONDA:
+            runtime = ModelDeploymentCondaRuntime()
+        else:
+            if getattr(
+                environment_configuration_details,
+                "environment_variables",
+                {},
+            ).pop("CONTAINER_TYPE", "") == "TRITON":
+                runtime = ModelDeploymentTritonContainerRuntime()
+            else:
+                runtime = ModelDeploymentContainerRuntime()
 
         self._extract_from_oci_model(runtime, oci_model_instance)
         infrastructure.set_spec(
@@ -1571,11 +1577,11 @@ class ModelDeployment(Builder):
                 infrastructure.web_concurrency
             )
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
-        if runtime.triton:
+        if runtime.type == ModelDeploymentRuntimeType.TRITON_CONTAINER:
             environment_variables["CONTAINER_TYPE"] = "TRITON"
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
-            runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
+        runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
             runtime.CONST_ENVIRONMENT_VARIABLES: runtime.env,
         }
 

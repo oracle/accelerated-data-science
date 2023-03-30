@@ -17,4 +17,5 @@ from .model_deployment_runtime import (
     ModelDeploymentRuntime,
     ModelDeploymentCondaRuntime,
     ModelDeploymentContainerRuntime,
+    ModelDeploymentTritonContainerRuntime
 )

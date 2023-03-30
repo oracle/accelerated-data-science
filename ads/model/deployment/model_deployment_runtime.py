@@ -14,6 +14,7 @@ MODEL_DEPLOYMENT_RUNTIME_KIND = "runtime"
 class ModelDeploymentRuntimeType:
     CONDA = "conda"
     CONTAINER = "container"
+    TRITON_CONTAINER = "triton_container"
 
 
 class OCIModelDeploymentRuntimeType:
@@ -330,7 +331,6 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
     CONST_ENTRYPOINT = "entrypoint"
     CONST_SERVER_PORT = "serverPort"
     CONST_HEALTH_CHECK_PORT = "healthCheckPort"
-    CONST_TRITON = "triton"
 
     attribute_map = {
         **ModelDeploymentRuntime.attribute_map,
@@ -340,7 +340,6 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         CONST_ENTRYPOINT: "entrypoint",
         CONST_SERVER_PORT: "server_port",
         CONST_HEALTH_CHECK_PORT: "health_check_port",
-        CONST_TRITON: "triton"
     }
 
     payload_attribute_map = {
@@ -535,28 +534,76 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         """
         return self.set_spec(self.CONST_HEALTH_CHECK_PORT, health_check_port)
     
+class ModelDeploymentTritonContainerRuntime(ModelDeploymentContainerRuntime):
+    
+    """A class used to represent a Model Deployment Triton Container Runtime.
+
+    Attributes
+    ----------
+    image: str
+        The image of model deployment container runtime.
+    image_digest: str
+        The image digest of model deployment container runtime.
+    cmd: List
+        The cmd of model deployment container runtime.
+    entrypoint: List
+        The entrypoint of model deployment container runtime.
+    server_port: int
+        The server port of model deployment container runtime.
+    health_check_port: int
+        The health check port of model deployment container runtime.
+
+    Methods
+    -------
+    with_image(image)
+        Sets the image of model deployment container runtime
+    with_image_digest(image_digest)
+        Sets the image digest of model deployment container runtime
+    with_cmd(cmd)
+        Sets the cmd of model deployment container runtime
+    with_entrypoint(entrypoint)
+        Sets the entrypoint of model deployment container runtime
+    with_server_port(server_port)
+        Sets the server port of model deployment container runtime
+    with_health_check_port(health_check_port)
+        Sets the health check port of model deployment container runtime
+
+    Examples
+    --------
+    Build runtime from builder apis:
+    >>> container_runtime = ModelDeploymentContainerRuntime()
+    ...        .with_image(<image>)
+    ...        .with_image_digest(<image_digest>)
+    ...        .with_entrypoint(<entrypoint>)
+    ...        .with_server_port(<server_port>)
+    ...        .with_health_check_port(<health_check_port>)
+    ...        .with_env({"key":"value"})
+    ...        .with_deployment_mode("HTTPS_ONLY")
+    ...        .with_model_uri(<model_uri>)
+    >>> container_runtime.to_dict()
+
+    Build runtime from yaml:
+    >>> container_runtime = ModelDeploymentTritonContainerRuntime.from_yaml(uri=<path_to_yaml>)
+    """
+    
     @property
-    def triton(self) -> str:
-        """Whether container is triton or not.
+    def type(self) -> str:
+        """The type of the object as showing in YAML.
 
         Returns
         -------
-        bool
-            Whether container is triton or not.
+        str
+            conda
         """
-        return self.get_spec(self.CONST_TRITON, False)
+        return ModelDeploymentRuntimeType.TRITON_CONTAINER
 
-    def with_triton(self, triton: bool = True) -> "ModelDeploymentRuntime":
-        """Sets the flag for triton.
-
-        Parameters
-        ----------
-        triton: bool
-            Whether it is a triton container.
+    @property
+    def environment_config_type(self) -> str:
+        """The environment config type of model deployment.
 
         Returns
         -------
-        ModelDeploymentRuntime
-            The ModelDeploymentRuntime instance (self).
+        str
+            DEFAULT
         """
-        return self.set_spec(self.CONST_TRITON, triton)
+        return OCIModelDeploymentRuntimeType.CONTAINER
