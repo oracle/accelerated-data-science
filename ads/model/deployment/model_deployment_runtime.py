@@ -541,37 +541,37 @@ class ModelDeploymentTritonContainerRuntime(ModelDeploymentContainerRuntime):
     Attributes
     ----------
     image: str
-        The image of model deployment container runtime.
+        The image of model deployment triton container runtime.
     image_digest: str
-        The image digest of model deployment container runtime.
+        The image digest of model deployment triton container runtime.
     cmd: List
-        The cmd of model deployment container runtime.
+        The cmd of model deployment triton container runtime.
     entrypoint: List
-        The entrypoint of model deployment container runtime.
+        The entrypoint of model deployment triton container runtime.
     server_port: int
-        The server port of model deployment container runtime.
+        The server port of model deployment triton container runtime.
     health_check_port: int
-        The health check port of model deployment container runtime.
+        The health check port of model deployment triton container runtime.
 
     Methods
     -------
     with_image(image)
-        Sets the image of model deployment container runtime
+        Sets the image of model deployment triton container runtime
     with_image_digest(image_digest)
-        Sets the image digest of model deployment container runtime
+        Sets the image digest of model deployment triton container runtime
     with_cmd(cmd)
-        Sets the cmd of model deployment container runtime
+        Sets the cmd of model deployment triton container runtime
     with_entrypoint(entrypoint)
-        Sets the entrypoint of model deployment container runtime
+        Sets the entrypoint of model deployment triton container runtime
     with_server_port(server_port)
-        Sets the server port of model deployment container runtime
+        Sets the server port of model deployment triton container runtime
     with_health_check_port(health_check_port)
-        Sets the health check port of model deployment container runtime
+        Sets the health check port of model deployment triton container runtime
 
     Examples
     --------
     Build runtime from builder apis:
-    >>> container_runtime = ModelDeploymentContainerRuntime()
+    >>> container_runtime = ModelDeploymentTritonContainerRuntime()
     ...        .with_image(<image>)
     ...        .with_image_digest(<image_digest>)
     ...        .with_entrypoint(<entrypoint>)
@@ -593,7 +593,7 @@ class ModelDeploymentTritonContainerRuntime(ModelDeploymentContainerRuntime):
         Returns
         -------
         str
-            conda
+            triton_container
         """
         return ModelDeploymentRuntimeType.TRITON_CONTAINER
 
@@ -604,6 +604,6 @@ class ModelDeploymentTritonContainerRuntime(ModelDeploymentContainerRuntime):
         Returns
         -------
         str
-            DEFAULT
+            OCIR_CONTAINER
         """
         return OCIModelDeploymentRuntimeType.CONTAINER
