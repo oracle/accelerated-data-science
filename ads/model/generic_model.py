@@ -789,6 +789,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
         ignore_conda_error: bool = False,
+        score_py_uri: str = None,
         **kwargs: Dict,
     ) -> "GenericModel":
         """Prepare and save the score.py, serialized model and runtime.yaml file.
@@ -841,6 +842,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             number of features(columns).
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
+        score_py_uri: (str, optional). Defaults to False.
+            The uri of the customized score.py. The provided score.py will be added into artifact_dir.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -1001,13 +1004,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 jinja_template_filename = (
                     "score-pkl" if self._serialize else "score_generic"
                 )
-        self.model_artifact.prepare_score_py(
-            jinja_template_filename=jinja_template_filename,
-            model_file_name=self.model_file_name,
-            data_deserializer=self.model_input_serializer.name,
-            model_serializer=self.model_save_serializer.name,
-            **{**kwargs, **self._score_args},
-        )
+
+        if score_py_uri:
+            utils.copy_file(
+                uri_src=score_py_uri,
+                uri_dst=self.artifact_dir,
+                force_overwrite=force_overwrite,auth=self.auth
+            )
+        else:
+            self.model_artifact.prepare_score_py(
+                jinja_template_filename=jinja_template_filename,
+                model_file_name=self.model_file_name,
+                data_deserializer=self.model_input_serializer.name,
+                model_serializer=self.model_save_serializer.name,
+                **{**kwargs, **self._score_args},
+            )
 
         self._summary_status.update_status(
             detail="Generated score.py", status=ModelState.DONE.value
