@@ -298,6 +298,19 @@ class TestGenericModel:
         )
 
     @patch("ads.common.auth.default_signer")
+    def test_prepare_with_custom_scorepy(self, mock_signer):
+        """Test prepare a trained model with custom score.py."""
+        self.generic_model.prepare(
+            "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
+            model_file_name="fake_model_name",
+            score_py_uri=f"{os.path.dirname(os.path.abspath(__file__))}/test_files/custom_score.py"
+        )
+        assert os.path.exists(os.path.join("fake_folder", "score.py"))
+
+        prediction = self.generic_model.verify(data="test")["prediction"]
+        assert prediction == "This is a custom score.py."
+
+    @patch("ads.common.auth.default_signer")
     def test_verify_without_reload(self, mock_signer):
         """Test verify input data without reload artifacts."""
         self.generic_model.prepare(
