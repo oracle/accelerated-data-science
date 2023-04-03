@@ -843,7 +843,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
         score_py_uri: (str, optional). Defaults to False.
-            The uri of the customized score.py. The provided score.py will be added into artifact_dir.
+            The uri of the customized score.py, which can be local path or OCI object storage URI.
+            The provided score.py will be added into artifact_dir.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -1008,8 +1009,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if score_py_uri:
             utils.copy_file(
                 uri_src=score_py_uri,
-                uri_dst=self.artifact_dir,
-                force_overwrite=force_overwrite,auth=self.auth
+                uri_dst=os.path.join(self.artifact_dir, "score.py"),
+                force_overwrite=force_overwrite,
+                auth=self.auth
             )
         else:
             self.model_artifact.prepare_score_py(
