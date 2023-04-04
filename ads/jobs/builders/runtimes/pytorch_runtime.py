@@ -70,7 +70,7 @@ class PyTorchDistributedRuntime(PythonRuntime):
                 envs["MAIN_JOB_RUN_OCID"] = main_run.id
             name = replica_kwargs.get("display_name")
             if not name:
-                name = None
+                name = dsc_job.display_name
 
             replica_kwargs["display_name"] = f"{name}-RANK-{str(i)}"
             replica_kwargs["environment_variables"] = envs
