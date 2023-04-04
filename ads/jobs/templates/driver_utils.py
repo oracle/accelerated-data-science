@@ -33,6 +33,9 @@ CONST_ENV_OUTPUT_URI = "OUTPUT_URI"
 CONST_ENV_OCI_RP = "OCI_RESOURCE_PRINCIPAL_VERSION"
 CONST_ENV_ADS_IAM = "OCI_IAM_TYPE"
 CONST_ENV_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
+CONST_ENV_CONDA_CREATE_YAML = "OCI__CONDA_CREATE_YAML"
+CONST_ENV_CONDA_UPDATE_YAML = "OCI__CONDA_UPDATE_YAML"
+CONST_ENV_CONDA_INSTALL = "OCI__CONDA_INSTALL"
 CONST_ENV_PIP_REQ = "OCI__PIP_REQUIREMENTS"
 CONST_ENV_PIP_INSTALL = "OCI__PIP_INSTALL"
 CONST_API_KEY = "api_key"
@@ -405,9 +408,7 @@ class JobRunner:
         )
         return self
 
-    def install_pip_packages(
-        self, packages: str = os.environ.get(CONST_ENV_PIP_INSTALL)
-    ):
+    def install_pip_packages(self, packages: str = os.environ.get(CONST_ENV_PIP_INSTALL)):
         if not packages:
             return self
         self.run_command(
