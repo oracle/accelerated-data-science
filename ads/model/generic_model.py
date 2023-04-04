@@ -842,9 +842,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             number of features(columns).
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
-        score_py_uri: (str, optional). Defaults to False.
+        score_py_uri: (str, optional). Defaults to None.
             The uri of the customized score.py, which can be local path or OCI object storage URI.
-            The provided score.py will be added into artifact_dir.
+            When provide with this attibute, the `score.py` will not be auto generated, and the
+            provided `score.py` will be added into artifact_dir.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
