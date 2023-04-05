@@ -2497,6 +2497,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self,
         data: Any = None,
         auto_serialize_data: bool = False,
+        local: bool = False,
         **kwargs,
     ) -> Dict[str, Any]:
         """Returns prediction of input data run against the model deployment endpoint.
@@ -2521,6 +2522,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Whether to auto serialize input data. Defauls to `False` for GenericModel, and `True` for other frameworks.
             `data` required to be json serializable if `auto_serialize_data=False`.
             If `auto_serialize_data` set to True, data will be serialized before sending to model deployment endpoint.
+        local: bool.
+            Whether to invoke the prediction locally. Default to False.
         kwargs:
             content_type: str, used to indicate the media type of the resource.
             image: PIL.Image Object or uri for the image.
@@ -2539,10 +2542,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         NotActiveDeploymentError
             If model deployment process was not started or not finished yet.
         ValueError
-            If `data` is empty or not JSON serializable.
+            If model is not deployed yet or the endpoint information is not available.
         """
-        if not self.model_deployment:
-            raise ValueError("Use `deploy()` method to start model deployment.")
+        if local:
+            return self.verify(
+                data=data, auto_serialize_data=auto_serialize_data, **kwargs
+            )
+
+        if not (self.model_deployment and self.model_deployment.url):
+            raise ValueError(
+                "Error invoking the remote endpoint as the model is not "
+                "deployed yet or the endpoint information is not available. "
+                "Use `deploy()` method to start model deployment. "
+                "If you intend to invoke inference using locally available "
+                "model artifact, set parameter `local=True`"
+            )
 
         current_state = self.model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
