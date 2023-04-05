@@ -345,7 +345,7 @@ class GitPythonArtifact(Artifact):
 
 class PyTorchDistributedArtifact(PythonArtifact):
     CONST_DRIVER_SCRIPT = "driver_pytorch.py"
-    CONST_LIB_HOSTNAME = "hostname.c"
+    CONST_LIB_HOSTNAME = "hostname_from_env.c"
 
     def __init__(self, source, runtime=None) -> None:
         if not source:

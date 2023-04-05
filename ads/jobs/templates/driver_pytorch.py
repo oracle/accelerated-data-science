@@ -113,7 +113,7 @@ class TorchRunner(driver_utils.JobRunner):
             return ip
 
     def build_c_library(self):
-        C_SOURCE_CODE = "hostname.c"
+        C_SOURCE_CODE = "hostname_from_env.c"
         source_path = os.path.join(
             os.path.dirname(os.path.abspath(__file__)), C_SOURCE_CODE
         )
