@@ -503,7 +503,7 @@ def deactivate(**kwargs):
 @commands.command()
 @click.argument("ocid", nargs=1)
 @click.argument("data", nargs=1)
-@click.argument("conda_slug", nargs=1)
+@click.argument("conda_slug", nargs=1, required=False)
 @add_options(_options)
 def predict(**kwargs):
     """
@@ -511,15 +511,6 @@ def predict(**kwargs):
     """
     suppress_traceback(kwargs["debug"])(predict_cmd)(**kwargs)
     
-   
-@commands.command()
-@click.argument("conda", nargs=1)
-@click.argument("ocid", nargs=1)
-@click.argument("data", nargs=1)
-@add_options(_options)
-def verify(**kwargs):
-    suppress_traceback(kwargs["debug"])(verify_cmd)(**kwargs)
-
 
 commands.add_command(ads.opctl.conda.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)

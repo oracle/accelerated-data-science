@@ -653,5 +653,20 @@ class LocalModelDeploymentBackend(LocalBackend):
                 f"Run with the --debug argument to view container logs."
             )
     
+    def _run_with_image(self, bind_volumes):
+        ocid = self.config["execution"].get("ocid")
+        data = self.config["execution"].get("data")
+        image = self.config["execution"].get("image")
+        env_vars = self.config["execution"]["env_vars"]
+        # compartment_id = self.config["execution"].get("compartment_id", self.config["infrastructure"].get("compartment_id"))
+        # project_id = self.config["execution"].get("project_id", self.config["infrastructure"].get("project_id"))
+        entrypoint = self.config["execution"].get("entrypoint", None)
+        command = self.config["execution"].get("command", None)
+        if self.config["execution"].get("source_folder", None):
+            bind_volumes.update(self._mount_source_folder_if_exists(bind_volumes))
+        bind_volumes.update(self.config["execution"]["volumes"])
+        
+        return run_container(image, bind_volumes, env_vars, command, entrypoint)
+    
     def _run_with_local_env(self, ):
         pass

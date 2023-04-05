@@ -484,8 +484,8 @@ def predict(**kwargs):
         #         p.config["execution"]["backend"] = b.value
 
     # return _BackendFactory(p.config).backend.predict()
-
     if "datasciencemodeldeployment" in p.config["execution"].get("ocid", ""):
+        
         return ModelDeploymentBackend(p.config).predict()
     elif "datasciencemodel" in p.config["execution"].get("ocid", ""):
         return LocalModelDeploymentBackend(p.config).predict()
