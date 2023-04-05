@@ -2528,13 +2528,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         NotActiveDeploymentError
             If model deployment process was not started or not finished yet.
         ValueError
-            If `data` is empty or not JSON serializable.
+            If model is not deployed yet or the endpoint information is not available.
         """
         if local:
-            return self.verify(data=data, auto_serialize_data=auto_serialize_data, **kwargs)
+            return self.verify(
+                data=data, auto_serialize_data=auto_serialize_data, **kwargs
+            )
 
-        if not self.model_deployment:
-            raise ValueError("Use `deploy()` method to start model deployment.")
+        if not (self.model_deployment and self.model_deployment.url):
+            raise ValueError(
+                "Error invoking the remote endpoint as the model is not "
+                "deployed yet or the endpoint information is not available. "
+                "Use `deploy()` method to start model deployment. "
+                "If you intend to invoke inference using locally available "
+                "model artifact, set parameter `local=True`"
+            )
 
         current_state = self.model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
