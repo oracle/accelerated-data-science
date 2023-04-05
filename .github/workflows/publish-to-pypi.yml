@@ -27,4 +27,5 @@ jobs:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.GH_ADS_TESTPYPI_TOKEN }}
         run: |
+          pip install twine
           twine upload -r testpypi dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
