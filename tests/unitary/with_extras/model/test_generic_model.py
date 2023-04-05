@@ -168,6 +168,9 @@ OCI_MODEL_PROVENANCE_PAYLOAD = {
     "training_script": None,
 }
 
+INFERENCE_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
+TRAINING_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
+
 
 class TestEstimator:
     def predict(self, x):
@@ -175,7 +178,6 @@ class TestEstimator:
 
 
 class TestGenericModel:
-
     iris = load_iris()
     X, y = iris.data, iris.target
     X_train, X_test, y_train, y_test = train_test_split(X, y)
@@ -301,9 +303,9 @@ class TestGenericModel:
     def test_prepare_with_custom_scorepy(self, mock_signer):
         """Test prepare a trained model with custom score.py."""
         self.generic_model.prepare(
-            "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
+            INFERENCE_CONDA_ENV,
             model_file_name="fake_model_name",
-            score_py_uri=f"{os.path.dirname(os.path.abspath(__file__))}/test_files/custom_score.py"
+            score_py_uri=f"{os.path.dirname(os.path.abspath(__file__))}/test_files/custom_score.py",
         )
         assert os.path.exists(os.path.join("fake_folder", "score.py"))
 
@@ -808,7 +810,6 @@ class TestGenericModel:
             with patch.object(
                 GenericModel, "get_data_serializer"
             ) as mock_get_data_serializer:
-
                 mock_get_data_serializer.return_value.data = df.to_json()
                 mock_state.return_value = ModelDeploymentState.ACTIVE
                 with patch.object(ModelDeployment, "predict") as mock_predict:
@@ -1795,7 +1796,6 @@ class TestGenericModel:
     def test_upload_artifact_success(self):
         """Tests uploading model artifacts to the provided `uri`."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-
             # copy test artifacts to the temp folder
             shutil.copytree(
                 os.path.join(self.curr_dir, "test_files/valid_model_artifacts"),
