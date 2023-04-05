@@ -341,6 +341,7 @@ def run_container(
 
     for line in container.logs(stream=True, follow=True):
         logger.info(line.decode("utf-8").strip())
+        print(line.decode("utf-8").strip())
 
     result = container.wait()
     container.remove()

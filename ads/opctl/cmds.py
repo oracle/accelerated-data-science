@@ -21,6 +21,7 @@ from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalPipelineBackend,
+    LocalModelDeploymentBackend
 )
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
@@ -58,6 +59,15 @@ from ads.opctl.utils import (
     get_service_pack_prefix,
 )
 import yaml
+from ads.opctl.utils import (
+    parse_conda_uri,
+    run_container,
+    get_docker_client,
+    is_in_notebook_session,
+    run_command,
+)
+
+
 
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
@@ -65,6 +75,7 @@ class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     DATAFLOW = "dataflowapplication"
     PIPELINE = "datasciencepipeline"
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
+    MODEL = "datascience"
 
 
 class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
@@ -82,6 +93,7 @@ DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
     DataScienceResource.PIPELINE: "pipeline",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
     DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
+    DataScienceResource.MODEL: "deployment"
 }
 
 DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
@@ -103,6 +115,7 @@ class _BackendFactory:
     LOCAL_BACKENDS_MAP = {
         BACKEND_NAME.JOB.value: LocalBackend,
         BACKEND_NAME.PIPELINE.value: LocalPipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT.value: LocalModelDeploymentBackend
     }
 
     def __init__(self, config: Dict):
@@ -119,6 +132,7 @@ class _BackendFactory:
     @property
     def backend(self):
         if self._backend == BACKEND_NAME.LOCAL.value:
+
             kind = self.config.get("kind")
             if kind not in self.LOCAL_BACKENDS_MAP:
                 options = [backend for backend in self.LOCAL_BACKENDS_MAP.keys()]
@@ -457,6 +471,25 @@ def deactivate(**kwargs) -> None:
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.deactivate()
 
+
+def predict(**kwargs):
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    # if "ocid" in p.config["execution"]:
+        # resource_to_backend = {
+        #     DataScienceResourceRun.MODEL_DEPLOYMENT: BACKEND_NAME.MODEL_DEPLOYMENT,
+            # DataScienceResource.MODEL: BACKEND_NAME.MODEL_DEPLOYMENT,
+        # }
+        # for r, b in resource_to_backend.items():
+        #     if r in p.config["execution"]["ocid"]:
+        #         p.config["execution"]["backend"] = b.value
+
+    # return _BackendFactory(p.config).backend.predict()
+
+    if "datasciencemodeldeployment" in p.config["execution"].get("ocid", ""):
+        return ModelDeploymentBackend(p.config).predict()
+    elif "datasciencemodel" in p.config["execution"].get("ocid", ""):
+        return LocalModelDeploymentBackend(p.config).predict()
+    
 
 def init_vscode(**kwargs) -> None:
     """

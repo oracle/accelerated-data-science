@@ -146,7 +146,7 @@ class LocalBackend(Backend):
                     "extensions": ["ms-python.python"],
                 }
 
-        dev_container["containerEnv"] = self.config["execution"]["env_vars"]
+        dev_container["containerEnv"] = self.config["execution"].get("env_vars", {})
         for k, v in self.config["execution"]["volumes"].items():
             dev_container["mounts"].append(
                 f"source={os.path.abspath(k)},target={v['bind']},type=bind"
@@ -178,10 +178,10 @@ class LocalBackend(Backend):
                 f.write(json.dumps(dev_container, indent=2))
             print(f"File {os.path.abspath('.devcontainer.json')} created.")
 
-    def _run_with_conda_pack(self, bind_volumes: Dict) -> int:
-        env_vars = self.config["execution"]["env_vars"]
+    def _run_with_conda_pack(self, bind_volumes: Dict, extra_cmd: str="") -> int:
+        env_vars = self.config["execution"].get("env_vars", {})
         slug = self.config["execution"]["conda_slug"]
-        image = self.config["execution"]["image"]
+        image = self.config["execution"].get("image", None)
 
         # bind_volumes is modified in-place and does not need to be returned
         # it is returned just to be explicit that it is changed during this function call
@@ -189,7 +189,7 @@ class LocalBackend(Backend):
             slug, bind_volumes, env_vars
         )
         bind_volumes = self._mount_source_folder_if_exists(bind_volumes)
-        command = self._build_command_for_conda_run()
+        command = self._build_command_for_conda_run(extra_cmd)
         if is_in_notebook_session():
             run_command(command, shell=True)
         else:
@@ -202,7 +202,7 @@ class LocalBackend(Backend):
                 image, slug, command, bind_volumes, env_vars
             )
 
-    def _build_command_for_conda_run(self) -> str:
+    def _build_command_for_conda_run(self, extra_cmd: str="") -> str:
         if ConfigResolver(self.config)._is_ads_operator():
             if is_in_notebook_session():
                 curr_dir = os.path.dirname(os.path.abspath(__file__))
@@ -252,6 +252,7 @@ class LocalBackend(Backend):
                 command = f"cd {source_folder} && {entry_script} "
         if self.config["execution"].get("command"):
             command += f"{self.config['execution']['command']}"
+        command += extra_cmd
         return command
 
     def _run_with_image(self, bind_volumes: Dict) -> int:
@@ -610,3 +611,47 @@ class LocalPipelineBackend(Backend):
             The message to log
         """
         logger.info(f"{self.LOG_PREFIX}: {str}")
+
+
+class LocalModelDeploymentBackend(LocalBackend):
+    def __init__(self, config: Dict) -> None:
+        super().__init__(config)
+        
+    def predict(self) -> None:
+        ocid = self.config["execution"].get("ocid")
+        data = self.config["execution"].get("data")
+        compartment_id = self.config["execution"].get("compartment_id", self.config["infrastructure"].get("compartment_id"))
+        project_id = self.config["execution"].get("project_id", self.config["infrastructure"].get("project_id"))
+        if not compartment_id or not project_id:
+            raise ValueError("`compartment_id` and `project_id` must be provided.")
+        
+        self.config["execution"]["image"] = ML_JOB_IMAGE
+        extra_cmd = ocid + " " + data + " " + compartment_id + " " + project_id
+        bind_volumes = {}
+        if not is_in_notebook_session():
+            bind_volumes = {
+                os.path.expanduser(
+                    os.path.dirname(self.config["execution"]["oci_config"])
+                ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
+            }
+            dir_path = os.path.dirname(os.path.realpath(__file__))
+            script = "script.py"
+            self.config["execution"]["source_folder"] = os.path.abspath(os.path.join(dir_path, ".."))
+            # bind_volumes[os.path.join(dir_path, "..", "script.py")] = {"bind": script}
+            self.config["execution"]["entrypoint"] = script
+        if self.config["execution"].get("conda_slug", None):
+            exit_code = self._run_with_conda_pack(bind_volumes, extra_cmd)
+            
+        elif self.config["execution"].get("image"):
+            exit_code = self._run_with_image(bind_volumes)
+        else:
+            raise ValueError("Either conda pack info or image should be specified.")
+
+        if exit_code != 0:
+            raise RuntimeError(
+                f"`predict` did not complete successfully. Exit code: {exit_code}. "
+                f"Run with the --debug argument to view container logs."
+            )
+    
+    def _run_with_local_env(self, ):
+        pass

@@ -15,6 +15,7 @@ from ads.common import auth as authutil
 from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import deactivate as deactivate_cmd
+from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
@@ -497,6 +498,27 @@ def deactivate(**kwargs):
     Deactivates a data science service.
     """
     suppress_traceback(kwargs["debug"])(deactivate_cmd)(**kwargs)
+    
+    
+@commands.command()
+@click.argument("ocid", nargs=1)
+@click.argument("data", nargs=1)
+@click.argument("conda_slug", nargs=1)
+@add_options(_options)
+def predict(**kwargs):
+    """
+    Deactivates a data science service.
+    """
+    suppress_traceback(kwargs["debug"])(predict_cmd)(**kwargs)
+    
+   
+@commands.command()
+@click.argument("conda", nargs=1)
+@click.argument("ocid", nargs=1)
+@click.argument("data", nargs=1)
+@add_options(_options)
+def verify(**kwargs):
+    suppress_traceback(kwargs["debug"])(verify_cmd)(**kwargs)
 
 
 commands.add_command(ads.opctl.conda.cli.commands)

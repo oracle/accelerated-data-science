@@ -10,6 +10,10 @@ from ads.common.auth import create_signer, AuthContext
 from ads.common.oci_client import OCIClientFactory
 from ads.opctl.backend.base import Backend
 from ads.model.deployment import ModelDeployment
+from ads.model import GenericModel
+import json
+import os
+import uuid
 
 from oci.data_science.models import ModelDeployment as OCIModelDeployment
 
@@ -170,3 +174,30 @@ class ModelDeploymentBackend(Backend):
             model_deployment.watch(
                 log_type=log_type, interval=interval, log_filter=log_filter
             )
+
+    def predict(self) -> None:
+        ocid = self.config["execution"].get("ocid")
+        data = self.config["execution"].get("data")
+        if "datasciencemodeldeployment" in ocid:
+            with AuthContext(auth=self.auth_type, profile=self.profile):
+                model_deployment = ModelDeployment.from_id(ocid)
+                return model_deployment.predict(data)
+        elif "datasciencemodel":
+            with AuthContext(auth=self.auth_type, profile=self.profile):
+                import tempfile
+                with tempfile.TemporaryDirectory() as td:
+
+                    model = GenericModel.from_model_catalog(ocid, artifact_dir=os.path.join(td, str(uuid.uuid4())), force_overwrite=True)
+                    
+                    conda_pack = self.config["execution"].get("conda", None)
+                    if not conda_pack and hasattr(model.metadata_custom, "EnvironmentType") and model.metadata_custom.EnvironmentType == "published" and hasattr(model.metadata_custom, "CondaEnvironmentPath"):
+                        conda_pack = model.metadata_custom.CondaEnvironmentPath
+                    if conda_pack and "service-conda-packs" not in conda_pack:
+                        print("install conda pack and activate the conda pack.")
+                    
+                    data = json.loads(data)
+                    print(model.verify(data))
+        else:
+            raise ValueError("Only model ocid or model deployment ocid is supported.")
+
+
