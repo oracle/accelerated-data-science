@@ -1,0 +1,30 @@
+name: "[DO NOT TRIGGER] Publish to PyPI"
+
+on:
+  # To run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build-n-publish:
+    name: Build and publish Python 🐍 distribution 📦 to PyPI
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+      - name: Build distribution 📦
+        run: |
+          make dist
+      - name: Validate
+        run: |
+          pip install dist/*.whl
+          python -c "import ads;"
+      - name: Publish distribution 📦 to Test PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.GH_ADS_TESTPYPI_TOKEN }}
+        run: |
+          twine upload -r testpypi dist/* -u $TWINE_USERNAME -p $TWINE_PASSWORD
