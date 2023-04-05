@@ -931,9 +931,6 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
     CONST_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
 
-    CONST_OCI_PIP_REQUIREMENTS = "OCI__PIP_REQUIREMENTS"
-    CONST_OCI_PIP_INSTALL = "OCI__PIP_INSTALL"
-
     GIT_SPEC_MAPPINGS = {
         cluster_config_helper.OCI__RUNTIME_URI: GitPythonRuntime.CONST_GIT_URL,
         cluster_config_helper.OCI__RUNTIME_GIT_BRANCH: GitPythonRuntime.CONST_BRANCH,
@@ -969,7 +966,7 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
         spec[PyTorchDistributedRuntime.CONST_REPLICA] = envs.pop(
             self.CONST_WORKER_COUNT
         )
-        input_mappings = envs.pop(self.CONST_INPUT_MAPPINGS)
+        input_mappings = envs.pop(self.CONST_INPUT_MAPPINGS, None)
         if input_mappings:
             spec[PyTorchDistributedRuntime.CONST_INPUT] = input_mappings
         if envs:

@@ -344,7 +344,7 @@ class JobRunner:
         int
             The return code of the command.
         """
-        logger.debug(">>> %s", command)
+        logger.info(">>> %s", command)
         if conda_prefix:
             # Conda activate
             # https://docs.conda.io/projects/conda/en/latest/release-notes.html#id241
