@@ -168,8 +168,8 @@ OCI_MODEL_PROVENANCE_PAYLOAD = {
     "training_script": None,
 }
 
-INFERENCE_CONDA_ENV = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
-TRAINING_CONDA_ENV = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
+INFERENCE_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
+TRAINING_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
 DEFAULT_PYTHON_VERSION = "3.8"
 MODEL_FILE_NAME = "fake_model_name"
 FAKE_MD_URL = "http://<model-deployment-url>"
