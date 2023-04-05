@@ -155,7 +155,11 @@ class ConfigResolver(ConfigProcessor):
     def _resolve_entry_script(self) -> None:
         # this should be run after _resolve_source_folder_path
         if not self._is_ads_operator():
-            if os.path.splitext(self.config["execution"]["entrypoint"])[1] == ".ipynb":
+            if (
+                self.config["execution"].get("entrypoint")
+                and os.path.splitext(self.config["execution"]["entrypoint"])[1]
+                == ".ipynb"
+            ):
                 input_path = os.path.join(
                     self.config["execution"]["source_folder"],
                     self.config["execution"]["entrypoint"],

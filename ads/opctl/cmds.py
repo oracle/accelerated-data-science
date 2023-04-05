@@ -141,7 +141,7 @@ def _save_yaml(yaml_content, **kwargs):
     yaml_content : str
         YAML content as string.
     """
-    if kwargs["job_info"]:
+    if kwargs.get("job_info"):
         yaml_path = os.path.abspath(os.path.expanduser(kwargs["job_info"]))
         if os.path.isfile(yaml_path):
             overwrite = input(
@@ -210,7 +210,7 @@ def run(config: Dict, **kwargs) -> Dict:
                 "backend operator for distributed training can either be local or job"
             )
         else:
-            if not kwargs["dry_run"]:
+            if not kwargs["dry_run"] and not kwargs["nobuild"]:
                 verify_and_publish_image(kwargs["nopush"], config)
                 print("running image: " + config["spec"]["cluster"]["spec"]["image"])
             cluster_def = YamlSpecParser.parse_content(config)
