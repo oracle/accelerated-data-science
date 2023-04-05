@@ -140,7 +140,7 @@ with open(
 
 long_description = (this_directory / "README.md").read_text()
 setup(
-    name="test_oracle_ads",
+    name="oracle_ads",
     version=ADS_VERSION,
     description="Oracle Accelerated Data Science SDK",
     author="Oracle Data Science",
