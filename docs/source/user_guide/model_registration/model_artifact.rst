@@ -114,7 +114,7 @@ The provided ``score.py`` will be added into model artifact.
         use_case_type=UseCaseType.MULTINOMIAL_CLASSIFICATION,
         X_sample=trainx,
         y_sample=trainy,
-        score_py_uri="oci://my-bucket@my-namespace/score.py"
+        score_py_uri="/path/to/score.py"
     )
 
 .. include:: _template/score.rst
