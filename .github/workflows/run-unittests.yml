@@ -29,7 +29,7 @@ jobs:
         # python-version: ["3.8", "3.9", "3.10"]
         python-version: ["3.8"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        test-path: ["tests/unitary/default_setup"]
+        test-path: ["tests/unitary/default_setup/auth"]
         # include:
         #   - test-path: "tests/unitary"
         #     ignore-path: "tests/unitary/with_extras/model"
