@@ -74,6 +74,8 @@ spec:
       nullable: true
       required: false
       type: list
+      schema:
+        type: string
     url:
       required: false
       type: string

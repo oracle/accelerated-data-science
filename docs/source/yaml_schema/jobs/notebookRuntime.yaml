@@ -7,11 +7,25 @@ type:
   required: true
   type: string
   allowed:
-    - script
+    - notebook
 spec:
   required: true
   type: dict
   schema:
+    excludeTags:
+      required: false
+      type: list
+      schema:
+        type: string
+    notebookPathURI:
+      required: false
+      type: string
+    notebookEncoding:
+      required: false
+      type: string
+    outputUri:
+      required: false
+      type: string
     args:
       nullable: true
       required: false
@@ -27,10 +41,10 @@ spec:
           required: true
           type: string
         type:
-          allowed:
-            - service
           required: true
           type: string
+          allowed:
+            - service
     env:
       nullable: true
       required: false
@@ -38,27 +52,9 @@ spec:
       schema:
         type: dict
         schema:
-        name:
-          type: string
-        value:
-          type:
-            - number
-            - string
-    scriptPathURI:
-      required: true
-      type: string
-    entrypoint:
-      required: false
-      type: string
-    outputDir:
-      required: false
-      type: string
-    outputUri:
-      required: false
-      type: string
-    workingDir:
-      required: false
-      type: string
-    pythonPath:
-      required: false
-      type: list
+          name:
+            type: string
+          value:
+            type:
+              - number
+              - string

@@ -1,47 +1,51 @@
 kind:
   required: true
-  type: "string"
+  type: string
   allowed:
-    - "infrastructure"
+    - infrastructure
 type:
   required: true
-  type: "string"
+  type: string
   allowed:
-    - "dataScienceJob"
+    - dataScienceJob
 spec:
   required: true
-  type: "dict"
+  type: dict
   schema:
     blockStorageSize:
       default: 50
       min: 50
       required: false
-      type: "integer"
+      type: integer
     compartmentId:
       required: false
-      type: "string"
+      type: string
     displayName:
       required: false
-      type: "string"
+      type: string
     id:
       required: false
-      type: "string"
+      type: string
     logGroupId:
       required: false
-      type: "string"
+      type: string
     logId:
       required: false
-      type: "string"
+      type: string
     projectId:
       required: false
-      type: "string"
+      type: string
     shapeName:
       required: false
-      type: "string"
+      type: string
     subnetId:
       required: false
-      type: "string"
+      type: string
     shapeConfigDetails:
       required: false
-      type: "dict"
-
+      type: dict
+      schema:
+        memoryInGBs:
+          type: string
+        ocpus:
+          type: integer

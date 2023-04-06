@@ -38,12 +38,12 @@ spec:
       schema:
         type: dict
         schema:
-        name:
-          type: string
-        value:
-          type:
-            - number
-            - string
+          name:
+            type: string
+          value:
+            type:
+              - number
+              - string
     scriptPathURI:
       required: true
       type: string
