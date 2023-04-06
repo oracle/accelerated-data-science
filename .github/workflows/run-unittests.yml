@@ -97,7 +97,9 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: code-coverage-${{ matrix.name }}
-          path: .coverage.*
+          path: |
+            .coverage
+            .coverage.*
 
   coverage-report:
     name: Combine coverage report and save html report
