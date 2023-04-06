@@ -91,7 +91,7 @@ jobs:
         run: |
           python -m pytest -v -p no:warnings --durations=5 -n auto --dist loadfile \
           ${{ matrix.test-path }} \
-          # --ignore "${{ matrix.ignore-path }}" \
+          --ignore "${{ matrix.ignore-path }}" \
           --cov --cov-report=
 
 #       Uploading test artifacts
