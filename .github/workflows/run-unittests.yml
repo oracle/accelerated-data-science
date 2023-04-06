@@ -105,6 +105,7 @@ jobs:
           name: code-coverage-${{ matrix.python-version }}
           path: |
             *coverage*
+            dev-requirements.txt
             !.coveragerc
 
   coverage-report:
