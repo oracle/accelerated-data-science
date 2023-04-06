@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
       matrix:
         # python-version: ["3.8", "3.9", "3.10"]
-        python-version: ["3.8"]
+        python-version: ["3.8", "3.9"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         test-path: ["tests/unitary/default_setup/auth"]
         # include:
@@ -93,13 +93,15 @@ jobs:
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}" \
           --cov --cov-report=
+          ls -R
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
       - name: "Save coverage files"
         uses: actions/upload-artifact@v3
         with:
-          name: code-coverage-${{ matrix.name }}
+          # name: code-coverage-${{ matrix.name }}
+          name: code-coverage-${{ matrix.python-version }}
           path: |
             .coverage
             .coverage.*
@@ -119,8 +121,8 @@ jobs:
       - name: "Combine coverage files and generate html report"
         run: |
           pip install coverage
-          coverage combine .coverage.* .coverage
-          coverage html --data-file ".coverage"
+          coverage combine code-coverage-3.8/ code-coverage-3.9/
+          coverage html
       - name: "Save coverage report"
         uses: actions/upload-artifact@v3
         with:
