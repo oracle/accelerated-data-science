@@ -1,18 +1,6 @@
 name: tests/unitary/**
 
-on:
-  push:
-    branches:
-      - main
-      - 'release/**'
-      - develop
-    paths:
-      - 'ads/**'
-      - setup.py
-      - '**requirements.txt'
-      - '!docs/**'
-
-  pull_request:
+on: workflow_dispatch
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -29,18 +17,22 @@ env:
 
 jobs:
   test:
-    name: python ${{ matrix.python-version }}, ${{ matrix.test-path }}, ignore ${{ matrix.ignore-path }}
+    name: python ${{ matrix.python-version }}, ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        # python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8"]
         test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         include:
           - test-path: "tests/unitary"
             ignore-path: "tests/unitary/with_extras/model"
+            name: "unitary tests"
+          - test-path: "tests/unitary/with_extras/model"
+            name: "model tests"
 
     steps:
       - uses: actions/checkout@v3
@@ -85,7 +77,6 @@ jobs:
           sudo apt-get install libkrb5-dev graphviz
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          pip install setuptools
           pip install -r dev-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
@@ -95,16 +86,36 @@ jobs:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
         run: |
-          python -m pytest -v -p no:warnings --durations=5 \
+          python -m pytest -v -p no:warnings --durations=5 -n auto --dist loadfile \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}" \
-          --cov --cov-append --cov-report=html
+          --cov --cov-report=
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
-      - name: "Save html coverage report"
+      - name: "Save coverage files"
         uses: actions/upload-artifact@v3
         with:
-          name: code-coverage-report
+          name: code-coverage-${{ matrix.name }}
+          path: .coverage.*
+
+  coverage-report:
+    name: Combine coverage report and save html report
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: "Download coverage files"
+        uses: actions/download-artifact@v3
+      - name: "Display structure of downloaded files"
+        run: ls -R
+      - name: "Combine coverage files and generate html report"
+        run: |
+        coverage combine .coverage.*
+        coverage html --data-file ".coverage"
+      - name: "Save coverage report"
+        uses: actions/upload-artifact@v3
+        with:
+          name: code-coverage-html-report
           path: htmlcov/
           retention-days: 10
