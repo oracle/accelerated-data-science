@@ -114,8 +114,8 @@ jobs:
         run: ls -R
       - name: "Combine coverage files and generate html report"
         run: |
-        coverage combine .coverage.*
-        coverage html --data-file ".coverage"
+          coverage combine .coverage.*
+          coverage html --data-file ".coverage"
       - name: "Save coverage report"
         uses: actions/upload-artifact@v3
         with:
