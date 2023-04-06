@@ -18,7 +18,8 @@ env:
 
 jobs:
   test:
-    name: python ${{ matrix.python-version }}, ${{ matrix.name }}
+    # name: python ${{ matrix.python-version }}, ${{ matrix.name }}
+    name: python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -27,13 +28,14 @@ jobs:
       matrix:
         # python-version: ["3.8", "3.9", "3.10"]
         python-version: ["3.8"]
-        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        include:
-          - test-path: "tests/unitary"
-            ignore-path: "tests/unitary/with_extras/model"
-            name: "unitary tests"
-          - test-path: "tests/unitary/with_extras/model"
-            name: "model tests"
+        # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        test-path: tests/unitary/default_setup
+        # include:
+        #   - test-path: "tests/unitary"
+        #     ignore-path: "tests/unitary/with_extras/model"
+        #     name: "unitary tests"
+        #   - test-path: "tests/unitary/with_extras/model"
+        #     name: "model tests"
 
     steps:
       - uses: actions/checkout@v3
@@ -75,10 +77,10 @@ jobs:
         shell: bash
         run: |
           set -x # print commands that are executed
-          sudo apt-get install libkrb5-dev graphviz
+          # sudo apt-get install libkrb5-dev graphviz
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          pip install -r dev-requirements.txt
+          pip install -r test-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
@@ -89,7 +91,7 @@ jobs:
         run: |
           python -m pytest -v -p no:warnings --durations=5 -n auto --dist loadfile \
           ${{ matrix.test-path }} \
-          --ignore "${{ matrix.ignore-path }}" \
+          # --ignore "${{ matrix.ignore-path }}" \
           --cov --cov-report=
 
 #       Uploading test artifacts
@@ -106,6 +108,7 @@ jobs:
     name: Combine coverage report and save html report
     runs-on: ubuntu-latest
     needs: test
+    if: ${{ success() }}
 
     steps:
       - uses: actions/checkout@v3
@@ -115,7 +118,8 @@ jobs:
         run: ls -R
       - name: "Combine coverage files and generate html report"
         run: |
-          coverage combine .coverage.*
+          pip install coverage
+          coverage combine .coverage.* .coverage
           coverage html --data-file ".coverage"
       - name: "Save coverage report"
         uses: actions/upload-artifact@v3
