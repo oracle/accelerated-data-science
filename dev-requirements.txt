@@ -14,3 +14,4 @@ lxml
 fastparquet
 imbalanced-learn
 pyarrow
+mysql-connector-python
