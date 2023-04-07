@@ -122,7 +122,7 @@ jobs:
       - name: "Combine coverage files and generate html report"
         run: |
           pip install coverage
-          coverage combine code-coverage-3.8/ code-coverage-3.9/
+          coverage combine ./code-coverage-3.8/ ./code-coverage-3.9/
           coverage html
       - name: "Save coverage report"
         uses: actions/upload-artifact@v3
