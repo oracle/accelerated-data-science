@@ -42,7 +42,8 @@ class TestUserAgent:
             )
 
     @patch("oci.auth.signers.get_resource_principals_signer")
-    def test_user_agent_rp(self, mock_signer):
+    def test_user_agent_rp(self, mock_signer, monkeypatch):
+        monkeypatch.delenv("OCI_RESOURCE_PRINCIPAL_VERSION", raising=False)
         importlib.reload(ads.config)
         importlib.reload(ads.telemetry)
         auth_info = ads.auth.resource_principal()
@@ -130,8 +131,6 @@ class TestUserAgent:
         mock_signer,
         monkeypatch
     ):
-        #monkeypatch = MonkeyPatch()
-        monkeypatch.setenv("OCI_RESOURCE_PRINCIPAL_VERSION", "1.1")
         monkeypatch.setenv("OCI_RESOURCE_PRINCIPAL_VERSION", "1.1")
 
         importlib.reload(ads.config)
