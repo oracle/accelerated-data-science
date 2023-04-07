@@ -88,6 +88,7 @@ jobs:
         env:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
+          COVERAGE_FILE: test_cov
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
@@ -104,9 +105,7 @@ jobs:
           # name: code-coverage-${{ matrix.name }}
           name: code-coverage-${{ matrix.python-version }}
           path: |
-            *coverage*
-            dev-requirements.txt
-            !.coveragerc
+            *test_cov*
 
   coverage-report:
     name: Combine coverage report and save html report
