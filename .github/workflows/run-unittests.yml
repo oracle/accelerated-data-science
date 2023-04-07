@@ -15,6 +15,7 @@ permissions:
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  COVERAGE_FILE: test_cov
 
 jobs:
   test:
@@ -29,7 +30,7 @@ jobs:
         # python-version: ["3.8", "3.9", "3.10"]
         python-version: ["3.8", "3.9"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        test-path: ["tests/unitary/default_setup/auth"]
+        test-path: ["tests/unitary/default_setup"]
         # include:
         #   - test-path: "tests/unitary"
         #     ignore-path: "tests/unitary/with_extras/model"
@@ -88,11 +89,10 @@ jobs:
         env:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
-          COVERAGE_FILE: test_cov
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
-          --cov-report= --cov= \
+          --cov=ads --cov-report= \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
@@ -105,7 +105,8 @@ jobs:
           # name: code-coverage-${{ matrix.name }}
           name: code-coverage-${{ matrix.python-version }}
           path: |
-            *test_cov*
+            *test_cov.*
+            !test_cov
 
   coverage-report:
     name: Combine coverage report and save html report
@@ -122,7 +123,7 @@ jobs:
       - name: "Combine coverage files and generate html report"
         run: |
           pip install coverage
-          coverage combine ./code-coverage-3.8/ ./code-coverage-3.9/
+          coverage combine code-coverage-3.8/ code-coverage-3.9/
           coverage html
       - name: "Save coverage report"
         uses: actions/upload-artifact@v3
