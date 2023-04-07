@@ -91,6 +91,7 @@ jobs:
           NoDependency: True
           COVERAGE_FILE: test_cov
         run: |
+          export COVERAGE_FILE="test_cov"
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
           --cov=ads --cov-report= \
@@ -125,6 +126,7 @@ jobs:
         env:
           COVERAGE_FILE: test_cov
         run: |
+          export COVERAGE_FILE="test_cov"
           pip install coverage
           coverage combine code-coverage-3.8/ code-coverage-3.9/
           coverage html
