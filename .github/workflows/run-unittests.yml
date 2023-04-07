@@ -90,13 +90,13 @@ jobs:
           CONDA_PREFIX: /usr/share/miniconda
           NoDependency: True
         run: |
-          export COVERAGE_FILE="test_cov" && \
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
           --cov=ads --cov-report= \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
+          tar -czvf coverage_files.tar.gz .coverage.* 
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
@@ -106,8 +106,7 @@ jobs:
           # name: code-coverage-${{ matrix.name }}
           name: code-coverage-${{ matrix.python-version }}
           path: |
-            *test_cov.*
-            !test_cov
+            coverage_files.tar.gz
 
   coverage-report:
     name: "Save html coverage report"
@@ -123,9 +122,10 @@ jobs:
         run: ls -R
       - name: "Combine coverage files and generate html report"
         run: |
+          tar -xzvf code-coverage-3.8/coverage_files.tar.gz -C code-coverage-3.8
+          tar -xzvf code-coverage-3.9/coverage_files.tar.gz -C code-coverage-3.9
           pip install coverage
-          export COVERAGE_FILE="test_cov" && \
-          coverage combine code-coverage-3.8/ code-coverage-3.9/ && \
+          coverage combine code-coverage-3.8/ code-coverage-3.9/
           coverage html
       - name: "Save coverage report"
         uses: actions/upload-artifact@v3
