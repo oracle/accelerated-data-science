@@ -843,13 +843,13 @@ class DataScienceJob(Infrastructure):
             # Minimum/Default block storage size is 50 (GB).
             .with_block_storage_size(50)
             # A list of file systems to be mounted
-            .with_storage_mount([
+            .with_storage_mount(
                 DSCFileStorage(
                     destination_directory_name="test_mount",
                     mount_target="test_mount_target",
                     export_path="test_export_path"
                 ),
-            ])
+            )
         )
 
     """
