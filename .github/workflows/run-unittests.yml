@@ -89,9 +89,8 @@ jobs:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
           NoDependency: True
-          COVERAGE_FILE: test_cov
         run: |
-          export COVERAGE_FILE="test_cov"
+          export COVERAGE_FILE="test_cov" && \
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
           --cov=ads --cov-report= \
@@ -123,12 +122,10 @@ jobs:
       - name: "Display structure of downloaded files"
         run: ls -R
       - name: "Combine coverage files and generate html report"
-        env:
-          COVERAGE_FILE: test_cov
         run: |
-          export COVERAGE_FILE="test_cov"
           pip install coverage
-          coverage combine code-coverage-3.8/ code-coverage-3.9/
+          export COVERAGE_FILE="test_cov" && \
+          coverage combine code-coverage-3.8/ code-coverage-3.9/ && \
           coverage html
       - name: "Save coverage report"
         uses: actions/upload-artifact@v3
