@@ -96,7 +96,7 @@ jobs:
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
-          tar -czvf coverage_files.tar.gz .coverage.* 
+          tar -czvf coverage_files.tar.gz .coverage.* .coverage
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
