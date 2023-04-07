@@ -89,6 +89,7 @@ jobs:
         env:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
+          NoDependency: True
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
@@ -109,7 +110,7 @@ jobs:
             !test_cov
 
   coverage-report:
-    name: Combine coverage report and save html report
+    name: "Save html coverage report"
     runs-on: ubuntu-latest
     needs: test
     if: ${{ success() }}
