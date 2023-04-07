@@ -15,7 +15,6 @@ permissions:
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
-  COVERAGE_FILE: test_cov
 
 jobs:
   test:
@@ -90,6 +89,7 @@ jobs:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
           NoDependency: True
+          COVERAGE_FILE: test_cov
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
@@ -122,6 +122,8 @@ jobs:
       - name: "Display structure of downloaded files"
         run: ls -R
       - name: "Combine coverage files and generate html report"
+        env:
+          COVERAGE_FILE: test_cov
         run: |
           pip install coverage
           coverage combine code-coverage-3.8/ code-coverage-3.9/
