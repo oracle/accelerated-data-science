@@ -15,7 +15,6 @@ permissions:
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
   SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
-  COVERAGE_FILE: .coverage
 
 jobs:
   test:
@@ -97,7 +96,7 @@ jobs:
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
-          tar -czvf coverage_files.tar.gz .coverage.* .coverage
+          tar --exclude=".coveragerc" -czvf coverage_files.tar.gz .coverage*
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
