@@ -130,7 +130,7 @@ jobs:
           FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1=""
           FILE2="code-coverage-pipeline/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           pip install diff_cover
-          diff-cover --compare-branch=origin/main $FILE1 $FILE2
+          diff-cover $FILE1 $FILE2
           DIFF=$(diff-cover $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
           if [[ -z $DIFF ]]; then 
             DIFF_INFO=$(diff-cover $FILE1 $FILE2 | grep "No lines");
