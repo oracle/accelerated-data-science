@@ -124,11 +124,11 @@ jobs:
         uses: actions/download-artifact@v3
       - name: "Display structure of downloaded files"
         run: ls -R
-      - name: "Combine coverage files and generate html report"
+      - name: "Calculate coverage diff"
         run: |
           set -x # print commands that are executed
-          FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f FILE1 ]] && FILE1=""
-          FILE2="code-coverage-pipeline/coverage.xml"; [[ ! -f FILE2 ]] && FILE2=""
+          FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1=""
+          FILE2="code-coverage-pipeline/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           pip install diff_cover
           diff-cover --compare-branch=origin/main $FILE1 $FILE2
           DIFF=$(diff-cover --compare-branch=origin/main $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
@@ -140,7 +140,7 @@ jobs:
             BODY="![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)"
           fi
       - uses: actions/github-script@v6
-        with:
+        # with:
           # github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.rest.issues.createComment({
