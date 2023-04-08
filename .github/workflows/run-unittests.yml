@@ -18,8 +18,7 @@ env:
 
 jobs:
   test:
-    # name: python ${{ matrix.python-version }}, ${{ matrix.name }}
-    name: python ${{ matrix.test-path }}
+    name: python ${{ matrix.python-version }}, ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -30,6 +29,11 @@ jobs:
         python-version: ["3.8"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/pipeline"]
+        include:
+          - test-path: "tests/unitary/default_setup/jobs"
+            name: "jobs"
+          - test-path: "tests/unitary/default_setup/pipeline"
+            name: "pipeline"
         # include:
         #   - test-path: "tests/unitary"
         #     ignore-path: "tests/unitary/with_extras/model"
@@ -102,8 +106,7 @@ jobs:
       - name: "Save coverage files"
         uses: actions/upload-artifact@v3
         with:
-          # name: code-coverage-${{ matrix.name }}
-          name: code-coverage-${{ matrix.python-version }}
+          name: code-coverage-${{ matrix.name }}
           path: |
             coverage.xml
 
@@ -123,10 +126,13 @@ jobs:
         run: ls -R
       - name: "Combine coverage files and generate html report"
         run: |
+          set -x # print commands that are executed
+          cp code-coverage-jobs/coverage.xml coverage1.xml
+          cp code-coverage-pipeline/coverage.xml coverage2.xml
           pip install diff_cover
-          DIFF=$(diff-cover --compare-branch=origin/develop coverage.xml | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+          DIFF=$(diff-cover --compare-branch=origin/main coverage1.xml coverage2.xml | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
           if [[ -z $DIFF ]]; then 
-            DIFF_INFO=$(diff-cover --compare-branch=develop coverage.xml | grep "No lines");
+            DIFF_INFO=$(diff-cover --compare-branch=origin/main coverage1.xml coverage2.xml | grep "No lines");
             BODY="REPORT: $DIFF_INFO"
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
