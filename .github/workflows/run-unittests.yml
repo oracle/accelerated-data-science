@@ -19,7 +19,7 @@ env:
 jobs:
   test:
     # name: python ${{ matrix.python-version }}, ${{ matrix.name }}
-    name: python ${{ matrix.python-version }}
+    name: python ${{ matrix.test-path }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
@@ -27,9 +27,9 @@ jobs:
       fail-fast: false
       matrix:
         # python-version: ["3.8", "3.9", "3.10"]
-        python-version: ["3.8", "3.9"]
+        python-version: ["3.8"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        test-path: ["tests/unitary/default_setup"]
+        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/pipeline"]
         # include:
         #   - test-path: "tests/unitary"
         #     ignore-path: "tests/unitary/with_extras/model"
@@ -92,11 +92,10 @@ jobs:
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
-          --cov=ads --cov-report= \
+          --cov= --cov-report=xml \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
-          tar --exclude=".coveragerc" -czvf coverage_files.tar.gz .coverage*
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
@@ -106,13 +105,15 @@ jobs:
           # name: code-coverage-${{ matrix.name }}
           name: code-coverage-${{ matrix.python-version }}
           path: |
-            coverage_files.tar.gz
+            coverage.xml
 
   coverage-report:
     name: "Save html coverage report"
     runs-on: ubuntu-latest
     needs: test
     if: ${{ success() }}
+    env:
+      BODY: "REPORT: No information on coverage."
 
     steps:
       - uses: actions/checkout@v3
@@ -122,14 +123,31 @@ jobs:
         run: ls -R
       - name: "Combine coverage files and generate html report"
         run: |
-          tar -xzvf code-coverage-3.8/coverage_files.tar.gz -C code-coverage-3.8
-          tar -xzvf code-coverage-3.9/coverage_files.tar.gz -C code-coverage-3.9
-          pip install coverage
-          coverage combine code-coverage-3.8/ code-coverage-3.9/
-          coverage html
-      - name: "Save coverage report"
+          pip install diff_cover
+          DIFF=$(diff-cover --compare-branch=origin/develop coverage.xml | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+          if [[ -z $DIFF ]]; then 
+            DIFF_INFO=$(diff-cover --compare-branch=develop coverage.xml | grep "No lines");
+            BODY="REPORT: $DIFF_INFO"
+          else
+            if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
+            BODY="![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)"
+          fi
+      - uses: actions/github-script@v6
+        with:
+          # github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '${{ env.BODY }}'
+            })
+      - name: "Generate html difference report"
+        run: |
+          diff-cover --compare-branch=origin/develop --html-report=coverage-report.html coverage.xml
+      - name: "Save coverage difference report"
         uses: actions/upload-artifact@v3
         with:
-          name: code-coverage-html-report
-          path: htmlcov/
+          name: coverage-diff-html-report
+          path: coverage-report.html
           retention-days: 10
