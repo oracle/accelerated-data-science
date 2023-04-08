@@ -127,10 +127,10 @@ jobs:
       - name: "Combine coverage files and generate html report"
         run: |
           set -x # print commands that are executed
-          cp code-coverage-jobs/coverage.xml coverage1.xml
-          cp code-coverage-pipeline/coverage.xml coverage2.xml
+          FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f FILE1 ]] && FILE1=""
+          FILE2="code-coverage-pipeline/coverage.xml"; [[ ! -f FILE2 ]] && FILE1=""
           pip install diff_cover
-          DIFF=$(diff-cover --compare-branch=origin/main coverage1.xml coverage2.xml | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+          DIFF=$(diff-cover --compare-branch=origin/main $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
           if [[ -z $DIFF ]]; then 
             DIFF_INFO=$(diff-cover --compare-branch=origin/main coverage1.xml coverage2.xml | grep "No lines");
             BODY="REPORT: $DIFF_INFO"
