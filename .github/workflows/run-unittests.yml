@@ -140,7 +140,7 @@ jobs:
             BODY="![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)"
           fi
       - uses: actions/github-script@v6
-        # with:
+        with:
           # github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.rest.issues.createComment({
