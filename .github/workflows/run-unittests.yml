@@ -160,7 +160,7 @@ jobs:
         uses: actions/github-script@v6
         if: always()
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ github.token }}
           script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
