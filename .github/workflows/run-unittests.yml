@@ -22,7 +22,7 @@ concurrency:
 
 permissions:
   contents: read
-  issues: write
+  pull-requests: write
 
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
