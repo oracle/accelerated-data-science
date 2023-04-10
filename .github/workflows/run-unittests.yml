@@ -38,23 +38,17 @@ jobs:
       fail-fast: false
       matrix:
         # python-version: ["3.8", "3.9", "3.10"]
-        python-version: ["3.8", "3.9"]
-        # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup"]
+        python-version: ["3.8"]
+        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         include:
-          - test-path: "tests/unitary/default_setup/jobs"
-            name: "jobs"
-          - test-path: "tests/unitary/default_setup"
-            name: "feature_types"
-          - python-version: "3.8"
-            cov: --cov=
-            cov-xml-report: --cov-report=xml
-        # include:
-        #   - test-path: "tests/unitary"
-        #     ignore-path: "tests/unitary/with_extras/model"
-        #     name: "unitary tests"
-        #   - test-path: "tests/unitary/with_extras/model"
-        #     name: "model tests"
+          - test-path: "tests/unitary"
+            ignore-path: "tests/unitary/with_extras/model"
+            name: "unitary tests"
+          - test-path: "tests/unitary/with_extras/model"
+            name: "model tests"
+        - python-version: "3.8"
+          cov: --cov=
+          cov-xml-report: --cov-report=xml
 
     steps:
       - uses: actions/checkout@v3
@@ -96,10 +90,10 @@ jobs:
         shell: bash
         run: |
           set -x # print commands that are executed
-          # sudo apt-get install libkrb5-dev graphviz
+          sudo apt-get install libkrb5-dev graphviz
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          pip install -r test-requirements.txt
+          pip install -r dev-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
