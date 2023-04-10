@@ -46,6 +46,9 @@ jobs:
             name: "jobs"
           - test-path: "tests/unitary/default_setup/feature_types"
             name: "feature_types"
+          - python-version: "3.8"
+            cov-report: --cov=
+            cov-xml-report: --cov-report=xml
         # include:
         #   - test-path: "tests/unitary"
         #     ignore-path: "tests/unitary/with_extras/model"
@@ -108,7 +111,7 @@ jobs:
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
-          --cov= --cov-report=xml \
+          "${{ matrix.cov-report }}" "${{ matrix.cov-xml-report }}" \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
@@ -130,7 +133,6 @@ jobs:
     if: ${{ success() }} && ${{ github.event.issue.pull_request }}
     env:
       COMPARE_BRANCH: main
-      BODY: "Coverage diff with `develop` branch: No success to gather report."
 
     steps:
       - name: "Checkout current branch"
@@ -144,10 +146,18 @@ jobs:
       - name: "Calculate coverage diff"
         run: |
           set -x # print commands that are executed
+          
+          # Prepare default body text 
+          BODY_INTRO="Coverage diff with `develop` branch:"
+          BODY="$BODY_INTRO No success to gather report."
+          
+          # Prepare file paths to coverage xml files
           FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
           FILE2="code-coverage-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           echo "FILE1=$FILE1" >> $GITHUB_ENV
           echo "FILE2=$FILE2" >> $GITHUB_ENV
+          
+          # Calculate coverage diff and update body message
           pip install diff_cover
           diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }} 
           DIFF=$(diff-cover $FILE1 $FILE2 \
@@ -155,12 +165,13 @@ jobs:
           if [[ -z $DIFF ]]; then 
             DIFF_INFO=$(diff-cover $FILE1 $FILE2 \
           --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
-            echo BODY="${{ env.BODY_INTRO }} $DIFF_INFO">> $GITHUB_ENV
+            echo BODY="$BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
-            echo BODY="${{ env.BODY_INTRO }} ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
+            echo BODY="$BODY_INTRO ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
           fi
-      - name: "Create comment"
+
+      - name: "Add comment with cov diff to PR"
         uses: actions/github-script@v6
         if: always()
         with:
@@ -176,10 +187,10 @@ jobs:
         run: |
           diff-cover ${{ env.FILE1 }} ${{ env.FILE2 }} \
           --compare-branch=origin/${{ env.COMPARE_BRANCH }} \
-          --html-report=cov-diff-report.html
+          --html-report=cov-diff.html
       - name: "Save coverage difference report"
         uses: actions/upload-artifact@v3
         with:
           name: coverage-diff-html-report
-          path: coverage-report.html
+          path: cov-diff.html
           retention-days: 10
