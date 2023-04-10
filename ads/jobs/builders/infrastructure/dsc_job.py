@@ -4,11 +4,9 @@
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from __future__ import annotations
-import copy
 
 import datetime
 import logging
-import oci
 import os
 import time
 import traceback
@@ -36,17 +34,10 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.jobs.builders.infrastructure.dsc_file_system import (
-    DSCFileStorage,
-    DSCFileSystem,
-)
-
 logger = logging.getLogger(__name__)
 
 SLEEP_INTERVAL = 3
 WAIT_SECONDS_AFTER_FINISHED = 90
-MAXIMUM_MOUNT_COUNT = 5
-FILE_STORAGE_TYPE = "FILE_STORAGE"
 
 
 class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
@@ -842,14 +833,6 @@ class DataScienceJob(Infrastructure):
             .with_shape_config_details(memory_in_gbs=16, ocpus=1)
             # Minimum/Default block storage size is 50 (GB).
             .with_block_storage_size(50)
-            # A list of file systems to be mounted
-            .with_storage_mount(
-                DSCFileStorage(
-                    destination_directory_name="test_mount",
-                    mount_target="test_mount_target",
-                    export_path="test_export_path"
-                ),
-            )
         )
 
     """
@@ -867,7 +850,6 @@ class DataScienceJob(Infrastructure):
     CONST_OCPUS = "ocpus"
     CONST_LOG_ID = "logId"
     CONST_LOG_GROUP_ID = "logGroupId"
-    CONST_STORAGE_MOUNT = "storageMount"
 
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
@@ -881,7 +863,6 @@ class DataScienceJob(Infrastructure):
         CONST_SHAPE_CONFIG_DETAILS: "shape_config_details",
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
-        CONST_STORAGE_MOUNT: "storage_mount",
     }
 
     shape_config_details_attribute_map = {
@@ -906,8 +887,6 @@ class DataScienceJob(Infrastructure):
     snake_to_camel_map = {
         v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()
     }
-
-    storage_mount_type_dict = {FILE_STORAGE_TYPE: DSCFileStorage}
 
     @staticmethod
     def standardize_spec(spec):
@@ -1233,55 +1212,6 @@ class DataScienceJob(Infrastructure):
         """
         return self.get_spec(self.CONST_LOG_GROUP_ID)
 
-    def with_storage_mount(
-        self, *storage_mount: List[Union(DSCFileSystem, dict)]
-    ) -> DataScienceJob:
-        """Sets the file systems to be mounted for the data science job.
-        A maximum number of 5 file systems are allowed to be mounted for a single data science job.
-
-        Parameters
-        ----------
-        storage_mount : List[Union(DSCFileSystem, dict)
-            A list of file systems to be mounted.
-
-        Returns
-        -------
-        DataScienceJob
-            The DataScienceJob instance (self)
-        """
-        storage_mount_list = []
-        for item in storage_mount:
-            if not isinstance(item, DSCFileSystem) and not isinstance(item, dict):
-                raise ValueError(
-                    "Parameter `storage_mount` should be a list of either DSCFileSystem instances or dictionaries."
-                )
-            if isinstance(item, dict):
-                storage_type = item.get("storage_type", None)
-                if not storage_type:
-                    raise ValueError(
-                        "Parameter `storage_type` must be provided for each file system to be mounted."
-                    )
-                if storage_type not in self.storage_mount_type_dict:
-                    raise ValueError(f"Storage type {storage_type} is not supprted.")
-                item = self.storage_mount_type_dict[storage_type](**item)
-            storage_mount_list.append(item)
-        if len(storage_mount_list) > MAXIMUM_MOUNT_COUNT:
-            raise ValueError(
-                f"A maximum number of {MAXIMUM_MOUNT_COUNT} file systems are allowed to be mounted at this time for a job."
-            )
-        return self.set_spec(self.CONST_STORAGE_MOUNT, storage_mount_list)
-
-    @property
-    def storage_mount(self) -> List[DSCFileSystem]:
-        """Files systems that have been mounted for the data science job
-
-        Returns
-        -------
-        list
-            A list of file systems that have been mounted
-        """
-        return self.get_spec(self.CONST_STORAGE_MOUNT, [])
-
     def _prepare_log_config(self) -> dict:
         if not self.log_group_id and not self.log_id:
             return None
@@ -1355,42 +1285,6 @@ class DataScienceJob(Infrastructure):
                         sub_spec[sub_infra_attr] = sub_value
                 if sub_spec:
                     self._spec[infra_attr] = sub_spec
-
-        self._update_storage_mount_from_dsc_model(dsc_job, overwrite)
-        return self
-
-    def _update_storage_mount_from_dsc_model(
-        self, dsc_job: oci.data_science.models.Job, overwrite: bool = True
-    ) -> DataScienceJob:
-        """Update the mount storage properties from an OCI data science job model.
-
-        Parameters
-        ----------
-        dsc_job: oci.data_science.models.Job
-            An OCI data science job model.
-
-        overwrite: bool
-            Whether to overwrite the existing values.
-            If this is set to False, only the empty/None properties will be updated.
-
-        Returns
-        -------
-        DataScienceJob
-            The DataScienceJob instance (self)
-        """
-        storage_mount_list = get_value(
-            dsc_job, "job_storage_mount_configuration_details_list"
-        )
-        if storage_mount_list:
-            storage_mount = [
-                self.storage_mount_type_dict[
-                    file_system["storageType"]
-                ]._update_from_dsc_model(file_system)
-                for file_system in storage_mount_list
-                if file_system["storageType"] in self.storage_mount_type_dict
-            ]
-            if overwrite or not self.get_spec(self.CONST_STORAGE_MOUNT):
-                self.set_spec(self.CONST_STORAGE_MOUNT, storage_mount)
         return self
 
     def _update_job_infra(self, dsc_job: DSCJob) -> DataScienceJob:
@@ -1427,18 +1321,6 @@ class DataScienceJob(Infrastructure):
             dsc_job.job_infrastructure_configuration_details[
                 "jobInfrastructureType"
             ] = JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_STANDALONE
-
-        if self.storage_mount:
-            if not hasattr(
-                oci.data_science.models, "FileStorageMountConfigurationDetails"
-            ):
-                raise EnvironmentError(
-                    "Storage mount hasn't been supported in the current OCI SDK installed."
-                )
-            dsc_job.job_storage_mount_configuration_details_list = [
-                file_system._update_to_dsc_model(compartment_id=dsc_job.compartment_id)
-                for file_system in self.storage_mount
-            ]
         return self
 
     def build(self) -> DataScienceJob:
@@ -1688,55 +1570,3 @@ class DataScienceJob(Infrastructure):
             **kwargs,
         ).data
         return shapes
-
-    @classmethod
-    def from_dict(cls, obj_dict: dict) -> DataScienceJob:
-        """Initialize the object from a Python dictionary."""
-        data_science_job = super().from_dict(obj_dict)
-        if data_science_job.storage_mount:
-            data_science_job.set_spec(
-                cls.CONST_STORAGE_MOUNT,
-                [
-                    cls()._build_file_storage(file_system)
-                    for file_system in data_science_job.storage_mount
-                ],
-            )
-        return data_science_job
-
-    def to_dict(self) -> dict:
-        """Converts the object to dictionary with kind, type and spec as keys."""
-        spec = copy.deepcopy(self._spec)
-        for key, value in spec.items():
-            if hasattr(value, "to_dict"):
-                value = value.to_dict()
-            elif key == self.CONST_STORAGE_MOUNT:
-                value = [item.to_dict() for item in value]
-            spec[key] = value
-
-        return {
-            "kind": self.kind,
-            "type": self.type,
-            "spec": spec,
-        }
-
-    def _build_file_storage(self, file_system: dict) -> DSCFileSystem:
-        """Builds DSCFileSystem object from dict
-
-        Parameters
-        ----------
-        file_system: dict
-            A dictionary containing the required parameters to build a DSCFileSystem object.
-
-        Returns
-        -------
-        DSCFileSystem
-            A DSCFileSystem object.
-        """
-        storage_type = file_system.get("storageType", None)
-        if not storage_type:
-            raise ValueError(
-                "Parameter storage type must be provided for each file system to be mounted."
-            )
-        if storage_type not in self.storage_mount_type_dict:
-            raise ValueError(f"Storage type {storage_type} is not supprted.")
-        return self.storage_mount_type_dict[storage_type].from_dict(file_system)

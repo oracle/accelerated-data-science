@@ -180,36 +180,53 @@ class OCIDataScienceModelDeployment(
         OCIDataScienceModelDeployment
             The `OCIDataScienceModelDeployment` instance (self).
         """
-        logger.info(f"Activating model deployment `{self.id}`.")
-        response = self.client.activate_model_deployment(
-            self.id,
-        )
+        dsc_model_deployment = OCIDataScienceModelDeployment.from_id(self.id)
+        if (
+            dsc_model_deployment.lifecycle_state
+            == self.LIFECYCLE_STATE_ACTIVE
+        ):
+            raise Exception(
+                f"Model deployment {dsc_model_deployment.id} is already in active state."
+            )
 
-        if wait_for_completion:
+        if (
+            dsc_model_deployment.lifecycle_state
+            == self.LIFECYCLE_STATE_INACTIVE
+        ):
+            logger.info(f"Activating model deployment `{self.id}`.")
+            response = self.client.activate_model_deployment(
+                self.id,
+            )
 
-            self.workflow_req_id = response.headers.get("opc-work-request-id", None)
-            oci_model_deployment_object = self.client.get_model_deployment(self.id).data
-            current_state = State._from_str(oci_model_deployment_object.lifecycle_state)
-            model_deployment_id = self.id
+            if wait_for_completion:
 
-            try:
-                self._wait_for_progress_completion(
-                    State.ACTIVE.name,
-                    ACTIVATE_WORKFLOW_STEPS,
-                    [State.FAILED.name, State.INACTIVE.name],
-                    self.workflow_req_id,
-                    current_state,
-                    model_deployment_id,
-                    max_wait_time,
-                    poll_interval,
-                )
-            except Exception as e:
-                logger.error(
-                    f"Error while trying to activate model deployment: {self.id}"
-                )
-                raise e
+                self.workflow_req_id = response.headers.get("opc-work-request-id", None)
+                oci_model_deployment_object = self.client.get_model_deployment(self.id).data
+                current_state = State._from_str(oci_model_deployment_object.lifecycle_state)
+                model_deployment_id = self.id
 
-        return self.sync()
+                try:
+                    self._wait_for_progress_completion(
+                        State.ACTIVE.name,
+                        ACTIVATE_WORKFLOW_STEPS,
+                        [State.FAILED.name, State.INACTIVE.name],
+                        self.workflow_req_id,
+                        current_state,
+                        model_deployment_id,
+                        max_wait_time,
+                        poll_interval,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Error while trying to activate model deployment: {self.id}"
+                    )
+                    raise e
+
+            return self.sync()
+        else:
+            raise Exception(
+                f"Can't activate model deployment {dsc_model_deployment.id} when it's in {dsc_model_deployment.lifecycle_state} state."
+            )
 
     def create(
         self,
@@ -293,36 +310,53 @@ class OCIDataScienceModelDeployment(
         OCIDataScienceModelDeployment
             The `OCIDataScienceModelDeployment` instance (self).
         """
-        logger.info(f"Deactivating model deployment `{self.id}`.")
-        response = self.client.deactivate_model_deployment(
-            self.id,
-        )
+        dsc_model_deployment = OCIDataScienceModelDeployment.from_id(self.id)
+        if (
+            dsc_model_deployment.lifecycle_state
+            == self.LIFECYCLE_STATE_INACTIVE
+        ):
+            raise Exception(
+                f"Model deployment {dsc_model_deployment.id} is already in inactive state."
+            )
 
-        if wait_for_completion:
+        if (
+            dsc_model_deployment.lifecycle_state
+            == self.LIFECYCLE_STATE_ACTIVE
+        ):
+            logger.info(f"Deactivating model deployment `{self.id}`.")
+            response = self.client.deactivate_model_deployment(
+                self.id,
+            )
 
-            self.workflow_req_id = response.headers.get("opc-work-request-id", None)
-            oci_model_deployment_object = self.client.get_model_deployment(self.id).data
-            current_state = State._from_str(oci_model_deployment_object.lifecycle_state)
-            model_deployment_id = self.id
+            if wait_for_completion:
 
-            try:
-                self._wait_for_progress_completion(
-                    State.INACTIVE.name,
-                    DEACTIVATE_WORKFLOW_STEPS,
-                    [State.FAILED.name],
-                    self.workflow_req_id,
-                    current_state,
-                    model_deployment_id,
-                    max_wait_time,
-                    poll_interval,
-                )
-            except Exception as e:
-                logger.error(
-                    f"Error while trying to deactivate model deployment: {self.id}"
-                )
-                raise e
+                self.workflow_req_id = response.headers.get("opc-work-request-id", None)
+                oci_model_deployment_object = self.client.get_model_deployment(self.id).data
+                current_state = State._from_str(oci_model_deployment_object.lifecycle_state)
+                model_deployment_id = self.id
 
-        return self.sync()
+                try:
+                    self._wait_for_progress_completion(
+                        State.INACTIVE.name,
+                        DEACTIVATE_WORKFLOW_STEPS,
+                        [State.FAILED.name],
+                        self.workflow_req_id,
+                        current_state,
+                        model_deployment_id,
+                        max_wait_time,
+                        poll_interval,
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Error while trying to deactivate model deployment: {self.id}"
+                    )
+                    raise e
+
+            return self.sync()
+        else:
+            raise Exception(
+                f"Can't deactivate model deployment {dsc_model_deployment.id} when it's in {dsc_model_deployment.lifecycle_state} state."
+            )
 
     @check_for_model_deployment_id(
         msg="Model deployment needs to be deployed before it can be deleted."
@@ -351,6 +385,22 @@ class OCIDataScienceModelDeployment(
         OCIDataScienceModelDeployment
             The `OCIDataScienceModelDeployment` instance (self).
         """
+        dsc_model_deployment = OCIDataScienceModelDeployment.from_id(self.id)
+        if dsc_model_deployment.lifecycle_state in [
+            self.LIFECYCLE_STATE_DELETED,
+            self.LIFECYCLE_STATE_DELETING
+        ]:
+            raise Exception(
+                f"Model deployment {dsc_model_deployment.id} is either deleted or being deleted."
+            )
+        if dsc_model_deployment.lifecycle_state not in [
+            self.LIFECYCLE_STATE_ACTIVE,
+            self.LIFECYCLE_STATE_FAILED,
+            self.LIFECYCLE_STATE_INACTIVE,
+        ]:
+            raise Exception(
+                f"Can't delete model deployment {dsc_model_deployment.id} when it's in {dsc_model_deployment.lifecycle_state} state."
+            )
         logger.info(f"Deleting model deployment `{self.id}`.")
         response = self.client.delete_model_deployment(
             self.id,

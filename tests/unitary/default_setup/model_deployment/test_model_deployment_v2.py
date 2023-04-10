@@ -41,7 +41,7 @@ try:
         InstanceConfiguration,
         ModelDeploymentInstanceShapeConfigDetails,
         FixedSizeScalingPolicy,
-        StreamConfigurationDetails,
+        #StreamConfigurationDetails,
         OcirModelDeploymentEnvironmentConfigurationDetails,
         CategoryLogDetails,
         LogDetails,
@@ -50,7 +50,7 @@ try:
         UpdateSingleModelDeploymentConfigurationDetails,
         UpdateOcirModelDeploymentEnvironmentConfigurationDetails,
         UpdateModelConfigurationDetails,
-        UpdateStreamConfigurationDetails,
+        #UpdateStreamConfigurationDetails,
     )
 except (ImportError, AttributeError) as e:
     raise unittest.SkipTest(
@@ -83,9 +83,9 @@ OCI_MODEL_DEPLOYMENT_RESPONSE = oci.data_science.models.ModelDeployment(
             scaling_policy=FixedSizeScalingPolicy(instance_count=5),
             bandwidth_mbps=5,
         ),
-        stream_configuration_details=StreamConfigurationDetails(
-            input_stream_ids=["123", "456"], output_stream_ids=["321", "654"]
-        ),
+        # stream_configuration_details=StreamConfigurationDetails(
+        #     input_stream_ids=["123", "456"], output_stream_ids=["321", "654"]
+        # ),
         environment_configuration_details=OcirModelDeploymentEnvironmentConfigurationDetails(
             image="iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0",
             image_digest="sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c",
@@ -107,7 +107,7 @@ OCI_MODEL_DEPLOYMENT_RESPONSE = oci.data_science.models.ModelDeployment(
         ),
     ),
     model_deployment_url="model_deployment_url",
-    deployment_mode="STREAM_ONLY",
+    #deployment_mode="STREAM_ONLY",
 )
 
 OCI_MODEL_DEPLOYMENT_DICT = {
@@ -149,10 +149,10 @@ OCI_MODEL_DEPLOYMENT_DICT = {
                 "server_port": 5000,
                 "health_check_port": 5000,
                 "env": {"WEB_CONCURRENCY": 10},
-                "input_stream_ids": ["123", "456"],
-                "output_stream_ids": ["321", "654"],
+                # "input_stream_ids": ["123", "456"],
+                # "output_stream_ids": ["321", "654"],
                 "model_uri": "fakeid.datasciencemodel.oc1.iad.xxx",
-                "deployment_mode": "STREAM_ONLY",
+                "deployment_mode": "HTTPS_ONLY",
             },
         },
     },
@@ -199,9 +199,7 @@ spec:
       healthCheckPort: 5000
       env:
         key: value
-      inputStreamIds: ["123", "456"]
-      outputStreamIds: ["321", "654"]
-      deploymentMode: STREAM_ONLY
+      deploymentMode: HTTPS_ONLY
 """
 
 
@@ -240,10 +238,10 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                     "WEB_CONCURRENCY": 10,
                 }
             )
-            .with_input_stream_ids(["123", "456"])
-            .with_output_stream_ids(["321", "654"])
+            # .with_input_stream_ids(["123", "456"])
+            # .with_output_stream_ids(["321", "654"])
             .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
-            .with_deployment_mode("STREAM_ONLY")
+            .with_deployment_mode("HTTPS_ONLY")
         )
 
         model_deployment = (
@@ -292,10 +290,10 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                     "WEB_CONCURRENCY": 10,
                 }
             )
-            .with_input_stream_ids(["123", "456"])
-            .with_output_stream_ids(["321", "654"])
+            # .with_input_stream_ids(["123", "456"])
+            # .with_output_stream_ids(["321", "654"])
             .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
-            .with_deployment_mode("STREAM_ONLY")
+            .with_deployment_mode("HTTPS_ONLY")
         )
 
         return ModelDeployment(
@@ -343,10 +341,10 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                     "WEB_CONCURRENCY": 10,
                 }
             )
-            .with_input_stream_ids(["123", "456"])
-            .with_output_stream_ids(["321", "654"])
+            # .with_input_stream_ids(["123", "456"])
+            # .with_output_stream_ids(["321", "654"])
             .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
-            .with_deployment_mode("STREAM_ONLY")
+            .with_deployment_mode("HTTPS_ONLY")
         )
 
         return ModelDeployment(
@@ -378,9 +376,9 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
         temp_runtime = temp_model_deployment.runtime
         assert temp_runtime.environment_config_type == "OCIR_CONTAINER"
         assert temp_runtime.env == {"WEB_CONCURRENCY": 10}
-        assert temp_runtime.deployment_mode == "STREAM_ONLY"
-        assert temp_runtime.input_stream_ids == ["123", "456"]
-        assert temp_runtime.output_stream_ids == ["321", "654"]
+        assert temp_runtime.deployment_mode == "HTTPS_ONLY"
+        # assert temp_runtime.input_stream_ids == ["123", "456"]
+        # assert temp_runtime.output_stream_ids == ["321", "654"]
         assert temp_runtime.image == "iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0"
         assert (
             temp_runtime.image_digest
@@ -482,10 +480,10 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                         "serverPort": 5000,
                         "healthCheckPort": 5000,
                         "env": {"WEB_CONCURRENCY": 10},
-                        "inputStreamIds": ["123", "456"],
-                        "outputStreamIds": ["321", "654"],
+                        # "inputStreamIds": ["123", "456"],
+                        # "outputStreamIds": ["321", "654"],
                         "modelUri": "fakeid.datasciencemodel.oc1.iad.xxx",
-                        "deploymentMode": "STREAM_ONLY",
+                        "deploymentMode": "HTTPS_ONLY",
                     },
                 },
             },
@@ -521,10 +519,10 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                 "modelId": "fakeid.datasciencemodel.oc1.iad.xxx",
                 "scalingPolicy": {"policyType": "FIXED_SIZE", "instanceCount": 5},
             },
-            "streamConfigurationDetails": {
-                "inputStreamIds": ["123", "456"],
-                "outputStreamIds": ["321", "654"],
-            },
+            # "streamConfigurationDetails": {
+            #     "inputStreamIds": ["123", "456"],
+            #     "outputStreamIds": ["321", "654"],
+            # },
             "environmentConfigurationDetails": {
                 "environmentConfigurationType": "OCIR_CONTAINER",
                 "image": "iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0",
@@ -686,21 +684,21 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
         assert scaling_policy.policy_type == "FIXED_SIZE"
         assert scaling_policy.instance_count == model_deployment.infrastructure.replica
 
-        stream_configuration_details = (
-            model_deployment_configuration_details.stream_configuration_details
-        )
-        assert isinstance(
-            stream_configuration_details,
-            StreamConfigurationDetails,
-        )
-        assert (
-            stream_configuration_details.input_stream_ids
-            == model_deployment.runtime.input_stream_ids
-        )
-        assert (
-            stream_configuration_details.output_stream_ids
-            == model_deployment.runtime.output_stream_ids
-        )
+        # stream_configuration_details = (
+        #     model_deployment_configuration_details.stream_configuration_details
+        # )
+        # assert isinstance(
+        #     stream_configuration_details,
+        #     StreamConfigurationDetails,
+        # )
+        # assert (
+        #     stream_configuration_details.input_stream_ids
+        #     == model_deployment.runtime.input_stream_ids
+        # )
+        # assert (
+        #     stream_configuration_details.output_stream_ids
+        #     == model_deployment.runtime.output_stream_ids
+        # )
 
     def test_update_from_oci_model(self):
         model_deployment = self.initialize_model_deployment()
@@ -802,9 +800,9 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
         environment_configuration_details = (
             model_deployment_configuration_details.environment_configuration_details
         )
-        stream_configuration_details = (
-            model_deployment_configuration_details.stream_configuration_details
-        )
+#         stream_configuration_details = (
+#             model_deployment_configuration_details.stream_configuration_details
+#         )
         assert (
             runtime.environment_config_type
             == environment_configuration_details.environment_configuration_type
@@ -819,11 +817,11 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             runtime.health_check_port
             == environment_configuration_details.health_check_port
         )
-        assert runtime.input_stream_ids == stream_configuration_details.input_stream_ids
-        assert (
-            runtime.output_stream_ids == stream_configuration_details.output_stream_ids
-        )
-        assert runtime.deployment_mode == OCI_MODEL_DEPLOYMENT_RESPONSE.deployment_mode
+        # assert runtime.input_stream_ids == stream_configuration_details.input_stream_ids
+        # assert (
+        #     runtime.output_stream_ids == stream_configuration_details.output_stream_ids
+        # )
+        # assert runtime.deployment_mode == OCI_MODEL_DEPLOYMENT_RESPONSE.deployment_mode
         assert runtime.model_uri == model_configuration_details.model_id
         assert (
             infrastructure.web_concurrency
@@ -881,10 +879,10 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                         "serverPort": 5000,
                         "healthCheckPort": 5000,
                         "env": {"key": "value"},
-                        "inputStreamIds": ["123", "456"],
-                        "outputStreamIds": ["321", "654"],
+                        # "inputStreamIds": ["123", "456"],
+                        # "outputStreamIds": ["321", "654"],
                         "modelUri": "fakeid.datasciencemodel.oc1.iad.xxx",
-                        "deploymentMode": "STREAM_ONLY",
+                        "deploymentMode": "HTTPS_ONLY",
                     },
                 },
             },
@@ -1032,21 +1030,21 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
         assert scaling_policy.policy_type == "FIXED_SIZE"
         assert scaling_policy.instance_count == model_deployment.infrastructure.replica
 
-        stream_configuration_details = (
-            model_deployment_configuration_details.stream_configuration_details
-        )
-        assert isinstance(
-            stream_configuration_details,
-            UpdateStreamConfigurationDetails,
-        )
-        assert (
-            stream_configuration_details.input_stream_ids
-            == model_deployment.runtime.input_stream_ids
-        )
-        assert (
-            stream_configuration_details.output_stream_ids
-            == model_deployment.runtime.output_stream_ids
-        )
+        # stream_configuration_details = (
+        #     model_deployment_configuration_details.stream_configuration_details
+        # )
+        # assert isinstance(
+        #     stream_configuration_details,
+        #     UpdateStreamConfigurationDetails,
+        # )
+        # assert (
+        #     stream_configuration_details.input_stream_ids
+        #     == model_deployment.runtime.input_stream_ids
+        # )
+        # assert (
+        #     stream_configuration_details.output_stream_ids
+        #     == model_deployment.runtime.output_stream_ids
+        # )
 
     def test_extract_from_oci_model(self):
         infrastructure = ModelDeploymentInfrastructure()
@@ -1100,10 +1098,10 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                 "serverPort": 5000,
                 "healthCheckPort": 5000,
                 "env": {"WEB_CONCURRENCY": "10"},
-                "inputStreamIds": ["123", "456"],
-                "outputStreamIds": ["321", "654"],
+                # "inputStreamIds": ["123", "456"],
+                # "outputStreamIds": ["321", "654"],
                 "modelUri": "fakeid.datasciencemodel.oc1.iad.xxx",
-                "deploymentMode": "STREAM_ONLY",
+                #"deploymentMode": "HTTPS_ONLY",
             },
         }
 
