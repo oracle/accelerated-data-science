@@ -1404,7 +1404,7 @@ class ModelDeployment(Builder):
             infrastructure.CONST_WEB_CONCURRENCY,
             runtime.env.get("WEB_CONCURRENCY", None),
         )
-        if runtime.env.pop("CONTAINER_TYPE", None) == "TRITON":
+        if runtime.env.get("CONTAINER_TYPE", None) == "TRITON":
             runtime.set_spec(
                 runtime.CONST_INFERENCE_SERVER, "triton"
             )
@@ -1584,7 +1584,7 @@ class ModelDeployment(Builder):
                 infrastructure.web_concurrency
             )
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
-        if runtime.inference_server.lower() == "triton":
+        if hasattr(runtime, "inference_server") and runtime.inference_server and runtime.inference_server.lower() == "triton":
             environment_variables["CONTAINER_TYPE"] = "TRITON"
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
