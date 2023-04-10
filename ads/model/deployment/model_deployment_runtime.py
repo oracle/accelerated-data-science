@@ -536,27 +536,28 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         return self.set_spec(self.CONST_HEALTH_CHECK_PORT, health_check_port)
     
     @property
-    def triton(self) -> str:
-        """Whether container is triton or not.
+    def inference_server(self) -> str:
+        """Returns the inference server.
 
         Returns
         -------
-        bool
-            Whether container is triton or not.
+        str
+            The inference server.
         """
-        return self.get_spec(self.CONST_TRITON, False)
+        return self.get_spec(self.CONST_TRITON, None)
 
-    def with_triton(self, triton: bool = True) -> "ModelDeploymentRuntime":
-        """Sets the flag for triton.
+    def with_inference_server(self, inference_server: str = "triton") -> "ModelDeploymentRuntime":
+        """Sets the inference server. Current supported inference server is "triton".
+        Note if you are using byoc, you do not need to set the inference server.
 
         Parameters
         ----------
-        triton: bool
-            Whether it is a triton container.
+        inference_server: str
+            Set the inference server.
 
         Returns
         -------
         ModelDeploymentRuntime
             The ModelDeploymentRuntime instance (self).
         """
-        return self.set_spec(self.CONST_TRITON, triton)
+        return self.set_spec(self.CONST_TRITON, inference_server.lower())
