@@ -44,7 +44,7 @@ jobs:
         include:
           - test-path: "tests/unitary/default_setup/jobs"
             name: "jobs"
-          - test-path: "tests/unitary/default_setup/feature_types"
+          - test-path: "tests/unitary/default_setup"
             name: "feature_types"
           - python-version: "3.8"
             cov: --cov=
@@ -149,7 +149,7 @@ jobs:
           set -x # print commands that are executed
           
           # Prepare default body text 
-          BODY_INTRO="Coverage diff with 'develop' branch:"
+          BODY_INTRO="Coverage diff with ${{ env.COMPARE_BRANCH }} branch:"
           BODY="$BODY_INTRO No success to gather report."
           
           # Prepare file paths to coverage xml files
