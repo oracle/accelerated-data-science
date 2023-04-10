@@ -113,7 +113,7 @@ jobs:
           -n auto --dist loadfile \
           ${{ matrix.cov }} ${{ matrix.cov-xml-report }} \
           ${{ matrix.test-path }} \
-          --ignore ${{ matrix.ignore-path }}
+          --ignore "${{ matrix.ignore-path }}"
           ls -lha
 
 #       Uploading test artifacts
