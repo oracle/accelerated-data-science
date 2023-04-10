@@ -154,13 +154,13 @@ jobs:
             echo BODY="${{ env.BODY_INTRO }} $DIFF_INFO">> $GITHUB_ENV
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
-            echo BODY="${{ env.BODY_INTRO }} ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
+            echo BODY="${{ env.BODY_INTRO }} ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%-$COLOR)" >> $GITHUB_ENV
           fi
       - name: "Create comment"
         uses: actions/github-script@v6
         if: always()
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
+          repo-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
