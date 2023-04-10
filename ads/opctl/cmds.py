@@ -472,20 +472,21 @@ def deactivate(**kwargs) -> None:
     return _BackendFactory(p.config).backend.deactivate()
 
 
-def predict(**kwargs):
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-    # if "ocid" in p.config["execution"]:
-        # resource_to_backend = {
-        #     DataScienceResourceRun.MODEL_DEPLOYMENT: BACKEND_NAME.MODEL_DEPLOYMENT,
-            # DataScienceResource.MODEL: BACKEND_NAME.MODEL_DEPLOYMENT,
-        # }
-        # for r, b in resource_to_backend.items():
-        #     if r in p.config["execution"]["ocid"]:
-        #         p.config["execution"]["backend"] = b.value
+def predict(**kwargs) -> None:
+    """
+    Make prediction using the model with the payload.
+    
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
 
-    # return _BackendFactory(p.config).backend.predict()
+    Returns
+    -------
+    None
+    """
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
     if "datasciencemodeldeployment" in p.config["execution"].get("ocid", ""):
-        
         return ModelDeploymentBackend(p.config).predict()
     elif "datasciencemodel" in p.config["execution"].get("ocid", ""):
         return LocalModelDeploymentBackend(p.config).predict()

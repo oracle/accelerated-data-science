@@ -4,18 +4,16 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict
-import ads
-from ads.common.auth import create_signer, AuthContext
-from ads.common.oci_client import OCIClientFactory
-from ads.opctl.backend.base import Backend
-from ads.model.deployment import ModelDeployment
-from ads.model import GenericModel
 import json
-import os
-import uuid
+from typing import Dict
 
 from oci.data_science.models import ModelDeployment as OCIModelDeployment
+
+import ads
+from ads.common.auth import AuthContext, create_signer
+from ads.common.oci_client import OCIClientFactory
+from ads.model.deployment import ModelDeployment
+from ads.opctl.backend.base import Backend
 
 
 class ModelDeploymentBackend(Backend):
@@ -178,7 +176,6 @@ class ModelDeploymentBackend(Backend):
     def predict(self) -> None:
         ocid = self.config["execution"].get("ocid")
         data = self.config["execution"].get("data")
-        # if "datasciencemodeldeployment" in ocid:
         with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(ocid)
             data = json.loads(data)

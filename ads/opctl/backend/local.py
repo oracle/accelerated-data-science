@@ -10,33 +10,34 @@ import os
 import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
-from typing import List, Dict
+from typing import Dict, List
 
+from oci.data_science.models import PipelineStepRun
+
+from ads.common.auth import create_signer
+from ads.common.decorator.runtime_dependency import (OptionalDependency,
+                                                     runtime_dependency)
+from ads.common.oci_client import OCIClientFactory
+from ads.model.model_metadata import ModelCustomMetadata, ModelTaxonomyMetadata
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend
 from ads.opctl.config.resolver import ConfigResolver
-from ads.opctl.distributed.cmds import local_run, load_ini
-from ads.opctl.constants import (
-    ML_JOB_IMAGE,
-    ML_JOB_GPU_IMAGE,
-    DEFAULT_IMAGE_HOME_DIR,
-    DEFAULT_IMAGE_SCRIPT_DIR,
-    DEFAULT_IMAGE_CONDA_DIR,
-    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
-    DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
-)
-from ads.opctl.utils import get_docker_client, is_in_notebook_session
-from ads.opctl.utils import build_image, run_container, run_command
-from ads.opctl.spark.cmds import (
-    generate_core_site_properties_str,
-    generate_core_site_properties,
-)
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
+from ads.opctl.constants import (DEFAULT_IMAGE_CONDA_DIR,
+                                 DEFAULT_IMAGE_HOME_DIR,
+                                 DEFAULT_IMAGE_SCRIPT_DIR,
+                                 DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
+                                 DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
+                                 ML_JOB_GPU_IMAGE, ML_JOB_IMAGE)
+from ads.opctl.distributed.cmds import load_ini, local_run
+from ads.opctl.spark.cmds import (generate_core_site_properties,
+                                  generate_core_site_properties_str)
+from ads.opctl.utils import (build_image, get_docker_client,
+                             is_in_notebook_session, run_command,
+                             run_container)
 from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
-from oci.data_science.models import PipelineStepRun
+from ads.model.datascience_model import DataScienceModel
+
+DEFAULT_MODEL_FOLDER = "~/.ads_ops/models"
 
 
 class CondaPackNotFound(Exception):
@@ -616,16 +617,25 @@ class LocalPipelineBackend(Backend):
 class LocalModelDeploymentBackend(LocalBackend):
     def __init__(self, config: Dict) -> None:
         super().__init__(config)
+        self.oci_auth = create_signer(
+            config["execution"].get("auth"),
+            config["execution"].get("oci_config", None),
+            config["execution"].get("oci_profile", None),
+        )
+        self.auth_type = config["execution"].get("auth")
+        self.profile = config["execution"].get("oci_profile", None)
+        self.client = OCIClientFactory(**self.oci_auth).data_science
         
     def predict(self) -> None:
+        
         ocid = self.config["execution"].get("ocid")
         data = self.config["execution"].get("data")
+        conda_slug, conda_path = self._get_conda_info(ocid)
         compartment_id = self.config["execution"].get("compartment_id", self.config["infrastructure"].get("compartment_id"))
         project_id = self.config["execution"].get("project_id", self.config["infrastructure"].get("project_id"))
         if not compartment_id or not project_id:
             raise ValueError("`compartment_id` and `project_id` must be provided.")
         
-        self.config["execution"]["image"] = ML_JOB_IMAGE
         extra_cmd = ocid + " " + data + " " + compartment_id + " " + project_id
         bind_volumes = {}
         if not is_in_notebook_session():
@@ -639,11 +649,14 @@ class LocalModelDeploymentBackend(LocalBackend):
             self.config["execution"]["source_folder"] = os.path.abspath(os.path.join(dir_path, ".."))
             # bind_volumes[os.path.join(dir_path, "..", "script.py")] = {"bind": script}
             self.config["execution"]["entrypoint"] = script
-        if self.config["execution"].get("conda_slug", None):
-            exit_code = self._run_with_conda_pack(bind_volumes, extra_cmd)
-            
-        elif self.config["execution"].get("image"):
+        if self.config["execution"].get("image"):
             exit_code = self._run_with_image(bind_volumes)
+        elif self.config["execution"].get("conda_slug", conda_slug):
+            self.config["execution"]["image"] = ML_JOB_IMAGE
+            if not self.config["execution"].get("conda_slug"):
+                self.config["execution"]["conda_slug"] = conda_slug
+            self.config["execution"]["conda_path"] = conda_path
+            exit_code = self._run_with_conda_pack(bind_volumes, extra_cmd)
         else:
             raise ValueError("Either conda pack info or image should be specified.")
 
@@ -652,6 +665,26 @@ class LocalModelDeploymentBackend(LocalBackend):
                 f"`predict` did not complete successfully. Exit code: {exit_code}. "
                 f"Run with the --debug argument to view container logs."
             )
+    
+    def _download_model(self, ocid, region):
+        dsc_model = DataScienceModel.from_id(ocid)
+        dsc_model.download_artifact(
+        target_dir=self.config["execution"].get("source_folder", DEFAULT_MODEL_FOLDER),
+        force_overwrite=True,
+        overwrite_existing_artifact=True,
+        remove_existing_artifact=True,
+        auth=self.oci_auth,
+        region=region,
+        timeout=600,
+        bucket_urr=None,
+        )
+    
+    def _get_conda_info(self, ocid):
+        response = self.client.get_model(ocid)
+        custom_metadata = ModelCustomMetadata._from_oci_metadata(response.data.custom_metadata_list)
+        conda_env_path = custom_metadata['CondaEnvironmentPath'].value
+        conda_slug = custom_metadata['SlugName'].value
+        return conda_slug, conda_env_path
     
     def _run_with_image(self, bind_volumes):
         ocid = self.config["execution"].get("ocid")
