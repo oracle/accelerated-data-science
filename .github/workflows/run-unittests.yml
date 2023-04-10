@@ -136,7 +136,7 @@ jobs:
         uses: actions/checkout@v3
       - name: "Fetch main branch"
         run: |
-          git fetch origin main --depth 1
+          git fetch origin main --depth 10
       - name: "Download coverage files"
         uses: actions/download-artifact@v3
       - name: "Display structure of downloaded files"
@@ -148,9 +148,9 @@ jobs:
           FILE2="code-coverage-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           pip install diff_cover
           diff-cover --compare-branch=${{ env.COMPARE_BRANCH }} $FILE1 $FILE2
-          DIFF=$(diff-cover --compare-branch=main $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+          DIFF=$(diff-cover --compare-branch=${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
           if [[ -z $DIFF ]]; then 
-            DIFF_INFO=$(diff-cover --compare-branch=main $FILE1 $FILE2 | grep "No lines");
+            DIFF_INFO=$(diff-cover --compare-branch=${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep "No lines");
             echo BODY="Coverage diff with 'develop' branch: $DIFF_INFO">> $GITHUB_ENV
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
