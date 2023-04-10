@@ -129,8 +129,8 @@ jobs:
     if: ${{ success() }} && ${{ github.event.issue.pull_request }}
     env:
       COMPARE_BRANCH: develop
-      BODY_INTRO: "Coverage diff with `${{ env.COMPARE_BRANCH }}` branch:"
-      BODY: "${{ env.BODY_INTRO }} No success to gather report."
+      BODY_INTRO: "Coverage diff with `$COMPARE_BRANCH` branch:"
+      BODY: "$BODY_INTRO No success to gather report."
 
     steps:
       - name: "Checkout current branch"
