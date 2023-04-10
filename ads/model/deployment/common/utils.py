@@ -119,12 +119,11 @@ def send_request(
     Returns:
         A JSON representive of a requests.Response object.
     """
-    
     if is_json_payload:
-        header["Content-Type"] =  header.pop("content_type", DEFAULT_CONTENT_TYPE_JSON)
+        header["Content-Type"] =  header.pop("content_type", DEFAULT_CONTENT_TYPE_JSON) or DEFAULT_CONTENT_TYPE_JSON
         request_kwargs = {"json": data}
     else:
-        header["Content-Type"] = header.pop("content_type", DEFAULT_CONTENT_TYPE_BYTES)
+        header["Content-Type"] = header.pop("content_type", DEFAULT_CONTENT_TYPE_BYTES) or DEFAULT_CONTENT_TYPE_BYTES
         request_kwargs = {"data": data}  # should pass bytes when using data
     
     request_kwargs["headers"] = header
