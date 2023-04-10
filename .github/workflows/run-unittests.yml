@@ -22,6 +22,7 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
 
 # hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
 env:
@@ -128,7 +129,7 @@ jobs:
     needs: test
     if: ${{ success() }} && ${{ github.event.issue.pull_request }}
     env:
-      COMPARE_BRANCH: develop
+      COMPARE_BRANCH: main
       BODY: "Coverage diff with `develop` branch: No success to gather report."
 
     steps:
