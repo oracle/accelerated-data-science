@@ -144,8 +144,10 @@ jobs:
       - name: "Calculate coverage diff"
         run: |
           set -x # print commands that are executed
-          FILE1="code-coverage-jobs/coverage.xml" >> $GITHUB_ENV; [[ ! -f $FILE1 ]] && FILE1="" >> $GITHUB_ENV
-          FILE2="code-coverage-feature_types/coverage.xml" >> $GITHUB_ENV; [[ ! -f $FILE2 ]] && FILE2="" >> $GITHUB_ENV
+          FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
+          FILE2="code-coverage-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
+          echo "FILE1=$FILE1" >> $GITHUB_ENV
+          echo "FILE2=$FILE2" >> $GITHUB_ENV
           pip install diff_cover
           diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }} 
           DIFF=$(diff-cover $FILE1 $FILE2 \
