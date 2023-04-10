@@ -38,7 +38,7 @@ jobs:
       fail-fast: false
       matrix:
         # python-version: ["3.8", "3.9", "3.10"]
-        python-version: ["3.8"]
+        python-version: ["3.8", "3.9"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/feature_types"]
         include:
@@ -47,7 +47,8 @@ jobs:
           - test-path: "tests/unitary/default_setup/feature_types"
             name: "feature_types"
           - python-version: "3.8"
-            cov-xml-report: --cov= --cov-report=xml
+            cov: --cov=
+            cov-xml-report: --cov-report=xml
         # include:
         #   - test-path: "tests/unitary"
         #     ignore-path: "tests/unitary/with_extras/model"
@@ -110,9 +111,9 @@ jobs:
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
-          "${{ matrix.cov-xml-report }}" \
+          ${{ matrix.cov }} ${{ matrix.cov-xml-report }} \
           ${{ matrix.test-path }} \
-          --ignore "${{ matrix.ignore-path }}"
+          --ignore ${{ matrix.ignore-path }}
           ls -lha
 
 #       Uploading test artifacts
