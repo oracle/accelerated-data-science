@@ -330,7 +330,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
     CONST_ENTRYPOINT = "entrypoint"
     CONST_SERVER_PORT = "serverPort"
     CONST_HEALTH_CHECK_PORT = "healthCheckPort"
-    CONST_TRITON = "triton"
+    CONST_INFERENCE_SERVER = "inferenceServer"
 
     attribute_map = {
         **ModelDeploymentRuntime.attribute_map,
@@ -340,7 +340,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         CONST_ENTRYPOINT: "entrypoint",
         CONST_SERVER_PORT: "server_port",
         CONST_HEALTH_CHECK_PORT: "health_check_port",
-        CONST_TRITON: "triton"
+        CONST_INFERENCE_SERVER: "inference_server"
     }
 
     payload_attribute_map = {
@@ -544,7 +544,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         str
             The inference server.
         """
-        return self.get_spec(self.CONST_TRITON, None)
+        return self.get_spec(self.CONST_INFERENCE_SERVER, None)
 
     def with_inference_server(self, inference_server: str = "triton") -> "ModelDeploymentRuntime":
         """Sets the inference server. Current supported inference server is "triton".
@@ -559,5 +559,29 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         -------
         ModelDeploymentRuntime
             The ModelDeploymentRuntime instance (self).
+            
+        Example
+        -------
+        >>> infrastructure = ModelDeploymentInfrastructure()\
+        ...                 .with_project_id(<project_id>)\
+        ...                 .with_compartment_id(<comparment_id>)\
+        ...                 .with_shape_name("VM.Standard.E4.Flex")\
+        ...                 .with_replica(2)\
+        ...                 .with_bandwidth_mbps(10)\
+        ...                 .with_access_log(log_group_id=<deployment_log_group_id>, log_id=<deployment_access_log_id>)\
+        ...                 .with_predict_log(log_group_id=<deployment_log_group_id>, log_id=<deployment_predict_log_id>)
+
+        >>> runtime = ModelDeploymentContainerRuntime()\
+        ...                 .with_image(<container_image>)\
+        ...                 .with_server_port(<server_port>)\
+        ...                 .with_health_check_port(<health_check_port>)\
+        ...                 .with_model_uri(<model_id>)\
+        ...                 .with_env({"key":"value", "key2":"value2"})\
+        ...                 .with_inference_server("triton")
+        ...                 deployment = ModelDeployment()\
+        ...                 .with_display_name("Triton Example")\
+        ...                 .with_infrastructure(infrastructure)\
+        ...                 .with_runtime(runtime)
+        >>> deployment.deploy()
         """
-        return self.set_spec(self.CONST_TRITON, inference_server.lower())
+        return self.set_spec(self.CONST_INFERENCE_SERVER, inference_server.lower())

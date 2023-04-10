@@ -828,6 +828,8 @@ class ModelDeployment(Builder):
         data: Any = None,
         serializer: "ads.model.ModelInputSerializer" = model_input_serializer,
         auto_serialize_data: bool = False,
+        model_name: str = None,
+        model_version: str = None,
         **kwargs,
     ) -> dict:
         """Returns prediction of input data run against the model deployment endpoint.
@@ -860,6 +862,10 @@ class ModelDeployment(Builder):
             If `auto_serialize_data=False`, `data` required to be bytes or json serializable
             and `json_input` required to be json serializable. If `auto_serialize_data` set
             to True, data will be serialized before sending to model deployment endpoint.
+        model_name: str
+            Defaults to None. When the `Inference_server="triton"`, the name of the model to invoke.
+        model_version: str
+            Defaults to None. When the `Inference_server="triton"`, the version of the model to invoke.
         kwargs:
             content_type: str
                 Used to indicate the media type of the resource.
@@ -917,9 +923,16 @@ class ModelDeployment(Builder):
             raise TypeError(
                 "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
             )
-
+        if model_name and model_version:
+            header['model-name'] = model_name
+            header['model-version'] = model_version
+        elif not model_version and not model_name:
+            
+            pass
+        else:
+            raise ValueError("`model_name` and `model_version` have to be provided together.")
         prediction = send_request(
-            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header
+            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header,
         )
         return prediction
 
@@ -1391,9 +1404,9 @@ class ModelDeployment(Builder):
             infrastructure.CONST_WEB_CONCURRENCY,
             runtime.env.get("WEB_CONCURRENCY", None),
         )
-        if runtime.env.get("CONTAINER_TYPE", None) == "TRITON":
+        if runtime.env.pop("CONTAINER_TYPE", None) == "TRITON":
             runtime.set_spec(
-                runtime.CONST_TRITON, True
+                runtime.CONST_INFERENCE_SERVER, "triton"
             )
 
         self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)
@@ -1571,7 +1584,7 @@ class ModelDeployment(Builder):
                 infrastructure.web_concurrency
             )
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
-        if runtime.triton:
+        if runtime.inference_server.lower() == "triton":
             environment_variables["CONTAINER_TYPE"] = "TRITON"
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
