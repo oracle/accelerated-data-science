@@ -47,8 +47,7 @@ jobs:
           - test-path: "tests/unitary/default_setup/feature_types"
             name: "feature_types"
           - python-version: "3.8"
-            cov-report: --cov=
-            cov-xml-report: --cov-report=xml
+            cov-xml-report: --cov= --cov-report=xml
         # include:
         #   - test-path: "tests/unitary"
         #     ignore-path: "tests/unitary/with_extras/model"
@@ -111,7 +110,7 @@ jobs:
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile \
-          "${{ matrix.cov-report }}" "${{ matrix.cov-xml-report }}" \
+          "${{ matrix.cov-xml-report }}" \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
@@ -120,8 +119,9 @@ jobs:
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
       - name: "Save coverage files"
         uses: actions/upload-artifact@v3
+        if: ${{ matrix.cov-xml-report }}
         with:
-          name: code-coverage-${{ matrix.name }}
+          name: cov-xml-report-${{ matrix.name }}
           path: |
             coverage.xml
 
@@ -148,12 +148,12 @@ jobs:
           set -x # print commands that are executed
           
           # Prepare default body text 
-          BODY_INTRO="Coverage diff with `develop` branch:"
+          BODY_INTRO="Coverage diff with 'develop' branch:"
           BODY="$BODY_INTRO No success to gather report."
           
           # Prepare file paths to coverage xml files
-          FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
-          FILE2="code-coverage-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
+          FILE1="cov-xml-report-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
+          FILE2="cov-xml-report-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           echo "FILE1=$FILE1" >> $GITHUB_ENV
           echo "FILE2=$FILE2" >> $GITHUB_ENV
           
