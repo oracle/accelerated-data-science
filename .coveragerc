@@ -1,10 +1,9 @@
 [paths]
 source =
-    ads/
+    ads
 
 [run]
 branch = true
-parallel = true
 source =
     ads
 omit =

@@ -29,18 +29,28 @@ env:
 
 jobs:
   test:
-    name: python ${{ matrix.python-version }}, ${{ matrix.test-path }}, ignore ${{ matrix.ignore-path }}
+    name: python ${{ matrix.python-version }}, ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
-        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        # python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8"]
+        # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/feature_types"]
         include:
-          - test-path: "tests/unitary"
-            ignore-path: "tests/unitary/with_extras/model"
+          - test-path: "tests/unitary/default_setup/jobs"
+            name: "jobs"
+          - test-path: "tests/unitary/default_setup/feature_types"
+            name: "feature_types"
+        # include:
+        #   - test-path: "tests/unitary"
+        #     ignore-path: "tests/unitary/with_extras/model"
+        #     name: "unitary tests"
+        #   - test-path: "tests/unitary/with_extras/model"
+        #     name: "model tests"
 
     steps:
       - uses: actions/checkout@v3
@@ -82,11 +92,10 @@ jobs:
         shell: bash
         run: |
           set -x # print commands that are executed
-          sudo apt-get install libkrb5-dev graphviz
+          # sudo apt-get install libkrb5-dev graphviz
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          pip install setuptools
-          pip install -r dev-requirements.txt
+          pip install -r test-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
@@ -94,17 +103,75 @@ jobs:
         env:
           NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
+          NoDependency: True
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
+          -n auto --dist loadfile \
+          --cov= --cov-report=xml \
           ${{ matrix.test-path }} \
-          --ignore "${{ matrix.ignore-path }}" \
-          --cov --cov-append --cov-report=html
+          --ignore "${{ matrix.ignore-path }}"
+          ls -lha
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
-      - name: "Save html coverage report"
+      - name: "Save coverage files"
         uses: actions/upload-artifact@v3
         with:
-          name: code-coverage-report
-          path: htmlcov/
+          name: code-coverage-${{ matrix.name }}
+          path: |
+            coverage.xml
+
+  coverage-report:
+    name: "Save html coverage report"
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    needs: test
+    if: ${{ success() }} && ${{ github.event.issue.pull_request }}
+    env:
+      COMPARE_BRANCH: origin/main
+      BODY: "No information on coverage diff with 'develop' branch."
+
+    steps:
+      - name: "Checkout current branch"
+        uses: actions/checkout@v3
+      - name: "Fetch main branch"
+        run: |
+          git fetch origin main --depth 1
+      - name: "Download coverage files"
+        uses: actions/download-artifact@v3
+      - name: "Display structure of downloaded files"
+        run: ls -R
+      - name: "Calculate coverage diff"
+        run: |
+          set -x # print commands that are executed
+          FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1=""
+          FILE2="code-coverage-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
+          pip install diff_cover
+          diff-cover --compare-branch=${{ env.COMPARE_BRANCH }} $FILE1 $FILE2
+          DIFF=$(diff-cover --compare-branch=main $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+          if [[ -z $DIFF ]]; then 
+            DIFF_INFO=$(diff-cover --compare-branch=main $FILE1 $FILE2 | grep "No lines");
+            echo BODY="Coverage diff with 'develop' branch: $DIFF_INFO">> $GITHUB_ENV
+          else
+            if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
+            echo BODY="Coverage diff with 'develop' branch: ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
+          fi
+      - uses: actions/github-script@v6
+        if: always()
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '${{ env.BODY }}'
+            })
+      - name: "Generate html difference report"
+        run: |
+          diff-cover --compare-branch=origin/main --html-report=coverage-report.html coverage.xml
+      - name: "Save coverage difference report"
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-diff-html-report
+          path: coverage-report.html
           retention-days: 10
