@@ -119,7 +119,12 @@ jobs:
       BODY: "REPORT: No information on coverage."
 
     steps:
-      - uses: actions/checkout@v3
+      - name: "Checkout current branch"
+        uses: actions/checkout@v3
+      - name: "Checkout main branch"
+        uses: actions/checkout@v3
+        with:
+          ref: main
       - name: "Download coverage files"
         uses: actions/download-artifact@v3
       - name: "Display structure of downloaded files"
