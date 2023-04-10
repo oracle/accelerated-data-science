@@ -1,6 +1,9 @@
 Deploy Model with Conda Runtime
 *******************************
 
+Deploy Using GenericModel Class
+===============================
+
 Once you have ADS Model object, you can call ``deploy`` function to deploy the model and generate the endpoint.
 
 Here is an example of deploying LightGBM model:
@@ -109,3 +112,252 @@ You can update the existing Model Deployment by using ``.update_deployment()`` m
         )
         wait_for_completion = True,
     )
+
+
+Deploy Using ModelDeployment Class
+==================================
+
+To deploy a model deployment, you can define a ``ModelDeployment`` object and call the ``.deploy()`` of it. You could either use API or YAML to define the ``ModelDeployment`` object.
+
+Below is an example of deploying model on conda runtime using ``ModelDeployment`` class: 
+
+.. tabs::
+
+  .. code-tab:: Python3
+    :caption: Python
+
+    from ads.model.deployment import ModelDeployment, ModelDeploymentInfrastructure, ModelDeploymentCondaRuntime
+
+    # configure model deployment infrastructure
+    infrastructure = (
+        ModelDeploymentInfrastructure()
+        .with_project_id("<PROJECT_OCID>")
+        .with_compartment_id("<COMPARTMENT_OCID>")    
+        .with_shape_name("VM.Standard.E4.Flex")
+        .with_shape_config_details(
+            ocpus=1,
+            memory_in_gbs=16
+        )
+        .with_replica(1)
+        .with_bandwidth_mbps(10)
+        .with_web_concurrency(10)
+        .with_access_log(
+            log_group_id="<ACCESS_LOG_GROUP_OCID>", 
+            log_id="<ACCESS_LOG_OCID>"
+        )
+        .with_predict_log(
+            log_group_id="<PREDICT_LOG_GROUP_OCID>", 
+            log_id="<PREDICT_LOG_OCID>"
+        )
+    )
+
+    # configure model deployment runtime
+    conda_runtime = (
+        ModelDeploymentCondaRuntime()
+        .with_env({"key":"value"})
+        .with_deployment_mode("HTTPS_ONLY")
+        .with_model_uri("<MODEL_URI>")
+    )
+
+    # configure model deployment
+    deployment = (
+        ModelDeployment()
+        .with_display_name("Model Deployment Demo using ADS")
+        .with_description("The model deployment description")
+        .with_freeform_tags(**{"key1":"value1"})
+        .with_infrastructure(infrastructure)
+        .with_runtime(conda_runtime)
+    )
+
+    # Deploy model on conda runtime
+    deployment.deploy()
+
+    # Generate prediction by invoking the deployed endpoint
+    deployment.predict(data=<data>)
+
+  .. code-tab:: Python3
+    :caption: YAML
+
+    from ads.model.deployment import ModelDeployment
+
+    yaml_string = """
+    kind: deployment
+    spec:
+      displayName: Model Deployment Demo using ADS
+      description: The model deployment description
+      freeform_tags:
+        key1: value1
+      infrastructure:
+        kind: infrastructure
+        type: datascienceModelDeployment
+        spec:
+          compartmentId: <COMPARTMENT_OCID>
+          projectId: <PROJECT_OCID>
+          accessLog:
+            logGroupId: <ACCESS_LOG_GROUP_OCID>
+            logId: <ACCESS_LOG_OCID>
+          predictLog:
+            logGroupId: <PREDICT_LOG_GROUP_OCID>
+            logId: <PREDICT_LOG_OCID>
+          shapeName: VM.Standard.E4.Flex
+          shapeConfigDetails:
+            memoryInGBs: 16
+            ocpus: 1
+          replica: 1
+          bandWidthMbps: 10
+          webConcurrency: 10
+      runtime:
+        kind: runtime
+        type: conda
+        spec:
+          modelUri: <MODEL_URI>
+          env:
+            WEB_CONCURRENCY: "10"
+          deploymentMode: HTTPS_ONLY
+    """
+
+    # Initialize ads.ModelDeployment
+    deployment = ModelDeployment.from_yaml(yaml_string)
+    
+    # Deploy model on conda runtime
+    deployment.deploy()
+
+    # Generate prediction by invoking the deployed endpoint
+    deployment.predict(data=<data>)
+
+**ADS ModelDeployment YAML schema**
+
+.. code-block:: yaml
+
+  kind:
+    required: true
+    type: string
+    allowed:
+      - deployment
+  spec:
+    required: true
+    type: dict
+    schema:
+      displayName:
+      type: string
+      required: false
+    description:
+      type: string
+      required: false
+    freeform_tags:
+      type: dict
+      required: false
+    defined_tags:
+      type: dict
+      required: false
+    infrastructure:
+      type: dict
+      required: true
+    runtime:
+      type: dict
+      required: true
+
+
+**ADS ModelDeploymentInfrastructure YAML Schema**
+
+.. code-block:: yaml
+
+  kind:
+    required: true
+    type: string
+    allowed:
+      - infrastructure
+  type:
+    required: true
+    type: string
+    allowed:
+      - datascienceModelDeployment
+  spec:
+    compartmentId:
+      type: string
+      required: true
+    projectId:
+      type: string
+      required: true
+    bandWidthMbps:
+      type: integer
+      required: false
+    webConcurrency:
+      type: integer
+      required: false
+    logGroupId:
+      type: string
+      required: false
+    logId:
+      type: string
+      required: false
+    accessLog:
+      type: dict
+      nullable: true
+      required: false
+      schema:
+        logId:
+          required: false
+          type: string
+        logGroupId:
+          required: false
+          type: string
+    predictLog:
+      type: dict
+      nullable: true
+      required: false
+      schema:
+        logId:
+          required: false
+          type: string
+        logGroupId:
+          required: false
+          type: string
+    shapeName:
+      type: string
+      required: false
+    shapeConfigDetails:
+      type: dict
+      nullable: true
+      required: false
+      schema:
+        ocpus:
+          required: true
+          type: float
+        memoryInGBs:
+          required: true
+          type: float
+    replica:
+      type: integer
+      required: false
+
+**ADS ModelDeploymentCondaRuntime YAML Schema**
+
+.. code-block:: yaml
+
+  kind:
+    required: true
+    type: string
+    allowed:
+      - runtime
+  type:
+    required: true
+    type: string
+    allowed:
+      - conda
+  spec:
+    modelUri:
+      type: string
+      required: true
+    env:
+      type: dict
+      required: false
+    inputStreamIds:
+      type: list
+      required: false
+    outputStreamIds:
+      type: list
+      required: false
+    deploymentMode:
+      type: string
+      required: false

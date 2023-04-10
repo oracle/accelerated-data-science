@@ -407,4 +407,72 @@ With Model Version Set
 
         # Register the model
         model_id = generic_model.save(display_name="Custom Framework Model")
-    
+
+ADS CLI
+-------
+
+**Prerequisites**
+
+1. :doc:`Install ADS CLI<../cli/quickstart>`
+2. :doc:`Configure Defaults<../cli/opctl/configure>`
+
+Deploy
+~~~~~~
+
+To deploy a model, provide the path to the model deployment YAML file with the ``--file`` option
+
+.. code-block:: shell
+
+  ads opctl run --file <path_to_model_deployment_yaml>
+
+
+Monitor
+~~~~~~~
+
+To monitor a model deployment, provide the model deployment OCID and provide the log type with the ``-l`` option
+
+Below is an example to stream the access log
+
+.. code-block:: shell
+
+  ads opctl watch <model_deployment_ocid> -l access
+
+.. admonition:: Tip
+
+  The allowed values for ``-l`` option are ``access``, ``predict``, or ``None``.
+
+
+Activate
+~~~~~~~~
+
+To activate a model deployment, provide the model deployment OCID
+
+.. code-block:: shell
+
+  ads opctl activate <model_deployment_ocid>
+
+Data Science Model Deployments can only be activated when they are in the `INACTIVE` state.
+
+
+Deactivate
+~~~~~~~~~~
+
+To deactivate a model deployment, provide the model deployment OCID
+
+.. code-block:: shell
+
+  ads opctl deactivate <model_deployment_ocid>
+
+Data Science Model Deployments can only be deactivated when they are in the `ACTIVE` state.
+
+
+Delete
+~~~~~~
+
+To delete a model deployment, provide the model deployment OCID
+
+.. code-block:: shell
+
+  ads opctl delete <model_deployment_ocid>
+
+Data Science Model Deployments can only be deleted when they are in the `ACTIVE`, `INACTIVE`, or `FAILED` state.

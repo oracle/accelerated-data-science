@@ -185,3 +185,159 @@ Below is an example of deploying model on container runtime using ``ModelDeploym
 
     # Generate prediction by invoking the deployed endpoint
     deployment.predict(data=<data>)
+
+
+**ADS ModelDeployment YAML schema**
+
+.. code-block:: yaml
+
+  kind:
+    required: true
+    type: string
+    allowed:
+      - deployment
+  spec:
+    required: true
+    type: dict
+    schema:
+      displayName:
+      type: string
+      required: false
+    description:
+      type: string
+      required: false
+    freeform_tags:
+      type: dict
+      required: false
+    defined_tags:
+      type: dict
+      required: false
+    infrastructure:
+      type: dict
+      required: true
+    runtime:
+      type: dict
+      required: true
+
+
+**ADS ModelDeploymentInfrastructure YAML Schema**
+
+.. code-block:: yaml
+
+  kind:
+    required: true
+    type: string
+    allowed:
+      - infrastructure
+  type:
+    required: true
+    type: string
+    allowed:
+      - datascienceModelDeployment
+  spec:
+    compartmentId:
+      type: string
+      required: true
+    projectId:
+      type: string
+      required: true
+    bandWidthMbps:
+      type: integer
+      required: false
+    webConcurrency:
+      type: integer
+      required: false
+    logGroupId:
+      type: string
+      required: false
+    logId:
+      type: string
+      required: false
+    accessLog:
+      type: dict
+      nullable: true
+      required: false
+      schema:
+        logId:
+          required: false
+          type: string
+        logGroupId:
+          required: false
+          type: string
+    predictLog:
+      type: dict
+      nullable: true
+      required: false
+      schema:
+        logId:
+          required: false
+          type: string
+        logGroupId:
+          required: false
+          type: string
+    shapeName:
+      type: string
+      required: false
+    shapeConfigDetails:
+      type: dict
+      nullable: true
+      required: false
+      schema:
+        ocpus:
+          required: true
+          type: float
+        memoryInGBs:
+          required: true
+          type: float
+    replica:
+      type: integer
+      required: false
+
+**ADS ModelDeploymentContainerRuntime YAML Schema**
+
+.. code-block:: yaml
+
+  kind:
+    required: true
+    type: string
+    allowed:
+      - runtime
+  type:
+    required: true
+    type: string
+    allowed:
+      - container
+  spec:
+    modelUri:
+      type: string
+      required: true
+    image:
+      type: string
+      required: true
+    imageDigest:
+      type: string
+      required: false
+    entrypoint:
+      type: list
+      required: false
+    cmd:
+      type: list
+      required: false
+    serverPort:
+      type: integer
+      required: false
+    healthCheckPort:
+      type: integer
+      required: false
+    env:
+      type: dict
+      required: false
+    inputStreamIds:
+      type: list
+      required: false
+    outputStreamIds:
+      type: list
+      required: false
+    deploymentMode:
+      type: string
+      required: false
