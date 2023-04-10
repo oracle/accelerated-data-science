@@ -128,15 +128,16 @@ jobs:
     needs: test
     if: ${{ success() }} && ${{ github.event.issue.pull_request }}
     env:
-      COMPARE_BRANCH: origin/main
-      BODY: "No information on coverage diff with 'develop' branch."
+      COMPARE_BRANCH: develop
+      BODY_INTRO: "Coverage diff with `${{ env.COMPARE_BRANCH }}` branch:"
+      BODY: "${{ env.BODY_INTRO }} No success to gather report."
 
     steps:
       - name: "Checkout current branch"
         uses: actions/checkout@v3
-      - name: "Fetch main branch"
+      - name: "Fetch branch to compare with"
         run: |
-          git fetch origin main
+          git fetch origin ${{ env.COMPARE_BRANCH }}
       - name: "Download coverage files"
         uses: actions/download-artifact@v3
       - name: "Display structure of downloaded files"
@@ -147,16 +148,17 @@ jobs:
           FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1=""
           FILE2="code-coverage-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           pip install diff_cover
-          diff-cover --compare-branch=${{ env.COMPARE_BRANCH }} $FILE1 $FILE2
-          DIFF=$(diff-cover --compare-branch=${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+          diff-cover --compare-branch=origin/${{ env.COMPARE_BRANCH }} $FILE1 $FILE2
+          DIFF=$(diff-cover --compare-branch=origin/${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
           if [[ -z $DIFF ]]; then 
-            DIFF_INFO=$(diff-cover --compare-branch=${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep "No lines");
-            echo BODY="Coverage diff with 'develop' branch: $DIFF_INFO">> $GITHUB_ENV
+            DIFF_INFO=$(diff-cover --compare-branch=origin/${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep "No lines");
+            echo BODY="${{ env.BODY_INTRO }} $DIFF_INFO">> $GITHUB_ENV
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
-            echo BODY="Coverage diff with 'develop' branch: ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
+            echo BODY="${{ env.BODY_INTRO }} ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
           fi
-      - uses: actions/github-script@v6
+      - name: "Create comment"
+        uses: actions/github-script@v6
         if: always()
         with:
           script: |
