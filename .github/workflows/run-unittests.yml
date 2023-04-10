@@ -122,22 +122,20 @@ jobs:
             coverage.xml
 
   coverage-report:
-    name: "Save html coverage report"
+    name: "Coverage report"
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: test
     if: ${{ success() }} && ${{ github.event.issue.pull_request }}
     env:
       COMPARE_BRANCH: develop
-      BODY_INTRO: "Coverage diff with `$COMPARE_BRANCH` branch:"
-      BODY: "$BODY_INTRO No success to gather report."
+      BODY: "Coverage diff with `develop` branch: No success to gather report."
 
     steps:
       - name: "Checkout current branch"
         uses: actions/checkout@v3
-      - name: "Fetch branch to compare with"
-        run: |
-          git fetch origin ${{ env.COMPARE_BRANCH }}
+        with:
+          fetch-depth: 0
       - name: "Download coverage files"
         uses: actions/download-artifact@v3
       - name: "Display structure of downloaded files"
@@ -161,6 +159,7 @@ jobs:
         uses: actions/github-script@v6
         if: always()
         with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.rest.issues.createComment({
               issue_number: context.issue.number,
