@@ -52,7 +52,7 @@ class Connector:
             The local database information store, default to ~/.database unless specified otherwise.
         kwargs: dict, optional
             Name-value pairs that are to be added to the list of connection parameters.
-            For example, database_name="mydb", database_type="oracle", username = "root", password = "pwd".
+            For example, database_name="mydb", database_type="oracle", username = "root", password = "example-password".
 
         Returns
         -------
