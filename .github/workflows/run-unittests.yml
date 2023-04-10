@@ -144,17 +144,19 @@ jobs:
       - name: "Calculate coverage diff"
         run: |
           set -x # print commands that are executed
-          FILE1="code-coverage-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1=""
-          FILE2="code-coverage-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
+          FILE1="code-coverage-jobs/coverage.xml" >> $GITHUB_ENV; [[ ! -f $FILE1 ]] && FILE1="" >> $GITHUB_ENV
+          FILE2="code-coverage-feature_types/coverage.xml" >> $GITHUB_ENV; [[ ! -f $FILE2 ]] && FILE2="" >> $GITHUB_ENV
           pip install diff_cover
-          diff-cover --compare-branch=origin/${{ env.COMPARE_BRANCH }} $FILE1 $FILE2
-          DIFF=$(diff-cover --compare-branch=origin/${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+          diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }} 
+          DIFF=$(diff-cover $FILE1 $FILE2 \
+          --compare-branch=origin/${{ env.COMPARE_BRANCH }} | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
           if [[ -z $DIFF ]]; then 
-            DIFF_INFO=$(diff-cover --compare-branch=origin/${{ env.COMPARE_BRANCH }} $FILE1 $FILE2 | grep "No lines");
+            DIFF_INFO=$(diff-cover $FILE1 $FILE2 \
+          --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
             echo BODY="${{ env.BODY_INTRO }} $DIFF_INFO">> $GITHUB_ENV
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
-            echo BODY="${{ env.BODY_INTRO }} ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%-$COLOR)" >> $GITHUB_ENV
+            echo BODY="${{ env.BODY_INTRO }} ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
           fi
       - name: "Create comment"
         uses: actions/github-script@v6
@@ -170,7 +172,9 @@ jobs:
             })
       - name: "Generate html difference report"
         run: |
-          diff-cover --compare-branch=origin/main --html-report=coverage-report.html coverage.xml
+          diff-cover ${{ env.FILE1 }} ${{ env.FILE2 }} \
+          --compare-branch=origin/${{ env.COMPARE_BRANCH }} \
+          --html-report=cov-diff-report.html
       - name: "Save coverage difference report"
         uses: actions/upload-artifact@v3
         with:
