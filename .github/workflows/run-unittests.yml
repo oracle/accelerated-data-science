@@ -45,9 +45,9 @@ jobs:
             name: "unitary tests"
           - test-path: "tests/unitary/with_extras/model"
             name: "model tests"
-        - python-version: "3.8"
-          cov: --cov=
-          cov-xml-report: --cov-report=xml
+          - python-version: "3.8"
+            cov: --cov=
+            cov-xml-report: --cov-report=xml
 
     steps:
       - uses: actions/checkout@v3
