@@ -1,11 +1,4 @@
-[paths]
-source =
-    ads
-
 [run]
-branch = true
-source =
-    ads
 omit =
     docs/*
     tests/*
