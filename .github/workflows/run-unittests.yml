@@ -46,8 +46,7 @@ jobs:
           - test-path: "tests/unitary/with_extras/model"
             name: "model"
           - python-version: "3.8"
-            cov: --cov=
-            cov-xml-report: --cov-report=xml
+            cov-xml-report: --cov= --cov-report=xml
 
     steps:
       - uses: actions/checkout@v3
@@ -103,7 +102,7 @@ jobs:
           NoDependency: True
         run: |
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto --dist loadfile ${{ matrix.cov }} ${{ matrix.cov-xml-report }} \
+          -n auto ${{ matrix.cov-xml-report }} \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
