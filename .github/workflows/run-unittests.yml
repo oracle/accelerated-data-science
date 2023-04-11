@@ -46,7 +46,7 @@ jobs:
           - test-path: "tests/unitary/with_extras/model"
             name: "model"
           - python-version: "3.8"
-            cov-xml-report: --cov=ads --cov-report=xml:cov-${{ matrix.name }}.xml
+            cov-xml-report: --cov=ads --cov-report=xml
 
     steps:
       - uses: actions/checkout@v3
@@ -101,8 +101,9 @@ jobs:
           CONDA_PREFIX: /usr/share/miniconda
           NoDependency: True
         run: |
+          [[ -z ${{ matrix.cov-xml-report }} ]] || COLON=":"; echo "COV_REPORT_NAME=cov-${{ matrix.name }}.xml"
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto ${{ matrix.cov-xml-report }} \
+          -n auto ${{ matrix.cov-xml-report }}$COLON$COV_REPORT_NAME \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
