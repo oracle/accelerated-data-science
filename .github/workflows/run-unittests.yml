@@ -37,7 +37,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # python-version: ["3.8", "3.9", "3.10"]
         python-version: ["3.8"]
         test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         include:
