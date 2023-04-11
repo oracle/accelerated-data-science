@@ -101,9 +101,9 @@ jobs:
           CONDA_PREFIX: /usr/share/miniconda
           NoDependency: True
         run: |
-          [[ -z "${{ matrix.cov-xml-report }}" ]] || COLON=":"; echo "COV_REPORT_NAME=cov-${{ matrix.name }}.xml"
+          [[ -z "${{ matrix.cov-xml-report }}" ]] || COV_REPORT_NAME=:cov-${{ matrix.name }}.xml
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto ${{ matrix.cov-xml-report }}$COLON$COV_REPORT_NAME \
+          -n auto ${{ matrix.cov-xml-report }}$COV_REPORT_NAME \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
