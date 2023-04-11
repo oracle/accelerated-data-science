@@ -29,7 +29,7 @@ env:
 
 jobs:
   test:
-    name: python ${{ matrix.python-version }}, tests/unitary/default_setup
+    name: python ${{ matrix.python-version }}, default_setup
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
