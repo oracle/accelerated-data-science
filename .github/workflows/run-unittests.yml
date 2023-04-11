@@ -143,7 +143,7 @@ jobs:
           set -x # print commands that are executed
           
           # Prepare default body text 
-          BODY_INTRO="Coverage diff with ${{ env.COMPARE_BRANCH }} branch:"
+          BODY_INTRO=":checkered_flag: Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
           BODY="$BODY_INTRO No success to gather report."
           
           # Prepare file paths to coverage xml files
