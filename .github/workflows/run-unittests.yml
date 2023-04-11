@@ -101,7 +101,7 @@ jobs:
           CONDA_PREFIX: /usr/share/miniconda
           NoDependency: True
         run: |
-          [[ -z ${{ matrix.cov-xml-report }} ]] || COLON=":"; echo "COV_REPORT_NAME=cov-${{ matrix.name }}.xml"
+          [[ -z "${{ matrix.cov-xml-report }}" ]] || COLON=":"; echo "COV_REPORT_NAME=cov-${{ matrix.name }}.xml"
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto ${{ matrix.cov-xml-report }}$COLON$COV_REPORT_NAME \
           ${{ matrix.test-path }} \
@@ -154,10 +154,10 @@ jobs:
           pip install diff_cover
           diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }} 
           DIFF=$(diff-cover $FILE1 $FILE2 \
-          --compare-branch=origin/${{ env.COMPARE_BRANCH }} | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
+            --compare-branch=origin/${{ env.COMPARE_BRANCH }} | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
           if [[ -z $DIFF ]]; then 
             DIFF_INFO=$(diff-cover $FILE1 $FILE2 \
-          --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
+              --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
             echo BODY="$BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
