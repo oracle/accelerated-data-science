@@ -627,9 +627,9 @@ class LocalModelDeploymentBackend(LocalBackend):
         self.client = OCIClientFactory(**self.oci_auth).data_science
         
     def predict(self) -> None:
-        
         ocid = self.config["execution"].get("ocid")
         data = self.config["execution"].get("data")
+        model_folder = self.config["execution"].get("model_folder", DEFAULT_MODEL_FOLDER)
         conda_slug, conda_path = self._get_conda_info(ocid)
         compartment_id = self.config["execution"].get("compartment_id", self.config["infrastructure"].get("compartment_id"))
         project_id = self.config["execution"].get("project_id", self.config["infrastructure"].get("project_id"))
@@ -647,8 +647,9 @@ class LocalModelDeploymentBackend(LocalBackend):
             dir_path = os.path.dirname(os.path.realpath(__file__))
             script = "script.py"
             self.config["execution"]["source_folder"] = os.path.abspath(os.path.join(dir_path, ".."))
-            # bind_volumes[os.path.join(dir_path, "..", "script.py")] = {"bind": script}
+
             self.config["execution"]["entrypoint"] = script
+            bind_volumes[os.path.join(model_folder)] = {"bind": script}
         if self.config["execution"].get("image"):
             exit_code = self._run_with_image(bind_volumes)
         elif self.config["execution"].get("conda_slug", conda_slug):
@@ -666,17 +667,17 @@ class LocalModelDeploymentBackend(LocalBackend):
                 f"Run with the --debug argument to view container logs."
             )
     
-    def _download_model(self, ocid, region):
+    def _download_model(self, ocid, region, bucket_uri, timeout):
         dsc_model = DataScienceModel.from_id(ocid)
         dsc_model.download_artifact(
-        target_dir=self.config["execution"].get("source_folder", DEFAULT_MODEL_FOLDER),
+        target_dir=os.path.join(self.config["execution"].get("source_folder", DEFAULT_MODEL_FOLDER), ocid),
         force_overwrite=True,
         overwrite_existing_artifact=True,
         remove_existing_artifact=True,
         auth=self.oci_auth,
         region=region,
-        timeout=600,
-        bucket_urr=None,
+        timeout=timeout,
+        bucket_uri=bucket_uri,
         )
     
     def _get_conda_info(self, ocid):
