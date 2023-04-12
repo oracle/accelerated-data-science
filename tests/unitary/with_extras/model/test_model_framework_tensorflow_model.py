@@ -61,6 +61,7 @@ class MyTFModel:
 class TestTensorFlowModel:
     """Unittests for the TensorFlowModel class."""
 
+    @classmethod
     def setup_class(cls):
         model_obj = MyTFModel()
         cls.myTFModel = model_obj.training()
