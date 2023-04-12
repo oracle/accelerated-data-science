@@ -107,7 +107,7 @@ jobs:
           [[ -z "${{ matrix.cov-xml-report }}" ]] || COV_REPORT_NAME=:cov-${{ matrix.name }}.xml
           
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto ${{ matrix.cov-xml-report }}$COV_REPORT_NAME \
+          -n auto --dist loadfile ${{ matrix.cov-xml-report }}$COV_REPORT_NAME \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
 
@@ -141,7 +141,7 @@ jobs:
           
           # Prepare default body text 
           BODY_INTRO=":checkered_flag: Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
-          BODY="$BODY_INTRO No success to gather report."
+          BODY="$BODY_INTRO *No success to gather report.*"
           
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
@@ -158,7 +158,7 @@ jobs:
           if [[ -z $DIFF ]]; then 
             DIFF_INFO=$(diff-cover $FILE1 $FILE2 \
               --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
-            echo BODY="$BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
+            echo BODY="$BODY_INTRO *$DIFF_INFO*">> $GITHUB_ENV
           else
             if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
             echo BODY="$BODY_INTRO ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
