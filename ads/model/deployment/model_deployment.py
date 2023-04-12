@@ -17,7 +17,6 @@ import oci.loggingsearch
 from ads.common import auth as authutil
 import pandas as pd
 from ads.model.serde.model_input import JsonModelInputSERDE
-from ads.common import auth, oci_client
 from ads.common.oci_logging import (
     LOG_INTERVAL,
     LOG_RECORDS_LIMIT,
@@ -63,6 +62,7 @@ TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
+MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON = "TRITON"
 
 MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
 MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
@@ -926,10 +926,7 @@ class ModelDeployment(Builder):
         if model_name and model_version:
             header['model-name'] = model_name
             header['model-version'] = model_version
-        elif not model_version and not model_name:
-            
-            pass
-        else:
+        elif bool(model_version) ^ bool(model_name):
             raise ValueError("`model_name` and `model_version` have to be provided together.")
         prediction = send_request(
             data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header,
@@ -1404,9 +1401,9 @@ class ModelDeployment(Builder):
             infrastructure.CONST_WEB_CONCURRENCY,
             runtime.env.get("WEB_CONCURRENCY", None),
         )
-        if runtime.env.get("CONTAINER_TYPE", None) == "TRITON":
+        if runtime.env.get("CONTAINER_TYPE", None) == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
             runtime.set_spec(
-                runtime.CONST_INFERENCE_SERVER, "triton"
+                runtime.CONST_INFERENCE_SERVER, MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON.lower()
             )
 
         self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)

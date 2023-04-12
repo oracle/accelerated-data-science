@@ -562,6 +562,9 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
             
         Example
         -------
+        >>> from ads.model.deployment import ModelDeployment, ModelDeploymentContainerRuntime, ModelDeploymentInfrastructure
+        >>> import ads
+        >>> ads.set_auth("resource_principal")
         >>> infrastructure = ModelDeploymentInfrastructure()\
         ...                 .with_project_id(<project_id>)\
         ...                 .with_compartment_id(<comparment_id>)\
@@ -578,7 +581,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         ...                 .with_model_uri(<model_id>)\
         ...                 .with_env({"key":"value", "key2":"value2"})\
         ...                 .with_inference_server("triton")
-        ...                 deployment = ModelDeployment()\
+        >>> deployment = ModelDeployment()\
         ...                 .with_display_name("Triton Example")\
         ...                 .with_infrastructure(infrastructure)\
         ...                 .with_runtime(runtime)
