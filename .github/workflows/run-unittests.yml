@@ -39,11 +39,11 @@ jobs:
       matrix:
         python-version: ["3.8"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/feature_types"]
+        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup"]
         include:
           - test-path: "tests/unitary/default_setup/jobs"
             name: "jobs"
-          - test-path: "tests/unitary/default_setup/feature_types"
+          - test-path: "tests/unitary/default_setup"
             name: "feature_types"
           - python-version: "3.8"
             cov-xml-report: --cov= --cov-report=xml
@@ -170,7 +170,7 @@ jobs:
             coverage combine
             coverage html
           else
-            echo "No coverage files to combine. No html report will be produced.
+            echo "No coverage files to combine. No html report will be produced."
           fi 
 
       - name: "Calculate coverage diff"
