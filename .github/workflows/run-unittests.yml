@@ -46,8 +46,7 @@ jobs:
           - test-path: "tests/unitary/default_setup/feature_types"
             name: "feature_types"
           - python-version: "3.8"
-            cov: --cov=
-            cov-xml-report: --cov-report=xml
+            cov-xml-report: --cov= --cov-report=xml
 #        include:
 #          - test-path: "tests/unitary"
 #            ignore-path: "tests/unitary/with_extras/model"
@@ -153,11 +152,12 @@ jobs:
       - name: "Download coverage files"
         uses: actions/download-artifact@v3
       - name: "Display structure of downloaded files"
-        run: ls -R
+        run: ls -aR
       - name: "Calculate overall coverage"
         run: |
           set -x # print commands that are executed
           
+          pip install coverage
           coverage combine cov-xml-report-unitary/cov/* cov-xml-report-model/cov/*
           ls -lha
           coverage html
