@@ -39,14 +39,14 @@ jobs:
       matrix:
         python-version: ["3.8"]
         # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup"]
+        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/feature_types"]
         include:
           - test-path: "tests/unitary/default_setup/jobs"
             name: "jobs"
-          - test-path: "tests/unitary/default_setup"
+          - test-path: "tests/unitary/default_setup/feature_types"
             name: "feature_types"
           - python-version: "3.8"
-            cov-xml-report: --cov= --cov-report=xml
+            cov-xml-report: --cov= --cov-append --cov-report=xml
 #        include:
 #          - test-path: "tests/unitary"
 #            ignore-path: "tests/unitary/with_extras/model"
@@ -120,7 +120,6 @@ jobs:
           
           # move multiple coverage file to separate folder
           mkdir -p cov
-          mv .coverage cov/.coverage.${{ matrix.name }}
           if compgen -G ".coverage.*" > /dev/null; then
             mv .coverage.* cov/
           fi
@@ -166,6 +165,7 @@ jobs:
           if compgen -G ".coverage.*" > /dev/null; then
             echo "Make combined coverage html report"
             coverage combine
+            ls -lha
             coverage html
           else
             echo "No coverage files to combine. No html report will be produced."
