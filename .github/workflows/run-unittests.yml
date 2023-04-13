@@ -38,15 +38,24 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.8"]
-        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/feature_types"]
         include:
-          - test-path: "tests/unitary"
-            ignore-path: "tests/unitary/with_extras/model"
-            name: "unitary"
-          - test-path: "tests/unitary/with_extras/model"
-            name: "model"
+          - test-path: "tests/unitary/default_setup/jobs"
+            name: "jobs"
+          - test-path: "tests/unitary/default_setup/feature_types"
+            name: "feature_types"
           - python-version: "3.8"
-            cov-xml-report: --cov=ads --cov-report=xml
+            cov: --cov=
+            cov-xml-report: --cov-report=xml
+#        include:
+#          - test-path: "tests/unitary"
+#            ignore-path: "tests/unitary/with_extras/model"
+#            name: "unitary"
+#          - test-path: "tests/unitary/with_extras/model"
+#            name: "model"
+#          - python-version: "3.8"
+#            cov-xml-report: --cov=ads --cov-report=xml
 
     steps:
       - uses: actions/checkout@v3
@@ -88,10 +97,10 @@ jobs:
         shell: bash
         run: |
           set -x # print commands that are executed
-          sudo apt-get install libkrb5-dev graphviz
+          # sudo apt-get install libkrb5-dev graphviz
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          pip install -r dev-requirements.txt
+          pip install -r test-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
@@ -109,6 +118,9 @@ jobs:
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
+          
+          # rename file to not be hidden (starting with a dot) so that it will be saved correctly in next step
+          rename .coverage.*
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
@@ -119,6 +131,7 @@ jobs:
           name: cov-xml-report-${{ matrix.name }}
           path: |
             cov-${{ matrix.name }}.xml
+            .coverage.*
 
   coverage-report:
     name: "Coverage report"
@@ -138,6 +151,14 @@ jobs:
         uses: actions/download-artifact@v3
       - name: "Display structure of downloaded files"
         run: ls -R
+      - name: "Calculate overall coverage"
+          run: |
+            set -x # print commands that are executed
+            
+            coverage combine cov-xml-report-unitary/.coverage.* cov-xml-report-model/.coverage.*
+            ls -lha
+            coverage html
+
       - name: "Calculate coverage diff"
         run: |
           set -x # print commands that are executed
@@ -188,5 +209,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: coverage-diff-html-report
-          path: cov-diff.html
+          path: |
+            cov-diff.html
+            htmlcov/
           retention-days: 10
