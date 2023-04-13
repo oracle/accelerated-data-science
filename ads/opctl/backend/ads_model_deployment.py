@@ -180,22 +180,3 @@ class ModelDeploymentBackend(Backend):
             model_deployment = ModelDeployment.from_id(ocid)
             data = json.loads(data)
             print(model_deployment.predict(data))
-        # elif "datasciencemodel":
-        #     with AuthContext(auth=self.auth_type, profile=self.profile):
-        #         import tempfile
-        #         with tempfile.TemporaryDirectory() as td:
-
-        #             model = GenericModel.from_model_catalog(ocid, artifact_dir=os.path.join(td, str(uuid.uuid4())), force_overwrite=True)
-                    
-        #             conda_pack = self.config["execution"].get("conda", None)
-        #             if not conda_pack and hasattr(model.metadata_custom, "EnvironmentType") and model.metadata_custom.EnvironmentType == "published" and hasattr(model.metadata_custom, "CondaEnvironmentPath"):
-        #                 conda_pack = model.metadata_custom.CondaEnvironmentPath
-        #             if conda_pack and "service-conda-packs" not in conda_pack:
-        #                 print("install conda pack and activate the conda pack.")
-                    
-        #             data = json.loads(data)
-        #             print(model.verify(data))
-        # else:
-        #     raise ValueError("Only model ocid or model deployment ocid is supported.")
-
-
