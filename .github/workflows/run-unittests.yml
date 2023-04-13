@@ -120,6 +120,7 @@ jobs:
           
           # move multiple coverage file to separate folder
           mkdir -p cov
+          mv .coverage cov/.coverage.${{ matrix.name }}
           if compgen -G ".coverage.*" > /dev/null; then
             mv .coverage.* cov/
           fi
@@ -158,12 +159,9 @@ jobs:
           set -x # print commands that are executed
           
           pip install coverage
-          if compgen -G "cov-xml-report-jobs/cov/.coverage.*" > /dev/null; then
-            mv cov-xml-report-jobs/cov/.coverage.* .
-          fi
-          if compgen -G "cov-xml-report-feature_types/cov/.coverage.*" > /dev/null; then
-            mv cov-xml-report-feature_types/cov/.coverage.* .
-          fi
+          for file in $(find cov-*/cov/.cov* -type f); do
+            mv $file .
+          done
           ls -lha
           if compgen -G ".coverage.*" > /dev/null; then
             echo "Make combined coverage html report"
