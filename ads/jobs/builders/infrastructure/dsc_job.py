@@ -37,7 +37,7 @@ from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
 from ads.jobs.builders.infrastructure.dsc_file_system import (
-    DSCFileStorage,
+    OCIFileStorage,
     DSCFileSystem,
 )
 
@@ -844,7 +844,7 @@ class DataScienceJob(Infrastructure):
             .with_block_storage_size(50)
             # A list of file systems to be mounted
             .with_storage_mount(
-                DSCFileStorage(
+                OCIFileStorage(
                     destination_directory_name="test_mount",
                     mount_target="test_mount_target",
                     export_path="test_export_path"
@@ -907,7 +907,7 @@ class DataScienceJob(Infrastructure):
         v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()
     }
 
-    storage_mount_type_dict = {FILE_STORAGE_TYPE: DSCFileStorage}
+    storage_mount_type_dict = {FILE_STORAGE_TYPE: OCIFileStorage}
 
     @staticmethod
     def standardize_spec(spec):
@@ -1385,7 +1385,7 @@ class DataScienceJob(Infrastructure):
             storage_mount = [
                 self.storage_mount_type_dict[
                     file_system["storageType"]
-                ]._update_from_dsc_model(file_system)
+                ].update_from_dsc_model(file_system)
                 for file_system in storage_mount_list
                 if file_system["storageType"] in self.storage_mount_type_dict
             ]
@@ -1436,7 +1436,7 @@ class DataScienceJob(Infrastructure):
                     "Storage mount hasn't been supported in the current OCI SDK installed."
                 )
             dsc_job.job_storage_mount_configuration_details_list = [
-                file_system._update_to_dsc_model(compartment_id=dsc_job.compartment_id)
+                file_system.update_to_dsc_model(compartment_id=dsc_job.compartment_id)
                 for file_system in self.storage_mount
             ]
         return self

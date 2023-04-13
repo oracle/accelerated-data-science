@@ -23,8 +23,7 @@ try:
     from ads.jobs.builders.infrastructure.dsc_job import (
         DataScienceJob,
         DataScienceJobRun,
-        DSCFileSystem,
-        DSCFileStorage,
+        OCIFileStorage,
     )
     from ads.jobs.builders.infrastructure.dataflow import DataFlow, DataFlowRun
 except AttributeError as e:
@@ -50,6 +49,5 @@ __all__ = [
     "DataFlowRun",
     "DataFlowRuntime",
     "DataFlowNotebookRuntime",
-    "DSCFileSystem",
-    "DSCFileStorage",
+    "OCIFileStorage",
 ]

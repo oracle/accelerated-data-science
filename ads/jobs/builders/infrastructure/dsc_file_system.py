@@ -27,16 +27,16 @@ class DSCFileSystem:
         """Initialize the object from a Python dictionary."""
         return cls(**{utils.camel_to_snake(k): v for k, v in env.items()})
 
-    def _update_to_dsc_model(self, **kwargs) -> dict:
+    def update_to_dsc_model(self, **kwargs) -> dict:
         return self.to_dict()
 
     @classmethod
-    def _update_from_dsc_model(cls, dsc_model: dict) -> "DSCFileSystem":
+    def update_from_dsc_model(cls, dsc_model: dict) -> "DSCFileSystem":
         return cls.from_dict(dsc_model)
 
 
 @dataclass
-class DSCFileStorage(DSCFileSystem):
+class OCIFileStorage(DSCFileSystem):
 
     mount_target: str = None
     mount_target_id: str = None
@@ -60,7 +60,7 @@ class DSCFileStorage(DSCFileSystem):
                 "Either parameter `export_path` or `export_id` must be provided to mount file system."
             )
 
-    def _update_to_dsc_model(self, **kwargs) -> dict:
+    def update_to_dsc_model(self, **kwargs) -> dict:
         """Updates arguments to dsc model.
 
         Returns
@@ -128,7 +128,7 @@ class DSCFileStorage(DSCFileSystem):
         return arguments
 
     @classmethod
-    def _update_from_dsc_model(cls, dsc_model: dict) -> DSCFileSystem:
+    def update_from_dsc_model(cls, dsc_model: dict) -> DSCFileSystem:
         """Updates arguments and builds DSCFileSystem object from dsc model.
 
         Parameters

@@ -10,7 +10,7 @@ import unittest
 import pytest
 
 from ads.jobs.ads_job import Job
-from ads.jobs.builders.infrastructure import DSCFileStorage, DataScienceJob
+from ads.jobs.builders.infrastructure import OCIFileStorage, DataScienceJob
 from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
 
 try:
@@ -71,7 +71,7 @@ job = (
         .with_shape_config_details(memory_in_gbs=16, ocpus=1)
         .with_block_storage_size(50)
         .with_storage_mount(
-            DSCFileStorage(
+            OCIFileStorage(
                 destination_directory_name="test_mount_one",
                 mount_target="test_mount_target_one",
                 export_path="test_export_path_one",
@@ -134,14 +134,14 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
     def test_data_science_job_initialize(self):
         assert isinstance(job.infrastructure.storage_mount, list)
         dsc_file_storage_one = job.infrastructure.storage_mount[0]
-        assert isinstance(dsc_file_storage_one, DSCFileStorage)
+        assert isinstance(dsc_file_storage_one, OCIFileStorage)
         assert dsc_file_storage_one.storage_type == "FILE_STORAGE"
         assert dsc_file_storage_one.destination_directory_name == "test_mount_one"
         assert dsc_file_storage_one.mount_target == "test_mount_target_one"
         assert dsc_file_storage_one.export_path == "test_export_path_one"
 
         dsc_file_storage_two = job.infrastructure.storage_mount[1]
-        assert isinstance(dsc_file_storage_two, DSCFileStorage)
+        assert isinstance(dsc_file_storage_two, OCIFileStorage)
         assert dsc_file_storage_two.storage_type == "FILE_STORAGE"
         assert dsc_file_storage_two.destination_directory_name == "test_mount_two"
         assert dsc_file_storage_two.mount_target == "test_mount_target_two"
@@ -152,14 +152,14 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
 
         assert isinstance(job_from_yaml.infrastructure.storage_mount, list)
         dsc_file_storage_one = job_from_yaml.infrastructure.storage_mount[0]
-        assert isinstance(dsc_file_storage_one, DSCFileStorage)
+        assert isinstance(dsc_file_storage_one, OCIFileStorage)
         assert dsc_file_storage_one.storage_type == "FILE_STORAGE"
         assert dsc_file_storage_one.destination_directory_name == "test_mount_one"
         assert dsc_file_storage_one.mount_target == "test_mount_target_one"
         assert dsc_file_storage_one.export_path == "test_export_path_one"
 
         dsc_file_storage_two = job.infrastructure.storage_mount[1]
-        assert isinstance(dsc_file_storage_two, DSCFileStorage)
+        assert isinstance(dsc_file_storage_two, OCIFileStorage)
         assert dsc_file_storage_two.storage_type == "FILE_STORAGE"
         assert dsc_file_storage_two.destination_directory_name == "test_mount_two"
         assert dsc_file_storage_two.mount_target == "test_mount_target_two"
@@ -214,7 +214,7 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
             ValueError,
             match="Either parameter `export_path` or `export_id` must be provided to mount file system.",
         ):
-            DSCFileStorage(
+            OCIFileStorage(
                 destination_directory_name="test_mount",
                 mount_target_id="ocid1.mounttarget.oc1.iad.xxxx",
             )
@@ -223,7 +223,7 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
             ValueError,
             match="Either parameter `mount_target` or `mount_target_id` must be provided to mount file system.",
         ):
-            DSCFileStorage(
+            OCIFileStorage(
                 destination_directory_name="test_mount",
                 export_id="ocid1.export.oc1.iad.xxxx",
             )
@@ -232,13 +232,13 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
             ValueError,
             match="Parameter `destination_directory_name` must be provided to mount file system.",
         ):
-            DSCFileStorage(
+            OCIFileStorage(
                 mount_target_id="ocid1.mounttarget.oc1.iad.xxxx",
                 export_id="ocid1.export.oc1.iad.xxxx",
             )
 
         job_copy = copy.deepcopy(job)
-        dsc_file_storage = DSCFileStorage(
+        dsc_file_storage = OCIFileStorage(
             destination_directory_name="test_mount",
             mount_target="test_mount_target",
             export_id="ocid1.export.oc1.iad.xxxx",
@@ -305,8 +305,8 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         infrastructure._update_from_dsc_model(dsc_job_payload)
 
         assert len(infrastructure.storage_mount) == 2
-        assert isinstance(infrastructure.storage_mount[0], DSCFileStorage)
-        assert isinstance(infrastructure.storage_mount[1], DSCFileStorage)
+        assert isinstance(infrastructure.storage_mount[0], OCIFileStorage)
+        assert isinstance(infrastructure.storage_mount[1], OCIFileStorage)
         assert infrastructure.storage_mount[0].to_dict() == {
             "destinationDirectoryName": "test_destination_directory_name_from_dsc",
             "exportId": "export_id_from_dsc",
