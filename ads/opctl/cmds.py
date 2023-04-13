@@ -488,7 +488,8 @@ def predict(**kwargs) -> None:
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     if "datasciencemodeldeployment" in p.config["execution"].get("ocid", ""):
         return ModelDeploymentBackend(p.config).predict()
-    elif "datasciencemodel" in p.config["execution"].get("ocid", ""):
+    else:
+        # model ocid or artifact directory
         return LocalModelDeploymentBackend(p.config).predict()
     
 

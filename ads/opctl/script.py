@@ -7,7 +7,7 @@ from ads.model.generic_model import GenericModel
 
 def verify(artifact_dir, data, compartment_id, project_id):
     with tempfile.TemporaryDirectory() as td:
-        model = GenericModel.from_model_artifact(artifact_dir=artifact_dir,
+        model = GenericModel.from_model_artifact(uri = artifact_dir, artifact_dir=artifact_dir,
                                                 force_overwrite=True,
                                                 compartment_id=compartment_id,
                                                 project_id=project_id)

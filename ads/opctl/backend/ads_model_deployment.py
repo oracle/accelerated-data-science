@@ -175,7 +175,7 @@ class ModelDeploymentBackend(Backend):
 
     def predict(self) -> None:
         ocid = self.config["execution"].get("ocid")
-        data = self.config["execution"].get("data")
+        data = self.config["execution"].get("payload")
         with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(ocid)
             data = json.loads(data)

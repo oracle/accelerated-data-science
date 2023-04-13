@@ -9,6 +9,7 @@ from enum import Enum
 DEFAULT_OCI_CONFIG_FILE = "~/.oci/config"
 DEFAULT_PROFILE = "DEFAULT"
 DEFAULT_CONDA_PACK_FOLDER = "~/conda"
+DEFAULT_MODEL_FOLDER = "~/.ads_ops/models"
 CONDA_PACK_OS_PREFIX_FORMAT = "oci://<bucket>@<namespace>/<prefix>"
 DEFAULT_ADS_CONFIG_FOLDER = "~/.ads_ops"
 OPS_IMAGE_BASE = "ads-operators-base"
