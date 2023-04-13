@@ -152,12 +152,12 @@ jobs:
       - name: "Display structure of downloaded files"
         run: ls -R
       - name: "Calculate overall coverage"
-          run: |
-            set -x # print commands that are executed
-            
-            coverage combine cov-xml-report-unitary/.coverage.* cov-xml-report-model/.coverage.*
-            ls -lha
-            coverage html
+        run: |
+          set -x # print commands that are executed
+          
+          coverage combine cov-xml-report-unitary/.coverage.* cov-xml-report-model/.coverage.*
+          ls -lha
+          coverage html
 
       - name: "Calculate coverage diff"
         run: |
