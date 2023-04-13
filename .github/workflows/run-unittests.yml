@@ -119,8 +119,6 @@ jobs:
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
           
-          # rename file to not be hidden (starting with a dot) so that it will be saved correctly in next step
-          rename .coverage.*
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
