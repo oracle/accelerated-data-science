@@ -119,6 +119,8 @@ jobs:
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
           
+          # move multiple coverage file to separate folder
+          mkdir -p cov; mv .coverage.* cov/
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
@@ -129,7 +131,7 @@ jobs:
           name: cov-xml-report-${{ matrix.name }}
           path: |
             cov-${{ matrix.name }}.xml
-            .coverage.*
+            cov/
 
   coverage-report:
     name: "Coverage report"
@@ -153,7 +155,7 @@ jobs:
         run: |
           set -x # print commands that are executed
           
-          coverage combine cov-xml-report-unitary/.coverage.* cov-xml-report-model/.coverage.*
+          coverage combine cov-xml-report-unitary/cov/* cov-xml-report-model/cov/*
           ls -lha
           coverage html
 
