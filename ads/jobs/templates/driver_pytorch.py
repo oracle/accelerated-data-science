@@ -61,7 +61,7 @@ class TorchRunner(driver_utils.JobRunner):
         logger.debug("Runner initialized.")
 
     def wait_for_main_ip_address(self, timeout=15 * 60):
-        logger.info("Waiting for host's IP address...", flush=True)
+        logger.info("Waiting for host's IP address...")
         second_started = time.time()
         while not self.host_ip:
             self.host_ip = self.check_ip_address()
