@@ -65,14 +65,13 @@ class PyTorchDistributedRuntime(PythonRuntime):
             envs = replica_kwargs.get("environment_variables")
             if not envs:
                 envs = {}
-            envs["RANK"] = str(i)
             if main_run:
                 envs["MAIN_JOB_RUN_OCID"] = main_run.id
             name = replica_kwargs.get("display_name")
             if not name:
                 name = dsc_job.display_name
 
-            replica_kwargs["display_name"] = f"{name}-RANK-{str(i)}"
+            replica_kwargs["display_name"] = f"{name}-{str(i)}"
             replica_kwargs["environment_variables"] = envs
             run = dsc_job.run(**replica_kwargs)
             if i == 0:
