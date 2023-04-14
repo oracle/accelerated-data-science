@@ -33,6 +33,7 @@ logger = driver_utils.set_log_level(logger)
 
 
 CONST_ENV_MAIN_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
+CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
 CONST_MAIN_IP_LOG_PREFIX = "Distributed Training Main IP: "
 # Working count is the number of node - 1
 OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
@@ -51,6 +52,7 @@ class TorchRunner(driver_utils.JobRunner):
         if CONST_ENV_MAIN_JOB_RUN_OCID in os.environ:
             host_job_ocid = os.environ[CONST_ENV_MAIN_JOB_RUN_OCID]
             logger.debug("Host job run OCID: %s", host_job_ocid)
+            time.sleep(300)
             self.host_ip = None
         else:
             print(f"{CONST_MAIN_IP_LOG_PREFIX}{self.ip}")
@@ -88,6 +90,10 @@ class TorchRunner(driver_utils.JobRunner):
         Identify IP address by finding which of the host IP intersects with the CIDR block of the subnet
         associated with the JOB_OCID
         """
+        hostname = socket.gethostname()
+        logger.debug("Hostname: %s", hostname)
+        logger.debug("Get Host by Addr: %s", socket.gethostbyaddr(socket.gethostname()))
+        logger.debug("FQDN: %s", socket.getfqdn(socket.gethostname()))
         if os.environ.get("JOB_OCID"):
             subnet_id = self.ds_client.get_job(
                 os.environ["JOB_OCID"]
@@ -107,7 +113,6 @@ class TorchRunner(driver_utils.JobRunner):
             logger.critical("Unable to determine node IP address.")
             return None
         else:
-            hostname = socket.gethostname()
             ip = socket.gethostbyname(hostname)
             logger.info("Node IP address: %s", ip)
             return ip
@@ -162,19 +167,18 @@ class TorchRunner(driver_utils.JobRunner):
         else:
             nproc_per_node = 1
 
-        if CONST_ENV_MAIN_JOB_RUN_OCID in os.environ:
-            rdzv_conf = "read_timeout=600"
-            host = self.host_ip
-        else:
-            rdzv_conf = "is_host=1,read_timeout=600"
-            host = "localhost"
+        cmd = ""
+        # Use LD_PRELOAD only if LD_PRELOAD is not defined by the user.
+        if CONST_ENV_LD_PRELOAD not in os.environ:
+            cmd = f"LD_PRELOAD={self.conda_prefix}/lib/libhostname.so.1 OCI__HOSTNAME={self.ip} "
 
-        cmd = (
-            f"LD_PRELOAD={self.conda_prefix}/lib/libhostname.so.1 OCI__HOSTNAME={self.ip} "
-            + f"torchrun --nnode={node_count} --nproc_per_node={nproc_per_node} "
-            + f"--rdzv_backend=c10d --rdzv_endpoint={host}:29400 --rdzv_conf={rdzv_conf} "
+        # For pytorch>=2.0, we can use f"--local_addr={self.ip} " instead of LD_PRELOAD.
+        cmd += (
+            f"torchrun --nnode={node_count} --nproc_per_node={nproc_per_node} "
+            + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 "  # --rdzv_conf={rdzv_conf} "
             + f"{os.environ[self.entrypoint_env]}"
         )
+
         args = " ".join(sys.argv[1:])
         if args:
             cmd += " ({args})"
