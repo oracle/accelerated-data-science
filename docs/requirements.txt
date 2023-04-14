@@ -5,8 +5,10 @@ sphinxcontrib-napoleon
 sphinx-rtd-theme
 sphinx_copybutton
 sphinx_code_tabs
-oracle_ads
 sphinx-autobuild
+sphinx-design
+oracle_ads
+furo
 IPython
 pandoc
 rstcheck
