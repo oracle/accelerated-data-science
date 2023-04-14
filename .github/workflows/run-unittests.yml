@@ -39,15 +39,15 @@ jobs:
       matrix:
         python-version: ["3.8"]
         #test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
-        #test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/feature_types"]
-        test-path: ["tests/unitary/default_setup/jobs"]
+        test-path: ["tests/unitary/default_setup/jobs", "tests/unitary/default_setup/feature_types"]
+        #test-path: ["tests/unitary/default_setup/jobs"]
         include:
           - test-path: "tests/unitary/default_setup/jobs"
             name: "jobs"
-#          - test-path: "tests/unitary/default_setup/feature_types"
-#            name: "feature_types"
+          - test-path: "tests/unitary/default_setup/feature_types"
+            name: "feature_types"
           - python-version: "3.8"
-            cov-xml-report: --cov=ads --cov-report=xml
+            cov-reports: --cov=ads --cov-report=xml --cov-report=html
 #        include:
 #          - test-path: "tests/unitary"
 #            ignore-path: "tests/unitary/with_extras/model"
@@ -55,7 +55,7 @@ jobs:
 #          - test-path: "tests/unitary/with_extras/model"
 #            name: "model"
 #          - python-version: "3.8"
-#            cov-xml-report: --cov=ads --cov-report=xml
+#            cov-reports: --cov=ads --cov-report=xml
 
     steps:
       - uses: actions/checkout@v3
@@ -111,31 +111,34 @@ jobs:
           NoDependency: True
         run: |
           set -x # print commands that are executed
-          [[ -z "${{ matrix.cov-xml-report }}" ]] || COV_REPORT_NAME=:cov-${{ matrix.name }}.xml
           
+          # Setup project and tests folder for cov reports to not be overwritten by another parallel step
+          if [[ ! -z "${{ matrix.cov-reports }}" ]]; then
+            mkdir -p cov-${{ matrix.name }}
+            cd cov-${{ matrix.name }}
+            ln -s ../tests tests
+            ln -s ../ads ads
+            ln -s ../.coveragerc .coveragerc
+          fi
+          
+          # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto --dist loadfile ${{ matrix.cov-xml-report }}$COV_REPORT_NAME \
+          -n auto --dist loadfile ${{ matrix.cov-reports }} \
           ${{ matrix.test-path }} \
           --ignore "${{ matrix.ignore-path }}"
           ls -lha
-          
-          # move multiple coverage file to separate folder
-          mkdir -p cov
-          mv .coverage cov/
-          if compgen -G ".coverage.*" > /dev/null; then
-            mv .coverage.* cov/
-          fi
 
 #       Uploading test artifacts
 #       https://docs.github.com/en/actions/using-workflows/storing-workflow-data-as-artifacts#uploading-build-and-test-artifacts
       - name: "Save coverage files"
         uses: actions/upload-artifact@v3
-        if: ${{ matrix.cov-xml-report }}
+        if: ${{ matrix.cov-reports }}
         with:
-          name: cov-xml-report-${{ matrix.name }}
+          name: cov-reports-${{ matrix.name }}
           path: |
-            cov-${{ matrix.name }}.xml
-            cov/
+            cov-${{ matrix.name }}/htmlcov/
+            cov-${{ matrix.name }}/.coverage
+            cov-${{ matrix.name }}/coverage.xml
 
   coverage-report:
     name: "Coverage report"
@@ -160,18 +163,8 @@ jobs:
           set -x # print commands that are executed
           
           pip install coverage
-          for file in $(find cov-*/cov/.cov* -type f); do
-            mv $file .
-          done
-          ls -lha
-          if compgen -G ".coverage.*" > /dev/null; then
-            echo "Make combined coverage html report"
-            coverage combine
-            ls -lha
-            coverage html
-          else
-            echo "No coverage files to combine. No html report will be produced."
-          fi 
+          coverage combine cov-reports-jobs/.coverage cov-reports-feature_types/.coverage
+          coverage html
 
       - name: "Calculate coverage diff"
         run: |
@@ -183,8 +176,8 @@ jobs:
           
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
-          FILE1="cov-xml-report-unitary/cov-unitary.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
-          FILE2="cov-xml-report-model/cov-model.xml"; [[ ! -f $FILE2 ]] && FILE2=""
+          FILE1="cov-reports-jobs/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
+          FILE2="cov-reports-feature_types/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           echo "FILE1=$FILE1" >> $GITHUB_ENV
           echo "FILE2=$FILE2" >> $GITHUB_ENV
           
