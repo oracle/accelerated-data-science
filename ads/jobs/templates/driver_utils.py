@@ -3,6 +3,7 @@
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import contextlib
 import importlib
 import json
 import logging
@@ -14,7 +15,9 @@ import subprocess
 import sys
 import time
 import traceback
+from io import DEFAULT_BUFFER_SIZE
 from typing import List, Optional, Any
+from urllib import request
 from urllib.parse import urlparse
 
 
@@ -240,6 +243,32 @@ class OCIHelper:
         )
 
     @staticmethod
+    def _download_with_urlopen(src, dest):
+        url_response = request.urlopen(src)
+        with contextlib.closing(url_response) as f:
+            logger.debug("Downloading from %s", src)
+            with open(dest, "wb") as out_file:
+                block_size = DEFAULT_BUFFER_SIZE * 8
+                while True:
+                    block = f.read(block_size)
+                    if not block:
+                        break
+                    out_file.write(block)
+
+    @staticmethod
+    def _download_with_fsspec(src, dest):
+        import fsspec
+
+        scheme = urlparse(src).scheme
+        fs = fsspec.filesystem(scheme)
+        fs.get(
+            src,
+            dest,
+            recursive=True,
+            callback=fsspec.callbacks.TqdmCallback(),
+        )
+
+    @staticmethod
     def copy_inputs(mappings: dict = None):
         if not mappings and CONST_ENV_INPUT_MAPPINGS in os.environ:
             mappings = json.loads(os.environ[CONST_ENV_INPUT_MAPPINGS])
@@ -248,21 +277,21 @@ class OCIHelper:
             logger.debug("No inputs specified.")
             return
 
-        import fsspec
-
-        fs = fsspec.filesystem("oci")
-        for oci_uri, rel_path in mappings.items():
-            if str(rel_path).endswith("/"):
-                dest_dir = rel_path
+        for src, dest in mappings.items():
+            # Create the dest dir if one does not exist.
+            if str(dest).endswith("/"):
+                dest_dir = dest
             else:
-                dest_dir = os.path.dirname(rel_path)
+                dest_dir = os.path.dirname(dest)
             os.makedirs(dest_dir)
-            fs.get(
-                oci_uri,
-                rel_path,
-                recursive=True,
-                callback=fsspec.callbacks.TqdmCallback(),
-            )
+
+            # Use native Python to download http/ftp.
+            scheme = urlparse(src).scheme
+            if scheme in ["http", "https", "ftp"]:
+                OCIHelper._download_with_urlopen(src, dest)
+            else:
+                OCIHelper._download_with_fsspec(src, dest)
+        return
 
 
 class ArgumentParser:
@@ -408,7 +437,9 @@ class JobRunner:
         )
         return self
 
-    def install_pip_packages(self, packages: str = os.environ.get(CONST_ENV_PIP_INSTALL)):
+    def install_pip_packages(
+        self, packages: str = os.environ.get(CONST_ENV_PIP_INSTALL)
+    ):
         if not packages:
             return self
         self.run_command(
