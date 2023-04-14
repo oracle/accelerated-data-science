@@ -97,10 +97,10 @@ jobs:
         shell: bash
         run: |
           set -x # print commands that are executed
-          sudo apt-get install libkrb5-dev graphviz
+          # sudo apt-get install libkrb5-dev graphviz
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          pip install -r dev-requirements.txt
+          pip install -r test-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
