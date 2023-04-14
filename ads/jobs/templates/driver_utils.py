@@ -36,9 +36,6 @@ CONST_ENV_OUTPUT_URI = "OUTPUT_URI"
 CONST_ENV_OCI_RP = "OCI_RESOURCE_PRINCIPAL_VERSION"
 CONST_ENV_ADS_IAM = "OCI_IAM_TYPE"
 CONST_ENV_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
-CONST_ENV_CONDA_CREATE_YAML = "OCI__CONDA_CREATE_YAML"
-CONST_ENV_CONDA_UPDATE_YAML = "OCI__CONDA_UPDATE_YAML"
-CONST_ENV_CONDA_INSTALL = "OCI__CONDA_INSTALL"
 CONST_ENV_PIP_REQ = "OCI__PIP_REQUIREMENTS"
 CONST_ENV_PIP_INSTALL = "OCI__PIP_INSTALL"
 CONST_API_KEY = "api_key"
@@ -416,15 +413,6 @@ class JobRunner:
     def conda_unpack(self):
         if self.run_command("conda-unpack", level=logging.DEBUG):
             logger.info("conda-unpack exits with non-zero return code.")
-        return self
-
-    def create_conda_env(self, conda_yaml=os.environ.get(CONST_ENV_CONDA_CREATE_YAML)):
-        if not conda_yaml:
-            return self
-        conda_prefix = "custom_conda"
-        cmd = f"conda env create --name {conda_prefix} --file {conda_yaml}"
-        self.run_command(cmd)
-        self.conda_prefix = conda_prefix
         return self
 
     def install_pip_requirements(
