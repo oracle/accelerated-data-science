@@ -12,6 +12,8 @@ omit =
     */__init__.py
     */__main__.py
     */.*
+    /private/*
+    /tmp/*
 
 [report]
 exclude_lines =
@@ -29,6 +31,8 @@ omit =
     */__init__.py
     */__main__.py
     __init.py__
+    /private/*
+    /tmp/*
 show_missing = true
 skip_empty = true
 precision = 2

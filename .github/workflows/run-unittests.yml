@@ -162,17 +162,29 @@ jobs:
         run: |
           set -x # print commands that are executed
           
+          # Prepare default cov body text 
+          COV_BODY_INTRO="📌 Overall coverage:\n\n"
+          COV_BODY="$COV_BODY_INTRO No success to gather report. 😿"
+          
+          # Make html report
           pip install coverage
           coverage combine cov-reports-jobs/.coverage cov-reports-feature_types/.coverage
           coverage html
+          
+          # Calculate overall coverage and update body message
+          COV=$(coverage report | grep TOTAL | grep -Eo '\d+\.\d*')
+          if [[ ! -z $COV ]]; then 
+            if [[ $COV < 0 ]]; then COLOR=red; elif [[ $COV < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
+          fi
 
       - name: "Calculate coverage diff"
         run: |
           set -x # print commands that are executed
           
-          # Prepare default body text 
-          BODY_INTRO=":checkered_flag: Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
-          BODY="$BODY_INTRO No success to gather report."
+          # Prepare default diff body text 
+          DIFF_BODY_INTRO="📌 Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
+          DIFF_BODY="$BODY_INTRO No success to gather report. 😿"
           
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
@@ -189,10 +201,10 @@ jobs:
           if [[ -z $DIFF ]]; then 
             DIFF_INFO=$(diff-cover $FILE1 $FILE2 \
               --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
-            echo BODY="$BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
+            echo DIFF_BODY="$DIFF_BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
           else
-            if [[ $DIFF < 80 ]]; then COLOR=red; else COLOR=green; fi
-            echo BODY="$BODY_INTRO ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
+            if [[ $DIFF < 0 ]]; then COLOR=red; elif [[ $DIFF < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            echo DIFF_BODY="$DIFF_BODY_INTRO ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
           fi
 
       - name: "Add comment with cov diff to PR"
@@ -205,7 +217,7 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: '${{ env.BODY }}'
+              body: '${{ env.DIFF_BODY }}\n\n${{ env.COV_BODY }}'
             })
       - name: "Generate html difference report"
         run: |
@@ -215,7 +227,7 @@ jobs:
       - name: "Save coverage difference report"
         uses: actions/upload-artifact@v3
         with:
-          name: coverage-diff-html-report
+          name: coverage-html-reports
           path: |
             cov-diff.html
             htmlcov/
