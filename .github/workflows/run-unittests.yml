@@ -47,7 +47,7 @@ jobs:
 #          - test-path: "tests/unitary/default_setup/feature_types"
 #            name: "feature_types"
           - python-version: "3.8"
-            cov-xml-report: --cov= --cov-report=xml
+            cov-xml-report: --cov=ads --cov-report=xml
 #        include:
 #          - test-path: "tests/unitary"
 #            ignore-path: "tests/unitary/with_extras/model"
