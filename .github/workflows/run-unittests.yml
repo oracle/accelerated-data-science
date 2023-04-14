@@ -121,8 +121,8 @@ jobs:
           
           # move multiple coverage file to separate folder
           mkdir -p cov
+          mv .coverage cov/
           if compgen -G ".coverage.*" > /dev/null; then
-            mv .coverage cov/
             mv .coverage.* cov/
           fi
 
