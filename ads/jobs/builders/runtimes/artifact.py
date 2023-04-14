@@ -341,27 +341,3 @@ class GitPythonArtifact(Artifact):
         # Zip the job artifact
         shutil.make_archive(artifact_dir, "zip", artifact_dir, base_dir="./")
         self.path = artifact_dir + ".zip"
-
-
-class PyTorchDistributedArtifact(PythonArtifact):
-    CONST_DRIVER_SCRIPT = "driver_pytorch.py"
-    CONST_LIB_HOSTNAME = "hostname_from_env.c"
-
-    def __init__(self, source, runtime=None) -> None:
-        if not source:
-            source = ""
-        super().__init__(source, runtime)
-
-    def build(self):
-        """Prepares job artifact."""
-        self._copy_artifacts(
-            drivers=[
-                self.CONST_DRIVER_UTILS,
-                self.CONST_DRIVER_SCRIPT,
-                self.CONST_LIB_HOSTNAME,
-                GitPythonArtifact.CONST_DRIVER_SCRIPT,
-            ]
-        )
-
-        # Zip the job artifact
-        self.path = self._zip_artifacts()
