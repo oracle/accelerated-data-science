@@ -1,3 +1,4 @@
+from ads.jobs.builders.runtimes.artifact import PythonArtifact, GitPythonArtifact
 from ads.jobs.builders.runtimes.python_runtime import (
     PythonRuntime,
     GitPythonRuntime,
@@ -77,3 +78,27 @@ class PyTorchDistributedRuntime(PythonRuntime):
             if i == 0:
                 main_run = run
         return main_run
+
+
+class PyTorchDistributedArtifact(PythonArtifact):
+    CONST_DRIVER_SCRIPT = "driver_pytorch.py"
+    CONST_LIB_HOSTNAME = "hostname_from_env.c"
+
+    def __init__(self, source, runtime=None) -> None:
+        if not source:
+            source = ""
+        super().__init__(source, runtime)
+
+    def build(self):
+        """Prepares job artifact."""
+        self._copy_artifacts(
+            drivers=[
+                self.CONST_DRIVER_UTILS,
+                self.CONST_DRIVER_SCRIPT,
+                self.CONST_LIB_HOSTNAME,
+                GitPythonArtifact.CONST_DRIVER_SCRIPT,
+            ]
+        )
+
+        # Zip the job artifact
+        self.path = self._zip_artifacts()

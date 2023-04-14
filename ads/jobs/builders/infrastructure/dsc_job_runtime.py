@@ -28,14 +28,16 @@ from ads.jobs.builders.runtimes.python_runtime import (
     NotebookRuntime,
     GitPythonRuntime,
 )
-from ads.jobs.builders.runtimes.pytorch_runtime import PyTorchDistributedRuntime
+from ads.jobs.builders.runtimes.pytorch_runtime import (
+    PyTorchDistributedRuntime,
+    PyTorchDistributedArtifact,
+)
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.artifact import (
     ScriptArtifact,
     NotebookArtifact,
     PythonArtifact,
     GitPythonArtifact,
-    PyTorchDistributedArtifact,
 )
 from ads.jobs.builders.infrastructure.utils import get_value
 from ads.opctl.distributed.common import cluster_config_helper
