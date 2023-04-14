@@ -164,19 +164,22 @@ jobs:
           
           # Prepare default cov body text 
           COV_BODY_INTRO="📌 Overall coverage:\n\n"
-          COV_BODY="$COV_BODY_INTRO No success to gather report. 😿"
+          COV_BODY="$COV_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
           
-          # Make html report
+          # Combine coverage files
           pip install coverage
           coverage combine cov-reports-jobs/.coverage cov-reports-feature_types/.coverage
-          coverage html
+          coverage report
           
           # Calculate overall coverage and update body message
-          COV=$(coverage report | grep TOTAL | grep -Eo '\d+\.\d*')
-          if [[ ! -z $COV ]]; then 
-            if [[ $COV < 0 ]]; then COLOR=red; elif [[ $COV < 80 ]]; then COLOR=yellow; else COLOR=green; fi
-            echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
-          fi
+          #COV=$(coverage report | grep TOTAL | grep -Eo '\d+\.\d*')
+          #if [[ ! -z $COV ]]; then 
+          #  if [[ $COV < 0 ]]; then COLOR=red; elif [[ $COV < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+          #  echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
+          #fi
+          
+          # Make html report
+          coverage html
 
       - name: "Calculate coverage diff"
         run: |
@@ -184,7 +187,7 @@ jobs:
           
           # Prepare default diff body text 
           DIFF_BODY_INTRO="📌 Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
-          DIFF_BODY="$BODY_INTRO No success to gather report. 😿"
+          DIFF_BODY="$BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
           
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
