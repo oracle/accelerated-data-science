@@ -169,14 +169,13 @@ jobs:
           # Combine coverage files
           pip install coverage
           coverage combine cov-reports-jobs/.coverage cov-reports-feature_types/.coverage
-          coverage report
           
           # Calculate overall coverage and update body message
-          #COV=$(coverage report | grep TOTAL | grep -Eo '\d+\.\d*')
-          #if [[ ! -z $COV ]]; then 
-          #  if [[ $COV < 0 ]]; then COLOR=red; elif [[ $COV < 80 ]]; then COLOR=yellow; else COLOR=green; fi
-          #  echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
-          #fi
+          COV=$(coverage report | grep TOTAL | grep -Eo '\d+\.\d*')
+          if [[ ! -z $COV ]]; then 
+            if [[ $COV < 50 ]]; then COLOR=red; elif [[ $COV < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
+          fi
           
           # Make html report
           coverage html
@@ -206,7 +205,7 @@ jobs:
               --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
             echo DIFF_BODY="$DIFF_BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
           else
-            if [[ $DIFF < 0 ]]; then COLOR=red; elif [[ $DIFF < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            if [[ $DIFF < 50 ]]; then COLOR=red; elif [[ $DIFF < 80 ]]; then COLOR=yellow; else COLOR=green; fi
             echo DIFF_BODY="$DIFF_BODY_INTRO ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
           fi
 
