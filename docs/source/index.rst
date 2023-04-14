@@ -10,11 +10,11 @@ Oracle Accelerated Data Science SDK (ADS)
 =========================================
 |PyPI|_ |Python|_ |Notebook Examples|_
 
-.. |PyPI| image:: https://img.shields.io/pypi/v/oracle-ads.svg
+.. |PyPI| image:: https://img.shields.io/pypi/v/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white
 ..  _PyPI: https://pypi.org/project/oracle-ads/
-.. |Python| image:: https://img.shields.io/pypi/pyversions/oracle-ads.svg?style=plastic
+.. |Python| image:: https://img.shields.io/pypi/pyversions/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white
 ..  _Python: https://pypi.org/project/oracle-ads/
-.. |Notebook Examples| image:: https://img.shields.io/badge/docs-notebook--examples-blue
+.. |Notebook Examples| image:: https://img.shields.io/badge/docs-notebook--examples-blue?style=for-the-badge&logo=pypi&logoColor=white
 ..  _Notebook Examples: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples
 
 .. toctree::
