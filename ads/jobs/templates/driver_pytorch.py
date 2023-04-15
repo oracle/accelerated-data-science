@@ -4,6 +4,7 @@ import logging
 import ipaddress
 import os
 import time
+import shlex
 import socket
 import sys
 
@@ -15,7 +16,6 @@ from ads.jobs import DataScienceJobRun
 
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PythonRuntimeHandler,
-    GitPythonRuntimeHandler,
 )
 from ads.opctl.distributed.common import cluster_config_helper
 
@@ -139,8 +139,7 @@ class TorchRunner(driver_utils.JobRunner):
         return self
 
     def fetch_code(self):
-        if GitPythonRuntimeHandler.CONST_ENTRYPOINT in os.environ:
-            self.entrypoint_env = GitPythonRuntimeHandler.CONST_ENTRYPOINT
+        if cluster_config_helper.OCI__RUNTIME_URI in os.environ:
             self._fetch_git(code_dir=self.code_dir)
         return self
 
@@ -172,16 +171,19 @@ class TorchRunner(driver_utils.JobRunner):
         if CONST_ENV_LD_PRELOAD not in os.environ:
             cmd = f"LD_PRELOAD={self.conda_prefix}/lib/libhostname.so.1 OCI__HOSTNAME={self.ip} "
 
+        # The default read_timeout is 60 seconds.
+        # The job run will fail if the node cannot reach the host within read_timeout.
+        rdzv_timeout = os.environ.get('OCI__RDZV_TIMEOUT', '600')
+        rdzv_conf = f"read_timeout={rdzv_timeout}"
         # For pytorch>=2.0, we can use f"--local_addr={self.ip} " instead of LD_PRELOAD.
         cmd += (
             f"torchrun --nnode={node_count} --nproc_per_node={nproc_per_node} "
-            + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 "  # --rdzv_conf={rdzv_conf} "
+            + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 --rdzv_conf={rdzv_conf}"
             + f"{os.environ[self.entrypoint_env]}"
         )
 
-        args = " ".join(sys.argv[1:])
-        if args:
-            cmd += " ({args})"
+        if sys.argv[1:]:
+            cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
         training_start_time = time.time()
         self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
         logger.info("Training Time: %s seconds.", time.time() - training_start_time)
