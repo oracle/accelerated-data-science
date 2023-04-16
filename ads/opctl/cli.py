@@ -32,6 +32,7 @@ from ads.opctl.backend.local import DEFAULT_MODEL_FOLDER
 
 import ads.opctl.conda.cli
 import ads.opctl.spark.cli
+import ads.opctl.model.cli
 import ads.opctl.distributed.cli
 
 
@@ -520,6 +521,7 @@ def predict(**kwargs):
 
 
 commands.add_command(ads.opctl.conda.cli.commands)
+commands.add_command(ads.opctl.model.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)
 
