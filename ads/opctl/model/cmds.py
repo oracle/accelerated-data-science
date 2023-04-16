@@ -54,5 +54,5 @@ def _download_model(ocid, artifact_directory, oci_auth, region, bucket_uri, time
         bucket_uri=bucket_uri,
         )
     except Exception as e:
-        print(str(e))
+        print(type(e))
         shutil.rmtree(artifact_directory, ignore_errors=True)
