@@ -82,11 +82,11 @@ _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 _WORK_REQUEST_INTERVAL_IN_SEC = 3
 
 
-class ModelWithActiveDeploymentError(Exception):
+class ModelWithActiveDeploymentError(Exception):   # pragma: no cover
     pass
 
 
-class ModelArtifactSizeError(Exception):
+class ModelArtifactSizeError(Exception):   # pragma: no cover
     def __init__(self, max_artifact_size: str):
         super().__init__(
             f"The model artifacts size is greater than `{max_artifact_size}`. "
