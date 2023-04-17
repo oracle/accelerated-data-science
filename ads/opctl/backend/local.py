@@ -21,6 +21,7 @@ from ads.common.decorator.runtime_dependency import (OptionalDependency,
 from ads.common.oci_client import OCIClientFactory
 from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
+from ads.model.runtime.runtime_info import RuntimeInfo
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend
 from ads.opctl.conda.cmds import _install
@@ -33,13 +34,13 @@ from ads.opctl.constants import (DEFAULT_IMAGE_CONDA_DIR,
                                  DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
                                  ML_JOB_GPU_IMAGE, ML_JOB_IMAGE)
 from ads.opctl.distributed.cmds import load_ini, local_run
+from ads.opctl.model.cmds import _download_model
 from ads.opctl.spark.cmds import (generate_core_site_properties,
                                   generate_core_site_properties_str)
 from ads.opctl.utils import (build_image, get_docker_client,
                              is_in_notebook_session, run_command,
                              run_container)
 from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
-from ads.model.runtime.runtime_info import RuntimeInfo
 
 
 class CondaPackNotFound(Exception):
@@ -654,7 +655,7 @@ class LocalModelDeploymentBackend(LocalBackend):
             bucket_uri = self.config["execution"].get("bucket_uri", None)
             timeout = self.config["execution"].get("timeout", None)
             logger.info(f"No cached model found. Downloading the model {ocid} to {artifact_directory}. If you already have a copy of the model, specify `artifact_directory` instead of `ocid`. You can specify `model_save_folder` to decide where to store the model artifacts.")
-            self._download_model(ocid=ocid, artifact_directory=artifact_directory, region=region, bucket_uri=bucket_uri, timeout=timeout)
+            _download_model(ocid=ocid, artifact_directory=artifact_directory, region=region, bucket_uri=bucket_uri, timeout=timeout)
 
         if ocid:
             conda_slug, conda_path = self._get_conda_info_from_catalog(ocid)
@@ -682,10 +683,7 @@ class LocalModelDeploymentBackend(LocalBackend):
             self.config["execution"]["source_folder"] = os.path.abspath(os.path.join(dir_path, ".."))
             self.config["execution"]["entrypoint"] = script
             bind_volumes[artifact_directory] = {"bind": "/opt/ds/model/deployed_model/"}
-            
-        if self.config["execution"].get("image"):
-            exit_code = self._run_with_image(bind_volumes)
-        elif self.config["execution"].get("conda_slug", conda_slug):
+        if self.config["execution"].get("conda_slug", conda_slug):
             self.config["execution"]["image"] = ML_JOB_IMAGE
             if not self.config["execution"].get("conda_slug"):
                 self.config["execution"]["conda_slug"] = conda_slug
@@ -700,28 +698,7 @@ class LocalModelDeploymentBackend(LocalBackend):
                 f"`predict` did not complete successfully. Exit code: {exit_code}. "
                 f"Run with the --debug argument to view container logs."
             )
-    
-    def _download_model(self, ocid, artifact_directory, region, bucket_uri, timeout):
-        os.makedirs(artifact_directory, exist_ok=True)
-        os.chmod(artifact_directory, 777)
-        
-        try:
-            dsc_model = DataScienceModel.from_id(ocid)
-            dsc_model.download_artifact(
-            target_dir=artifact_directory,
-            force_overwrite=True,
-            overwrite_existing_artifact=True,
-            remove_existing_artifact=True,
-            auth=self.oci_auth,
-            region=region,
-            timeout=timeout,
-            bucket_uri=bucket_uri,
-            )
-            
-        except Exception as e :
-            shutil.rmtree(artifact_directory, ignore_errors=True)
-            raise e
-        
+
     def _get_conda_info_from_catalog(self, ocid):
         response = self.client.get_model(ocid)
         custom_metadata = ModelCustomMetadata._from_oci_metadata(response.data.custom_metadata_list)
@@ -736,21 +713,3 @@ class LocalModelDeploymentBackend(LocalBackend):
         conda_path = runtime_info.model_deployment.inference_conda_env.inference_env_path
         return conda_slug, conda_path
         
-    
-    def _run_with_image(self, bind_volumes):
-        ocid = self.config["execution"].get("ocid")
-        data = self.config["execution"].get("data")
-        image = self.config["execution"].get("image")
-        env_vars = self.config["execution"]["env_vars"]
-        # compartment_id = self.config["execution"].get("compartment_id", self.config["infrastructure"].get("compartment_id"))
-        # project_id = self.config["execution"].get("project_id", self.config["infrastructure"].get("project_id"))
-        entrypoint = self.config["execution"].get("entrypoint", None)
-        command = self.config["execution"].get("command", None)
-        if self.config["execution"].get("source_folder", None):
-            bind_volumes.update(self._mount_source_folder_if_exists(bind_volumes))
-        bind_volumes.update(self.config["execution"]["volumes"])
-        
-        return run_container(image, bind_volumes, env_vars, command, entrypoint)
-    
-    def _run_with_local_env(self, ):
-        pass
