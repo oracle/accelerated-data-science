@@ -310,6 +310,8 @@ def _install(
     None
     """
     ns, bucket, path, slug = parse_conda_uri(conda_uri)
+    if bucket == "service-conda-packs":
+        raise ValueError("Download service conda pack is not allowed. Only custom conda pack can be downloaded to local machine. You need to publish it to your own bucket first.")
     os.makedirs(conda_pack_folder, exist_ok=True)
     pack_path = os.path.join(os.path.expanduser(conda_pack_folder), slug + ".tar.gz")
     pack_folder_path = os.path.join(os.path.expanduser(conda_pack_folder), slug)

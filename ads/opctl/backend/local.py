@@ -650,7 +650,6 @@ class LocalModelDeploymentBackend(LocalBackend):
         model_folder = os.path.expanduser(self.config["execution"].get("model_save_folder", DEFAULT_MODEL_FOLDER))
         artifact_directory = artifact_directory or os.path.join(model_folder, str(ocid))
         if ocid and (not os.path.exists(artifact_directory) or len(os.listdir(artifact_directory)) == 0):
-            
             region = self.config["execution"].get("region", None)
             bucket_uri = self.config["execution"].get("bucket_uri", None)
             timeout = self.config["execution"].get("timeout", None)
@@ -718,8 +717,10 @@ class LocalModelDeploymentBackend(LocalBackend):
             timeout=timeout,
             bucket_uri=bucket_uri,
             )
-        except:
+            
+        except Exception as e :
             shutil.rmtree(artifact_directory, ignore_errors=True)
+            raise e
         
     def _get_conda_info_from_catalog(self, ocid):
         response = self.client.get_model(ocid)
