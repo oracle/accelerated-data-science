@@ -128,6 +128,7 @@ def send_request(
     
     request_kwargs["headers"] = header
 
+    request_kwargs["auth"] = header.pop("signer")
     if dry_run:
         request_kwargs["headers"]["Accept"] = "*/*"
         req = requests.Request("POST", endpoint, **request_kwargs).prepare()
@@ -135,7 +136,6 @@ def send_request(
             return json.loads(req.body)
         return req.body
     else:
-        request_kwargs["auth"] = header.pop("signer")
         return requests.post(endpoint, **request_kwargs).json()
 
 

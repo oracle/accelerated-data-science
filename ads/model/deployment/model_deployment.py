@@ -1581,8 +1581,8 @@ class ModelDeployment(Builder):
                 infrastructure.web_concurrency
             )
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
-        if hasattr(runtime, "inference_server") and runtime.inference_server and runtime.inference_server.lower() == "triton":
-            environment_variables["CONTAINER_TYPE"] = "TRITON"
+        if hasattr(runtime, "inference_server") and runtime.inference_server and runtime.inference_server.upper() == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
+            environment_variables["CONTAINER_TYPE"] = MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
             runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
