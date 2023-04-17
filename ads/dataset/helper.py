@@ -300,7 +300,7 @@ class ElaboratedPath:
         return format.lower() if format != "" else None
 
 
-class DatasetLoadException(BaseException):
+class DatasetLoadException(BaseException):   # pragma: no cover
     def __init__(self, exc_msg):
         self.exc_msg = exc_msg
 

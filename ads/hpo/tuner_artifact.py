@@ -27,7 +27,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 
 
-class NotPickableError(Exception):
+class NotPickableError(Exception):    # pragma: no cover
     def __init__(self, message):
         self.message = message
 

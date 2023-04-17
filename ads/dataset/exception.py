@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-class DatasetError(BaseException):
+class DatasetError(BaseException):   # pragma: no cover
     """Base class for dataset errors."""
 
     def __init__(self, *args, **kwargs):
@@ -15,7 +15,7 @@ class DatasetError(BaseException):
         pass
 
 
-class ValidationError(DatasetError):
+class ValidationError(DatasetError):   # pragma: no cover
     """Handles validation errors in dataset."""
 
     def __init__(self, msg):

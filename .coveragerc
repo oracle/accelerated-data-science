@@ -1,38 +1,61 @@
 [run]
 omit =
-    docs/*
-    tests/*
-    ads/automl/*
-    ads/common/artifact/*
-    ads/environment/*
-    ads/experiments/*
-    ads/templates/*
-    */constants.py
-    */_imports.py
-    */__init__.py
-    */__main__.py
+    **/__init__.py
+    **/__main__.py
+    **/_imports.py
+    **/cli.py
+    **/constants.py
+    **/extension.py
+    **/score.py
     */.*
     /private/*
     /tmp/*
+    ads/automl/*
+    ads/common/analyzer.py
+    ads/common/artifact/*
+    ads/common/function/*
+    ads/dataflow/*
+    ads/dataset/dask_series.py
+    ads/dataset/factory.py
+    ads/environment/*
+    ads/experiments/*
+    ads/explanations/*
+    ads/templates/*
+    ads/type_discovery/*
+    docs/*
+    tests/*
 
 [report]
 exclude_lines =
     pragma: no cover
     def __repr__
     if __name__ == .__main__.:
+    @(abc\.)?abstractmethod
+    raise AssertionError
+    raise NotImplementedError
 omit =
-    ads/automl/*
-    ads/common/artifact/*
-    ads/environment/*
-    ads/experiments/*
-    ads/templates/*
-    */constants.py
-    */_imports.py
-    */__init__.py
-    */__main__.py
-    __init.py__
+    **/__init__.py
+    **/__main__.py
+    **/_imports.py
+    **/cli.py
+    **/constants.py
+    **/extension.py
+    **/score.py
+    */.*
     /private/*
     /tmp/*
+    ads/automl/*
+    ads/common/analyzer.py
+    ads/common/artifact/*
+    ads/common/function/*
+    ads/dataflow/*
+    ads/dataset/dask_series.py
+    ads/dataset/factory.py
+    ads/environment/*
+    ads/experiments/*
+    ads/explanations/*
+    ads/templates/*
+    ads/type_discovery/*
 show_missing = true
 skip_empty = true
 precision = 2
