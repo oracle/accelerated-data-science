@@ -79,6 +79,7 @@ OCI_MODEL_DEPLOYMENT_RESPONSE = oci.data_science.models.ModelDeployment(
                 model_deployment_instance_shape_config_details=ModelDeploymentInstanceShapeConfigDetails(
                     ocpus=10, memory_in_gbs=36
                 ),
+                subnet_id="fakeid.subnet.oc1.iad.xxx"
             ),
             scaling_policy=FixedSizeScalingPolicy(instance_count=5),
             bandwidth_mbps=5,
@@ -128,6 +129,7 @@ OCI_MODEL_DEPLOYMENT_DICT = {
                 "replica": 5,
                 "shape_name": "VM.Standard.E4.Flex",
                 "shape_config_details": {"ocpus": 10, "memoryInGBs": 36},
+                "subnet_id": "fakeid.subnet.oc1.iad.xxx",
                 "web_concurrency": 10,
                 "access_log": {
                     "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
@@ -184,6 +186,7 @@ spec:
       shapeConfigDetails:
         memoryInGBs: 36
         ocpus: 10
+      subnetId: fakeid.subnet.oc1.iad.xxx
       replica: 5
       bandwidthMbps: 5
       webConcurrency: 5
@@ -215,6 +218,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             .with_replica(5)
             .with_shape_name("VM.Standard.E4.Flex")
             .with_shape_config_details(ocpus=10, memory_in_gbs=36)
+            .with_subnet_id("fakeid.subnet.oc1.iad.xxx")
             .with_web_concurrency(10)
             .with_access_log(
                 log_group_id="fakeid.loggroup.oc1.iad.xxx",
@@ -267,6 +271,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             .with_replica(5)
             .with_shape_name("VM.Standard.E4.Flex")
             .with_shape_config_details(ocpus=10, memory_in_gbs=36)
+            .with_subnet_id("fakeid.subnet.oc1.iad.xxx")
             .with_web_concurrency(10)
             .with_access_log(
                 log_group_id="fakeid.loggroup.oc1.iad.xxx",
@@ -318,6 +323,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             .with_replica(5)
             .with_shape_name("VM.Standard.E4.Flex")
             .with_shape_config_details(ocpus=10, memory_in_gbs=36)
+            .with_subnet_id("fakeid.subnet.oc1.iad.xxx")
             .with_web_concurrency(10)
             .with_access_log(
                 log_group_id="fakeid.loggroup.oc1.iad.xxx",
@@ -404,6 +410,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             "ocpus": 10,
             "memoryInGBs": 36,
         }
+        assert temp_infrastructure.subnet_id == "fakeid.subnet.oc1.iad.xxx"
         assert temp_infrastructure.replica == 5
         assert temp_infrastructure.access_log == {
             "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
@@ -461,6 +468,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                         "replica": 5,
                         "shapeName": "VM.Standard.E4.Flex",
                         "shapeConfigDetails": {"ocpus": 10, "memoryInGBs": 36},
+                        "subnetId": "fakeid.subnet.oc1.iad.xxx",
                         "webConcurrency": 10,
                         "accessLog": {
                             "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
@@ -517,6 +525,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                         "ocpus": 10,
                         "memoryInGBs": 36,
                     },
+                    "subnetId": "fakeid.subnet.oc1.iad.xxx",
                 },
                 "modelId": "fakeid.datasciencemodel.oc1.iad.xxx",
                 "scalingPolicy": {"policyType": "FIXED_SIZE", "instanceCount": 5},
@@ -680,6 +689,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             instance_configuration.model_deployment_instance_shape_config_details.memory_in_gbs
             == model_deployment.infrastructure.shape_config_details["memoryInGBs"]
         )
+        assert instance_configuration.subnet_id == model_deployment.infrastructure.subnet_id
 
         scaling_policy = model_configuration_details.scaling_policy
         assert isinstance(scaling_policy, FixedSizeScalingPolicy)
@@ -780,6 +790,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             infrastructure.shape_config_details["memoryInGBs"]
             == instance_configuration.model_deployment_instance_shape_config_details.memory_in_gbs
         )
+        assert infrastructure.subnet_id == instance_configuration.subnet_id
         assert infrastructure.replica == scaling_policy.instance_count
 
         category_log_details = OCI_MODEL_DEPLOYMENT_RESPONSE.category_log_details
@@ -860,6 +871,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                         "replica": 5,
                         "shapeName": "VM.Standard.E4.Flex",
                         "shapeConfigDetails": {"ocpus": 10, "memoryInGBs": 36},
+                        "subnetId": "fakeid.subnet.oc1.iad.xxx",
                         "accessLog": {
                             "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
                             "logId": "fakeid.log.oc1.iad.xxx",
@@ -1026,6 +1038,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             instance_configuration.model_deployment_instance_shape_config_details.memory_in_gbs
             == model_deployment.infrastructure.shape_config_details["memoryInGBs"]
         )
+        assert instance_configuration.subnet_id == model_deployment.infrastructure.subnet_id
 
         scaling_policy = model_configuration_details.scaling_policy
         assert isinstance(scaling_policy, FixedSizeScalingPolicy)
@@ -1077,6 +1090,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                 "replica": 5,
                 "shapeName": "VM.Standard.E4.Flex",
                 "shapeConfigDetails": {"ocpus": 10, "memoryInGBs": 36},
+                "subnetId": "fakeid.subnet.oc1.iad.xxx",
                 "accessLog": {
                     "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
                     "logId": "fakeid.log.oc1.iad.xxx",
