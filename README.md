@@ -1,21 +1,21 @@
-# Oracle Accelerated Data Science SDK (ADS)
+# Oracle Accelerated Data Science (ADS)
 
-[![PyPI](https://img.shields.io/pypi/v/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/oracle-ads/) [![Python](https://img.shields.io/pypi/pyversions/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/oracle-ads/)
+[![PyPI](https://img.shields.io/pypi/v/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/oracle-ads/) [![Python](https://img.shields.io/pypi/pyversions/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white)](https://pypi.org/project/oracle-ads/) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg?style=for-the-badge&logo=pypi&logoColor=white)](https://github.com/ambv/black)
+
 
 The [Oracle Accelerated Data Science (ADS) SDK](https://accelerated-data-science.readthedocs.io/en/latest/index.html) is maintained by the Oracle Cloud Infrastructure (OCI) [Data Science service](https://docs.oracle.com/en-us/iaas/data-science/using/data-science.htm) team. It speeds up common data science activities by providing tools that automate and simplify common data science tasks. Additionally, provides data scientists a friendly pythonic interface to OCI services. Some of the more notable services are OCI Data Science, Model Catalog, Model Deployment, Jobs, ML Pipelines, Data Flow, Object Storage, Vault, Big Data Service, Data Catalog, and the Autonomous Database. ADS gives you an interface to manage the life cycle of machine learning models, from data acquisition to model evaluation, interpretation, and model deployment.
 
 With ADS you can:
 
- - Read datasets from Oracle Object Storage, Oracle RDBMS (ATP/ADW/On-prem), AWS S3 and other sources into `Pandas dataframes`.
- - Use feature types to characterize your data, create meaning summary statistics and plot. Use the warning and validation system to test the quality of your data.
- - Tune models using hyperparameter optimization with the `ADSTuner` tool.
- - Generate detailed evaluation reports of your model candidates with the `ADSEvaluator` module.
- - Save machine learning models to the [OCI Data Science Model Catalog](https://docs.oracle.com/en-us/iaas/data-science/using/models-about.htm).
- - Deploy models as HTTP endpoints with [Model Deployment](https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm).
- - Launch distributed ETL, data processing, and model training jobs in Spark with [OCI Data Flow](https://docs.oracle.com/en-us/iaas/data-flow/using/home.htm).
- - Train machine learning models in OCI Data Science [Jobs](https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm).
- - Define and run an end-to-end machine learning orchestration covering all the steps of machine learning lifecycle in a repeatable, continuous [ML Pipelines](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/pipeline/overview.html#).
- - Manage the life cycle of conda environments through the `ads conda` command line interface (CLI).
+- Read datasets from Oracle Object Storage, Oracle RDBMS (ATP/ADW/On-prem), AWS S3 and other sources into `Pandas dataframes`.
+- Tune models using hyperparameter optimization with the `ADSTuner` tool.
+- Generate detailed evaluation reports of your model candidates with the `ADSEvaluator` module.
+- Save machine learning models to the [OCI Data Science Model Catalog](https://docs.oracle.com/en-us/iaas/data-science/using/models-about.htm).
+- Deploy models as HTTP endpoints with [Model Deployment](https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm).
+- Launch distributed ETL, data processing, and model training jobs in Spark with [OCI Data Flow](https://docs.oracle.com/en-us/iaas/data-flow/using/home.htm).
+- Train machine learning models in OCI Data Science [Jobs](https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm).
+- Define and run an end-to-end machine learning orchestration covering all the steps of machine learning lifecycle in a repeatable, continuous [ML Pipelines](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/pipeline/overview.html#).
+- Manage the life cycle of conda environments through the `ads conda` command line interface (CLI).
 
 ## Installation
 

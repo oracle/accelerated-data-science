@@ -25,7 +25,7 @@ Install ADS CLI
 
 .. admonition:: Tip
 
-  ``ads opctl`` subcommand lets us setup your local development envrionment for Data Science Jobs. More information can be found by running ``ads opctl -h``
+  ``ads opctl`` subcommand lets you setup your local development envrionment for Data Science Jobs. More information can be found by running ``ads opctl -h``
 
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

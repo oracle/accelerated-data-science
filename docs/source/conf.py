@@ -63,16 +63,25 @@ language = 'en'
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 # exclude_patterns = []
-exclude_patterns = ['build', '**.ipynb_checkpoints']
+exclude_patterns = ['build', '**.ipynb_checkpoints', 'Thumbs.db', '.DS_Store']
 
 # The name of the Pygments (syntax highlighting) style to use.
-pygments_style = None
+# pygments_style = "sphinx"
+# pygments_dark_style = "monokai"
+
 language = "en"
 
 html_theme = "furo"
-html_logo = "_static/oracle_logo.png"
 html_static_path = ["_static"]
-html_css_files = ["pied-piper-admonition.css"]
+
+html_theme_options = {
+    "light_logo": "logo-light-mode.png",
+    "dark_logo": "logo-dark-mode.png",
+}
+
+html_css_files = [
+    'pied-piper-admonition.css',     
+]
 htmlhelp_basename = "pydoc"
 
 
