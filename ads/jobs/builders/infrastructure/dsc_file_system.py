@@ -6,6 +6,7 @@
 import ads
 import oci
 import copy
+import ipaddress
 
 from ads.common import utils
 from dataclasses import asdict, dataclass
@@ -16,7 +17,9 @@ FILE_STORAGE_TYPE = "FILE_STORAGE"
 @dataclass
 class DSCFileSystem:
 
-    destination_directory_name: str = None
+    src: str = None
+    dsc: str = None
+    storage_type: str = None
 
     def to_dict(self) -> dict:
         """Converts the object to dictionary."""
@@ -27,7 +30,7 @@ class DSCFileSystem:
         """Initialize the object from a Python dictionary."""
         return cls(**{utils.camel_to_snake(k): v for k, v in env.items()})
 
-    def update_to_dsc_model(self, **kwargs) -> dict:
+    def update_to_dsc_model(self) -> dict:
         return self.to_dict()
 
     @classmethod
@@ -38,29 +41,28 @@ class DSCFileSystem:
 @dataclass
 class OCIFileStorage(DSCFileSystem):
 
-    mount_target: str = None
     mount_target_id: str = None
-    export_path: str = None
     export_id: str = None
     storage_type: str = FILE_STORAGE_TYPE
 
     def __post_init__(self):
-        if not self.destination_directory_name:
+        if not self.src:
+            if not self.mount_target_id:
+                raise ValueError(
+                    "Missing required parameter. Either `src` or `mount_target_id` is required for mounting file storage system."
+                )
+
+            if not self.export_id:
+                raise ValueError(
+                    "Missing required parameter. Either `src` or `export_id` is required for mounting file storage system."
+                )
+
+        if not self.dsc:
             raise ValueError(
-                "Parameter `destination_directory_name` must be provided to mount file system."
+                "Parameter `src` is required for mounting file storage system."
             )
 
-        if not self.mount_target and not self.mount_target_id:
-            raise ValueError(
-                "Either parameter `mount_target` or `mount_target_id` must be provided to mount file system."
-            )
-
-        if not self.export_path and not self.export_id:
-            raise ValueError(
-                "Either parameter `export_path` or `export_id` must be provided to mount file system."
-            )
-
-    def update_to_dsc_model(self, **kwargs) -> dict:
+    def update_to_dsc_model(self) -> dict:
         """Updates arguments to dsc model.
 
         Returns
@@ -68,64 +70,90 @@ class OCIFileStorage(DSCFileSystem):
         dict:
             A dictionary of arguments.
         """
-        auth = ads.auth.default_signer()
-        file_storage_client = oci.file_storage.FileStorageClient(**auth)
-        identity_client = oci.identity.IdentityClient(**auth)
-
         arguments = self.to_dict()
 
-        compartment_id = kwargs["compartment_id"]
-        if "mountTargetId" not in arguments:
-            list_availability_domains_response = (
-                identity_client.list_availability_domains(
-                    compartment_id=compartment_id
-                ).data
-            )
-            mount_targets = []
-            for availability_domain in list_availability_domains_response:
-                mount_targets.extend(
-                    file_storage_client.list_mount_targets(
-                        compartment_id=compartment_id,
-                        availability_domain=availability_domain.name,
-                    ).data
-                )
-            mount_targets = [
-                mount_target.id
-                for mount_target in mount_targets
-                if mount_target.display_name == self.mount_target
-            ]
-            if len(mount_targets) == 0:
-                raise ValueError(
-                    f"No `mount_target` with value {self.mount_target} found under compartment {compartment_id}. Specify a valid one."
-                )
-            if len(mount_targets) > 1:
-                raise ValueError(
-                    f"Multiple `mount_target` with value {self.mount_target} found under compartment {compartment_id}. Specify `mount_target_id` of the file system instead."
-                )
-            arguments["mountTargetId"] = mount_targets[0]
-            arguments.pop("mountTarget")
-
         if "exportId" not in arguments:
-            list_exports_response = file_storage_client.list_exports(
-                compartment_id=compartment_id
-            ).data
-            exports = [
-                export.id
-                for export in list_exports_response
-                if export.path == self.export_path
-            ]
-            if len(exports) == 0:
-                raise ValueError(
-                    f"No `export_path` with value {self.export_path} found under compartment {compartment_id}. Specify a valid one."
-                )
-            if len(exports) > 1:
-                raise ValueError(
-                    f"Multiple `export_path` with value {self.export_path} found under compartment {compartment_id}. Specify `export_id` of the file system instead."
-                )
-            arguments["exportId"] = exports[0]
-            arguments.pop("exportPath")
+            arguments["exportId"] = self._get_export_id(arguments)
+
+        if "mountTargetId" not in arguments:
+            arguments["mountTargetId"] = self._get_mount_target_id(arguments)
+        
+        arguments.pop("src")
+        arguments["destination_directory_name"] = arguments.pop("dsc")[5:]
 
         return arguments
+
+    def _get_export_id(self, arguments: dict) -> str:
+        file_storage_client = oci.file_storage.FileStorageClient(**ads.auth.default_signer())
+        src_list = arguments["src"].split(":")
+        ip = src_list[0]
+        export_path = src_list[1]
+
+        resource_summary = self._get_resource(ip)
+
+        list_exports_response = file_storage_client.list_exports(
+            compartment_id=resource_summary.compartment_id
+        ).data
+        exports = [
+            export.id
+            for export in list_exports_response
+            if export.path == export_path
+        ]
+        if len(exports) == 0:
+            raise ValueError(
+                f"No `export_id` found under ip {ip}. Specify a valid `src`."
+            )
+        if len(exports) > 1:
+            raise ValueError(
+                f"Multiple `export_id` found under ip {ip}. Specify `export_id` of the file system instead."
+            )
+
+        return exports[0]
+
+    def _get_mount_target_id(self, arguments: dict) -> str:
+        file_storage_client = oci.file_storage.FileStorageClient(**ads.auth.default_signer())
+        ip = arguments["src"].split(":")[0]
+        resource = self._get_resource(ip)
+
+        mount_targets =  file_storage_client.list_mount_targets(
+                            compartment_id=resource.compartment_id,
+                            availability_domain=resource.availability_domain,
+                            export_set_id=file_storage_client.get_export(arguments["exportId"]).data.export_set_id
+                        ).data
+        mount_targets = [
+            mount_target.id
+            for mount_target in mount_targets
+            if resource.identifier in mount_target.private_ip_ids
+        ]
+        if len(mount_targets) == 0:
+            raise ValueError(
+                f"No `mount_target_id` found under ip {ip}. Specify a valid `src`."
+            )
+        if len(mount_targets) > 1:
+            raise ValueError(
+                f"Multiple `mount_target_id` found under ip {ip}. Specify `mount_target_id` of the file system instead."
+            )
+        return mount_targets[0]
+
+    def _get_resource(self, ip: str) -> oci.resource_search.models.ResourceSummary:
+        resource_client = oci.resource_search.ResourceSearchClient(**ads.auth.default_signer())
+        resource = resource_client.search_resources(
+            search_details=oci.resource_search.models.FreeTextSearchDetails(
+                text=ip,
+                matching_context_type="NONE"
+            ),
+            #limit=440,
+            #page="EXAMPLE-page-Value",
+            #tenant_id="ocid1.test.oc1..<unique_ID>EXAMPLE-tenantId-Value",
+            #opc_request_id="4DLA5ESGCPUPH3J3NAMC<unique_ID>"
+        ).data.items
+
+        resource = sorted(resource, key=lambda resource_summary: resource_summary.time_created)
+
+        if not resource or not hasattr(resource[-1], "compartment_id") or not hasattr(resource[-1], "identifier"):
+            raise ValueError(f"Can't find the compartment id or identifier from ip {ip}. Specify a valid `src`.")
+
+        return resource[-1]
 
     @classmethod
     def update_from_dsc_model(cls, dsc_model: dict) -> DSCFileSystem:
@@ -162,3 +190,18 @@ class OCIFileStorage(DSCFileSystem):
         ).data.path
 
         return super().from_dict(argument)
+
+
+class DSCFileSystemManager:
+    storage_mount_type_dict = {FILE_STORAGE_TYPE: OCIFileStorage}
+
+    @classmethod
+    def initialize(cls, arguments: dict) -> DSCFileSystem:
+        if "src" in arguments:
+            try:
+                ipaddress.IPv4Network(arguments["src"].split(":")[0])
+                return OCIFileStorage(arguments)
+            except:
+                pass
+        elif "mount_target_id" in arguments or "export_id" in arguments:
+            return OCIFileStorage(arguments)

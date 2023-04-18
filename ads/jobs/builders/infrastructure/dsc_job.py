@@ -37,6 +37,7 @@ from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
 from ads.jobs.builders.infrastructure.dsc_file_system import (
+    DSCFileSystemManager,
     OCIFileStorage,
     DSCFileSystem,
 )
@@ -1234,14 +1235,14 @@ class DataScienceJob(Infrastructure):
         return self.get_spec(self.CONST_LOG_GROUP_ID)
 
     def with_storage_mount(
-        self, *storage_mount: List[Union(DSCFileSystem, dict)]
+        self, *storage_mount: List[dict]
     ) -> DataScienceJob:
         """Sets the file systems to be mounted for the data science job.
         A maximum number of 5 file systems are allowed to be mounted for a single data science job.
 
         Parameters
         ----------
-        storage_mount : List[Union(DSCFileSystem, dict)
+        storage_mount : List[dict]
             A list of file systems to be mounted.
 
         Returns
@@ -1251,20 +1252,11 @@ class DataScienceJob(Infrastructure):
         """
         storage_mount_list = []
         for item in storage_mount:
-            if not isinstance(item, DSCFileSystem) and not isinstance(item, dict):
+            if not isinstance(item, dict):
                 raise ValueError(
-                    "Parameter `storage_mount` should be a list of either DSCFileSystem instances or dictionaries."
+                    "Parameter `storage_mount` should be a list of dictionaries."
                 )
-            if isinstance(item, dict):
-                storage_type = item.get("storage_type", None)
-                if not storage_type:
-                    raise ValueError(
-                        "Parameter `storage_type` must be provided for each file system to be mounted."
-                    )
-                if storage_type not in self.storage_mount_type_dict:
-                    raise ValueError(f"Storage type {storage_type} is not supprted.")
-                item = self.storage_mount_type_dict[storage_type](**item)
-            storage_mount_list.append(item)
+            storage_mount_list.append(DSCFileSystemManager.initialize(item))
         if len(storage_mount_list) > MAXIMUM_MOUNT_COUNT:
             raise ValueError(
                 f"A maximum number of {MAXIMUM_MOUNT_COUNT} file systems are allowed to be mounted at this time for a job."
@@ -1436,8 +1428,7 @@ class DataScienceJob(Infrastructure):
                     "Storage mount hasn't been supported in the current OCI SDK installed."
                 )
             dsc_job.job_storage_mount_configuration_details_list = [
-                file_system.update_to_dsc_model(compartment_id=dsc_job.compartment_id)
-                for file_system in self.storage_mount
+                file_system.update_to_dsc_model() for file_system in self.storage_mount
             ]
         return self
 
