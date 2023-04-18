@@ -5,6 +5,14 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  # Auto-trigger this workflow on merge to main changes in docs/** folder
+  pull_request_target:
+    types:
+      - closed
+    branches:
+      - main
+    paths:
+      - 'docs/**'
 
 jobs:
   build-n-publish:
@@ -12,7 +20,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger Readthedocs build
+      - name: When PR ✅ merged - Trigger Readthedocs build
+        if: github.event.pull_request.merged == true
+        env:
+          RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science
+          RTDS_ADS_TOKEN: ${{ secrets.RTDS_ADS_TOKEN }}
+        run: |
+          curl \
+            -X POST \
+            -H "Authorization: Token $RTDS_ADS_TOKEN" $RTDS_ADS_PROJECT/versions/latest/builds/
+      - name: When tag 🏷️ pushed - Trigger Readthedocs build
+        if: github.event_name != 'pull_request'
         env:
           RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science
           RTDS_ADS_TOKEN: ${{ secrets.RTDS_ADS_TOKEN }}
