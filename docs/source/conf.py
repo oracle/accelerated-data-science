@@ -84,6 +84,12 @@ html_css_files = [
 ]
 htmlhelp_basename = "pydoc"
 
+# banner
+
+# html_theme_options = {
+#     "announcement": "<em>Important</em> announcement!",
+# }
+
 
 # -- Options for LaTeX output ------------------------------------------------
 
