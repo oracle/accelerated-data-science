@@ -10,7 +10,6 @@ import json
 import os
 import sys
 import yaml
-import ads.dataset.factory as factory
 from abc import ABC, abstractmethod
 from cerberus import Validator
 from copy import deepcopy
@@ -33,6 +32,7 @@ SCHEMA_VERSION = "1.1"
 DEFAULT_SCHEMA_VERSION = "1.0"
 SCHEMA_KEY = "schema"
 SCHEMA_VERSION_KEY = "version"
+DEFAULT_STORAGE_OPTIONS = None
 
 
 class SchemaSizeTooLarge(ValueError):
@@ -706,7 +706,7 @@ class Schema:
                 except:
                     raise Exception(f"Error creating the directory.")
         if not storage_options:
-            storage_options = factory.default_storage_options or {"config": {}}
+            storage_options = DEFAULT_STORAGE_OPTIONS or {"config": {}}
         with fsspec.open(
             os.path.join(directory, basename),
             mode="w",
