@@ -30,7 +30,6 @@ import errno
 import importlib
 import json
 import os
-import fsspec
 from abc import ABC
 from copy import copy
 from dataclasses import dataclass
