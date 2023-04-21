@@ -10,6 +10,7 @@ import json
 import os
 import sys
 import yaml
+import ads.dataset.factory as factory
 from abc import ABC, abstractmethod
 from cerberus import Validator
 from copy import deepcopy
@@ -17,7 +18,6 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 from string import Template
 from os import path
-
 from ads.common.serializer import DataClassSerializable
 
 try:
@@ -705,6 +705,8 @@ class Schema:
                     os.mkdir(directory)
                 except:
                     raise Exception(f"Error creating the directory.")
+        if not storage_options:
+            storage_options = factory.default_storage_options or {"config": {}}
         with fsspec.open(
             os.path.join(directory, basename),
             mode="w",
