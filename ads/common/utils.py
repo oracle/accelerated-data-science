@@ -495,9 +495,7 @@ def print_user_message(
         )
 
     if is_documentation_mode() and is_notebook():
-
         if display_type.lower() == "tip":
-
             if "\n" in msg:
                 t = "<b>{}:</b>".format(title.upper().strip()) if title else ""
 
@@ -567,7 +565,6 @@ def print_user_message(
             )
 
         elif display_type.startswith("info"):
-
             user_message = msg.strip().replace("\n", "<br>")
 
             if see_also_links:
@@ -640,7 +637,6 @@ def ellipsis_strings(raw, n=24):
 
     result = []
     for s in sequence:
-
         if len(str(s)) <= n:
             result.append(s)
         else:
@@ -1136,7 +1132,7 @@ def is_data_too_wide(
     return col_num > max_col_num
 
 
-def get_files(directory: str):
+def get_files(directory: str, auth={}):
     """List out all the file names under this directory.
 
     Parameters
@@ -1150,6 +1146,7 @@ def get_files(directory: str):
         List of the files in the directory.
     """
     directory = directory.rstrip("/")
+    path_scheme = urlparse(directory).scheme or "file"
     if os.path.exists(os.path.join(directory, ".model-ignore")):
         ignore_patterns = (
             Path(os.path.join(directory), ".model-ignore")
@@ -1160,11 +1157,15 @@ def get_files(directory: str):
     else:
         ignore_patterns = []
     file_names = []
-    for root, dirs, files in os.walk(directory):
+    fs = fsspec.filesystem(path_scheme, **auth)
+    for root, dirs, files in fs.walk(directory):
         for name in files:
             file_names.append(os.path.join(root, name))
         for name in dirs:
             file_names.append(os.path.join(root, name))
+
+    if directory.startswith("oci://"):
+        return file_names
 
     for ignore in ignore_patterns:
         if not ignore.startswith("#") and ignore.strip() != "":
@@ -1242,7 +1243,7 @@ def copy_from_uri(
     ValueError
         If destination path is already exist and `force_overwrite` is set to False.
     """
-    if os.path.exists(to_path):
+    if os.path.exists(to_path) and len(os.listdir(to_path)) > 0:
         if not force_overwrite:
             raise ValueError(
                 "The destination path already exists. "
@@ -1570,3 +1571,40 @@ def extract_region(auth: Optional[Dict] = None) -> Union[str, None]:
         pass
 
     return None
+
+
+def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
+    """Check if the path exists.
+
+    Parameters
+    ----------
+    uri: str
+        The URI of the target, which can be local path or OCI object storage URI.
+    auth: (Dict, optional). Defaults to None.
+        The default authetication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    bool: return True if the path exists.
+    """
+    path_scheme = urlparse(uri).scheme or "file"
+    if fsspec.filesystem(path_scheme, **auth).exists(uri):
+        return True
+    return False
+
+
+def is_oci_path(uri: str) -> bool:
+    """Check if the path is oci object storage uri.
+
+    Parameters
+    ----------
+    uri: str
+        The URI of the target.
+
+    Returns
+    -------
+    bool: return True if the path is oci object storage uri.
+    """
+    return uri.startswith("oci://")

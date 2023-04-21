@@ -1654,6 +1654,9 @@ class ModelProvenanceMetadata(DataClassSerializable):
         None
             Nothing.
         """
+        if path.startswith("oci://"):
+            return
+
         if self.repo is not None and not ignore:
             path_abs = os.path.abspath(path)
             if (

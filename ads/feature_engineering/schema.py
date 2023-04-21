@@ -4,12 +4,20 @@
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import asteval
+import fsspec
+import json
+import os
+import sys
+import yaml
 from abc import ABC, abstractmethod
+from cerberus import Validator
+from copy import deepcopy
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-from copy import deepcopy
+from string import Template
+from os import path
 
-import yaml
 from ads.common.serializer import DataClassSerializable
 
 try:
@@ -18,18 +26,6 @@ try:
 except:
     from yaml import Dumper as dumper
     from yaml import Loader as loader
-
-import json
-import os
-import asteval
-from os import path
-
-import fsspec
-import yaml
-from cerberus import Validator
-import sys
-from string import Template
-
 
 SCHEMA_VALIDATOR_NAME = "data_schema.json"
 INPUT_OUTPUT_SCHENA_SIZE_LIMIT = 32000
@@ -685,7 +681,7 @@ class Schema:
         """
         return json.dumps(self.to_dict()).replace("NaN", "null")
 
-    def to_json_file(self, file_path):
+    def to_json_file(self, file_path, storage_options=None):
         """Saves the data schema into a json file.
 
         Parameters
@@ -704,12 +700,17 @@ class Schema:
             ".json"
         ], f"The file `{basename}` is not a valid JSON file. The `{file_path}` must have the extension .json."
         if directory and not os.path.exists(directory):
-            try:
-                os.mkdir(directory)
-            except:
-                raise Exception(f"Error creating the directory.")
-        with open(os.path.join(directory, basename), "w") as json_file:
-            json.dump(self.to_dict(), json_file)
+            if not directory.startswith("oci://"):
+                try:
+                    os.mkdir(directory)
+                except:
+                    raise Exception(f"Error creating the directory.")
+        with fsspec.open(
+            os.path.join(directory, basename),
+            mode="w",
+            **(storage_options),
+        ) as f:
+            f.write(json.dumps(self.to_dict()))
 
     def to_yaml_file(self, file_path):
         """Saves the data schema into a yaml file.

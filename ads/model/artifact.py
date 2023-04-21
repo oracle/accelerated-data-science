@@ -11,6 +11,7 @@ import sys
 import shutil
 import tempfile
 import uuid
+import fsspec
 from typing import Dict, Optional, Tuple
 from ads.common import auth as authutil
 from ads.common import logger, utils
@@ -116,17 +117,21 @@ class ModelArtifact:
         model_file_name: str = None,
         reload: Optional[bool] = False,
         ignore_conda_error: Optional[bool] = False,
+        auth: dict = None,
+        local_copy_dir: str = None,
     ):
         """Initializes a ModelArtifact instance.
 
         Parameters
         ----------
         artifact_dir: str
-            The local artifact folder to store the files needed for deployment.
+            The artifact folder to store the files needed for deployment.
         model_file_name: (str, optional). Defaults to `None`.
             The file name of the serialized model.
         reload: (bool, optional). Defaults to False.
             Determine whether will reload the Model into the env.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
 
         Returns
         -------
@@ -141,13 +146,19 @@ class ModelArtifact:
         if not artifact_dir:
             raise ValueError("The `artifact_dir` needs to be provided.")
 
+        if utils.is_oci_path(artifact_dir):
+            self.artifact_dir = artifact_dir
+            self._artifact_dir = local_copy_dir or tempfile.mkdtemp()
+        else:
+            self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
+
         self.score = None
-        self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
         sys.path.insert(0, self.artifact_dir)
         self.model_file_name = model_file_name
         self._env = Environment(loader=PackageLoader("ads", "templates"))
         self.ignore_conda_error = ignore_conda_error
         self.model = None
+        self.auth = auth
         if reload and not ignore_conda_error:
             self.reload()
             # Extracts the model_file_name from the score.py.
@@ -215,7 +226,7 @@ class ModelArtifact:
             runtime_info.model_provenance.training_code.artifact_directory = (
                 self.artifact_dir
             )
-            runtime_info.save()
+            runtime_info.save(auth=auth)
             return runtime_info
         inference_conda_env = ModelArtifact._populate_env_info(
             InferenceEnvInfo,
@@ -345,9 +356,10 @@ class ModelArtifact:
             "ADS_VERSION": ADS_VERSION,
             "time_created": time_suffix,
         }
+        auth = kwargs.pop("auth", {})
         context.update(kwargs)
-        with open(os.path.join(self.artifact_dir, "score.py"), "w") as sfl:
-            sfl.write(scorefn_template.render(context))
+        with fsspec.open(os.path.join(self.artifact_dir, "score.py"), "w", **auth) as f:
+            f.write(scorefn_template.render(context))
 
     def reload(self):
         """Syncs the `score.py` to reload the model and predict function.
@@ -356,17 +368,29 @@ class ModelArtifact:
         -------
         None
             Nothing
+
         """
+        try:
+            artifact_dir = self._artifact_dir
+            utils.copy_from_uri(
+                uri=self.artifact_dir,
+                to_path=artifact_dir,
+                force_overwrite=True,
+                auth=self.auth,
+            )
+        except AttributeError:
+            artifact_dir = self.artifact_dir
+
         spec = importlib.util.spec_from_file_location(
-            "score%s" % uuid.uuid4(), os.path.join(self.artifact_dir, "score.py")
+            "score%s" % uuid.uuid4(), os.path.join(artifact_dir, "score.py")
         )
         self.score = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.score)
         self.model = self.score.load_model()  # load model in cache
         # remove the cache files.
         for dir in [
-            os.path.join(self.artifact_dir, "__pycache__"),
-            os.path.join(self.artifact_dir, ".ipynb_checkpoints"),
+            os.path.join(artifact_dir, "__pycache__"),
+            os.path.join(artifact_dir, ".ipynb_checkpoints"),
         ]:
             if os.path.exists(dir):
                 shutil.rmtree(dir, ignore_errors=True)
@@ -410,40 +434,61 @@ class ModelArtifact:
         ------
         ValueError
             If `uri` is equal to `artifact_dir`, and it not exists.
+            If `artifact_dir` is not provided.
         """
-        artifact_dir = os.path.join(
-            os.path.abspath(os.path.expanduser(artifact_dir)), ""
+        if not artifact_dir:
+            raise ValueError("The `artifact_dir` needs to be provided.")
+
+        artifact_dir = (
+            artifact_dir
+            if utils.is_oci_path(artifact_dir)
+            else os.path.join(os.path.abspath(os.path.expanduser(artifact_dir)), "")
         )
 
-        if artifact_dir == os.path.join(
-            os.path.abspath(os.path.expanduser(uri)).rstrip("/"), ""
-        ):
-            if not os.path.exists(artifact_dir):
-                raise ValueError("Provided `uri` doesn't exist.")
-        else:
-            auth = auth or authutil.default_signer()
-            utils.copy_from_uri(
-                uri=uri,
-                to_path=artifact_dir,
-                unpack=True,
-                force_overwrite=force_overwrite,
-                auth=auth,
-            )
+        if not utils.is_oci_path(uri):
+            uri = os.path.join(os.path.abspath(os.path.expanduser(uri)).rstrip("/"), "")
+        auth = auth or authutil.default_signer()
+        if artifact_dir == uri and not utils.is_path_exists(artifact_dir, auth=auth):
+            raise ValueError("Provided `uri` doesn't exist.")
+
+        to_path = (
+            tempfile.mkdtemp() if utils.is_oci_path(artifact_dir) else artifact_dir
+        )
+        utils.copy_from_uri(
+            uri=uri,
+            to_path=to_path,
+            unpack=True,
+            force_overwrite=force_overwrite,
+            auth=auth,
+        )
+
         if not ignore_conda_error:
             try:
-                _validate_artifact_dir(artifact_dir)
+                _validate_artifact_dir(to_path)
             except ArtifactNestedFolderError as exc:
                 with tempfile.TemporaryDirectory() as temp_dir:
                     utils.copy_from_uri(
                         uri=exc.folder, to_path=temp_dir, force_overwrite=True
                     )
                     utils.copy_from_uri(
-                        uri=temp_dir, to_path=artifact_dir, force_overwrite=True
+                        uri=temp_dir, to_path=to_path, force_overwrite=True
+                    )
+
+        if utils.is_oci_path(artifact_dir):
+            for root, dirs, files in os.walk(to_path):
+                prefix = (os.path.abspath(root).split(to_path)[-1]).lstrip("/")
+                for file in files:
+                    path = os.path.join(prefix, file)
+                    utils.copy_file(
+                        uri_src=os.path.join(root, file),
+                        uri_dst=os.path.join(artifact_dir, path),
+                        force_overwrite=True,
+                        auth=auth,
                     )
 
         return cls(
-            artifact_dir,
-            model_file_name,
+            artifact_dir=artifact_dir,
+            model_file_name=model_file_name,
             reload=True,
             ignore_conda_error=ignore_conda_error,
         )

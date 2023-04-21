@@ -30,6 +30,7 @@ import errno
 import importlib
 import json
 import os
+import fsspec
 from abc import ABC
 from copy import copy
 from dataclasses import dataclass
@@ -176,13 +177,17 @@ class ModelIntrospect:
         ------
             FileNotFoundError: If path to model artifacts does not exist.
         """
-        if not os.path.isdir(self._artifact.artifact_dir):
-            raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), self._artifact.artifact_dir
-            )
+        try:
+            artifact_dir = self._artifact.artifact_dir
+        except:
+            artifact_dir = self._artifact.artifact_dir
+            if not os.path.isdir(artifact_dir):
+                raise FileNotFoundError(
+                    errno.ENOENT, os.strerror(errno.ENOENT), artifact_dir
+                )
 
-        output_file = f"{self._artifact.artifact_dir}/{_INTROSPECT_RESULT_FILE_NAME}"
-        with open(output_file, "w") as f:
+        output_file = f"{artifact_dir}/{_INTROSPECT_RESULT_FILE_NAME}"
+        with fsspec.open(output_file, "w", **self._artifact.auth) as f:
             json.dump(self._result, f, indent=4)
 
     def _save_result_to_metadata(self) -> None:
@@ -206,17 +211,20 @@ class ModelIntrospect:
         ------
         FileNotFoundError: If path to model artifacts does not exist.
         """
-
-        if not os.path.isdir(self._artifact.artifact_dir):
-            raise FileNotFoundError(
-                errno.ENOENT,
-                os.strerror(errno.ENOENT),
-            )
+        try:
+            artifact_dir = self._artifact._artifact_dir
+        except:
+            artifact_dir = self._artifact.artifact_dir
+            if not os.path.isdir(artifact_dir):
+                raise FileNotFoundError(
+                    errno.ENOENT,
+                    os.strerror(errno.ENOENT),
+                )
 
         module = importlib.import_module(_PATH_TO_MODEL_ARTIFACT_VALIDATOR)
         importlib.reload(module)
         method = getattr(module, _INTROSPECT_METHOD_NAME)
-        params = {"artifact": self._artifact.artifact_dir}
+        params = {"artifact": artifact_dir}
         test_result, _ = method(**params)
 
         self._status = _TEST_STATUS_MAP.get(test_result)

@@ -101,7 +101,8 @@ class Serializable(ABC):
         None
             Nothing.
         """
-        with fsspec.open(uri, "w", **kwargs) as f:
+        auth = kwargs.get("auth", {})
+        with fsspec.open(uri, "w", **auth) as f:
             f.write(s)
 
     @staticmethod
@@ -122,7 +123,8 @@ class Serializable(ABC):
         -------
             string: Contents in file specified by URI
         """
-        with fsspec.open(uri, "r", **kwargs) as f:
+        auth = kwargs.get("auth", {})
+        with fsspec.open(uri, "r", **auth) as f:
             return f.read()
 
     def to_json(

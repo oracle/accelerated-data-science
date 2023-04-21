@@ -5,11 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
-
 import numpy as np
 import pandas as pd
-from ads.common import logger
+import fsspec
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
+from ads.common import logger, utils
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
@@ -20,6 +20,7 @@ from ads.model.serde.model_serializer import SparkModelSerializerType
 from ads.model.generic_model import (
     FrameworkSpecificModel,
     DEFAULT_MODEL_FOLDER_NAME,
+    _prepare_artifact_dir,
 )
 from ads.model.model_properties import ModelProperties
 from ads.model.serde.common import SERDE
@@ -152,7 +153,7 @@ class SparkPipelineModel(FrameworkSpecificModel):
         estimator: Callable
             SparkPipelineModel
         artifact_dir: str
-            Directory for generate artifact.
+            The URI for the generated artifact, which can be local path or OCI object storage URI.
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
         auth :(Dict, optional). Defaults to None.
@@ -201,13 +202,20 @@ class SparkPipelineModel(FrameworkSpecificModel):
             )
         super().__init__(
             estimator=estimator,
-            artifact_dir=artifact_dir,
+            artifact_dir=None,
             properties=properties,
             auth=auth,
             model_save_serializer=model_save_serializer,
             model_input_serializer=model_input_serializer,
             **kwargs,
         )
+        if artifact_dir and utils.is_oci_path(artifact_dir):
+            self.artifact_dir = artifact_dir
+            self._artifact_dir = _prepare_artifact_dir()
+            os.environ["OCI_DEPLOYMENT_PATH"] = self.artifact_dir
+        else:
+            self.artifact_dir = _prepare_artifact_dir(artifact_dir)
+
         self._extractor = SparkExtractor(estimator)
         self.framework = self._extractor.framework
         self.algorithm = self._extractor.algorithm
@@ -215,7 +223,9 @@ class SparkPipelineModel(FrameworkSpecificModel):
         self.hyperparameter = self._extractor.hyperparameter
 
     @staticmethod
-    def _handle_model_file_name(as_onnx: bool, model_file_name: str):
+    def _handle_model_file_name(
+        as_onnx: bool, model_file_name: Optional[str] = DEFAULT_MODEL_FOLDER_NAME
+    ):
         """
         Process folder name for saving model.
 
@@ -223,8 +233,8 @@ class SparkPipelineModel(FrameworkSpecificModel):
         ----------
         as_onnx: bool
             To convert to onnx format
-        model_file_name: str
-            File name for saving model.
+        model_file_name: Optional[str]
+            File name for saving model. Default value is `model`.
 
         Returns
         -------
@@ -307,7 +317,12 @@ class SparkPipelineModel(FrameworkSpecificModel):
             raise TypeError(
                 f"Data type: {data_type} unsupported. Please use `pyspark.sql.DataFrame`, `pyspark.pandas.DataFrame`, or `pandas.DataFrame`."
             )
-        with open(input_schema_path, "w") as f:
+        storage_options = kwargs.get("auth", {})
+        with fsspec.open(
+            input_schema_path,
+            mode="w",
+            **(storage_options),
+        ) as f:
             f.write(schema.json())
 
         if isinstance(X_sample, sql.DataFrame):
