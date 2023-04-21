@@ -158,7 +158,7 @@ class ModelArtifact:
         self._env = Environment(loader=PackageLoader("ads", "templates"))
         self.ignore_conda_error = ignore_conda_error
         self.model = None
-        self.auth = auth
+        self.auth = auth or authutil.default_signer()
         if reload and not ignore_conda_error:
             self.reload()
             # Extracts the model_file_name from the score.py.

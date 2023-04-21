@@ -178,7 +178,7 @@ class ModelIntrospect:
             FileNotFoundError: If path to model artifacts does not exist.
         """
         try:
-            artifact_dir = self._artifact.artifact_dir
+            artifact_dir = self._artifact._artifact_dir
         except:
             artifact_dir = self._artifact.artifact_dir
             if not os.path.isdir(artifact_dir):
@@ -187,7 +187,7 @@ class ModelIntrospect:
                 )
 
         output_file = f"{artifact_dir}/{_INTROSPECT_RESULT_FILE_NAME}"
-        with fsspec.open(output_file, "w", **self._artifact.auth) as f:
+        with open(output_file, "w") as f:
             json.dump(self._result, f, indent=4)
 
     def _save_result_to_metadata(self) -> None:
