@@ -269,18 +269,21 @@ class OCIHelper:
     def copy_inputs(mappings: dict = None):
         if not mappings and CONST_ENV_INPUT_MAPPINGS in os.environ:
             mappings = json.loads(os.environ[CONST_ENV_INPUT_MAPPINGS])
+            logger.debug("Inputs specified from ENV: %s", mappings)
 
         if not mappings:
             logger.debug("No inputs specified.")
             return
 
         for src, dest in mappings.items():
+            logger.debug("Copying %s to %s", src, dest)
             # Create the dest dir if one does not exist.
             if str(dest).endswith("/"):
                 dest_dir = dest
             else:
                 dest_dir = os.path.dirname(dest)
-            os.makedirs(dest_dir)
+
+            os.makedirs(dest_dir, exist_ok=True)
 
             # Use native Python to download http/ftp.
             scheme = urlparse(src).scheme
@@ -425,9 +428,7 @@ class JobRunner:
         )
         return self
 
-    def install_pip_packages(
-        self, packages: str = os.environ.get(CONST_ENV_PIP_PKG)
-    ):
+    def install_pip_packages(self, packages: str = os.environ.get(CONST_ENV_PIP_PKG)):
         if not packages:
             return self
         self.run_command(
