@@ -37,7 +37,7 @@ CONST_ENV_OCI_RP = "OCI_RESOURCE_PRINCIPAL_VERSION"
 CONST_ENV_ADS_IAM = "OCI_IAM_TYPE"
 CONST_ENV_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
 CONST_ENV_PIP_REQ = "OCI__PIP_REQUIREMENTS"
-CONST_ENV_PIP_INSTALL = "OCI__PIP_INSTALL"
+CONST_ENV_PIP_PKG = "OCI__PIP_PKG"
 CONST_API_KEY = "api_key"
 
 
@@ -426,7 +426,7 @@ class JobRunner:
         return self
 
     def install_pip_packages(
-        self, packages: str = os.environ.get(CONST_ENV_PIP_INSTALL)
+        self, packages: str = os.environ.get(CONST_ENV_PIP_PKG)
     ):
         if not packages:
             return self

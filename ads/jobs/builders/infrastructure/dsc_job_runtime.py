@@ -41,6 +41,7 @@ from ads.jobs.builders.runtimes.artifact import (
 )
 from ads.opctl.distributed.common import cluster_config_helper
 from ads.jobs.builders.infrastructure.utils import get_value
+from ads.jobs.templates import driver_utils
 
 
 class IncompatibleRuntime(Exception):
@@ -1037,7 +1038,6 @@ class ContainerRuntimeHandler(RuntimeHandler):
 class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     RUNTIME_CLASS = PyTorchDistributedRuntime
     CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
-    CONST_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
 
     GIT_SPEC_MAPPINGS = {
         cluster_config_helper.OCI__RUNTIME_URI: GitPythonRuntime.CONST_GIT_URL,
@@ -1055,12 +1055,21 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
         envs[self.CONST_WORKER_COUNT] = str(replica - 1)
         envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
         if runtime.inputs:
-            envs[self.CONST_INPUT_MAPPINGS] = json.dumps(runtime.inputs)
+            envs[driver_utils.CONST_ENV_INPUT_MAPPINGS] = json.dumps(runtime.inputs)
         if runtime.git:
             for env_key, spec_key in self.GIT_SPEC_MAPPINGS.items():
                 if not runtime.git.get(spec_key):
                     continue
                 envs[env_key] = runtime.git[spec_key]
+        if runtime.dependencies:
+            if PyTorchDistributedRuntime.CONST_PIP_PKG in runtime.dependencies:
+                envs[driver_utils.CONST_ENV_PIP_PKG] = runtime.dependencies[
+                    PyTorchDistributedRuntime.CONST_PIP_PKG
+                ]
+            if PyTorchDistributedRuntime.CONST_PIP_REQ in runtime.dependencies:
+                envs[driver_utils.CONST_ENV_PIP_REQ] = runtime.dependencies[
+                    PyTorchDistributedRuntime.CONST_PIP_REQ
+                ]
         return envs
 
     def _extract_envs(self, dsc_job) -> dict:
@@ -1068,18 +1077,34 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
         envs = spec.pop(PythonRuntime.CONST_ENV_VAR, {})
         if self.CONST_WORKER_COUNT not in envs:
             raise IncompatibleRuntime()
+        # Replicas
         spec[PyTorchDistributedRuntime.CONST_REPLICA] = (
             int(envs.pop(self.CONST_WORKER_COUNT)) + 1
         )
+        # Git
         if cluster_config_helper.OCI__RUNTIME_URI in envs:
             git_spec = {}
             for env_key, spec_key in self.GIT_SPEC_MAPPINGS.items():
                 if env_key in envs:
                     git_spec[spec_key] = envs.pop(env_key)
             spec[PyTorchDistributedRuntime.CONST_GIT] = git_spec
-        input_mappings = envs.pop(self.CONST_INPUT_MAPPINGS, None)
+        # Inputs
+        input_mappings = envs.pop(driver_utils.CONST_ENV_INPUT_MAPPINGS, None)
         if input_mappings:
             spec[PyTorchDistributedRuntime.CONST_INPUT] = input_mappings
+        # Dependencies
+        dep = {}
+        if driver_utils.CONST_ENV_PIP_PKG in envs:
+            dep[PyTorchDistributedRuntime.CONST_PIP_PKG] = envs.pop(
+                driver_utils.CONST_ENV_PIP_PKG
+            )
+        if driver_utils.CONST_ENV_PIP_REQ in envs:
+            dep[PyTorchDistributedRuntime.CONST_PIP_REQ] = envs.pop(
+                driver_utils.CONST_ENV_PIP_REQ
+            )
+        if dep:
+            spec[PyTorchDistributedRuntime.CONST_DEP] = dep
+        # Envs
         if envs:
             spec[PythonRuntime.CONST_ENV_VAR] = envs
         return spec
