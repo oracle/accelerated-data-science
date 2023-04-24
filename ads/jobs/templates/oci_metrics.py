@@ -6,7 +6,8 @@ import time
 
 
 JOB_RUN_COMPARTMENT_OCID_ENV = "JOB_RUN_COMPARTMENT_OCID"
-METRICS_DEFAULT_NAMESPACE = "oci_datascience_jobrun_gpu"
+# Default custom metric namespace. It must not start with "oci_"
+METRICS_DEFAULT_NAMESPACE = "jobrun_gpu"
 METRIC_NAMESPACE = os.environ.get("METRICS_NAMESPACE", METRICS_DEFAULT_NAMESPACE)
 METRIC_COMPARTMENT = os.environ.get(JOB_RUN_COMPARTMENT_OCID_ENV)
 
