@@ -71,17 +71,14 @@ job = (
         .with_shape_config_details(memory_in_gbs=16, ocpus=1)
         .with_block_storage_size(50)
         .with_storage_mount(
-            OCIFileStorage(
-                destination_directory_name="test_mount_one",
-                mount_target="test_mount_target_one",
-                export_path="test_export_path_one",
-            ),
             {
-                "destination_directory_name": "test_mount_two",
-                "mount_target": "test_mount_target_two",
-                "export_path": "test_export_path_two",
-                "storage_type": "FILE_STORAGE",
+                "src" : "1.1.1.1:test_export_path_one",
+                "dsc" : "test_mount_one",
             },
+            {
+                "src" : "2.2.2.2:test_export_path_two",
+                "dsc" : "test_mount_two",
+            },  
         )
     )
     .with_runtime(
@@ -105,14 +102,10 @@ spec:
         ocpus: 1
       shapeName: VM.Standard.E3.Flex
       storageMount:
-      - destinationDirectoryName: test_mount_one
-        mountTarget: test_mount_target_one
-        exportPath: test_export_path_one
-        storageType: FILE_STORAGE
-      - destinationDirectoryName: test_mount_two
-        mountTarget: test_mount_target_two
-        exportPath: test_export_path_two
-        storageType: FILE_STORAGE
+      - src: 1.1.1.1:test_export_path_one
+        dsc: test_mount_one
+      - src: 2.2.2.2:test_export_path_two
+        dsc: test_mount_two
       subnetId: ocid1.subnet.oc1.iad.xxxx
     type: dataScienceJob
   name: My Job
@@ -136,16 +129,14 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         dsc_file_storage_one = job.infrastructure.storage_mount[0]
         assert isinstance(dsc_file_storage_one, OCIFileStorage)
         assert dsc_file_storage_one.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_one.destination_directory_name == "test_mount_one"
-        assert dsc_file_storage_one.mount_target == "test_mount_target_one"
-        assert dsc_file_storage_one.export_path == "test_export_path_one"
+        assert dsc_file_storage_one.src == "1.1.1.1:test_export_path_one"
+        assert dsc_file_storage_one.dsc == "test_mount_one"
 
         dsc_file_storage_two = job.infrastructure.storage_mount[1]
         assert isinstance(dsc_file_storage_two, OCIFileStorage)
         assert dsc_file_storage_two.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_two.destination_directory_name == "test_mount_two"
-        assert dsc_file_storage_two.mount_target == "test_mount_target_two"
-        assert dsc_file_storage_two.export_path == "test_export_path_two"
+        assert dsc_file_storage_two.src == "2.2.2.2:test_export_path_two"
+        assert dsc_file_storage_two.dsc == "test_mount_two"
 
     def test_data_science_job_from_yaml(self):
         job_from_yaml = Job.from_yaml(job_yaml_string)
@@ -154,16 +145,14 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         dsc_file_storage_one = job_from_yaml.infrastructure.storage_mount[0]
         assert isinstance(dsc_file_storage_one, OCIFileStorage)
         assert dsc_file_storage_one.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_one.destination_directory_name == "test_mount_one"
-        assert dsc_file_storage_one.mount_target == "test_mount_target_one"
-        assert dsc_file_storage_one.export_path == "test_export_path_one"
+        assert dsc_file_storage_one.src == "1.1.1.1:test_export_path_one"
+        assert dsc_file_storage_one.dsc == "test_mount_one"
 
         dsc_file_storage_two = job.infrastructure.storage_mount[1]
         assert isinstance(dsc_file_storage_two, OCIFileStorage)
         assert dsc_file_storage_two.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_two.destination_directory_name == "test_mount_two"
-        assert dsc_file_storage_two.mount_target == "test_mount_target_two"
-        assert dsc_file_storage_two.export_path == "test_export_path_two"
+        assert dsc_file_storage_two.src == "2.2.2.2:test_export_path_two"
+        assert dsc_file_storage_two.dsc == "test_mount_two"
 
     def test_data_science_job_to_dict(self):
         assert job.to_dict() == {
@@ -192,15 +181,13 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
                         "blockStorageSize": 50,
                         "storageMount": [
                             {
-                                "destinationDirectoryName": "test_mount_one",
-                                "mountTarget": "test_mount_target_one",
-                                "exportPath": "test_export_path_one",
+                                "src" : "1.1.1.1:test_export_path_one",
+                                "dsc" : "test_mount_one",
                                 "storageType": "FILE_STORAGE",
                             },
                             {
-                                "destinationDirectoryName": "test_mount_two",
-                                "mountTarget": "test_mount_target_two",
-                                "exportPath": "test_export_path_two",
+                                "src" : "2.2.2.2:test_export_path_two",
+                                "dsc" : "test_mount_two",
                                 "storageType": "FILE_STORAGE",
                             },
                         ],
@@ -212,37 +199,31 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
     def test_mount_file_system_failed(self):
         with pytest.raises(
             ValueError,
-            match="Either parameter `export_path` or `export_id` must be provided to mount file system.",
+            match="Missing required parameter. Either `src` or `mount_target_id` is required for mounting file storage system.",
+        ):
+            OCIFileStorage()
+
+        with pytest.raises(
+            ValueError,
+            match="Missing required parameter. Either `src` or `export_id` is required for mounting file storage system.",
         ):
             OCIFileStorage(
-                destination_directory_name="test_mount",
-                mount_target_id="ocid1.mounttarget.oc1.iad.xxxx",
+                mount_target_id="test_mount_target_id"
             )
 
         with pytest.raises(
             ValueError,
-            match="Either parameter `mount_target` or `mount_target_id` must be provided to mount file system.",
+            match="Parameter `dsc` is required for mounting file storage system.",
         ):
             OCIFileStorage(
-                destination_directory_name="test_mount",
-                export_id="ocid1.export.oc1.iad.xxxx",
-            )
-
-        with pytest.raises(
-            ValueError,
-            match="Parameter `destination_directory_name` must be provided to mount file system.",
-        ):
-            OCIFileStorage(
-                mount_target_id="ocid1.mounttarget.oc1.iad.xxxx",
-                export_id="ocid1.export.oc1.iad.xxxx",
+                src="1.1.1.1:test_export_path"
             )
 
         job_copy = copy.deepcopy(job)
-        dsc_file_storage = OCIFileStorage(
-            destination_directory_name="test_mount",
-            mount_target="test_mount_target",
-            export_id="ocid1.export.oc1.iad.xxxx",
-        )
+        dsc_file_storage = {
+            "src" : "1.1.1.1:test_export_path",
+            "dsc" : "test_mount",
+        }
         storage_mount_list = [dsc_file_storage] * 6
         with pytest.raises(
             ValueError,
@@ -253,38 +234,9 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         job_copy = copy.deepcopy(job)
         with pytest.raises(
             ValueError,
-            match="Parameter `storage_mount` should be a list of either DSCFileSystem instances or dictionaries.",
+            match="Parameter `storage_mount` should be a list of dictionaries.",
         ):
             job_copy.infrastructure.with_storage_mount(dsc_file_storage, [1, 2, 3])
-
-        job_copy = copy.deepcopy(job)
-        with pytest.raises(
-            ValueError,
-            match="Parameter `storage_type` must be provided for each file system to be mounted.",
-        ):
-            job_copy.infrastructure.with_storage_mount(
-                dsc_file_storage,
-                {
-                    "destination_directory_name": "test_mount",
-                    "mount_target_id": "ocid1.mounttarget.oc1.iad.xxxx",
-                    "export_id": "ocid1.export.oc1.iad.xxxx",
-                },
-            )
-
-        job_copy = copy.deepcopy(job)
-        wrong_type = "WRONG_TYPE"
-        wrong_file_system_dict = {
-            "destination_directory_name": "test_mount",
-            "mount_target_id": "ocid1.mounttarget.oc1.iad.xxxx",
-            "export_id": "ocid1.export.oc1.iad.xxxx",
-            "storage_type": wrong_type,
-        }
-        with pytest.raises(
-            ValueError, match=f"Storage type {wrong_type} is not supprted."
-        ):
-            job_copy.infrastructure.with_storage_mount(
-                dsc_file_storage, wrong_file_system_dict
-            )
 
     @patch.object(oci.file_storage.FileStorageClient, "get_export")
     @patch.object(oci.file_storage.FileStorageClient, "get_mount_target")
@@ -378,7 +330,7 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         infrastructure = job_copy.infrastructure
         with pytest.raises(
             ValueError,
-            match="No `mount_target` with value test_mount_target_two found under compartment test_compartment_id.",
+            match="Can't find the compartment id or identifier from ip 1.1.1.1. Specify a valid `src`.",
         ):
             infrastructure._update_job_infra(dsc_job_payload_copy)
 

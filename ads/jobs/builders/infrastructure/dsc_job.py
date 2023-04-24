@@ -845,11 +845,10 @@ class DataScienceJob(Infrastructure):
             .with_block_storage_size(50)
             # A list of file systems to be mounted
             .with_storage_mount(
-                OCIFileStorage(
-                    destination_directory_name="test_mount",
-                    mount_target="test_mount_target",
-                    export_path="test_export_path"
-                ),
+                {
+                    "src" : "<mount_target_ip_address>:<export_path>",
+	                "dest" : "<destination_directory_name>"
+                }
             )
         )
 
@@ -1723,11 +1722,5 @@ class DataScienceJob(Infrastructure):
         DSCFileSystem
             A DSCFileSystem object.
         """
-        storage_type = file_system.get("storageType", None)
-        if not storage_type:
-            raise ValueError(
-                "Parameter storage type must be provided for each file system to be mounted."
-            )
-        if storage_type not in self.storage_mount_type_dict:
-            raise ValueError(f"Storage type {storage_type} is not supprted.")
-        return self.storage_mount_type_dict[storage_type].from_dict(file_system)
+        file_system = {utils.camel_to_snake(k): v for k, v in file_system.items()}
+        return DSCFileSystemManager.initialize(file_system)

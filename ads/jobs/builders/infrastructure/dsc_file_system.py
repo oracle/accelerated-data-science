@@ -20,6 +20,7 @@ class DSCFileSystem:
     src: str = None
     dsc: str = None
     storage_type: str = None
+    destination_directory_name: str = None
 
     def to_dict(self) -> dict:
         """Converts the object to dictionary."""
@@ -42,7 +43,9 @@ class DSCFileSystem:
 class OCIFileStorage(DSCFileSystem):
 
     mount_target_id: str = None
+    mount_target: str = None
     export_id: str = None
+    export_path: str = None
     storage_type: str = FILE_STORAGE_TYPE
 
     def __post_init__(self):
@@ -58,9 +61,10 @@ class OCIFileStorage(DSCFileSystem):
                 )
 
         if not self.dsc:
-            raise ValueError(
-                "Parameter `src` is required for mounting file storage system."
-            )
+            if not self.destination_directory_name:
+                raise ValueError(
+                    "Parameter `dsc` is required for mounting file storage system."
+                )
 
     def update_to_dsc_model(self) -> dict:
         """Updates arguments to dsc model.
@@ -79,7 +83,7 @@ class OCIFileStorage(DSCFileSystem):
             arguments["mountTargetId"] = self._get_mount_target_id(arguments)
         
         arguments.pop("src")
-        arguments["destination_directory_name"] = arguments.pop("dsc")[5:]
+        arguments["destinationDirectoryName"] = arguments.pop("dsc")
 
         return arguments
 
@@ -141,11 +145,7 @@ class OCIFileStorage(DSCFileSystem):
             search_details=oci.resource_search.models.FreeTextSearchDetails(
                 text=ip,
                 matching_context_type="NONE"
-            ),
-            #limit=440,
-            #page="EXAMPLE-page-Value",
-            #tenant_id="ocid1.test.oc1..<unique_ID>EXAMPLE-tenantId-Value",
-            #opc_request_id="4DLA5ESGCPUPH3J3NAMC<unique_ID>"
+            )
         ).data.items
 
         resource = sorted(resource, key=lambda resource_summary: resource_summary.time_created)
@@ -193,15 +193,17 @@ class OCIFileStorage(DSCFileSystem):
 
 
 class DSCFileSystemManager:
-    storage_mount_type_dict = {FILE_STORAGE_TYPE: OCIFileStorage}
 
     @classmethod
     def initialize(cls, arguments: dict) -> DSCFileSystem:
         if "src" in arguments:
             try:
+                # case <ip_address>:<export_path>
                 ipaddress.IPv4Network(arguments["src"].split(":")[0])
-                return OCIFileStorage(arguments)
+                return OCIFileStorage(**arguments)
             except:
                 pass
         elif "mount_target_id" in arguments or "export_id" in arguments:
-            return OCIFileStorage(arguments)
+            return OCIFileStorage(**arguments)
+
+        raise ValueError("Invalid dict for mounting file systems. Specify a valid one.")
