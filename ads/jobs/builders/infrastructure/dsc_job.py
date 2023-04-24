@@ -1375,10 +1375,10 @@ class DataScienceJob(Infrastructure):
         if storage_mount_list:
             storage_mount = [
                 self.storage_mount_type_dict[
-                    file_system["storageType"]
+                    file_system.storage_type
                 ].update_from_dsc_model(file_system)
                 for file_system in storage_mount_list
-                if file_system["storageType"] in self.storage_mount_type_dict
+                if file_system.storage_type in self.storage_mount_type_dict
             ]
             if overwrite or not self.get_spec(self.CONST_STORAGE_MOUNT):
                 self.set_spec(self.CONST_STORAGE_MOUNT, storage_mount)

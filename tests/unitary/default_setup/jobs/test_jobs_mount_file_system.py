@@ -44,18 +44,22 @@ dsc_job_payload = oci.data_science.models.Job(
         },
     ),
     job_storage_mount_configuration_details_list=[
-        {
-            "destinationDirectoryName": "test_destination_directory_name_from_dsc",
-            "exportId": "export_id_from_dsc",
-            "mountTargetId": "mount_target_id_from_dsc",
-            "storageType": "FILE_STORAGE",
-        },
-        {
-            "destinationDirectoryName": "test_destination_directory_name_from_dsc",
-            "exportId": "export_id_from_dsc",
-            "mountTargetId": "mount_target_id_from_dsc",
-            "storageType": "FILE_STORAGE",
-        },
+        oci.data_science.models.FileStorageMountConfigurationDetails(
+            **{
+                "destination_directory_name": "test_destination_directory_name_from_dsc",
+                "export_id": "export_id_from_dsc",
+                "mount_target_id": "mount_target_id_from_dsc",
+                "storage_type": "FILE_STORAGE",
+            },
+        ),
+        oci.data_science.models.FileStorageMountConfigurationDetails(
+            **{
+                "destination_directory_name": "test_destination_directory_name_from_dsc",
+                "export_id": "export_id_from_dsc",
+                "mount_target_id": "mount_target_id_from_dsc",
+                "storage_type": "FILE_STORAGE",
+            }
+        )
     ],
     lifecycle_details="ACTIVE",
     lifecycle_state="STATE",

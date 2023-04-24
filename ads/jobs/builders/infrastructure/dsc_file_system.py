@@ -5,7 +5,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import ads
 import oci
-import copy
 import ipaddress
 
 from ads.common import utils
@@ -35,7 +34,7 @@ class DSCFileSystem:
         return self.to_dict()
 
     @classmethod
-    def update_from_dsc_model(cls, dsc_model: dict) -> "DSCFileSystem":
+    def update_from_dsc_model(cls, dsc_model: oci.data_science.models.JobStorageMountConfigurationDetails) -> "DSCFileSystem":
         return cls.from_dict(dsc_model)
 
 
@@ -156,37 +155,42 @@ class OCIFileStorage(DSCFileSystem):
         return resource[-1]
 
     @classmethod
-    def update_from_dsc_model(cls, dsc_model: dict) -> DSCFileSystem:
+    def update_from_dsc_model(cls, dsc_model: oci.data_science.models.JobStorageMountConfigurationDetails) -> DSCFileSystem:
         """Updates arguments and builds DSCFileSystem object from dsc model.
 
         Parameters
         ----------
-        dsc_model: dict
-            A dictionary of arguments from dsc model.
+        dsc_model: oci.data_science.models.JobStorageMountConfigurationDetails
+            An instance of oci.data_science.models.JobStorageMountConfigurationDetails.
 
         Returns
         -------
         DSCFileSystem
             An instance of DSCFileSystem.
         """
-        argument = copy.deepcopy(dsc_model)
+        argument = {
+            "storageType": dsc_model.storage_type,
+            "mountTargetId": dsc_model.mount_target_id,
+            "exportId": dsc_model.export_id,
+            "destinationDirectoryName": dsc_model.destination_directory_name
+        }
 
         file_storage_client = oci.file_storage.FileStorageClient(
             **ads.auth.default_signer()
         )
-        if "mountTargetId" not in argument:
+        if not dsc_model.mount_target_id:
             raise ValueError(
-                "Missing parameter `mountTargetId` from service. Check service log to see the error."
+                "Missing parameter `mount_target_id` from service. Check service log to see the error."
             )
         argument["mountTarget"] = file_storage_client.get_mount_target(
-            mount_target_id=argument.get("mountTargetId")
+            mount_target_id=dsc_model.mount_target_id
         ).data.display_name
-        if "exportId" not in argument:
+        if not dsc_model.export_id:
             raise ValueError(
-                "Missing parameter `exportId` from service. Check service log to see the error."
+                "Missing parameter `export_id` from service. Check service log to see the error."
             )
         argument["exportPath"] = file_storage_client.get_export(
-            export_id=argument.get("exportId")
+            export_id=dsc_model.export_id
         ).data.path
 
         return super().from_dict(argument)
