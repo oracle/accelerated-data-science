@@ -74,11 +74,11 @@ def check_for_model_deployment_id(msg: str = MODEL_DEPLOYMENT_NEEDS_TO_BE_DEPLOY
     return decorator
 
 
-class MissingModelDeploymentIdError(Exception):   # pragma: no cover
+class MissingModelDeploymentIdError(Exception):
     pass
 
 
-class MissingModelDeploymentWorkflowIdError(Exception):   # pragma: no cover
+class MissingModelDeploymentWorkflowIdError(Exception):
     pass
 
 
