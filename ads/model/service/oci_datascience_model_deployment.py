@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from functools import wraps
+import json
 import time
 import logging
 from typing import Callable, List
@@ -18,7 +19,6 @@ import oci
 from oci.data_science.models import (
     CreateModelDeploymentDetails,
     UpdateModelDeploymentDetails,
-    WorkRequest
 )
 
 DEFAULT_WAIT_TIME = 1200
@@ -74,11 +74,11 @@ def check_for_model_deployment_id(msg: str = MODEL_DEPLOYMENT_NEEDS_TO_BE_DEPLOY
     return decorator
 
 
-class MissingModelDeploymentIdError(Exception):
+class MissingModelDeploymentIdError(Exception):   # pragma: no cover
     pass
 
 
-class MissingModelDeploymentWorkflowIdError(Exception):
+class MissingModelDeploymentWorkflowIdError(Exception):   # pragma: no cover
     pass
 
 
@@ -188,13 +188,20 @@ class OCIDataScienceModelDeployment(
         if wait_for_completion:
 
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
+            oci_model_deployment_object = self.client.get_model_deployment(self.id).data
+            current_state = State._from_str(oci_model_deployment_object.lifecycle_state)
+            model_deployment_id = self.id
 
             try:
-                self._wait_for_work_request(
-                    self.workflow_req_id, 
-                    ACTIVATE_WORKFLOW_STEPS, 
-                    max_wait_time, 
-                    poll_interval
+                self._wait_for_progress_completion(
+                    State.ACTIVE.name,
+                    ACTIVATE_WORKFLOW_STEPS,
+                    [State.FAILED.name, State.INACTIVE.name],
+                    self.workflow_req_id,
+                    current_state,
+                    model_deployment_id,
+                    max_wait_time,
+                    poll_interval,
                 )
             except Exception as e:
                 logger.error(
@@ -236,13 +243,20 @@ class OCIDataScienceModelDeployment(
         if wait_for_completion:
 
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
+            res_payload = json.loads(str(response.data))
+            current_state = State._from_str(res_payload["lifecycle_state"])
+            model_deployment_id = self.id
 
             try:
-                self._wait_for_work_request(
-                    self.workflow_req_id, 
-                    CREATE_WORKFLOW_STEPS, 
-                    max_wait_time, 
-                    poll_interval
+                self._wait_for_progress_completion(
+                    State.ACTIVE.name,
+                    CREATE_WORKFLOW_STEPS,
+                    [State.FAILED.name, State.INACTIVE.name],
+                    self.workflow_req_id,
+                    current_state,
+                    model_deployment_id,
+                    max_wait_time,
+                    poll_interval,
                 )
             except Exception as e:
                 logger.error(
@@ -287,13 +301,20 @@ class OCIDataScienceModelDeployment(
         if wait_for_completion:
 
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
+            oci_model_deployment_object = self.client.get_model_deployment(self.id).data
+            current_state = State._from_str(oci_model_deployment_object.lifecycle_state)
+            model_deployment_id = self.id
 
             try:
-                self._wait_for_work_request(
-                    self.workflow_req_id, 
-                    DEACTIVATE_WORKFLOW_STEPS, 
-                    max_wait_time, 
-                    poll_interval
+                self._wait_for_progress_completion(
+                    State.INACTIVE.name,
+                    DEACTIVATE_WORKFLOW_STEPS,
+                    [State.FAILED.name],
+                    self.workflow_req_id,
+                    current_state,
+                    model_deployment_id,
+                    max_wait_time,
+                    poll_interval,
                 )
             except Exception as e:
                 logger.error(
@@ -338,13 +359,20 @@ class OCIDataScienceModelDeployment(
         if wait_for_completion:
 
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
+            oci_model_deployment_object = self.client.get_model_deployment(self.id).data
+            current_state = State._from_str(oci_model_deployment_object.lifecycle_state)
+            model_deployment_id = self.id
 
             try:
-                self._wait_for_work_request(
-                    self.workflow_req_id, 
-                    DELETE_WORKFLOW_STEPS, 
-                    max_wait_time, 
-                    poll_interval
+                self._wait_for_progress_completion(
+                    State.DELETED.name,
+                    DELETE_WORKFLOW_STEPS,
+                    [State.FAILED.name, State.INACTIVE.name],
+                    self.workflow_req_id,
+                    current_state,
+                    model_deployment_id,
+                    max_wait_time,
+                    poll_interval,
                 )
             except Exception as e:
                 logger.error(
@@ -484,76 +512,89 @@ class OCIDataScienceModelDeployment(
         """
         return super().from_ocid(model_deployment_id)
 
-    def _wait_for_work_request(
-        self, 
-        work_request_id: str, 
-        num_steps: int = DELETE_WORKFLOW_STEPS, 
-        max_wait_time: int = DEFAULT_WAIT_TIME, 
-        poll_interval: int = DEFAULT_POLL_INTERVAL
-    ) -> None:
-        """Waits for the work request to be completed.
+    def _wait_for_progress_completion(
+        self,
+        final_state: str,
+        work_flow_step: int,
+        disallowed_final_states: List[str],
+        work_flow_request_id: str,
+        state: State,
+        model_deployment_id: str,
+        max_wait_time: int = DEFAULT_WAIT_TIME,
+        poll_interval: int = DEFAULT_POLL_INTERVAL,
+    ):
+        """_wait_for_progress_completion blocks until progress is completed.
 
         Parameters
         ----------
-        work_request_id: str
-            Work Request OCID.
-        num_steps: (int, optional). Defaults to 6.
-            Number of steps for the progress indicator.
+        final_state: str
+            Final state of model deployment aimed to be reached.
+        work_flow_step: int
+            Number of work flow step of the request.
+        disallowed_final_states: list[str]
+            List of disallowed final state to be reached.
+        work_flow_request_id: str
+            The id of work flow request.
+        state: State
+            The current state of model deployment.
+        model_deployment_id: str
+            The ocid of model deployment.
         max_wait_time: int
             Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
         poll_interval: int
             Poll interval in seconds (Defaults to 10).
-
-        Returns
-        -------
-        None
         """
-        STOP_STATE = (
-            WorkRequest.STATUS_SUCCEEDED,
-            WorkRequest.STATUS_CANCELED,
-            WorkRequest.STATUS_FAILED,
-        )
-        work_request_logs = []
 
-        i = 0
         start_time = time.time()
-        with progress_bar_utils.get_progress_bar(num_steps) as progress:
-            exceed_max_time = max_wait_time > 0 and utils.seconds_since(start_time) >= max_wait_time
-            if exceed_max_time:
-                logger.error(
+        prev_message = ""
+        prev_workflow_stage_len = 0
+        current_state = state or State.UNKNOWN
+        with progress_bar_utils.get_progress_bar(work_flow_step) as progress:
+            if max_wait_time > 0 and utils.seconds_since(start_time) >= max_wait_time:
+                utils.get_logger().error(
                     f"Max wait time ({max_wait_time} seconds) exceeded."
                 )
-            while not exceed_max_time and (not work_request_logs or len(work_request_logs) < num_steps):
-                time.sleep(poll_interval)
-                new_work_request_logs = []
+            while (
+                max_wait_time < 0 or utils.seconds_since(start_time) < max_wait_time
+            ) and current_state.name.upper() != final_state:
+                if current_state.name.upper() in disallowed_final_states:
+                    utils.get_logger().info(
+                        f"Operation failed due to deployment reaching state {current_state.name.upper()}. Use Deployment ID for further steps."
+                    )
+                    break
 
+                prev_state = current_state.name
                 try:
-                    work_request = self.client.get_work_request(work_request_id).data
-                    work_request_logs = self.client.list_work_request_logs(
-                        work_request_id
+                    model_deployment_payload = json.loads(
+                        str(self.client.get_model_deployment(model_deployment_id).data)
+                    )
+                    current_state = (
+                        State._from_str(model_deployment_payload["lifecycle_state"])
+                        if "lifecycle_state" in model_deployment_payload
+                        else State.UNKNOWN
+                    )
+                    workflow_payload = self.client.list_work_request_logs(
+                        work_flow_request_id
                     ).data
-                except Exception as ex:
-                    logger.warn(ex)
-
-                new_work_request_logs = (
-                    work_request_logs[i:] if work_request_logs else []
-                )
-
-                for wr_item in new_work_request_logs:
-                    progress.update(wr_item.message)
-                    i += 1
-
-                if work_request and work_request.status in STOP_STATE:
-                    if work_request.status != WorkRequest.STATUS_SUCCEEDED:
-                        if new_work_request_logs:
-                            raise Exception(new_work_request_logs[-1].message)
-                        else:
-                            raise Exception(
-                                "Error occurred in attempt to perform the operation. "
-                                "Check the service logs to get more details. "
-                                f"{work_request}"
-                            )
-                    else:
-                        break
+                    if isinstance(workflow_payload, list) and len(workflow_payload) > 0:
+                        if prev_message != workflow_payload[-1].message:
+                            for _ in range(
+                                len(workflow_payload) - prev_workflow_stage_len
+                            ):
+                                progress.update(workflow_payload[-1].message)
+                            prev_workflow_stage_len = len(workflow_payload)
+                            prev_message = workflow_payload[-1].message
+                            prev_workflow_stage_len = len(workflow_payload)
+                    if prev_state != current_state.name:
+                        utils.get_logger().info(
+                            f"Status Update: {current_state.name} in {utils.seconds_since(start_time)} seconds"
+                        )
+                except Exception as e:
+                    # utils.get_logger().warning(
+                    #     "Unable to update deployment status. Details: %s", format(
+                    #         e)
+                    # )
+                    pass
+                time.sleep(poll_interval)
             progress.update("Done")
