@@ -1196,50 +1196,56 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             )
             mock_sync.assert_called()
 
-    @patch.object(OCIDataScienceMixin, "sync")
     @patch.object(
-        oci.data_science.DataScienceClient,
-        "activate_model_deployment",
+        OCIDataScienceModelDeployment,
+        "activate",
     )
-    def test_activate(self, mock_activate_model_deployment, mock_sync):
+    def test_activate(self, mock_activate):
         response = MagicMock()
         response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
-        mock_activate_model_deployment.return_value = response
+        mock_activate.return_value = response
         model_deployment = self.initialize_model_deployment()
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.activate(wait_for_completion=False)
-        mock_activate_model_deployment.assert_called_with("test_model_deployment_id")
-        mock_sync.assert_called()
+        mock_activate.assert_called_with(
+            wait_for_completion=False, 
+            max_wait_time=1200, 
+            poll_interval=10
+        )
 
-    @patch.object(OCIDataScienceMixin, "sync")
     @patch.object(
-        oci.data_science.DataScienceClient,
-        "deactivate_model_deployment",
+        OCIDataScienceModelDeployment,
+        "deactivate",
     )
-    def test_deactivate(self, mock_deactivate_model_deployment, mock_sync):
+    def test_deactivate(self, mock_deactivate):
         response = MagicMock()
         response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
-        mock_deactivate_model_deployment.return_value = response
+        mock_deactivate.return_value = response
         model_deployment = self.initialize_model_deployment()
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.deactivate(wait_for_completion=False)
-        mock_deactivate_model_deployment.assert_called_with("test_model_deployment_id")
-        mock_sync.assert_called()
+        mock_deactivate.assert_called_with(
+            wait_for_completion=False, 
+            max_wait_time=1200, 
+            poll_interval=10
+        )
 
-    @patch.object(OCIDataScienceMixin, "sync")
     @patch.object(
-        oci.data_science.DataScienceClient,
-        "delete_model_deployment",
+        OCIDataScienceModelDeployment,
+        "delete",
     )
-    def test_delete(self, mock_delete_model_deployment, mock_sync):
+    def test_delete(self, mock_delete):
         response = MagicMock()
         response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
-        mock_delete_model_deployment.return_value = response
+        mock_delete.return_value = response
         model_deployment = self.initialize_model_deployment()
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.delete(wait_for_completion=False)
-        mock_delete_model_deployment.assert_called_with("test_model_deployment_id")
-        mock_sync.assert_called()
+        mock_delete.assert_called_with(
+            wait_for_completion=False, 
+            max_wait_time=1200, 
+            poll_interval=10
+        )
 
     @patch.object(OCIDataScienceMixin, "sync")
     @patch.object(
