@@ -5,3 +5,4 @@ mock
 pip
 pytest
 pytest-codecov
+pytest-xdist

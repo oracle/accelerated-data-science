@@ -16,15 +16,15 @@ from ads.common.decorator.runtime_dependency import (
 )
 
 
-class OperatorNotFound(Exception):
+class OperatorNotFound(Exception):   # pragma: no cover
     pass
 
 
-class CondaPackInfoNotProvided(Exception):
+class CondaPackInfoNotProvided(Exception):   # pragma: no cover
     pass
 
 
-class NotSupportedError(Exception):
+class NotSupportedError(Exception):   # pragma: no cover
     pass
 
 

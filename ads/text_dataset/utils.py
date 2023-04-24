@@ -8,7 +8,7 @@ import functools
 import os
 
 
-class NotSupportedError(Exception):
+class NotSupportedError(Exception):   # pragma: no cover
     pass
 
 

@@ -81,11 +81,11 @@ class ModelDeploymentMode:
     STREAM = "STREAM_ONLY"
 
 
-class LogNotConfiguredError(Exception):
+class LogNotConfiguredError(Exception):   # pragma: no cover
     pass
 
 
-class ModelDeploymentFailedError(Exception):
+class ModelDeploymentFailedError(Exception):   # pragma: no cover
     pass
 
 

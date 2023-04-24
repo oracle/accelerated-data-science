@@ -28,8 +28,6 @@ from ads.model.serde.model_serializer import (
 tmp_model_dir = tempfile.mkdtemp()
 CONDA_PACK_PATH = "oci://<bucket>@<namespace>/<path_to_pack>"
 SUPPORTED_PYTHON_VERSION = "3.8"
-mnist = tf.keras.datasets.mnist
-mnist.load_data()
 
 
 def setup_module():
@@ -38,6 +36,7 @@ def setup_module():
 
 class MyTFModel:
 
+    mnist = tf.keras.datasets.mnist
     (x_train, y_train), (x_test, y_test) = mnist.load_data()
     x_train, x_test = x_train / 255.0, x_test / 255.0
 
@@ -62,12 +61,11 @@ class MyTFModel:
 class TestTensorFlowModel:
     """Unittests for the TensorFlowModel class."""
 
+    @classmethod
     def setup_class(cls):
-        mnist = tf.keras.datasets.mnist
-        (x_train, y_train), (x_test, y_test) = mnist.load_data()
-        cls.x_train, cls.x_test = x_train / 255.0, x_test / 255.0
-
-        cls.myTFModel = MyTFModel().training()
+        model_obj = MyTFModel()
+        cls.myTFModel = model_obj.training()
+        cls.x_test = model_obj.x_test
         cls.dummy_input = (tf.TensorSpec((None, 28, 28), tf.float64, name="input"),)
 
         cls.inference_conda_env = CONDA_PACK_PATH
