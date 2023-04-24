@@ -1,7 +1,8 @@
 """This module requires oracle-ads>=2.6.8
 """
-import logging
 import ipaddress
+import logging
+import multiprocessing
 import os
 import time
 import shlex
@@ -13,7 +14,6 @@ import psutil
 import torch
 from ads import set_auth
 from ads.jobs import DataScienceJobRun
-
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PythonRuntimeHandler,
 )
@@ -23,10 +23,12 @@ try:
     # This is used by ADS and testing
     from . import driver_utils
     from .driver_oci import GitSSHKey, GitManager
+    from .oci_metrics import collect_metrics
 except ImportError:
     # This is used when the script is in a job run.
     import driver_utils
     from driver_oci import GitSSHKey, GitManager
+    from oci_metrics import collect_metrics
 
 logger = logging.getLogger(__name__)
 logger = driver_utils.set_log_level(logger)
@@ -173,12 +175,12 @@ class TorchRunner(driver_utils.JobRunner):
 
         # The default read_timeout is 60 seconds.
         # The job run will fail if the node cannot reach the host within read_timeout.
-        rdzv_timeout = os.environ.get('OCI__RDZV_TIMEOUT', '600')
+        rdzv_timeout = os.environ.get("OCI__RDZV_TIMEOUT", "600")
         rdzv_conf = f"read_timeout={rdzv_timeout}"
         # For pytorch>=2.0, we can use f"--local_addr={self.ip} " instead of LD_PRELOAD.
         cmd += (
             f"torchrun --nnode={node_count} --nproc_per_node={nproc_per_node} "
-            + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 --rdzv_conf={rdzv_conf}"
+            + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 --rdzv_conf={rdzv_conf} "
             + f"{os.environ[self.entrypoint_env]}"
         )
 
@@ -206,4 +208,7 @@ def main():
 
 
 if __name__ == "__main__":
+    p = multiprocessing.Process(target=collect_metrics)
+    p.daemon = True
+    p.start()
     main()

@@ -84,6 +84,7 @@ class PyTorchDistributedRuntime(PythonRuntime):
 class PyTorchDistributedArtifact(PythonArtifact):
     CONST_DRIVER_SCRIPT = "driver_pytorch.py"
     CONST_LIB_HOSTNAME = "hostname_from_env.c"
+    CONST_OCI_METRICS = "oci_metrics.py"
 
     def __init__(self, source, runtime=None) -> None:
         if not source:
@@ -97,6 +98,7 @@ class PyTorchDistributedArtifact(PythonArtifact):
                 self.CONST_DRIVER_UTILS,
                 self.CONST_DRIVER_SCRIPT,
                 self.CONST_LIB_HOSTNAME,
+                self.CONST_OCI_METRICS,
                 GitPythonArtifact.CONST_DRIVER_SCRIPT,
             ]
         )
