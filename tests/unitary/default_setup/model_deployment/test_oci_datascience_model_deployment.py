@@ -89,6 +89,33 @@ class TestOCIDataScienceModelDeployment:
     def test_activate(self):
         with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
             response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_PAYLOAD)
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Model deployment {self.mock_model_deployment.id} is already in active state."
+            ):
+                self.mock_model_deployment.activate(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+
+            response["lifecycle_state"] = "FAILED"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Can't activate model deployment {self.mock_model_deployment.id} when it's in FAILED state."
+            ):
+                self.mock_model_deployment.activate(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+
             response["lifecycle_state"] = "INACTIVE"
             mock_from_id.return_value = OCIDataScienceModelDeployment(
                 **response
@@ -159,8 +186,37 @@ class TestOCIDataScienceModelDeployment:
 
     def test_deactivate(self):
         with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_PAYLOAD)
+            response["lifecycle_state"] = "INACTIVE"
             mock_from_id.return_value = OCIDataScienceModelDeployment(
-                **OCI_MODEL_DEPLOYMENT_PAYLOAD
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Model deployment {self.mock_model_deployment.id} is already in inactive state."
+            ):
+                self.mock_model_deployment.deactivate(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+
+            response["lifecycle_state"] = "FAILED"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Can't deactivate model deployment {self.mock_model_deployment.id} when it's in FAILED state."
+            ):
+                self.mock_model_deployment.deactivate(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+            response["lifecycle_state"] = "ACTIVE"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
             )
             with patch.object(
                 oci.data_science.DataScienceClient,
@@ -372,8 +428,37 @@ class TestOCIDataScienceModelDeployment:
 
     def test_delete(self):
         with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_PAYLOAD)
+            response["lifecycle_state"] = "DELETED"
             mock_from_id.return_value = OCIDataScienceModelDeployment(
-                **OCI_MODEL_DEPLOYMENT_PAYLOAD
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Model deployment {self.mock_model_deployment.id} is either deleted or being deleted."
+            ):
+                self.mock_model_deployment.delete(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+
+            response["lifecycle_state"] = "UPDATING"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Can't delete model deployment {self.mock_model_deployment.id} when it's in UPDATING state."
+            ):
+                self.mock_model_deployment.delete(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+            response["lifecycle_state"] = "ACTIVE"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
             )
             with patch.object(
                 oci.data_science.DataScienceClient,
