@@ -23,21 +23,20 @@ author = "Oracle Data Science"
 version = release = __import__("ads").__version__
 
 extensions = [
-    "sphinx_rtd_theme",
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
-    "sphinx.ext.todo",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
-    "sphinx.ext.graphviz",
-    "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.autodoc",
     "sphinx.ext.todo",
-    "sphinx.ext.viewcode",
+    "sphinx.ext.extlinks",
+    "sphinx.ext.intersphinx",    
+    "sphinx.ext.graphviz",
     "nbsphinx",
     "sphinx_code_tabs",
-    "sphinx_design",
-    "sphinx_copybutton"
+    "sphinx_copybutton",
+    "sphinx_autorun",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -65,30 +64,28 @@ language = 'en'
 # exclude_patterns = []
 exclude_patterns = ['build', '**.ipynb_checkpoints', 'Thumbs.db', '.DS_Store']
 
-# The name of the Pygments (syntax highlighting) style to use.
-# pygments_style = "sphinx"
-# pygments_dark_style = "monokai"
-
 language = "en"
 
 html_theme = "furo"
 html_static_path = ["_static"]
 
+html_title = f"{project} v{release}"
+
+# Disable the generation of the various indexes
+html_use_modindex = False
+html_use_index = False
+
+# html_css_files = [
+#     'pied-piper-admonition.css',     
+# ]
+
 html_theme_options = {
     "light_logo": "logo-light-mode.png",
-    "dark_logo": "logo-dark-mode.png",
+    "dark_logo": "logo-dark-mode.png",     
 }
 
-html_css_files = [
-    'pied-piper-admonition.css',     
-]
+
 htmlhelp_basename = "pydoc"
-
-# banner
-
-# html_theme_options = {
-#     "announcement": "<em>Important</em> announcement!",
-# }
 
 
 # -- Options for LaTeX output ------------------------------------------------

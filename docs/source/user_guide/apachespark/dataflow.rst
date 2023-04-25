@@ -41,6 +41,7 @@ Define config. If you have not yet configured your dataflow setting, or would li
 Use the config defined above to submit the cell.
 
 .. admonition:: Tip
+   :class: note
 
   Get more information about the dataflow extension by running ``%dataflow -h``
 
@@ -131,11 +132,13 @@ To submit your notebook to DataFlow using the ``ads`` CLI, run:
   ads opctl run -s <folder where notebook is located> -e <notebook name> -b dataflow
 
 .. admonition:: Tip
+   :class: note
 
   You can avoid running cells that are not DataFlow environment compatible by tagging the cells and then providing the tag names to ignore. In the following example cells that are tagged ``ignore`` and ``remove`` will be ignored -
   ``--exclude-tag ignore --exclude-tag remove``
 
 .. admonition:: Tip
+   :class: note
 
   You can run the notebook in your local pyspark environment before submitting to ``DataFlow`` using the same CLI with ``-b local``
 

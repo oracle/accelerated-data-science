@@ -4,6 +4,7 @@ Apache Spark
 
 
 .. admonition:: DataFlow
+   :class: note
 
   Oracle Cloud Infrastructure (OCI) Data Flow is a fully managed, serverless, and on-demand Apache Spark Service that performs data processing or model training tasks on extremely large datasets without infrastructure to deploy or manage.
 
