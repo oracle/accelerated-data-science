@@ -6,8 +6,8 @@
         library and CLI for Machine learning engineers to work with Cloud Infrastructure (CPU and GPU VMs, Storage etc, Spark) for Data, Models,
         Notebooks, Pipelines and Jobs.
 
-Oracle Accelerated Data Science SDK (ADS)
-=========================================
+Oracle Accelerated Data Science (ADS)
+=====================================
 |PyPI|_ |Python|_ |Notebook Examples|_
 
 .. |PyPI| image:: https://img.shields.io/pypi/v/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white
@@ -67,46 +67,43 @@ Oracle Accelerated Data Science SDK (ADS)
    modules
 
 .. admonition:: Oracle Accelerated Data Science (ADS)
+   :class: note
 
-  Oracle Accelerated Data Science (ADS) is maintained by the Oracle Cloud Infrastructure Data Science service team. It speeds up common data science activities by providing tools that automate and/or simplify common data science tasks, along with providing a data scientist friendly pythonic interface to Oracle Cloud Infrastructure (OCI) services, most notably OCI Data Science, Data Flow, Object Storage, and the Autonomous Database. ADS gives you an interface to manage the lifecycle of machine learning models, from data acquisition to model evaluation, interpretation, and model deployment.
+   Oracle Accelerated Data Science (ADS) is maintained by the Oracle Cloud Infrastructure Data Science service team. It speeds up common data science activities by providing tools that automate and/or simplify common data science tasks, along with providing a data scientist friendly pythonic interface to Oracle Cloud Infrastructure (OCI) services, most notably OCI Data Science, Data Flow, Object Storage, and the Autonomous Database. ADS gives you an interface to manage the lifecycle of machine learning models, from data acquisition to model evaluation, interpretation, and model deployment.
 
-  With ADS you can:
+   With ADS you can:
 
-    - Read datasets from Oracle Object Storage, Oracle RDBMS (ATP/ADW/On-prem), AWS S3, and other sources into Pandas dataframes.
-    - Easily compute summary statistics on your dataframes and perform data profiling.
-    - Tune models using hyperparameter optimization with the ADSTuner tool.
-    - Generate detailed evaluation reports of your model candidates with the ADSEvaluator module.
-    - Save machine learning models to the OCI Data Science Models.
-    - Deploy those models as HTTPS endpoints with Model Deployment.
-    - Launch distributed ETL, data processing, and model training jobs in Spark with OCI Data Flow.
-    - Train machine learning models in OCI Data Science Jobs.
-    - Manage the lifecycle of conda environments through the ads conda command line interface (CLI).
-    - Distributed Training with PyTorch, Horovod and Dask
+   - Read datasets from Oracle Object Storage, Oracle RDBMS (ATP/ADW/On-prem), AWS S3, and other sources into Pandas dataframes.
+   - Easily compute summary statistics on your dataframes and perform data profiling.
+   - Tune models using hyperparameter optimization with the ADSTuner tool.
+   - Generate detailed evaluation reports of your model candidates with the ADSEvaluator module.
+   - Save machine learning models to the OCI Data Science Models.
+   - Deploy those models as HTTPS endpoints with Model Deployment.
+   - Launch distributed ETL, data processing, and model training jobs in Spark with OCI Data Flow.
+   - Train machine learning models in OCI Data Science Jobs.
+   - Manage the lifecycle of conda environments through the ads conda command line interface (CLI).
+   - Distributed Training with PyTorch, Horovod and Dask
 
 
 .. admonition:: Installation
+   :class: note
 
    python3 -m pip install oracle-ads
 
 
 .. admonition:: Source Code
+   :class: note
 
    `https://github.com/oracle/accelerated-data-science <https://github.com/oracle/accelerated-data-science>`_
 
-.. code:: ipython3
-
+.. code-block:: python3
    >>> import ads
    >>> ads.hello()
 
-     O  o-o   o-o
-    / \ |  \ |
-   o---o|   O o-o
-   |   ||  /     |
-   o   oo-o  o--o
+.. runblock:: pycon
 
-   ADS SDK version: X.Y.Z
-   Pandas version: x.y.z
-   Debug mode: False
+   >>> import ads
+   >>> ads.hello()
 
 
 Additional Documentation
@@ -115,6 +112,8 @@ Additional Documentation
   - `OCI Data Science and AI services Examples <https://github.com/oracle/oci-data-science-ai-samples>`_
   - `Oracle AI & Data Science Blog <https://blogs.oracle.com/ai-and-datascience/>`_
   - `OCI Documentation <https://docs.oracle.com/en-us/iaas/data-science/using/data-science.htm>`_
+  - `OCIFS Documentation <https://ocifs.readthedocs.io/en/latest/>`_
+  - `Example Notebooks <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples>`_
 
 Examples
 ++++++++
@@ -147,17 +146,17 @@ This example uses SQL injection safe binding variables.
 
 .. code-block:: python3
 
-  import ads
-  import pandas as pd
+   import ads
+   import pandas as pd
 
-  connection_parameters = {
+   connection_parameters = {
       "user_name": "<user_name>",
       "password": "<password>",
       "service_name": "<tns_name>",
       "wallet_location": "<file_path>",
-  }
+   }
 
-  df = pd.DataFrame.ads.read_sql(
+   df = pd.DataFrame.ads.read_sql(
       """
       SELECT *
       FROM SH.SALES
@@ -165,7 +164,7 @@ This example uses SQL injection safe binding variables.
       """,
       bind_variables={ max_rows : 100 },
       connection_parameters=connection_parameters,
-  )
+   )
 
 More Examples
 ~~~~~~~~~~~~~

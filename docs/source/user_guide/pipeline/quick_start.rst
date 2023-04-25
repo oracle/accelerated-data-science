@@ -217,6 +217,7 @@ Below is an example to stream the custom log
   ads opctl watch <pipeline_run_ocid> -l custom_log
 
 .. admonition:: Tip
+   :class: note
 
   The allowed values for ``-l`` option are ``custom_log``, ``service_log``, or ``None``.
 
@@ -257,6 +258,7 @@ ADS Magic Commands
 ==================
 
 .. admonition:: Tip
+   :class: note
 
   Get more information about the pipeline extension by running ``%pipeline -h``
 
@@ -299,6 +301,7 @@ Watch status
 To watch the status of pipeline run, use the pipeline run OCID
 
 .. admonition:: Tip
+   :class: note
 
   Get more information about watching pipeline status by running ``%pipeline status -h``
 
@@ -320,6 +323,7 @@ Monitor logs
 To monitor a pipeline run, use the pipeline run OCID.
 
 .. admonition:: Tip
+   :class: note
 
   Get more information about monitoring pipeline logs by running ``%pipeline log -h``
 
@@ -350,6 +354,7 @@ Delete
 ------
 
 .. admonition:: Tip
+   :class: note
 
   Get more information about deleting pipelines and pipeline runs by running ``%pipeline delete -h``
 
