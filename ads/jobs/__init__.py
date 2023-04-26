@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -23,7 +23,6 @@ try:
     from ads.jobs.builders.infrastructure.dsc_job import (
         DataScienceJob,
         DataScienceJobRun,
-        OCIFileStorage,
     )
     from ads.jobs.builders.infrastructure.dataflow import DataFlow, DataFlowRun
 except AttributeError as e:
@@ -49,5 +48,4 @@ __all__ = [
     "DataFlowRun",
     "DataFlowRuntime",
     "DataFlowNotebookRuntime",
-    "OCIFileStorage",
 ]

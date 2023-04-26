@@ -9,12 +9,13 @@ import oci
 import unittest
 import pytest
 
+from ads.common.dsc_file_system import OCIFileStorage
 from ads.jobs.ads_job import Job
-from ads.jobs.builders.infrastructure import OCIFileStorage, DataScienceJob
+from ads.jobs.builders.infrastructure import DataScienceJob
 from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
 
 try:
-    from oci.data_science.models import FileStorageMountConfigurationDetails
+    from oci.data_science.models import JobStorageMountConfigurationDetails
 except (ImportError, AttributeError) as e:
     raise unittest.SkipTest(
         "Support for mounting file systems to OCI Job is not available. Skipping the Job tests."
@@ -77,11 +78,11 @@ job = (
         .with_storage_mount(
             {
                 "src" : "1.1.1.1:test_export_path_one",
-                "dsc" : "test_mount_one",
+                "dest" : "test_mount_one",
             },
             {
                 "src" : "2.2.2.2:test_export_path_two",
-                "dsc" : "test_mount_two",
+                "dest" : "test_mount_two",
             },  
         )
     )
@@ -107,9 +108,9 @@ spec:
       shapeName: VM.Standard.E3.Flex
       storageMount:
       - src: 1.1.1.1:test_export_path_one
-        dsc: test_mount_one
+        dest: test_mount_one
       - src: 2.2.2.2:test_export_path_two
-        dsc: test_mount_two
+        dest: test_mount_two
       subnetId: ocid1.subnet.oc1.iad.xxxx
     type: dataScienceJob
   name: My Job
@@ -131,32 +132,28 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
     def test_data_science_job_initialize(self):
         assert isinstance(job.infrastructure.storage_mount, list)
         dsc_file_storage_one = job.infrastructure.storage_mount[0]
-        assert isinstance(dsc_file_storage_one, OCIFileStorage)
-        assert dsc_file_storage_one.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_one.src == "1.1.1.1:test_export_path_one"
-        assert dsc_file_storage_one.dsc == "test_mount_one"
+        assert isinstance(dsc_file_storage_one, dict)
+        assert dsc_file_storage_one["src"] == "1.1.1.1:test_export_path_one"
+        assert dsc_file_storage_one["dest"] == "test_mount_one"
 
         dsc_file_storage_two = job.infrastructure.storage_mount[1]
-        assert isinstance(dsc_file_storage_two, OCIFileStorage)
-        assert dsc_file_storage_two.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_two.src == "2.2.2.2:test_export_path_two"
-        assert dsc_file_storage_two.dsc == "test_mount_two"
+        assert isinstance(dsc_file_storage_two, dict)
+        assert dsc_file_storage_two["src"] == "2.2.2.2:test_export_path_two"
+        assert dsc_file_storage_two["dest"] == "test_mount_two"
 
     def test_data_science_job_from_yaml(self):
         job_from_yaml = Job.from_yaml(job_yaml_string)
 
         assert isinstance(job_from_yaml.infrastructure.storage_mount, list)
         dsc_file_storage_one = job_from_yaml.infrastructure.storage_mount[0]
-        assert isinstance(dsc_file_storage_one, OCIFileStorage)
-        assert dsc_file_storage_one.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_one.src == "1.1.1.1:test_export_path_one"
-        assert dsc_file_storage_one.dsc == "test_mount_one"
+        assert isinstance(dsc_file_storage_one, dict)
+        assert dsc_file_storage_one["src"] == "1.1.1.1:test_export_path_one"
+        assert dsc_file_storage_one["dest"] == "test_mount_one"
 
         dsc_file_storage_two = job.infrastructure.storage_mount[1]
-        assert isinstance(dsc_file_storage_two, OCIFileStorage)
-        assert dsc_file_storage_two.storage_type == "FILE_STORAGE"
-        assert dsc_file_storage_two.src == "2.2.2.2:test_export_path_two"
-        assert dsc_file_storage_two.dsc == "test_mount_two"
+        assert isinstance(dsc_file_storage_two, dict)
+        assert dsc_file_storage_two["src"] == "2.2.2.2:test_export_path_two"
+        assert dsc_file_storage_two["dest"] == "test_mount_two"
 
     def test_data_science_job_to_dict(self):
         assert job.to_dict() == {
@@ -186,13 +183,11 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
                         "storageMount": [
                             {
                                 "src" : "1.1.1.1:test_export_path_one",
-                                "dsc" : "test_mount_one",
-                                "storageType": "FILE_STORAGE",
+                                "dest" : "test_mount_one",
                             },
                             {
                                 "src" : "2.2.2.2:test_export_path_two",
-                                "dsc" : "test_mount_two",
-                                "storageType": "FILE_STORAGE",
+                                "dest" : "test_mount_two",
                             },
                         ],
                     },
@@ -201,32 +196,10 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         }
 
     def test_mount_file_system_failed(self):
-        with pytest.raises(
-            ValueError,
-            match="Missing required parameter. Either `src` or `mount_target_id` is required for mounting file storage system.",
-        ):
-            OCIFileStorage()
-
-        with pytest.raises(
-            ValueError,
-            match="Missing required parameter. Either `src` or `export_id` is required for mounting file storage system.",
-        ):
-            OCIFileStorage(
-                mount_target_id="test_mount_target_id"
-            )
-
-        with pytest.raises(
-            ValueError,
-            match="Parameter `dsc` is required for mounting file storage system.",
-        ):
-            OCIFileStorage(
-                src="1.1.1.1:test_export_path"
-            )
-
         job_copy = copy.deepcopy(job)
         dsc_file_storage = {
             "src" : "1.1.1.1:test_export_path",
-            "dsc" : "test_mount",
+            "dest" : "test_mount",
         }
         storage_mount_list = [dsc_file_storage] * 6
         with pytest.raises(
@@ -261,9 +234,9 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         infrastructure._update_from_dsc_model(dsc_job_payload)
 
         assert len(infrastructure.storage_mount) == 2
-        assert isinstance(infrastructure.storage_mount[0], OCIFileStorage)
-        assert isinstance(infrastructure.storage_mount[1], OCIFileStorage)
-        assert infrastructure.storage_mount[0].to_dict() == {
+        assert isinstance(infrastructure.storage_mount[0], dict)
+        assert isinstance(infrastructure.storage_mount[1], dict)
+        assert infrastructure.storage_mount[0] == {
             "destinationDirectoryName": "test_destination_directory_name_from_dsc",
             "exportId": "export_id_from_dsc",
             "exportPath": "export_path_from_dsc",
@@ -271,7 +244,7 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
             "mountTargetId": "mount_target_id_from_dsc",
             "storageType": "FILE_STORAGE",
         }
-        assert infrastructure.storage_mount[1].to_dict() == {
+        assert infrastructure.storage_mount[1] == {
             "destinationDirectoryName": "test_destination_directory_name_from_dsc",
             "exportId": "export_id_from_dsc",
             "exportPath": "export_path_from_dsc",
@@ -280,73 +253,33 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
             "storageType": "FILE_STORAGE",
         }
 
-    @patch.object(oci.file_storage.FileStorageClient, "list_exports")
-    @patch.object(oci.file_storage.FileStorageClient, "list_mount_targets")
-    @patch.object(oci.identity.IdentityClient, "list_availability_domains")
+    @patch.object(OCIFileStorage, "update_to_dsc_model")
     def test_update_job_infra(
-        self, mock_list_availability_domains, mock_list_mount_targets, mock_list_exports
+        self, mock_update_to_dsc_model
     ):
         job_copy = copy.deepcopy(job)
         dsc_job_payload_copy = copy.deepcopy(dsc_job_payload)
 
-        list_availability_domains_mock = MagicMock()
-        list_availability_domains_mock.data = [
-            oci.identity.models.availability_domain.AvailabilityDomain(
-                compartment_id=job_copy.infrastructure.compartment_id,
-                name="NNFR:US-ASHBURN-AD-1",
-                id="test_id_one",
-            )
-        ]
-
-        mock_list_availability_domains.return_value = list_availability_domains_mock
-
-        list_mount_targets_mock = MagicMock()
-        list_mount_targets_mock.data = [
-            oci.file_storage.models.mount_target_summary.MountTargetSummary(
-                **{
-                    "availability_domain": "NNFR:US-ASHBURN-AD-1",
-                    "compartment_id": job_copy.infrastructure.compartment_id,
-                    "display_name": "test_mount_target_one",
-                    "id": "test_mount_target_id_one",
-                }
-            ),
-        ]
-        mock_list_mount_targets.return_value = list_mount_targets_mock
-
-        list_exports_mock = MagicMock()
-        list_exports_mock.data = [
-            oci.file_storage.models.export.Export(
-                **{
-                    "id": "test_export_id_one",
-                    "path": "test_export_path_one",
-                }
-            ),
-            oci.file_storage.models.export.Export(
-                **{
-                    "id": "test_export_id_two",
-                    "path": "test_export_path_two",
-                }
-            ),
-        ]
-        mock_list_exports.return_value = list_exports_mock
+        mock_update_to_dsc_model.return_value = {
+            "destinationDirectoryName": "test_destination_directory_name_from_dsc",
+            "exportId": "test_export_id_one",
+            "mountTargetId": "test_mount_target_id_one",
+            "storageType": "FILE_STORAGE",
+        }
 
         dsc_job_payload_copy.job_storage_mount_configuration_details_list = []
         infrastructure = job_copy.infrastructure
-        with pytest.raises(
-            ValueError,
-            match="Can't find the compartment id or identifier from ip 1.1.1.1. Specify a valid `src`.",
-        ):
-            infrastructure._update_job_infra(dsc_job_payload_copy)
+        infrastructure._update_job_infra(dsc_job_payload_copy)
 
-            assert (
-                len(dsc_job_payload_copy.job_storage_mount_configuration_details_list)
-                == 1
-            )
-            assert dsc_job_payload_copy.job_storage_mount_configuration_details_list[
-                0
-            ] == {
-                "destinationDirectoryName": "test_destination_directory_name_from_dsc",
-                "exportId": "test_export_id_one",
-                "mountTargetId": "test_mount_target_id_one",
-                "storageType": "FILE_STORAGE",
-            }
+        assert (
+            len(dsc_job_payload_copy.job_storage_mount_configuration_details_list)
+            == 2
+        )
+        assert dsc_job_payload_copy.job_storage_mount_configuration_details_list[
+            0
+        ] == {
+            "destinationDirectoryName": "test_destination_directory_name_from_dsc",
+            "exportId": "test_export_id_one",
+            "mountTargetId": "test_mount_target_id_one",
+            "storageType": "FILE_STORAGE",
+        }

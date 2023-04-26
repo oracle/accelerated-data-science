@@ -4,7 +4,6 @@
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from __future__ import annotations
-import copy
 
 import datetime
 import logging
@@ -36,10 +35,9 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.jobs.builders.infrastructure.dsc_file_system import (
-    DSCFileSystemManager,
+from ads.common.dsc_file_system import (
     OCIFileStorage,
-    DSCFileSystem,
+    DSCFileSystemManager
 )
 
 logger = logging.getLogger(__name__)
@@ -1255,7 +1253,7 @@ class DataScienceJob(Infrastructure):
                 raise ValueError(
                     "Parameter `storage_mount` should be a list of dictionaries."
                 )
-            storage_mount_list.append(DSCFileSystemManager.initialize(item))
+            storage_mount_list.append(item)
         if len(storage_mount_list) > MAXIMUM_MOUNT_COUNT:
             raise ValueError(
                 f"A maximum number of {MAXIMUM_MOUNT_COUNT} file systems are allowed to be mounted at this time for a job."
@@ -1263,7 +1261,7 @@ class DataScienceJob(Infrastructure):
         return self.set_spec(self.CONST_STORAGE_MOUNT, storage_mount_list)
 
     @property
-    def storage_mount(self) -> List[DSCFileSystem]:
+    def storage_mount(self) -> List[dict]:
         """Files systems that have been mounted for the data science job
 
         Returns
@@ -1421,13 +1419,13 @@ class DataScienceJob(Infrastructure):
 
         if self.storage_mount:
             if not hasattr(
-                oci.data_science.models, "FileStorageMountConfigurationDetails"
+                oci.data_science.models, "JobStorageMountConfigurationDetails"
             ):
                 raise EnvironmentError(
                     "Storage mount hasn't been supported in the current OCI SDK installed."
                 )
             dsc_job.job_storage_mount_configuration_details_list = [
-                file_system.update_to_dsc_model() for file_system in self.storage_mount
+                DSCFileSystemManager.initialize(file_system) for file_system in self.storage_mount
             ]
         return self
 
@@ -1678,49 +1676,3 @@ class DataScienceJob(Infrastructure):
             **kwargs,
         ).data
         return shapes
-
-    @classmethod
-    def from_dict(cls, obj_dict: dict) -> DataScienceJob:
-        """Initialize the object from a Python dictionary."""
-        data_science_job = super().from_dict(obj_dict)
-        if data_science_job.storage_mount:
-            data_science_job.set_spec(
-                cls.CONST_STORAGE_MOUNT,
-                [
-                    cls()._build_file_storage(file_system)
-                    for file_system in data_science_job.storage_mount
-                ],
-            )
-        return data_science_job
-
-    def to_dict(self) -> dict:
-        """Converts the object to dictionary with kind, type and spec as keys."""
-        spec = copy.deepcopy(self._spec)
-        for key, value in spec.items():
-            if hasattr(value, "to_dict"):
-                value = value.to_dict()
-            elif key == self.CONST_STORAGE_MOUNT:
-                value = [item.to_dict() for item in value]
-            spec[key] = value
-
-        return {
-            "kind": self.kind,
-            "type": self.type,
-            "spec": spec,
-        }
-
-    def _build_file_storage(self, file_system: dict) -> DSCFileSystem:
-        """Builds DSCFileSystem object from dict
-
-        Parameters
-        ----------
-        file_system: dict
-            A dictionary containing the required parameters to build a DSCFileSystem object.
-
-        Returns
-        -------
-        DSCFileSystem
-            A DSCFileSystem object.
-        """
-        file_system = {utils.camel_to_snake(k): v for k, v in file_system.items()}
-        return DSCFileSystemManager.initialize(file_system)
