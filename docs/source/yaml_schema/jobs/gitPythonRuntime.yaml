@@ -1,0 +1,81 @@
+kind:
+  required: true
+  type: string
+  allowed:
+    - runtime
+type:
+  required: true
+  type: string
+  allowed:
+    - gitPython
+spec:
+  required: true
+  type: dict
+  schema:
+    args:
+      type: list
+      nullable: true
+      required: false
+      schema:
+        type: string
+    branch:
+      nullable: true
+      required: false
+      type: string
+    commit:
+      nullable: true
+      required: false
+      type: string
+    codeDir:
+      required: false
+      type: string
+    conda:
+      nullable: false
+      required: false
+      type: dict
+      schema:
+        slug:
+          required: true
+          type: string
+        type:
+          required: true
+          type: string
+          allowed:
+            - service
+    entryFunction:
+      nullable: true
+      required: false
+      type: string
+    entrypoint:
+      required: false
+      type:
+        - string
+        - list
+    env:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: dict
+        schema:
+          name:
+            type: string
+          value:
+            type:
+            - number
+            - string
+    outputDir:
+      required: false
+      type: string
+    outputUri:
+      required: false
+      type: string
+    pythonPath:
+      nullable: true
+      required: false
+      type: list
+      schema:
+        type: string
+    url:
+      required: false
+      type: string

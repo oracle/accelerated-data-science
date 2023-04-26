@@ -102,7 +102,7 @@ _TRAINING_RESOURCE_OCID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
 
 
-class InvalidDataType(Exception):
+class InvalidDataType(Exception):   # pragma: no cover
     """Invalid Data Type."""
 
     pass

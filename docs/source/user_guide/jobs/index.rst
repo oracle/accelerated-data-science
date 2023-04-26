@@ -18,3 +18,4 @@ Data Science Jobs
   ../cli/opctl/_template/jobs
   ../cli/opctl/_template/monitoring
   ../cli/opctl/localdev/local_jobs
+  yaml_schema
