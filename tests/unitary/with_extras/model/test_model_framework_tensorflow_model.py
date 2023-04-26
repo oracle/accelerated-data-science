@@ -49,10 +49,12 @@ class MyTFModel:
                     "Timeout when waiting for MNIST data to finished downloading in another process. "
                     "Please check internet connection."
                 )
+        os.makedirs(os.path.dirname(lock_file), exist_ok=True)
         Path(lock_file).touch()
         (x_train, y_train), (x_test, y_test) = mnist.load_data()
     finally:
-        os.unlink(lock_file)
+        if os.path.exists(lock_file):
+            os.unlink(lock_file)
 
     x_train, x_test = x_train / 255.0, x_test / 255.0
 
