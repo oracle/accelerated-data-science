@@ -306,6 +306,62 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                 "runtime": runtime,
             }
         )
+        
+    def initialize_model_deployment_triton_builder(self):
+        infrastructure = ModelDeploymentInfrastructure()\
+            .with_compartment_id("fakeid.compartment.oc1..xxx")\
+            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")\
+            .with_shape_name("VM.Standard.E4.Flex")\
+            .with_replica(2)\
+            .with_bandwidth_mbps(10)\
+
+        runtime = ModelDeploymentContainerRuntime()\
+            .with_image("fake_image")\
+            .with_server_port(5000)\
+            .with_health_check_port(5000)\
+            .with_model_uri("fake_model_id")\
+            .with_env({"key":"value", "key2":"value2"})\
+            .with_inference_server("triton")
+        
+        deployment = ModelDeployment()\
+            .with_display_name("triton case")\
+            .with_infrastructure(infrastructure)\
+            .with_runtime(runtime)
+        return deployment
+
+    def initialize_model_deployment_triton_yaml(self):
+        yaml_string = """
+kind: deployment
+spec:
+  displayName: triton
+  infrastructure:
+    kind: infrastructure
+    spec:
+      bandwidthMbps: 10
+      compartmentId: fake_compartment_id
+      deploymentType: SINGLE_MODEL
+      policyType: FIXED_SIZE
+      replica: 2
+      shapeConfigDetails:
+        memoryInGBs: 16.0
+        ocpus: 1.0
+      shapeName: VM.Standard.E4.Flex
+    type: datascienceModelDeployment
+  runtime:
+    kind: runtime
+    spec:
+      env:
+        key: value
+        key2: value2
+      inference_server: triton
+      healthCheckPort: 8000
+      image: fake_image
+      modelUri: fake_model_id
+      serverPort: 8000
+    type: container
+"""
+        deployment_from_yaml = ModelDeployment.from_yaml(yaml_string)
+        return deployment_from_yaml
 
     def initialize_model_deployment_from_kwargs(self):
         infrastructure = (
@@ -433,11 +489,34 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                 },
             )
 
+
     def test_initialize_model_deployment_with_spec_kwargs(self):
         model_deployment_kwargs = self.initialize_model_deployment_from_kwargs()
         model_deployment_builder = self.initialize_model_deployment()
 
         assert model_deployment_kwargs.to_dict() == model_deployment_builder.to_dict()
+        
+        
+    def test_initialize_model_deployment_triton_builder(self):
+        temp_model_deployment = self.initialize_model_deployment_triton_builder()
+        assert isinstance(
+            temp_model_deployment.runtime, ModelDeploymentContainerRuntime
+        )
+        assert isinstance(
+            temp_model_deployment.infrastructure, ModelDeploymentInfrastructure
+        )
+        assert temp_model_deployment.runtime.inference_server == "triton"
+    
+    def test_initialize_model_deployment_triton_yaml(self):
+        temp_model_deployment = self.initialize_model_deployment_triton_yaml()
+        assert isinstance(
+            temp_model_deployment.runtime, ModelDeploymentContainerRuntime
+        )
+        assert isinstance(
+            temp_model_deployment.infrastructure, ModelDeploymentInfrastructure
+        )
+        assert temp_model_deployment.runtime.inference_server == "triton"
+        
 
     def test_model_deployment_to_dict(self):
         model_deployment = self.initialize_model_deployment()

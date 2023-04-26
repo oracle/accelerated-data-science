@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 
 
-class ModelArtifactSizeError(Exception):
+class ModelArtifactSizeError(Exception):   # pragma: no cover
     def __init__(self, max_artifact_size: str):
         super().__init__(
             f"The model artifacts size is greater than `{max_artifact_size}`. "
