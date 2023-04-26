@@ -36,7 +36,7 @@ class MergeStrategy(Enum):
     MERGE = "merge"
 
 
-class OCIModelNotExists(Exception):
+class OCIModelNotExists(Exception):   # pragma: no cover
     pass
 
 

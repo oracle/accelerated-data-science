@@ -168,6 +168,23 @@ OCI_MODEL_PROVENANCE_PAYLOAD = {
     "training_script": None,
 }
 
+INFERENCE_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
+TRAINING_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
+DEFAULT_PYTHON_VERSION = "3.8"
+MODEL_FILE_NAME = "fake_model_name"
+FAKE_MD_URL = "http://<model-deployment-url>"
+
+
+def _prepare(model):
+    model.prepare(
+        inference_conda_env=INFERENCE_CONDA_ENV,
+        inference_python_version=DEFAULT_PYTHON_VERSION,
+        training_conda_env=TRAINING_CONDA_ENV,
+        training_python_version=DEFAULT_PYTHON_VERSION,
+        model_file_name=MODEL_FILE_NAME,
+        force_overwrite=True,
+    )
+
 
 class TestEstimator:
     def predict(self, x):
@@ -175,7 +192,6 @@ class TestEstimator:
 
 
 class TestGenericModel:
-
     iris = load_iris()
     X, y = iris.data, iris.target
     X_train, X_test, y_train, y_test = train_test_split(X, y)
@@ -298,16 +314,22 @@ class TestGenericModel:
         )
 
     @patch("ads.common.auth.default_signer")
+    def test_prepare_with_custom_scorepy(self, mock_signer):
+        """Test prepare a trained model with custom score.py."""
+        self.generic_model.prepare(
+            INFERENCE_CONDA_ENV,
+            model_file_name="fake_model_name",
+            score_py_uri=f"{os.path.dirname(os.path.abspath(__file__))}/test_files/custom_score.py",
+        )
+        assert os.path.exists(os.path.join("fake_folder", "score.py"))
+
+        prediction = self.generic_model.verify(data="test")["prediction"]
+        assert prediction == "This is a custom score.py."
+
+    @patch("ads.common.auth.default_signer")
     def test_verify_without_reload(self, mock_signer):
         """Test verify input data without reload artifacts."""
-        self.generic_model.prepare(
-            inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
-            inference_python_version="3.6",
-            training_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1",
-            training_python_version="3.7",
-            model_file_name="fake_model_name",
-            force_overwrite=True,
-        )
+        _prepare(self.generic_model)
         self.generic_model.verify(self.X_test.tolist())
 
         with patch("ads.model.artifact.ModelArtifact.reload") as mock_reload:
@@ -317,19 +339,9 @@ class TestGenericModel:
     @patch("ads.common.auth.default_signer")
     def test_verify(self, mock_signer):
         """Test verify input data"""
-        self.generic_model.prepare(
-            inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
-            inference_python_version="3.6",
-            training_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1",
-            training_python_version="3.7",
-            model_file_name="fake_model_name",
-            force_overwrite=True,
-        )
+        _prepare(self.generic_model)
         prediction_1 = self.generic_model.verify(self.X_test.tolist())
         assert isinstance(prediction_1, dict), "Failed to verify json payload."
-
-        prediction_2 = self.generic_model.verify(self.X_test.tolist())
-        assert isinstance(prediction_2, dict), "Failed to verify input data."
 
     def test_reload(self):
         """test the reload."""
@@ -622,11 +634,31 @@ class TestGenericModel:
             == random_name[:-9]
         )
 
+    @pytest.mark.parametrize("input_data", [(X_test.tolist())])
+    @patch("ads.common.auth.default_signer")
+    def test_predict_locally(self, mock_signer, input_data):
+        _prepare(self.generic_model)
+        test_result = self.generic_model.predict(data=input_data, local=True)
+        expected_result = self.generic_model.estimator.predict(input_data).tolist()
+        assert (
+            test_result["prediction"] == expected_result
+        ), "Failed to verify input data."
+
+        with patch("ads.model.artifact.ModelArtifact.reload") as mock_reload:
+            self.generic_model.predict(
+                data=input_data, local=True, reload_artifacts=False
+            )
+            mock_reload.assert_not_called()
+
     @patch.object(ModelDeployment, "predict")
     @patch("ads.common.auth.default_signer")
     @patch("ads.common.oci_client.OCIClientFactory")
+    @patch(
+        "ads.model.deployment.model_deployment.ModelDeployment.url",
+        return_value=FAKE_MD_URL,
+    )
     def test_predict_with_not_active_deployment_fail(
-        self, mock_client, mock_signer, mock_predict
+        self, mock_url, mock_client, mock_signer, mock_predict
     ):
         """Ensures predict model fails in case of model deployment is not in an active state."""
         with pytest.raises(NotActiveDeploymentError):
@@ -646,7 +678,11 @@ class TestGenericModel:
 
     @patch("ads.common.auth.default_signer")
     @patch("ads.common.oci_client.OCIClientFactory")
-    def test_predict_bytes_success(self, mock_client, mock_signer):
+    @patch(
+        "ads.model.deployment.model_deployment.ModelDeployment.url",
+        return_value=FAKE_MD_URL,
+    )
+    def test_predict_bytes_success(self, mock_url, mock_client, mock_signer):
         """Ensures predict model passes with bytes input."""
         with patch.object(
             ModelDeployment, "state", new_callable=PropertyMock
@@ -655,7 +691,7 @@ class TestGenericModel:
             with patch.object(ModelDeployment, "predict") as mock_predict:
                 mock_predict.return_value = {"result": "result"}
                 self.generic_model.model_deployment = ModelDeployment(
-                    model_deployment_id="test"
+                    model_deployment_id="test",
                 )
                 # self.generic_model.model_deployment.current_state = ModelDeploymentState.ACTIVE
                 self.generic_model._as_onnx = False
@@ -668,7 +704,11 @@ class TestGenericModel:
 
     @patch("ads.common.auth.default_signer")
     @patch("ads.common.oci_client.OCIClientFactory")
-    def test_predict_success(self, mock_client, mock_signer):
+    @patch(
+        "ads.model.deployment.model_deployment.ModelDeployment.url",
+        return_value=FAKE_MD_URL,
+    )
+    def test_predict_success(self, mock_url, mock_client, mock_signer):
         """Ensures predict model passes with valid input parameters."""
         with patch.object(
             ModelDeployment, "state", new_callable=PropertyMock
@@ -785,7 +825,11 @@ class TestGenericModel:
 
     @patch("ads.common.auth.default_signer")
     @patch("ads.common.oci_client.OCIClientFactory")
-    def test_predict_success__serialize_input(self, mock_client, mock_signer):
+    @patch(
+        "ads.model.deployment.model_deployment.ModelDeployment.url",
+        return_value=FAKE_MD_URL,
+    )
+    def test_predict_success__serialize_input(self, mock_url, mock_client, mock_signer):
         """Ensures predict model passes with valid input parameters."""
 
         df = pd.DataFrame([1, 2, 3])
@@ -795,7 +839,6 @@ class TestGenericModel:
             with patch.object(
                 GenericModel, "get_data_serializer"
             ) as mock_get_data_serializer:
-
                 mock_get_data_serializer.return_value.data = df.to_json()
                 mock_state.return_value = ModelDeploymentState.ACTIVE
                 with patch.object(ModelDeployment, "predict") as mock_predict:
@@ -1782,7 +1825,6 @@ class TestGenericModel:
     def test_upload_artifact_success(self):
         """Tests uploading model artifacts to the provided `uri`."""
         with tempfile.TemporaryDirectory() as tmp_dir:
-
             # copy test artifacts to the temp folder
             shutil.copytree(
                 os.path.join(self.curr_dir, "test_files/valid_model_artifacts"),

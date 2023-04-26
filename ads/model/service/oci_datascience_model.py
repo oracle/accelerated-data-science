@@ -38,19 +38,19 @@ MODEL_NEEDS_TO_BE_SAVED = (
 )
 
 
-class ModelProvenanceNotFoundError(Exception):
+class ModelProvenanceNotFoundError(Exception):   # pragma: no cover
     pass
 
 
-class ModelArtifactNotFoundError(Exception):
+class ModelArtifactNotFoundError(Exception):   # pragma: no cover
     pass
 
 
-class ModelNotSavedError(Exception):
+class ModelNotSavedError(Exception):   # pragma: no cover
     pass
 
 
-class ModelWithActiveDeploymentError(Exception):
+class ModelWithActiveDeploymentError(Exception):   # pragma: no cover
     pass
 
 

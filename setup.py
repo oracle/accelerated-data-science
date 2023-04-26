@@ -69,7 +69,6 @@ extras_require = {
         "nbformat",
         "inflection",
     ],
-    "mysql": ["mysql-connector-python"],
     "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
     "spark": ["pyspark>=3.0.0"],
     "huggingface": ["transformers"],
