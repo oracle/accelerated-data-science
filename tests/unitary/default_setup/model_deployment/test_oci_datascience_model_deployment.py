@@ -11,8 +11,7 @@ from oci.data_science.models import (
     ModelDeployment,
 )
 from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.oci_mixin import OCIModelMixin
-from ads.model.deployment.common.utils import State
+from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 
 from ads.model.service.oci_datascience_model_deployment import (
     ACTIVATE_WORKFLOW_STEPS,
@@ -119,7 +118,7 @@ class TestOCIDataScienceModelDeployment:
                 response.data = data
                 mock_get.return_value = response
                 with patch.object(
-                    OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                    OCIWorkRequestMixin, "wait_for_progress"
                 ) as mock_wait:
                     with patch.object(
                         OCIDataScienceModelDeployment, "sync"
@@ -176,7 +175,7 @@ class TestOCIDataScienceModelDeployment:
                 response.data = data
                 mock_get.return_value = response
                 with patch.object(
-                    OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                    OCIWorkRequestMixin, "wait_for_progress"
                 ) as mock_wait:
                     with patch.object(
                         OCIDataScienceModelDeployment, "sync"
@@ -256,7 +255,7 @@ class TestOCIDataScienceModelDeployment:
                     )
                     mock_to_oci_mode.return_value = oci_model_deployment
                     with patch.object(
-                        OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                        OCIWorkRequestMixin, "wait_for_progress"
                     ) as mock_wait:
                         with patch("json.loads") as mock_json_load:
                             create_model_deployment_details = MagicMock()
@@ -371,7 +370,7 @@ class TestOCIDataScienceModelDeployment:
             }
             mock_delete.return_value = response
             with patch.object(
-                OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                OCIWorkRequestMixin, "wait_for_progress"
             ) as mock_wait:
                 with patch.object(
                     oci.data_science.DataScienceClient, "get_model_deployment"

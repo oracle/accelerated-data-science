@@ -1,0 +1,34 @@
+kind:
+  allowed:
+    - infrastructure
+  required: true
+  type: string
+type:
+  required: true
+  type: string
+  allowed:
+    - dataFlow
+spec:
+  type: dict
+  required: true
+  schema:
+    compartmentId:
+      type: string
+    displayName:
+      type: string
+    driverShape:
+      type: string
+    executorShape:
+      type: string
+    id:
+      type: string
+    language:
+      type: string
+    logsBucketUri:
+      type: string
+    metastoreId:
+      type: string
+    numExecutors:
+      type: integer
+    sparkVersion:
+      type: string
