@@ -15,7 +15,7 @@ import fsspec
 from oci.data_science.models.pipeline_step_run import PipelineStepRun
 
 
-class PipelineVisualizerError(Exception):
+class PipelineVisualizerError(Exception):   # pragma: no cover
     pass
 
 

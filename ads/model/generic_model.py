@@ -135,7 +135,7 @@ class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):
+class NotActiveDeploymentError(Exception):   # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -144,15 +144,15 @@ class NotActiveDeploymentError(Exception):
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):
+class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):
+class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):
+class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
     pass
 
 

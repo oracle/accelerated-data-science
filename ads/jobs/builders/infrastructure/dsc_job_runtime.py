@@ -38,7 +38,7 @@ from ads.jobs.builders.runtimes.artifact import (
 from ads.jobs.builders.infrastructure.utils import get_value
 
 
-class IncompatibleRuntime(Exception):
+class IncompatibleRuntime(Exception):   # pragma: no cover
     """Represents an exception when runtime is not compatible with the OCI data science job configuration.
     This exception is designed to be raised during the extraction of a runtime from OCI data science job.
     The data science job does not explicitly contain information of the type of the ADS runtime.

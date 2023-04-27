@@ -17,7 +17,6 @@ import oci.loggingsearch
 from ads.common import auth as authutil
 import pandas as pd
 from ads.model.serde.model_input import JsonModelInputSERDE
-from ads.common import auth, oci_client
 from ads.common.oci_logging import (
     LOG_INTERVAL,
     LOG_RECORDS_LIMIT,
@@ -63,6 +62,7 @@ TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
+MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON = "TRITON"
 
 MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
 MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
@@ -81,11 +81,11 @@ class ModelDeploymentMode:
     STREAM = "STREAM_ONLY"
 
 
-class LogNotConfiguredError(Exception):
+class LogNotConfiguredError(Exception):   # pragma: no cover
     pass
 
 
-class ModelDeploymentFailedError(Exception):
+class ModelDeploymentFailedError(Exception):   # pragma: no cover
     pass
 
 
@@ -828,6 +828,8 @@ class ModelDeployment(Builder):
         data: Any = None,
         serializer: "ads.model.ModelInputSerializer" = model_input_serializer,
         auto_serialize_data: bool = False,
+        model_name: str = None,
+        model_version: str = None,
         **kwargs,
     ) -> dict:
         """Returns prediction of input data run against the model deployment endpoint.
@@ -860,6 +862,10 @@ class ModelDeployment(Builder):
             If `auto_serialize_data=False`, `data` required to be bytes or json serializable
             and `json_input` required to be json serializable. If `auto_serialize_data` set
             to True, data will be serialized before sending to model deployment endpoint.
+        model_name: str
+            Defaults to None. When the `Inference_server="triton"`, the name of the model to invoke.
+        model_version: str
+            Defaults to None. When the `Inference_server="triton"`, the version of the model to invoke.
         kwargs:
             content_type: str
                 Used to indicate the media type of the resource.
@@ -878,6 +884,7 @@ class ModelDeployment(Builder):
             "signer": signer,
             "content_type": kwargs.get("content_type", None),
         }
+        header.update(kwargs.pop("headers", {}))
 
         if data is None and json_input is None:
             raise AttributeError(
@@ -916,9 +923,13 @@ class ModelDeployment(Builder):
             raise TypeError(
                 "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
             )
-
+        if model_name and model_version:
+            header['model-name'] = model_name
+            header['model-version'] = model_version
+        elif bool(model_version) ^ bool(model_name):
+            raise ValueError("`model_name` and `model_version` have to be provided together.")
         prediction = send_request(
-            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header
+            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header,
         )
         return prediction
 
@@ -1390,6 +1401,10 @@ class ModelDeployment(Builder):
             infrastructure.CONST_WEB_CONCURRENCY,
             runtime.env.get("WEB_CONCURRENCY", None),
         )
+        if runtime.env.get("CONTAINER_TYPE", None) == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
+            runtime.set_spec(
+                runtime.CONST_INFERENCE_SERVER, MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON.lower()
+            )
 
         self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)
         self.set_spec(self.CONST_RUNTIME, runtime)
@@ -1568,6 +1583,9 @@ class ModelDeployment(Builder):
             environment_variables["WEB_CONCURRENCY"] = str(
                 infrastructure.web_concurrency
             )
+            runtime.set_spec(runtime.CONST_ENV, environment_variables)
+        if hasattr(runtime, "inference_server") and runtime.inference_server and runtime.inference_server.upper() == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
+            environment_variables["CONTAINER_TYPE"] = MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
             runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
