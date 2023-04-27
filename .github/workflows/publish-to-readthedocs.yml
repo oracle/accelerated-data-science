@@ -13,6 +13,7 @@ on:
       - main
     paths:
       - 'docs/**'
+
 env:
   RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science
   RTDS_ADS_TOKEN: ${{ secrets.RTDS_ADS_TOKEN }}

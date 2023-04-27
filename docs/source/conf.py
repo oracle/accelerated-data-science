@@ -23,21 +23,20 @@ author = "Oracle Data Science"
 version = release = __import__("ads").__version__
 
 extensions = [
-    "sphinx_rtd_theme",
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
-    "sphinx.ext.todo",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
-    "sphinx.ext.graphviz",
-    "sphinx.ext.inheritance_diagram",
+    "sphinx.ext.autodoc",
     "sphinx.ext.todo",
-    "sphinx.ext.viewcode",
+    "sphinx.ext.extlinks",
+    "sphinx.ext.intersphinx",    
+    "sphinx.ext.graphviz",
     "nbsphinx",
     "sphinx_code_tabs",
-    "sphinx_design",
-    "sphinx_copybutton"
+    "sphinx_copybutton",
+    "sphinx_autorun",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -63,16 +62,29 @@ language = 'en'
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 # exclude_patterns = []
-exclude_patterns = ['build', '**.ipynb_checkpoints']
+exclude_patterns = ['build', '**.ipynb_checkpoints', 'Thumbs.db', '.DS_Store']
 
-# The name of the Pygments (syntax highlighting) style to use.
-pygments_style = None
 language = "en"
 
 html_theme = "furo"
-html_logo = "_static/oracle_logo.png"
 html_static_path = ["_static"]
-html_css_files = ["pied-piper-admonition.css"]
+
+html_title = f"{project} v{release}"
+
+# Disable the generation of the various indexes
+html_use_modindex = False
+html_use_index = False
+
+# html_css_files = [
+#     'pied-piper-admonition.css',     
+# ]
+
+html_theme_options = {
+    "light_logo": "logo-light-mode.png",
+    "dark_logo": "logo-dark-mode.png",     
+}
+
+
 htmlhelp_basename = "pydoc"
 
 

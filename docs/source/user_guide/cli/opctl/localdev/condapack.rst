@@ -25,6 +25,7 @@ create
 Build conda packs from your workstation using ``ads opctl conda create`` subcommand.
 
 .. admonition:: Tip
+   :class: note
 
     To publish a conda pack that is natively installed on a oracle linux host (compute or laptop), use ``NO_CONTAINER`` environment variable to remove dependency on the ml-job container image:
 
