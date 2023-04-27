@@ -173,7 +173,7 @@ jobs:
           
           # Prepare default diff body text 
           DIFF_BODY_INTRO="📌 Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
-          echo DIFF_BODY="$BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
+          echo DIFF_BODY="$DIFF_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
           
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
