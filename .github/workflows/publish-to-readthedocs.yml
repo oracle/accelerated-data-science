@@ -14,6 +14,10 @@ on:
     paths:
       - 'docs/**'
 
+env:
+  RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science
+  RTDS_ADS_TOKEN: ${{ secrets.RTDS_ADS_TOKEN }}
+
 jobs:
   build-n-publish:
     name: Build and publish Docs 📖 to Readthedocs
@@ -21,19 +25,13 @@ jobs:
 
     steps:
       - name: When PR ✅ merged - Trigger Readthedocs build
-        if: github.event.pull_request.merged == true
-        env:
-          RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science
-          RTDS_ADS_TOKEN: ${{ secrets.RTDS_ADS_TOKEN }}
+        if: github.event_name == 'pull_request_target' && github.event.pull_request.merged == true
         run: |
           curl \
             -X POST \
             -H "Authorization: Token $RTDS_ADS_TOKEN" $RTDS_ADS_PROJECT/versions/latest/builds/
       - name: When tag 🏷️ pushed - Trigger Readthedocs build
-        if: github.event_name != 'pull_request'
-        env:
-          RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science
-          RTDS_ADS_TOKEN: ${{ secrets.RTDS_ADS_TOKEN }}
+        if: github.event_name == 'push' && startsWith(github.ref_name, 'v')
         run: |
           curl \
             -X POST \
