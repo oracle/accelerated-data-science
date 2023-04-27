@@ -1,7 +1,7 @@
 name: tests/unitary/default_setup/**
 
 on:
-  push:
+  pull_request:
     branches:
       - main
       - 'release/**'
@@ -10,8 +10,6 @@ on:
       - 'ads/**'
       - setup.py
       - '**requirements.txt'
-
-  pull_request:
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
