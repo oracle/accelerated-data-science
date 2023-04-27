@@ -10,6 +10,7 @@ on:
       - 'ads/**'
       - setup.py
       - '**requirements.txt'
+      - 'docs/**'
       - '!docs/**'
 
   pull_request:
