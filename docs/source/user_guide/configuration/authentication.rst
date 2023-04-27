@@ -78,3 +78,4 @@ In the this example, the default authentication uses API keys specified with the
   set_auth("api_key") # default signer is set to api_key
   os_auth = authutil.resource_principal() # use resource principal to as the preferred way to access object store
 
+``AuthContext`` context class can also be used to specify the desired type of authentication. It supports API key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or API keys configurations from specified locations. See `API Documentation <../../ads.common.html#ads.common.auth.AuthContext>`__ for more details.
