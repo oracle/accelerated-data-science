@@ -1532,6 +1532,9 @@ class ModelDeployment(Builder):
                 infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
                     "memory_in_gbs", None
                 )
+                or infrastructure.shape_config_details.get(
+                    "memoryInGBs", None
+                )
                 or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
             }
 
