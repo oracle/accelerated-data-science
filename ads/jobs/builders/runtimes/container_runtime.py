@@ -122,3 +122,19 @@ class ContainerRuntime(Runtime):
         """
         self._spec[self.CONST_CMD] = cmd
         return self
+
+    def init(self) -> "ContainerRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        ContainerRuntime
+            The runtime instance.
+        """
+        super().init()
+
+        return self.with_image(
+            image="iad.ocir.io/namespace/image:tag",
+            entrypoint=["bash", "--login", "-c"],
+            cmd="{Container CMD. For the MLflow will be replaced with the Project CMD}",
+        )

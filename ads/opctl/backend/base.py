@@ -4,10 +4,18 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from abc import abstractmethod
-from typing import Dict
+from abc import ABC, abstractmethod
+from typing import Dict, Union
 
 from ads.common.auth import get_signer
+
+
+class UnsupportedRuntime(Exception):
+    def __init__(self, runtime_type: str):
+        super().__init__(
+            f"The provided runtime: `{runtime_type}` "
+            "is not supported by given resource."
+        )
 
 
 class Backend:
@@ -91,3 +99,41 @@ class Backend:
         """
         Implement Diagnostics check appropriate for the backend
         """
+
+    def init(
+        self, uri: Union[str, None] = None, overwrite: bool = False, **kwargs: Dict
+    ) -> Union[str, None]:
+        """Generates a YAML specification for the resource.
+
+        Parameters
+        ----------
+        overwrite: (bool, optional). Defaults to False.
+            Overwrites the result specification YAML if exists.
+        uri: (str, optional)
+            The filename to save the resulting specification template YAML.
+        **kwargs: Dict
+            The optional arguments.
+
+            runtime_type: str
+                The resource runtime type.
+
+        Returns
+        -------
+        Union[str, None]
+            The YAML specification for the given resource if `uri` was not provided.
+            `None` otherwise.
+        """
+        raise NotImplementedError(
+            "The `init` has not been implemented yet for the given resource."
+        )
+
+class RuntimeFactory:
+    """Base factory for runtime."""
+
+    _MAP = {}
+
+    @classmethod
+    def get_runtime(cls, key: str, *args, **kwargs):
+        if key not in cls._MAP:
+            raise UnsupportedRuntime(key)
+        return cls._MAP[key](*args, **kwargs)

@@ -4,33 +4,33 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import fsspec
 import os
+from typing import Any, Dict
 
 import click
+import fsspec
 import yaml
 
-from ads.common.auth import AuthType
+import ads.opctl.conda.cli
+import ads.opctl.distributed.cli
+import ads.opctl.spark.cli
 from ads.common import auth as authutil
 from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
-from ads.opctl.cmds import deactivate as deactivate_cmd
 from ads.opctl.cmds import configure as configure_cmd
+from ads.opctl.cmds import deactivate as deactivate_cmd
 from ads.opctl.cmds import delete as delete_cmd
+from ads.opctl.cmds import init as init_cmd
+from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
-from ads.opctl.cmds import init_operator as init_operator_cmd
+from ads.opctl.config.merger import ConfigMerger
+from ads.opctl.constants import BACKEND_NAME, RUNTIME_TYPE, RESOURCE_TYPE
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
-from ads.opctl.config.merger import ConfigMerger
-from ads.opctl.constants import BACKEND_NAME
-
-import ads.opctl.conda.cli
-import ads.opctl.spark.cli
-import ads.opctl.distributed.cli
 
 
 @click.group("opctl")
@@ -499,11 +499,44 @@ def deactivate(**kwargs):
     suppress_traceback(kwargs["debug"])(deactivate_cmd)(**kwargs)
 
 
+@commands.command()
+@click.argument(
+    "resource-type",
+    type=click.Choice(RESOURCE_TYPE.values()),
+    required=True,
+)
+@click.help_option("--help", "-h")
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option(
+    "--runtime-type",
+    type=click.Choice(RUNTIME_TYPE.values()),
+    help="The runtime type",
+    required=False,
+)
+@click.option(
+    "--output",
+    help=f"The filename to save the resulting specification template YAML",
+    required=False,
+    default=None
+)
+@click.option(
+    "--overwrite",
+    "-o",
+    help="Overwrite result file if it already exists",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--ads-config",
+    help="The folder where the ADS opctl config located",
+    required=False,
+    default=None,
+)
+def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
+    """ Generates a starter specification template YAML for the Data Science resources. """
+    suppress_traceback(debug)(init_cmd)(**kwargs)
+
+
 commands.add_command(ads.opctl.conda.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)
-
-# @commands.command()
-# @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
-# def list(debug):
-#     print(json.dumps(suppress_traceback(debug)(_list_ads_operators)(), indent=2))

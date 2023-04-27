@@ -221,3 +221,17 @@ class Runtime(Builder):
     def maximum_runtime_in_minutes(self) -> int:
         """Maximum runtime in minutes"""
         return self.get_spec(self.CONST_MAXIMUM_RUNTIME_IN_MINUTES)
+
+    def init(self) -> Self:
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        Self
+            This method returns self to support chaining methods.
+        """
+        return (
+            self.with_environment_variable(env_name="env_value")
+            .with_freeform_tag(tag_name="tag_value")
+            .with_argument(key1="val1")
+        )

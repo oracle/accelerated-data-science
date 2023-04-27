@@ -898,16 +898,20 @@ class DataScienceJob(Infrastructure):
             **DataScienceJob.shape_config_details_attribute_map,
         }
         snake_to_camel_map = {v: k for k, v in attribute_map.items()}
+        snake_to_camel_map = {
+            **{v: k for k, v in attribute_map.items()},
+            **DataScienceJob.snake_to_camel_map,
+        }
 
         for key in list(spec.keys()):
-            if key not in attribute_map and key in snake_to_camel_map:
+            if key not in attribute_map and key.lower() in snake_to_camel_map:
                 value = spec.pop(key)
                 if isinstance(value, dict):
-                    spec[snake_to_camel_map[key]] = DataScienceJob.standardize_spec(
-                        value
-                    )
+                    spec[
+                        snake_to_camel_map[key.lower()]
+                    ] = DataScienceJob.standardize_spec(value)
                 else:
-                    spec[snake_to_camel_map[key]] = value
+                    spec[snake_to_camel_map[key.lower()]] = value
         return spec
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:

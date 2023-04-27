@@ -5,12 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from __future__ import annotations
 
-import json
 import os
-from typing import Any, Dict
+from typing import Dict
 
-from ads.jobs.builders.runtimes.base import Runtime
 from ads.common.auth import default_signer
+from ads.jobs.builders.runtimes.base import Runtime
 from ads.opctl.config.utils import convert_notebook
 
 
@@ -116,6 +115,17 @@ class CondaRuntime(Runtime):
         if region:
             conda_spec[self.CONST_CONDA_REGION] = region
         return self.set_spec(self.CONST_CONDA, conda_spec)
+
+    def init(self) -> "CondaRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        CondaRuntime
+            The runtime instance.
+        """
+        super().init()
+        return self.with_custom_conda("oci://your_bucket@namespace/object_name")
 
 
 class ScriptRuntime(CondaRuntime):
@@ -232,6 +242,25 @@ class ScriptRuntime(CondaRuntime):
             The runtime instance.
         """
         return self.set_spec(self.CONST_ENTRYPOINT, entrypoint)
+
+    def init(self) -> "ScriptRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        ScriptRuntime
+            The runtime instance.
+        """
+        super().init()
+        return (
+            self.with_entrypoint(
+                "{Entry point script. For the MLflow will be replaced with the CMD}"
+            )
+            .with_script(
+                "{Path to the script. For the MLFlow will be replaced with path to the project}"
+            )
+            .with_argument(key1="val1")
+        )
 
 
 class _PythonRuntimeMixin(Runtime):
@@ -403,6 +432,25 @@ class PythonRuntime(ScriptRuntime, _PythonRuntimeMixin):
     attribute_map.update(ScriptRuntime.attribute_map)
     attribute_map.update(_PythonRuntimeMixin.attribute_map)
 
+    def init(self) -> "PythonRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        PythonRuntime
+            The runtime instance.
+        """
+        super().init()
+        return (
+            self.with_working_dir("{For the MLflow the project folder will be used.}")
+            .with_entrypoint(
+                "{Entry point script. For the MLFlow will be replaced with the CMD}"
+            )
+            .with_script(
+                "{Path to the script. For the MLFlow will be replaced with path to the project}"
+            )
+        )
+
 
 class NotebookRuntime(CondaRuntime):
     """Represents a job runtime with Jupyter notebook
@@ -572,6 +620,20 @@ class NotebookRuntime(CondaRuntime):
         """The path of the notebook relative to the source."""
         return self.get_spec(self.CONST_ENTRYPOINT)
 
+    def init(self) -> "NotebookRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        NotebookRuntime
+            The runtime instance.
+        """
+        super().init()
+        return self.with_source(
+            uri="{Path to the source code directory. For the MLFlow will be replaced with path to the project}",
+            notebook="{Entry point notebook. For the MLFlow will be replaced with the CMD}",
+        ).with_exclude_tag("tag1")
+
 
 class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
     """Represents a job runtime with source code from git repository
@@ -679,9 +741,23 @@ class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
         """The OCID of the OCI Vault secret storing the Git SSH key."""
         return self.get_spec(self.CONST_GIT_SSH_SECRET_ID)
 
+    def init(self) -> "GitPythonRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        GitPythonRuntime
+            The runtime instance.
+        """
+        super().init()
+        return self.with_source(
+            "{Git URI. For the MLFlow will be replaced with the Project URI}"
+        ).with_entrypoint(
+            "{Entry point script. For the MLflow will be replaced with the CMD}"
+        )
+
 
 class DataFlowRuntime(CondaRuntime):
-
     CONST_SCRIPT_BUCKET = "scriptBucket"
     CONST_ARCHIVE_BUCKET = "archiveBucket"
     CONST_ARCHIVE_URI = "archiveUri"
@@ -887,6 +963,26 @@ class DataFlowRuntime(CondaRuntime):
 
     def convert(self, **kwargs):
         pass
+
+    def init(self) -> "DataFlowRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        DataFlowRuntime
+            The runtime instance.
+        """
+        super().init()
+        self._spec.pop(self.CONST_ENV_VAR, None)
+        return (
+            self.with_script_uri(
+                "{Path to the executable script. For the MLFlow will be replaced with the CMD}"
+            )
+            .with_argument(key1="val1")
+            .with_script_bucket("oci://<bucket_name>@<tenancy>/<prefix>")
+            .with_overwrite(True)
+            .with_configuration({"spark.driverEnv.env_key": "env_value"})
+        )
 
 
 class DataFlowNotebookRuntime(DataFlowRuntime, NotebookRuntime):

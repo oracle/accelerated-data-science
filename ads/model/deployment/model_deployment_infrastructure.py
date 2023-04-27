@@ -5,11 +5,21 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
+import copy
+import logging
+import traceback
 from typing import Any, Dict
+
+import oci.util as oci_util
+
+from ads.common.oci_datascience import DSCNotebookSession
+from ads.config import COMPARTMENT_OCID, NB_SESSION_OCID, PROJECT_OCID
 from ads.jobs.builders.base import Builder
 
 MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE = "datascienceModelDeployment"
 MODEL_DEPLOYMENT_INFRASTRUCTURE_KIND = "infrastructure"
+
+logger = logging.getLogger(__name__)
 
 
 class ModelDeploymentInfrastructure(Builder):
@@ -186,6 +196,50 @@ class ModelDeploymentInfrastructure(Builder):
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
         super().__init__(spec, **kwargs)
+
+    def _load_default_properties(self) -> Dict:
+        """Load default properties from environment variables, notebook session, etc.
+
+        Returns
+        -------
+        Dict
+            A dictionary of default properties.
+        """
+        defaults = super()._load_default_properties()
+        if COMPARTMENT_OCID:
+            defaults[self.CONST_COMPARTMENT_ID] = COMPARTMENT_OCID
+        if PROJECT_OCID:
+            defaults[self.CONST_PROJECT_ID] = PROJECT_OCID
+
+        import oci
+        oci.data_science.models.NotebookSessionConfigurationDetails
+        oci.data_science.models.NotebookSessionShapeConfigDetails
+
+        if NB_SESSION_OCID:
+            try:
+                nb_session = DSCNotebookSession.from_ocid(NB_SESSION_OCID)
+                nb_config = nb_session.notebook_session_configuration_details
+                defaults[self.CONST_SHAPE_NAME] = nb_config.shape
+                defaults[self.CONST_BANDWIDTH_MBPS] = 10
+                defaults[self.CONST_WEB_CONCURRENCY] = 10
+                defaults[self.CONST_REPLICA] = 1
+
+                if nb_config.notebook_session_shape_config_details:
+                    notebook_shape_config_details = oci_util.to_dict(
+                        nb_config.notebook_session_shape_config_details
+                    )
+                    defaults[self.CONST_SHAPE_CONFIG_DETAILS] = copy.deepcopy(
+                        notebook_shape_config_details
+                    )
+
+            except Exception as e:
+                logger.warning(
+                    f"Error fetching details about Notebook "
+                    f"session: {NB_SESSION_OCID}. {e}"
+                )
+                logger.debug(traceback.format_exc())
+
+        return defaults
 
     @property
     def kind(self) -> str:

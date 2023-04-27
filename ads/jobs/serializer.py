@@ -5,11 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import json
 from abc import ABC, abstractmethod
-from typing import Union, TypeVar, Type
+from typing import Type, TypeVar, Union, Dict
+from urllib.parse import urlparse
 
 import fsspec
 import yaml
-
 
 Self = TypeVar("Self", bound="Serializable")
 """Special type to represent the current enclosed class.
@@ -22,8 +22,19 @@ class Serializable(ABC):
     """Base class that represents a serializable item."""
 
     @abstractmethod
-    def to_dict(self) -> dict:
-        """Serializes an instance of class into a dictionary"""
+    def to_dict(self, **kwargs: Dict) -> Dict:
+        """Serializes an instance of class into a dictionary.
+
+        Parameters
+        ----------
+        **kwargs: Dict
+            Additional arguments.
+
+        Returns
+        -------
+        Dict
+            The result dictionary.
+        """
 
     @classmethod
     @abstractmethod
@@ -50,6 +61,16 @@ class Serializable(ABC):
             keyword arguments to be passed into fsspec.open().
             For OCI object storage, this can be config="path/to/.oci/config".
         """
+
+        overwrite = kwargs.pop("overwrite", True)
+        if not overwrite:
+            dst_path_scheme = urlparse(uri).scheme or "file"
+            if fsspec.filesystem(dst_path_scheme, **kwargs).exists(uri):
+                raise FileExistsError(
+                    f"The `{uri}` is already exists. Set `overwrite` to True "
+                    "if you wish to overwrite."
+                )
+
         with fsspec.open(uri, "w", **kwargs) as f:
             f.write(s)
 
@@ -82,17 +103,22 @@ class Serializable(ABC):
         encoder : callable, optional
             Encoder for custom data structures, by default json.JSONEncoder
         kwargs : dict
-            keyword arguments to be passed into fsspec.open().
-            For OCI object storage, this can be config="path/to/.oci/config".
+            overwrite: (bool, optional). Defaults to True.
+                Whether to overwrite existing file or not.
+
+            The other keyword arguments to be passed into fsspec.open().
+            For OCI object storage, this could be config="path/to/.oci/config".
 
         Returns
         -------
-        str
-            object serialized as a JSON string
+        Union[str, None]
+            Serialized version of object.
+            `None` in case when `uri` provided.
         """
-        json_string = json.dumps(self.to_dict(), cls=encoder)
+        json_string = json.dumps(self.to_dict(**kwargs), cls=encoder)
         if uri:
             self._write_to_file(s=json_string, uri=uri, **kwargs)
+            return None
         return json_string
 
     @classmethod
@@ -160,16 +186,24 @@ class Serializable(ABC):
         dumper : callable, optional
             Custom YAML Dumper, by default yaml.SafeDumper
         kwargs : dict
-            keyword arguments to be passed into fsspec.open().
-            For OCI object storage, this can be config="path/to/.oci/config".
+            overwrite: (bool, optional). Defaults to True.
+                Whether to overwrite existing file or not.
+            note: (str, optional)
+                The note that needs to be added in the beginning of the YAML.
+                It will be added as is without any formatting.
+
+            The other keyword arguments to be passed into fsspec.open().
+            For OCI object storage, this could be config="path/to/.oci/config".
 
         Returns
         -------
         Union[str, None]
-            If uri is specified, None will be returned.
-            Otherwise, the yaml content will be returned.
+            Serialized version of object.
+            `None` in case when `uri` provided.
         """
-        yaml_string = yaml.dump(self.to_dict(), Dumper=dumper)
+        note = kwargs.pop("note", "")
+
+        yaml_string = note + yaml.dump(self.to_dict(**kwargs), Dumper=dumper)
         if uri:
             self._write_to_file(s=yaml_string, uri=uri, **kwargs)
             return None

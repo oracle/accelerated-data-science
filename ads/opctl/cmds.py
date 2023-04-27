@@ -4,60 +4,56 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
 import configparser
+import os
+from typing import Dict, List, Union
+
 import click
+import fsspec
+import yaml
 
 import ads
-
-from typing import Dict, List
-
-from ads.common.auth import AuthContext
-from ads.common.oci_datascience import DSCNotebookSession
+from ads.common.auth import AuthContext, AuthType
 from ads.common.extended_enum import ExtendedEnumMeta
+from ads.common.oci_datascience import DSCNotebookSession
+from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
+from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
 from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalPipelineBackend,
 )
-from ads.opctl.backend.ads_dataflow import DataFlowBackend
-from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.config.utils import read_from_ini
 from ads.opctl.config.validator import ConfigValidator
 from ads.opctl.config.yaml_parsers import YamlSpecParser
-import fsspec
-from ads.common.auth import AuthType
-
-from ads.opctl.distributed.cmds import (
-    update_ini,
-    increment_tag_in_ini,
-    docker_build_cmd,
-    update_image,
-    verify_and_publish_image,
-    update_config_image,
-)
 from ads.opctl.constants import (
+    ADS_CONFIG_FILE_NAME,
+    ADS_DATAFLOW_CONFIG_FILE_NAME,
+    ADS_JOBS_CONFIG_FILE_NAME,
+    ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+    ADS_ML_PIPELINE_CONFIG_FILE_NAME,
+    BACKEND_NAME,
+    DEFAULT_ADS_CONFIG_FOLDER,
+    DEFAULT_CONDA_PACK_FOLDER,
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_PROFILE,
-    DEFAULT_CONDA_PACK_FOLDER,
-    DEFAULT_ADS_CONFIG_FOLDER,
-    ADS_CONFIG_FILE_NAME,
-    ADS_JOBS_CONFIG_FILE_NAME,
-    ADS_DATAFLOW_CONFIG_FILE_NAME,
-    ADS_ML_PIPELINE_CONFIG_FILE_NAME,
-    ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
-    BACKEND_NAME,
+    RESOURCE_TYPE,
+    ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
 )
-from ads.opctl.utils import (
-    is_in_notebook_session,
-    get_service_pack_prefix,
+from ads.opctl.distributed.cmds import (
+    docker_build_cmd,
+    increment_tag_in_ini,
+    update_config_image,
+    update_image,
+    update_ini,
+    verify_and_publish_image,
 )
-import yaml
+from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
@@ -285,7 +281,6 @@ def run_diagnostics(config: Dict, **kwargs) -> Dict:
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
-
         config = update_config_image(config)
         cluster_def = YamlSpecParser.parse_content(config)
 
@@ -553,9 +548,10 @@ def configure() -> None:
         config_parser.write(f)
     print(f"Configuration saved at {os.path.join(folder, ADS_CONFIG_FILE_NAME)}")
 
-    print("==== Setting configuration for OCI Jobs ====")
+    print("==== Setting configuration for Data Science Jobs ====")
     if click.confirm(
-        f"Do you want to set up or update OCI Jobs configuration?", default=True
+        f"Do you want to set up or update Data Science Jobs configuration?",
+        default=True,
     ):
         required_fields = [
             ("compartment_id", ""),
@@ -580,9 +576,9 @@ def configure() -> None:
             is_in_notebook_session(),
         )
 
-    print("==== Setting configuration for OCI DataFlow ====")
+    print("==== Setting configuration for OCI Data Flow ====")
     if click.confirm(
-        f"Do you want to set up or update OCI DataFlow configuration?", default=True
+        f"Do you want to set up or update OCI Data Flow configuration?", default=True
     ):
         required_fields = [
             ("compartment_id", ""),
@@ -621,6 +617,34 @@ def configure() -> None:
         ]
         _set_service_configurations(
             ADS_ML_PIPELINE_CONFIG_FILE_NAME,
+            required_fields,
+            optional_fields,
+            folder,
+            oci_config_path,
+            is_in_notebook_session(),
+        )
+
+    print("==== Setting configuration for Data Science Model Deployment ====")
+    if click.confirm(
+        f"Do you want to set up or update Data Science Model Deployment configuration?",
+        default=True,
+    ):
+        required_fields = [
+            ("compartment_id", ""),
+            ("project_id", ""),
+            ("shape_name", ""),
+        ]
+
+        optional_fields = [
+            ("log_group_id", ""),
+            ("log_id", ""),
+            ("bandwidth_mbps", ""),
+            ("replica", ""),
+            ("web_concurrency", "")
+        ]
+
+        _set_service_configurations(
+            ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
             required_fields,
             optional_fields,
             folder,
@@ -737,3 +761,63 @@ def _get_backend_from_run_id(ocid: str) -> str:
         if value in ocid:
             return DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP[value]
     raise ValueError("Must provide a resource run OCID.")
+
+
+def init(
+    resource_type: str,
+    runtime_type: Union[str, None] = None,
+    output: Union[str, None] = None,
+    overwrite: bool = False,
+    ads_config: str = DEFAULT_ADS_CONFIG_FOLDER,
+    **kwargs,
+) -> Union[str, None]:
+    """
+    Generates a starter specification template YAML for the Data Science resource.
+
+    Parameters
+    ----------
+    resource_type: str
+        The resource type to generate the specification YAML.
+    runtime_type: (str, optional). Defaults to None.
+        The resource runtime type.
+    output: (str, optional). Defaults to None.
+        The path to the file to save the resulting specification template YAML.
+    overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite the result specification YAML if exists.
+    ads_config: (str, optional)
+        The folder where the ads opctl config located.
+    kwargs: (Dict, optional).
+        Any optional kwargs arguments.
+
+    Returns
+    -------
+    Union[str, None]
+        The YAML specification for the given resource if `output` was not provided,
+        path to the specification otherwise.
+
+    Raises
+    ------
+    ValueError
+        If `resource_type` not specified.
+    """
+    if not resource_type:
+        raise ValueError(
+            f"The `resource_type` must be specified. Supported values: {RESOURCE_TYPE.values()}"
+        )
+
+    # get config info form INI files
+    p = ConfigProcessor({"execution": {"backend": resource_type}}).step(
+        ConfigMerger, ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER, **kwargs
+    )
+
+    # generate YAML specification template
+    spec_yaml = _BackendFactory(p.config).backend.init(
+        uri=output, overwrite=overwrite, runtime_type=runtime_type, **kwargs
+    )
+
+    print("#" * 100)
+
+    if spec_yaml:
+        print(spec_yaml)
+    else:
+        print(output)
