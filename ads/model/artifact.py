@@ -117,8 +117,8 @@ class ModelArtifact:
         model_file_name: str = None,
         reload: Optional[bool] = False,
         ignore_conda_error: Optional[bool] = False,
-        auth: dict = None,
         local_copy_dir: str = None,
+        auth: dict = None,
     ):
         """Initializes a ModelArtifact instance.
 
