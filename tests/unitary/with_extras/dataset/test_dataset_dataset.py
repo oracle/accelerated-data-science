@@ -5,10 +5,12 @@
 
 import os
 import tempfile
+from typing import Tuple
 
 import pandas as pd
 import pytest
 from ads.dataset.dataset import ADSDataset
+from ads.dataset.pipeline import TransformerPipeline
 from ads.dataset.target import TargetVariable
 import mock, sys
 
@@ -52,3 +54,33 @@ class TestADSDataset:
             with pytest.raises(ModuleNotFoundError):
                 test_df = pd.DataFrame()
                 TargetVariable(test_df, "", None)
+
+    def test_initialize_dataset(self):
+        employees = ADSDataset(
+            df=pd.read_csv("oci://hosted-ds-datasets@bigdatadatasciencelarge/synthetic/orcl_attrition.csv"),
+            name="test_dataset",
+            description="test_description",
+            storage_options={'config':{},'region':'us-ashburn-1'}
+        )
+        assert isinstance(employees, ADSDataset)
+        assert isinstance(employees.df, pd.DataFrame)
+        assert isinstance(employees.shape, Tuple)
+        assert employees.name == "test_dataset"
+        assert employees.description == "test_description"
+        assert "type_discovery" in employees.init_kwargs
+        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+
+    def test_from_dataframe(self):
+        employees = ADSDataset.from_dataframe(
+            df=pd.read_csv("oci://hosted-ds-datasets@bigdatadatasciencelarge/synthetic/orcl_attrition.csv"),
+            name="test_dataset",
+            description="test_description",
+            storage_options={'config':{},'region':'us-ashburn-1'}
+        )
+        assert isinstance(employees, ADSDataset)
+        assert isinstance(employees.df, pd.DataFrame)
+        assert isinstance(employees.shape, Tuple)
+        assert employees.name == "test_dataset"
+        assert employees.description == "test_description"
+        assert "type_discovery" in employees.init_kwargs
+        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
