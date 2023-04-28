@@ -270,7 +270,7 @@ class ModelArtifact:
                 "Set `force_overwrite` to True to overwrite all the files."
             )
         else:
-            runtime_info.save()
+            runtime_info.save(auth=auth)
         return runtime_info
 
     @staticmethod
@@ -448,19 +448,22 @@ class ModelArtifact:
         if not utils.is_oci_path(uri):
             uri = os.path.join(os.path.abspath(os.path.expanduser(uri)).rstrip("/"), "")
         auth = auth or authutil.default_signer()
-        if artifact_dir == uri and not utils.is_path_exists(artifact_dir, auth=auth):
-            raise ValueError("Provided `uri` doesn't exist.")
 
         to_path = (
             tempfile.mkdtemp() if utils.is_oci_path(artifact_dir) else artifact_dir
         )
-        utils.copy_from_uri(
-            uri=uri,
-            to_path=to_path,
-            unpack=True,
-            force_overwrite=force_overwrite,
-            auth=auth,
-        )
+
+        if artifact_dir == uri and not utils.is_oci_path(artifact_dir):
+            if not utils.is_path_exists(artifact_dir, auth=auth):
+                raise ValueError("Provided `uri` doesn't exist.")
+        else:
+            utils.copy_from_uri(
+                uri=uri,
+                to_path=to_path,
+                unpack=True,
+                force_overwrite=force_overwrite,
+                auth=auth,
+            )
 
         if not ignore_conda_error:
             try:

@@ -1132,13 +1132,32 @@ def is_data_too_wide(
     return col_num > max_col_num
 
 
-def get_files(directory: str, auth={}):
+def is_oci_path(uri: str) -> bool:
+    """Check if the path is oci object storage uri.
+
+    Parameters
+    ----------
+    uri: str
+        The URI of the target.
+
+    Returns
+    -------
+    bool: return True if the path is oci object storage uri.
+    """
+    return uri.startswith("oci://")
+
+
+def get_files(directory: str, auth: Optional[Dict] = None):
     """List out all the file names under this directory.
 
     Parameters
     ----------
     directory: str
         The directory to list out all the files from.
+    auth: (Dict, optional). Defaults to None.
+        The default authetication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
 
     Returns
     -------
@@ -1157,14 +1176,16 @@ def get_files(directory: str, auth={}):
     else:
         ignore_patterns = []
     file_names = []
-    fs = fsspec.filesystem(path_scheme, **auth)
+    storage_options = auth or authutil.default_signer()
+    fs = fsspec.filesystem(path_scheme, **storage_options)
     for root, dirs, files in fs.walk(directory):
         for name in files:
             file_names.append(os.path.join(root, name))
         for name in dirs:
             file_names.append(os.path.join(root, name))
 
-    if directory.startswith("oci://"):
+    # return all files in remote directory.
+    if is_oci_path(directory):
         return file_names
 
     for ignore in ignore_patterns:
@@ -1590,21 +1611,7 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     bool: return True if the path exists.
     """
     path_scheme = urlparse(uri).scheme or "file"
-    if fsspec.filesystem(path_scheme, **auth).exists(uri):
+    storage_options = auth or authutil.default_signer()
+    if fsspec.filesystem(path_scheme, **storage_options).exists(uri):
         return True
     return False
-
-
-def is_oci_path(uri: str) -> bool:
-    """Check if the path is oci object storage uri.
-
-    Parameters
-    ----------
-    uri: str
-        The URI of the target.
-
-    Returns
-    -------
-    bool: return True if the path is oci object storage uri.
-    """
-    return uri.startswith("oci://")
