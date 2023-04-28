@@ -845,7 +845,7 @@ class DataScienceJob(Infrastructure):
             .with_storage_mount(
                 {
                     "src" : "<mount_target_ip_address>:<export_path>",
-	                "dest" : "<destination_directory_name>"
+	            "dest" : "<destination_directory_name>"
                 }
             )
         )
