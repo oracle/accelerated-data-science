@@ -237,20 +237,12 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         assert isinstance(infrastructure.storage_mount[0], dict)
         assert isinstance(infrastructure.storage_mount[1], dict)
         assert infrastructure.storage_mount[0] == {
-            "destinationDirectoryName": "test_destination_directory_name_from_dsc",
-            "exportId": "export_id_from_dsc",
-            "exportPath": "export_path_from_dsc",
-            "mountTarget": "mount_target_from_dsc",
-            "mountTargetId": "mount_target_id_from_dsc",
-            "storageType": "FILE_STORAGE",
+            "src" : "mount_target_id_from_dsc:export_id_from_dsc",
+            "dest" : "test_destination_directory_name_from_dsc"
         }
         assert infrastructure.storage_mount[1] == {
-            "destinationDirectoryName": "test_destination_directory_name_from_dsc",
-            "exportId": "export_id_from_dsc",
-            "exportPath": "export_path_from_dsc",
-            "mountTarget": "mount_target_from_dsc",
-            "mountTargetId": "mount_target_id_from_dsc",
-            "storageType": "FILE_STORAGE",
+            "src" : "mount_target_id_from_dsc:export_id_from_dsc",
+            "dest" : "test_destination_directory_name_from_dsc"
         }
 
     @patch.object(OCIFileStorage, "update_to_dsc_model")

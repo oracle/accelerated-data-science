@@ -164,32 +164,23 @@ class OCIFileStorage(DSCFileSystem):
         dict
             A dictionary of arguments.
         """
-        argument = {
-            "storageType": dsc_model.storage_type,
-            "mountTargetId": dsc_model.mount_target_id,
-            "exportId": dsc_model.export_id,
-            "destinationDirectoryName": dsc_model.destination_directory_name
-        }
-
-        file_storage_client = oci.file_storage.FileStorageClient(
-            **ads.auth.default_signer()
-        )
         if not dsc_model.mount_target_id:
             raise ValueError(
                 "Missing parameter `mount_target_id` from service. Check service log to see the error."
             )
-        argument["mountTarget"] = file_storage_client.get_mount_target(
-            mount_target_id=dsc_model.mount_target_id
-        ).data.display_name
         if not dsc_model.export_id:
             raise ValueError(
                 "Missing parameter `export_id` from service. Check service log to see the error."
             )
-        argument["exportPath"] = file_storage_client.get_export(
-            export_id=dsc_model.export_id
-        ).data.path
+        if not dsc_model.destination_directory_name:
+            raise ValueError(
+                "Missing parameter `destination_directory_name` from service. Check service log to see the error."
+            )
 
-        return argument
+        return {
+            "src" : f"{dsc_model.mount_target_id}:{dsc_model.export_id}",
+            "dest" : dsc_model.destination_directory_name
+        }
 
 
 class DSCFileSystemManager:
