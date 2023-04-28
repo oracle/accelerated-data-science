@@ -701,7 +701,7 @@ class Schema:
             ".json"
         ], f"The file `{basename}` is not a valid JSON file. The `{file_path}` must have the extension .json."
         if directory and not os.path.exists(directory):
-            if is_oci_path(directory):
+            if not is_oci_path(directory):
                 try:
                     os.mkdir(directory)
                 except:
