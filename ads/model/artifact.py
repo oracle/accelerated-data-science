@@ -146,11 +146,12 @@ class ModelArtifact:
         if not artifact_dir:
             raise ValueError("The `artifact_dir` needs to be provided.")
 
-        if utils.is_oci_path(artifact_dir):
-            self.artifact_dir = artifact_dir
-            self._artifact_dir = local_copy_dir or tempfile.mkdtemp()
-        else:
-            self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
+        self.artifact_dir = (
+            artifact_dir
+            if utils.is_oci_path(artifact_dir)
+            else os.path.abspath(os.path.expanduser(artifact_dir))
+        )
+        self.local_copy_dir = local_copy_dir or tempfile.mkdtemp()
 
         self.score = None
         sys.path.insert(0, self.artifact_dir)
@@ -270,7 +271,7 @@ class ModelArtifact:
                 "Set `force_overwrite` to True to overwrite all the files."
             )
         else:
-            runtime_info.save()
+            runtime_info.save(auth=auth)
         return runtime_info
 
     @staticmethod
@@ -358,6 +359,9 @@ class ModelArtifact:
         }
         auth = kwargs.pop("auth", {})
         context.update(kwargs)
+        artifact_dir = context.get("artifact_dir", None)
+        if not context.get("artifact_dir", None):
+            context.pop("artifact_dir", None)
         with fsspec.open(os.path.join(self.artifact_dir, "score.py"), "w", **auth) as f:
             f.write(scorefn_template.render(context))
 
@@ -448,19 +452,20 @@ class ModelArtifact:
         if not utils.is_oci_path(uri):
             uri = os.path.join(os.path.abspath(os.path.expanduser(uri)).rstrip("/"), "")
         auth = auth or authutil.default_signer()
-        if artifact_dir == uri and not utils.is_path_exists(artifact_dir, auth=auth):
-            raise ValueError("Provided `uri` doesn't exist.")
-
         to_path = (
             tempfile.mkdtemp() if utils.is_oci_path(artifact_dir) else artifact_dir
         )
-        utils.copy_from_uri(
-            uri=uri,
-            to_path=to_path,
-            unpack=True,
-            force_overwrite=force_overwrite,
-            auth=auth,
-        )
+        if artifact_dir == uri and not utils.is_oci_path(artifact_dir):
+            if not utils.is_path_exists(artifact_dir, auth=auth):
+                raise ValueError("Provided `uri` doesn't exist.")
+        else:
+            utils.copy_from_uri(
+                uri=uri,
+                to_path=to_path,
+                unpack=True,
+                force_overwrite=force_overwrite,
+                auth=auth,
+            )
 
         if not ignore_conda_error:
             try:
@@ -491,6 +496,7 @@ class ModelArtifact:
             model_file_name=model_file_name,
             reload=True,
             ignore_conda_error=ignore_conda_error,
+            local_copy_dir=to_path,
         )
 
     def __getattr__(self, item):

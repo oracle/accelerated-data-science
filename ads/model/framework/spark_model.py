@@ -209,12 +209,10 @@ class SparkPipelineModel(FrameworkSpecificModel):
             model_input_serializer=model_input_serializer,
             **kwargs,
         )
-        if artifact_dir and utils.is_oci_path(artifact_dir):
-            self.artifact_dir = artifact_dir
-            self._artifact_dir = _prepare_artifact_dir()
-            os.environ["OCI_DEPLOYMENT_PATH"] = self.artifact_dir
-        else:
-            self.artifact_dir = _prepare_artifact_dir(artifact_dir)
+        self.artifact_dir = _prepare_artifact_dir(artifact_dir)
+        self.local_copy_dir = (
+            _prepare_artifact_dir() if utils.is_oci_path(artifact_dir) else artifact_dir
+        )
 
         self._extractor = SparkExtractor(estimator)
         self.framework = self._extractor.framework

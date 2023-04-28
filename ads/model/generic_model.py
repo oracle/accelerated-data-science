@@ -366,6 +366,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         self.model_file_name = None
         self.artifact_dir = _prepare_artifact_dir(artifact_dir)
+        self.local_copy_dir = artifact_dir
         self.model_artifact = None
         self.framework = None
         self.algorithm = None
@@ -933,18 +934,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             "common/.model-ignore",
         )
         uri_dst = os.path.join(self.artifact_dir, ".model-ignore")
-        utils.copy_file(uri_src=uri_src, uri_dst=uri_dst, force_overwrite=True)
-
-        try:
-            local_copy_dir = self._artifact_dir
-        except AttributeError:
-            local_copy_dir = None
+        utils.copy_file(
+            uri_src=uri_src, uri_dst=uri_dst, force_overwrite=True, auth=self.auth
+        )
 
         self.model_artifact = ModelArtifact(
             artifact_dir=self.artifact_dir,
             model_file_name=self.model_file_name,
             auth=self.auth,
-            local_copy_dir=local_copy_dir,
+            local_copy_dir=self.local_copy_dir,
         )
         self.runtime_info = self.model_artifact.prepare_runtime_yaml(
             inference_conda_env=self.properties.inference_conda_env,
@@ -1035,6 +1033,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 model_file_name=self.model_file_name,
                 data_deserializer=self.model_input_serializer.name,
                 model_serializer=self.model_save_serializer.name,
+                artifact_dir=self.artifact_dir if utils.is_oci_path else None,
                 auth=self.auth,
                 **{**kwargs, **self._score_args},
             )

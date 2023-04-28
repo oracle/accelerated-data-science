@@ -1132,6 +1132,21 @@ def is_data_too_wide(
     return col_num > max_col_num
 
 
+def is_oci_path(uri: str) -> bool:
+    """Check if the path is oci object storage uri.
+
+    Parameters
+    ----------
+    uri: str
+        The URI of the target.
+
+    Returns
+    -------
+    bool: return True if the path is oci object storage uri.
+    """
+    return uri.startswith("oci://")
+
+
 def get_files(directory: str, auth={}):
     """List out all the file names under this directory.
 
@@ -1164,7 +1179,7 @@ def get_files(directory: str, auth={}):
         for name in dirs:
             file_names.append(os.path.join(root, name))
 
-    if directory.startswith("oci://"):
+    if is_oci_path(directory):
         return file_names
 
     for ignore in ignore_patterns:
@@ -1590,21 +1605,7 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     bool: return True if the path exists.
     """
     path_scheme = urlparse(uri).scheme or "file"
+    auth = auth or authutil.default_signer()
     if fsspec.filesystem(path_scheme, **auth).exists(uri):
         return True
     return False
-
-
-def is_oci_path(uri: str) -> bool:
-    """Check if the path is oci object storage uri.
-
-    Parameters
-    ----------
-    uri: str
-        The URI of the target.
-
-    Returns
-    -------
-    bool: return True if the path is oci object storage uri.
-    """
-    return uri.startswith("oci://")

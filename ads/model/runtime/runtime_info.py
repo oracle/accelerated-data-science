@@ -62,7 +62,7 @@ class RuntimeInfo(DataClassSerializable):
         runtime_info = cls(model_artifact_version="3.0")
         return runtime_info
 
-    def save(self, auth={}):
+    def save(self, **kwargs):
         """Save the RuntimeInfo object into runtime.yaml file under the artifact directory.
 
         Returns
@@ -76,5 +76,5 @@ class RuntimeInfo(DataClassSerializable):
         self.to_yaml(
             uri=runtime_file_path,
             side_effect=SideEffect.CONVERT_KEYS_TO_UPPER.value,
-            auth=auth,
+            **kwargs,
         )
