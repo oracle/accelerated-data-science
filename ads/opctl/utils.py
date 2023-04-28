@@ -33,6 +33,9 @@ from ads.common.decorator.runtime_dependency import (
 )
 
 
+CONTAINER_NETWORK = "CONTAINER_NETWORK"
+
+
 def get_service_pack_prefix() -> Dict:
     curr_dir = os.path.dirname(os.path.abspath(__file__))
     service_config_file = os.path.join(curr_dir, "conda", "config.yaml")
@@ -175,11 +178,13 @@ def build_image(
             command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
         if os.environ.get("https_proxy"):
             command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
+        if os.environ.get(CONTAINER_NETWORK):
+            command += ["--network", os.environ[CONTAINER_NETWORK]]
         command += [os.path.abspath(curr_dir)]
-        logger.info(f"Build image with command {command}")
+        logger.info("Build image with command %s", command)
         proc = run_command(command)
     if proc.returncode != 0:
-        raise RuntimeError(f"Docker build failed.")
+        raise RuntimeError("Docker build failed.")
 
 
 def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
@@ -343,6 +348,9 @@ def run_container(
         logger.warning(f"Image {image} not found. Try pulling it now....")
         run_command(["docker", "pull", f"{image}"], None)
     try:
+        kwargs = {}
+        if CONTAINER_NETWORK in os.environ:
+            kwargs["network_mode"] = os.environ[CONTAINER_NETWORK]
         container = client.containers.run(
             image=image,
             volumes=bind_volumes,
@@ -351,6 +359,7 @@ def run_container(
             detach=True,
             entrypoint=entrypoint,
             user=0,
+            **kwargs
             # auto_remove=True,
         )
         logger.info("Container ID: %s", container.id)
