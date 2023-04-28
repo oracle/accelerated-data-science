@@ -39,7 +39,7 @@ from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
 from oci.data_science.models import PipelineStepRun
 
 
-class CondaPackNotFound(Exception):
+class CondaPackNotFound(Exception):   # pragma: no cover
     pass
 
 

@@ -28,13 +28,13 @@ SCORE_VERSION = "1.0"
 ADS_VERSION = __version__
 
 
-class ArtifactNestedFolderError(Exception):
+class ArtifactNestedFolderError(Exception):   # pragma: no cover
     def __init__(self, folder: str):
         self.folder = folder
         super().__init__("The required artifact files placed in a nested folder.")
 
 
-class ArtifactRequiredFilesError(Exception):
+class ArtifactRequiredFilesError(Exception):   # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "Not all required files presented in artifact folder. "
@@ -42,7 +42,7 @@ class ArtifactRequiredFilesError(Exception):
         )
 
 
-class AritfactFolderStructureError(Exception):
+class AritfactFolderStructureError(Exception):   # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "The artifact folder has a wrong structure. "

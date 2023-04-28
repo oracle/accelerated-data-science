@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import datetime
 import logging
-import oci
 import os
 import time
 import traceback
@@ -865,7 +864,6 @@ class DataScienceJob(Infrastructure):
     CONST_OCPUS = "ocpus"
     CONST_LOG_ID = "logId"
     CONST_LOG_GROUP_ID = "logGroupId"
-    CONST_STORAGE_MOUNT = "storageMount"
 
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
@@ -879,7 +877,6 @@ class DataScienceJob(Infrastructure):
         CONST_SHAPE_CONFIG_DETAILS: "shape_config_details",
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
-        CONST_STORAGE_MOUNT: "storage_mount",
     }
 
     shape_config_details_attribute_map = {

@@ -16,18 +16,18 @@ from ads.data_labeling.reader.jsonl_reader import JsonlReader
 from oci.exceptions import ServiceError
 
 
-class EmptyMetadata(Exception):
+class EmptyMetadata(Exception):   # pragma: no cover
     """Empty Metadata."""
 
     pass
 
 
-class ReadDatasetError(Exception):
+class ReadDatasetError(Exception):   # pragma: no cover
     def __init__(self, id: str):
         super().__init__(f"Error occurred in attempt to read dataset {id}.")
 
 
-class DatasetNotFoundError(Exception):
+class DatasetNotFoundError(Exception):   # pragma: no cover
     def __init__(self, id: str):
         super().__init__(f"{id} not found.")
 

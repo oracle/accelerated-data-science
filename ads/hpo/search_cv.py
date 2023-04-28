@@ -67,7 +67,7 @@ class State(Enum):
     COMPLETED = auto()
 
 
-class InvalidStateTransition(Exception):
+class InvalidStateTransition(Exception):   # pragma: no cover
     """
     `Invalid State Transition` is raised when an invalid transition request is made, such as calling
     halt without a running process.
@@ -76,7 +76,7 @@ class InvalidStateTransition(Exception):
     pass
 
 
-class ExitCriterionError(Exception):
+class ExitCriterionError(Exception):   # pragma: no cover
     """
     `ExitCriterionError` is raised when an attempt is made to check exit status for a different exit
     type than the tuner was initialized with. For example, if an HPO study has an exit criteria based
@@ -87,14 +87,14 @@ class ExitCriterionError(Exception):
     pass
 
 
-class DuplicatedStudyError(Exception):
+class DuplicatedStudyError(Exception):   # pragma: no cover
     """
     `DuplicatedStudyError` is raised when a new tuner process is created with a study name that
     already exists in storage.
     """
 
 
-class NoRestartError(Exception):
+class NoRestartError(Exception):   # pragma: no cover
     """
     `NoRestartError` is raised when an attempt is made to check how many seconds have transpired since
     the HPO process was last resumed from a halt. This can happen if the process has been terminated
