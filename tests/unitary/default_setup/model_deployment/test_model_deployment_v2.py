@@ -262,7 +262,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                 "runtime": runtime,
             }
         )
-        
+
     def initialize_model_deployment_triton_builder(self):
         infrastructure = ModelDeploymentInfrastructure()\
             .with_compartment_id("fakeid.compartment.oc1..xxx")\
@@ -278,7 +278,7 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
             .with_model_uri("fake_model_id")\
             .with_env({"key":"value", "key2":"value2"})\
             .with_inference_server("triton")
-        
+
         deployment = ModelDeployment()\
             .with_display_name("triton case")\
             .with_infrastructure(infrastructure)\
@@ -412,8 +412,8 @@ spec:
         model_deployment_builder = self.initialize_model_deployment()
 
         assert model_deployment_kwargs.to_dict() == model_deployment_builder.to_dict()
-        
-        
+
+
     def test_initialize_model_deployment_triton_builder(self):
         temp_model_deployment = self.initialize_model_deployment_triton_builder()
         assert isinstance(
@@ -423,7 +423,7 @@ spec:
             temp_model_deployment.infrastructure, ModelDeploymentInfrastructure
         )
         assert temp_model_deployment.runtime.inference_server == "triton"
-    
+
     def test_initialize_model_deployment_triton_yaml(self):
         temp_model_deployment = self.initialize_model_deployment_triton_yaml()
         assert isinstance(
@@ -433,7 +433,7 @@ spec:
             temp_model_deployment.infrastructure, ModelDeploymentInfrastructure
         )
         assert temp_model_deployment.runtime.inference_server == "triton"
-        
+
 
     def test_model_deployment_to_dict(self):
         model_deployment = self.initialize_model_deployment()
@@ -994,7 +994,8 @@ spec:
         #     == model_deployment.runtime.output_stream_ids
         # )
 
-    def test_extract_from_oci_model(self):
+    @patch.object(ModelDeploymentInfrastructure, "_load_default_properties", return_value={})
+    def test_extract_from_oci_model(self, mock_load_default_properties):
         infrastructure = ModelDeploymentInfrastructure()
         runtime = ModelDeploymentContainerRuntime()
 
@@ -1156,8 +1157,8 @@ spec:
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.activate(wait_for_completion=False)
         mock_activate.assert_called_with(
-            wait_for_completion=False, 
-            max_wait_time=1200, 
+            wait_for_completion=False,
+            max_wait_time=1200,
             poll_interval=10
         )
 
@@ -1173,8 +1174,8 @@ spec:
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.deactivate(wait_for_completion=False)
         mock_deactivate.assert_called_with(
-            wait_for_completion=False, 
-            max_wait_time=1200, 
+            wait_for_completion=False,
+            max_wait_time=1200,
             poll_interval=10
         )
 
@@ -1190,8 +1191,8 @@ spec:
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.delete(wait_for_completion=False)
         mock_delete.assert_called_with(
-            wait_for_completion=False, 
-            max_wait_time=1200, 
+            wait_for_completion=False,
+            max_wait_time=1200,
             poll_interval=10
         )
 
