@@ -28,6 +28,7 @@ class ModelProperties(BaseProperties):
     remove_existing_artifact: bool = None
     overwrite_existing_artifact: bool = None
     deployment_instance_shape: str = None
+    deployment_instance_subnet_id: str = None
     deployment_instance_count: int = None
     deployment_bandwidth_mbps: int = None
     deployment_log_group_id: str = None
