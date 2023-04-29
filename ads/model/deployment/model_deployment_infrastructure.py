@@ -76,7 +76,7 @@ class ModelDeploymentInfrastructure(Builder):
         Sets the access and predict log id of model deployment
     with_web_concurrency(web_concurrency)
         Sets the web concurrency of model deployment
-    with_subnet_id(subnet_id) 
+    with_subnet_id(subnet_id)
         Sets the subnet id of model deployment
 
     Example
@@ -210,10 +210,6 @@ class ModelDeploymentInfrastructure(Builder):
             defaults[self.CONST_COMPARTMENT_ID] = COMPARTMENT_OCID
         if PROJECT_OCID:
             defaults[self.CONST_PROJECT_ID] = PROJECT_OCID
-
-        import oci
-        oci.data_science.models.NotebookSessionConfigurationDetails
-        oci.data_science.models.NotebookSessionShapeConfigDetails
 
         if NB_SESSION_OCID:
             try:
@@ -599,7 +595,7 @@ class ModelDeploymentInfrastructure(Builder):
     @property
     def subnet_id(self) -> str:
         """The model deployment subnet id.
-        
+
         Returns
         -------
         str

@@ -3,17 +3,19 @@
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import unittest
-from unittest.mock import patch, Mock
-import tempfile
 import os
-from ads.opctl.config.utils import read_from_ini
+import tempfile
+import unittest
+from unittest.mock import Mock, patch
+
 import pytest
 
+from ads.opctl.config.utils import read_from_ini
+
 try:
-    from ads.opctl.cmds import configure, watch, delete, cancel
+    from ads.opctl.cmds import cancel, configure, delete, init, watch
 except ImportError:
-    raise unittest.SkipTest("OCI MLPipeline is not available. Skipping the tests.")
+    raise unittest.SkipTest("ADS OPCTL is not available. Skipping the tests.")
 
 
 class TestConfigureCmd:
@@ -192,3 +194,23 @@ key_file = ~/.oci/oci_api_key.pem
         delete_func.assert_called()
         delete(ocid="....datasciencejob....")
         delete_func.assert_called()
+
+    @patch("ads.opctl.backend.ads_ml_job.MLJobBackend.init")
+    def test_init_success(self, init_func, monkeypatch):
+        """Tests generating a starter specification template YAML for the Data Science resource."""
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
+        init(
+            resource_type="job",
+            runtime_type="container",
+            output="test.yaml",
+            overwrite=True,
+        )
+        init_func.assert_called_with(
+            uri="test.yaml", overwrite=True, runtime_type="container"
+        )
+
+    def test_init_fail(self, monkeypatch):
+        """Ensures that generating a starter YAML specification fails in case of wrong input params."""
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
+        with pytest.raises(ValueError):
+            init(resource_type=None)
