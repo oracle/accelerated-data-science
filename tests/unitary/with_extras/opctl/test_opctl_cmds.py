@@ -19,7 +19,8 @@ except ImportError:
 class TestConfigureCmd:
     @patch("ads.opctl.cmds.click.prompt")
     @patch("ads.opctl.cmds.click.confirm")
-    def test_configure(self, confirm, prompt):
+    def test_configure(self, confirm, prompt, monkeypatch):
+        monkeypatch.delenv("NB_SESSION_OCID")
         with tempfile.TemporaryDirectory() as td:
             with open(os.path.join(td, "oci_config"), mode="w") as f:
                 f.write(
@@ -46,6 +47,7 @@ key_file = ~/.oci/oci_api_key.pem
                 + ["oci://bucket@namespace/path"]
                 + ["abc"] * 3
                 + ["abc"] * 4
+                + ["abc"] * 8
                 + ["1"]
                 + ["3"]
             )
@@ -115,6 +117,7 @@ key_file = ~/.oci/oci_api_key.pem
                     + ["oci://bucket@namespace/path"]
                     + ["abc"] * 3
                     + ["abc"] * 4
+                    + ["abc"] * 8
                     + ["1"]
                     + ["3"]
                 )
@@ -156,7 +159,8 @@ key_file = ~/.oci/oci_api_key.pem
 
     @patch("ads.opctl.backend.ads_ml_pipeline.PipelineBackend.watch")
     @patch("ads.opctl.backend.ads_ml_job.MLJobBackend.watch")
-    def test_watch(self, job_watch_func, pipeline_watch_func):
+    def test_watch(self, job_watch_func, pipeline_watch_func, monkeypatch):
+        monkeypatch.delenv("NB_SESSION_OCID")
         watch(ocid="...datasciencejobrun...")
         job_watch_func.assert_called()
         with pytest.raises(ValueError):
@@ -169,7 +173,8 @@ key_file = ~/.oci/oci_api_key.pem
 
     @patch("ads.opctl.backend.ads_ml_pipeline.PipelineBackend.cancel")
     @patch("ads.opctl.backend.ads_ml_job.MLJobBackend.cancel")
-    def test_cancel(self, job_cancel_func, pipeline_cancel_func):
+    def test_cancel(self, job_cancel_func, pipeline_cancel_func, monkeypatch):
+        monkeypatch.delenv("NB_SESSION_OCID")
         cancel(ocid="...datasciencejobrun...")
         job_cancel_func.assert_called()
         with pytest.raises(ValueError):
@@ -181,7 +186,8 @@ key_file = ~/.oci/oci_api_key.pem
             cancel(ocid="....datasciencepipeline....")
 
     @patch("ads.opctl.backend.ads_ml_job.MLJobBackend.delete")
-    def test_delete(self, delete_func):
+    def test_delete(self, delete_func, monkeypatch):
+        monkeypatch.delenv("NB_SESSION_OCID")
         delete(ocid="...datasciencejobrun...")
         delete_func.assert_called()
         delete(ocid="....datasciencejob....")
