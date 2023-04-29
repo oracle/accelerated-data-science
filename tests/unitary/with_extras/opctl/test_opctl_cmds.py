@@ -20,7 +20,7 @@ class TestConfigureCmd:
     @patch("ads.opctl.cmds.click.prompt")
     @patch("ads.opctl.cmds.click.confirm")
     def test_configure(self, confirm, prompt, monkeypatch):
-        monkeypatch.delenv("NB_SESSION_OCID")
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
         with tempfile.TemporaryDirectory() as td:
             with open(os.path.join(td, "oci_config"), mode="w") as f:
                 f.write(
@@ -160,7 +160,7 @@ key_file = ~/.oci/oci_api_key.pem
     @patch("ads.opctl.backend.ads_ml_pipeline.PipelineBackend.watch")
     @patch("ads.opctl.backend.ads_ml_job.MLJobBackend.watch")
     def test_watch(self, job_watch_func, pipeline_watch_func, monkeypatch):
-        monkeypatch.delenv("NB_SESSION_OCID")
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
         watch(ocid="...datasciencejobrun...")
         job_watch_func.assert_called()
         with pytest.raises(ValueError):
@@ -174,7 +174,7 @@ key_file = ~/.oci/oci_api_key.pem
     @patch("ads.opctl.backend.ads_ml_pipeline.PipelineBackend.cancel")
     @patch("ads.opctl.backend.ads_ml_job.MLJobBackend.cancel")
     def test_cancel(self, job_cancel_func, pipeline_cancel_func, monkeypatch):
-        monkeypatch.delenv("NB_SESSION_OCID")
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
         cancel(ocid="...datasciencejobrun...")
         job_cancel_func.assert_called()
         with pytest.raises(ValueError):
@@ -187,7 +187,7 @@ key_file = ~/.oci/oci_api_key.pem
 
     @patch("ads.opctl.backend.ads_ml_job.MLJobBackend.delete")
     def test_delete(self, delete_func, monkeypatch):
-        monkeypatch.delenv("NB_SESSION_OCID")
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
         delete(ocid="...datasciencejobrun...")
         delete_func.assert_called()
         delete(ocid="....datasciencejob....")
