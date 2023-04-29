@@ -61,13 +61,13 @@ class ProjectCatalogTest(unittest.TestCase):
 
     with patch.object(auth, "default_signer"):
         with patch.object(oci_client, "OCIClientFactory"):
-            pc = ProjectCatalog()
+            project_id = "ocid1.projectcatalog.oc1.iad.<unique_ocid>"
+            comp_id = os.environ.get("NB_SESSION_COMPARTMENT_OCID", "ocid1.compartment.oc1.iad.<unique_ocid>")
+            date_time = datetime(2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc)
+
+            pc = ProjectCatalog(compartment_id=comp_id)
             pc.ds_client = MagicMock()
             pc.identity_client = MagicMock()
-
-            project_id = "ocid1.projectcatalog.oc1.iad.<unique_ocid>"
-            comp_id = os.environ.get("NB_SESSION_COMPARTMENT_OCID")
-            date_time = datetime(2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc)
 
             psl = ProjectSummaryList(generate_project_list())
 
