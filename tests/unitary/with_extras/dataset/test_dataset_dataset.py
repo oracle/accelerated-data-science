@@ -57,7 +57,7 @@ class TestADSDataset:
 
     def test_initialize_dataset(self):
         employees = ADSDataset(
-            df=pd.read_csv("oci://hosted-ds-datasets@bigdatadatasciencelarge/synthetic/orcl_attrition.csv"),
+            df=pd.read_csv(self.get_data_path()),
             name="test_dataset",
             description="test_description",
             storage_options={'config':{},'region':'us-ashburn-1'}
@@ -72,7 +72,7 @@ class TestADSDataset:
 
     def test_from_dataframe(self):
         employees = ADSDataset.from_dataframe(
-            df=pd.read_csv("oci://hosted-ds-datasets@bigdatadatasciencelarge/synthetic/orcl_attrition.csv"),
+            df=pd.read_csv(self.get_data_path()),
             name="test_dataset",
             description="test_description",
             storage_options={'config':{},'region':'us-ashburn-1'}
@@ -84,3 +84,7 @@ class TestADSDataset:
         assert employees.description == "test_description"
         assert "type_discovery" in employees.init_kwargs
         assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+
+    def get_data_path(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(current_dir, "data", "orcl_attrition.csv")
