@@ -7,7 +7,6 @@
 import copy
 import json
 import os
-import shutil
 import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
@@ -19,7 +18,6 @@ from ads.common.auth import create_signer
 from ads.common.decorator.runtime_dependency import (OptionalDependency,
                                                      runtime_dependency)
 from ads.common.oci_client import OCIClientFactory
-from ads.model.datascience_model import DataScienceModel
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.runtime.runtime_info import RuntimeInfo
 from ads.opctl import logger
@@ -67,7 +65,6 @@ class LocalBackend(Backend):
             self.oci_config,
             self.profile ,
         )
-        
         self.client = OCIClientFactory(**self.oci_auth).data_science
 
     def run(self):
@@ -671,21 +668,21 @@ class LocalModelDeploymentBackend(LocalBackend):
             bucket_uri = self.config["execution"].get("bucket_uri", None)
             timeout = self.config["execution"].get("timeout", None)
             logger.info(f"No cached model found. Downloading the model {ocid} to {artifact_directory}. If you already have a copy of the model, specify `artifact_directory` instead of `ocid`. You can specify `model_save_folder` to decide where to store the model artifacts.")
+            
             _download_model(ocid=ocid, artifact_directory=artifact_directory, region=region, bucket_uri=bucket_uri, timeout=timeout)
 
         if ocid:
             conda_slug, conda_path = self._get_conda_info_from_custom_metadata(ocid)
-        if artifact_directory or not conda_path:
+        if not conda_path:
             if not os.path.exists(artifact_directory) or len(os.listdir(artifact_directory)) == 0:
                 raise ValueError(f"`artifact_directory` {artifact_directory} does not exist or is empty.")
             conda_slug, conda_path = self._get_conda_info_from_runtime(artifact_dir=artifact_directory)
-        else:
+        if not conda_path or not conda_slug:
             raise ValueError("Conda information cannot be detected.")
         compartment_id = self.config["execution"].get("compartment_id", self.config["infrastructure"].get("compartment_id"))
         project_id = self.config["execution"].get("project_id", self.config["infrastructure"].get("project_id"))
         if not compartment_id or not project_id:
             raise ValueError("`compartment_id` and `project_id` must be provided.")
-        
         extra_cmd = "/opt/ds/model/deployed_model/ " + data + " " + compartment_id + " " + project_id
         bind_volumes = {}
         if not is_in_notebook_session():
@@ -727,13 +724,14 @@ class LocalModelDeploymentBackend(LocalBackend):
         response = self.client.get_model(ocid)
         custom_metadata = ModelCustomMetadata._from_oci_metadata(response.data.custom_metadata_list)
         conda_slug, conda_path = None, None
-        if "CondaEnvironmentPath" in custom_metadata:
+        if "CondaEnvironmentPath" in custom_metadata.keys:
             conda_path = custom_metadata['CondaEnvironmentPath'].value
-        if "SlugName" in custom_metadata:
+        if "SlugName" in custom_metadata.keys:
             conda_slug = custom_metadata['SlugName'].value
         return conda_slug, conda_path
     
-    def _get_conda_info_from_runtime(self, artifact_dir):
+    @staticmethod
+    def _get_conda_info_from_runtime(artifact_dir):
         """
         Get conda env info from runtime yaml file.
 
