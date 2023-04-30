@@ -436,7 +436,7 @@ class DataFlow(Infrastructure):
                 nb_session = dsc_client.get_notebook_session(
                     os.environ["NB_SESSION_OCID"]
                 ).data
-                nb_config = nb_session.notebook_session_configuration_details
+                nb_config = nb_session.notebook_session_config_details
                 defaults["driver_shape"] = nb_config.shape
                 logger.debug(f"Set driver shape to {nb_config.shape}")
                 defaults["executor_shape"] = nb_config.shape

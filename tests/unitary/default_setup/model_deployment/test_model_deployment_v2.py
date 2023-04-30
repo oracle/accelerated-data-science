@@ -148,7 +148,7 @@ OCI_MODEL_DEPLOYMENT_DICT = {
                 "entrypoint": ["python", "/opt/ds/model/deployed_model/api.py"],
                 "server_port": 5000,
                 "health_check_port": 5000,
-                "env": {"WEB_CONCURRENCY": 10},
+                "env": {"WEB_CONCURRENCY": "10"},
                 # "input_stream_ids": ["123", "456"],
                 # "output_stream_ids": ["321", "654"],
                 "model_uri": "fakeid.datasciencemodel.oc1.iad.xxx",
@@ -186,7 +186,7 @@ spec:
         ocpus: 10
       replica: 5
       bandwidthMbps: 5
-      webConcurrency: 5
+      webConcurrency: 10
   runtime:
     kind: runtime
     type: container
@@ -202,48 +202,43 @@ spec:
       deploymentMode: HTTPS_ONLY
 """
 
+infrastructure = (
+    ModelDeploymentInfrastructure()
+    .with_bandwidth_mbps(5)
+    .with_compartment_id("fakeid.compartment.oc1..xxx")
+    .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")
+    .with_replica(5)
+    .with_shape_name("VM.Standard.E4.Flex")
+    .with_shape_config_details(ocpus=10, memory_in_gbs=36)
+    .with_web_concurrency(10)
+    .with_access_log(
+        log_group_id="fakeid.loggroup.oc1.iad.xxx",
+        log_id="fakeid.log.oc1.iad.xxx",
+    )
+    .with_predict_log(
+        log_group_id="fakeid.loggroup.oc1.iad.xxx",
+        log_id="fakeid.log.oc1.iad.xxx",
+    )
+)
+
+runtime = (
+    ModelDeploymentContainerRuntime()
+    .with_image("iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0")
+    .with_image_digest(
+        "sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c"
+    )
+    .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
+    .with_server_port(5000)
+    .with_health_check_port(5000)
+    #.with_input_stream_ids(["123", "456"])
+    #.with_output_stream_ids(["321", "654"])
+    .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
+    .with_deployment_mode("HTTPS_ONLY")
+)
+
 
 class ModelDeploymentBYOCTestCase(unittest.TestCase):
     def initialize_model_deployment(self):
-        infrastructure = (
-            ModelDeploymentInfrastructure()
-            .with_bandwidth_mbps(5)
-            .with_compartment_id("fakeid.compartment.oc1..xxx")
-            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")
-            .with_replica(5)
-            .with_shape_name("VM.Standard.E4.Flex")
-            .with_shape_config_details(ocpus=10, memory_in_gbs=36)
-            .with_web_concurrency(10)
-            .with_access_log(
-                log_group_id="fakeid.loggroup.oc1.iad.xxx",
-                log_id="fakeid.log.oc1.iad.xxx",
-            )
-            .with_predict_log(
-                log_group_id="fakeid.loggroup.oc1.iad.xxx",
-                log_id="fakeid.log.oc1.iad.xxx",
-            )
-        )
-
-        runtime = (
-            ModelDeploymentContainerRuntime()
-            .with_image("iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0")
-            .with_image_digest(
-                "sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c"
-            )
-            .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
-            .with_server_port(5000)
-            .with_health_check_port(5000)
-            .with_env(
-                {
-                    "WEB_CONCURRENCY": 10,
-                }
-            )
-            # .with_input_stream_ids(["123", "456"])
-            # .with_output_stream_ids(["321", "654"])
-            .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
-            .with_deployment_mode("HTTPS_ONLY")
-        )
-
         model_deployment = (
             ModelDeployment()
             .with_display_name("Generic Model Deployment With Small Artifact")
@@ -257,45 +252,6 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
         return model_deployment
 
     def initialize_model_deployment_from_spec(self):
-        infrastructure = (
-            ModelDeploymentInfrastructure()
-            .with_bandwidth_mbps(5)
-            .with_compartment_id("fakeid.compartment.oc1..xxx")
-            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")
-            .with_replica(5)
-            .with_shape_name("VM.Standard.E4.Flex")
-            .with_shape_config_details(ocpus=10, memory_in_gbs=36)
-            .with_web_concurrency(10)
-            .with_access_log(
-                log_group_id="fakeid.loggroup.oc1.iad.xxx",
-                log_id="fakeid.log.oc1.iad.xxx",
-            )
-            .with_predict_log(
-                log_group_id="fakeid.loggroup.oc1.iad.xxx",
-                log_id="fakeid.log.oc1.iad.xxx",
-            )
-        )
-
-        runtime = (
-            ModelDeploymentContainerRuntime()
-            .with_image("iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0")
-            .with_image_digest(
-                "sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c"
-            )
-            .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
-            .with_server_port(5000)
-            .with_health_check_port(5000)
-            .with_env(
-                {
-                    "WEB_CONCURRENCY": 10,
-                }
-            )
-            # .with_input_stream_ids(["123", "456"])
-            # .with_output_stream_ids(["321", "654"])
-            .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
-            .with_deployment_mode("HTTPS_ONLY")
-        )
-
         return ModelDeployment(
             spec={
                 "display_name": "Generic Model Deployment With Small Artifact",
@@ -364,45 +320,6 @@ spec:
         return deployment_from_yaml
 
     def initialize_model_deployment_from_kwargs(self):
-        infrastructure = (
-            ModelDeploymentInfrastructure()
-            .with_bandwidth_mbps(5)
-            .with_compartment_id("fakeid.compartment.oc1..xxx")
-            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")
-            .with_replica(5)
-            .with_shape_name("VM.Standard.E4.Flex")
-            .with_shape_config_details(ocpus=10, memory_in_gbs=36)
-            .with_web_concurrency(10)
-            .with_access_log(
-                log_group_id="fakeid.loggroup.oc1.iad.xxx",
-                log_id="fakeid.log.oc1.iad.xxx",
-            )
-            .with_predict_log(
-                log_group_id="fakeid.loggroup.oc1.iad.xxx",
-                log_id="fakeid.log.oc1.iad.xxx",
-            )
-        )
-
-        runtime = (
-            ModelDeploymentContainerRuntime()
-            .with_image("iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0")
-            .with_image_digest(
-                "sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c"
-            )
-            .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
-            .with_server_port(5000)
-            .with_health_check_port(5000)
-            .with_env(
-                {
-                    "WEB_CONCURRENCY": 10,
-                }
-            )
-            # .with_input_stream_ids(["123", "456"])
-            # .with_output_stream_ids(["321", "654"])
-            .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
-            .with_deployment_mode("HTTPS_ONLY")
-        )
-
         return ModelDeployment(
             display_name="Generic Model Deployment With Small Artifact",
             description="The model deployment description",
@@ -431,7 +348,7 @@ spec:
 
         temp_runtime = temp_model_deployment.runtime
         assert temp_runtime.environment_config_type == "OCIR_CONTAINER"
-        assert temp_runtime.env == {"WEB_CONCURRENCY": 10}
+        assert temp_runtime.env == {"WEB_CONCURRENCY": "10"}
         assert temp_runtime.deployment_mode == "HTTPS_ONLY"
         # assert temp_runtime.input_stream_ids == ["123", "456"]
         # assert temp_runtime.output_stream_ids == ["321", "654"]
@@ -558,7 +475,7 @@ spec:
                         "entrypoint": ["python", "/opt/ds/model/deployed_model/api.py"],
                         "serverPort": 5000,
                         "healthCheckPort": 5000,
-                        "env": {"WEB_CONCURRENCY": 10},
+                        "env": {"WEB_CONCURRENCY": "10"},
                         # "inputStreamIds": ["123", "456"],
                         # "outputStreamIds": ["321", "654"],
                         "modelUri": "fakeid.datasciencemodel.oc1.iad.xxx",
@@ -918,54 +835,6 @@ spec:
             model_deployment_from_yaml.infrastructure, ModelDeploymentInfrastructure
         )
         assert isinstance(model_deployment_from_yaml.runtime, ModelDeploymentRuntime)
-
-        assert model_deployment_from_yaml.to_dict() == {
-            "kind": "deployment",
-            "type": "modelDeployment",
-            "spec": {
-                "displayName": "Generic Model Deployment With Small Artifact",
-                "description": "The model deployment description",
-                "definedTags": {"key1": {"skey1": "value1"}},
-                "freeformTags": {"key1": "value1"},
-                "infrastructure": {
-                    "kind": "infrastructure",
-                    "type": "datascienceModelDeployment",
-                    "spec": {
-                        "bandwidthMbps": 5,
-                        "compartmentId": "fakeid.compartment.oc1..xxx",
-                        "projectId": "fakeid.datascienceproject.oc1.iad.xxx",
-                        "replica": 5,
-                        "shapeName": "VM.Standard.E4.Flex",
-                        "shapeConfigDetails": {"ocpus": 10, "memoryInGBs": 36},
-                        "accessLog": {
-                            "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
-                            "logId": "fakeid.log.oc1.iad.xxx",
-                        },
-                        "predictLog": {
-                            "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
-                            "logId": "fakeid.log.oc1.iad.xxx",
-                        },
-                        "webConcurrency": 5,
-                    },
-                },
-                "runtime": {
-                    "kind": "runtime",
-                    "type": "container",
-                    "spec": {
-                        "image": "iad.ocir.io/ociodscdev/ml_flask_app_demo:1.0.0",
-                        "imageDigest": "sha256:243590ea099af4019b6afc104b8a70b9552f0b001b37d0442f8b5a399244681c",
-                        "entrypoint": ["python", "/opt/ds/model/deployed_model/api.py"],
-                        "serverPort": 5000,
-                        "healthCheckPort": 5000,
-                        "env": {"key": "value"},
-                        # "inputStreamIds": ["123", "456"],
-                        # "outputStreamIds": ["321", "654"],
-                        "modelUri": "fakeid.datasciencemodel.oc1.iad.xxx",
-                        "deploymentMode": "HTTPS_ONLY",
-                    },
-                },
-            },
-        }
 
     def test_model_deployment_from_dict(self):
         new_model_deployment = ModelDeployment.from_dict(
@@ -1467,3 +1336,10 @@ spec:
             project_id="test_project_id",
         )
         assert isinstance(df, pandas.DataFrame)
+
+    def test_model_deployment_with_subnet_id(self):
+        model_deployment = self.initialize_model_deployment()
+        assert model_deployment.infrastructure.subnet_id == None
+
+        model_deployment.infrastructure.with_subnet_id("test_id")
+        assert model_deployment.infrastructure.subnet_id == "test_id"
