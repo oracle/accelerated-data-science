@@ -4,13 +4,22 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import os
+import tempfile
 from unittest.mock import patch
 
-from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
+import pytest
+import yaml
+
 from ads.model import ModelDeployment
+from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 
 
 class TestModelDeploymentBackend:
+    @property
+    def curr_dir(self):
+        return os.path.dirname(os.path.abspath(__file__))
+
     @property
     def config(self):
         return {
@@ -27,7 +36,17 @@ class TestModelDeploymentBackend:
                 "log_type": "predict",
                 "log_filter": "test_filter",
                 "interval": 3,
-            }
+            },
+            "infrastructure": {
+                "compartment_id": "ocid1.compartment.oc1..<unique_id>",
+                "project_id": "ocid1.datascienceproject.oc1.<unique_id>",
+                "log_group_id": "ocid1.loggroup.oc1.iad.<unique_id>",
+                "log_id": "ocid1.log.oc1.iad.<unique_id>",
+                "shape_name": "VM.Standard.E2.4",
+                "bandwidth_mbps": 10,
+                "replica": 1,
+                "web_concurrency": 10,
+            },
         }
 
     @patch("ads.opctl.backend.ads_model_deployment.ModelDeployment.deploy")
@@ -103,3 +122,33 @@ class TestModelDeploymentBackend:
         mock_watch.assert_called_with(
             log_type="predict", interval=3, log_filter="test_filter"
         )
+
+    @pytest.mark.parametrize(
+        "runtime_type",
+        ["container", "conda"],
+    )
+    def test_init(self, runtime_type, monkeypatch):
+        """Ensures that starter YAML can be generated for every supported runtime of the Data Flow."""
+
+        # For every supported runtime generate a YAML -> test_files
+        # On second iteration remove a temporary code and compare result YAML.
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
+
+        with tempfile.TemporaryDirectory() as td:
+            test_yaml_uri = os.path.join(td, f"modeldeployment_{runtime_type}.yaml")
+            expected_yaml_uri = os.path.join(
+                self.curr_dir, "test_files", f"modeldeployment_{runtime_type}.yaml"
+            )
+
+            ModelDeploymentBackend(self.config).init(
+                uri=test_yaml_uri,
+                overwrite=False,
+                runtime_type=runtime_type,
+            )
+
+            with open(test_yaml_uri, "r") as stream:
+                test_yaml_dict = yaml.safe_load(stream)
+            with open(expected_yaml_uri, "r") as stream:
+                expected_yaml_dict = yaml.safe_load(stream)
+
+            assert test_yaml_dict == expected_yaml_dict

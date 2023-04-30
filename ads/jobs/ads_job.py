@@ -502,7 +502,7 @@ class Job(Builder):
         Raises
         ------
         NotImplementedError
-            If the type of the intrastructure or runtime is not supported.
+            If the type of the infrastructure or runtime is not supported.
         """
         if not isinstance(config, dict):
             raise ValueError("The config data for initializing the job is invalid.")

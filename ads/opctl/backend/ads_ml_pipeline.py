@@ -130,7 +130,10 @@ class PipelineBackend(Backend):
 
             # define a pipeline
             pipeline = (
-                Pipeline(**(self.config.get("infrastructure", {}) or {}))
+                Pipeline(
+                    name="Pipeline Name",
+                    spec=(self.config.get("infrastructure", {}) or {}),
+                )
                 .with_step_details([pipeline_step])
                 .with_dag(["pipeline_step_name_1"])
                 .build()
