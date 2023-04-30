@@ -62,22 +62,6 @@ class ModelDeploymentBackend(Backend):
         poll_interval = self.config["execution"].get("poll_interval")
         with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(model_deployment_id)
-            if model_deployment.lifecycle_state in [
-                OCIModelDeployment.LIFECYCLE_STATE_DELETED
-                or OCIModelDeployment.LIFECYCLE_STATE_DELETING
-            ]:
-                print(
-                    f"Model deployment {model_deployment.model_deployment_id} is either deleted or being deleted."
-                )
-                return
-            if model_deployment.lifecycle_state not in [
-                OCIModelDeployment.LIFECYCLE_STATE_ACTIVE,
-                OCIModelDeployment.LIFECYCLE_STATE_FAILED,
-                OCIModelDeployment.LIFECYCLE_STATE_INACTIVE,
-            ]:
-                raise Exception(
-                    f"Can't delete model deployment {model_deployment.model_deployment_id} when it's in {model_deployment.lifecycle_state} state."
-                )
             model_deployment.delete(
                 wait_for_completion=wait_for_completion,
                 max_wait_time=max_wait_time,
@@ -97,31 +81,14 @@ class ModelDeploymentBackend(Backend):
         poll_interval = self.config["execution"].get("poll_interval")
         with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(model_deployment_id)
-            if (
-                model_deployment.lifecycle_state
-                == OCIModelDeployment.LIFECYCLE_STATE_ACTIVE
-            ):
-                print(
-                    f"Model deployment {model_deployment.model_deployment_id} is already active."
-                )
-                return
-
-            if (
-                model_deployment.lifecycle_state
-                == OCIModelDeployment.LIFECYCLE_STATE_INACTIVE
-            ):
-                model_deployment.activate(
-                    wait_for_completion=wait_for_completion,
-                    max_wait_time=max_wait_time,
-                    poll_interval=poll_interval,
-                )
-                print(
-                    f"Model Deployment {model_deployment.model_deployment_id} has been activated."
-                )
-            else:
-                raise Exception(
-                    f"Can't activate model deployment {model_deployment.model_deployment_id} when it's in {model_deployment.lifecycle_state} state."
-                )
+            model_deployment.activate(
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
+            )
+            print(
+                f"Model Deployment {model_deployment.model_deployment_id} has been activated."
+            )
 
     def deactivate(self) -> None:
         """
@@ -133,31 +100,14 @@ class ModelDeploymentBackend(Backend):
         poll_interval = self.config["execution"].get("poll_interval")
         with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(model_deployment_id)
-            if (
-                model_deployment.lifecycle_state
-                == OCIModelDeployment.LIFECYCLE_STATE_INACTIVE
-            ):
-                print(
-                    f"Model deployment {model_deployment.model_deployment_id} is already inactive."
-                )
-                return
-
-            if (
-                model_deployment.lifecycle_state
-                == OCIModelDeployment.LIFECYCLE_STATE_ACTIVE
-            ):
-                model_deployment.deactivate(
-                    wait_for_completion=wait_for_completion,
-                    max_wait_time=max_wait_time,
-                    poll_interval=poll_interval,
-                )
-                print(
-                    f"Model Deployment {model_deployment.model_deployment_id} has been deactivated."
-                )
-            else:
-                raise Exception(
-                    f"Can't deactivate model deployment {model_deployment.model_deployment_id} when it's in {model_deployment.lifecycle_state} state."
-                )
+            model_deployment.deactivate(
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
+            )
+            print(
+                f"Model Deployment {model_deployment.model_deployment_id} has been deactivated."
+            )
 
     def watch(self) -> None:
         """

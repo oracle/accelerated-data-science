@@ -1,16 +1,18 @@
 -r test-requirements.txt
 -e ".[opctl]"
 -e ".[all-optional]"
-pyspark
 arff
 category_encoders
-pdfplumber
 dask
-nltk
-py4j
-tables
-xlrd>=1.2.0
-lxml
 fastparquet
 imbalanced-learn
+lxml
+mysql-connector-python
+nltk
+pdfplumber
+py4j
 pyarrow
+pyspark
+setuptools
+tables
+xlrd>=1.2.0

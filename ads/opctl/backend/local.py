@@ -41,7 +41,7 @@ from ads.opctl.utils import (build_image, get_docker_client,
 from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
 
 
-class CondaPackNotFound(Exception):
+class CondaPackNotFound(Exception):   # pragma: no cover
     pass
 
 

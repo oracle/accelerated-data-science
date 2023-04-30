@@ -135,7 +135,7 @@ class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):
+class NotActiveDeploymentError(Exception):   # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -144,15 +144,15 @@ class NotActiveDeploymentError(Exception):
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):
+class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):
+class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):
+class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
     pass
 
 
@@ -789,6 +789,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
         ignore_conda_error: bool = False,
+        score_py_uri: str = None,
         **kwargs: Dict,
     ) -> "GenericModel":
         """Prepare and save the score.py, serialized model and runtime.yaml file.
@@ -841,6 +842,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             number of features(columns).
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
+        score_py_uri: (str, optional). Defaults to None.
+            The uri of the customized score.py, which can be local path or OCI object storage URI.
+            When provide with this attibute, the `score.py` will not be auto generated, and the
+            provided `score.py` will be added into artifact_dir.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -1001,13 +1006,22 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 jinja_template_filename = (
                     "score-pkl" if self._serialize else "score_generic"
                 )
-        self.model_artifact.prepare_score_py(
-            jinja_template_filename=jinja_template_filename,
-            model_file_name=self.model_file_name,
-            data_deserializer=self.model_input_serializer.name,
-            model_serializer=self.model_save_serializer.name,
-            **{**kwargs, **self._score_args},
-        )
+
+        if score_py_uri:
+            utils.copy_file(
+                uri_src=score_py_uri,
+                uri_dst=os.path.join(self.artifact_dir, "score.py"),
+                force_overwrite=force_overwrite,
+                auth=self.auth
+            )
+        else:
+            self.model_artifact.prepare_score_py(
+                jinja_template_filename=jinja_template_filename,
+                model_file_name=self.model_file_name,
+                data_deserializer=self.model_input_serializer.name,
+                model_serializer=self.model_save_serializer.name,
+                **{**kwargs, **self._score_args},
+            )
 
         self._summary_status.update_status(
             detail="Generated score.py", status=ModelState.DONE.value
@@ -1888,6 +1902,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -1936,6 +1951,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2069,6 +2086,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_shape_name(
                 self.properties.deployment_instance_shape
                 or existing_infrastructure.shape_name
+            )
+            .with_subnet_id(
+                self.properties.deployment_instance_subnet_id
+                or existing_infrastructure.subnet_id
             )
             .with_replica(
                 self.properties.deployment_instance_count
@@ -2239,6 +2260,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_display_name: Optional[str] = None,
         deployment_description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -2326,6 +2348,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2467,6 +2491,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             display_name=deployment_display_name,
             description=deployment_description,
             deployment_instance_shape=self.properties.deployment_instance_shape,
+            deployment_instance_subnet_id=self.properties.deployment_instance_subnet_id,
             deployment_instance_count=self.properties.deployment_instance_count,
             deployment_bandwidth_mbps=self.properties.deployment_bandwidth_mbps,
             deployment_log_group_id=self.properties.deployment_log_group_id,
@@ -2483,6 +2508,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self,
         data: Any = None,
         auto_serialize_data: bool = False,
+        local: bool = False,
         **kwargs,
     ) -> Dict[str, Any]:
         """Returns prediction of input data run against the model deployment endpoint.
@@ -2507,6 +2533,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Whether to auto serialize input data. Defauls to `False` for GenericModel, and `True` for other frameworks.
             `data` required to be json serializable if `auto_serialize_data=False`.
             If `auto_serialize_data` set to True, data will be serialized before sending to model deployment endpoint.
+        local: bool.
+            Whether to invoke the prediction locally. Default to False.
         kwargs:
             content_type: str, used to indicate the media type of the resource.
             image: PIL.Image Object or uri for the image.
@@ -2525,10 +2553,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         NotActiveDeploymentError
             If model deployment process was not started or not finished yet.
         ValueError
-            If `data` is empty or not JSON serializable.
+            If model is not deployed yet or the endpoint information is not available.
         """
-        if not self.model_deployment:
-            raise ValueError("Use `deploy()` method to start model deployment.")
+        if local:
+            return self.verify(
+                data=data, auto_serialize_data=auto_serialize_data, **kwargs
+            )
+
+        if not (self.model_deployment and self.model_deployment.url):
+            raise ValueError(
+                "Error invoking the remote endpoint as the model is not "
+                "deployed yet or the endpoint information is not available. "
+                "Use `deploy()` method to start model deployment. "
+                "If you intend to invoke inference using locally available "
+                "model artifact, set parameter `local=True`"
+            )
 
         current_state = self.model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:

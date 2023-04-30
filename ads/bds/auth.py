@@ -14,7 +14,7 @@ DEFAULT_KRB5_CONFIG_PATH = "~/.bds_config/krb5.conf"
 KRB5_CONFIG = "KRB5_CONFIG"
 
 
-class KRB5KinitError(Exception):
+class KRB5KinitError(Exception):   # pragma: no cover
     """KRB5KinitError class when kinit -kt command failed to generate cached ticket with the keytab file and the krb5 config file."""
 
     pass
