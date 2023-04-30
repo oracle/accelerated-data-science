@@ -8,7 +8,7 @@ import click
 from ads.common.auth import AuthType
 from ads.opctl.utils import suppress_traceback
 from ads.opctl.model.cmds import download_model as download_model_cmd
-from ads.opctl.backend.local import DEFAULT_MODEL_FOLDER
+from ads.opctl.constants import DEFAULT_MODEL_FOLDER
 
 
 @click.group("model")

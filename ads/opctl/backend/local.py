@@ -642,9 +642,25 @@ class LocalPipelineBackend(Backend):
 
 class LocalModelDeploymentBackend(LocalBackend):
     def __init__(self, config: Dict) -> None:
+        """
+        Initialize a LocalModelDeploymentBackend object with given config.
+
+        Parameters
+        ----------
+        config: dict
+            dictionary of configurations
+        """
         super().__init__(config)
         
     def predict(self) -> None:
+        """
+        Conducts local verify.
+
+        Returns
+        -------
+        None
+            Nothing.
+        """
         artifact_directory = self.config["execution"].get("artifact_directory")
         ocid = self.config["execution"].get("ocid")
         data = self.config["execution"].get("payload")
@@ -658,8 +674,8 @@ class LocalModelDeploymentBackend(LocalBackend):
             _download_model(ocid=ocid, artifact_directory=artifact_directory, region=region, bucket_uri=bucket_uri, timeout=timeout)
 
         if ocid:
-            conda_slug, conda_path = self._get_conda_info_from_catalog(ocid)
-        elif artifact_directory:
+            conda_slug, conda_path = self._get_conda_info_from_custom_metadata(ocid)
+        if artifact_directory or not conda_path:
             if not os.path.exists(artifact_directory) or len(os.listdir(artifact_directory)) == 0:
                 raise ValueError(f"`artifact_directory` {artifact_directory} does not exist or is empty.")
             conda_slug, conda_path = self._get_conda_info_from_runtime(artifact_dir=artifact_directory)
@@ -699,14 +715,33 @@ class LocalModelDeploymentBackend(LocalBackend):
                 f"Run with the --debug argument to view container logs."
             )
 
-    def _get_conda_info_from_catalog(self, ocid):
+    def _get_conda_info_from_custom_metadata(self, ocid):
+        """
+        Get conda env info from custom metadata from model catalog.
+
+        Returns
+        -------
+        (str, str)
+            conda slug and conda path.
+        """
         response = self.client.get_model(ocid)
         custom_metadata = ModelCustomMetadata._from_oci_metadata(response.data.custom_metadata_list)
-        conda_path = custom_metadata['CondaEnvironmentPath'].value
-        conda_slug = custom_metadata['SlugName'].value
+        conda_slug, conda_path = None, None
+        if "CondaEnvironmentPath" in custom_metadata:
+            conda_path = custom_metadata['CondaEnvironmentPath'].value
+        if "SlugName" in custom_metadata:
+            conda_slug = custom_metadata['SlugName'].value
         return conda_slug, conda_path
     
     def _get_conda_info_from_runtime(self, artifact_dir):
+        """
+        Get conda env info from runtime yaml file.
+
+        Returns
+        -------
+        (str, str)
+            conda slug and conda path.
+        """
         runtime_yaml_file = os.path.join(artifact_dir, "runtime.yaml")
         runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
         conda_slug = runtime_info.model_deployment.inference_conda_env.inference_env_slug

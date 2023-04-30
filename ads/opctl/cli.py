@@ -28,7 +28,7 @@ from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import BACKEND_NAME
-from ads.opctl.backend.local import DEFAULT_MODEL_FOLDER
+from ads.opctl.constants import DEFAULT_MODEL_FOLDER
 
 import ads.opctl.conda.cli
 import ads.opctl.spark.cli

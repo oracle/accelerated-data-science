@@ -4,7 +4,7 @@ import shutil
 from ads.common.auth import create_signer
 from ads.model.datascience_model import DataScienceModel
 from ads.opctl import logger
-from ads.opctl.backend.local import DEFAULT_MODEL_FOLDER
+from ads.opctl.constants import DEFAULT_MODEL_FOLDER
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 
@@ -56,3 +56,4 @@ def _download_model(ocid, artifact_directory, oci_auth, region, bucket_uri, time
     except Exception as e:
         print(type(e))
         shutil.rmtree(artifact_directory, ignore_errors=True)
+        raise e
