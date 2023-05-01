@@ -3,20 +3,24 @@
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import os
+import unittest
+from collections import namedtuple
+from datetime import datetime, timezone, timedelta
+from importlib import reload
+from unittest import mock
+from unittest.mock import MagicMock, Mock, patch
+
+import oci
+import pandas as pd
+import pytest
+from oci.exceptions import ServiceError
+
+import ads.config
 from ads.catalog.notebook import NotebookCatalog, NotebookSummaryList
 from ads.common import auth, oci_client
 from ads.common.utils import random_valid_ocid
 from ads.config import NB_SESSION_COMPARTMENT_OCID, PROJECT_OCID
-from collections import namedtuple
-from datetime import datetime, timezone, timedelta
-from oci.exceptions import ServiceError
-from unittest import mock
-from unittest.mock import MagicMock, Mock, patch
-import oci
-import os
-import pandas as pd
-import pytest
-import unittest
 
 
 def generate_notebook_list(
@@ -78,8 +82,20 @@ class NotebookCatalogTest(unittest.TestCase):
 
             nsl = NotebookSummaryList(generate_notebook_list())
 
+    def setUp(self) -> None:
+        os.environ[
+            "NB_SESSION_COMPARTMENT_OCID"
+        ] = "ocid1.compartment.oc1.<unique_ocid>"
+        reload(ads.config)
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        os.environ.pop("NB_SESSION_COMPARTMENT_OCID", None)
+        reload(ads.config)
+        return super().tearDown()
+
     @staticmethod
-    def generate_notebook_response_data(self, compartment_id=None, notebook_id=None):
+    def generate_notebook_response_data(compartment_id=None, notebook_id=None):
         entity_item = {
             "compartment_id": compartment_id,
             "created_by": "mock_user",
@@ -87,12 +103,11 @@ class NotebookCatalogTest(unittest.TestCase):
             "display_name": "my new notebook catalog",
             "freeform_tags": {},
             "id": notebook_id,
-            "lifecycle_state": "",
             "lifecycle_state": "ACTIVE",
             "notebook_session_configuration_details": "",
             "notebook_session_url": "oci://notebook_session_url@test_namespace",
             "project_id": PROJECT_OCID,
-            "time_created": self.date_time.isoformat(),
+            "time_created": NotebookCatalogTest.date_time.isoformat(),
         }
         notebook_response = oci.data_science.models.NotebookSession(**entity_item)
         return notebook_response
@@ -114,7 +129,7 @@ class NotebookCatalogTest(unittest.TestCase):
     def test_decorate_notebook_session_attributes(self):
         """Test NotebookCatalog._decorate_notebook_session method."""
         notebook = self.generate_notebook_response_data(
-            self, compartment_id=self.comp_id, notebook_id=self.notebook_id
+            compartment_id=self.comp_id, notebook_id=self.notebook_id
         )
 
         def generate_get_user_data(self, compartment_id=None):
@@ -175,7 +190,6 @@ class NotebookCatalogTest(unittest.TestCase):
         def mock_get_notebook_session(notebook_id=id):
             return Mock(
                 data=self.generate_notebook_response_data(
-                    self,
                     compartment_id=self.comp_id,
                     notebook_id=short_id_index[short_id],
                 )
@@ -300,7 +314,7 @@ class NotebookCatalogTest(unittest.TestCase):
         wrapper = namedtuple("wrapper", ["data"])
         client_update_notebook_session_response = wrapper(
             data=self.generate_notebook_response_data(
-                self, compartment_id=self.comp_id, notebook_id=short_id_index[short_id]
+                compartment_id=self.comp_id, notebook_id=short_id_index[short_id]
             )
         )
         self.notebook_catalog.ds_client.update_notebook_session = MagicMock(
@@ -347,5 +361,5 @@ class NotebookCatalogTest(unittest.TestCase):
         # selection is a notebook session instance
         with pytest.raises(ValueError):
             self.nsl.filter(
-                selection=self.generate_notebook_response_data(self), instance=None
+                selection=self.generate_notebook_response_data(), instance=None
             )
