@@ -2,6 +2,25 @@
 Release Notes
 =============
 
+2.8.4
+-----
+Release date: May 3, 2023
+
+* Added support for creating ADSDataset from pandas dataframe.
+* Added support for multi-model deployment using Triton.
+* Added support for model deployment local testing in ``ads opctl`` CLI.
+* Added support in ``ads opctl`` CLI to generate starter YAML specification for the Data Science Job, Data Flow Application, Data Science Model Deployment and ML Pipeline services.
+* Added support for invoking model prediction locally with ``predict(local=True)``.
+* Added support for attaching customized score.py when preparing model.
+* Added status check for model deployment delete/activate/deactivate APIs.
+* Added support for training and verifying SparkPipelineModel in Dataflow.
+* Added support for mounting OCI file storage in Data Science Jobs.
+* Added support for model deployment custom egress.
+* Added support for generating score.py for GPU model deployment.
+* Improved model deployment progress bar.
+* Fixed bug when using ``ads opctl`` CLI to run jobs locally.
+* Fixed bug in Dataflow magic when using archive_uri in dataflow config.
+
 2.8.3
 -----
 Release date: March 22, 2023
