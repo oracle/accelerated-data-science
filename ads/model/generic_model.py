@@ -1773,7 +1773,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                     f"`runtime.yaml` does not exist in {self.artifact_dir}. "
                     "Use `RuntimeInfo` class to populate it."
                 )
-        self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file, auth=self.auth)
+        self.runtime_info = RuntimeInfo.from_yaml(
+            uri=runtime_yaml_file, storage_options=self.auth or {}
+        )
 
     def reload(self) -> "GenericModel":
         """Reloads the model artifact files: `score.py` and the `runtime.yaml`.
@@ -1878,7 +1880,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # check if the runtime_info sync with the runtime.yaml.
         try:
             runtime_file_path = os.path.join(artifact_dir, "runtime.yaml")
-            runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
+            runtime_info_from_yaml = RuntimeInfo(uri=runtime_file_path)
             if self.runtime_info != runtime_info_from_yaml:
                 raise RuntimeInfoInconsistencyError(
                     "`.runtime_info` does not sync with runtime.yaml file. Call "

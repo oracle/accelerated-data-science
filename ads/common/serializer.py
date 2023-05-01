@@ -101,9 +101,7 @@ class Serializable(ABC):
         None
             Nothing.
         """
-        auth = kwargs.get("auth", {})
-        storage_options = {} if auth is None else auth
-        with fsspec.open(uri, "w", **storage_options) as f:
+        with fsspec.open(uri, "w", **kwargs) as f:
             f.write(s)
 
     @staticmethod
@@ -124,9 +122,7 @@ class Serializable(ABC):
         -------
             string: Contents in file specified by URI
         """
-        auth = kwargs.get("auth", {})
-        storage_options = {} if auth is None else auth
-        with fsspec.open(uri, "r", **storage_options) as f:
+        with fsspec.open(uri, "r", **kwargs) as f:
             return f.read()
 
     def to_json(

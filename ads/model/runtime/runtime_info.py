@@ -62,7 +62,7 @@ class RuntimeInfo(DataClassSerializable):
         runtime_info = cls(model_artifact_version="3.0")
         return runtime_info
 
-    def save(self, auth={}):
+    def save(self, storage_options=None):
         """Save the RuntimeInfo object into runtime.yaml file under the artifact directory.
 
         Returns
@@ -73,8 +73,9 @@ class RuntimeInfo(DataClassSerializable):
         runtime_file_path = os.path.join(
             self.model_provenance.training_code.artifact_directory, "runtime.yaml"
         )
+        storage_options = storage_options or {}
         self.to_yaml(
             uri=runtime_file_path,
             side_effect=SideEffect.CONVERT_KEYS_TO_UPPER.value,
-            auth=auth,
+            storage_options=storage_options,
         )
