@@ -17,10 +17,11 @@ import pytest
 from oci.exceptions import ServiceError
 
 import ads.config
+import ads.catalog.notebook
 from ads.catalog.notebook import NotebookCatalog, NotebookSummaryList
 from ads.common import auth, oci_client
 from ads.common.utils import random_valid_ocid
-from ads.config import NB_SESSION_COMPARTMENT_OCID, PROJECT_OCID
+from ads.config import PROJECT_OCID
 
 
 def generate_notebook_list(
@@ -82,17 +83,21 @@ class NotebookCatalogTest(unittest.TestCase):
 
             nsl = NotebookSummaryList(generate_notebook_list())
 
-    def setUp(self) -> None:
+    @classmethod
+    def setUpClass(cls) -> None:
         os.environ[
             "NB_SESSION_COMPARTMENT_OCID"
         ] = "ocid1.compartment.oc1.<unique_ocid>"
         reload(ads.config)
-        return super().setUp()
+        reload(ads.catalog.notebook)
+        return super().setUpClass()
 
-    def tearDown(self) -> None:
+    @classmethod
+    def tearDownClass(cls) -> None:
         os.environ.pop("NB_SESSION_COMPARTMENT_OCID", None)
         reload(ads.config)
-        return super().tearDown()
+        reload(ads.catalog.notebook)
+        return super().tearDownClass()
 
     @staticmethod
     def generate_notebook_response_data(compartment_id=None, notebook_id=None):
@@ -124,7 +129,10 @@ class NotebookCatalogTest(unittest.TestCase):
     def test_notebook_init_without_compartment_id(self, mock_client, mock_signer):
         """Test notebook catalog initiation without compartment_id."""
         test_notebook_catalog = NotebookCatalog()
-        assert test_notebook_catalog.compartment_id == NB_SESSION_COMPARTMENT_OCID
+        assert (
+            test_notebook_catalog.compartment_id
+            == ads.config.NB_SESSION_COMPARTMENT_OCID
+        )
 
     def test_decorate_notebook_session_attributes(self):
         """Test NotebookCatalog._decorate_notebook_session method."""

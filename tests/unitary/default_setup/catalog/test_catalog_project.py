@@ -15,10 +15,10 @@ import pytest
 from oci.exceptions import ServiceError
 
 import ads.config
+import ads.catalog.project
 from ads.catalog.project import ProjectCatalog, ProjectSummaryList
 from ads.common import auth, oci_client
 from ads.common.utils import random_valid_ocid
-from ads.config import NB_SESSION_COMPARTMENT_OCID
 
 
 def generate_project_list(
@@ -76,17 +76,21 @@ class ProjectCatalogTest(unittest.TestCase):
 
             psl = ProjectSummaryList(generate_project_list())
 
-    def setUp(self) -> None:
+    @classmethod
+    def setUpClass(cls) -> None:
         os.environ[
             "NB_SESSION_COMPARTMENT_OCID"
         ] = "ocid1.compartment.oc1.<unique_ocid>"
         reload(ads.config)
-        return super().setUp()
+        reload(ads.catalog.project)
+        return super().setUpClass()
 
-    def tearDown(self) -> None:
+    @classmethod
+    def tearDownClass(cls) -> None:
         os.environ.pop("NB_SESSION_COMPARTMENT_OCID", None)
         reload(ads.config)
-        return super().tearDown()
+        reload(ads.catalog.project)
+        return super().tearDownClass()
 
     @staticmethod
     def generate_project_response_data(compartment_id=None, project_id=None):
@@ -116,7 +120,10 @@ class ProjectCatalogTest(unittest.TestCase):
     def test_project_init_without_compartment_id(self, mock_client, mock_signer):
         """Test project catalog initiation without compartment_id."""
         test_project_catalog = ProjectCatalog()
-        assert test_project_catalog.compartment_id == NB_SESSION_COMPARTMENT_OCID
+        assert (
+            test_project_catalog.compartment_id
+            == ads.config.NB_SESSION_COMPARTMENT_OCID
+        )
 
     def test_decorate_project_session_attributes(self):
         """Test ProjectCatalog._decorate_project method."""
