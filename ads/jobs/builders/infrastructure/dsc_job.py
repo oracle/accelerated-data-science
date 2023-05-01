@@ -35,10 +35,7 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.common.dsc_file_system import (
-    OCIFileStorage,
-    DSCFileSystemManager
-)
+from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager
 
 logger = logging.getLogger(__name__)
 
@@ -445,6 +442,8 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             * command_line_arguments: str
             * maximum_runtime_in_minutes: int
             * display_name: str
+            * freeform_tags: dict(str, str)
+            * defined_tags: dict(str, object)
 
         If display_name is not specified, it will be generated as "<JOB_NAME>-run-<TIMESTAMP>".
 
@@ -845,7 +844,7 @@ class DataScienceJob(Infrastructure):
             .with_storage_mount(
                 {
                     "src" : "<mount_target_ip_address>:<export_path>",
-	            "dest" : "<destination_directory_name>"
+                    "dest" : "<destination_directory_name>"
                 }
             )
         )
@@ -1231,9 +1230,7 @@ class DataScienceJob(Infrastructure):
         """
         return self.get_spec(self.CONST_LOG_GROUP_ID)
 
-    def with_storage_mount(
-        self, *storage_mount: List[dict]
-    ) -> DataScienceJob:
+    def with_storage_mount(self, *storage_mount: List[dict]) -> DataScienceJob:
         """Sets the file systems to be mounted for the data science job.
         A maximum number of 5 file systems are allowed to be mounted for a single data science job.
 
@@ -1425,7 +1422,8 @@ class DataScienceJob(Infrastructure):
                     "Storage mount hasn't been supported in the current OCI SDK installed."
                 )
             dsc_job.job_storage_mount_configuration_details_list = [
-                DSCFileSystemManager.initialize(file_system) for file_system in self.storage_mount
+                DSCFileSystemManager.initialize(file_system)
+                for file_system in self.storage_mount
             ]
         return self
 
@@ -1477,7 +1475,13 @@ class DataScienceJob(Infrastructure):
         return self
 
     def run(
-        self, name=None, args=None, env_var=None, freeform_tags=None, wait=False
+        self,
+        name=None,
+        args=None,
+        env_var=None,
+        freeform_tags=None,
+        defined_tags=None,
+        wait=False,
     ) -> DataScienceJobRun:
         """Runs a job on OCI Data Science job
 
@@ -1491,6 +1495,8 @@ class DataScienceJob(Infrastructure):
             Environment variable for the job run, by default None
         freeform_tags : dict, optional
             Freeform tags for the job run, by default None
+        defined_tags : dict, optional
+            Defined tags for the job run, by default None
         wait : bool, optional
             Indicate if this method should wait for the run to finish before it returns, by default False.
 
@@ -1505,11 +1511,18 @@ class DataScienceJob(Infrastructure):
             raise RuntimeError(
                 "Job is not created. Call create() to create the job first."
             )
-        tags = self.runtime.freeform_tags
-        if not tags:
-            tags = {}
-        if freeform_tags:
-            tags.update(freeform_tags)
+
+        if not freeform_tags:
+            freeform_tags = {}
+        runtime_freeform_tags = self.runtime.freeform_tags
+        if runtime_freeform_tags:
+            freeform_tags.update(runtime_freeform_tags)
+
+        if not defined_tags:
+            defined_tags = {}
+        runtime_defined_tags = self.runtime.defined_tags
+        if runtime_defined_tags:
+            defined_tags.update(runtime_defined_tags)
 
         if name:
             envs = self.runtime.envs
@@ -1521,7 +1534,8 @@ class DataScienceJob(Infrastructure):
             display_name=name,
             command_line_arguments=args,
             environment_variables=env_var,
-            freeform_tags=tags,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
             wait=wait,
         )
 
