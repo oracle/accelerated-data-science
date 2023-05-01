@@ -32,7 +32,11 @@ extensions = [
     "sphinx.ext.inheritance_diagram",
     "nbsphinx",
     "sphinx_code_tabs",
-    "sphinx_copybutton"
+    "sphinx_copybutton",
+    "sphinx.ext.duration",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
