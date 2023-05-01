@@ -15,6 +15,7 @@ import fsspec
 from typing import Dict, Optional, Tuple
 from ads.common import auth as authutil
 from ads.common import logger, utils
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import CONDA_BUCKET_NAME, CONDA_BUCKET_NS
 from ads.model.runtime.env_info import EnvInfo, InferenceEnvInfo, TrainingEnvInfo
 from ads.model.runtime.runtime_info import RuntimeInfo
@@ -146,7 +147,7 @@ class ModelArtifact:
         if not artifact_dir:
             raise ValueError("The `artifact_dir` needs to be provided.")
 
-        if utils.is_oci_path(artifact_dir):
+        if ObjectStorageDetails.is_oci_path(artifact_dir):
             self.artifact_dir = artifact_dir
             self._artifact_dir = local_copy_dir or tempfile.mkdtemp()
         else:
@@ -452,7 +453,6 @@ class ModelArtifact:
         to_path = (
             tempfile.mkdtemp() if utils.is_oci_path(artifact_dir) else artifact_dir
         )
-
         if artifact_dir == uri and not utils.is_oci_path(artifact_dir):
             if not utils.is_path_exists(artifact_dir, auth=auth):
                 raise ValueError("Provided `uri` doesn't exist.")

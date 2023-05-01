@@ -21,6 +21,7 @@ from ads.common import auth as authutil
 from ads.common import logger, utils
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
     CONDA_BUCKET_NS,
     JOB_RUN_COMPARTMENT_OCID,
@@ -169,7 +170,7 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     str
         The artifact dir.
     """
-    if artifact_dir and utils.is_oci_path(artifact_dir):
+    if artifact_dir and ObjectStorageDetails.is_oci_path(artifact_dir):
         return artifact_dir
 
     if artifact_dir and isinstance(artifact_dir, str):
@@ -347,7 +348,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model_input_serializer: (SERDE or str, optional). Defaults to None.
             Instance of ads.model.SERDE. Used for serialize/deserialize model input.
         """
-        if artifact_dir and utils.is_oci_path(artifact_dir):
+        if artifact_dir and ObjectStorageDetails.is_oci_path(artifact_dir):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "
                 "Only SparkPipelineModel framework supports object storage path as `artifact_dir`."
@@ -695,7 +696,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             raise ValueError(
                 f"The {model_path} already exists, set force_overwrite to True if you wish to overwrite."
             )
-        if not utils.is_oci_path(self.artifact_dir):
+        if not ObjectStorageDetails.is_oci_path(self.artifact_dir):
             os.makedirs(self.artifact_dir, exist_ok=True)
         return model_path
 
@@ -924,7 +925,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ):
             raise ValueError("The `model_file_name` needs to be provided.")
 
-        if not utils.is_oci_path(self.artifact_dir):
+        if not ObjectStorageDetails.is_oci_path(self.artifact_dir):
             os.makedirs(self.artifact_dir, exist_ok=True)
 
         # Bring in .model-ignore file
@@ -1317,7 +1318,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if (
             cls._PREFIX is not "spark"
             and artifact_dir
-            and utils.is_oci_path(artifact_dir)
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "
@@ -1430,7 +1431,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if (
             cls._PREFIX is not "spark"
             and artifact_dir
-            and utils.is_oci_path(artifact_dir)
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "
@@ -1445,10 +1446,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         artifact_dir = _prepare_artifact_dir(artifact_dir)
 
         target_dir = (
-            artifact_dir if not utils.is_oci_path(artifact_dir) else tempfile.mkdtemp()
+            artifact_dir
+            if not ObjectStorageDetails.is_oci_path(artifact_dir)
+            else tempfile.mkdtemp()
         )
         bucket_uri = bucket_uri or (
-            artifact_dir if utils.is_oci_path(artifact_dir) else None
+            artifact_dir if ObjectStorageDetails.is_oci_path(artifact_dir) else None
         )
         dsc_model = DataScienceModel.from_id(model_id)
         dsc_model.download_artifact(
@@ -1550,7 +1553,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if (
             cls._PREFIX is not "spark"
             and artifact_dir
-            and utils.is_oci_path(artifact_dir)
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "

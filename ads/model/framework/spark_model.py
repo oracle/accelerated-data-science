@@ -14,6 +14,7 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.extractor.spark_extractor import SparkExtractor
 from ads.model.serde.model_input import SparkModelInputSerializerType
 from ads.model.serde.model_serializer import SparkModelSerializerType
@@ -209,7 +210,7 @@ class SparkPipelineModel(FrameworkSpecificModel):
             model_input_serializer=model_input_serializer,
             **kwargs,
         )
-        if artifact_dir and utils.is_oci_path(artifact_dir):
+        if artifact_dir and ObjectStorageDetails.is_oci_path(artifact_dir):
             self.artifact_dir = artifact_dir
             self._artifact_dir = _prepare_artifact_dir()
             os.environ["OCI_DEPLOYMENT_PATH"] = self.artifact_dir
