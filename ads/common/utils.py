@@ -1171,7 +1171,7 @@ def get_files(directory: str, auth: Optional[Dict] = None):
 
     # return all files in remote directory.
     if directory.startswith("oci://"):
-        return file_names
+        directory = directory.lstrip("oci://")
 
     for ignore in ignore_patterns:
         if not ignore.startswith("#") and ignore.strip() != "":
