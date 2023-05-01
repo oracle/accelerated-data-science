@@ -2,20 +2,23 @@
 
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import os
+import unittest
+from collections import namedtuple
+from datetime import datetime, timezone, timedelta
+from importlib import reload
+from unittest import mock
+from unittest.mock import MagicMock, Mock, patch
 
+import oci
+import pytest
+from oci.exceptions import ServiceError
+
+import ads.config
 from ads.catalog.project import ProjectCatalog, ProjectSummaryList
 from ads.common import auth, oci_client
 from ads.common.utils import random_valid_ocid
 from ads.config import NB_SESSION_COMPARTMENT_OCID
-from collections import namedtuple
-from datetime import datetime, timezone, timedelta
-from oci.exceptions import ServiceError
-from unittest import mock
-from unittest.mock import MagicMock, Mock, patch
-import oci
-import os
-import pytest
-import unittest
 
 
 def generate_project_list(
@@ -62,7 +65,9 @@ class ProjectCatalogTest(unittest.TestCase):
     with patch.object(auth, "default_signer"):
         with patch.object(oci_client, "OCIClientFactory"):
             project_id = "ocid1.projectcatalog.oc1.iad.<unique_ocid>"
-            comp_id = os.environ.get("NB_SESSION_COMPARTMENT_OCID", "ocid1.compartment.oc1.iad.<unique_ocid>")
+            comp_id = os.environ.get(
+                "NB_SESSION_COMPARTMENT_OCID", "ocid1.compartment.oc1.iad.<unique_ocid>"
+            )
             date_time = datetime(2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc)
 
             pc = ProjectCatalog(compartment_id=comp_id)
@@ -71,8 +76,20 @@ class ProjectCatalogTest(unittest.TestCase):
 
             psl = ProjectSummaryList(generate_project_list())
 
+    def setUp(self) -> None:
+        os.environ[
+            "NB_SESSION_COMPARTMENT_OCID"
+        ] = "ocid1.compartment.oc1.<unique_ocid>"
+        reload(ads.config)
+        return super().setUp()
+
+    def tearDown(self) -> None:
+        os.environ.pop("NB_SESSION_COMPARTMENT_OCID", None)
+        reload(ads.config)
+        return super().tearDown()
+
     @staticmethod
-    def generate_project_response_data(self, compartment_id=None, project_id=None):
+    def generate_project_response_data(compartment_id=None, project_id=None):
         entity_item = {
             "compartment_id": compartment_id,
             "created_by": "mock_user",
@@ -82,7 +99,7 @@ class ProjectCatalogTest(unittest.TestCase):
             "freeform_tags": {},
             "id": project_id,
             "lifecycle_state": "ACTIVE",
-            "time_created": self.date_time.isoformat(),
+            "time_created": ProjectCatalogTest.date_time.isoformat(),
         }
         project_response = oci.data_science.models.Project(**entity_item)
         return project_response
@@ -104,7 +121,7 @@ class ProjectCatalogTest(unittest.TestCase):
     def test_decorate_project_session_attributes(self):
         """Test ProjectCatalog._decorate_project method."""
         project = self.generate_project_response_data(
-            self, compartment_id=self.comp_id, project_id=self.project_id
+            compartment_id=self.comp_id, project_id=self.project_id
         )
 
         def generate_get_user_data(self, compartment_id=None):
@@ -160,7 +177,6 @@ class ProjectCatalogTest(unittest.TestCase):
         def mock_get_notebook_session(project_id=id):
             return Mock(
                 data=self.generate_project_response_data(
-                    self,
                     compartment_id=self.comp_id,
                     project_id=short_id_index[short_id],
                 )
@@ -258,7 +274,7 @@ class ProjectCatalogTest(unittest.TestCase):
         wrapper = namedtuple("wrapper", ["data"])
         client_update_project_response = wrapper(
             data=self.generate_project_response_data(
-                self, compartment_id=self.comp_id, project_id=short_id_index[short_id]
+                compartment_id=self.comp_id, project_id=short_id_index[short_id]
             )
         )
         self.pc.ds_client.update_project = MagicMock(
@@ -315,5 +331,5 @@ class ProjectCatalogTest(unittest.TestCase):
         # selection is a notebook session instance
         with pytest.raises(ValueError):
             self.psl.filter(
-                selection=self.generate_project_response_data(self), instance=None
+                selection=self.generate_project_response_data(), instance=None
             )
