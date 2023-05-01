@@ -18,8 +18,8 @@ from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import NotSupportedError, convert_notebook
 from ads.opctl.constants import (
-    ML_JOB_GPU_IMAGE,
-    ML_JOB_IMAGE,
+    DSC_GPU_IMAGE,
+    DSC_IMAGE,
     BACKEND_NAME,
 )
 from ads.opctl.utils import (
@@ -246,7 +246,7 @@ class ConfigResolver(ConfigProcessor):
         exec_config = self.config["execution"]
         if exec_config.get("conda_slug", None):
             self.config["execution"]["image"] = (
-                ML_JOB_GPU_IMAGE if exec_config.get("gpu", False) else ML_JOB_IMAGE
+                DSC_GPU_IMAGE if exec_config.get("gpu", False) else DSC_IMAGE
             )
         elif self._is_ads_operator():
             image = self.ads_operators[exec_config["operator_name"]].get("image")

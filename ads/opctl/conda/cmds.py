@@ -28,8 +28,8 @@ from ads.common.decorator.runtime_dependency import (
 from ads.config import NO_CONTAINER
 
 from ads.opctl.constants import (
-    ML_JOB_GPU_IMAGE,
-    ML_JOB_IMAGE,
+    DSC_GPU_IMAGE,
+    DSC_IMAGE,
     DEFAULT_IMAGE_HOME_DIR,
     DEFAULT_IMAGE_CONDA_DIR,
     DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
@@ -60,17 +60,17 @@ def _fetch_manifest_template() -> Dict:
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def _check_job_image_exists(gpu: bool) -> None:
     if gpu:
-        image = ML_JOB_GPU_IMAGE
+        image = DSC_GPU_IMAGE
     else:
-        image = ML_JOB_IMAGE
+        image = DSC_IMAGE
     try:
         client = get_docker_client()
         client.api.inspect_image(image)
     except docker.errors.ImageNotFound:
         if gpu:
-            cmd = "`ads opctl build-image -g job-local`"
+            cmd = "`ads opctl build-image -g dsc-local`"
         else:
-            cmd = "`ads opctl build-image job-local`"
+            cmd = "`ads opctl build-image dsc-local`"
         raise RuntimeError(
             f"Please run {cmd} to build a local image for Jobs development first."
         )
@@ -199,9 +199,9 @@ def _create(
             },
         }
         if gpu:
-            image = ML_JOB_GPU_IMAGE
+            image = DSC_GPU_IMAGE
         else:
-            image = ML_JOB_IMAGE
+            image = DSC_IMAGE
         try:
             run_container(
                 image=image, bind_volumes=volumes, env_vars={}, command=create_command
@@ -419,7 +419,7 @@ def _install(
             }
             try:
                 run_container(
-                    image=ML_JOB_IMAGE,
+                    image=DSC_IMAGE,
                     bind_volumes=volumes,
                     env_vars={},
                     command=os.path.join(
@@ -593,9 +593,9 @@ def _publish(
         gpu = env["manifest"]["arch_type"] == "GPU"
         _check_job_image_exists(gpu)
         if gpu:
-            image = ML_JOB_GPU_IMAGE
+            image = DSC_GPU_IMAGE
         else:
-            image = ML_JOB_IMAGE
+            image = DSC_IMAGE
         try:
             run_container(
                 image=image, bind_volumes=volumes, env_vars={}, command=command

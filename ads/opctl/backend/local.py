@@ -33,8 +33,8 @@ from ads.opctl.constants import (
     DEFAULT_MODEL_FOLDER,
     DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
     DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
-    ML_JOB_GPU_IMAGE,
-    ML_JOB_IMAGE,
+    DSC_GPU_IMAGE,
+    DSC_IMAGE,
     DEFAULT_MODEL_DEPLOYMENT_FOLDER,
 )
 from ads.opctl.distributed.cmds import load_ini, local_run
@@ -119,9 +119,9 @@ class LocalBackend(Backend):
                     f"source folder {source_folder} does not exist."
                 )
             if self.config["execution"].get("gpu", False):
-                image = self.config["execution"].get("image", ML_JOB_GPU_IMAGE)
+                image = self.config["execution"].get("image", DSC_GPU_IMAGE)
             else:
-                image = self.config["execution"].get("image", ML_JOB_IMAGE)
+                image = self.config["execution"].get("image", DSC_IMAGE)
             oci_config_folder = os.path.expanduser(
                 os.path.dirname(self.config["execution"]["oci_config"])
             )
@@ -135,7 +135,7 @@ class LocalBackend(Backend):
                 "workspaceFolder": DEFAULT_IMAGE_HOME_DIR,
                 "name": f"{image}-dev-env",
             }
-            if image == ML_JOB_IMAGE or image == ML_JOB_GPU_IMAGE:
+            if image == DSC_IMAGE or image == DSC_GPU_IMAGE:
                 conda_folder = os.path.expanduser(
                     self.config["execution"]["conda_pack_folder"]
                 )
@@ -147,7 +147,7 @@ class LocalBackend(Backend):
                 ] = "conda init bash && source ~/.bashrc"
             else:
                 raise ValueError(
-                    "`--source-folder` option works with image `ml-job`, `ml-job-gpu` only. Those can be build with `ads opctl build-image`. Please check `ads opctl build-image -h`."
+                    "`--source-folder` option works with image `dsc`, `dsc-gpu` only. Those can be build with `ads opctl build-image`. Please check `ads opctl build-image -h`."
                 )
         else:
             image = self.config["execution"].get("image", None)
@@ -171,10 +171,10 @@ class LocalBackend(Backend):
             client.api.inspect_image(image)
         except docker.errors.ImageNotFound:
             cmd = None
-            if image == ML_JOB_IMAGE:
-                cmd = "ads opctl build-image job-local"
-            elif image == ML_JOB_GPU_IMAGE:
-                cmd = "ads opctl build-image job-local -g"
+            if image == DSC_IMAGE:
+                cmd = "ads opctl build-image dsc-local"
+            elif image == DSC_GPU_IMAGE:
+                cmd = "ads opctl build-image dsc-local -g"
             if cmd:
                 raise RuntimeError(
                     f"Image {image} not found. Please run `{cmd}` to build the image."
@@ -413,10 +413,10 @@ class LocalBackend(Backend):
             client.api.inspect_image(image)
         except docker.errors.ImageNotFound:
             logger.info(f"Image {image} not found. Attempt building it now....")
-            if image == ML_JOB_IMAGE:
-                build_image("job-local", gpu=False)
+            if image == DSC_IMAGE:
+                build_image("dsc-local", gpu=False)
             else:
-                build_image("job-local", gpu=True)
+                build_image("dsc-local", gpu=True)
 
         with tempfile.TemporaryDirectory() as td:
             with open(os.path.join(td, "entryscript.sh"), "w") as f:
@@ -754,7 +754,7 @@ class LocalModelDeploymentBackend(LocalBackend):
             self.config["execution"]["entrypoint"] = script
             bind_volumes[artifact_directory] = {"bind": DEFAULT_MODEL_DEPLOYMENT_FOLDER}
         if self.config["execution"].get("conda_slug", conda_slug):
-            self.config["execution"]["image"] = ML_JOB_IMAGE
+            self.config["execution"]["image"] = DSC_IMAGE
             if not self.config["execution"].get("conda_slug"):
                 self.config["execution"]["conda_slug"] = conda_slug
                 self.config["execution"]["slug"] = conda_slug

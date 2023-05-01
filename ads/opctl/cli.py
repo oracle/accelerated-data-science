@@ -50,7 +50,7 @@ def configure(debug):
 
 
 @commands.command()
-@click.argument("image-type", type=click.Choice(["job-local", "ads-ops-base"]))
+@click.argument("image-type", type=click.Choice(["dsc-local", "ads-ops-base"]))
 @click.help_option("--help", "-h")
 @click.option(
     "--gpu",

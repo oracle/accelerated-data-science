@@ -19,8 +19,8 @@ from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import NotSupportedError, convert_notebook
 from ads.opctl.constants import (
-    ML_JOB_GPU_IMAGE,
-    ML_JOB_IMAGE,
+    DSC_GPU_IMAGE,
+    DSC_IMAGE,
 )
 from ads.opctl.utils import (
     list_ads_operators,

@@ -22,9 +22,9 @@ import ads
 from ads.common.oci_client import OCIClientFactory
 from ads.opctl import logger
 from ads.opctl.constants import (
-    ML_JOB_IMAGE,
+    DSC_IMAGE,
     OPS_IMAGE_BASE,
-    ML_JOB_GPU_IMAGE,
+    DSC_GPU_IMAGE,
     OPS_IMAGE_GPU_BASE,
 )
 from ads.common.decorator.runtime_dependency import (
@@ -139,7 +139,7 @@ def build_image(
     Parameters
     ----------
     image_type: str
-        specify the image to build, can take 'job-local' or 'ads-ops-base',
+        specify the image to build, can take 'dsc-local' or 'ads-ops-base',
         former for running job with conda pack locally,
         latter for running operators
     gpu: bool
@@ -189,8 +189,8 @@ def build_image(
 
 def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
     look_up = {
-        ("job-local", False): (ML_JOB_IMAGE, "Dockerfile.job", None),
-        ("job-local", True): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
+        ("dsc-local", False): (DSC_IMAGE, "Dockerfile.dsc", None),
+        ("dsc-local", True): (DSC_GPU_IMAGE, "Dockerfile.dsc.gpu", None),
         ("ads-ops-base", False): (OPS_IMAGE_BASE, "Dockerfile", "base"),
         ("ads-ops-base", True): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
     }
