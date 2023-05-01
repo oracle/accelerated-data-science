@@ -1580,7 +1580,7 @@ def extract_region(auth: Optional[Dict] = None) -> Union[str, None]:
 
 
 def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
-    """Check if the path exists.
+    """Check if the given path which can be local path or OCI object storage URI exists.
 
     Parameters
     ----------
