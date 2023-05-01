@@ -1155,7 +1155,7 @@ def get_files(directory: str, auth: Optional[Dict] = None):
     directory: str
         The directory to list out all the files from.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -1250,7 +1250,7 @@ def copy_from_uri(
     force_overwrite: (bool, optional). Defaults to False.
         Whether to overwrite existing files or not.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -1316,7 +1316,7 @@ def copy_file(
     force_overwrite: (bool, optional). Defaults to False.
         Whether to overwrite existing files or not.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
     chunk_size: (int, optinal). Defaults to `DEFAULT_BUFFER_SIZE`
@@ -1379,7 +1379,7 @@ def remove_file(file_path: str, auth: Optional[Dict] = None) -> None:
     file_path: str
         The path of the source file, which can be local path or OCI object storage URI.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -1602,7 +1602,7 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     uri: str
         The URI of the target, which can be local path or OCI object storage URI.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
