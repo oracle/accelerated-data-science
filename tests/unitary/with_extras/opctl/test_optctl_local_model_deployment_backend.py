@@ -4,13 +4,13 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from mock import ANY, patch, MagicMock
+from mock import ANY, patch, MagicMock, PropertyMock
 import pytest
 from ads.opctl.backend.local import LocalModelDeploymentBackend, ModelCustomMetadata, os
+from ads.opctl.backend.base import create_signer, OCIClientFactory
 
 
 class TestLocalModelDeploymentBackend:
-
     @property
     def config(self):
         return {
@@ -28,35 +28,36 @@ class TestLocalModelDeploymentBackend:
                 "ocid": "fake_id",
                 "compartment_id": "fake_id",
                 "project_id": "fake_id",
-                "payload": "fake_data"
-               
+                "payload": "fake_data",
+                "bucket_uri": "fake_bucket",
             },
-             "infrastructure": {},
-             
+            "infrastructure": {},
         }
-        
+
     @property
     def backend(self):
         return LocalModelDeploymentBackend(config=self.config)
-    
+
     @property
     def custom_metadata(self):
         custom_metadata = ModelCustomMetadata()
         custom_metadata.add(key="CondaEnvironmentPath", value="fake_path")
         custom_metadata.add(key="SlugName", value="fake_slug")
         return custom_metadata
-    
+
     @patch.object(ModelCustomMetadata, "_from_oci_metadata")
-    def test__get_conda_info_from_custom_metadata(self, mock_custom_metadata, ):
-        
+    def test__get_conda_info_from_custom_metadata(
+        self,
+        mock_custom_metadata,
+    ):
         mock_custom_metadata.return_value = self.custom_metadata
-        
+
         backend = LocalModelDeploymentBackend(config=self.config)
         backend.client.get_model = MagicMock()
-        conda_slug, conda_path= backend._get_conda_info_from_custom_metadata("fake_id")
+        conda_slug, conda_path = backend._get_conda_info_from_custom_metadata("fake_id")
         assert conda_slug == "fake_slug"
         assert conda_path == "fake_path"
-    
+
     def test__get_conda_info_from_runtime(self):
         yaml_str = """
 MODEL_ARTIFACT_VERSION: '3.0'
@@ -85,33 +86,90 @@ MODEL_PROVENANCE:
         with open("./runtime.yaml", "w") as f:
             f.write(yaml_str)
 
-        conda_slug, conda_path = LocalModelDeploymentBackend._get_conda_info_from_runtime("./")
-        
+        (
+            conda_slug,
+            conda_path,
+        ) = LocalModelDeploymentBackend._get_conda_info_from_runtime("./")
+
         assert conda_slug == "fake_slug"
         assert conda_path == "fake_path"
-    
+
     @patch("ads.opctl.backend.local.os.listdir", return_value=["path"])
     @patch("ads.opctl.backend.local.os.path.exists", return_value=True)
     def test_predict(self, mock_path_exists, mock_list_dir):
-            with patch("ads.opctl.backend.local._download_model") as mock__download:
-                with patch.object(LocalModelDeploymentBackend, "_get_conda_info_from_custom_metadata", return_value = ("fake_slug", "fake_path")):
-                    with patch.object(LocalModelDeploymentBackend, "_get_conda_info_from_runtime"):
-                        with patch.object(LocalModelDeploymentBackend, "_run_with_conda_pack", return_value=0) as mock__run_with_conda_pack:
-                            backend = LocalModelDeploymentBackend(self.config)
-                            backend.predict()
-                            mock__download.assert_not_called()
-                            mock__run_with_conda_pack.assert_called_once_with({os.path.expanduser('~/.oci'): {'bind': '/home/datascience/.oci'}, os.path.expanduser('~/.ads_ops/models/fake_id'): {'bind': '/opt/ds/model/deployed_model/'}}, '/opt/ds/model/deployed_model/ fake_data fake_id fake_id', install=True, conda_uri='fake_path')
-            
+        with patch("ads.opctl.backend.local._download_model") as mock__download:
+            with patch.object(
+                LocalModelDeploymentBackend,
+                "_get_conda_info_from_custom_metadata",
+                return_value=("fake_slug", "fake_path"),
+            ):
+                with patch.object(
+                    LocalModelDeploymentBackend, "_get_conda_info_from_runtime"
+                ):
+                    with patch.object(
+                        LocalModelDeploymentBackend,
+                        "_run_with_conda_pack",
+                        return_value=0,
+                    ) as mock__run_with_conda_pack:
+                        backend = LocalModelDeploymentBackend(self.config)
+                        backend.predict()
+                        mock__download.assert_not_called()
+                        mock__run_with_conda_pack.assert_called_once_with(
+                            {
+                                os.path.expanduser("~/.oci"): {
+                                    "bind": "/home/datascience/.oci"
+                                },
+                                os.path.expanduser("~/.ads_ops/models/fake_id"): {
+                                    "bind": "/opt/ds/model/deployed_model/"
+                                },
+                            },
+                            "/opt/ds/model/deployed_model/ fake_data fake_id fake_id",
+                            install=True,
+                            conda_uri="fake_path",
+                        )
 
     @patch("ads.opctl.backend.local.os.listdir", return_value=["path"])
     @patch("ads.opctl.backend.local.os.path.exists", return_value=False)
-    def test_predict_download(self, mock_path_exists, mock_list_dir):
-            with patch("ads.opctl.backend.local._download_model") as mock__download:
-                with patch.object(LocalModelDeploymentBackend, "_get_conda_info_from_custom_metadata", return_value = ("fake_slug", "fake_path")):
-                    with patch.object(LocalModelDeploymentBackend, "_get_conda_info_from_runtime"):
-                        with patch.object(LocalModelDeploymentBackend, "_run_with_conda_pack", return_value=0) as mock__run_with_conda_pack:
-                            backend = LocalModelDeploymentBackend(self.config)
-                            backend.predict()
-                            mock__download.assert_called_once_with(ocid='fake_id', artifact_directory=os.path.expanduser('~/.ads_ops/models/fake_id'), region=None, bucket_uri=None, timeout=None)
-                            mock__run_with_conda_pack.assert_called_once_with({os.path.expanduser('~/.oci'): {'bind': '/home/datascience/.oci'}, os.path.expanduser('~/.ads_ops/models/fake_id'): {'bind': '/opt/ds/model/deployed_model/'}}, '/opt/ds/model/deployed_model/ fake_data fake_id fake_id', install=True, conda_uri='fake_path')
-            
+    def test_predict_download(
+        self, mock_path_exists, mock_list_dir
+    ): 
+        with patch("ads.opctl.backend.local._download_model") as mock__download:
+            with patch.object(
+                LocalModelDeploymentBackend,
+                "_get_conda_info_from_custom_metadata",
+                return_value=("fake_slug", "fake_path"),
+            ):
+                with patch.object(
+                    LocalModelDeploymentBackend, "_get_conda_info_from_runtime"
+                ):
+                    with patch.object(
+                        LocalModelDeploymentBackend,
+                        "_run_with_conda_pack",
+                        return_value=0,
+                    ) as mock__run_with_conda_pack:
+                        backend = LocalModelDeploymentBackend(self.config)
+                        backend.predict()
+                        mock__download.assert_called_once_with(
+                            oci_auth=backend.oci_auth,
+                            ocid="fake_id",
+                            artifact_directory=os.path.expanduser(
+                                "~/.ads_ops/models/fake_id"
+                            ),
+                            region=None,
+                            bucket_uri="fake_bucket",
+                            timeout=None,
+                            force_overwrite=True,
+                        )
+                        mock__run_with_conda_pack.assert_called_once_with(
+                            {
+                                os.path.expanduser("~/.oci"): {
+                                    "bind": "/home/datascience/.oci"
+                                },
+                                os.path.expanduser("~/.ads_ops/models/fake_id"): {
+                                    "bind": "/opt/ds/model/deployed_model/"
+                                },
+                            },
+                            "/opt/ds/model/deployed_model/ fake_data fake_id fake_id",
+                            install=True,
+                            conda_uri="fake_path",
+                        )

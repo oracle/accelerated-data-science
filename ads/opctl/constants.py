@@ -27,6 +27,7 @@ DEFAULT_IMAGE_SCRIPT_DIR = "/etc/datascience"
 DEFAULT_IMAGE_CONDA_DIR = "/opt/conda/envs"
 DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR = "/home/datascience/spark_conf_dir"
 DEFAULT_NOTEBOOK_SESSION_CONDA_DIR = "/home/datascience/conda"
+DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 
 
 class BACKEND_NAME(Enum):

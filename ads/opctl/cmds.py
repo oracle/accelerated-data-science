@@ -21,7 +21,7 @@ from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalPipelineBackend,
-    LocalModelDeploymentBackend
+    LocalModelDeploymentBackend,
 )
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
@@ -67,7 +67,7 @@ from ads.opctl.utils import (
     run_command,
 )
 
-
+from ads.opctl import logger
 
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
@@ -75,7 +75,7 @@ class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     DATAFLOW = "dataflowapplication"
     PIPELINE = "datasciencepipeline"
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
-    MODEL = "datascience"
+    MODEL = "datasciencemodel"
 
 
 class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
@@ -93,7 +93,7 @@ DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
     DataScienceResource.PIPELINE: "pipeline",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
     DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
-    DataScienceResource.MODEL: "deployment"
+    DataScienceResource.MODEL: "deployment",
 }
 
 DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
@@ -115,7 +115,7 @@ class _BackendFactory:
     LOCAL_BACKENDS_MAP = {
         BACKEND_NAME.JOB.value: LocalBackend,
         BACKEND_NAME.PIPELINE.value: LocalPipelineBackend,
-        BACKEND_NAME.MODEL_DEPLOYMENT.value: LocalModelDeploymentBackend
+        BACKEND_NAME.MODEL_DEPLOYMENT.value: LocalModelDeploymentBackend,
     }
 
     def __init__(self, config: Dict):
@@ -132,7 +132,6 @@ class _BackendFactory:
     @property
     def backend(self):
         if self._backend == BACKEND_NAME.LOCAL.value:
-
             kind = self.config.get("kind")
             if kind not in self.LOCAL_BACKENDS_MAP:
                 options = [backend for backend in self.LOCAL_BACKENDS_MAP.keys()]
@@ -299,7 +298,6 @@ def run_diagnostics(config: Dict, **kwargs) -> Dict:
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
-
         config = update_config_image(config)
         cluster_def = YamlSpecParser.parse_content(config)
 
@@ -475,7 +473,7 @@ def deactivate(**kwargs) -> None:
 def predict(**kwargs) -> None:
     """
     Make prediction using the model with the payload.
-    
+
     Parameters
     ----------
     kwargs: dict
@@ -491,7 +489,7 @@ def predict(**kwargs) -> None:
     else:
         # model ocid or artifact directory
         return LocalModelDeploymentBackend(p.config).predict()
-    
+
 
 def init_vscode(**kwargs) -> None:
     """

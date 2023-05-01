@@ -503,15 +503,61 @@ def deactivate(**kwargs):
 
 
 @commands.command()
-@click.option("--ocid", nargs=1, required=False, help="This can be either a model id or model deployment id. When model id is passed, it conducts a local predict/test. This is designed for local dev purpose in order to test whether deployment will be successful locally. When you pass in `model_save_folder`, the model artifact will be downloaded and saved to a subdirectory of `model_save_folder` where model id is the name of subdirectory. Or you can pass in a model deployment id and this will invoke the remote endpoint and conduct a prediction on the server.")
-@click.option("--model-save-folder", nargs=1, required=False, default=DEFAULT_MODEL_FOLDER, help="Which location to store model artifact folders. Defaults to ~/.ads_ops/models. This is only used when model id is passed to `ocid` and a local predict is conducted.")
-@click.option("--conda-pack-folder", nargs=1, required=False, help="Which location to store the conda pack locally. Defaults to ~/.ads_ops/conda. This is only used when model id is passed to `ocid` and a local predict is conducted.")
-@click.option("--bucket-uri", nargs=1, required=False, help="The OCI Object Storage URI where model artifacts will be copied to. The `bucket_uri` is only necessary for uploading large artifacts which size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`. This is only used when the model id is passed.")
-@click.option("--region", nargs=1, required=False, help="The destination Object Storage bucket region. By default the value will be extracted from the `OCI_REGION_METADATA` environment variables. This is only used when the model id is passed.")
-@click.option("--timeout", nargs=1, required=False, help="The connection timeout in seconds for the client. This is only used when the model id is passed.")
-@click.option("--artifact-directory", nargs=1, required=False, default=None, help="The artifact directory where stores your models, score.py and etc. This is used when you have a model artifact locally and have not saved it to the model catalog yet. In this case, you dont need to pass in model ")
-@click.option("--payload", nargs=1, help="The payload sent to the model for prediction.")
-@click.option("--conda-slug", nargs=1, required=False, help="The conda env used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.")
+@click.option(
+    "--ocid",
+    nargs=1,
+    required=False,
+    help="This can be either a model id or model deployment id. When model id is passed, it conducts a local predict/test. This is designed for local dev purpose in order to test whether deployment will be successful locally. When you pass in `model_save_folder`, the model artifact will be downloaded and saved to a subdirectory of `model_save_folder` where model id is the name of subdirectory. Or you can pass in a model deployment id and this will invoke the remote endpoint and conduct a prediction on the server.",
+)
+@click.option(
+    "--model-save-folder",
+    nargs=1,
+    required=False,
+    default=DEFAULT_MODEL_FOLDER,
+    help="Which location to store model artifact folders. Defaults to ~/.ads_ops/models. This is only used when model id is passed to `ocid` and a local predict is conducted.",
+)
+@click.option(
+    "--conda-pack-folder",
+    nargs=1,
+    required=False,
+    help="Which location to store the conda pack locally. Defaults to ~/.ads_ops/conda. This is only used when model id is passed to `ocid` and a local predict is conducted.",
+)
+@click.option(
+    "--bucket-uri",
+    nargs=1,
+    required=False,
+    help="The OCI Object Storage URI where model artifacts will be copied to. The `bucket_uri` is only necessary for uploading large artifacts which size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`. This is only used when the model id is passed.",
+)
+@click.option(
+    "--region",
+    nargs=1,
+    required=False,
+    help="The destination Object Storage bucket region. By default the value will be extracted from the `OCI_REGION_METADATA` environment variables. This is only used when the model id is passed.",
+)
+@click.option(
+    "--timeout",
+    nargs=1,
+    required=False,
+    help="The connection timeout in seconds for the client. This is only used when the model id is passed.",
+)
+@click.option(
+    "--artifact-directory",
+    nargs=1,
+    required=False,
+    default=None,
+    help="The artifact directory where stores your models, score.py and etc. This is used when you have a model artifact locally and have not saved it to the model catalog yet. In this case, you dont need to pass in model ",
+)
+@click.option(
+    "--payload",
+    nargs=1,
+    help="The payload sent to the model for prediction. For example, --payload '[[-1.68671955,-0.27358368,0.82731396,-0.14530245,0.80733585]]'.",
+)
+@click.option(
+    "--conda-slug",
+    nargs=1,
+    required=False,
+    help="The conda env used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
+)
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def predict(**kwargs):
     """

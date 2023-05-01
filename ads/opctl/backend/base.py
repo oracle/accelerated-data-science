@@ -8,22 +8,24 @@ from abc import abstractmethod
 from typing import Dict
 
 from ads.common.auth import create_signer
+from ads.common.oci_client import OCIClientFactory
 
 
 class Backend:
     """Interface for backend"""
 
     def __init__(self, config: Dict) -> None:
-        
         self.config = config
-        self.oci_auth = create_signer(
-            config["execution"].get("auth"),
-            config["execution"].get("oci_config", None),
-            config["execution"].get("oci_profile", None),
-        )
         self.auth_type = config["execution"].get("auth")
         self.profile = config["execution"].get("oci_profile", None)
+        self.oci_config = config["execution"].get("oci_config", None)
 
+        self.oci_auth = create_signer(
+            self.auth_type,
+            self.oci_config,
+            self.profile,
+        )
+        self.client = OCIClientFactory(**self.oci_auth).data_science
 
     @abstractmethod
     def run(self) -> Dict:
@@ -98,7 +100,7 @@ class Backend:
 
     def predict(self) -> None:
         """
-        Deactivate a remote service.
+        Run model predict.
 
         Returns
         -------
