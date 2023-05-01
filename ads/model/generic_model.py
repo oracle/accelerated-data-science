@@ -367,6 +367,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         self.model_file_name = None
         self.artifact_dir = _prepare_artifact_dir(artifact_dir)
+        self.local_copy_dir = self.artifact_dir
         self.model_artifact = None
         self.framework = None
         self.algorithm = None
@@ -936,16 +937,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         uri_dst = os.path.join(self.artifact_dir, ".model-ignore")
         utils.copy_file(uri_src=uri_src, uri_dst=uri_dst, force_overwrite=True)
 
-        try:
-            local_copy_dir = self._artifact_dir
-        except AttributeError:
-            local_copy_dir = None
-
         self.model_artifact = ModelArtifact(
             artifact_dir=self.artifact_dir,
             model_file_name=self.model_file_name,
             auth=self.auth,
-            local_copy_dir=local_copy_dir,
+            local_copy_dir=self.local_copy_dir,
         )
         self.runtime_info = self.model_artifact.prepare_runtime_yaml(
             inference_conda_env=self.properties.inference_conda_env,
@@ -1873,13 +1869,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
         self.properties.project_id = self.properties.project_id or PROJECT_OCID
 
-        try:
-            artifact_dir = self._artifact_dir
-        except AttributeError:
-            artifact_dir = self.artifact_dir
         # check if the runtime_info sync with the runtime.yaml.
         try:
-            runtime_file_path = os.path.join(artifact_dir, "runtime.yaml")
+            runtime_file_path = os.path.join(self.local_copy_dir, "runtime.yaml")
             runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
             if self.runtime_info != runtime_info_from_yaml:
                 raise RuntimeInfoInconsistencyError(
@@ -1930,7 +1922,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_description(description)
             .with_freeform_tags(**(freeform_tags or {}))
             .with_defined_tags(**(defined_tags or {}))
-            .with_artifact(artifact_dir)
+            .with_artifact(self.local_copy_dir)
             .with_model_version_set_id(model_version_set_id)
             .with_version_label(version_label)
         ).create(
