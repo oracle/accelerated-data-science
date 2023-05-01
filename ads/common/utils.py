@@ -1249,7 +1249,7 @@ def copy_from_uri(
     ValueError
         If destination path is already exist and `force_overwrite` is set to False.
     """
-    if os.path.exists(to_path) and len(os.listdir(to_path)) > 0:
+    if os.path.exists(to_path):
         if not force_overwrite:
             raise ValueError(
                 "The destination path already exists. "

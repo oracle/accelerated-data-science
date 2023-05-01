@@ -227,7 +227,7 @@ class ModelArtifact:
             runtime_info.model_provenance.training_code.artifact_directory = (
                 self.artifact_dir
             )
-            runtime_info.save(auth=auth)
+            runtime_info.save(storage_options=auth)
             return runtime_info
         inference_conda_env = ModelArtifact._populate_env_info(
             InferenceEnvInfo,
@@ -271,7 +271,7 @@ class ModelArtifact:
                 "Set `force_overwrite` to True to overwrite all the files."
             )
         else:
-            runtime_info.save(auth=auth)
+            runtime_info.save(storage_options=auth)
         return runtime_info
 
     @staticmethod
@@ -442,18 +442,23 @@ class ModelArtifact:
 
         artifact_dir = (
             artifact_dir
-            if utils.is_oci_path(artifact_dir)
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
             else os.path.join(os.path.abspath(os.path.expanduser(artifact_dir)), "")
         )
 
-        if not utils.is_oci_path(uri):
+        if not ObjectStorageDetails.is_oci_path(uri):
             uri = os.path.join(os.path.abspath(os.path.expanduser(uri)).rstrip("/"), "")
         auth = auth or authutil.default_signer()
 
         to_path = (
-            tempfile.mkdtemp() if utils.is_oci_path(artifact_dir) else artifact_dir
+            tempfile.mkdtemp()
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else artifact_dir
         )
-        if artifact_dir == uri and not utils.is_oci_path(artifact_dir):
+        force_overwrite = (
+            True if ObjectStorageDetails.is_oci_path(artifact_dir) else force_overwrite
+        )
+        if artifact_dir == uri and not ObjectStorageDetails.is_oci_path(artifact_dir):
             if not utils.is_path_exists(artifact_dir, auth=auth):
                 raise ValueError("Provided `uri` doesn't exist.")
         else:
@@ -477,7 +482,7 @@ class ModelArtifact:
                         uri=temp_dir, to_path=to_path, force_overwrite=True
                     )
 
-        if utils.is_oci_path(artifact_dir):
+        if ObjectStorageDetails.is_oci_path(artifact_dir):
             for root, dirs, files in os.walk(to_path):
                 prefix = (os.path.abspath(root).split(to_path)[-1]).lstrip("/")
                 for file in files:
