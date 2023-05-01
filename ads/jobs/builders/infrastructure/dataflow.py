@@ -41,6 +41,7 @@ SLEEP_INTERVAL = 3
 DEFAULT_LANGUAGE = "PYTHON"
 DEFAULT_SPARK_VERSION = "3.2.1"
 DEFAULT_NUM_EXECUTORS = 1
+DEFAULT_SHAPE = "VM.Standard.E3.Flex"
 
 
 def conda_pack_name_to_dataflow_config(conda_uri):
@@ -366,7 +367,6 @@ class DataFlowLogs:
 
 
 class DataFlow(Infrastructure):
-
     CONST_COMPARTMENT_ID = "compartment_id"
     CONST_CONFIG = "configuration"
     CONST_EXECUTE = "execute"
@@ -422,7 +422,6 @@ class DataFlow(Infrastructure):
         self.df_app = DataFlowApp(**self._spec)
         self.runtime = None
         self._name = None
-
 
     def _load_default_properties(self) -> Dict:
         """
@@ -1133,3 +1132,21 @@ class DataFlow(Infrastructure):
             YAML stored in a string.
         """
         return yaml.safe_dump(self.to_dict(**kwargs))
+
+    def init(self) -> "DataFlow":
+        """Initializes a starter specification for the DataFlow.
+
+        Returns
+        -------
+        DataFlow
+            The DataFlow instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_language(self.language or DEFAULT_LANGUAGE)
+            .with_spark_version(self.spark_version or DEFAULT_SPARK_VERSION)
+            .with_num_executors(self.num_executors or DEFAULT_NUM_EXECUTORS)
+            .with_driver_shape(self.driver_shape or DEFAULT_SHAPE)
+            .with_executor_shape(self.with_executor_shape or DEFAULT_SHAPE)
+        )

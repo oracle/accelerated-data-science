@@ -19,6 +19,11 @@ from ads.jobs.builders.base import Builder
 MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE = "datascienceModelDeployment"
 MODEL_DEPLOYMENT_INFRASTRUCTURE_KIND = "infrastructure"
 
+DEFAULT_BANDWIDTH_MBPS = 10
+DEFAULT_WEB_CONCURRENCY = 10
+DEFAULT_REPLICA = 1
+DEFAULT_SHAPE_NAME = "VM.Standard.E2.4"
+
 logger = logging.getLogger(__name__)
 
 
@@ -152,7 +157,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
         CONST_WEB_CONCURRENCY: "web_concurrency",
-        CONST_SUBNET_ID: "subnet_id"
+        CONST_SUBNET_ID: "subnet_id",
     }
 
     shape_config_details_attribute_map = {
@@ -211,14 +216,15 @@ class ModelDeploymentInfrastructure(Builder):
         if PROJECT_OCID:
             defaults[self.CONST_PROJECT_ID] = PROJECT_OCID
 
+        defaults[self.CONST_BANDWIDTH_MBPS] = DEFAULT_BANDWIDTH_MBPS
+        defaults[self.CONST_WEB_CONCURRENCY] = DEFAULT_WEB_CONCURRENCY
+        defaults[self.CONST_REPLICA] = DEFAULT_REPLICA
+
         if NB_SESSION_OCID:
             try:
                 nb_session = DSCNotebookSession.from_ocid(NB_SESSION_OCID)
                 nb_config = nb_session.notebook_session_configuration_details
                 defaults[self.CONST_SHAPE_NAME] = nb_config.shape
-                defaults[self.CONST_BANDWIDTH_MBPS] = 10
-                defaults[self.CONST_WEB_CONCURRENCY] = 10
-                defaults[self.CONST_REPLICA] = 1
 
                 if nb_config.notebook_session_shape_config_details:
                     notebook_shape_config_details = oci_util.to_dict(
@@ -602,3 +608,21 @@ class ModelDeploymentInfrastructure(Builder):
             The model deployment subnet id.
         """
         return self.get_spec(self.CONST_SUBNET_ID, None)
+
+    def init(self) -> "ModelDeploymentInfrastructure":
+        """Initializes a starter specification for the ModelDeploymentInfrastructure.
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            The ModelDeploymentInfrastructure instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_project_id(self.project_id or "{Provide a project OCID}")
+            .with_bandwidth_mbps(self.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS)
+            .with_web_concurrency(self.web_concurrency or DEFAULT_WEB_CONCURRENCY)
+            .with_replica(self.replica or DEFAULT_REPLICA)
+            .with_shape_name(self.shape_name or DEFAULT_SHAPE_NAME)
+        )

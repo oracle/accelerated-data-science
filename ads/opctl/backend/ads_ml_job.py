@@ -101,14 +101,15 @@ class MLJobBackend(Backend):
                     "{Job name. For the MLFlow will be auto replaced with the Project name}"
                 )
                 .with_infrastructure(
-                    DataScienceJob(**(self.config.get("infrastructure", {}) or {}))
+                    DataScienceJob(
+                        **(self.config.get("infrastructure", {}) or {})
+                    ).init()
                 )
                 .with_runtime(
                     JobRuntimeFactory.get_runtime(
                         key=runtime_type or PythonRuntime().type
                     ).init()
                 )
-                .build()
             )
 
             note = (

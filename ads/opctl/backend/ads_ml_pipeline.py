@@ -120,7 +120,7 @@ class PipelineBackend(Backend):
             pipeline_step = (
                 PipelineStep("pipeline_step_name_1")
                 .with_description("A step running a python script")
-                .with_infrastructure(CustomScriptStep().build())
+                .with_infrastructure(CustomScriptStep().init())
                 .with_runtime(
                     JobRuntimeFactory.get_runtime(
                         key=runtime_type or PythonRuntime().type
@@ -136,7 +136,7 @@ class PipelineBackend(Backend):
                 )
                 .with_step_details([pipeline_step])
                 .with_dag(["pipeline_step_name_1"])
-                .build()
+                .init()
             )
 
             note = (

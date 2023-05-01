@@ -1438,6 +1438,21 @@ class DataScienceJob(Infrastructure):
         self._update_from_dsc_model(self.dsc_job, overwrite=False)
         return self
 
+    def init(self) -> DataScienceJob:
+        """Initializes a starter specification for the DataScienceJob.
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_project_id(self.project_id or "{Provide a project OCID}")
+            .with_subnet_id(self.subnet_id or "{Provide a subnet OCID}")
+        )
+
     def create(self, runtime, **kwargs) -> DataScienceJob:
         """Creates a job with runtime.
 

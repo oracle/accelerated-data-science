@@ -1981,6 +1981,21 @@ class Pipeline(Builder):
             return self.data_science_pipeline.lifecycle_state
         return None
 
+    def init(self) -> "Pipeline":
+        """Initializes a starter specification for the Pipeline.
+
+        Returns
+        -------
+        Pipeline
+            The Pipeline instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_project_id(self.project_id or "{Provide a project OCID}")
+        )
+
+
 
 class DataSciencePipeline(OCIDataScienceMixin, oci.data_science.models.Pipeline):
     @classmethod

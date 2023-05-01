@@ -72,14 +72,13 @@ class ModelDeploymentBackend(Backend):
                 .with_infrastructure(
                     ModelDeploymentInfrastructure(
                         **(self.config.get("infrastructure", {}) or {})
-                    )
+                    ).init()
                 )
                 .with_runtime(
                     ModelDeploymentRuntimeFactory.get_runtime(
                         key=runtime_type or ModelDeploymentCondaRuntime().type
                     ).init()
                 )
-                .build()
             )
 
             note = (

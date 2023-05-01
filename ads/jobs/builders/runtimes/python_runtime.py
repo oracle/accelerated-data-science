@@ -125,7 +125,10 @@ class CondaRuntime(Runtime):
             The runtime instance.
         """
         super().init()
-        return self.with_custom_conda("oci://your_bucket@namespace/object_name")
+        return self.with_custom_conda(
+            "{Path to the custom conda environment. "
+            "Example: oci://your_bucket@namespace/object_name"
+        )
 
 
 class ScriptRuntime(CondaRuntime):
@@ -254,10 +257,10 @@ class ScriptRuntime(CondaRuntime):
         super().init()
         return (
             self.with_entrypoint(
-                "{Entry point script. For the MLflow will be replaced with the CMD}"
+                "{Entrypoint script. For MLFlow, it will be replaced with the CMD}"
             )
             .with_script(
-                "{Path to the script. For the MLFlow will be replaced with path to the project}"
+                "{Path to the script. For MLFlow, it will be replaced with the path to the project}"
             )
             .with_argument(key1="val1")
         )
@@ -442,12 +445,12 @@ class PythonRuntime(ScriptRuntime, _PythonRuntimeMixin):
         """
         super().init()
         return (
-            self.with_working_dir("{For the MLflow the project folder will be used.}")
+            self.with_working_dir("{For MLflow the project folder will be used.}")
             .with_entrypoint(
-                "{Entry point script. For the MLFlow will be replaced with the CMD}"
+                "{Entrypoint script. For MLFlow, it will be replaced with the CMD}"
             )
             .with_script(
-                "{Path to the script. For the MLFlow will be replaced with path to the project}"
+                "{Path to the script. For MLFlow, it will be replaced with the path to the project}"
             )
         )
 
@@ -630,8 +633,8 @@ class NotebookRuntime(CondaRuntime):
         """
         super().init()
         return self.with_source(
-            uri="{Path to the source code directory. For the MLFlow will be replaced with path to the project}",
-            notebook="{Entry point notebook. For the MLFlow will be replaced with the CMD}",
+            uri="{Path to the source code directory. For MLflow, it will be replaced with the path to the project}",
+            notebook="{Entrypoint notebook. For MLflow, it will be replaced with the CMD}",
         ).with_exclude_tag("tag1")
 
 
@@ -751,9 +754,9 @@ class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
         """
         super().init()
         return self.with_source(
-            "{Git URI. For the MLFlow will be replaced with the Project URI}"
+            "{Git URI. For MLFlow, it will be replaced with the Project URI}"
         ).with_entrypoint(
-            "{Entry point script. For the MLflow will be replaced with the CMD}"
+            "{Entry point script. For MLFlow, it will be replaced with the CMD}"
         )
 
 
@@ -976,10 +979,12 @@ class DataFlowRuntime(CondaRuntime):
         self._spec.pop(self.CONST_ENV_VAR, None)
         return (
             self.with_script_uri(
-                "{Path to the executable script. For the MLFlow will be replaced with the CMD}"
+                "{Path to the executable script. For MLFlow, it will be replaced with the CMD}"
             )
-            .with_argument(key1="val1")
-            .with_script_bucket("oci://<bucket_name>@<tenancy>/<prefix>")
+            .with_script_bucket(
+                "{The object storage bucket to save a script. "
+                "Example: oci://<bucket_name>@<tenancy>/<prefix>}"
+            )
             .with_overwrite(True)
             .with_configuration({"spark.driverEnv.env_key": "env_value"})
         )

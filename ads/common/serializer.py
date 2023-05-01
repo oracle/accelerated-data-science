@@ -243,7 +243,7 @@ class Serializable(ABC):
         """
         note = kwargs.pop("note", "")
 
-        yaml_string = note + yaml.dump(self.to_dict(**kwargs), Dumper=dumper)
+        yaml_string = f"{note}\n" + yaml.dump(self.to_dict(**kwargs), Dumper=dumper)
         if uri:
             self._write_to_file(s=yaml_string, uri=uri, **kwargs)
             return None
