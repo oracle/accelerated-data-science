@@ -1880,7 +1880,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # check if the runtime_info sync with the runtime.yaml.
         try:
             runtime_file_path = os.path.join(artifact_dir, "runtime.yaml")
-            runtime_info_from_yaml = RuntimeInfo(uri=runtime_file_path)
+            runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
             if self.runtime_info != runtime_info_from_yaml:
                 raise RuntimeInfoInconsistencyError(
                     "`.runtime_info` does not sync with runtime.yaml file. Call "
