@@ -19,39 +19,57 @@ def download_model(**kwargs):
     oci_auth = create_signer(
         auth_type,
         oci_config,
-        profile ,
+        profile,
     )
-    model_folder = os.path.expanduser(p.config["execution"].get("model_save_folder", DEFAULT_MODEL_FOLDER))
+    model_folder = os.path.expanduser(
+        p.config["execution"].get("model_save_folder", DEFAULT_MODEL_FOLDER)
+    )
     force_overwrite = p.config["execution"].get("force_overwrite", False)
-    
-    artifact_directory = os.path.join(model_folder, str(ocid))
-    if (not os.path.exists(artifact_directory) or len(os.listdir(artifact_directory)) == 0) or force_overwrite:
 
+    artifact_directory = os.path.join(model_folder, str(ocid))
+    if (
+        not os.path.exists(artifact_directory)
+        or len(os.listdir(artifact_directory)) == 0
+    ) or force_overwrite:
         region = p.config["execution"].get("region", None)
         bucket_uri = p.config["execution"].get("bucket_uri", None)
         timeout = p.config["execution"].get("timeout", None)
-        logger.info(f"No cached model found. Downloading the model {ocid} to {artifact_directory}. If you already have a copy of the model, specify `artifact_directory` instead of `ocid`. You can specify `model_save_folder` to decide where to store the model artifacts.")
-        _download_model(ocid=ocid, artifact_directory=artifact_directory, region=region, bucket_uri=bucket_uri, timeout=timeout, force_overwrite=force_overwrite, oci_auth=oci_auth)
+        logger.info(
+            f"No cached model found. Downloading the model {ocid} to {artifact_directory}. If you already have a copy of the model, specify `artifact_directory` instead of `ocid`. You can specify `model_save_folder` to decide where to store the model artifacts."
+        )
+        _download_model(
+            ocid=ocid,
+            artifact_directory=artifact_directory,
+            region=region,
+            bucket_uri=bucket_uri,
+            timeout=timeout,
+            force_overwrite=force_overwrite,
+            oci_auth=oci_auth,
+        )
     else:
         logger.error(f"Model already exists. Set `force_overwrite=True` to overwrite.")
-        raise ValueError(f"Model already exists. Set `force_overwrite=True` to overwrite.")
+        raise ValueError(
+            f"Model already exists. Set `force_overwrite=True` to overwrite."
+        )
 
 
-def _download_model(ocid, artifact_directory, oci_auth, region, bucket_uri, timeout, force_overwrite):
+def _download_model(
+    ocid, artifact_directory, oci_auth, region, bucket_uri, timeout, force_overwrite
+):
     os.makedirs(artifact_directory, exist_ok=True)
     os.chmod(artifact_directory, 777)
-    
+
     try:
         dsc_model = DataScienceModel.from_id(ocid)
         dsc_model.download_artifact(
-        target_dir=artifact_directory,
-        force_overwrite=force_overwrite,
-        overwrite_existing_artifact=True,
-        remove_existing_artifact=True,
-        auth=oci_auth,
-        region=region,
-        timeout=timeout,
-        bucket_uri=bucket_uri,
+            target_dir=artifact_directory,
+            force_overwrite=force_overwrite,
+            overwrite_existing_artifact=True,
+            remove_existing_artifact=True,
+            auth=oci_auth,
+            region=region,
+            timeout=timeout,
+            bucket_uri=bucket_uri,
         )
     except Exception as e:
         print(type(e))
