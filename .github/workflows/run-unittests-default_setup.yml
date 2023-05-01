@@ -77,7 +77,6 @@ jobs:
         timeout-minutes: 15
         shell: bash
         env:
-          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           NoDependency: True
         run: |
           set -x # print commands that are executed
