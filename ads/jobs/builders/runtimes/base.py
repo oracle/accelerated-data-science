@@ -24,10 +24,12 @@ class Runtime(Builder):
     CONST_ENV_VAR = "env"
     CONST_ARGS = "args"
     CONST_MAXIMUM_RUNTIME_IN_MINUTES = "maximumRuntimeInMinutes"
-    CONST_TAG = "freeformTags"
+    CONST_FREEFORM_TAGS = "freeformTags"
+    CONST_DEFINED_TAGS = "definedTags"
 
     attribute_map = {
-        CONST_TAG: "freeform_tags",
+        CONST_FREEFORM_TAGS: "freeform_tags",
+        CONST_DEFINED_TAGS: "defined_tags",
         CONST_ENV_VAR: CONST_ENV_VAR,
     }
 
@@ -171,7 +173,17 @@ class Runtime(Builder):
         Self
             This method returns self to support chaining methods.
         """
-        return self.set_spec(self.CONST_TAG, kwargs)
+        return self.set_spec(self.CONST_FREEFORM_TAGS, kwargs)
+
+    def with_defined_tag(self: Self, **kwargs) -> Self:
+        """Sets defined tag
+
+        Returns
+        -------
+        Self
+            This method returns self to support chaining methods.
+        """
+        return self.set_spec(self.CONST_DEFINED_TAGS, kwargs)
 
     def with_maximum_runtime_in_minutes(
         self: Self, maximum_runtime_in_minutes: int
@@ -210,7 +222,12 @@ class Runtime(Builder):
     @property
     def freeform_tags(self) -> dict:
         """freeform_tags"""
-        return self.get_spec(self.CONST_TAG, {})
+        return self.get_spec(self.CONST_FREEFORM_TAGS, {})
+
+    @property
+    def defined_tags(self) -> dict:
+        """defined_tags"""
+        return self.get_spec(self.CONST_DEFINED_TAGS, {})
 
     @property
     def args(self) -> list:
