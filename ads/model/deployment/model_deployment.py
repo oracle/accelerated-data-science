@@ -1538,6 +1538,9 @@ class ModelDeployment(Builder):
                 or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
             }
 
+        if infrastructure.subnet_id:
+            instance_configuration[infrastructure.CONST_SUBNET_ID] = infrastructure.subnet_id
+
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
             infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
