@@ -88,10 +88,10 @@ class ADSDataset(PandasDataset):
         # to keep performance high and linear no matter the size of the distributed dataset we
         # create a pandas df that's used internally because this has a fixed upper size.
         #
-        if not isinstance(shape, Tuple):
+        if shape is None:
             shape = df.shape
 
-        if not isinstance(sampled_df, pd.DataFrame):
+        if sampled_df is None:
             sampled_df = generate_sample(
                 df,
                 shape[0],

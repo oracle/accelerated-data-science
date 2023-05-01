@@ -77,9 +77,9 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
         **kwargs,
     ):
         self.recommendation_transformer = None
-        if not isinstance(shape, Tuple):
+        if shape is None:
             shape = df.shape
-        if not isinstance(sampled_df, pd.DataFrame):
+        if sampled_df is None:
             sampled_df = generate_sample(
                 df,
                 shape[0],
@@ -161,7 +161,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
             cols.insert(0, cols.pop(cols.index(target)))
             self.sampled_df = self.sampled_df[[*cols]]
 
-        if not isinstance(target_type, TypedFeature):
+        if target_type is None:
             target_type = get_target_type(target, sampled_df, **kwargs)
         self.target = TargetVariable(self, target, target_type)
 
@@ -192,7 +192,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
         from ads.dataset.forecasting_dataset import ForecastingDataset
         from ads.dataset.regression_dataset import RegressionDataset
 
-        if not isinstance(sampled_df, pd.DataFrame):
+        if sampled_df is None:
             sampled_df = generate_sample(
                 df,
                 (shape or df.shape)[0],
@@ -201,7 +201,7 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
                 **init_kwargs,
             )
             
-        if not isinstance(target_type, TypedFeature):
+        if target_type is None:
             target_type = get_target_type(target, sampled_df, **init_kwargs)
 
         if len(df[target].dropna()) == 0:
