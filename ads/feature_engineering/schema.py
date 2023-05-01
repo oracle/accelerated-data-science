@@ -682,13 +682,16 @@ class Schema:
         """
         return json.dumps(self.to_dict()).replace("NaN", "null")
 
-    def to_json_file(self, file_path, storage_options=None):
+    def to_json_file(self, file_path, storage_options: dict = None):
         """Saves the data schema into a json file.
 
         Parameters
         ----------
         file_path : str
             File Path to store the schema in json format.
+        storage_options: dict. Default None
+            Parameters passed on to the backend filesystem class.
+            Defaults to `storage_options` set using `DatasetFactory.set_default_storage()`.
 
         Returns
         -------
