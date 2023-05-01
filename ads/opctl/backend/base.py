@@ -8,7 +8,7 @@ from abc import abstractmethod
 from typing import Dict
 
 from ads.common.auth import create_signer
-from ads.common.oci_client import OCIClientFactory
+
 
 
 class Backend:
@@ -20,12 +20,6 @@ class Backend:
         self.profile = config["execution"].get("oci_profile", None)
         self.oci_config = config["execution"].get("oci_config", None)
 
-        self.oci_auth = create_signer(
-            self.auth_type,
-            self.oci_config,
-            self.profile,
-        )
-        self.client = OCIClientFactory(**self.oci_auth).data_science
 
     @abstractmethod
     def run(self) -> Dict:

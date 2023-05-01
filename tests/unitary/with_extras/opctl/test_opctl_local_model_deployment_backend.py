@@ -6,8 +6,8 @@
 
 from mock import ANY, patch, MagicMock, PropertyMock
 import pytest
-from ads.opctl.backend.local import LocalModelDeploymentBackend, ModelCustomMetadata, os
-from ads.opctl.backend.base import create_signer, OCIClientFactory
+from ads.opctl.backend.local import LocalModelDeploymentBackend, ModelCustomMetadata, os, create_signer, OCIClientFactory
+
 
 
 class TestLocalModelDeploymentBackend:

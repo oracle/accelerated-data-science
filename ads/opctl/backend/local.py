@@ -51,7 +51,7 @@ from ads.opctl.utils import (
     run_container,
 )
 from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
-
+from ads.common.oci_client import OCIClientFactory
 
 class CondaPackNotFound(Exception):  # pragma: no cover
     pass
@@ -663,6 +663,12 @@ class LocalModelDeploymentBackend(LocalBackend):
             dictionary of configurations
         """
         super().__init__(config)
+        self.oci_auth = create_signer(
+            self.auth_type,
+            self.oci_config,
+            self.profile,
+        )
+        self.client = OCIClientFactory(**self.oci_auth).data_science
 
     def predict(self) -> None:
         """
