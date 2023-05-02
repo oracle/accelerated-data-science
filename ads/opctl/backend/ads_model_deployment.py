@@ -126,7 +126,12 @@ class ModelDeploymentBackend(Backend):
     def predict(self) -> None:
         ocid = self.config["execution"].get("ocid")
         data = self.config["execution"].get("payload")
+        model_name = self.config["execution"].get("model_name")
+        model_version = self.config["execution"].get("model_version")
         with AuthContext(auth=self.auth_type, profile=self.profile):
             model_deployment = ModelDeployment.from_id(ocid)
-            data = json.loads(data)
-            print(model_deployment.predict(data))
+            try:
+                data = json.loads(data)
+            except:
+                pass
+            print(model_deployment.predict(data=data, model_name=model_name, model_version=model_version))

@@ -558,6 +558,8 @@ def deactivate(**kwargs):
     required=False,
     help="The conda env used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
 )
+@click.option("--model-version", nargs=1, required=False, help="When the `inference_server='triton'`, the version of the model to invoke. This can only be used when model deployment id is passed in. For the other cases, it will be ignored.")
+@click.option("--model-name", nargs=1, required=False, help="When the `inference_server='triton'`, the name of the model to invoke. This can only be used when model deployment id is passed in. For the other cases, it will be ignored.")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def predict(**kwargs):
     """
