@@ -4,11 +4,16 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 from typing import Dict
-from ads.common.auth import create_signer, AuthContext
+
+from oci.data_science.models import ModelDeployment as OCIModelDeployment
+
+import ads
+from ads.common.auth import AuthContext, create_signer
 from ads.common.oci_client import OCIClientFactory
-from ads.opctl.backend.base import Backend
 from ads.model.deployment import ModelDeployment
+from ads.opctl.backend.base import Backend
 
 
 class ModelDeploymentBackend(Backend):
@@ -117,3 +122,16 @@ class ModelDeploymentBackend(Backend):
             model_deployment.watch(
                 log_type=log_type, interval=interval, log_filter=log_filter
             )
+
+    def predict(self) -> None:
+        ocid = self.config["execution"].get("ocid")
+        data = self.config["execution"].get("payload")
+        model_name = self.config["execution"].get("model_name")
+        model_version = self.config["execution"].get("model_version")
+        with AuthContext(auth=self.auth_type, profile=self.profile):
+            model_deployment = ModelDeployment.from_id(ocid)
+            try:
+                data = json.loads(data)
+            except:
+                pass
+            print(model_deployment.predict(data=data, model_name=model_name, model_version=model_version))
