@@ -227,12 +227,12 @@ class TestModelArtifact:
     @patch("ads.model.artifact.ModelArtifact.__init__")
     @patch("ads.model.artifact._validate_artifact_dir")
     @patch("shutil.rmtree")
-    @patch("os.path.exists")
+    @patch("ads.common.utils.is_path_exists")
     @patch("tempfile.TemporaryDirectory")
     def test_from_uri(
         self,
         mock_TemporaryDirectory,
-        mock_os_path_exists,
+        mock_is_path_exists,
         mock_rmtree,
         mock_validate_artifact_dir,
         mock_modelartifact_init,
@@ -244,7 +244,7 @@ class TestModelArtifact:
         mock_TemporaryDirectory.return_value.__enter__.return_value = "tmp_folder"
         mock_default_signer.return_value = {"config": "value"}
         mock_modelartifact_init.return_value = None
-        mock_os_path_exists.return_value = True
+        mock_is_path_exists.return_value = True
         mock_validate_artifact_dir.side_effect = ArtifactNestedFolderError(
             "nested_folder"
         )
