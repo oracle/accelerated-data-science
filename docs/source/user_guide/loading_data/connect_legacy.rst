@@ -287,7 +287,7 @@ You can open Amazon S3 public or private files in ADS. For private files, you mu
       'secret': 'aws secret,
       'blocksize': 1000000,
       'client_kwargs': {
-        "endpoint_url": "https://s3-us-west-1.amazonaws.com"
+      'endpoint_url': 'https://s3-us-west-1.amazonaws.com'
       }
   })
 
