@@ -34,6 +34,42 @@ Refer Cusotmization section for how to change and verify the model artifacts.
 
 The ``score.py`` consists of multiple functions among which the ``load_model`` and ``predict`` are most important.
 
+GPU Deployments
+~~~~~~~~~~~~~~~~
+When deploying your TensorFlow or PyTorch models onto a GPU shape, the ADS generated score.py manages GPU integration for you. It will automatically transfer your data to the GPU (or multiple GPUs) and perform the inference on that GPU. When using ADS 2.8.4 or later, any TensorFlow or PyTorch model artifact can be deployed efficiently on either CPU or GPU regardless of how it was trained.
+
+The Model Deployment Service handles parallelization for you. Whether you have a single or multi GPU deployment, the Model Deployment Service will determine how many replicas of your model can be supported based on the size of your model artifact and the size of your GPU shape. Finally, the auto-generated score.py will randomly assign those replicas across the GPU(s). The following code example registers a PyTorch Model tuned and deployed on GPUs. `Learn more about the Model Deployment Service here. <https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_create.htm>`_
+
+.. code-block:: python3
+
+    import torch
+    import torchvision
+    from ads.common.model_metadata import UseCaseType
+    from ads.model.framework.pytorch_model import PyTorchModel
+
+    model = torchvision.models.resnet18(pretrained=True)
+    model.to("cuda:0")
+    
+    # Tune your model
+    fake_input = torch.Tensor(np.zeros((1, 3, 224, 224))).to("cuda:0")
+    model.forward(fake_input)
+    
+    # Prepare and Register your model
+    model.eval()
+    pytorch_model = PyTorchModel("pytorch_model_artifact", artifact_dir=artifact_dir)
+    pytorch_model.prepare(
+        inference_conda_env="pytorch110_p38_gpu_v1",
+        training_conda_env="pytorch110_p38_gpu_v1",
+        use_case_type=UseCaseType.IMAGE_CLASSIFICATION,
+        force_overwrite=True,
+        use_torch_script=True,
+    )
+    pytorch_model.save()
+    pytorch_model.deploy(deployment_instance_shape="VM.GPU3.2")
+    
+    pytorch_model.predict(fake_input.to_numpy())
+
+
 load_model
 ~~~~~~~~~~
 
