@@ -117,5 +117,5 @@ class TestModelDeploymentBackend:
         backend.predict()
         mock_from_id.assert_called_with("fake_model_id")
         mock_predict.assert_called_with(
-            data="fake_payload", model_name='model_name', model_version='model_version'
+            data="fake_payload", model_name="model_name", model_version="model_version"
         )
