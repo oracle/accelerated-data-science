@@ -69,7 +69,7 @@ For example:
 Local Storage
 =============
 
-To open a dataset from a local source, use ``ADSDataset`` and specify the path of the data file:
+To open a dataset from a local source, use ``pandas`` to load the file into a dataframe, convert it to ``ADSDataset`` and specify the path of the data file:
 
 .. code-block:: python3
 
@@ -128,10 +128,16 @@ You can also use ``cx_Oracle`` within ADS by creating a connection string:
 
   os.environ['TNS_ADMIN'] = creds['tns_admin']
   from ads.dataset.dataset import ADSDataset
-  uri = 'oracle+cx_oracle://' + creds['user'] + ':' + creds['password'] + '@' + creds['sid']
-  ds = ADSDataset(
-    df=pd.read_sql(uri, table=table, index_col=index_col)
-  )
+  with cx_Oracle.connect(creds['user'], creds['password'], creds['sid']) as ora_conn:
+    ds = ADSDataset(
+      df=pd.read_sql('''
+        SELECT ename, dname, job, empno, hiredate, loc
+        FROM emp, dept
+        WHERE emp.deptno = dept.deptno
+        ORDER BY ename
+      ''', con=ora_conn        
+      )
+    )
 
 Autonomous Database
 ===================
@@ -149,19 +155,17 @@ Oracle has two configurations of Autonomous Databases. They are the Autonomous D
 Load from ADB
 -------------
 
-After you have stored the ADB username, password, and database name (SID) as variables, you can build the URI as your connection source.
-
-.. code-block:: python3
-
-    uri = 'oracle+cx_oracle://' + creds['user'] + ':' + creds['password'] + '@' + creds['sid']
-
-You can use ADS to query a table from your database, and then load that table as an ``ADSDatasetWithTarget`` object.
-When you open ``ADSDatasetWithTarget``, specify the name of the table you want to pull using the ``table`` variable for a given table. For SQL expressions, use the table parameter also. For example, *(`table="SELECT * FROM sh.times WHERE rownum <= 30"`)*.
+You can use ADS to query a table from your database, by loading that database as a pandas dataframe and convert it to an ``ADSDataset`` or ``ADSDatasetWithTarget`` object.
+When you call ``pandas``, specify the name of the table you want to pull.
 
 .. code-block:: python3
 
     os.environ['TNS_ADMIN'] = creds['tns_admin']
-    ds = ADSDatasetWithTarget(df=pd.read_sql(uri, table=table), target='label')
+    with cx_Oracle.connect(creds['user'], creds['password'], creds['sid']) as ora_conn:
+      ds = ADSDatasetWithTarget(
+        df=pd.read_sql_table(table, con=ora_conn),
+        target='label'
+      )
 
 Query ADB
 ---------
@@ -291,7 +295,7 @@ You can open Amazon S3 public or private files in ADS. For private files, you mu
 HTTP(S) Sources
 ===============
 
-To open a dataset from a remote web server source, use ``ADSDatasetWithTarget`` and specify the URL of the data:
+To open a dataset from a remote web server source, use ``pandas`` to load the data from URL, convert it to ``ADSDataset`` or ``ADSDatasetWithTarget`` and specify the URL of the data:
 
 .. code-block:: python3
 

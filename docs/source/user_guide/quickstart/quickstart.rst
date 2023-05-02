@@ -60,8 +60,8 @@ to use (regression, binary, and multi-class classification, or time series forec
 
 There are several ways to turn data into an ``ADSDataset``. The simplest way is to
 use `ADSDataset` or `ADSDatasetWithTarget` constructor, which takes as its first argument
-as a ``Pandas Dataframe`` object. The ``Pandas Dataframe`` supports many formats, such as
-Object Storage or S3 files. The
+as a ``Pandas Dataframe`` object. The ``Pandas Dataframe`` supports loading data from many
+URL schemes, such as Object Storage or S3 files. The
 `class documentation <https://docs.cloud.oracle.com/en-us/iaas/tools/ads-sdk/latest/modules.html>_` describes all classes.
 
 For example:
