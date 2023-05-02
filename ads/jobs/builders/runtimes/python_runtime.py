@@ -257,10 +257,10 @@ class ScriptRuntime(CondaRuntime):
         super().init()
         return (
             self.with_entrypoint(
-                "{Entrypoint script. For MLFlow, it will be replaced with the CMD}"
+                "{Entrypoint script. For MLflow, it will be replaced with the CMD}"
             )
             .with_script(
-                "{Path to the script. For MLFlow, it will be replaced with the path to the project}"
+                "{Path to the script. For MLflow, it will be replaced with the path to the project}"
             )
             .with_argument(key1="val1")
         )
@@ -447,10 +447,10 @@ class PythonRuntime(ScriptRuntime, _PythonRuntimeMixin):
         return (
             self.with_working_dir("{For MLflow the project folder will be used.}")
             .with_entrypoint(
-                "{Entrypoint script. For MLFlow, it will be replaced with the CMD}"
+                "{Entrypoint script. For MLflow, it will be replaced with the CMD}"
             )
             .with_script(
-                "{Path to the script. For MLFlow, it will be replaced with the path to the project}"
+                "{Path to the script. For MLflow, it will be replaced with the path to the project}"
             )
         )
 
@@ -754,9 +754,9 @@ class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
         """
         super().init()
         return self.with_source(
-            "{Git URI. For MLFlow, it will be replaced with the Project URI}"
+            "{Git URI. For MLflow, it will be replaced with the Project URI}"
         ).with_entrypoint(
-            "{Entry point script. For MLFlow, it will be replaced with the CMD}"
+            "{Entrypoint script. For MLflow, it will be replaced with the CMD}"
         )
 
 
@@ -979,7 +979,7 @@ class DataFlowRuntime(CondaRuntime):
         self._spec.pop(self.CONST_ENV_VAR, None)
         return (
             self.with_script_uri(
-                "{Path to the executable script. For MLFlow, it will be replaced with the CMD}"
+                "{Path to the executable script. For MLflow, it will be replaced with the CMD}"
             )
             .with_script_bucket(
                 "{The object storage bucket to save a script. "

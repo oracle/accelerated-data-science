@@ -98,7 +98,7 @@ class MLJobBackend(Backend):
             job = (
                 Job()
                 .with_name(
-                    "{Job name. For the MLFlow will be auto replaced with the Project name}"
+                    "{Job name. For MLflow, it will be replaced with the Project name}"
                 )
                 .with_infrastructure(
                     DataScienceJob(

@@ -1148,5 +1148,5 @@ class DataFlow(Infrastructure):
             .with_spark_version(self.spark_version or DEFAULT_SPARK_VERSION)
             .with_num_executors(self.num_executors or DEFAULT_NUM_EXECUTORS)
             .with_driver_shape(self.driver_shape or DEFAULT_SHAPE)
-            .with_executor_shape(self.with_executor_shape or DEFAULT_SHAPE)
+            .with_executor_shape(self.executor_shape or DEFAULT_SHAPE)
         )

@@ -136,5 +136,5 @@ class ContainerRuntime(Runtime):
         return self.with_image(
             image="iad.ocir.io/namespace/image:tag",
             entrypoint=["bash", "--login", "-c"],
-            cmd="{Container CMD. For the MLflow will be replaced with the Project CMD}",
+            cmd="{Container CMD. For MLFlow, it will be replaced with the Project CMD}",
         )

@@ -2,6 +2,7 @@
 # The more details about the jobs YAML specification can be found in the ADS documentation:
 # https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/index.html 
 
+
 kind: job
 spec:
   infrastructure:
@@ -17,14 +18,14 @@ spec:
       shapeName: VM.Standard2.1
       subnetId: ocid1.subnet.oc1.iad.<unique_id>
     type: dataScienceJob
-  name: '{Job name. For the MLFlow will be auto replaced with the Project name}'
+  name: '{Job name. For MLflow, it will be replaced with the Project name}'
   runtime:
     kind: runtime
     spec:
       conda:
         type: published
-        uri: oci://your_bucket@namespace/object_name
-      entrypoint: '{Entry point notebook. For the MLFlow will be replaced with the
+        uri: '{Path to the custom conda environment. Example: oci://your_bucket@namespace/object_name'
+      entrypoint: '{Entrypoint notebook. For MLflow, it will be replaced with the
         CMD}'
       env:
       - name: env_name
@@ -34,6 +35,6 @@ spec:
       freeformTags:
         tag_name: tag_value
       notebookEncoding: utf-8
-      source: '{Path to the source code directory. For the MLFlow will be replaced
-        with path to the project}'
+      source: '{Path to the source code directory. For MLflow, it will be replaced
+        with the path to the project}'
     type: notebook

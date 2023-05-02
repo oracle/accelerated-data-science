@@ -88,17 +88,16 @@ class DataFlowBackend(Backend):
             job = (
                 Job()
                 .with_name(
-                    "{Job name. For the MLFlow will be auto replaced with the Project name}"
+                    "{Job name. For MLflow, it will be replaced with the Project name}"
                 )
                 .with_infrastructure(
-                    DataFlow(**(self.config.get("infrastructure", {}) or {}))
+                    DataFlow(**(self.config.get("infrastructure", {}) or {})).init()
                 )
                 .with_runtime(
                     DataFlowRuntimeFactory.get_runtime(
                         key=runtime_type or DataFlowRuntime().type
                     ).init()
                 )
-                .build()
             )
 
             note = (
