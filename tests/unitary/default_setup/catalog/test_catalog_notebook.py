@@ -66,13 +66,15 @@ class NotebookCatalogTest(unittest.TestCase):
 
     with patch.object(auth, "default_signer"):
         with patch.object(oci_client, "OCIClientFactory"):
-            notebook_catalog = NotebookCatalog()
+            notebook_id = "ocid1.notebookcatalog.oc1.iad.<unique_ocid>"
+            comp_id = os.environ.get(
+                "NB_SESSION_COMPARTMENT_OCID", "ocid1.compartment.oc1.iad.<unique_ocid>"
+            )
+            date_time = datetime(2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc)
+
+            notebook_catalog = NotebookCatalog(compartment_id=comp_id)
             notebook_catalog.ds_client = MagicMock()
             notebook_catalog.identity_client = MagicMock()
-
-            notebook_id = "ocid1.notebookcatalog.oc1.iad.<unique_ocid>"
-            comp_id = os.environ.get("NB_SESSION_COMPARTMENT_OCID")
-            date_time = datetime(2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc)
 
             nsl = NotebookSummaryList(generate_notebook_list())
 
