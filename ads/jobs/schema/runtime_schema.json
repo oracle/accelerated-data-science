@@ -174,7 +174,8 @@
       "gitPython",
       "operator",
       "script",
-      "dataFlow"
+      "dataFlow",
+      "dataFlowNotebook"
     ],
     "required": true,
     "type": "string"

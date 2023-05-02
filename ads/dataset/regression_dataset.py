@@ -10,5 +10,5 @@ from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 class RegressionDataset(ADSDatasetWithTarget):
     def __init__(self, df, sampled_df, target, target_type, shape, **kwargs):
         ADSDatasetWithTarget.__init__(
-            self, df, sampled_df, target, target_type, shape, **kwargs
+            self, df=df, sampled_df=sampled_df, target=target, target_type=target_type, shape=shape, **kwargs
         )

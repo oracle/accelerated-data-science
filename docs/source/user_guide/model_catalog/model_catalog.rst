@@ -17,6 +17,7 @@ provenance, reproduced, and deployed.
     import os
     import tempfile
     import warnings
+    import pandas as pd
 
     from ads.catalog.model import ModelCatalog
     from ads.common.model import ADSModel
@@ -24,7 +25,7 @@ provenance, reproduced, and deployed.
     from ads.common.model_metadata import (MetadataCustomCategory,
                                            UseCaseType,
                                            Framework)
-    from ads.dataset.factory import DatasetFactory
+    from ads.dataset.dataset_with_target import ADSDatasetWithTarget
     from ads.feature_engineering.schema import Expression, Schema
     from os import path
     from sklearn.ensemble import RandomForestClassifier
@@ -97,7 +98,7 @@ The ``RandomForestClassifier`` object is converted to into an ``ADSModel`` using
     # Load the dataset
     ds_path = path.join("/", "opt", "notebooks", "ads-examples", "oracle_data", "oracle_classification_dataset1_150K.csv")
 
-    ds = DatasetFactory.open(ds_path, target="class")
+    ds = ADSDatasetWithTarget(df=pd.read_csv(ds_path), target="class")
 
     # Data preprocessing
     transformed_ds = ds.auto_transform(fix_imbalance=False)

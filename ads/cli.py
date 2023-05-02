@@ -3,6 +3,9 @@
 
 # Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from ads.common import logger
+import traceback
+
 try:
     import click
     import ads.opctl.cli
@@ -10,10 +13,13 @@ try:
     import ads.pipeline.cli
     import os
     import json
-except:
+except Exception as ex:
     print(
-        "Please run `pip install oracle-ads[opctl]` to install the required dependencies for ADS CLI"
+        "Please run `pip install oracle-ads[opctl]` to install "
+        "the required dependencies for ADS CLI."
     )
+    logger.debug(ex)
+    logger.debug(traceback.format_exc())
     exit()
 
 

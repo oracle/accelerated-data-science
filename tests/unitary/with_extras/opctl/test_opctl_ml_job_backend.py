@@ -6,6 +6,8 @@
 import tempfile
 import os
 from unittest.mock import patch
+import pytest
+import yaml
 
 from ads.opctl.backend.ads_ml_job import MLJobBackend
 from ads.jobs import Job, DataScienceJobRun
@@ -106,3 +108,31 @@ class TestMLJobBackend:
         rt.with_cmd.assert_called_with("-n,hello-world,-c,~/.oci/config,-p,DEFAULT")
         job_create.assert_called()
         job_run.assert_called()
+
+    @pytest.mark.parametrize(
+        "runtime_type",
+        ["container", "script", "python", "notebook", "gitPython"],
+    )
+    def test_init(self, runtime_type, monkeypatch):
+        """Ensures that starter YAML can be generated for every supported runtime of the Job."""
+
+        monkeypatch.delenv("NB_SESSION_OCID", raising=False)
+
+        with tempfile.TemporaryDirectory() as td:
+            test_yaml_uri = os.path.join(td, f"job_{runtime_type}.yaml")
+            expected_yaml_uri = os.path.join(
+                self.curr_dir, "test_files", f"job_{runtime_type}.yaml"
+            )
+
+            MLJobBackend(self.config).init(
+                uri=test_yaml_uri,
+                overwrite=False,
+                runtime_type=runtime_type,
+            )
+
+            with open(test_yaml_uri, "r") as stream:
+                test_yaml_dict = yaml.safe_load(stream)
+            with open(expected_yaml_uri, "r") as stream:
+                expected_yaml_dict = yaml.safe_load(stream)
+
+            assert test_yaml_dict == expected_yaml_dict

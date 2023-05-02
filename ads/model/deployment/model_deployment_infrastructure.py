@@ -5,11 +5,26 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from typing import Dict
 
 
+import copy
+import logging
+import traceback
 from typing import Any, Dict
+
+import oci.util as oci_util
+
+from ads.common.oci_datascience import DSCNotebookSession
+from ads.config import COMPARTMENT_OCID, NB_SESSION_OCID, PROJECT_OCID
 from ads.jobs.builders.base import Builder
 
 MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE = "datascienceModelDeployment"
 MODEL_DEPLOYMENT_INFRASTRUCTURE_KIND = "infrastructure"
+
+DEFAULT_BANDWIDTH_MBPS = 10
+DEFAULT_WEB_CONCURRENCY = 10
+DEFAULT_REPLICA = 1
+DEFAULT_SHAPE_NAME = "VM.Standard.E2.4"
+
+logger = logging.getLogger(__name__)
 
 
 class ModelDeploymentInfrastructure(Builder):
@@ -66,7 +81,7 @@ class ModelDeploymentInfrastructure(Builder):
         Sets the access and predict log id of model deployment
     with_web_concurrency(web_concurrency)
         Sets the web concurrency of model deployment
-    with_subnet_id(subnet_id) 
+    with_subnet_id(subnet_id)
         Sets the subnet id of model deployment
 
     Example
@@ -142,7 +157,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
         CONST_WEB_CONCURRENCY: "web_concurrency",
-        CONST_SUBNET_ID: "subnet_id"
+        CONST_SUBNET_ID: "subnet_id",
     }
 
     shape_config_details_attribute_map = {
@@ -186,6 +201,47 @@ class ModelDeploymentInfrastructure(Builder):
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
         super().__init__(spec, **kwargs)
+
+    def _load_default_properties(self) -> Dict:
+        """Load default properties from environment variables, notebook session, etc.
+
+        Returns
+        -------
+        Dict
+            A dictionary of default properties.
+        """
+        defaults = super()._load_default_properties()
+        if COMPARTMENT_OCID:
+            defaults[self.CONST_COMPARTMENT_ID] = COMPARTMENT_OCID
+        if PROJECT_OCID:
+            defaults[self.CONST_PROJECT_ID] = PROJECT_OCID
+
+        defaults[self.CONST_BANDWIDTH_MBPS] = DEFAULT_BANDWIDTH_MBPS
+        defaults[self.CONST_WEB_CONCURRENCY] = DEFAULT_WEB_CONCURRENCY
+        defaults[self.CONST_REPLICA] = DEFAULT_REPLICA
+
+        if NB_SESSION_OCID:
+            try:
+                nb_session = DSCNotebookSession.from_ocid(NB_SESSION_OCID)
+                nb_config = nb_session.notebook_session_configuration_details
+                defaults[self.CONST_SHAPE_NAME] = nb_config.shape
+
+                if nb_config.notebook_session_shape_config_details:
+                    notebook_shape_config_details = oci_util.to_dict(
+                        nb_config.notebook_session_shape_config_details
+                    )
+                    defaults[self.CONST_SHAPE_CONFIG_DETAILS] = copy.deepcopy(
+                        notebook_shape_config_details
+                    )
+
+            except Exception as e:
+                logger.warning(
+                    f"Error fetching details about Notebook "
+                    f"session: {NB_SESSION_OCID}. {e}"
+                )
+                logger.debug(traceback.format_exc())
+
+        return defaults
 
     @property
     def kind(self) -> str:
@@ -545,10 +601,28 @@ class ModelDeploymentInfrastructure(Builder):
     @property
     def subnet_id(self) -> str:
         """The model deployment subnet id.
-        
+
         Returns
         -------
         str
             The model deployment subnet id.
         """
         return self.get_spec(self.CONST_SUBNET_ID, None)
+
+    def init(self) -> "ModelDeploymentInfrastructure":
+        """Initializes a starter specification for the ModelDeploymentInfrastructure.
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            The ModelDeploymentInfrastructure instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_project_id(self.project_id or "{Provide a project OCID}")
+            .with_bandwidth_mbps(self.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS)
+            .with_web_concurrency(self.web_concurrency or DEFAULT_WEB_CONCURRENCY)
+            .with_replica(self.replica or DEFAULT_REPLICA)
+            .with_shape_name(self.shape_name or DEFAULT_SHAPE_NAME)
+        )
