@@ -382,7 +382,7 @@ class ModelVersionSet(Builder):
         )
 
     @classmethod
-    def _load_default_properties(cls) -> Dict:
+    def _load_default_properties(self) -> Dict:
         """
         Load default properties from environment variables, notebook session, etc.
 
@@ -392,14 +392,14 @@ class ModelVersionSet(Builder):
             A dictionary of default properties.
         """
         defaults = {}
-        compartment_ocid = COMPARTMENT_OCID
-        if compartment_ocid:
-            defaults[cls.CONST_COMPARTMENT_ID] = compartment_ocid
+
+        if COMPARTMENT_OCID:
+            defaults[self.CONST_COMPARTMENT_ID] = COMPARTMENT_OCID
         if PROJECT_OCID:
-            defaults[cls.CONST_PROJECT_ID] = PROJECT_OCID
+            defaults[self.CONST_PROJECT_ID] = PROJECT_OCID
 
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
-        defaults[cls.CONST_NAME] = f"model-version-set-{timestamp}"
+        defaults[self.CONST_NAME] = f"model-version-set-{timestamp}"
 
         return defaults
 
