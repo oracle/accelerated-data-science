@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, print_function
@@ -10,7 +10,7 @@ import abc
 import importlib
 from collections import defaultdict
 from numbers import Number
-from typing import Union
+from typing import Tuple, Union
 
 import pandas as pd
 from ads.common import utils, logger
@@ -23,14 +23,30 @@ from ads.dataset import helper
 from ads.dataset.dataset import ADSDataset
 from ads.dataset.feature_engineering_transformer import FeatureEngineeringTransformer
 from ads.dataset.feature_selection import FeatureImportance
-from ads.dataset.helper import deprecate_default_value, deprecate_variable
+from ads.dataset.helper import (
+    DatasetDefaults,
+    deprecate_default_value, 
+    deprecate_variable, 
+    generate_sample,
+    get_target_type,
+    is_text_data,
+)
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.dataset.pipeline import TransformerPipeline
 from ads.dataset.progress import DummyProgressBar
 from ads.dataset.recommendation import Recommendation
 from ads.dataset.recommendation_transformer import RecommendationTransformer
 from ads.dataset.target import TargetVariable
-from ads.type_discovery.typed_feature import DateTimeTypedFeature
+from ads.type_discovery.typed_feature import (
+    CategoricalTypedFeature,
+    ContinuousTypedFeature,
+    DocumentTypedFeature,
+    GISTypedFeature,
+    OrdinalTypedFeature,
+    TypedFeature,
+    DateTimeTypedFeature, 
+    TypedFeature
+)
 from sklearn.model_selection import train_test_split
 from pandas.io.formats.printing import pprint_thing
 from sklearn.preprocessing import FunctionTransformer
@@ -45,10 +61,10 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
     def __init__(
         self,
         df,
-        sampled_df,
         target,
-        target_type,
-        shape,
+        sampled_df=None,
+        shape=None,
+        target_type=None,
         sample_max_rows=-1,
         type_discovery=True,
         types={},
@@ -61,6 +77,16 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
         **kwargs,
     ):
         self.recommendation_transformer = None
+        if shape is None:
+            shape = df.shape
+        if sampled_df is None:
+            sampled_df = generate_sample(
+                df,
+                shape[0],
+                DatasetDefaults.sampling_confidence_level,
+                DatasetDefaults.sampling_confidence_interval,
+                **kwargs,
+            )
 
         if parent is None:
             cols = sampled_df.columns.tolist()
@@ -135,6 +161,8 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
             cols.insert(0, cols.pop(cols.index(target)))
             self.sampled_df = self.sampled_df[[*cols]]
 
+        if target_type is None:
+            target_type = get_target_type(target, sampled_df, **kwargs)
         self.target = TargetVariable(self, target, target_type)
 
         # remove target from type discovery conversion
@@ -144,6 +172,141 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
                 and self.target.name in step[1].kw_args["dtypes"]
             ):
                 step[1].kw_args["dtypes"].pop(self.target.name)
+
+    @staticmethod
+    def from_dataframe(
+        df: pd.DataFrame,
+        target: str,
+        sampled_df: pd.DataFrame = None,
+        shape: Tuple[int, int] = None,
+        target_type: TypedFeature = None,
+        positive_class=None,
+        **init_kwargs,
+    ):
+        from ads.dataset.classification_dataset import (
+            BinaryClassificationDataset, 
+            BinaryTextClassificationDataset, 
+            MultiClassClassificationDataset, 
+            MultiClassTextClassificationDataset
+        )
+        from ads.dataset.forecasting_dataset import ForecastingDataset
+        from ads.dataset.regression_dataset import RegressionDataset
+
+        if sampled_df is None:
+            sampled_df = generate_sample(
+                df,
+                (shape or df.shape)[0],
+                DatasetDefaults.sampling_confidence_level,
+                DatasetDefaults.sampling_confidence_interval,
+                **init_kwargs,
+            )
+            
+        if target_type is None:
+            target_type = get_target_type(target, sampled_df, **init_kwargs)
+
+        if len(df[target].dropna()) == 0:
+            logger.warning(
+                "It is not recommended to use an empty column as the target variable."
+            )
+            raise ValueError(
+                f"We do not support using empty columns as the chosen target"
+            )
+        if utils.is_same_class(target_type, ContinuousTypedFeature):
+            return RegressionDataset(
+                df=df,
+                sampled_df=sampled_df,
+                target=target,
+                target_type=target_type,
+                shape=shape,
+                **init_kwargs,
+            )
+        elif utils.is_same_class(
+            target_type, DateTimeTypedFeature
+        ) or df.index.dtype.name.startswith("datetime"):
+            return ForecastingDataset(
+                df=df,
+                sampled_df=sampled_df,
+                target=target,
+                target_type=target_type,
+                shape=shape,
+                **init_kwargs,
+            )
+
+        # Adding ordinal typed feature, but ultimately we should rethink how we want to model this type
+        elif utils.is_same_class(target_type, CategoricalTypedFeature) or utils.is_same_class(
+            target_type, OrdinalTypedFeature
+        ):
+            if target_type.meta_data["internal"]["unique"] == 2:
+                if is_text_data(sampled_df, target):
+                    return BinaryTextClassificationDataset(
+                        df=df,
+                        sampled_df=sampled_df,
+                        target=target,
+                        shape=shape,
+                        target_type=target_type,
+                        positive_class=positive_class,
+                        **init_kwargs,
+                    )
+
+                return BinaryClassificationDataset(
+                    df=df,
+                    sampled_df=sampled_df,
+                    target=target,
+                    shape=shape,
+                    target_type=target_type,
+                    positive_class=positive_class,
+                    **init_kwargs,
+                )
+            else:
+                if is_text_data(sampled_df, target):
+                    return MultiClassTextClassificationDataset(
+                        df=df,
+                        sampled_df=sampled_df,
+                        target=target,
+                        target_type=target_type,
+                        shape=shape,
+                        **init_kwargs,
+                    )
+                return MultiClassClassificationDataset(
+                    df=df,
+                    sampled_df=sampled_df,
+                    target=target,
+                    target_type=target_type,
+                    shape=shape,
+                    **init_kwargs,
+                )
+        elif (
+            utils.is_same_class(target, DocumentTypedFeature)
+            or "text" in target_type["type"]
+            or "text" in target
+        ):
+            raise ValueError(
+                f"The column {target} cannot be used as the target column."
+            )
+        elif (
+            utils.is_same_class(target_type, GISTypedFeature)
+            or "coord" in target_type["type"]
+            or "coord" in target
+        ):
+            raise ValueError(
+                f"The column {target} cannot be used as the target column."
+            )
+        # This is to catch constant columns that are boolean. Added as a fix for pd.isnull(), and datasets with a
+        #   binary target, but only data on one instance
+        elif target_type and target_type["low_level_type"] == "bool":
+            return BinaryClassificationDataset(
+                df=df,
+                sampled_df=sampled_df,
+                target=target,
+                shape=shape,
+                target_type=target_type,
+                positive_class=positive_class,
+                **init_kwargs,
+            )
+        raise ValueError(
+            f"Unable to identify problem type. Specify the data type of {target} using 'types'. "
+            f"For example, types = {{{target}: 'category'}}"
+        )
 
     def rename_columns(self, columns):
         """
