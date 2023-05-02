@@ -74,6 +74,9 @@ class Job(Builder):
                 .with_python_path("other_packages")
                 # Copy files in "code_dir/output" to object storage after job finishes.
                 .with_output("output", "oci://bucket_name@namespace/path/to/dir")
+                # Tags
+                .with_freeform_tag(my_tag="my_value")
+                .with_defined_tag(**{"Operations": {"CostCenter": "42"}})
             )
         )
         # Create and Run the job
