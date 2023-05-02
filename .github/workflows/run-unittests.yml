@@ -1,7 +1,7 @@
 name: tests/unitary/**
 
 on:
-  push:
+  pull_request:
     branches:
       - main
       - 'release/**'
@@ -10,9 +10,6 @@ on:
       - 'ads/**'
       - setup.py
       - '**requirements.txt'
-      - '!docs/**'
-
-  pull_request:
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -163,7 +160,7 @@ jobs:
           # Calculate overall coverage and update body message
           COV=$(grep -E 'pc_cov' htmlcov/index.html | cut -d'>' -f 2 | cut -d'%' -f 1)
           if [[ ! -z $COV ]]; then 
-            if [[ $COV < 50 ]]; then COLOR=red; elif [[ $COV < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            if [[ $COV -lt 50 ]]; then COLOR=red; elif [[ $COV -lt 80 ]]; then COLOR=yellow; else COLOR=green; fi
             echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
           fi
 
@@ -174,7 +171,7 @@ jobs:
           
           # Prepare default diff body text 
           DIFF_BODY_INTRO="📌 Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
-          echo DIFF_BODY="$BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
+          echo DIFF_BODY="$DIFF_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
           
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
@@ -193,7 +190,7 @@ jobs:
               --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
             echo DIFF_BODY="$DIFF_BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
           else
-            if [[ $DIFF < 50 ]]; then COLOR=red; elif [[ $DIFF < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            if [[ $DIFF -lt 50 ]]; then COLOR=red; elif [[ $DIFF -lt 80 ]]; then COLOR=yellow; else COLOR=green; fi
             echo DIFF_BODY="$DIFF_BODY_INTRO ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
           fi
 
