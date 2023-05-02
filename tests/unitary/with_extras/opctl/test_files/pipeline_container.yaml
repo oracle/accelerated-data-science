@@ -22,7 +22,7 @@ spec:
           blockStorageSize: 50
           compartmentId: ocid1.compartment.oc1..<unique_id>
           projectId: ocid1.datascienceproject.oc1.<unique_id>
-          subnetId: '{Provide a subnet OCID}'
+          subnetId: '{Provide a subnet OCID or remove this field if you use a default networking}'
       name: pipeline_step_name_1
       runtime:
         kind: runtime

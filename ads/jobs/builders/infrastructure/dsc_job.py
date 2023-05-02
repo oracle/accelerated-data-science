@@ -1481,19 +1481,12 @@ class DataScienceJob(Infrastructure):
         DataScienceJob
             The DataScienceJob instance (self)
         """
-        (
+        return (
             self.build()
             .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
             .with_project_id(self.project_id or "{Provide a project OCID}")
+            .with_subnet_id(self.subnet_id or "{Provide a subnet OCID or remove this field if you use a default networking}")
         )
-
-        if self.job_infrastructure_type != "ME_STANDALONE":
-            self.with_subnet_id(self.subnet_id or "{Provide a subnet OCID}")
-            self.with_job_infrastructure_type(
-                self.job_infrastructure_type or "STANDALONE"
-            )
-
-        return self
 
     def create(self, runtime, **kwargs) -> DataScienceJob:
         """Creates a job with runtime.
