@@ -14,8 +14,6 @@ Release date: May 3, 2023
 * Added support for attaching customized score.py when preparing model.
 * Added status check for model deployment delete/activate/deactivate APIs.
 * Added support for training and verifying SparkPipelineModel in Dataflow.
-* Added support for mounting OCI file storage in Data Science Jobs.
-* Added support for model deployment custom egress.
 * Added support for generating score.py for GPU model deployment.
 * Added support for setting defined tags in Data Science jobs.
 * Improved model deployment progress bar.
