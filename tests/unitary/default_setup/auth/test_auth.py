@@ -80,8 +80,8 @@ class TestEDAMixin(TestCase):
         mock_rp_signer.assert_called_once()
 
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
+    @mock.patch.dict(os.environ, {"OCI_RESOURCE_PRINCIPAL_VERSION": "2.2"})
     def test_resource_principal(self, mock_rp_signer):
-        os.environ["OCI_RESOURCE_PRINCIPAL_VERSION"] = "2.2"
         resource_principal()
         mock_rp_signer.assert_called_once()
 
@@ -264,11 +264,11 @@ class TestAuthFactory(TestCase):
         assert "test" in signer["client_kwargs"]
 
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
+    @mock.patch.dict(os.environ, {"OCI_RESOURCE_PRINCIPAL_VERSION": "2.2"})
     def test_resource_principal_create_signer(self, mock_rp_signer):
         """
         Testing resource principal setup with set_auth() and getting it with default_signer()
         """
-        os.environ["OCI_RESOURCE_PRINCIPAL_VERSION"] = "2.2"
         set_auth(AuthType.RESOURCE_PRINCIPAL)
         signer = default_signer(client_kwargs={"test": "test"})
         assert "additional_user_agent" in signer["config"]

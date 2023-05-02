@@ -1,18 +1,17 @@
 name: tests/unitary/**
 
 on:
-  push:
+  pull_request:
     branches:
       - main
-      - 'release/**'
+      - "release/**"
       - develop
     paths:
-      - 'ads/**'
+      - "ads/**"
       - setup.py
-      - '**requirements.txt'
-      - '!docs/**'
-
-  pull_request:
+      - "**requirements.txt"
+      - .github/workflows/run-unittests.yml
+      - .github/workflows/run-unittests-default_setup.yml
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -88,22 +87,21 @@ jobs:
         shell: bash
         run: |
           set -x # print commands that are executed
-          
+
           sudo apt-get install libkrb5-dev graphviz
           $CONDA/bin/conda init
           source /home/runner/.bashrc
-          
+
           pip install -r dev-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
         shell: bash
         env:
-          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           CONDA_PREFIX: /usr/share/miniconda
         run: |
           set -x # print commands that are executed
-          
+
           # Setup project and tests folder for cov reports to not be overwritten by another parallel step
           if [[ ! -z "${{ matrix.cov-reports }}" ]]; then
             mkdir -p cov-${{ matrix.name }}
@@ -112,7 +110,7 @@ jobs:
             ln -s ../ads ads
             ln -s ../.coveragerc .coveragerc
           fi
-          
+
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile ${{ matrix.cov-reports }} \
@@ -148,22 +146,22 @@ jobs:
       - name: "Calculate overall coverage"
         run: |
           set -x # print commands that are executed
-          
+
           # Prepare default cov body text 
           COV_BODY_INTRO="📌 Overall coverage:\n\n"
           echo COV_BODY="$COV_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
-          
+
           # Combine coverage files
           pip install coverage
           coverage combine cov-reports-unitary/.coverage cov-reports-model/.coverage
-          
+
           # Make html report
           coverage html
-          
+
           # Calculate overall coverage and update body message
           COV=$(grep -E 'pc_cov' htmlcov/index.html | cut -d'>' -f 2 | cut -d'%' -f 1)
           if [[ ! -z $COV ]]; then 
-            if [[ $COV < 50 ]]; then COLOR=red; elif [[ $COV < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            if [[ $COV -lt 50 ]]; then COLOR=red; elif [[ $COV -lt 80 ]]; then COLOR=yellow; else COLOR=green; fi
             echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
           fi
 
@@ -171,18 +169,18 @@ jobs:
         if: always()
         run: |
           set -x # print commands that are executed
-          
+
           # Prepare default diff body text 
           DIFF_BODY_INTRO="📌 Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
-          echo DIFF_BODY="$BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
-          
+          echo DIFF_BODY="$DIFF_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
+
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
           FILE1="cov-reports-unitary/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
           FILE2="cov-reports-model/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           echo "FILE1=$FILE1" >> $GITHUB_ENV
           echo "FILE2=$FILE2" >> $GITHUB_ENV
-          
+
           # Calculate coverage diff and update body message
           pip install diff_cover
           diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }} 
@@ -193,7 +191,7 @@ jobs:
               --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
             echo DIFF_BODY="$DIFF_BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
           else
-            if [[ $DIFF < 50 ]]; then COLOR=red; elif [[ $DIFF < 80 ]]; then COLOR=yellow; else COLOR=green; fi
+            if [[ $DIFF -lt 50 ]]; then COLOR=red; elif [[ $DIFF -lt 80 ]]; then COLOR=yellow; else COLOR=green; fi
             echo DIFF_BODY="$DIFF_BODY_INTRO ![Coverage-$DIFF%](https://img.shields.io/badge/coverage-$DIFF%25-$COLOR)" >> $GITHUB_ENV
           fi
 
