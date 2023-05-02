@@ -17,6 +17,7 @@ Release date: May 3, 2023
 * Added support for mounting OCI file storage in Data Science Jobs.
 * Added support for model deployment custom egress.
 * Added support for generating score.py for GPU model deployment.
+* Added support for setting defined tags in Data Science jobs.
 * Improved model deployment progress bar.
 * Fixed bug when using ``ads opctl`` CLI to run jobs locally.
 * Fixed bug in Dataflow magic when using archive_uri in dataflow config.
