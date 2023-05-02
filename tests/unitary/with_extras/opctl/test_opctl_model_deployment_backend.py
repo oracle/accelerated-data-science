@@ -29,6 +29,7 @@ class TestModelDeploymentBackend:
                 "oci_config": "~/.oci/config",
                 "oci_profile": "DEFAULT",
                 "run_id": "test_model_deployment_id",
+                "ocid": "fake_model_id",
                 "auth": "api_key",
                 "wait_for_completion": False,
                 "max_wait_time": 1000,
@@ -36,6 +37,9 @@ class TestModelDeploymentBackend:
                 "log_type": "predict",
                 "log_filter": "test_filter",
                 "interval": 3,
+                "payload": "fake_payload",
+                "model_name": "model_name",
+                "model_version": "model_version",
             },
             "infrastructure": {
                 "compartment_id": "ocid1.compartment.oc1..<unique_id>",
@@ -152,3 +156,15 @@ class TestModelDeploymentBackend:
                 expected_yaml_dict = yaml.safe_load(stream)
 
             assert test_yaml_dict == expected_yaml_dict
+
+    @patch("ads.opctl.backend.ads_model_deployment.ModelDeployment.predict")
+    @patch("ads.opctl.backend.ads_model_deployment.ModelDeployment.from_id")
+    def test_predict(self, mock_from_id, mock_predict):
+        config = self.config
+        mock_from_id.return_value = ModelDeployment()
+        backend = ModelDeploymentBackend(config)
+        backend.predict()
+        mock_from_id.assert_called_with("fake_model_id")
+        mock_predict.assert_called_with(
+            data="fake_payload", model_name="model_name", model_version="model_version"
+        )

@@ -16,6 +16,7 @@ import ads
 from ads.common.auth import AuthContext, AuthType
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.oci_datascience import DSCNotebookSession
+from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
@@ -23,6 +24,7 @@ from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
+    LocalModelDeploymentBackend,
     LocalPipelineBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
@@ -37,13 +39,13 @@ from ads.opctl.constants import (
     ADS_JOBS_CONFIG_FILE_NAME,
     ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
     ADS_ML_PIPELINE_CONFIG_FILE_NAME,
+    ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
     BACKEND_NAME,
     DEFAULT_ADS_CONFIG_FOLDER,
     DEFAULT_CONDA_PACK_FOLDER,
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_PROFILE,
     RESOURCE_TYPE,
-    ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
 )
 from ads.opctl.distributed.cmds import (
     docker_build_cmd,
@@ -61,6 +63,7 @@ class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     DATAFLOW = "dataflowapplication"
     PIPELINE = "datasciencepipeline"
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
+    MODEL = "datasciencemodel"
 
 
 class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
@@ -78,6 +81,7 @@ DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
     DataScienceResource.PIPELINE: "pipeline",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
     DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
+    DataScienceResource.MODEL: "deployment",
 }
 
 DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
@@ -99,6 +103,7 @@ class _BackendFactory:
     LOCAL_BACKENDS_MAP = {
         BACKEND_NAME.JOB.value: LocalBackend,
         BACKEND_NAME.PIPELINE.value: LocalPipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT.value: LocalModelDeploymentBackend,
     }
 
     def __init__(self, config: Dict):
@@ -453,6 +458,27 @@ def deactivate(**kwargs) -> None:
     return _BackendFactory(p.config).backend.deactivate()
 
 
+def predict(**kwargs) -> None:
+    """
+    Make prediction using the model with the payload.
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+
+    Returns
+    -------
+    None
+    """
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    if "datasciencemodeldeployment" in p.config["execution"].get("ocid", ""):
+        return ModelDeploymentBackend(p.config).predict()
+    else:
+        # model ocid or artifact directory
+        return LocalModelDeploymentBackend(p.config).predict()
+
+
 def init_vscode(**kwargs) -> None:
     """
     Create a .devcontainer.json file for local development.
@@ -640,7 +666,7 @@ def configure() -> None:
             ("log_id", ""),
             ("bandwidth_mbps", ""),
             ("replica", ""),
-            ("web_concurrency", "")
+            ("web_concurrency", ""),
         ]
 
         _set_service_configurations(

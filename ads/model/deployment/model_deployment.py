@@ -863,9 +863,9 @@ class ModelDeployment(Builder):
             and `json_input` required to be json serializable. If `auto_serialize_data` set
             to True, data will be serialized before sending to model deployment endpoint.
         model_name: str
-            Defaults to None. When the `Inference_server="triton"`, the name of the model to invoke.
+            Defaults to None. When the `inference_server="triton"`, the name of the model to invoke.
         model_version: str
-            Defaults to None. When the `Inference_server="triton"`, the version of the model to invoke.
+            Defaults to None. When the `inference_server="triton"`, the version of the model to invoke.
         kwargs:
             content_type: str
                 Used to indicate the media type of the resource.
