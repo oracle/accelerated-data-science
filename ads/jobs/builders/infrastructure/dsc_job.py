@@ -847,6 +847,9 @@ class DataScienceJob(Infrastructure):
                     "dest" : "<destination_directory_name>"
                 }
             )
+            # Tags
+            .with_freeform_tag(my_tag="my_value")
+            .with_defined_tag(**{"Operations": {"CostCenter": "42"}})
         )
 
     """
