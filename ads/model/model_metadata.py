@@ -23,6 +23,7 @@ from ads.common import logger
 from ads.common.error import ChangesNotCommitted
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.serializer import DataClassSerializable
+from ads.common.object_storage_details import ObjectStorageDetails
 from oci.util import to_dict
 
 try:
@@ -1654,6 +1655,9 @@ class ModelProvenanceMetadata(DataClassSerializable):
         None
             Nothing.
         """
+        if ObjectStorageDetails.is_oci_path(path):
+            return
+
         if self.repo is not None and not ignore:
             path_abs = os.path.abspath(path)
             if (
