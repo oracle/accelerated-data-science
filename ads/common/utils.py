@@ -1151,17 +1151,14 @@ def get_files(directory: str, auth: Optional[Dict] = None):
     """
     directory = directory.rstrip("/")
     path_scheme = urlparse(directory).scheme or "file"
-    if is_path_exists(os.path.join(directory, ".model-ignore"), auth=auth):
-        ignore_patterns = (
-            Path(os.path.join(directory), ".model-ignore")
-            .read_text()
-            .strip()
-            .split("\n")
-        )
+    storage_options = auth or authutil.default_signer()
+    model_ignore_path = os.path.join(directory, ".model-ignore")
+    if is_path_exists(model_ignore_path, auth=auth):
+        with fsspec.open(model_ignore_path, "r", **storage_options) as f:
+            ignore_patterns = f.read().strip().split("\n")
     else:
         ignore_patterns = []
     file_names = []
-    storage_options = auth or authutil.default_signer()
     fs = fsspec.filesystem(path_scheme, **storage_options)
     for root, dirs, files in fs.walk(directory):
         for name in files:

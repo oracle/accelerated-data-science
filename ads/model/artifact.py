@@ -385,7 +385,7 @@ class ModelArtifact:
             Nothing
 
         """
-        if not self.artifact_dir == self.local_copy_dir:
+        if ObjectStorageDetails.is_oci_path(self.artifact_dir):
             utils.copy_from_uri(
                 uri=self.artifact_dir,
                 to_path=self.local_copy_dir,

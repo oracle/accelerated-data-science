@@ -176,16 +176,12 @@ class ModelIntrospect:
         ------
             FileNotFoundError: If path to model artifacts does not exist.
         """
-        try:
-            artifact_dir = self._artifact._artifact_dir
-        except:
-            artifact_dir = self._artifact.artifact_dir
-            if not os.path.isdir(artifact_dir):
-                raise FileNotFoundError(
-                    errno.ENOENT, os.strerror(errno.ENOENT), artifact_dir
-                )
+        if not os.path.isdir(self._artifact.local_copy_dir):
+            raise FileNotFoundError(
+                errno.ENOENT, os.strerror(errno.ENOENT), self._artifact.local_copy_dir
+            )
 
-        output_file = f"{artifact_dir}/{_INTROSPECT_RESULT_FILE_NAME}"
+        output_file = f"{self._artifact.local_copy_dir}/{_INTROSPECT_RESULT_FILE_NAME}"
         with open(output_file, "w") as f:
             json.dump(self._result, f, indent=4)
 
@@ -210,20 +206,16 @@ class ModelIntrospect:
         ------
         FileNotFoundError: If path to model artifacts does not exist.
         """
-        try:
-            artifact_dir = self._artifact._artifact_dir
-        except:
-            artifact_dir = self._artifact.artifact_dir
-            if not os.path.isdir(artifact_dir):
-                raise FileNotFoundError(
-                    errno.ENOENT,
-                    os.strerror(errno.ENOENT),
-                )
+        if not os.path.isdir(self._artifact.local_copy_dir):
+            raise FileNotFoundError(
+                errno.ENOENT,
+                os.strerror(errno.ENOENT),
+            )
 
         module = importlib.import_module(_PATH_TO_MODEL_ARTIFACT_VALIDATOR)
         importlib.reload(module)
         method = getattr(module, _INTROSPECT_METHOD_NAME)
-        params = {"artifact": artifact_dir}
+        params = {"artifact": self._artifact.local_copy_dir}
         test_result, _ = method(**params)
 
         self._status = _TEST_STATUS_MAP.get(test_result)

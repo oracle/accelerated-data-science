@@ -1357,13 +1357,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             **kwargs,
         )
         model.model_file_name = model_file_name or model_artifact.model_file_name
-
-        # Sync model_artifact._artifact_dir with model._artifact_dir if artifact_dir is oci path
-        try:
-            model._artifact_dir = model_artifact._artifact_dir
-        except AttributeError:
-            pass
-
+        model.local_copy_dir = model_artifact.local_copy_dir
         model.model_artifact = model_artifact
         model.ignore_conda_error = ignore_conda_error
         model.reload_runtime_info()
