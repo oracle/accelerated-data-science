@@ -203,19 +203,13 @@ class SparkPipelineModel(FrameworkSpecificModel):
             )
         super().__init__(
             estimator=estimator,
-            artifact_dir=None,
+            artifact_dir=artifact_dir,
             properties=properties,
             auth=auth,
             model_save_serializer=model_save_serializer,
             model_input_serializer=model_input_serializer,
             **kwargs,
         )
-        if artifact_dir and ObjectStorageDetails.is_oci_path(artifact_dir):
-            self.artifact_dir = artifact_dir
-            os.environ["OCI_DEPLOYMENT_PATH"] = self.artifact_dir
-        else:
-            self.artifact_dir = _prepare_artifact_dir(artifact_dir)
-            self.local_copy_dir = self.artifact_dir
 
         self._extractor = SparkExtractor(estimator)
         self.framework = self._extractor.framework

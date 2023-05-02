@@ -89,6 +89,7 @@ from ads.model.serde.model_serializer import (
     ModelSerializerType,
 )
 from ads.model.transformer.onnx_transformer import ONNXTransformer
+from ads.model.framework.spark_model import SparkPipelineModel
 
 _TRAINING_RESOURCE_ID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
@@ -348,7 +349,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model_input_serializer: (SERDE or str, optional). Defaults to None.
             Instance of ads.model.SERDE. Used for serialize/deserialize model input.
         """
-        if artifact_dir and ObjectStorageDetails.is_oci_path(artifact_dir):
+        if (
+            artifact_dir
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
+            and not isinstance(self, SparkPipelineModel)
+        ):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "
                 "Only SparkPipelineModel framework supports object storage path as `artifact_dir`."
@@ -366,8 +371,19 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
 
         self.model_file_name = None
-        self.artifact_dir = _prepare_artifact_dir(artifact_dir)
-        self.local_copy_dir = self.artifact_dir
+        self.artifact_dir = (
+            artifact_dir
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else _prepare_artifact_dir(artifact_dir)
+        )
+        self.local_copy_dir = (
+            _prepare_artifact_dir()
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else self.artifact_dir
+        )
+        if ObjectStorageDetails.is_oci_path(self.artifact_dir):
+            os.environ["OCI_DEPLOYMENT_PATH"] = self.artifact_dir
+
         self.model_artifact = None
         self.framework = None
         self.algorithm = None

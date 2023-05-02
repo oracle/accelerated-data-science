@@ -123,7 +123,7 @@ class ObjectStorageDetails:
         return True
 
     @staticmethod
-    def is_oci_path(uri: str) -> bool:
+    def is_oci_path(uri: str = None) -> bool:
         """Check if the given path is oci object storage uri.
 
         Parameters
@@ -135,4 +135,6 @@ class ObjectStorageDetails:
         -------
         bool: return True if the path is oci object storage uri.
         """
+        if not uri:
+            return False
         return uri.startswith("oci://")
