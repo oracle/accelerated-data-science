@@ -127,7 +127,6 @@ You can also use ``cx_Oracle`` within ADS by creating a connection string:
 .. code-block:: python3
 
   os.environ['TNS_ADMIN'] = creds['tns_admin']
-  from ads.dataset.dataset import ADSDataset
   with cx_Oracle.connect(creds['user'], creds['password'], creds['sid']) as ora_conn:
     ds = ADSDataset(
       df=pd.read_sql('''
@@ -205,7 +204,6 @@ You can also query data from ADW using cx_Oracle. Use the cx_Oracle 7.0.0 versio
 
 .. code-block:: python3
 
-      import
       import pandas as pd
       import numpy as np
       import os
