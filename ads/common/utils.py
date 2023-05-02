@@ -1151,7 +1151,7 @@ def get_files(directory: str, auth: Optional[Dict] = None):
     """
     directory = directory.rstrip("/")
     path_scheme = urlparse(directory).scheme or "file"
-    if os.path.exists(os.path.join(directory, ".model-ignore")):
+    if is_path_exists(os.path.join(directory, ".model-ignore"), auth=auth):
         ignore_patterns = (
             Path(os.path.join(directory), ".model-ignore")
             .read_text()
