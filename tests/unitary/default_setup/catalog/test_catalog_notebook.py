@@ -75,7 +75,9 @@ class NotebookCatalogTest(unittest.TestCase):
             "NB_SESSION_COMPARTMENT_OCID"
         ] = "ocid1.compartment.oc1.<unique_ocid>"
         reload(ads.config)
-        reload(ads.catalog.notebook)
+        ads.catalog.notebook.NB_SESSION_COMPARTMENT_OCID = (
+            ads.config.NB_SESSION_COMPARTMENT_OCID
+        )
         # Initialize class properties after reloading
         with patch.object(auth, "default_signer"):
             with patch.object(oci_client, "OCIClientFactory"):
@@ -99,7 +101,9 @@ class NotebookCatalogTest(unittest.TestCase):
     def tearDownClass(cls) -> None:
         os.environ.pop("NB_SESSION_COMPARTMENT_OCID", None)
         reload(ads.config)
-        reload(ads.catalog.notebook)
+        ads.catalog.notebook.NB_SESSION_COMPARTMENT_OCID = (
+            ads.config.NB_SESSION_COMPARTMENT_OCID
+        )
         return super().tearDownClass()
 
     @staticmethod
