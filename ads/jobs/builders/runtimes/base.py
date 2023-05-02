@@ -166,7 +166,7 @@ class Runtime(Builder):
         return self.set_spec(self.CONST_ENV_VAR, envs)
 
     def with_freeform_tag(self: Self, **kwargs) -> Self:
-        """Sets freeform tag
+        """Sets freeform tags
 
         Returns
         -------
@@ -176,7 +176,7 @@ class Runtime(Builder):
         return self.set_spec(self.CONST_FREEFORM_TAGS, kwargs)
 
     def with_defined_tag(self: Self, **kwargs) -> Self:
-        """Sets defined tag
+        """Sets defined tags
 
         Returns
         -------
@@ -221,12 +221,12 @@ class Runtime(Builder):
 
     @property
     def freeform_tags(self) -> dict:
-        """freeform_tags"""
+        """Freeform tags"""
         return self.get_spec(self.CONST_FREEFORM_TAGS, {})
 
     @property
     def defined_tags(self) -> dict:
-        """defined_tags"""
+        """Defined tags"""
         return self.get_spec(self.CONST_DEFINED_TAGS, {})
 
     @property
