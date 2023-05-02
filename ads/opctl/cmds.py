@@ -21,6 +21,7 @@ from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalPipelineBackend,
+    LocalModelDeploymentBackend,
 )
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
@@ -58,6 +59,15 @@ from ads.opctl.utils import (
     get_service_pack_prefix,
 )
 import yaml
+from ads.opctl.utils import (
+    parse_conda_uri,
+    run_container,
+    get_docker_client,
+    is_in_notebook_session,
+    run_command,
+)
+
+from ads.opctl import logger
 
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
@@ -65,6 +75,7 @@ class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     DATAFLOW = "dataflowapplication"
     PIPELINE = "datasciencepipeline"
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
+    MODEL = "datasciencemodel"
 
 
 class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
@@ -82,6 +93,7 @@ DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
     DataScienceResource.PIPELINE: "pipeline",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
     DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
+    DataScienceResource.MODEL: "deployment",
 }
 
 DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
@@ -103,6 +115,7 @@ class _BackendFactory:
     LOCAL_BACKENDS_MAP = {
         BACKEND_NAME.JOB.value: LocalBackend,
         BACKEND_NAME.PIPELINE.value: LocalPipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT.value: LocalModelDeploymentBackend,
     }
 
     def __init__(self, config: Dict):
@@ -285,7 +298,6 @@ def run_diagnostics(config: Dict, **kwargs) -> Dict:
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
-
         config = update_config_image(config)
         cluster_def = YamlSpecParser.parse_content(config)
 
@@ -456,6 +468,27 @@ def deactivate(**kwargs) -> None:
         kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.deactivate()
+
+
+def predict(**kwargs) -> None:
+    """
+    Make prediction using the model with the payload.
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+
+    Returns
+    -------
+    None
+    """
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    if "datasciencemodeldeployment" in p.config["execution"].get("ocid", ""):
+        return ModelDeploymentBackend(p.config).predict()
+    else:
+        # model ocid or artifact directory
+        return LocalModelDeploymentBackend(p.config).predict()
 
 
 def init_vscode(**kwargs) -> None:
