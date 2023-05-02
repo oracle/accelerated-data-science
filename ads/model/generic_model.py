@@ -136,7 +136,7 @@ class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):
+class NotActiveDeploymentError(Exception):   # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -145,15 +145,15 @@ class NotActiveDeploymentError(Exception):
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):
+class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):
+class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):
+class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
     pass
 
 
@@ -1977,6 +1977,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -2025,6 +2026,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2158,6 +2161,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_shape_name(
                 self.properties.deployment_instance_shape
                 or existing_infrastructure.shape_name
+            )
+            .with_subnet_id(
+                self.properties.deployment_instance_subnet_id
+                or existing_infrastructure.subnet_id
             )
             .with_replica(
                 self.properties.deployment_instance_count
@@ -2328,6 +2335,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_display_name: Optional[str] = None,
         deployment_description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -2415,6 +2423,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2556,6 +2566,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             display_name=deployment_display_name,
             description=deployment_description,
             deployment_instance_shape=self.properties.deployment_instance_shape,
+            deployment_instance_subnet_id=self.properties.deployment_instance_subnet_id,
             deployment_instance_count=self.properties.deployment_instance_count,
             deployment_bandwidth_mbps=self.properties.deployment_bandwidth_mbps,
             deployment_log_group_id=self.properties.deployment_log_group_id,

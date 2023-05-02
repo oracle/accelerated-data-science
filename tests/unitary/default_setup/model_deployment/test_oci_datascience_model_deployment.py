@@ -4,6 +4,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import copy
 import oci
 import pytest
 from unittest.mock import MagicMock, patch
@@ -11,8 +12,7 @@ from oci.data_science.models import (
     ModelDeployment,
 )
 from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.oci_mixin import OCIModelMixin
-from ads.model.deployment.common.utils import State
+from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 
 from ads.model.service.oci_datascience_model_deployment import (
     ACTIVATE_WORKFLOW_STEPS,
@@ -75,7 +75,6 @@ OCI_MODEL_DEPLOYMENT_PAYLOAD = {
         },
     },
     "model_deployment_url": "model_deployment_url",
-    "deployment_mode": "deployment_mode",
 }
 
 
@@ -86,40 +85,72 @@ class TestOCIDataScienceModelDeployment:
         )
 
     def test_activate(self):
-        with patch.object(
-            oci.data_science.DataScienceClient,
-            "activate_model_deployment",
-        ) as mock_activate:
-            with patch.object(OCIDataScienceModelDeployment, "sync") as mock_sync:
+        with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_PAYLOAD)
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Model deployment {self.mock_model_deployment.id} is already in active state."
+            ):
                 self.mock_model_deployment.activate(
                     wait_for_completion=False,
                     max_wait_time=1,
                     poll_interval=1,
                 )
 
-                mock_activate.assert_called_with(self.mock_model_deployment.id)
-                mock_sync.assert_called()
+            response["lifecycle_state"] = "FAILED"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Can't activate model deployment {self.mock_model_deployment.id} when it's in FAILED state."
+            ):
+                self.mock_model_deployment.activate(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+
+            response["lifecycle_state"] = "INACTIVE"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with patch.object(
+                oci.data_science.DataScienceClient,
+                "activate_model_deployment",
+            ) as mock_activate:
+                with patch.object(OCIDataScienceModelDeployment, "sync") as mock_sync:
+                    self.mock_model_deployment.activate(
+                        wait_for_completion=False,
+                        max_wait_time=1,
+                        poll_interval=1,
+                    )
+
+                    mock_activate.assert_called_with(self.mock_model_deployment.id)
+                    mock_sync.assert_called()
+                    mock_from_id.assert_called_with(self.mock_model_deployment.id)
 
     def test_activate_with_waiting(self):
-        with patch.object(
-            oci.data_science.DataScienceClient,
-            "activate_model_deployment",
-        ) as mock_activate:
-            response = MagicMock()
-            response.headers = {
-                "opc-work-request-id": "test",
-            }
-            mock_activate.return_value = response
+        with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_PAYLOAD)
+            response["lifecycle_state"] = "INACTIVE"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
             with patch.object(
-                oci.data_science.DataScienceClient, "get_model_deployment"
-            ) as mock_get:
+                oci.data_science.DataScienceClient,
+                "activate_model_deployment",
+            ) as mock_activate:
                 response = MagicMock()
-                data = MagicMock()
-                data.lifecycle_state = "INACTIVE"
-                response.data = data
-                mock_get.return_value = response
+                response.headers = {
+                    "opc-work-request-id": "test",
+                }
+                mock_activate.return_value = response
                 with patch.object(
-                    OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                    OCIWorkRequestMixin, "wait_for_progress"
                 ) as mock_wait:
                     with patch.object(
                         OCIDataScienceModelDeployment, "sync"
@@ -129,54 +160,80 @@ class TestOCIDataScienceModelDeployment:
                             poll_interval=1,
                         )
 
-                        mock_activate.assert_called_with(self.mock_model_deployment.id)
-                        mock_wait.assert_called_with(
-                            State.ACTIVE.name,
-                            ACTIVATE_WORKFLOW_STEPS,
-                            [State.FAILED.name, State.INACTIVE.name],
-                            "test",
-                            State._from_str("INACTIVE"),
-                            self.mock_model_deployment.id,
-                            1,
-                            1,
-                        )
-                        mock_sync.assert_called()
+                    mock_activate.assert_called_with(self.mock_model_deployment.id)
+                    mock_wait.assert_called_with(
+                        "test",
+                        ACTIVATE_WORKFLOW_STEPS,
+                        1,
+                        1,
+                    )
+                    mock_sync.assert_called()
 
     def test_deactivate(self):
-        with patch.object(
-            oci.data_science.DataScienceClient,
-            "deactivate_model_deployment",
-        ) as mock_deactivate:
-            with patch.object(OCIDataScienceModelDeployment, "sync") as mock_sync:
+        with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_PAYLOAD)
+            response["lifecycle_state"] = "INACTIVE"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Model deployment {self.mock_model_deployment.id} is already in inactive state."
+            ):
                 self.mock_model_deployment.deactivate(
                     wait_for_completion=False,
                     max_wait_time=1,
                     poll_interval=1,
                 )
 
-                mock_deactivate.assert_called_with(self.mock_model_deployment.id)
-                mock_sync.assert_called()
+            response["lifecycle_state"] = "FAILED"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Can't deactivate model deployment {self.mock_model_deployment.id} when it's in FAILED state."
+            ):
+                self.mock_model_deployment.deactivate(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+            response["lifecycle_state"] = "ACTIVE"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with patch.object(
+                oci.data_science.DataScienceClient,
+                "deactivate_model_deployment",
+            ) as mock_deactivate:
+                with patch.object(OCIDataScienceModelDeployment, "sync") as mock_sync:
+                    self.mock_model_deployment.deactivate(
+                        wait_for_completion=False,
+                        max_wait_time=1,
+                        poll_interval=1,
+                    )
+
+                    mock_deactivate.assert_called_with(self.mock_model_deployment.id)
+                    mock_sync.assert_called()
+                    mock_from_id.assert_called_with(self.mock_model_deployment.id)
 
     def test_deactivate_with_waiting(self):
-        with patch.object(
-            oci.data_science.DataScienceClient,
-            "deactivate_model_deployment",
-        ) as mock_deactivate:
-            response = MagicMock()
-            response.headers = {
-                "opc-work-request-id": "test",
-            }
-            mock_deactivate.return_value = response
+        with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **OCI_MODEL_DEPLOYMENT_PAYLOAD
+            )
             with patch.object(
-                oci.data_science.DataScienceClient, "get_model_deployment"
-            ) as mock_get:
+                oci.data_science.DataScienceClient,
+                "deactivate_model_deployment",
+            ) as mock_deactivate:
                 response = MagicMock()
-                data = MagicMock()
-                data.lifecycle_state = "ACTIVE"
-                response.data = data
-                mock_get.return_value = response
+                response.headers = {
+                    "opc-work-request-id": "test",
+                }
+                mock_deactivate.return_value = response
                 with patch.object(
-                    OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                    OCIWorkRequestMixin, "wait_for_progress"
                 ) as mock_wait:
                     with patch.object(
                         OCIDataScienceModelDeployment, "sync"
@@ -186,22 +243,17 @@ class TestOCIDataScienceModelDeployment:
                             poll_interval=1,
                         )
 
-                        mock_deactivate.assert_called_with(
-                            self.mock_model_deployment.id
-                        )
-                        mock_wait.assert_called_with(
-                            State.INACTIVE.name,
-                            DEACTIVATE_WORKFLOW_STEPS,
-                            [State.FAILED.name],
-                            "test",
-                            State._from_str("ACTIVE"),
-                            self.mock_model_deployment.id,
-                            1,
-                            1,
-                        )
-                        mock_sync.assert_called()
+                    mock_deactivate.assert_called_with(
+                        self.mock_model_deployment.id
+                    )
+                    mock_wait.assert_called_with(
+                        "test",
+                        DEACTIVATE_WORKFLOW_STEPS,
+                        1,
+                        1,
+                    )
+                    mock_sync.assert_called()
 
-    @pytest.mark.skip(reason="OCI SDK's support for BYOC hasn't GA yet.")
     def test_create(self):
         with patch.object(
             oci.data_science.DataScienceClient,
@@ -234,7 +286,6 @@ class TestOCIDataScienceModelDeployment:
                         mock_update_from_oci_model.assert_called()
                         mock_sync.assert_called()
 
-    @pytest.mark.skip(reason="OCI SDK's support for BYOC hasn't GA yet.")
     def test_create_with_waiting(self):
         with patch.object(
             oci.data_science.DataScienceClient,
@@ -256,7 +307,7 @@ class TestOCIDataScienceModelDeployment:
                     )
                     mock_to_oci_mode.return_value = oci_model_deployment
                     with patch.object(
-                        OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                        OCIWorkRequestMixin, "wait_for_progress"
                     ) as mock_wait:
                         with patch("json.loads") as mock_json_load:
                             create_model_deployment_details = MagicMock()
@@ -278,12 +329,8 @@ class TestOCIDataScienceModelDeployment:
                                 )
                                 mock_update_from_oci_model.assert_called()
                                 mock_wait.assert_called_with(
-                                    State.ACTIVE.name,
-                                    CREATE_WORKFLOW_STEPS,
-                                    [State.FAILED.name, State.INACTIVE.name],
                                     "test",
-                                    State._from_str("UNKNOWN"),
-                                    self.mock_model_deployment.id,
+                                    CREATE_WORKFLOW_STEPS,                                    
                                     1,
                                     1,
                                 )
@@ -346,41 +393,71 @@ class TestOCIDataScienceModelDeployment:
                 mock_sync.assert_called()
 
     def test_delete(self):
-        with patch.object(
-            oci.data_science.DataScienceClient,
-            "delete_model_deployment",
-        ) as mock_delete:
-            with patch.object(OCIDataScienceModelDeployment, "sync") as mock_sync:
+        with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            response = copy.deepcopy(OCI_MODEL_DEPLOYMENT_PAYLOAD)
+            response["lifecycle_state"] = "DELETED"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Model deployment {self.mock_model_deployment.id} is either deleted or being deleted."
+            ):
                 self.mock_model_deployment.delete(
                     wait_for_completion=False,
                     max_wait_time=1,
                     poll_interval=1,
                 )
 
-                mock_delete.assert_called_with(self.mock_model_deployment.id)
-                mock_sync.assert_called()
+            response["lifecycle_state"] = "UPDATING"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with pytest.raises(
+                Exception,
+                match=f"Can't delete model deployment {self.mock_model_deployment.id} when it's in UPDATING state."
+            ):
+                self.mock_model_deployment.delete(
+                    wait_for_completion=False,
+                    max_wait_time=1,
+                    poll_interval=1,
+                )
+            response["lifecycle_state"] = "ACTIVE"
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **response
+            )
+            with patch.object(
+                oci.data_science.DataScienceClient,
+                "delete_model_deployment",
+            ) as mock_delete:
+                with patch.object(OCIDataScienceModelDeployment, "sync") as mock_sync:
+                    self.mock_model_deployment.delete(
+                        wait_for_completion=False,
+                        max_wait_time=1,
+                        poll_interval=1,
+                    )
+
+                    mock_delete.assert_called_with(self.mock_model_deployment.id)
+                    mock_sync.assert_called()
+                    mock_from_id.assert_called_with(self.mock_model_deployment.id)
 
     def test_delete_with_waiting(self):
-        with patch.object(
-            oci.data_science.DataScienceClient,
-            "delete_model_deployment",
-        ) as mock_delete:
-            response = MagicMock()
-            response.headers = {
-                "opc-work-request-id": "test",
-            }
-            mock_delete.return_value = response
+        with patch.object(OCIDataScienceModelDeployment, "from_id") as mock_from_id:
+            mock_from_id.return_value = OCIDataScienceModelDeployment(
+                **OCI_MODEL_DEPLOYMENT_PAYLOAD
+            )
             with patch.object(
-                OCIDataScienceModelDeployment, "_wait_for_progress_completion"
+                OCIWorkRequestMixin, "wait_for_progress"
             ) as mock_wait:
                 with patch.object(
-                    oci.data_science.DataScienceClient, "get_model_deployment"
-                ) as mock_get:
+                    oci.data_science.DataScienceClient,
+                    "delete_model_deployment",
+                ) as mock_delete:
                     response = MagicMock()
-                    data = MagicMock()
-                    data.lifecycle_state = "ACTIVE"
-                    response.data = data
-                    mock_get.return_value = response
+                    response.headers = {
+                        "opc-work-request-id": "test",
+                    }
+                    mock_delete.return_value = response
                     with patch.object(
                         OCIDataScienceModelDeployment, "sync"
                     ) as mock_sync:
@@ -390,12 +467,8 @@ class TestOCIDataScienceModelDeployment:
 
                         mock_delete.assert_called_with(self.mock_model_deployment.id)
                         mock_wait.assert_called_with(
-                            State.DELETED.name,
-                            DELETE_WORKFLOW_STEPS,
-                            [State.FAILED.name, State.INACTIVE.name],
                             "test",
-                            State._from_str("ACTIVE"),
-                            self.mock_model_deployment.id,
+                            DELETE_WORKFLOW_STEPS,
                             1,
                             1,
                         )

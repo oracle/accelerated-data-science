@@ -10,7 +10,7 @@ import oci.resource_search
 from ads.common.oci_mixin import OCIClientMixin
 
 
-class ResourceNotFoundError(Exception):
+class ResourceNotFoundError(Exception):   # pragma: no cover
     """Exception when an OCI resource is not found or user does not have permission to access it.
     This could mean the resource does not exist, or
     there is not enough permission to find/access the resource.

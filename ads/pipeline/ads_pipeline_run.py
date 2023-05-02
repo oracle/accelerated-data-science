@@ -71,7 +71,7 @@ class StepType(str, metaclass=ExtendedEnumMeta):
     CUSTOM_SCRIPT = "CUSTOM_SCRIPT"
 
 
-class LogNotConfiguredError(Exception):
+class LogNotConfiguredError(Exception):   # pragma: no cover
     pass
 
 

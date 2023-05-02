@@ -9,7 +9,7 @@ from enum import Enum
 from functools import wraps
 
 
-class NotSupportedError(Exception):
+class NotSupportedError(Exception):   # pragma: no cover
     pass
 
 
