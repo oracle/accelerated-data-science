@@ -9,6 +9,7 @@ from enum import Enum
 DEFAULT_OCI_CONFIG_FILE = "~/.oci/config"
 DEFAULT_PROFILE = "DEFAULT"
 DEFAULT_CONDA_PACK_FOLDER = "~/conda"
+DEFAULT_MODEL_FOLDER = "~/.ads_ops/models"
 CONDA_PACK_OS_PREFIX_FORMAT = "oci://<bucket>@<namespace>/<prefix>"
 DEFAULT_ADS_CONFIG_FOLDER = "~/.ads_ops"
 OPS_IMAGE_BASE = "ads-operators-base"
@@ -26,6 +27,7 @@ DEFAULT_IMAGE_SCRIPT_DIR = "/etc/datascience"
 DEFAULT_IMAGE_CONDA_DIR = "/opt/conda/envs"
 DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR = "/home/datascience/spark_conf_dir"
 DEFAULT_NOTEBOOK_SESSION_CONDA_DIR = "/home/datascience/conda"
+DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 
 
 class BACKEND_NAME(Enum):
