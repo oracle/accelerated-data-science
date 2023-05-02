@@ -89,7 +89,6 @@ from ads.model.serde.model_serializer import (
     ModelSerializerType,
 )
 from ads.model.transformer.onnx_transformer import ONNXTransformer
-from ads.model.framework.spark_model import SparkPipelineModel
 
 _TRAINING_RESOURCE_ID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
@@ -352,7 +351,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if (
             artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
-            and not isinstance(self, SparkPipelineModel)
+            and not self._PREFIX == "spark"
         ):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "
