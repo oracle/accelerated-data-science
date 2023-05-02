@@ -14,7 +14,7 @@ class ForecastingDataset(ADSDatasetWithTarget):
         if isinstance(target, DateTimeTypedFeature):
             df = df.set_index(target)
         ADSDatasetWithTarget.__init__(
-            self, df, sampled_df, target, target_type, shape, **kwargs
+            self, df=df, sampled_df=sampled_df, target=target, target_type=target_type, shape=shape, **kwargs
         )
 
     def select_best_features(self, score_func=None, k=12):

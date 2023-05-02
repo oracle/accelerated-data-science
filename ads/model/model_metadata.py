@@ -1615,11 +1615,13 @@ class ModelProvenanceMetadata(DataClassSerializable):
         else:
             repository_url = "file://" + repo.working_dir  # no remote repo
 
-        # get git branch
-        git_branch = format(repo.active_branch)
         # get git commit
+        git_branch = None
         git_commit = None
+
         try:
+            # get git branch
+            git_branch = format(repo.active_branch)
             git_commit = format(str(repo.head.commit.hexsha)) or None
         except Exception:
             logger.warning("No commit found.")

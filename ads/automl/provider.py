@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -41,6 +41,10 @@ class AutoMLProvider(ABC):
     implement train() and get_transformer_pipeline().
     """
 
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(self):
         self.X_train = None
         self.y_train = None
@@ -143,6 +147,10 @@ class BaselineModel(object):
     interface. Labels (y) are encoded using DataFrameLabelEncoder.
     """
 
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(self, est):
         self.est = est
         self.df_label_encoder = DataFrameLabelEncoder()
@@ -250,6 +258,10 @@ class BaselineAutoMLProvider(AutoMLProvider):
         msg = "Baseline"
         return [("automl_preprocessing", AutoMLPreprocessingTransformer(msg))]
 
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(self, est):
         """
         Generates a baseline model using the Zero Rule algorithm by default. For a classification
@@ -309,6 +321,7 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
     @deprecated(
         "2.6.7",
         details="Oracle AutoML is recommended to be directly instantiated by importing automlx package",
+        raise_error=True,
     )
     def __init__(
         self, n_jobs=-1, loglevel=None, logger_override=None, model_n_jobs: int = 1
@@ -870,6 +883,10 @@ class OracleAutoMLProvider(AutoMLProvider, ABC):
 
 
 class AutoMLPreprocessingTransformer(object):  # pragma: no cover
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(self, msg):
         self.msg = msg
 
@@ -915,6 +932,10 @@ class AutoMLPreprocessingTransformer(object):  # pragma: no cover
 
 
 class AutoMLFeatureSelection(object):  # pragma: no cover
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(self, msg):
         self.msg = msg
 

@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+from ads.common import utils as common_utils
 from ads.jobs.builders.base import Builder
 from ads.jobs.builders.runtimes.base import Runtime
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Infrastructure(Builder):
@@ -56,6 +61,7 @@ class Infrastructure(Builder):
         args: str = None,
         env_var: dict = None,
         freeform_tags: dict = None,
+        defined_tags: dict = None,
         wait: bool = False,
     ):
         """Runs a job on the infrastructure.
@@ -67,9 +73,11 @@ class Infrastructure(Builder):
         args : str, optional
             Command line arguments for the job run, by default None.
         env_var : dict, optional
-            Environment variable for the job run, by default None
+            Environment variable for the job run, by default None.
         freeform_tags : dict, optional
-            Freeform tags for the job run, by default None
+            Freeform tags for the job run, by default None.
+        defined_tags : dict, optional
+            Defined tags for the job run, by default None.
         wait : bool, optional
             Indicate if this method should wait for the run to finish before it returns, by default False.
         """
@@ -106,6 +114,8 @@ class Infrastructure(Builder):
 
 
 class RunInstance:
+    _DETAILS_LINK = ""
+
     def create(self):
         """Create a RunInstance Object."""
         raise NotImplementedError()
@@ -120,5 +130,34 @@ class RunInstance:
         raise NotImplementedError()
 
     def delete(self):
-        """Delete or cancel a run."""
+        """Delete a run."""
         raise NotImplementedError()
+
+    def cancel(self):
+        """Cancel a run."""
+        raise NotImplementedError()
+
+    @property
+    def run_details_link(self) -> str:
+        """
+        Link to run details page in OCI console
+
+        Returns
+        -------
+        str
+            The link to the details page in OCI console.
+        """
+        if not self._DETAILS_LINK:
+            return ""
+
+        try:
+            return self._DETAILS_LINK.format(
+                region=common_utils.extract_region(), id=self.id
+            )
+        except Exception as ex:
+            print(str(ex))
+            logger.info(
+                "Error occurred in attempt to extract the link to the resource. "
+                f"Details: {ex}"
+            )
+        return ""

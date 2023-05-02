@@ -1,19 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import copy
+import json
 from typing import Union, List, Dict
 from configparser import ConfigParser, ExtendedInterpolation
 from configparser import (
     InterpolationSyntaxError,
     InterpolationDepthError,
-    InterpolationMissingOptionError,
 )
 from configparser import NoSectionError, NoOptionError, MAX_INTERPOLATION_DEPTH
 
 
 class EnvVarInterpolation(ExtendedInterpolation):
+    """Modified version of ExtendedInterpolation to ignore errors
+
+    https://github.com/python/cpython/blob/main/Lib/configparser.py
+    """
+
     def before_set(self, parser, section: str, option: str, value: str) -> str:
         return value
 
@@ -43,7 +49,6 @@ class EnvVarInterpolation(ExtendedInterpolation):
                         "Bad interpolation variable reference %r" % rest,
                     )
                 path = m.group(1).split(":")
-                rest = rest[m.end() :]
                 sect = section
                 opt = option
                 try:
@@ -56,11 +61,15 @@ class EnvVarInterpolation(ExtendedInterpolation):
                         v = parser.get(sect, opt, raw=True)
                     else:
                         raise InterpolationSyntaxError(
-                            option, section, "More than one ':' found: %r" % (rest,)
+                            option,
+                            section,
+                            "More than one ':' found: %r" % (rest[m.end() :],),
                         )
                 except (KeyError, NoSectionError, NoOptionError):
-                    accum.append(rawval)
+                    accum.append(rest)
                     return
+
+                rest = rest[m.end() :]
                 if "$" in v:
                     self._interpolate_some(
                         parser,
@@ -97,8 +106,23 @@ def parse(env_var: Union[Dict, List[dict]]) -> dict:
     # Convert kubernetes style env to dict
     if isinstance(env_var, list):
         env_var = {ev["name"]: ev["value"] for ev in env_var}
+    else:
+        env_var = copy.deepcopy(env_var)
     config = ConfigParser(interpolation=EnvVarInterpolation())
     config.optionxform = str
+    for k in env_var.keys():
+        if env_var[k] is None:
+            # Convert None to empty string
+            env_var[k] = ""
+        elif not isinstance(env_var[k], str):
+            # If the value is not a string,
+            # try to dump it as json string
+            try:
+                env_var[k] = json.dumps(env_var[k])
+            except Exception:
+                # Cast the value to string if it is not json serializable
+                env_var[k] = str(env_var[k])
+
     config["envs"] = env_var
     return {k: config["envs"].get(k) for k in env_var.keys()}
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import importlib
@@ -67,7 +67,7 @@ class State(Enum):
     COMPLETED = auto()
 
 
-class InvalidStateTransition(Exception):
+class InvalidStateTransition(Exception):   # pragma: no cover
     """
     `Invalid State Transition` is raised when an invalid transition request is made, such as calling
     halt without a running process.
@@ -76,7 +76,7 @@ class InvalidStateTransition(Exception):
     pass
 
 
-class ExitCriterionError(Exception):
+class ExitCriterionError(Exception):   # pragma: no cover
     """
     `ExitCriterionError` is raised when an attempt is made to check exit status for a different exit
     type than the tuner was initialized with. For example, if an HPO study has an exit criteria based
@@ -87,14 +87,14 @@ class ExitCriterionError(Exception):
     pass
 
 
-class DuplicatedStudyError(Exception):
+class DuplicatedStudyError(Exception):   # pragma: no cover
     """
     `DuplicatedStudyError` is raised when a new tuner process is created with a study name that
     already exists in storage.
     """
 
 
-class NoRestartError(Exception):
+class NoRestartError(Exception):   # pragma: no cover
     """
     `NoRestartError` is raised when an attempt is made to check how many seconds have transpired since
     the HPO process was last resumed from a halt. This can happen if the process has been terminated
@@ -102,6 +102,18 @@ class NoRestartError(Exception):
     """
 
     pass
+
+
+class DataScienceObjective:
+    """This class is to replace the previous lambda function to solve the problem that python does not allow pickle local function/lambda function."""
+
+    def __init__(self, objective, X_res, y_res):
+        self.objective = objective
+        self.X_res = X_res
+        self.y_res = y_res
+
+    def __call__(self, trial):
+        return self.objective(self.X_res, self.y_res, trial)
 
 
 class ADSTuner(BaseEstimator):
@@ -1146,8 +1158,6 @@ class ADSTuner(BaseEstimator):
             self._step_name,
         )
 
-        objective_func = lambda trial: objective(X_res, y_res, trial)
-
         if synchronous:
             logger.info(
                 "Optimizing hyperparameters using {} "
@@ -1162,7 +1172,7 @@ class ADSTuner(BaseEstimator):
                 self.sampler,
                 self.storage,
                 self.load_if_exists,
-                objective_func,
+                DataScienceObjective(objective, X_res, y_res),
                 self._global_start,
                 self._global_stop,
             ),

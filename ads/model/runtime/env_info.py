@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -66,6 +66,7 @@ class EnvInfo(ABC):
         env_slug: str,
         namespace: str = CONDA_BUCKET_NS,
         bucketname: str = CONDA_BUCKET_NAME,
+        auth: dict = None,
     ) -> "EnvInfo":
         """Initiate an EnvInfo object from a slug. Only service pack is allowed to use this method.
 
@@ -77,31 +78,37 @@ class EnvInfo(ABC):
             namespace of region.
         bucketname: (str, optional)
             bucketname of service pack.
+        auth: (Dict, optional). Defaults to None.
+            The default authetication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
 
         Returns
         -------
         EnvInfo
             An EnvInfo instance.
         """
-        if not namespace:
-            raise ValueError(
-                "Cannot detect `namespace` information automatically "
-                "as the environment variable `CONDA_BUCKET_NS` is not found. "
-                "`namespace` must be provided."
-            )
+        if "oci://" not in env_slug:
+            warnings.warn("slug will be deprecated. Provide conda pack path instead.")
+
         if not bucketname:
             warnings.warn(
                 f"`bucketname` is not provided, defaults to `{DEFAULT_CONDA_BUCKET_NAME}`."
             )
             bucketname = DEFAULT_CONDA_BUCKET_NAME
-        _, service_pack_slug_mapping = get_service_packs(namespace, bucketname)
-        if env_slug in service_pack_slug_mapping:
-            env_type = PACK_TYPE.SERVICE_PACK.value
-            env_path, python_version = service_pack_slug_mapping[env_slug]
-        else:
-            raise ValueError(
-                "The {env_slug} is not a service pack. Use `from_path` method by passing in the object storage path."
-            )
+        _, service_pack_slug_mapping = get_service_packs(
+            namespace, bucketname, auth=auth
+        )
+        env_type, env_path, python_version = None, None, None
+        if service_pack_slug_mapping:
+            if env_slug in service_pack_slug_mapping:
+                env_type = PACK_TYPE.SERVICE_PACK.value
+                env_path, python_version = service_pack_slug_mapping[env_slug]
+            else:
+                warnings.warn(
+                    "The {env_slug} is not a service pack. Use `from_path` method by passing in the object storage path."
+                )
+
         return cls._populate_env_info(
             env_slug=env_slug,
             env_type=env_type,
@@ -110,13 +117,17 @@ class EnvInfo(ABC):
         )
 
     @classmethod
-    def from_path(cls, env_path: str) -> "EnvInfo":
+    def from_path(cls, env_path: str, auth: dict = None) -> "EnvInfo":
         """Initiate an object from a conda pack path.
 
         Parameters
         ----------
         env_path: str
             conda pack path.
+        auth: (Dict, optional). Defaults to None.
+            The default authetication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
 
         Returns
         -------
@@ -128,7 +139,9 @@ class EnvInfo(ABC):
         python_version = ""
         env_slug = ""
         service_pack_path_mapping = {}
-        service_pack_path_mapping, _ = get_service_packs(namespace, bucketname)
+        service_pack_path_mapping, _ = get_service_packs(
+            namespace, bucketname, auth=auth
+        )
         if env_path.startswith("oci://") and service_pack_path_mapping:
             if env_path in service_pack_path_mapping:
                 env_type = PACK_TYPE.SERVICE_PACK.value

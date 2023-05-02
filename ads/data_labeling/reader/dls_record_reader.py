@@ -16,14 +16,14 @@ from oci.exceptions import ServiceError
 from oci.pagination import list_call_get_all_results
 
 
-class ReadRecordsError(Exception):
+class ReadRecordsError(Exception):   # pragma: no cover
     def __init__(self, dataset_id: str):
         super().__init__(
             f"Error occurred in attempt to read records of dataset {dataset_id}."
         )
 
 
-class ReadAnnotationsError(Exception):
+class ReadAnnotationsError(Exception):   # pragma: no cover
     def __init__(self, dataset_id: str):
         super().__init__(
             f"Error occurred in attempt to read annotations of dataset {dataset_id}."

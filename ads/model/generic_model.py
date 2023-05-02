@@ -8,22 +8,51 @@ import inspect
 import os
 import shutil
 import tempfile
-import yaml
-from PIL import Image
 from enum import Enum
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-import cloudpickle
 import numpy as np
 import pandas as pd
 import requests
 import yaml
-from ads.common import utils
+from PIL import Image
+
 from ads.common import auth as authutil
-from ads.common import logger
-from ads.common.data_serializer import InputDataSerializer
+from ads.common import logger, utils
 from ads.common.decorator.utils import class_or_instance_method
-from ads.model.transformer.onnx_transformer import ONNXTransformer
+from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
+from ads.config import (
+    CONDA_BUCKET_NS,
+    JOB_RUN_COMPARTMENT_OCID,
+    JOB_RUN_OCID,
+    NB_SESSION_COMPARTMENT_OCID,
+    NB_SESSION_OCID,
+    PROJECT_OCID,
+)
+from ads.evaluations import EvaluatorMixin
+from ads.feature_engineering import ADSImage
+from ads.feature_engineering.schema import Schema
+from ads.model.artifact import ModelArtifact
+from ads.model.common.utils import (
+    _extract_locals,
+    _is_json_serializable,
+    fetch_manifest_from_conda_location,
+    zip_artifact,
+)
+from ads.model.datascience_model import DataScienceModel
+from ads.model.deployment import (
+    DEFAULT_POLL_INTERVAL,
+    DEFAULT_WAIT_TIME,
+    ModelDeployer,
+    ModelDeployment,
+    ModelDeploymentMode,
+    ModelDeploymentProperties,
+    ModelDeploymentCondaRuntime,
+    ModelDeploymentInfrastructure,
+    ModelDeploymentContainerRuntime,
+)
+from ads.model.deployment.common.utils import State as ModelDeploymentState
+from ads.model.deployment.common.utils import send_request
 from ads.model.model_introspect import (
     TEST_STATUS,
     Introspectable,
@@ -38,51 +67,38 @@ from ads.model.model_metadata import (
     ModelTaxonomyMetadata,
 )
 from ads.model.model_metadata_mixin import MetadataMixin
-from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
-from ads.config import (
-    CONDA_BUCKET_NS,
-    JOB_RUN_COMPARTMENT_OCID,
-    JOB_RUN_OCID,
-    NB_SESSION_COMPARTMENT_OCID,
-    NB_SESSION_OCID,
-    PROJECT_OCID,
-)
-from ads.feature_engineering import ADSImage
-from ads.feature_engineering.schema import Schema
-from ads.model.artifact import ModelArtifact
-from ads.model.common.utils import (
-    _extract_locals,
-    fetch_manifest_from_conda_location,
-    _is_json_serializable,
-)
-from ads.model.deployment import (
-    DEFAULT_POLL_INTERVAL,
-    DEFAULT_WAIT_TIME,
-    ModelDeployer,
-    ModelDeployment,
-    ModelDeploymentProperties,
-)
-from ads.model.deployment.common.utils import State as ModelDeploymentState
-from ads.model.deployment.common.utils import send_request
 from ads.model.model_properties import ModelProperties
 from ads.model.model_version_set import ModelVersionSet, _extract_model_version_set_id
 from ads.model.runtime.env_info import DEFAULT_CONDA_BUCKET_NAME
 from ads.model.runtime.runtime_info import RuntimeInfo
-
-from ads.model.datascience_model import DataScienceModel
-from ads.model.common.utils import zip_artifact
+from ads.model.serde.common import SERDE
+from ads.model.serde.model_input import (
+    SUPPORTED_MODEL_INPUT_SERIALIZERS,
+    ModelInputDeserializer,
+    ModelInputSerializer,
+    ModelInputSerializerFactory,
+    ModelInputSerializerType,
+)
+from ads.model.serde.model_serializer import (
+    SUPPORTED_MODEL_SERIALIZERS,
+    CloudPickleModelSerializer,
+    ModelDeserializer,
+    ModelSerializer,
+    ModelSerializerFactory,
+    ModelSerializerType,
+)
+from ads.model.transformer.onnx_transformer import ONNXTransformer
 
 _TRAINING_RESOURCE_ID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
 
-MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard2.1"
+MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
+MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
+MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
-DEFAULT_ONNX_FORMAT_MODEL_FILE_NAME = "model.onnx"
-DEFAULT_JSON_FORMAT_MODEL_FILE_NAME = "model.json"
-DEFAULT_JOBLIB_FORMAT_MODEL_FILE_NAME = "model.joblib"
-DEFAULT_TXT_FORMAT_MODEL_FILE_NAME = "model.txt"
+
 DEFAULT_MODEL_FOLDER_NAME = "model"
 
 ONNX_DATA_TRANSFORMER = "onnx_data_transformer.json"
@@ -99,13 +115,27 @@ FRAMEWORKS_WITHOUT_ONNX_DATA_TRANSFORM = [
     Framework.SPARK,
 ]
 
+VERIFY_STATUS_NAME = "verify()"
+PREPARE_STATUS_NAME = "prepare()"
+INITIATE_STATUS_NAME = "initiate"
+SAVE_STATUS_NAME = "save()"
+DEPLOY_STATUS_NAME = "deploy()"
+PREDICT_STATUS_NAME = "predict()"
+
+Self = TypeVar("Self", bound="GenericModel")
+
+
+class ModelDeploymentRuntimeType:
+    CONDA = "conda"
+    CONTAINER = "container"
+
 
 class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL_DEPLOYMENT = "datasciencemodeldeployment"
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):
+class NotActiveDeploymentError(Exception):   # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -114,15 +144,15 @@ class NotActiveDeploymentError(Exception):
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):
+class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):
+class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):
+class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
     pass
 
 
@@ -151,7 +181,7 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     return artifact_dir
 
 
-class GenericModel(MetadataMixin, Introspectable):
+class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
     """Generic Model class which is the base class for all the frameworks including
     the unsupported frameworks.
 
@@ -185,6 +215,8 @@ class GenericModel(MetadataMixin, Introspectable):
         Name of the serialized model.
     model_id: str
         The model ID.
+    model_input_serializer: SERDE
+        Instance of ads.model.SERDE. Used for serialize/deserialize data.
     properties: ModelProperties
         ModelProperties object required to save and deploy model.
     runtime_info: RuntimeInfo
@@ -229,6 +261,8 @@ class GenericModel(MetadataMixin, Introspectable):
         Restarts the model deployment.
     save(..., **kwargs)
         Saves model artifacts to the model catalog.
+    set_model_input_serializer(serde)
+        Registers serializer used for serializing data passed in verify/predict.
     summary_status(...)
         Gets a summary table of the current status.
     verify(data, ...)
@@ -250,8 +284,8 @@ class GenericModel(MetadataMixin, Introspectable):
     >>> model = GenericModel(estimator=estimator, artifact_dir=tempfile.mkdtemp())
     >>> model.summary_status()
     >>> model.prepare(
-    ...     inference_conda_env="dataexpl_p37_cpu_v3",
-    ...     inference_python_version="3.7",
+    ...     inference_conda_env="dbexp_p38_cpu_v1",
+    ...     inference_python_version="3.8",
     ...     model_file_name="toy_model.pkl",
     ...     training_id=None,
     ...     force_overwrite=True
@@ -274,16 +308,20 @@ class GenericModel(MetadataMixin, Introspectable):
 
     _summary_status = None
     _PREFIX = "generic"
+    model_input_serializer_type = ModelInputSerializerType
+    model_save_serializer_type = ModelSerializerType
 
     def __init__(
         self,
-        estimator: Callable,
+        estimator: Callable = None,
         artifact_dir: Optional[str] = None,
         properties: Optional[ModelProperties] = None,
         auth: Optional[Dict] = None,
         serialize: bool = True,
+        model_save_serializer: Optional[SERDE] = None,
+        model_input_serializer: Optional[SERDE] = None,
         **kwargs: dict,
-    ):
+    ) -> Self:
         """GenericModel Constructor.
 
         Parameters
@@ -301,7 +339,12 @@ class GenericModel(MetadataMixin, Introspectable):
         serialize: (bool, optional). Defaults to True.
             Whether to serialize the model to pkl file by default. If False, you need to serialize the model manually,
             save it under artifact_dir and update the score.py manually.
+        model_save_serializer: (SERDE or str, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model.
+        model_input_serializer: (SERDE or str, optional). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model input.
         """
+
         self.estimator = estimator
         self.auth = auth or authutil.default_signer()
         self.dsc_model = (
@@ -313,7 +356,6 @@ class GenericModel(MetadataMixin, Introspectable):
             .with_output_schema(Schema())
         )
 
-        self.data_serializer_class = InputDataSerializer
         self.model_file_name = None
         self.artifact_dir = _prepare_artifact_dir(artifact_dir)
         self.model_artifact = None
@@ -322,9 +364,14 @@ class GenericModel(MetadataMixin, Introspectable):
         self.version = None
         self.hyperparameter = None
         self._introspect = ModelIntrospect(self)
-        self.model_deployment = None
+        self.model_deployment = (
+            ModelDeployment()
+            .with_infrastructure(ModelDeploymentInfrastructure())
+            .with_runtime(ModelDeploymentContainerRuntime())
+        )
         self.runtime_info = None
         self._as_onnx = kwargs.pop("as_onnx", False)
+        self._score_args = {}
 
         if properties:
             self.properties = (
@@ -337,6 +384,40 @@ class GenericModel(MetadataMixin, Introspectable):
 
         self._serialize = serialize
         self._summary_status = SummaryStatus()
+        self._init_serde(
+            model_input_serde=model_input_serializer,
+            model_save_serializer=model_save_serializer,
+        )
+        self.ignore_conda_error = False
+
+    def _init_serde(
+        self,
+        model_input_serde: Union[SERDE, str] = None,
+        model_save_serializer: Union[SERDE, str] = None,
+    ):
+        """Initializes serde.
+
+        Parameters
+        ----------
+        model_save_serializer: (SERDE or str). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model.
+        model_input_serializer: (SERDE or str). Defaults to None.
+            Instance of ads.model.SERDE. Used for serialize/deserialize model input.
+        """
+        if model_input_serde is None:
+            logger.warning(
+                "In the future model input will be serialized by `cloudpickle` by "
+                "default. Currently, model input are serialized into a dictionary "
+                "containing serialized input data and original data type information."
+                'Set `model_input_serializer="cloudpickle"` to use cloudpickle model input serializer.'
+            )
+        self.set_model_input_serializer(
+            model_input_serializer=model_input_serde
+            or self.model_input_serializer_type.JSON
+        )
+        self.set_model_save_serializer(
+            model_save_serializer or self.model_save_serializer_type.CLOUDPICKLE
+        )
 
     @property
     def metadata_custom(self):
@@ -406,6 +487,139 @@ class GenericModel(MetadataMixin, Introspectable):
         """Converts the model attributes to yaml format."""
         return yaml.safe_dump(self._to_dict())
 
+    def set_model_input_serializer(
+        self,
+        model_input_serializer: Union[str, SERDE],
+    ):
+        """Registers serializer used for serializing data passed in verify/predict.
+
+        Examples
+        --------
+        >>> generic_model.set_model_input_serializer(GenericModel.model_input_serializer_type.CLOUDPICKLE)
+
+        >>> # Register serializer by passing the name of it.
+        >>> generic_model.set_model_input_serializer("cloudpickle")
+
+        >>> # Example of creating customized model input serializer and registing it.
+        >>> from ads.model import SERDE
+        >>> from ads.model.generic_model import GenericModel
+
+        >>> class MySERDE(SERDE):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...     def serialize(self, data):
+        ...         serialized_data = 1
+        ...         return serialized_data
+        ...     def deserialize(self, data):
+        ...         deserialized_data = 2
+        ...         return deserialized_data
+
+        >>> class Toy:
+        ...     def predict(self, x):
+        ...         return x ** 2
+
+        >>> generic_model = GenericModel(
+        ...    estimator=Toy(),
+        ...    artifact_dir=tempfile.mkdtemp(),
+        ...    model_input_serializer=MySERDE()
+        ... )
+
+        >>> # Or register the serializer after creating model instance.
+        >>> generic_model.set_model_input_serializer(MySERDE())
+
+        Parameters
+        ----------
+        model_input_serializer: (str, or ads.model.SERDE)
+            name of the serializer, or instance of SERDE.
+        """
+        if isinstance(model_input_serializer, str):
+            self.model_input_serializer = ModelInputSerializerFactory.get(
+                model_input_serializer
+            )
+        else:
+            self.model_input_serializer = model_input_serializer
+
+        try:
+            serializer_name = self.model_input_serializer.name
+            if serializer_name not in SUPPORTED_MODEL_INPUT_SERIALIZERS:
+                logger.warn(
+                    "Replace the code of `deserialize()` in `score.py` with "
+                    "the your own implementation of `deserialize()`."
+                )
+        except AttributeError:
+            self.model_input_serializer.name = "customized"
+            logger.warn(
+                "Model input will be serialized by `serialize()` "
+                "defined in your provided `model_input_serializer`. "
+                "Replace the code of `deserialize()` in `score.py` with "
+                "the your own implementation of `deserialize()`."
+            )
+
+    def set_model_save_serializer(self, model_save_serializer: Union[str, SERDE]):
+        """Registers serializer used for saving model.
+
+        Examples
+        --------
+        >>> generic_model.set_model_save_serializer(GenericModel.model_save_serializer_type.CLOUDPICKLE)
+
+        >>> # Register serializer by passing the name of it.
+        >>> generic_model.set_model_save_serializer("cloudpickle")
+
+        >>> # Example of creating customized model save serializer and registing it.
+        >>> from ads.model import SERDE
+        >>> from ads.model.generic_model import GenericModel
+
+        >>> class MySERDE(SERDE):
+        ...     def __init__(self):
+        ...         super().__init__()
+        ...     def serialize(self, data):
+        ...         serialized_data = 1
+        ...         return serialized_data
+        ...     def deserialize(self, data):
+        ...         deserialized_data = 2
+        ...         return deserialized_data
+
+        >>> class Toy:
+        ...     def predict(self, x):
+        ...         return x ** 2
+
+        >>> generic_model = GenericModel(
+        ...    estimator=Toy(),
+        ...    artifact_dir=tempfile.mkdtemp(),
+        ...    model_save_serializer=MySERDE()
+        ... )
+
+        >>> # Or register the serializer after creating model instance.
+        >>> generic_model.set_model_save_serializer(MySERDE())
+
+        Parameters
+        ----------
+        model_save_serializer: (ads.model.SERDE or str)
+            name of the serializer or instance of SERDE.
+        """
+        if isinstance(model_save_serializer, str):
+            self.model_save_serializer = ModelSerializerFactory.get(
+                model_save_serializer
+            )
+        else:
+            self.model_save_serializer = model_save_serializer
+
+        try:
+            serializer_name = self.model_save_serializer.name
+            if serializer_name not in SUPPORTED_MODEL_SERIALIZERS:
+                logger.warn(
+                    "Replace the code of `load_model()` in `score.py` with "
+                    "the your own implementation of `deserialize()`."
+                )
+        except AttributeError:
+            self.model_save_serializer.name = "customized"
+            logger.warn(
+                "Model will be saved by `serialize()` "
+                "defined in your provided `model_save_serializer`. "
+                "Replace the code of `load_model()` in `score.py` with "
+                "the your own implementation of `deserialize()`."
+            )
+
     def serialize_model(
         self,
         as_onnx: bool = False,
@@ -435,26 +649,84 @@ class GenericModel(MetadataMixin, Introspectable):
             Nothing
         """
         if self._serialize:
-            with open(
-                os.path.join(self.artifact_dir, self.model_file_name), "wb"
-            ) as outfile:
-                cloudpickle.dump(self.estimator, outfile)
+            if not self.model_file_name:
+                self.model_file_name = self._handle_model_file_name(as_onnx=as_onnx)
+            if not self.estimator:
+                raise ValueError(
+                    "Parameter `estimator` has to be provided when `serialize=True`, or you can set `serialize=False`."
+                )
+            self._serialize_model_helper(
+                initial_types, force_overwrite, X_sample, **kwargs
+            )
         else:
             raise SerializeModelNotImplementedError(
                 "`serialize_model` is not implemented."
             )
 
-    def _handle_model_file_name(self, as_onnx: bool, model_file_name: str):
+    def _serialize_model_helper(
+        self,
+        initial_types: List[Tuple] = None,
+        force_overwrite: bool = False,
+        X_sample: any = None,
+        **kwargs,
+    ):
+        model_path = self._check_model_file(
+            self.model_file_name, force_overwrite=force_overwrite
+        )
+        self.get_model_serializer().serialize(
+            estimator=self.estimator,
+            model_path=model_path,
+            X_sample=X_sample,
+            initial_types=initial_types,
+            **kwargs,
+        )
+
+    def _check_model_file(self, model_file_name, force_overwrite):
+        model_path = os.path.join(self.artifact_dir, model_file_name)
+
+        if os.path.exists(model_path) and not force_overwrite:
+            raise ValueError(
+                f"The {model_path} already exists, set force_overwrite to True if you wish to overwrite."
+            )
+
+        os.makedirs(self.artifact_dir, exist_ok=True)
+        return model_path
+
+    def _handle_model_file_name(self, as_onnx: bool, model_file_name: str = None):
+        if as_onnx:
+            self._set_model_save_serializer_to_onnx()
+
         if not model_file_name:
             if not self._serialize:
                 raise NotImplementedError("`model_file_name` has to be provided.")
             else:
-                model_file_name = "model.pkl"
+                model_file_name = f"model.{self._get_model_file_suffix()}"
+
         if as_onnx:
             assert model_file_name.endswith(
                 ".onnx"
-            ), "Wrong file extension. Expecting .onnx suffix."
+            ), "Wrong file extension. Expecting `.onnx` suffix."
+
         return model_file_name
+
+    def _get_model_file_suffix(self):
+        try:
+            suffix = self.model_save_serializer.model_file_suffix
+            return suffix
+        except AttributeError as e:
+            logger.error(
+                "Please specify `model_file_suffix` in `model_save_serializer`. "
+            )
+            raise e
+
+    def _set_model_save_serializer_to_onnx(self):
+        try:
+            self.set_model_save_serializer(self.model_save_serializer_type.ONNX)
+        except AttributeError as e:
+            logger.error(
+                f"This framework {self._PREFIX} to Onnx Conversion is not supported. Please set `as_onnx=False` (default) to perform other model serialization."
+            )
+            raise e
 
     def _onnx_data_transformer(
         self,
@@ -516,6 +788,8 @@ class GenericModel(MetadataMixin, Introspectable):
         training_id: str = _TRAINING_RESOURCE_ID,
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
+        ignore_conda_error: bool = False,
+        score_py_uri: str = None,
         **kwargs: Dict,
     ) -> "GenericModel":
         """Prepare and save the score.py, serialized model and runtime.yaml file.
@@ -566,6 +840,12 @@ class GenericModel(MetadataMixin, Introspectable):
         max_col_num: (int, optional). Defaults to utils.DATA_SCHEMA_MAX_COL_NUM.
             Do not generate the input schema if the input has more than this
             number of features(columns).
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
+        score_py_uri: (str, optional). Defaults to None.
+            The uri of the customized score.py, which can be local path or OCI object storage URI.
+            When provide with this attibute, the `score.py` will not be auto generated, and the
+            provided `score.py` will be added into artifact_dir.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -596,6 +876,11 @@ class GenericModel(MetadataMixin, Introspectable):
         elif not self.properties.training_id:
             self.properties.training_id = _TRAINING_RESOURCE_ID
 
+        self.ignore_conda_error = ignore_conda_error
+        if self.ignore_conda_error:
+            logger.info(
+                "`ignore_conda_error` is set to True and `.verify()` is targeted to test the generated score.py on the local conda environment, not the container."
+            )
         if not self.properties.inference_conda_env:
             try:
                 conda_prefix = os.environ.get("CONDA_PREFIX", None)
@@ -603,7 +888,10 @@ class GenericModel(MetadataMixin, Introspectable):
                 if "pack_path" in manifest:
                     self.properties.inference_conda_env = manifest["pack_path"]
                 else:
-                    raise ValueError("`inference_conda_env` must be specified.")
+                    if not self.ignore_conda_error:
+                        raise ValueError(
+                            "`inference_conda_env` must be specified for conda runtime. If you are using container runtime, set `ignore_conda_error=True`."
+                        )
                 self.properties.inference_python_version = (
                     manifest["python"]
                     if "python" in manifest
@@ -611,9 +899,15 @@ class GenericModel(MetadataMixin, Introspectable):
                     else self.properties.inference_python_version
                 )
             except:
-                raise ValueError("`inference_conda_env` must be specified.")
+                if not self.ignore_conda_error:
+                    raise ValueError(
+                        "`inference_conda_env` must be specified for conda runtime. If you are using container runtime, set `ignore_conda_error=True`."
+                    )
 
         self._as_onnx = as_onnx
+        if as_onnx:
+            self._set_model_save_serializer_to_onnx()
+
         self.model_file_name = self._handle_model_file_name(
             as_onnx=as_onnx, model_file_name=model_file_name
         )
@@ -646,76 +940,89 @@ class GenericModel(MetadataMixin, Introspectable):
             force_overwrite=force_overwrite,
             namespace=namespace,
             bucketname=DEFAULT_CONDA_BUCKET_NAME,
+            auth=self.auth,
+            ignore_conda_error=self.ignore_conda_error,
         )
 
         self._summary_status.update_status(
             detail="Generated runtime.yaml", status=ModelState.DONE.value
         )
 
-        if as_onnx:
-            X_sample = self._onnx_data_transformer(
-                X_sample,
-                impute_values=kwargs.pop("impute_values", {}),
-                force_overwrite=force_overwrite,
-            )
-        try:
-            self.serialize_model(
-                as_onnx=as_onnx,
-                force_overwrite=force_overwrite,
-                initial_types=initial_types,
-                X_sample=X_sample,
-                **kwargs,
-            )
-            self._summary_status.update_status(
-                detail="Serialized model", status=ModelState.DONE.value
-            )
-        except SerializeModelNotImplementedError as e:
-            if not os.path.exists(
-                os.path.join(self.artifact_dir, self.model_file_name)
-            ):
-                self._summary_status.update_action(
-                    detail="Serialized model",
-                    action=(
-                        "Model is not automatically serialized. "
-                        f"Serialize the model as `{self.model_file_name}` and "
-                        f"save to the {self.artifact_dir}."
-                    ),
+        if self.estimator:
+            if as_onnx:
+                X_sample = self._onnx_data_transformer(
+                    X_sample,
+                    impute_values=kwargs.pop("impute_values", {}),
+                    force_overwrite=force_overwrite,
+                )
+            try:
+                self.serialize_model(
+                    as_onnx=as_onnx,
+                    force_overwrite=force_overwrite,
+                    initial_types=initial_types,
+                    X_sample=X_sample,
+                    **kwargs,
                 )
                 self._summary_status.update_status(
-                    detail="Serialized model", status=ModelState.NEEDSACTION.value
+                    detail="Serialized model", status=ModelState.DONE.value
                 )
-                logger.warning(
-                    f"{self.model_file_name} not found in {self.artifact_dir}. "
-                    f"Save the serialized model under {self.artifact_dir}."
-                )
-                self._summary_status.update_action(
-                    detail="Generated score.py",
-                    action=(
-                        "`load_model` is not automatically generated. "
-                        "Finish implementing it and call .verify to check if it works."
-                    ),
-                )
-        except Exception as e:
-            raise e
+            except SerializeModelNotImplementedError as e:
+                if not os.path.exists(
+                    os.path.join(self.artifact_dir, self.model_file_name)
+                ):
+                    self._summary_status.update_action(
+                        detail="Serialized model",
+                        action=(
+                            "Model is not automatically serialized. "
+                            f"Serialize the model as `{self.model_file_name}` and "
+                            f"save to the {self.artifact_dir}."
+                        ),
+                    )
+                    self._summary_status.update_status(
+                        detail="Serialized model", status=ModelState.NEEDSACTION.value
+                    )
+                    logger.warning(
+                        f"{self.model_file_name} not found in {self.artifact_dir}. "
+                        f"Save the serialized model under {self.artifact_dir}."
+                    )
+                    self._summary_status.update_action(
+                        detail="Generated score.py",
+                        action=(
+                            "`load_model` is not automatically generated. "
+                            "Finish implementing it and call .verify to check if it works."
+                        ),
+                    )
+            except Exception as e:
+                raise e
 
-        self._summary_status.update_status(
-            detail="Generated runtime.yaml", status=ModelState.DONE.value
-        )
         if as_onnx:
             jinja_template_filename = "score_onnx_new"
         else:
             if self.framework and self.framework != "other":
                 jinja_template_filename = "score_" + self.framework
+                if self.framework == "transformers":
+                    jinja_template_filename = "score_" + "huggingface_pipeline"
             else:
                 jinja_template_filename = (
                     "score-pkl" if self._serialize else "score_generic"
                 )
 
-        self.model_artifact.prepare_score_py(
-            jinja_template_filename=jinja_template_filename,
-            model_file_name=self.model_file_name,
-            **kwargs,
-        )
+        if score_py_uri:
+            utils.copy_file(
+                uri_src=score_py_uri,
+                uri_dst=os.path.join(self.artifact_dir, "score.py"),
+                force_overwrite=force_overwrite,
+                auth=self.auth
+            )
+        else:
+            self.model_artifact.prepare_score_py(
+                jinja_template_filename=jinja_template_filename,
+                model_file_name=self.model_file_name,
+                data_deserializer=self.model_input_serializer.name,
+                model_serializer=self.model_save_serializer.name,
+                **{**kwargs, **self._score_args},
+            )
+
         self._summary_status.update_status(
             detail="Generated score.py", status=ModelState.DONE.value
         )
@@ -728,23 +1035,134 @@ class GenericModel(MetadataMixin, Introspectable):
             training_id=self.properties.training_id,
             ignore_pending_changes=ignore_pending_changes,
             max_col_num=max_col_num,
+            ignore_conda_error=self.ignore_conda_error,
         )
+
         self._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
             status=ModelState.DONE.value,
         )
+
         self._summary_status.update_status(
             detail="Local tested .predict from score.py",
             status=ModelState.AVAILABLE.value,
         )
-        self._summary_status.update_status(
-            detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
-        )
+
+        if not self.ignore_conda_error:
+            self._summary_status.update_status(
+                detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
+            )
+
         self._summary_status.update_status(
             detail="Uploaded artifact to model catalog",
             status=ModelState.AVAILABLE.value,
         )
         return self
+
+    def _handle_input_data(
+        self, data: Any = None, auto_serialize_data: bool = True, **kwargs
+    ):
+        """Handle input data and serialize it as required.
+
+        Parameters
+        ----------
+        data: Any
+            Data for the prediction.
+        auto_serialize_data: bool
+            Defaults to True. Indicate whether to serialize the input data.
+
+        kwargs:
+            storage_options: dict
+                Passed to ADSImage.open.
+
+        Raises
+        ------
+        TypeError:
+            `data` is not json serializable or bytes. Set `auto_serialize_data` to `True` to serialize the input data.
+        ValueError:
+            Either use `image` argument through kwargs to pass in image file or use `data` argument to pass the data.
+
+        Returns
+        -------
+        object: Data used for a request.
+        """
+        if isinstance(data, bytes):
+            return data
+        if not auto_serialize_data:
+            if not _is_json_serializable(data) and not isinstance(data, bytes):
+                raise TypeError(
+                    "`data` is not json serializable or bytes. Set `auto_serialize_data` to `True` to serialize the input data."
+                )
+            return data
+
+        if data is None and "image" not in kwargs.keys():
+            raise ValueError(
+                "Either use `image` argument through kwargs to pass in image file or use `data` argument to pass the data."
+            )
+
+        if "image" in kwargs.keys():
+            data = self._handle_image_input(image=kwargs.pop("image"), **kwargs)
+
+        serialized_data = self.model_input_serializer.serialize(data=data, **kwargs)
+        return serialized_data
+
+    def _handle_image_input(self, image, **kwargs):
+        """Validates the image input and converts it to tensor.
+
+        Parameters
+        ----------
+        image: PIL.Image Object or uri.
+            image file path or opened image file.
+
+        kwargs:
+            storage_options: dict
+                Passed to ADSImage.open.
+
+        Raises
+        ------
+        ValueError: Cannot open or identify the given image file.
+
+        Returns
+        -------
+        tensor: tf.tensor or torch.tensor.
+        """
+        if not isinstance(image, Image.Image):
+            try:
+                image = ADSImage.open(
+                    path=image, storage_options=kwargs.pop("storage_options", {})
+                ).img
+            except Exception as e:
+                raise ValueError(
+                    f"Cannot open or identify the given image file. See details: {e}"
+                )
+        tensor = self._to_tensor(image)
+        return tensor
+
+    def _to_tensor(self, data):
+        """Only PyTorchModel and TensorflowModel will implement this method.
+
+        Args:
+            data (Any): Data needs to be converted to tensor.
+
+        Raises:
+            NotImplementedError: Only PyTorchModel and TensorflowModel will implement this method.
+        """
+        raise NotImplementedError(
+            "Only PyTorchModel and TensorflowModel will implement this method."
+        )
+
+    def get_data_serializer(self):
+        """Gets data serializer.
+
+        Returns
+        -------
+        object: ads.model.Serializer object.
+        """
+        return self.model_input_serializer
+
+    def get_model_serializer(self):
+        """Gets model serializer."""
+        return self.model_save_serializer
 
     def verify(
         self,
@@ -772,6 +1190,8 @@ class GenericModel(MetadataMixin, Introspectable):
             Data used to test if deployment works in local environment.
         reload_artifacts: bool. Defaults to True.
             Whether to reload artifacts or not.
+        is_json_payload: bool
+            Defaults to False. Indicate whether to send data with a `application/json` MIME TYPE.
         auto_serialize_data: bool.
             Whether to auto serialize input data. Defauls to `False` for GenericModel, and `True` for other frameworks.
             `data` required to be json serializable if `auto_serialize_data=False`.
@@ -789,25 +1209,16 @@ class GenericModel(MetadataMixin, Introspectable):
         Dict
             A dictionary which contains prediction results.
         """
-        data, data_type = self._handle_image_input(data, **kwargs)
         endpoint = f"http://127.0.0.1:8000/predict"
+        data = self._handle_input_data(data, auto_serialize_data, **kwargs)
 
-        if not auto_serialize_data:
-            if not _is_json_serializable(data):
-                raise ValueError(
-                    "`data` must be json serializable. "
-                    "Set `auto_serialize_data` to True, or serialize the provided input data first."
-                )
-            request_body = send_request(
-                data=data,
-                endpoint=endpoint,
-                dry_run=True,
-                is_json_payload=True,
-                **kwargs,
-            )
-        else:
-            serialized_data = self.get_data_serializer(data=data, data_type=data_type)
-            request_body = serialized_data.send(endpoint, dry_run=True, **kwargs)
+        request_body = send_request(
+            data,
+            endpoint,
+            dry_run=True,
+            is_json_payload=_is_json_serializable(data),
+            **kwargs,
+        )
 
         if reload_artifacts:
             self.model_artifact.reload()
@@ -840,15 +1251,16 @@ class GenericModel(MetadataMixin, Introspectable):
 
     @classmethod
     def from_model_artifact(
-        cls,
+        cls: Type[Self],
         uri: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[ModelProperties] = None,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs: dict,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from a folder, or zip/tar archive.
 
         Parameters
@@ -872,10 +1284,12 @@ class GenericModel(MetadataMixin, Introspectable):
             Whether to overwrite existing files or not.
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of `GenericModel` class.
 
         Raises
@@ -895,21 +1309,26 @@ class GenericModel(MetadataMixin, Introspectable):
             model_file_name=model_file_name,
             force_overwrite=force_overwrite,
             auth=auth,
+            ignore_conda_error=ignore_conda_error,
         )
         model = cls(
             estimator=model_artifact.model,
             artifact_dir=artifact_dir,
             auth=auth,
             properties=properties,
+            **kwargs,
         )
         model.model_file_name = model_file_name or model_artifact.model_file_name
         model.model_artifact = model_artifact
+        model.ignore_conda_error = ignore_conda_error
         model.reload_runtime_info()
         model._summary_status.update_status(
-            detail="Generated score.py", status=ModelState.DONE.value
+            detail="Generated score.py",
+            status=ModelState.DONE.value,
         )
         model._summary_status.update_status(
-            detail="Generated runtime.yaml", status=ModelState.DONE.value
+            detail="Generated runtime.yaml",
+            status=ModelState.DONE.value,
         )
         model._summary_status.update_status(
             detail="Serialized model", status=ModelState.DONE.value
@@ -922,17 +1341,18 @@ class GenericModel(MetadataMixin, Introspectable):
 
     @classmethod
     def from_model_catalog(
-        cls,
+        cls: Type[Self],
         model_id: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from model catalog.
 
         Parameters
@@ -958,6 +1378,8 @@ class GenericModel(MetadataMixin, Introspectable):
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -969,7 +1391,7 @@ class GenericModel(MetadataMixin, Introspectable):
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of GenericModel class.
         """
         local_vars = _extract_locals(locals())
@@ -987,6 +1409,7 @@ class GenericModel(MetadataMixin, Introspectable):
             remove_existing_artifact=remove_existing_artifact,
             auth=auth,
             region=kwargs.pop("region", None),
+            timeout=kwargs.pop("timeout", None),
         )
         result_model = cls.from_model_artifact(
             uri=artifact_dir,
@@ -995,6 +1418,8 @@ class GenericModel(MetadataMixin, Introspectable):
             auth=auth,
             force_overwrite=force_overwrite,
             properties=properties,
+            ignore_conda_error=ignore_conda_error,
+            **kwargs,
         )
         result_model.dsc_model = dsc_model
 
@@ -1003,30 +1428,35 @@ class GenericModel(MetadataMixin, Introspectable):
             status=ModelState.DONE.value,
         )
         result_model._summary_status.update_action(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)", action=""
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            action="",
         )
         result_model._summary_status.update_status(
             detail="Local tested .predict from score.py",
             status=ModelState.AVAILABLE.value,
         )
         result_model._summary_status.update_status(
-            detail="Conducted Introspect Test", status=ModelState.AVAILABLE.value
+            detail="Conducted Introspect Test",
+            status=ModelState.AVAILABLE.value
+            if not result_model.ignore_conda_error
+            else ModelState.NOTAVAILABLE.value,
         )
         return result_model
 
     @classmethod
     def from_model_deployment(
-        cls,
+        cls: Type[Self],
         model_deployment_id: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from model deployment.
 
         Parameters
@@ -1052,6 +1482,8 @@ class GenericModel(MetadataMixin, Introspectable):
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -1063,7 +1495,7 @@ class GenericModel(MetadataMixin, Introspectable):
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of GenericModel class.
         """
         model_deployment = ModelDeployer(config=auth).get_model_deployment(
@@ -1083,6 +1515,7 @@ class GenericModel(MetadataMixin, Introspectable):
             properties=properties,
             bucket_uri=bucket_uri,
             remove_existing_artifact=remove_existing_artifact,
+            ignore_conda_error=ignore_conda_error,
             **kwargs,
         )
         model._summary_status.update_status(
@@ -1180,17 +1613,18 @@ class GenericModel(MetadataMixin, Introspectable):
 
     @classmethod
     def from_id(
-        cls,
+        cls: Type[Self],
         ocid: str,
         model_file_name: str = None,
-        artifact_dir: str = None,
+        artifact_dir: Optional[str] = None,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
         properties: Optional[Union[ModelProperties, Dict]] = None,
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
         **kwargs,
-    ) -> "GenericModel":
+    ) -> Self:
         """Loads model from model OCID or model deployment OCID.
 
         Parameters
@@ -1224,7 +1658,7 @@ class GenericModel(MetadataMixin, Introspectable):
 
         Returns
         -------
-        GenericModel
+        Self
             An instance of GenericModel class.
         """
         ocid = ocid.lower()
@@ -1238,6 +1672,7 @@ class GenericModel(MetadataMixin, Introspectable):
                 properties=properties,
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
+                ignore_conda_error=ignore_conda_error,
                 **kwargs,
             )
         elif DataScienceModelType.MODEL in ocid:
@@ -1250,6 +1685,7 @@ class GenericModel(MetadataMixin, Introspectable):
                 properties=properties,
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
+                ignore_conda_error=ignore_conda_error,
                 **kwargs,
             )
         else:
@@ -1268,10 +1704,13 @@ class GenericModel(MetadataMixin, Introspectable):
         # reload runtime.yaml
         runtime_yaml_file = os.path.join(self.artifact_dir, "runtime.yaml")
         if not os.path.exists(runtime_yaml_file):
-            raise FileNotFoundError(
-                f"`runtime.yaml` does not exist in {self.artifact_dir}. "
-                "Use `RuntimeInfo` class to populate it."
-            )
+            if self.ignore_conda_error:
+                return self.runtime_info
+            else:
+                raise FileNotFoundError(
+                    f"`runtime.yaml` does not exist in {self.artifact_dir}. "
+                    "Use `RuntimeInfo` class to populate it."
+                )
         self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
 
     def reload(self) -> "GenericModel":
@@ -1345,6 +1784,8 @@ class GenericModel(MetadataMixin, Introspectable):
             region: (str, optional). Defaults to `None`.
                 The destination Object Storage bucket region.
                 By default the value will be extracted from the `OCI_REGION_METADATA` environment variables.
+            timeout: (int, optional). Defaults to 10 seconds.
+                The connection timeout in seconds for the client.
 
             Also can be any attribute that `oci.data_science.models.Model` accepts.
 
@@ -1369,19 +1810,23 @@ class GenericModel(MetadataMixin, Introspectable):
         self.properties.project_id = self.properties.project_id or PROJECT_OCID
 
         # check if the runtime_info sync with the runtime.yaml.
-        runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
-        runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
-        if self.runtime_info != runtime_info_from_yaml:
-            raise RuntimeInfoInconsistencyError(
-                "`.runtime_info` does not sync with runtime.yaml file. Call "
-                "`.runtime_info.save()` if you updated `runtime_info`. "
-                "Call `.reload()` if you updated runtime.yaml file."
-            )
-        # reload to check if load_model works in score.py, i.e.
-        # whether the model file has been serialized, and whether it can be loaded
-        # successfully.
-        self.reload()
-        if not ignore_introspection:
+        try:
+            runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
+            runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
+            if self.runtime_info != runtime_info_from_yaml:
+                raise RuntimeInfoInconsistencyError(
+                    "`.runtime_info` does not sync with runtime.yaml file. Call "
+                    "`.runtime_info.save()` if you updated `runtime_info`. "
+                    "Call `.reload()` if you updated runtime.yaml file."
+                )
+            # reload to check if load_model works in score.py, i.e.
+            # whether the model file has been serialized, and whether it can be loaded
+            # successfully.
+            self.reload()
+        except:
+            if not self.ignore_conda_error:
+                raise
+        if not self.ignore_conda_error and not ignore_introspection:
             self._introspect()
             if self._introspect.status == TEST_STATUS.NOT_PASSED:
                 msg = (
@@ -1433,7 +1878,11 @@ class GenericModel(MetadataMixin, Introspectable):
         self._summary_status.update_status(
             detail="Deployed the model", status=ModelState.AVAILABLE.value
         )
-        self.model_deployment = None
+        self.model_deployment = (
+            ModelDeployment()
+            .with_infrastructure(ModelDeploymentInfrastructure())
+            .with_runtime(ModelDeploymentContainerRuntime())
+        )
 
         return self.model_id
 
@@ -1453,6 +1902,7 @@ class GenericModel(MetadataMixin, Introspectable):
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -1460,10 +1910,34 @@ class GenericModel(MetadataMixin, Introspectable):
         deployment_predict_log_id: Optional[str] = None,
         deployment_memory_in_gbs: Optional[float] = None,
         deployment_ocpus: Optional[float] = None,
+        deployment_image: Optional[str] = None,
         **kwargs: Dict,
     ) -> "ModelDeployment":
         """
-        Deploys a model. The model needs to be saved to the model catalog at first.
+        Deploys a model. The model needs to be saved to the model catalog at first. You can deploy the model
+        on either conda or container runtime. The customized runtime allows you to bring your own service container.
+        To deploy model on container runtime, make sure to build the container and push it to OCIR.
+        For more information, see https://docs.oracle.com/en-us/iaas/data-science/using/mod-dep-byoc.htm.
+
+        Example
+        -------
+        # This is an example to deploy model on container runtime
+        >>> model = GenericModel(estimator=estimator, artifact_dir=tempfile.mkdtemp())
+        >>> model.summary_status()
+        >>> model.prepare(
+        ...     model_file_name="toy_model.pkl",
+        ...     ignore_conda_error=True, # set ignore_conda_error=True for container runtime
+        ...     force_overwrite=True
+        ... )
+        >>> model.verify()
+        >>> model.save()
+        >>> model.deploy(
+        ...     deployment_image="iad.ocir.io/<namespace>/<image>:<tag>",
+        ...     entrypoint=["python", "/opt/ds/model/deployed_model/api.py"],
+        ...     server_port=5000,
+        ...     health_check_port=5000,
+        ...     environment_variables={"key":"value"}
+        ... )
 
         Parameters
         ----------
@@ -1477,6 +1951,8 @@ class GenericModel(MetadataMixin, Introspectable):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -1491,6 +1967,8 @@ class GenericModel(MetadataMixin, Introspectable):
             The access log OCID for the access logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
         deployment_predict_log_id: (str, optional). Defaults to None.
             The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
+        deployment_image: (str, optional). Defaults to None.
+            The OCIR path of docker container image. Required for deploying model on container runtime.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken from the environment variables.
@@ -1505,6 +1983,24 @@ class GenericModel(MetadataMixin, Introspectable):
                 Freeform tags of the model deployment.
             defined_tags: (Dict[str, dict[str, object]], optional). Defaults to None.
                 Defined tags of the model deployment.
+            image_digest: (str, optional). Defaults to None.
+                The digest of docker container image.
+            cmd: (List, optional). Defaults to empty.
+                The command line arguments for running docker container image.
+            entrypoint: (List, optional). Defaults to empty.
+                The entrypoint for running docker container image.
+            server_port: (int, optional). Defaults to 8080.
+                The server port for docker container image.
+            health_check_port: (int, optional). Defaults to 8080.
+                The health check port for docker container image.
+            deployment_mode: (str, optional). Defaults to HTTPS_ONLY.
+                The deployment mode. Allowed values are: HTTPS_ONLY and STREAM_ONLY.
+            input_stream_ids: (List, optional). Defaults to empty.
+                The input stream ids. Required for STREAM_ONLY mode.
+            output_stream_ids: (List, optional). Defaults to empty.
+                The output stream ids. Required for STREAM_ONLY mode.
+            environment_variables: (Dict, optional). Defaults to empty.
+                The environment variables for model deployment.
 
             Also can be any keyword argument for initializing the `ads.model.deployment.ModelDeploymentProperties`.
             See `ads.model.deployment.ModelDeploymentProperties()` for details.
@@ -1546,8 +2042,6 @@ class GenericModel(MetadataMixin, Introspectable):
             self.properties.deployment_bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
         )
 
-        self.model_deployment = None
-
         if not self.model_id:
             raise ValueError(
                 "The model needs to be saved to the Model Catalog "
@@ -1564,43 +2058,173 @@ class GenericModel(MetadataMixin, Introspectable):
                 "cannot be used without `deployment_log_group_id`."
             )
 
-        model_deployment_properties = (
-            ModelDeploymentProperties(self.model_id, config=self.auth, **kwargs)
-            .with_prop("display_name", display_name)
-            .with_prop("description", description)
-            .with_prop("project_id", self.properties.project_id)
-            .with_prop("compartment_id", self.properties.compartment_id)
-            .with_instance_configuration(
-                {
-                    "INSTANCE_SHAPE": self.properties.deployment_instance_shape,
-                    "INSTANCE_COUNT": self.properties.deployment_instance_count,
-                    "bandwidth_mbps": self.properties.deployment_bandwidth_mbps,
-                    "memory_in_gbs": self.properties.deployment_memory_in_gbs,
-                    "ocpus": self.properties.deployment_ocpus,
-                }
+        existing_infrastructure = self.model_deployment.infrastructure
+        existing_runtime = self.model_deployment.runtime
+
+        web_concurrency = (
+            kwargs.pop("web_concurrency", None)
+            or existing_infrastructure.web_concurrency
+        )
+        if not (
+            self.properties.compartment_id or existing_infrastructure.compartment_id
+        ):
+            raise ValueError("`compartment_id` has to be provided.")
+        if not (self.properties.project_id or existing_infrastructure.project_id):
+            raise ValueError("`project_id` has to be provided.")
+        infrastructure = (
+            ModelDeploymentInfrastructure()
+            .with_compartment_id(
+                self.properties.compartment_id or existing_infrastructure.compartment_id
             )
+            .with_project_id(
+                self.properties.project_id or existing_infrastructure.project_id
+            )
+            .with_bandwidth_mbps(
+                self.properties.deployment_bandwidth_mbps
+                or existing_infrastructure.bandwidth_mbps
+            )
+            .with_shape_name(
+                self.properties.deployment_instance_shape
+                or existing_infrastructure.shape_name
+            )
+            .with_subnet_id(
+                self.properties.deployment_instance_subnet_id
+                or existing_infrastructure.subnet_id
+            )
+            .with_replica(
+                self.properties.deployment_instance_count
+                or existing_infrastructure.replica
+            )
+            .with_web_concurrency(web_concurrency)
+        )
+
+        ocpus = (
+            self.properties.deployment_ocpus
+            or existing_infrastructure.shape_config_details.get("ocpus")
+        )
+        memory_in_gbs = (
+            self.properties.deployment_memory_in_gbs
+            or existing_infrastructure.shape_config_details.get("memory_in_gbs")
+        )
+
+        if infrastructure.shape_name.endswith("Flex"):
+            infrastructure.with_shape_config_details(
+                ocpus=ocpus or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+                memory_in_gbs=memory_in_gbs or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+            )
+
+        access_log_id = (
+            self.properties.deployment_access_log_id
+            or existing_infrastructure.access_log.get("log_id")
+        )
+        access_log_group_id = (
+            self.properties.deployment_log_group_id
+            or existing_infrastructure.access_log.get("log_group_id")
         )
 
         # specifies the access log id
-        if self.properties.deployment_access_log_id:
-            model_deployment_properties.with_access_log(
-                self.properties.deployment_log_group_id,
-                self.properties.deployment_access_log_id,
+        if access_log_id:
+            infrastructure.with_access_log(
+                log_group_id=access_log_group_id,
+                log_id=access_log_id,
             )
+
+        predict_log_id = (
+            self.properties.deployment_predict_log_id
+            or existing_infrastructure.predict_log.get("log_id")
+        )
+        predict_log_group_id = (
+            self.properties.deployment_log_group_id
+            or existing_infrastructure.predict_log.get("log_group_id")
+        )
 
         # specifies the predict log id
-        if self.properties.deployment_predict_log_id:
-            model_deployment_properties.with_predict_log(
-                self.properties.deployment_log_group_id,
-                self.properties.deployment_predict_log_id,
+        if predict_log_id:
+            infrastructure.with_predict_log(
+                log_group_id=predict_log_group_id,
+                log_id=predict_log_id,
             )
 
-        self.model_deployment = ModelDeployer(config=self.auth).deploy(
-            properties=model_deployment_properties,
+        environment_variables = (
+            kwargs.pop("environment_variables", {}) or existing_runtime.env
+        )
+        deployment_mode = (
+            kwargs.pop("deployment_mode", ModelDeploymentMode.HTTPS)
+            or existing_runtime.deployment_mode
+        )
+
+        runtime = None
+        image = self.properties.deployment_image or existing_runtime.image
+        if image:
+            image_digest = (
+                kwargs.pop("image_digest", None) or existing_runtime.image_digest
+            )
+            cmd = kwargs.pop("cmd", []) or existing_runtime.cmd
+            entrypoint = kwargs.pop("entrypoint", []) or existing_runtime.entrypoint
+            server_port = (
+                kwargs.pop("server_port", None) or existing_runtime.server_port
+            )
+            health_check_port = (
+                kwargs.pop("health_check_port", None)
+                or existing_runtime.health_check_port
+            )
+            runtime = (
+                ModelDeploymentContainerRuntime()
+                .with_image(image)
+                .with_image_digest(image_digest)
+                .with_cmd(cmd)
+                .with_entrypoint(entrypoint)
+                .with_server_port(server_port)
+                .with_health_check_port(health_check_port)
+                .with_deployment_mode(deployment_mode)
+                .with_model_uri(self.model_id)
+                .with_env(environment_variables)
+            )
+        else:
+            runtime = (
+                ModelDeploymentCondaRuntime()
+                .with_env(environment_variables)
+                .with_deployment_mode(deployment_mode)
+                .with_model_uri(self.model_id)
+            )
+
+        if deployment_mode == ModelDeploymentMode.STREAM:
+            input_stream_ids = (
+                kwargs.pop("input_stream_ids", []) or existing_runtime.input_stream_ids
+            )
+            output_stream_ids = (
+                kwargs.pop("output_stream_ids", [])
+                or existing_runtime.output_stream_ids
+            )
+            if not (input_stream_ids and output_stream_ids):
+                raise ValueError(
+                    "Parameter `input_stream_ids` and `output_stream_ids` need to be provided for `STREAM_ONLY` mode."
+                )
+
+            runtime.with_input_stream_ids(input_stream_ids)
+            runtime.with_output_stream_ids(output_stream_ids)
+
+        freeform_tags = (
+            kwargs.pop("freeform_tags", {}) or self.model_deployment.freeform_tags
+        )
+        defined_tags = (
+            kwargs.pop("defined_tags", {}) or self.model_deployment.defined_tags
+        )
+
+        model_deployment = (
+            ModelDeployment()
+            .with_display_name(display_name or self.model_deployment.display_name)
+            .with_description(description or self.model_deployment.description)
+            .with_defined_tags(**defined_tags)
+            .with_freeform_tags(**freeform_tags)
+            .with_infrastructure(infrastructure)
+            .with_runtime(runtime)
+        )
+
+        self.model_deployment = model_deployment.deploy(
             wait_for_completion=wait_for_completion,
             max_wait_time=max_wait_time,
             poll_interval=poll_interval,
-            **kwargs,
         )
         self._summary_status.update_status(
             detail="Deployed the model",
@@ -1626,6 +2250,7 @@ class GenericModel(MetadataMixin, Introspectable):
         training_id: str = _TRAINING_RESOURCE_ID,
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
+        ignore_conda_error: bool = False,
         model_display_name: Optional[str] = None,
         model_description: Optional[str] = None,
         model_freeform_tags: Optional[dict] = None,
@@ -1635,6 +2260,7 @@ class GenericModel(MetadataMixin, Introspectable):
         deployment_display_name: Optional[str] = None,
         deployment_description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -1642,6 +2268,7 @@ class GenericModel(MetadataMixin, Introspectable):
         deployment_predict_log_id: Optional[str] = None,
         deployment_memory_in_gbs: Optional[float] = None,
         deployment_ocpus: Optional[float] = None,
+        deployment_image: Optional[str] = None,
         bucket_uri: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
@@ -1696,6 +2323,8 @@ class GenericModel(MetadataMixin, Introspectable):
         max_col_num: (int, optional). Defaults to utils.DATA_SCHEMA_MAX_COL_NUM.
             Do not generate the input schema if the input has more than this
             number of features(columns).
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
         model_display_name: (str, optional). Defaults to None.
             The name of the model. If a model_display_name is not provided in kwargs,
             a randomly generated easy to remember name with timestamp will be generated,
@@ -1719,6 +2348,8 @@ class GenericModel(MetadataMixin, Introspectable):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -1733,6 +2364,8 @@ class GenericModel(MetadataMixin, Introspectable):
             Specifies the size of the memory of the model deployment instance in GBs.
         deployment_ocpus: (float, optional). Defaults to None.
             Specifies the ocpus count of the model deployment instance.
+        deployment_image: (str, optional). Defaults to None.
+            The OCIR path of docker container image. Required for deploying model on container runtime.
         bucket_uri: (str, optional). Defaults to None.
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for downloading large artifacts with
@@ -1755,6 +2388,24 @@ class GenericModel(MetadataMixin, Introspectable):
             compartment_id : (str, optional).
                 Compartment OCID. If not specified, the value will be taken either
                 from the environment variables or model properties.
+            image_digest: (str, optional). Defaults to None.
+                The digest of docker container image.
+            cmd: (List, optional). Defaults to empty.
+                The command line arguments for running docker container image.
+            entrypoint: (List, optional). Defaults to empty.
+                The entrypoint for running docker container image.
+            server_port: (int, optional). Defaults to 8080.
+                The server port for docker container image.
+            health_check_port: (int, optional). Defaults to 8080.
+                The health check port for docker container image.
+            deployment_mode: (str, optional). Defaults to HTTPS_ONLY.
+                The deployment mode. Allowed values are: HTTPS_ONLY and STREAM_ONLY.
+            input_stream_ids: (List, optional). Defaults to empty.
+                The input stream ids. Required for STREAM_ONLY mode.
+            output_stream_ids: (List, optional). Defaults to empty.
+                The output stream ids. Required for STREAM_ONLY mode.
+            environment_variables: (Dict, optional). Defaults to empty.
+                The environment variables for model deployment.
             timeout: (int, optional). Defaults to 10 seconds.
                 The connection timeout in seconds for the client.
             max_wait_time : (int, optional). Defaults to 1200 seconds.
@@ -1808,6 +2459,7 @@ class GenericModel(MetadataMixin, Introspectable):
             training_id=self.properties.training_id,
             ignore_pending_changes=ignore_pending_changes,
             max_col_num=max_col_num,
+            ignore_conda_error=ignore_conda_error,
             impute_values=kwargs.pop("impute_values", None),
         )
         # Set default model_display_name if not specified - randomly generated easy to remember name generated
@@ -1839,6 +2491,7 @@ class GenericModel(MetadataMixin, Introspectable):
             display_name=deployment_display_name,
             description=deployment_description,
             deployment_instance_shape=self.properties.deployment_instance_shape,
+            deployment_instance_subnet_id=self.properties.deployment_instance_subnet_id,
             deployment_instance_count=self.properties.deployment_instance_count,
             deployment_bandwidth_mbps=self.properties.deployment_bandwidth_mbps,
             deployment_log_group_id=self.properties.deployment_log_group_id,
@@ -1846,12 +2499,17 @@ class GenericModel(MetadataMixin, Introspectable):
             deployment_predict_log_id=self.properties.deployment_predict_log_id,
             deployment_memory_in_gbs=self.properties.deployment_memory_in_gbs,
             deployment_ocpus=self.properties.deployment_ocpus,
+            deployment_image=deployment_image,
             kwargs=kwargs,
         )
         return self.model_deployment
 
     def predict(
-        self, data: Any = None, auto_serialize_data: bool = False, **kwargs
+        self,
+        data: Any = None,
+        auto_serialize_data: bool = False,
+        local: bool = False,
+        **kwargs,
     ) -> Dict[str, Any]:
         """Returns prediction of input data run against the model deployment endpoint.
 
@@ -1875,6 +2533,8 @@ class GenericModel(MetadataMixin, Introspectable):
             Whether to auto serialize input data. Defauls to `False` for GenericModel, and `True` for other frameworks.
             `data` required to be json serializable if `auto_serialize_data=False`.
             If `auto_serialize_data` set to True, data will be serialized before sending to model deployment endpoint.
+        local: bool.
+            Whether to invoke the prediction locally. Default to False.
         kwargs:
             content_type: str, used to indicate the media type of the resource.
             image: PIL.Image Object or uri for the image.
@@ -1893,88 +2553,37 @@ class GenericModel(MetadataMixin, Introspectable):
         NotActiveDeploymentError
             If model deployment process was not started or not finished yet.
         ValueError
-            If `data` is empty or not JSON serializable.
+            If model is not deployed yet or the endpoint information is not available.
         """
-        data, data_type = self._handle_image_input(data, **kwargs)
+        if local:
+            return self.verify(
+                data=data, auto_serialize_data=auto_serialize_data, **kwargs
+            )
 
-        if not self.model_deployment:
-            raise ValueError("Use `deploy()` method to start model deployment.")
+        if not (self.model_deployment and self.model_deployment.url):
+            raise ValueError(
+                "Error invoking the remote endpoint as the model is not "
+                "deployed yet or the endpoint information is not available. "
+                "Use `deploy()` method to start model deployment. "
+                "If you intend to invoke inference using locally available "
+                "model artifact, set parameter `local=True`"
+            )
 
         current_state = self.model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
             raise NotActiveDeploymentError(current_state)
 
-        if not auto_serialize_data:
-            prediction = self.model_deployment.predict(json_input=data)
-        else:
-            serialized_data = self.get_data_serializer(
-                data=data, data_type=data_type
-            ).to_dict()
-            prediction = self.model_deployment.predict(
-                json_input=serialized_data, **kwargs
-            )
+        data = self._handle_input_data(data, auto_serialize_data, **kwargs)
+        prediction = self.model_deployment.predict(
+            data=data,
+            serializer=self.get_data_serializer(),
+            **kwargs,
+        )
 
         self._summary_status.update_status(
             detail="Called deployment predict endpoint", status=ModelState.DONE.value
         )
         return prediction
-
-    def get_data_serializer(self, data: any, data_type: str = None):
-        """The data_serializer_class class is set in ``init`` and used here.
-        Frameworks should subclass the InputDataSerializer class, then
-        set that as the ``self.data_serializer_class``.
-        Frameworks should avoid overwriting this method whenever possible.
-
-        Parameters
-        ----------
-        data: (Any)
-            data to be passed to model for prediction.
-        data_type: str
-            Type of the data.
-
-        Returns
-        -------
-        data
-            Serialized data.
-        """
-        return self.data_serializer_class(data=data, data_type=data_type)
-
-    def _handle_image_input(self, data, **kwargs) -> bytes:
-        """Validate the argument pass in verify and predict.
-
-        Properties
-        ----------
-        kwargs:
-            content_type: str, used to indicate the media type of the resource.
-            image: PIL.Image Object or uri.
-                image file path or opened image file.
-            storage_options: dict
-                Passed to ADSImage.open.
-
-        Raises
-        ------
-        ValueError: Either use `image` argument through kwargs to pass in image file or use `data` argument to pass the data.
-
-        Returns
-        -------
-        bytes: Binary data.
-        """
-        if data is not None:
-            return data, None
-        ARGUMENT_ERROR_MSG = "Either use `image` argument through kwargs to pass in image file or use `data` argument to pass the data."
-        if "image" in kwargs.keys():
-            image = kwargs.get("image")
-            if not isinstance(image, Image.Image):
-                try:
-                    image = ADSImage.open(
-                        path=image, storage_options=kwargs.pop("storage_options", {})
-                    ).img
-                except Exception as e:
-                    raise ValueError(
-                        f"Cannot open or identify the given image file. See details: {e}"
-                    )
-            return image, "image"
-        raise ValueError(ARGUMENT_ERROR_MSG)
 
     def summary_status(self) -> pd.DataFrame:
         """A summary table of the current status.
@@ -1984,8 +2593,12 @@ class GenericModel(MetadataMixin, Introspectable):
         pd.DataFrame
             The summary stable of the current status.
         """
-        if self.model_file_name and not os.path.exists(
-            os.path.join(self.artifact_dir, self.model_file_name)
+        if (
+            not self.ignore_conda_error
+            and self.model_file_name
+            and not os.path.exists(
+                os.path.join(self.artifact_dir, self.model_file_name)
+            )
         ):
             self._summary_status.update_action(
                 detail="Serialized model",
@@ -2281,32 +2894,47 @@ class SummaryStatus:
 
     def __init__(self):
         summary_data = [
-            ["initiate", "Initiated the model", ModelState.DONE.value, ""],
-            ["prepare()", "Generated runtime.yaml", ModelState.AVAILABLE.value, ""],
-            ["prepare()", "Generated score.py", ModelState.AVAILABLE.value, ""],
-            ["prepare()", "Serialized model", ModelState.AVAILABLE.value, ""],
+            [INITIATE_STATUS_NAME, "Initiated the model", ModelState.DONE.value, ""],
             [
-                "prepare()",
+                PREPARE_STATUS_NAME,
+                "Generated runtime.yaml",
+                ModelState.AVAILABLE.value,
+                "",
+            ],
+            [PREPARE_STATUS_NAME, "Generated score.py", ModelState.AVAILABLE.value, ""],
+            [PREPARE_STATUS_NAME, "Serialized model", ModelState.AVAILABLE.value, ""],
+            [
+                PREPARE_STATUS_NAME,
                 "Populated metadata(Custom, Taxonomy and Provenance)",
                 ModelState.AVAILABLE.value,
                 "",
             ],
             [
-                "verify()",
+                VERIFY_STATUS_NAME,
                 "Local tested .predict from score.py",
                 ModelState.NOTAVAILABLE.value,
                 "",
             ],
-            ["save()", "Conducted Introspect Test", ModelState.NOTAVAILABLE.value, ""],
             [
-                "save()",
+                SAVE_STATUS_NAME,
+                "Conducted Introspect Test",
+                ModelState.NOTAVAILABLE.value,
+                "",
+            ],
+            [
+                SAVE_STATUS_NAME,
                 "Uploaded artifact to model catalog",
                 ModelState.NOTAVAILABLE.value,
                 "",
             ],
-            ["deploy()", "Deployed the model", ModelState.NOTAVAILABLE.value, ""],
             [
-                "predict()",
+                DEPLOY_STATUS_NAME,
+                "Deployed the model",
+                ModelState.NOTAVAILABLE.value,
+                "",
+            ],
+            [
+                PREDICT_STATUS_NAME,
                 "Called deployment predict endpoint",
                 ModelState.NOTAVAILABLE.value,
                 "",

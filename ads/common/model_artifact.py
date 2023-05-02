@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import warnings
@@ -102,7 +102,7 @@ _TRAINING_RESOURCE_OCID = JOB_RUN_OCID or NB_SESSION_OCID
 _COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
 
 
-class InvalidDataType(Exception):
+class InvalidDataType(Exception):   # pragma: no cover
     """Invalid Data Type."""
 
     pass
@@ -274,10 +274,12 @@ class ModelArtifact(Introspectable):
         else:
             repository_url = "file://" + repo.working_dir  # no remote repo
 
-        # get git branch
-        git_branch = format(repo.active_branch)
-        # get git commit
+        git_branch = None
+        git_commit = None
         try:
+            # get git branch
+            git_branch = format(repo.active_branch)
+            # get git commit
             git_commit = format(str(repo.head.commit.hexsha))
             training_code_info.GIT_COMMIT = git_commit
         except ValueError:
@@ -1388,7 +1390,7 @@ class ModelArtifact(Introspectable):
             The use case type of the model.
         model: (Any, optional). Defaults to None.
             This is an optional model object which is only used to extract taxonomy metadata.
-            Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost.
+            Supported models: keras, lightgbm, pytorch, sklearn, tensorflow, and xgboost.
             If the model is not under supported frameworks, then extracting taxonomy metadata will be skipped.
         use_case_type: (str, optional). Default to None.
             The use case type of the model.

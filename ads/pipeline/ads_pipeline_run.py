@@ -36,7 +36,7 @@ PIPELINE_RUN_TERMINAL_STATE = {
 }
 
 LOG_INTERVAL = 3
-SLEEP_INTERVAL = 5
+SLEEP_INTERVAL = 3
 MAXIMUM_TIMEOUT_SECONDS = 1800
 LOG_RECORDS_LIMIT = 100
 ALLOWED_OPERATION_KWARGS = [
@@ -71,7 +71,7 @@ class StepType(str, metaclass=ExtendedEnumMeta):
     CUSTOM_SCRIPT = "CUSTOM_SCRIPT"
 
 
-class LogNotConfiguredError(Exception):
+class LogNotConfiguredError(Exception):   # pragma: no cover
     pass
 
 
@@ -109,6 +109,10 @@ class PipelineRun(
     sync(self) -> None
         Syncs status of Pipeline run.
     """
+
+    _DETAILS_LINK = (
+        "https://console.{region}.oraclecloud.com/data-science/pipeline-runs/{id}"
+    )
 
     def __init__(
         self,

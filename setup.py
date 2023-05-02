@@ -23,13 +23,13 @@ install_requires = [
     "gitpython>=3.1.2",
     "matplotlib>=3.1.3",
     "numpy>=1.19.2",
-    "oci>=2.90.3",
+    "oci>=2.96.0",
     "ocifs>=1.1.3",
     "pandas>1.2.1,<1.6",
     "python_jsonschema_objects>=0.3.13",
     "PyYAML>=5.4,<6",
     "requests",
-    "scikit-learn>=0.23.2",
+    "scikit-learn>=0.23.2,<1.2",
     "tabulate>=0.8.9",
     "tqdm>=4.59.0",
     "psutil>=5.7.2",
@@ -58,7 +58,7 @@ extras_require = {
         "pandavro>=1.6.0",
         "datefinder>=0.7.1",
         "htmllistparse>=0.6.0",
-        "sqlalchemy>=1.4.1",
+        "sqlalchemy>=1.4.1, <=1.4.46",
         "oracledb>=1.0",
     ],
     "opctl": [
@@ -69,9 +69,9 @@ extras_require = {
         "nbformat",
         "inflection",
     ],
-    "mysql": ["mysql-connector-python"],
     "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
     "spark": ["pyspark>=3.0.0"],
+    "huggingface": ["transformers"],
 }
 
 this_directory = Path(__file__).parent
@@ -153,7 +153,6 @@ setup(
         "Intended Audience :: Developers",
         "License :: OSI Approved :: Universal Permissive License (UPL)",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
@@ -161,7 +160,7 @@ setup(
     keywords="Oracle Cloud Infrastructure, OCI, Machine Learning, ML, Artificial Intelligence, AI, Data Science, Cloud, Oracle",
     include_package_data=True,
     install_requires=install_requires,
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=setup_requires,
     extras_require=extras_require,
     tests_require=[

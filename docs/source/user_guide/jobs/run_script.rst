@@ -1,5 +1,3 @@
-.. _job_run_script:
-
 Run a Script
 ************
 
@@ -252,7 +250,9 @@ YAML
 
 You could create the preceding example job with the following YAML file:
 
-.. code-block:: yaml
+The :py:class:`~ads.jobs.ScriptRuntime` is designed for you to define job artifacts and configurations supported by OCI
+Data Science Jobs natively. It can be used with any script types that is supported by the OCI Data Science Jobs,
+including shell scripts and python scripts.
 
   kind: job
   spec:
@@ -281,62 +281,21 @@ You could create the preceding example job with the following YAML file:
           value: <second_value>
       scriptPathURI: job_script_env.py
 
+See also: `Preparing Job Artifacts <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-artifact.htm>`_.
 
+Here is an example:
 
-**ScriptRuntime YAML Schema**
+.. include:: ../jobs/tabs/script_runtime.rst
 
-.. code-block:: yaml
+An `example script <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/jobs/shell/shell-with-args.sh>`_
+is available on `Data Science AI Sample GitHub Repository <https://github.com/oracle-samples/oci-data-science-ai-samples>`_.
 
-  kind:
-    required: true
-    type: string
-    allowed:
-      - runtime
-  type:
-    required: true
-    type: string
-    allowed:
-      - script
-  spec:
-    required: true
-    type: dict
-    schema:
-      args:
-        nullable: true
-        required: false
-        type: list
-        schema:
-          type: string
-      conda:
-        nullable: false
-        required: false
-        type: dict
-        schema:
-          slug:
-            required: true
-            type: string
-          type:
-            allowed:
-              - service
-            required: true
-            type: string
-      env:
-        nullable: true
-        required: false
-        type: list
-        schema:
-          type: dict
-          schema:
-          name:
-            type: string
-          value:
-            type:
-              - number
-              - string
-      scriptPathURI:
-        required: true
-        type: string
-      entrypoint:
-        required: false
-        type: string
+Working Directory
+=================
 
+The working directory is the parent directory where the job artifacts are decompressed,
+for example ``/home/datascience/decompressed_artifact/``.
+When the source code is a compressed file/archive (zip/tar) or a folder, you need to also specify the entrypoint
+using :py:meth:`~ads.jobs.ScriptRuntime.with_entrypoint`. The path of the entrypoint should be a path relative to
+the working directory. Note that this directory cannot be changed when using :py:class:`~ads.jobs.ScriptRuntime`.
+See :ref:`Python Runtime Working Directory <runtime_working_dir>` for more details.

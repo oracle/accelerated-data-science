@@ -11,7 +11,7 @@ To connect to an Oracle Database you need the following:
 
 The ``OracleDBSecretKeeper`` class saves the Oracle Database credentials to the OCI Vault service.
 
-See `API Documentation <../../ads.secrets.oracledb.OracleDBSecretKeeper>`__ for more details 
+See `API Documentation <../../ads.secrets.html#ads.secrets.oracledb.OracleDBSecretKeeper>`__ for more details 
 
 
 Save Credentials

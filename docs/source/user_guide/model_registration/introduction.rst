@@ -67,6 +67,7 @@ Deploying Model
   :maxdepth: 1
 
   model_deploy
+  model_deploy_byoc
 
 Loading model
 -----------------

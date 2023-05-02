@@ -35,7 +35,7 @@ logger = logging.getLogger(__name__)
 _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 
 
-class ModelArtifactSizeError(Exception):
+class ModelArtifactSizeError(Exception):   # pragma: no cover
     def __init__(self, max_artifact_size: str):
         super().__init__(
             f"The model artifacts size is greater than `{max_artifact_size}`. "
@@ -495,7 +495,7 @@ class DataScienceModel(Builder):
         ----------
         uri: str
             Path to artifact directory or to the ZIP archive.
-            It could contain a seriliazed model(required) as well as any files needed for deployment.
+            It could contain a serialized model(required) as well as any files needed for deployment.
             The content of the source folder will be zipped and uploaded to the model catalog.
 
         Examples
@@ -544,22 +544,24 @@ class DataScienceModel(Builder):
 
             In addition can be also provided the attributes listed below.
 
-            - bucket_uri: (str, optional). Defaults to None.
+            bucket_uri: (str, optional). Defaults to None.
                 The OCI Object Storage URI where model artifacts will be copied to.
                 The `bucket_uri` is only necessary for uploading large artifacts which
                 size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
-            - overwrite_existing_artifact: (bool, optional). Defaults to `True`.
+            overwrite_existing_artifact: (bool, optional). Defaults to `True`.
                 Overwrite target bucket artifact if exists.
-            - remove_existing_artifact: (bool, optional). Defaults to `True`.
+            remove_existing_artifact: (bool, optional). Defaults to `True`.
                 Wether artifacts uploaded to object storage bucket need to be removed or not.
-            - region: (str, optional). Defaults to `None`.
+            region: (str, optional). Defaults to `None`.
                 The destination Object Storage bucket region.
                 By default the value will be extracted from the `OCI_REGION_METADATA` environment variable.
-            - auth: (Dict, optional). Defaults to `None`.
-                The default authetication is set using `ads.set_auth` API.
+            auth: (Dict, optional). Defaults to `None`.
+                The default authentication is set using `ads.set_auth` API.
                 If you need to override the default, use the `ads.common.auth.api_keys` or
                 `ads.common.auth.resource_principal` to create appropriate authentication signer
                 and kwargs required to instantiate IdentityClient object.
+            timeout: (int, optional). Defaults to 10 seconds.
+                The connection timeout in seconds for the client.
 
         Returns
         -------
@@ -604,6 +606,7 @@ class DataScienceModel(Builder):
             remove_existing_artifact=kwargs.pop("remove_existing_artifact", True),
             region=kwargs.pop("region", None),
             auth=kwargs.pop("auth", None),
+            timeout=kwargs.pop("timeout", None),
         )
 
         # Sync up model
@@ -619,6 +622,7 @@ class DataScienceModel(Builder):
         region: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
+        timeout: Optional[int] = None,
     ) -> None:
         """Uploads model artifacts to the model catalog.
 
@@ -629,7 +633,7 @@ class DataScienceModel(Builder):
             The `bucket_uri` is only necessary for uploading large artifacts which
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         auth: (Dict, optional). Defaults to `None`.
-            The default authetication is set using `ads.set_auth` API.
+            The default authentication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys` or
             `ads.common.auth.resource_principal` to create appropriate authentication signer
             and kwargs required to instantiate IdentityClient object.
@@ -640,6 +644,8 @@ class DataScienceModel(Builder):
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        timeout: (int, optional). Defaults to 10 seconds.
+            The connection timeout in seconds for the client.
         """
         # Upload artifact to the model catalog
         if not self.artifact:
@@ -648,6 +654,13 @@ class DataScienceModel(Builder):
                 "Provide the artifact location to upload artifacts to the model catalog."
             )
             return
+
+        if timeout:
+            self.dsc_model._client = None
+            self.dsc_model.__class__.kwargs = {
+                **(self.dsc_model.__class__.kwargs or {}),
+                "timeout": timeout,
+            }
 
         if bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES:
             if not bucket_uri:
@@ -666,7 +679,8 @@ class DataScienceModel(Builder):
             )
         else:
             artifact_uploader = SmallArtifactUploader(
-                dsc_model=self.dsc_model, artifact_path=self.artifact
+                dsc_model=self.dsc_model,
+                artifact_path=self.artifact,
             )
 
         artifact_uploader.upload()
@@ -680,6 +694,7 @@ class DataScienceModel(Builder):
         region: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
+        timeout: Optional[int] = None,
     ):
         """Downloads model artifacts from the model catalog.
 
@@ -688,7 +703,7 @@ class DataScienceModel(Builder):
         target_dir: str
             The target location of model artifacts.
         auth: (Dict, optional). Defaults to `None`.
-            The default authetication is set using `ads.set_auth` API.
+            The default authentication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys` or
             `ads.common.auth.resource_principal` to create appropriate authentication signer
             and kwargs required to instantiate IdentityClient object.
@@ -705,6 +720,8 @@ class DataScienceModel(Builder):
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        timeout: (int, optional). Defaults to 10 seconds.
+            The connection timeout in seconds for the client.
 
         Raises
         ------
@@ -718,6 +735,13 @@ class DataScienceModel(Builder):
                 "The artifact needs to be uploaded to the model catalog at first. "
             )
             return
+
+        if timeout:
+            self.dsc_model._client = None
+            self.dsc_model.__class__.kwargs = {
+                **(self.dsc_model.__class__.kwargs or {}),
+                "timeout": timeout,
+            }
 
         artifact_info = self.dsc_model.get_artifact_info()
         artifact_size = int(artifact_info.get("content-length"))
@@ -886,7 +910,7 @@ class DataScienceModel(Builder):
         return self._update_from_oci_dsc_model(OCIDataScienceModel.from_id(self.id))
 
     def _init_complex_attributes(self):
-        """Reinitiates complex attributes."""
+        """Initiates complex attributes."""
         self.with_custom_metadata_list(self.custom_metadata_list)
         self.with_defined_metadata_list(self.defined_metadata_list)
         self.with_provenance_metadata(self.provenance_metadata)
@@ -1034,10 +1058,6 @@ class DataScienceModel(Builder):
         defaults[self.CONST_DISPLAY_NAME] = self._random_display_name()
 
         return defaults
-
-    def __repr__(self) -> str:
-        """Displays the object as YAML."""
-        return self.to_yaml()
 
     def __getattr__(self, item):
         if f"with_{item}" in self.__dir__():

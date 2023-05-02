@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """Contains classes for conversion between ADS runtime and OCI Data Science Job implementation.
 This module is for ADS developers only.
@@ -19,6 +19,7 @@ import os
 import shlex
 from typing import Optional
 from urllib import parse
+from ads.common.utils import extract_region
 from ads.jobs.builders.runtimes.base import Runtime
 from ads.jobs.builders.runtimes.python_runtime import (
     CondaRuntime,
@@ -32,11 +33,12 @@ from ads.jobs.builders.runtimes.artifact import (
     ScriptArtifact,
     NotebookArtifact,
     PythonArtifact,
+    GitPythonArtifact,
 )
 from ads.jobs.builders.infrastructure.utils import get_value
 
 
-class IncompatibleRuntime(Exception):
+class IncompatibleRuntime(Exception):  # pragma: no cover
     """Represents an exception when runtime is not compatible with the OCI data science job configuration.
     This exception is designed to be raised during the extraction of a runtime from OCI data science job.
     The data science job does not explicitly contain information of the type of the ADS runtime.
@@ -102,6 +104,8 @@ class RuntimeHandler:
         payload["job_configuration_details"] = self._translate_config(runtime)
         if runtime.freeform_tags:
             payload["freeform_tags"] = runtime.freeform_tags
+        if runtime.defined_tags:
+            payload["defined_tags"] = runtime.defined_tags
         self.data_science_job.runtime = runtime
         return payload
 
@@ -180,7 +184,7 @@ class RuntimeHandler:
         if runtime.args:
             # shlex.join() is not available until python 3.8
             job_configuration_details["command_line_arguments"] = " ".join(
-                shlex.quote(arg) for arg in runtime.args
+                shlex.quote(arg) for arg in runtime.get_spec(runtime.CONST_ARGS)
             )
         return job_configuration_details
 
@@ -205,7 +209,7 @@ class RuntimeHandler:
         Returns
         -------
         dict
-            A dictionary contianing environment variables for OCI data science job.
+            A dictionary containing environment variables for OCI data science job.
         """
         envs = {}
         for spec_key, dsc_key in spec_mappings.items():
@@ -223,7 +227,7 @@ class RuntimeHandler:
         Parameters
         ----------
         envs : dict
-            A dictionary contianing environment variables from OCI data science job.
+            A dictionary containing environment variables from OCI data science job.
         spec_mappings : dict
             Mapping from runtime properties to environment variables.
             This mapping is the same as the one in _translate_spec().
@@ -351,10 +355,14 @@ class RuntimeHandler:
         dict
             A runtime specification dictionary for initializing a runtime.
         """
+        tags = {}
         value = get_value(dsc_job, "freeform_tags")
         if value:
-            return {Runtime.CONST_TAG: value}
-        return {}
+            tags[Runtime.CONST_FREEFORM_TAGS] = value
+        value = get_value(dsc_job, "defined_tags")
+        if value:
+            tags[Runtime.CONST_DEFINED_TAGS] = value
+        return tags
 
     def _extract_artifact(self, dsc_job):
         """Extract the job artifact from data science job.
@@ -409,15 +417,7 @@ class CondaRuntimeHandler(RuntimeHandler):
     CONST_CONDA_BUCKET = "CONDA_ENV_BUCKET"
 
     def __get_auth_region(self) -> str:
-        config = self.data_science_job.dsc_job.auth.get("config")
-        signer = self.data_science_job.dsc_job.auth.get("signer")
-        if "region" in config and config["region"]:
-            region_to_use = config.get("region")
-        elif hasattr(signer, "region"):
-            region_to_use = signer.region
-        else:
-            region_to_use = None
-        return region_to_use
+        return extract_region(self.data_science_job.dsc_job.auth)
 
     def _translate_env(self, runtime: CondaRuntime) -> dict:
         """Translate the environment variable.
@@ -430,36 +430,38 @@ class CondaRuntimeHandler(RuntimeHandler):
         Returns
         -------
         dict
-            A dictionary contianing environment variables for OCI data science job.
+            A dictionary containing environment variables for OCI data science job.
         """
         envs = super()._translate_env(runtime)
         if runtime.conda:
             envs[self.CONST_CONDA_TYPE] = runtime.conda.get(
-                PythonRuntime.CONST_CONDA_TYPE
+                CondaRuntime.CONST_CONDA_TYPE
             )
             if (
-                runtime.conda.get(PythonRuntime.CONST_CONDA_TYPE)
-                == PythonRuntime.CONST_CONDA_TYPE_SERVICE
+                runtime.conda.get(CondaRuntime.CONST_CONDA_TYPE)
+                == CondaRuntime.CONST_CONDA_TYPE_SERVICE
             ):
                 envs.update(
                     {
                         self.CONST_CONDA_SLUG: runtime.conda.get(
-                            PythonRuntime.CONST_CONDA_SLUG
+                            CondaRuntime.CONST_CONDA_SLUG
                         ),
                     }
                 )
             elif (
-                runtime.conda.get(PythonRuntime.CONST_CONDA_TYPE)
-                == PythonRuntime.CONST_CONDA_TYPE_CUSTOM
+                runtime.conda.get(CondaRuntime.CONST_CONDA_TYPE)
+                == CondaRuntime.CONST_CONDA_TYPE_CUSTOM
             ):
-                uri = runtime.conda.get(PythonRuntime.CONST_CONDA_URI)
+                uri = runtime.conda.get(CondaRuntime.CONST_CONDA_URI)
                 p = parse.urlparse(uri)
                 if not (p.username and p.hostname and p.path):
                     raise ValueError(
                         f"Invalid URI for custom conda pack: {uri}. "
                         "A valid URI should have the format: oci://your_bucket@namespace/object_name"
                     )
-                region = self.__get_auth_region()
+                region = runtime.conda.get(CondaRuntime.CONST_CONDA_REGION)
+                if not region:
+                    region = self.__get_auth_region()
                 if not region:
                     raise AttributeError(
                         "Unable to determine the region for the custom conda pack. "
@@ -499,7 +501,7 @@ class CondaRuntimeHandler(RuntimeHandler):
         return spec
 
     @staticmethod
-    def __extract_conda_env(envs) -> Optional[dict]:
+    def __extract_conda_env(envs: dict) -> Optional[dict]:
         """Extracts conda pack specification from environment variables
 
         Parameters
@@ -514,11 +516,39 @@ class CondaRuntimeHandler(RuntimeHandler):
         """
         if not envs:
             return None
-        if "CONDA_ENV_TYPE" in envs and "CONDA_ENV_SLUG" in envs:
+        if (
+            CondaRuntimeHandler.CONST_CONDA_TYPE in envs
+            and CondaRuntimeHandler.CONST_CONDA_SLUG in envs
+        ):
             return {
-                "type": envs.pop("CONDA_ENV_TYPE"),
-                "slug": envs.pop("CONDA_ENV_SLUG"),
+                CondaRuntime.CONST_CONDA_TYPE: envs.pop(
+                    CondaRuntimeHandler.CONST_CONDA_TYPE
+                ),
+                CondaRuntime.CONST_CONDA_SLUG: envs.pop(
+                    CondaRuntimeHandler.CONST_CONDA_SLUG
+                ),
             }
+        if (
+            envs.get(CondaRuntimeHandler.CONST_CONDA_TYPE)
+            == CondaRuntime.CONST_CONDA_TYPE_CUSTOM
+            and CondaRuntimeHandler.CONST_CONDA_BUCKET in envs
+            and CondaRuntimeHandler.CONST_CONDA_BUCKET in envs
+            and CondaRuntimeHandler.CONST_CONDA_OBJ_NAME in envs
+        ):
+            bucket = envs.pop(CondaRuntimeHandler.CONST_CONDA_BUCKET)
+            namespace = envs.pop(CondaRuntimeHandler.CONST_CONDA_NAMESPACE)
+            name = envs.pop(CondaRuntimeHandler.CONST_CONDA_OBJ_NAME)
+            conda_spec = {
+                CondaRuntime.CONST_CONDA_TYPE: envs.pop(
+                    CondaRuntimeHandler.CONST_CONDA_TYPE
+                ),
+                CondaRuntime.CONST_CONDA_URI: f"oci://{bucket}@{namespace}/{name}",
+            }
+            if CondaRuntimeHandler.CONST_CONDA_REGION in envs:
+                conda_spec[CondaRuntime.CONST_CONDA_REGION] = envs.pop(
+                    CondaRuntimeHandler.CONST_CONDA_REGION
+                )
+            return conda_spec
         return None
 
 
@@ -575,9 +605,6 @@ class ScriptRuntimeHandler(CondaRuntimeHandler):
     def _extract_artifact(self, dsc_job):
         """Extract the job artifact from data science job.
 
-        This is the base method which does not extract the job artifact.
-        Sub-class should implement the extraction if needed.
-
         Parameters
         ----------
         dsc_job : DSCJob or oci.datascience.models.Job
@@ -589,7 +616,7 @@ class ScriptRuntimeHandler(CondaRuntimeHandler):
             A runtime specification dictionary for initializing a runtime.
         """
         spec = super()._extract_artifact(dsc_job)
-        spec.update({ScriptRuntime.CONST_SCRIPT_PATH: dsc_job.artifact})
+        spec.update({ScriptRuntime.CONST_SCRIPT_PATH: str(dsc_job.artifact)})
         return spec
 
 
@@ -659,6 +686,32 @@ class PythonRuntimeHandler(CondaRuntimeHandler):
             spec[PythonRuntime.CONST_ENV_VAR] = envs
         return spec
 
+    def _extract_artifact(self, dsc_job):
+        """Extract the job artifact from data science job.
+
+        Parameters
+        ----------
+        dsc_job : DSCJob or oci.datascience.models.Job
+            The data science job containing runtime information.
+
+        Returns
+        -------
+        dict
+            A runtime specification dictionary for initializing a runtime.
+        """
+        spec = super()._extract_artifact(dsc_job)
+        # It is not possible to get the actual script path
+        # since the information is not stored in the job.
+        # Here we only extract the name of the artifact.
+        spec.update(
+            {
+                PythonRuntime.CONST_SCRIPT_PATH: os.path.splitext(
+                    str(dsc_job.artifact)
+                )[0]
+            }
+        )
+        return spec
+
 
 class NotebookRuntimeHandler(CondaRuntimeHandler):
     """Runtime Handler for NotebookRuntime"""
@@ -671,18 +724,36 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
     CONST_NOTEBOOK_ENCODING = "NOTEBOOK_ENCODING"
 
     SPEC_MAPPINGS = {
-        NotebookRuntime.CONST_NOTEBOOK_PATH: CONST_NOTEBOOK_NAME,
         NotebookRuntime.CONST_OUTPUT_URI: CONST_OUTPUT_URI,
-        NotebookRuntime.CONST_TAG: CONST_EXCLUDE_TAGS,
+        NotebookRuntime.CONST_EXCLUDE_TAG: CONST_EXCLUDE_TAGS,
         NotebookRuntime.CONST_NOTEBOOK_ENCODING: CONST_NOTEBOOK_ENCODING,
     }
 
     def _translate_artifact(self, runtime: NotebookRuntime):
-        return NotebookArtifact(runtime.notebook_uri, runtime)
+        source = runtime.source if runtime.source else runtime.notebook_uri
+        return NotebookArtifact(source, runtime)
 
     def _translate_env(self, runtime: NotebookRuntime) -> dict:
         envs = super()._translate_env(runtime)
-        envs[self.CONST_NOTEBOOK_NAME] = os.path.basename(runtime.notebook_uri)
+
+        if runtime.notebook:
+            # runtime.notebook should always be a relative path from the root of the source.
+            # In NotebookArtifact, when zipping the files,
+            # a top level folder having the same name as the basename of runtime.source
+            # is used to contain all the user artifacts.
+            # The basename of runtime.source will also be used as the name of the artifact zip file.
+            envs[self.CONST_NOTEBOOK_NAME] = os.path.join(
+                os.path.basename(runtime.source), runtime.notebook
+            )
+        elif runtime.notebook_uri:
+            # For running a single notebook.
+            envs[self.CONST_NOTEBOOK_NAME] = os.path.basename(runtime.notebook_uri)
+        else:
+            raise ValueError(
+                "Notebook not specified. "
+                "Please specify the notebook using with_notebook_uri() or with_source() method."
+            )
+
         envs[self.CONST_ENTRYPOINT] = NotebookArtifact.CONST_DRIVER_SCRIPT
         if runtime.notebook_encoding:
             envs[self.CONST_NOTEBOOK_ENCODING] = runtime.notebook_encoding
@@ -707,8 +778,36 @@ class NotebookRuntimeHandler(CondaRuntimeHandler):
         """
         spec = super()._extract_envs(dsc_job)
         envs = spec.pop(NotebookRuntime.CONST_ENV_VAR, {})
-        if self.CONST_NOTEBOOK_NAME not in envs:
+        if not (self.CONST_NOTEBOOK_NAME in envs and self.CONST_ENTRYPOINT in envs):
             raise IncompatibleRuntime()
+        # Remove job run entrypoint since it is the same for notebook runtime.
+        envs.pop(self.CONST_ENTRYPOINT)
+        # Extract exclude tags
+        exclude_tags = envs.pop(self.CONST_EXCLUDE_TAGS, None)
+        if exclude_tags:
+            # Exclude tags are in a JSON serialized string
+            try:
+                exclude_tags = json.loads(exclude_tags)
+            except ValueError:
+                # Ignore de-serialization error
+                pass
+            spec[NotebookRuntime.CONST_EXCLUDE_TAG] = exclude_tags
+
+        # Extract notebook name
+        notebook = envs.pop(self.CONST_NOTEBOOK_NAME)
+        if "/" in notebook:
+            # This indicate notebook is uploaded as part of a folder/zip
+            # When the source is a folder, the notebook name will have the format of
+            # folder/path/to/notebook.ipynb
+            (
+                spec[NotebookRuntime.CONST_SOURCE],
+                spec[NotebookRuntime.CONST_ENTRYPOINT],
+            ) = str(notebook).split("/", 1)
+        else:
+            # When the source is a single notebook, the notebook name will be the filename only.
+            # notebook.ipynb
+            spec[NotebookRuntime.CONST_NOTEBOOK_PATH] = notebook
+
         spec.update(self._extract_specs(envs, self.SPEC_MAPPINGS))
         spec[NotebookRuntime.CONST_ENV_VAR] = envs
         return spec
@@ -718,6 +817,7 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
     """Runtime Handler for GitPythonRuntime"""
 
     RUNTIME_CLASS = GitPythonRuntime
+
     PATH_DELIMITER = ":"
     CONST_GIT_URL = "GIT_URL"
     CONST_GIT_BRANCH = "GIT_BRANCH"
@@ -731,6 +831,9 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
     CONST_PYTHON_PATH = "PYTHON_PATH"
     CONST_OUTPUT_DIR = "OUTPUT_DIR"
     CONST_OUTPUT_URI = "OUTPUT_URI"
+    CONST_WORKING_DIR = "WORKING_DIR"
+
+    CONST_JOB_ENTRYPOINT = "JOB_RUN_ENTRYPOINT"
 
     SPEC_MAPPINGS = {
         GitPythonRuntime.CONST_GIT_URL: CONST_GIT_URL,
@@ -742,6 +845,7 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
         GitPythonRuntime.CONST_GIT_SSH_SECRET_ID: CONST_GIT_SSH_SECRET_ID,
         GitPythonRuntime.CONST_OUTPUT_DIR: CONST_OUTPUT_DIR,
         GitPythonRuntime.CONST_OUTPUT_URI: CONST_OUTPUT_URI,
+        GitPythonRuntime.CONST_WORKING_DIR: CONST_WORKING_DIR,
     }
 
     def _translate_artifact(self, runtime: Runtime):
@@ -758,9 +862,7 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
         str
             Path to the git driver script.
         """
-        return os.path.join(
-            os.path.dirname(__file__), "../../templates", "driver_oci.py"
-        )
+        return GitPythonArtifact()
 
     def _translate_env(self, runtime: GitPythonRuntime) -> dict:
         """Translate the environment variable.
@@ -773,7 +875,7 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
         Returns
         -------
         dict
-            A dictionary contianing environment variables for OCI data science job.
+            A dictionary containing environment variables for OCI data science job.
         """
         if not runtime.conda:
             raise ValueError(
@@ -786,6 +888,8 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
         )
         if runtime.skip_metadata_update:
             envs[self.CONST_SKIP_METADATA] = "1"
+        # Add entrypoint as the ADS driver is packed in a zip file.
+        envs[self.CONST_JOB_ENTRYPOINT] = GitPythonArtifact.CONST_DRIVER_SCRIPT
         return envs
 
     def _extract_envs(self, dsc_job) -> dict:
@@ -806,6 +910,8 @@ class GitPythonRuntimeHandler(CondaRuntimeHandler):
 
         if self.CONST_GIT_URL not in envs or self.CONST_ENTRYPOINT not in envs:
             raise IncompatibleRuntime()
+        # Remove entrypoint as it's added by ADS
+        envs.pop(self.CONST_JOB_ENTRYPOINT, None)
         spec.update(self._extract_specs(envs, self.SPEC_MAPPINGS))
         if GitPythonRuntime.CONST_PYTHON_PATH in spec:
             spec[GitPythonRuntime.CONST_PYTHON_PATH] = spec[
@@ -859,7 +965,7 @@ class ContainerRuntimeHandler(RuntimeHandler):
         Returns
         -------
         dict
-            A dictionary contianing environment variables for OCI data science job.
+            A dictionary containing environment variables for OCI data science job.
         """
         if not runtime.image:
             raise ValueError("Specify container image for ContainerRuntime.")
@@ -873,9 +979,29 @@ class ContainerRuntimeHandler(RuntimeHandler):
         return envs
 
     @staticmethod
-    def __split_args(args):
+    def split_args(args: str) -> list:
+        """Splits the cmd or entrypoint arguments for BYOC job into a list.
+        BYOC jobs uses environment variables to store the values of cmd and entrypoint.
+        In the values, comma(,) is used to separate cmd or entrypoint arguments.
+        In YAML, the arguments are formatted into a list (Exec form).
+
+        >>> ContainerRuntimeHandler.split_args("/bin/bash")
+        ["/bin/bash"]
+        >>> ContainerRuntimeHandler.split_args("-c,echo Hello World")
+        ['-c', 'echo Hello World']
+
+        Parameters
+        ----------
+        args : str
+            Arguments in a comma separated string.
+
+        Returns
+        -------
+        list
+            Arguments in a list
+        """
         if not args:
-            return None
+            return []
         return [
             arg.strip() for arg in args.split(ContainerRuntimeHandler.CMD_DELIMITER)
         ]
@@ -898,10 +1024,10 @@ class ContainerRuntimeHandler(RuntimeHandler):
         if self.CONST_CONTAINER_IMAGE not in envs:
             raise IncompatibleRuntime()
         spec[ContainerRuntime.CONST_IMAGE] = envs.pop(self.CONST_CONTAINER_IMAGE)
-        cmd = self.__split_args(envs.pop(self.CONST_CONTAINER_CMD, ""))
+        cmd = self.split_args(envs.pop(self.CONST_CONTAINER_CMD, ""))
         if cmd:
             spec[ContainerRuntime.CONST_CMD] = cmd
-        entrypoint = self.__split_args(envs.pop(self.CONST_CONTAINER_ENTRYPOINT, ""))
+        entrypoint = self.split_args(envs.pop(self.CONST_CONTAINER_ENTRYPOINT, ""))
         if entrypoint:
             spec[ContainerRuntime.CONST_ENTRYPOINT] = entrypoint
         if envs:

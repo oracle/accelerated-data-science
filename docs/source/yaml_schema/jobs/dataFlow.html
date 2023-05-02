@@ -1,0 +1,177 @@
+<style>
+    table,
+    th,
+    td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        padding: 10px;
+        text-align: left;
+    }
+
+    .th-key {
+        width: 160px;
+    }
+
+    .th-type {
+        width: 70px;
+    }
+</style>
+
+
+<p></p>
+<h4 id="infrastructure"><code>infrastructure</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>kind</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>infrastructure</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>type</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>dataFlow</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>spec</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See <a href="#infrastructure.spec"><code>infrastructure.spec</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="infrastructure.spec"><code>infrastructure.spec</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>compartmentId</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>displayName</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>driverShape</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>executorShape</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>id</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>language</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>logsBucketUri</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>metastoreId</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>numExecutors</code></th>
+            <td class="th-type">
+                <code>integer</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>sparkVersion</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+    </tbody>
+</table>

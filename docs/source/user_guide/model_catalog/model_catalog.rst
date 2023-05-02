@@ -17,6 +17,7 @@ provenance, reproduced, and deployed.
     import os
     import tempfile
     import warnings
+    import pandas as pd
 
     from ads.catalog.model import ModelCatalog
     from ads.common.model import ADSModel
@@ -24,7 +25,7 @@ provenance, reproduced, and deployed.
     from ads.common.model_metadata import (MetadataCustomCategory,
                                            UseCaseType,
                                            Framework)
-    from ads.dataset.factory import DatasetFactory
+    from ads.dataset.dataset_with_target import ADSDatasetWithTarget
     from ads.feature_engineering.schema import Expression, Schema
     from os import path
     from sklearn.ensemble import RandomForestClassifier
@@ -58,7 +59,6 @@ The ADS SDK automatically captures some of the metadata for you.  It captures pr
 A model can be saved to the model catalog using the generic approach or the ``ADSModel`` approach:
 
 *  The generic approach creates a generic model artifact using ``.prepare_generic_model()``, and saves it to the model catalog.
-*  The ``ADSModel`` approach prepares an artifact from the ``ADSModel`` object, and saves it to the model catalog using the ``.prepare()`` method.  ``ADSModel`` objects are typically created from the AutoML engine.  Data scientists can also convert models trained with other machine learning libraries into an ``ADSModel`` object (using the ``.from_estimator()`` method).
 
 **Notes:**
 
@@ -98,7 +98,7 @@ The ``RandomForestClassifier`` object is converted to into an ``ADSModel`` using
     # Load the dataset
     ds_path = path.join("/", "opt", "notebooks", "ads-examples", "oracle_data", "oracle_classification_dataset1_150K.csv")
 
-    ds = DatasetFactory.open(ds_path, target="class")
+    ds = ADSDatasetWithTarget(df=pd.read_csv(ds_path), target="class")
 
     # Data preprocessing
     transformed_ds = ds.auto_transform(fix_imbalance=False)

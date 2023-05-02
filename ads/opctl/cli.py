@@ -5,7 +5,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import fsspec
-import json
 import os
 
 import click
@@ -13,7 +12,10 @@ import yaml
 
 from ads.common.auth import AuthType
 from ads.common import auth as authutil
+from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
+from ads.opctl.cmds import deactivate as deactivate_cmd
+from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
@@ -26,9 +28,11 @@ from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import BACKEND_NAME
+from ads.opctl.constants import DEFAULT_MODEL_FOLDER
 
 import ads.opctl.conda.cli
 import ads.opctl.spark.cli
+import ads.opctl.model.cli
 import ads.opctl.distributed.cli
 
 
@@ -224,6 +228,42 @@ _options = [
         type=click.Choice(["api_key", "resource_principal"]),
         default=None,
     ),
+    click.option(
+        "--wait-for-completion",
+        help="either to wait for process to complete or not",
+        is_flag=True,
+        required=False,
+    ),
+    click.option(
+        "--max-wait-time",
+        help="maximum wait time in seconds for progress to complete",
+        type=int,
+        required=False,
+        default=1200,
+    ),
+    click.option(
+        "--poll-interval",
+        help="poll interval in seconds",
+        type=int,
+        required=False,
+        default=10,
+    ),
+    click.option(
+        "--log-type", help="the type of logging.", required=False, default=None
+    ),
+    click.option(
+        "--log-filter",
+        help="expression for filtering the logs.",
+        required=False,
+        default=None,
+    ),
+    click.option(
+        "--interval",
+        help="log interval in seconds",
+        type=int,
+        required=False,
+        default=3,
+    ),
 ]
 
 
@@ -328,7 +368,6 @@ def add_options(options):
 )
 @click.option(
     "--auto_increment",
-    "-i",
     default=False,
     is_flag=True,
     help="Increments tag of the image while rebuilding",
@@ -434,12 +473,6 @@ def cancel(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@click.option(
-    "--log_type",
-    default=None,
-    required=False,
-    help="The type of logging.",
-)
 @add_options(_options)
 def watch(**kwargs):
     """
@@ -449,10 +482,96 @@ def watch(**kwargs):
     suppress_traceback(kwargs["debug"])(watch_cmd)(**kwargs)
 
 
+@commands.command()
+@click.argument("ocid", nargs=1)
+@add_options(_options)
+def activate(**kwargs):
+    """
+    Activates a data science service.
+    """
+    suppress_traceback(kwargs["debug"])(activate_cmd)(**kwargs)
+
+
+@commands.command()
+@click.argument("ocid", nargs=1)
+@add_options(_options)
+def deactivate(**kwargs):
+    """
+    Deactivates a data science service.
+    """
+    suppress_traceback(kwargs["debug"])(deactivate_cmd)(**kwargs)
+
+
+@commands.command()
+@click.option(
+    "--ocid",
+    nargs=1,
+    required=False,
+    help="This can be either a model id or model deployment id. When model id is passed, it conducts a local predict/test. This is designed for local dev purpose in order to test whether deployment will be successful locally. When you pass in `model_save_folder`, the model artifact will be downloaded and saved to a subdirectory of `model_save_folder` where model id is the name of subdirectory. Or you can pass in a model deployment id and this will invoke the remote endpoint and conduct a prediction on the server.",
+)
+@click.option(
+    "--model-save-folder",
+    nargs=1,
+    required=False,
+    default=DEFAULT_MODEL_FOLDER,
+    help="Which location to store model artifact folders. Defaults to ~/.ads_ops/models. This is only used when model id is passed to `ocid` and a local predict is conducted.",
+)
+@click.option(
+    "--conda-pack-folder",
+    nargs=1,
+    required=False,
+    help="Which location to store the conda pack locally. Defaults to ~/.ads_ops/conda. This is only used when model id is passed to `ocid` and a local predict is conducted.",
+)
+@click.option(
+    "--bucket-uri",
+    nargs=1,
+    required=False,
+    help="The OCI Object Storage URI where model artifacts will be copied to. The `bucket_uri` is only necessary for uploading large artifacts which size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`. This is only used when the model id is passed.",
+)
+@click.option(
+    "--region",
+    nargs=1,
+    required=False,
+    help="The destination Object Storage bucket region. By default the value will be extracted from the `OCI_REGION_METADATA` environment variables. This is only used when the model id is passed.",
+)
+@click.option(
+    "--timeout",
+    nargs=1,
+    required=False,
+    help="The connection timeout in seconds for the client. This is only used when the model id is passed.",
+)
+@click.option(
+    "--artifact-directory",
+    nargs=1,
+    required=False,
+    default=None,
+    help="The artifact directory where stores your models, score.py and etc. This is used when you have a model artifact locally and have not saved it to the model catalog yet. In this case, you dont need to pass in model ",
+)
+@click.option(
+    "--payload",
+    nargs=1,
+    help="The payload sent to the model for prediction. For example, --payload '[[-1.68671955,-0.27358368,0.82731396,-0.14530245,0.80733585]]'.",
+)
+@click.option(
+    "--conda-slug",
+    nargs=1,
+    required=False,
+    help="The conda env used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
+)
+@click.option("--model-version", nargs=1, required=False, help="When the `inference_server='triton'`, the version of the model to invoke. This can only be used when model deployment id is passed in. For the other cases, it will be ignored.")
+@click.option("--model-name", nargs=1, required=False, help="When the `inference_server='triton'`, the name of the model to invoke. This can only be used when model deployment id is passed in. For the other cases, it will be ignored.")
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
+def predict(**kwargs):
+    """
+    Deactivates a data science service.
+    """
+    suppress_traceback(kwargs["debug"])(predict_cmd)(**kwargs)
+
+
 commands.add_command(ads.opctl.conda.cli.commands)
+commands.add_command(ads.opctl.model.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)
-
 
 # @commands.command()
 # @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)

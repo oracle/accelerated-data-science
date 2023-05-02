@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import numpy as np
@@ -10,6 +10,7 @@ from ads.explanations.base_explainer import WhatIfExplainer
 from ads.explanations.mlx_interface import init_whatif_explainer
 from ads.common import logger
 from ads.common.utils import _log_multivalue_feature_column_error
+from ads.common.decorator.deprecate import deprecated
 
 
 class MLXWhatIfExplainer(WhatIfExplainer):
@@ -28,6 +29,10 @@ class MLXWhatIfExplainer(WhatIfExplainer):
 
     """
 
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(self):
         super(MLXWhatIfExplainer, self).__init__()
         self.explainer = None
@@ -188,5 +193,9 @@ class MLXWhatIfExplainer(WhatIfExplainer):
 
 
 class WhatIfExplanationsException(TypeError):
+    @deprecated(
+        details="Working with AutoML has moved from within ADS to working directly with the AutoMLx library. AutoMLx are preinstalled in conda pack automlx_p38_cpu_v2 and later, and can now be updated independently of ADS. AutoMLx documentation may be found at https://docs.oracle.com/en-us/iaas/tools/automlx/latest/html/multiversion/v23.1.1/index.html. Notebook examples are in Oracle's samples repository: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples and a migration tutorial can be found at https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_training/automl/quick_start.html .",
+        raise_error=True,
+    )
     def __init__(self, msg):
         super(WhatIfExplanationsException, self).__init__(msg)

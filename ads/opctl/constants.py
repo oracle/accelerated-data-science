@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from enum import Enum
@@ -9,6 +9,7 @@ from enum import Enum
 DEFAULT_OCI_CONFIG_FILE = "~/.oci/config"
 DEFAULT_PROFILE = "DEFAULT"
 DEFAULT_CONDA_PACK_FOLDER = "~/conda"
+DEFAULT_MODEL_FOLDER = "~/.ads_ops/models"
 CONDA_PACK_OS_PREFIX_FORMAT = "oci://<bucket>@<namespace>/<prefix>"
 DEFAULT_ADS_CONFIG_FOLDER = "~/.ads_ops"
 OPS_IMAGE_BASE = "ads-operators-base"
@@ -26,10 +27,12 @@ DEFAULT_IMAGE_SCRIPT_DIR = "/etc/datascience"
 DEFAULT_IMAGE_CONDA_DIR = "/opt/conda/envs"
 DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR = "/home/datascience/spark_conf_dir"
 DEFAULT_NOTEBOOK_SESSION_CONDA_DIR = "/home/datascience/conda"
+DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 
 
 class BACKEND_NAME(Enum):
     JOB = "job"
     DATAFLOW = "dataflow"
     PIPELINE = "pipeline"
+    MODEL_DEPLOYMENT = "deployment"
     LOCAL = "local"

@@ -16,10 +16,12 @@ from ads.common.auth import AuthContext
 from ads.common.oci_datascience import DSCNotebookSession
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
+from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalPipelineBackend,
+    LocalModelDeploymentBackend,
 )
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
@@ -57,18 +59,30 @@ from ads.opctl.utils import (
     get_service_pack_prefix,
 )
 import yaml
+from ads.opctl.utils import (
+    parse_conda_uri,
+    run_container,
+    get_docker_client,
+    is_in_notebook_session,
+    run_command,
+)
+
+from ads.opctl import logger
 
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     JOB = "datasciencejob"
     DATAFLOW = "dataflowapplication"
     PIPELINE = "datasciencepipeline"
+    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
+    MODEL = "datasciencemodel"
 
 
 class DataScienceResourceRun(str, metaclass=ExtendedEnumMeta):
     JOB_RUN = "datasciencejobrun"
     DATAFLOW_RUN = "dataflowrun"
     PIPELINE_RUN = "datasciencepipelinerun"
+    MODEL_DEPLOYMENT = "datasciencemodeldeployment"
 
 
 DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
@@ -78,12 +92,15 @@ DATA_SCIENCE_RESOURCE_BACKEND_MAP = {
     DataScienceResourceRun.DATAFLOW_RUN: "dataflow",
     DataScienceResource.PIPELINE: "pipeline",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
+    DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
+    DataScienceResource.MODEL: "deployment",
 }
 
 DATA_SCIENCE_RESOURCE_RUN_BACKEND_MAP = {
     DataScienceResourceRun.JOB_RUN: "job",
     DataScienceResourceRun.DATAFLOW_RUN: "dataflow",
     DataScienceResourceRun.PIPELINE_RUN: "pipeline",
+    DataScienceResourceRun.MODEL_DEPLOYMENT: "deployment",
 }
 
 
@@ -92,11 +109,13 @@ class _BackendFactory:
         BACKEND_NAME.JOB.value: MLJobBackend,
         BACKEND_NAME.DATAFLOW.value: DataFlowBackend,
         BACKEND_NAME.PIPELINE.value: PipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
     }
 
     LOCAL_BACKENDS_MAP = {
         BACKEND_NAME.JOB.value: LocalBackend,
         BACKEND_NAME.PIPELINE.value: LocalPipelineBackend,
+        BACKEND_NAME.MODEL_DEPLOYMENT.value: LocalModelDeploymentBackend,
     }
 
     def __init__(self, config: Dict):
@@ -135,7 +154,7 @@ def _save_yaml(yaml_content, **kwargs):
     yaml_content : str
         YAML content as string.
     """
-    if kwargs["job_info"]:
+    if kwargs.get("job_info"):
         yaml_path = os.path.abspath(os.path.expanduser(kwargs["job_info"]))
         if os.path.isfile(yaml_path):
             overwrite = input(
@@ -204,9 +223,8 @@ def run(config: Dict, **kwargs) -> Dict:
                 "backend operator for distributed training can either be local or job"
             )
         else:
-            if not kwargs["dry_run"]:
+            if not kwargs["dry_run"] and not kwargs["nobuild"]:
                 verify_and_publish_image(kwargs["nopush"], config)
-
                 print("running image: " + config["spec"]["cluster"]["spec"]["image"])
             cluster_def = YamlSpecParser.parse_content(config)
 
@@ -280,7 +298,6 @@ def run_diagnostics(config: Dict, **kwargs) -> Dict:
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
-
         config = update_config_image(config)
         cluster_def = YamlSpecParser.parse_content(config)
 
@@ -359,6 +376,7 @@ def delete(**kwargs) -> None:
         DataScienceResourceRun.JOB_RUN in kwargs["ocid"]
         or DataScienceResourceRun.DATAFLOW_RUN in kwargs["ocid"]
         or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.MODEL_DEPLOYMENT in kwargs["ocid"]
     ):
         kwargs["run_id"] = kwargs.pop("ocid")
     elif (
@@ -410,6 +428,67 @@ def watch(**kwargs) -> None:
         kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.watch()
+
+
+def activate(**kwargs) -> None:
+    """
+    Activate a ModelDeployment.
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+
+    Returns
+    -------
+    None
+    """
+    kwargs["run_id"] = kwargs.pop("ocid")
+    if not kwargs.get("backend"):
+        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    return _BackendFactory(p.config).backend.activate()
+
+
+def deactivate(**kwargs) -> None:
+    """
+    Deactivate a ModelDeployment.
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+
+    Returns
+    -------
+    None
+    """
+    kwargs["run_id"] = kwargs.pop("ocid")
+    if not kwargs.get("backend"):
+        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    return _BackendFactory(p.config).backend.deactivate()
+
+
+def predict(**kwargs) -> None:
+    """
+    Make prediction using the model with the payload.
+
+    Parameters
+    ----------
+    kwargs: dict
+        keyword argument, stores command line args
+
+    Returns
+    -------
+    None
+    """
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+    if "datasciencemodeldeployment" in p.config["execution"].get("ocid", ""):
+        return ModelDeploymentBackend(p.config).predict()
+    else:
+        # model ocid or artifact directory
+        return LocalModelDeploymentBackend(p.config).predict()
 
 
 def init_vscode(**kwargs) -> None:

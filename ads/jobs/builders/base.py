@@ -1,11 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from typing import Any, Dict
-
+import copy
+from typing import Any, Dict, TypeVar, Type
 from ads.jobs.serializer import Serializable
+
+
+Self = TypeVar("Self", bound="Builder")
+"""Special type to represent the current enclosed class.
+
+This type is used by factory class method or when a method returns ``self``.
+"""
 
 
 class Builder(Serializable):
@@ -13,9 +20,8 @@ class Builder(Serializable):
     attribute_map = {}
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
-        """Initialize the object with specifications.
-
-        User can either pass in the specification as a dictionary or through keyword arguments.
+        """To initialize the object,
+        user can either pass in the specification as a dictionary or through keyword arguments.
 
         Parameters
         ----------
@@ -42,7 +48,7 @@ class Builder(Serializable):
         """
         return {}
 
-    def _standardize_spec(self, spec):
+    def _standardize_spec(self, spec) -> dict:
         if not spec:
             return {}
         snake_to_camel_map = {v: k for k, v in self.attribute_map.items()}
@@ -51,7 +57,7 @@ class Builder(Serializable):
                 spec[snake_to_camel_map[key]] = spec.pop(key)
         return spec
 
-    def set_spec(self, k: str, v: Any):
+    def set_spec(self: Self, k: str, v: Any) -> Self:
         """Sets a specification property for the object.
 
         Parameters
@@ -63,7 +69,7 @@ class Builder(Serializable):
 
         Returns
         -------
-        Builder
+        Self
             This method returns self to support chaining methods.
         """
         if v is not None:
@@ -107,14 +113,23 @@ class Builder(Serializable):
 
     def to_dict(self) -> dict:
         """Converts the object to dictionary with kind, type and spec as keys."""
+        spec = copy.deepcopy(self._spec)
+        for key, value in spec.items():
+            if hasattr(value, "to_dict"):
+                value = value.to_dict()
+            spec[key] = value
+
         return {
             "kind": self.kind,
             "type": self.type,
-            # "apiVersion": self.api_version,
-            "spec": self._spec,
+            "spec": spec,
         }
 
     @classmethod
-    def from_dict(cls, obj_dict: dict):
+    def from_dict(cls: Type[Self], obj_dict: dict) -> Self:
         """Initialize the object from a Python dictionary"""
         return cls(spec=obj_dict.get("spec"))
+
+    def __repr__(self) -> str:
+        """Displays the object as YAML."""
+        return self.to_yaml()

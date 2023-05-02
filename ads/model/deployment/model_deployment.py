@@ -1,31 +1,56 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
 import collections
+import copy
 import datetime
-import json
+import oci
+import warnings
 import time
-from typing import Dict, Union, List, Any
+from typing import Dict, List, Union, Any
 
 import oci.loggingsearch
+from ads.common import auth as authutil
 import pandas as pd
-from ads.common.auth import default_signer
-from ads.common.data_serializer import InputDataSerializer
-from ads.common.oci_client import OCIClientFactory
+from ads.model.serde.model_input import JsonModelInputSERDE
 from ads.common.oci_logging import (
+    LOG_INTERVAL,
     LOG_RECORDS_LIMIT,
     ConsolidatedLog,
     OCILog,
 )
+from ads.config import COMPARTMENT_OCID, PROJECT_OCID
+from ads.jobs.builders.base import Builder
+from ads.jobs.builders.infrastructure.utils import get_value
 from ads.model.common.utils import _is_json_serializable
 from ads.model.deployment.common.utils import send_request
+from ads.model.deployment.model_deployment_infrastructure import (
+    MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE,
+    ModelDeploymentInfrastructure,
+)
+from ads.model.deployment.model_deployment_runtime import (
+    ModelDeploymentCondaRuntime,
+    ModelDeploymentContainerRuntime,
+    ModelDeploymentRuntime,
+    ModelDeploymentRuntimeType,
+    OCIModelDeploymentRuntimeType,
+)
+from ads.model.service.oci_datascience_model_deployment import (
+    OCIDataScienceModelDeployment,
+)
+from ads.common import utils as ads_utils
 from .common import utils
 from .common.utils import OCIClientManager, State
 from .model_deployment_properties import ModelDeploymentProperties
+from oci.data_science.models import (
+    LogDetails,
+    CreateModelDeploymentDetails,
+    UpdateModelDeploymentDetails,
+)
 
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
@@ -35,17 +60,36 @@ DEACTIVATE_WORKFLOW_STEPS = 2
 DEFAULT_RETRYING_REQUEST_ATTEMPTS = 3
 TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 
+MODEL_DEPLOYMENT_KIND = "deployment"
+MODEL_DEPLOYMENT_TYPE = "modelDeployment"
+MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON = "TRITON"
+
+MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
+MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
+MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
+MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
+MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
+
 
 class ModelDeploymentLogType:
     PREDICT = "predict"
     ACCESS = "access"
 
 
-class LogNotConfiguredError(Exception):
+class ModelDeploymentMode:
+    HTTPS = "HTTPS_ONLY"
+    STREAM = "STREAM_ONLY"
+
+
+class LogNotConfiguredError(Exception):   # pragma: no cover
     pass
 
 
-class ModelDeployment:
+class ModelDeploymentFailedError(Exception):   # pragma: no cover
+    pass
+
+
+class ModelDeployment(Builder):
     """
     A class used to represent a Model Deployment.
 
@@ -59,18 +103,31 @@ class ModelDeployment:
         Workflow request id
     workflow_steps: (int)
         The number of steps in the workflow
-    url: (str)
-        The model deployment url endpoint
-    ds_client: (DataScienceClient)
-        The data science client used by model deployment
-    ds_composite_client: (DataScienceCompositeClient)
-        The composite data science client used by the model deployment
-    workflow_req_id: (str)
-        Workflow request id
-    model_deployment_id: (str)
-        model deployment id
+    dsc_model_deployment: (OCIDataScienceModelDeployment)
+        The OCIDataScienceModelDeployment instance.
     state: (State)
         Returns the deployment state of the current Model Deployment object
+    created_by: (str)
+        The user that creates the model deployment
+    lifecycle_state: (str)
+        Model deployment lifecycle state
+    lifecycle_details: (str)
+        Model deployment lifecycle details
+    time_created: (datetime)
+        The time when the model deployment is created
+    display_name: (str)
+        Model deployment display name
+    description: (str)
+        Model deployment description
+    freeform_tags: (dict)
+        Model deployment freeform tags
+    defined_tags: (dict)
+        Model deployment defined tags
+    runtime: (ModelDeploymentRuntime)
+        Model deployment runtime
+    infrastructure: (ModelDeploymentInfrastructure)
+        Model deployment infrastructure
+
 
     Methods
     -------
@@ -84,17 +141,127 @@ class ModelDeployment:
         Activates a model deployment
     deactivate(wait_for_completion, max_wait_time, poll_interval)
         Deactivates a model deployment
-    list_workflow_logs()
-        Returns a list of the steps involved in deploying a model
+    list(status, compartment_id, project_id, **kwargs)
+        List model deployment within given compartment and project.
+    with_display_name(display_name)
+        Sets model deployment display name
+    with_description(description)
+        Sets model deployment description
+    with_freeform_tags(freeform_tags)
+        Sets model deployment freeform tags
+    with_defined_tags(defined_tags)
+        Sets model deployment defined tags
+    with_runtime(self, runtime)
+        Sets model deployment runtime
+    with_infrastructure(self, infrastructure)
+        Sets model deployment infrastructure
+    from_dict(obj_dict)
+        Deserializes model deployment instance from dict
+    from_id(id)
+        Loads model deployment instance from ocid
+    sync()
+        Updates the model deployment instance from backend
+
+
+    Examples
+    --------
+    Build model deployment from builder apis:
+    >>> ds_model_deployment = (ModelDeployment()
+    ...    .with_display_name("TestModelDeployment")
+    ...    .with_description("Testing the test model deployment")
+    ...    .with_freeform_tags(tag1="val1", tag2="val2")
+    ...    .with_infrastructure(
+    ...        (ModelDeploymentInfrastructure()
+    ...        .with_project_id(<project_id>)
+    ...        .with_compartment_id(<compartment_id>)
+    ...        .with_shape_name("VM.Standard.E4.Flex")
+    ...        .with_shape_config_details(
+    ...            ocpus=1,
+    ...            memory_in_gbs=16
+    ...        )
+    ...        .with_replica(1)
+    ...        .with_bandwidth_mbps(10)
+    ...        .with_web_concurrency(10)
+    ...        .with_access_log(
+    ...            log_group_id=<log_group_id>,
+    ...            log_id=<log_id>
+    ...        )
+    ...        .with_predict_log(
+    ...            log_group_id=<log_group_id>,
+    ...            log_id=<log_id>
+    ...        ))
+    ...    )
+    ...    .with_runtime(
+    ...        (ModelDeploymentContainerRuntime()
+    ...        .with_image(<image>)
+    ...        .with_image_digest(<image_digest>)
+    ...        .with_entrypoint(<entrypoint>)
+    ...        .with_server_port(<server_port>)
+    ...        .with_health_check_port(<health_check_port>)
+    ...        .with_env({"key":"value"})
+    ...        .with_deployment_mode("HTTPS_ONLY")
+    ...        .with_model_uri(<model_uri>))
+    ...    )
+    ... )
+    >>> ds_model_deployment.deploy()
+    >>> ds_model_deployment.status
+    >>> ds_model_deployment.with_display_name("new name").update()
+    >>> ds_model_deployment.deactivate()
+    >>> ds_model_deployment.sync()
+    >>> ds_model_deployment.list(status="ACTIVE")
+    >>> ds_model_deployment.delete()
+
+    Build model deployment from yaml
+    >>> ds_model_deployment = ModelDeployment.from_yaml(uri=<path_to_yaml>)
     """
+
+    _PREFIX = "datascience_model_deployment"
+
+    CONST_ID = "id"
+    CONST_CREATED_BY = "createdBy"
+    CONST_DISPLAY_NAME = "displayName"
+    CONST_DESCRIPTION = "description"
+    CONST_FREEFORM_TAG = "freeformTags"
+    CONST_DEFINED_TAG = "definedTags"
+    CONST_MODEL_DEPLOYMENT_URL = "modelDeploymentUrl"
+    CONST_INFRASTRUCTURE = "infrastructure"
+    CONST_RUNTIME = "runtime"
+    CONST_LIFECYCLE_STATE = "lifecycleState"
+    CONST_LIFECYCLE_DETAILS = "lifecycleDetails"
+    CONST_TIME_CREATED = "timeCreated"
+
+    attribute_map = {
+        CONST_ID: "id",
+        CONST_CREATED_BY: "created_by",
+        CONST_DISPLAY_NAME: "display_name",
+        CONST_DESCRIPTION: "description",
+        CONST_FREEFORM_TAG: "freeform_tags",
+        CONST_DEFINED_TAG: "defined_tags",
+        CONST_MODEL_DEPLOYMENT_URL: "model_deployment_url",
+        CONST_INFRASTRUCTURE: "infrastructure",
+        CONST_RUNTIME: "runtime",
+        CONST_LIFECYCLE_STATE: "lifecycle_state",
+        CONST_LIFECYCLE_DETAILS: "lifecycle_details",
+        CONST_TIME_CREATED: "time_created",
+    }
+
+    initialize_spec_attributes = [
+        "display_name",
+        "description",
+        "freeform_tags",
+        "defined_tags",
+        "infrastructure",
+        "runtime",
+    ]
+    model_input_serializer = JsonModelInputSERDE()
 
     def __init__(
         self,
         properties: Union[ModelDeploymentProperties, Dict] = None,
         config: Dict = None,
-        workflow_req_id: str = None,
         model_deployment_id: str = None,
         model_deployment_url: str = "",
+        spec: Dict = None,
         **kwargs,
     ):
         """Initializes a ModelDeployment object.
@@ -108,29 +275,51 @@ class ModelDeployment:
             ADS auth dictionary for OCI authentication.
             This can be generated by calling `ads.common.auth.api_keys()` or `ads.common.auth.resource_principal()`.
             If this is `None` then the `ads.common.default_signer(client_kwargs)` will be used.
-        workflow_req_id: (str, optional). Defaults to None.
-            Workflow request id.
         model_deployment_id: (str, optional). Defaults to None.
             Model deployment OCID.
         model_deployment_url: (str, optional). Defaults to empty string.
             Model deployment url.
+        spec: (dict, optional). Defaults to None.
+            Model deployment spec.
         kwargs:
-            Keyword arguments for initializing `ModelDeploymentProperties`.
+            Keyword arguments for initializing `ModelDeploymentProperties` or `ModelDeployment`.
         """
 
-        if config is None:
-            utils.get_logger().info("Using default configuration.")
-            config = default_signer()
+        if spec and properties:
+            raise ValueError(
+                "You can only pass in either `spec` or `properties` to initialize model deployment instance."
+            )
 
-        # self.config is ADS auth dictionary for OCI authentication.
-        self.config = config
+        if config:
+            warnings.warn(
+                "`config` will be deprecated in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
+            )
+
+        if properties:
+            warnings.warn(
+                "`properties` will be deprecated in 3.0.0. Please use `spec` or the builder pattern to initialize model deployment instance."
+            )
+
+        if model_deployment_url or model_deployment_id:
+            warnings.warn(
+                "`model_deployment_url` and `model_deployment_id` will be deprecated in 3.0.0 and will be ignored now. These two fields will be auto-populated from the service side."
+            )
+
+        initialize_spec = {}
+        initialize_spec_kwargs = {}
+        if spec:
+            initialize_spec = spec
+            initialize_spec_kwargs = self._extract_spec_kwargs(**kwargs)
+        elif not properties and not spec:
+            if self.CONST_INFRASTRUCTURE in kwargs or self.CONST_RUNTIME in kwargs:
+                initialize_spec_kwargs = self._extract_spec_kwargs(**kwargs)
+
+        super().__init__(spec=initialize_spec, **initialize_spec_kwargs)
 
         self.properties = (
             properties
             if isinstance(properties, ModelDeploymentProperties)
-            else ModelDeploymentProperties(
-                oci_model_deployment=properties, config=self.config, **kwargs
-            )
+            else ModelDeploymentProperties(oci_model_deployment=properties, **kwargs)
         )
 
         self.current_state = (
@@ -138,30 +327,256 @@ class ModelDeployment:
             if self.properties.lifecycle_state
             else State.UNKNOWN
         )
-        self.url = (
-            model_deployment_url
-            if model_deployment_url
-            else self.properties.model_deployment_url
-        )
-        self.model_deployment_id = (
-            model_deployment_id if model_deployment_id else self.properties.id
-        )
-
-        self.workflow_state_progress = []
-        self.workflow_steps = DEFAULT_WORKFLOW_STEPS
-
-        client_manager = OCIClientManager(config)
-        self.ds_client = client_manager.ds_client
-        self.ds_composite_client = client_manager.ds_composite_client
-        self.workflow_req_id = workflow_req_id
-
-        if self.ds_client:
-            self.log_search_client = OCIClientFactory(**self.config).create_client(
-                oci.loggingsearch.LogSearchClient
-            )
 
         self._access_log = None
         self._predict_log = None
+        self.dsc_model_deployment = OCIDataScienceModelDeployment()
+
+    @property
+    def kind(self) -> str:
+        """The kind of the object as showing in YAML.
+
+        Returns
+        -------
+        str
+            deployment
+        """
+        return MODEL_DEPLOYMENT_KIND
+
+    @property
+    def type(self) -> str:
+        """The type of the object as showing in YAML.
+
+        Returns
+        -------
+        str
+            deployment
+        """
+        return MODEL_DEPLOYMENT_TYPE
+
+    @property
+    def model_deployment_id(self) -> str:
+        """The model deployment ocid.
+
+        Returns
+        -------
+        str
+            The model deployment ocid.
+        """
+        return self.get_spec(self.CONST_ID, None)
+
+    @property
+    def created_by(self) -> str:
+        """The user that creates the model deployment.
+
+        Returns
+        -------
+        str
+            The user that creates the model deployment.
+        """
+        return self.get_spec(self.CONST_CREATED_BY, None)
+
+    @property
+    def url(self) -> str:
+        """Model deployment url.
+
+        Returns
+        -------
+        str
+            Model deployment url.
+        """
+        return self.get_spec(self.CONST_MODEL_DEPLOYMENT_URL, None)
+
+    @property
+    def lifecycle_state(self) -> str:
+        """Model deployment lifecycle state.
+
+        Returns
+        -------
+        str
+            Model deployment lifecycle state.
+        """
+        return self.get_spec(self.CONST_LIFECYCLE_STATE, None)
+
+    @property
+    def lifecycle_details(self) -> str:
+        """Model deployment lifecycle details.
+
+        Returns
+        -------
+        str
+            Model deployment lifecycle details.
+        """
+        return self.get_spec(self.CONST_LIFECYCLE_DETAILS, None)
+
+    @property
+    def time_created(self) -> datetime:
+        """The time when the model deployment is created.
+
+        Returns
+        -------
+        datetime
+            The time when the model deployment is created.
+        """
+        return self.get_spec(self.CONST_TIME_CREATED, None)
+
+    @property
+    def display_name(self) -> str:
+        """Model deployment display name.
+
+        Returns
+        -------
+        str
+            Model deployment display name.
+        """
+        return self.get_spec(self.CONST_DISPLAY_NAME, None)
+
+    def with_display_name(self, display_name: str) -> "ModelDeployment":
+        """Sets the name of model deployment.
+
+        Parameters
+        ----------
+        display_name: str
+            The name of model deployment.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return self.set_spec(self.CONST_DISPLAY_NAME, display_name)
+
+    @property
+    def description(self) -> str:
+        """Model deployment description.
+
+        Returns
+        -------
+        str
+            Model deployment description.
+        """
+        return self.get_spec(self.CONST_DESCRIPTION, None)
+
+    def with_description(self, description: str) -> "ModelDeployment":
+        """Sets the description of model deployment.
+
+        Parameters
+        ----------
+        description: str
+            The description of model deployment.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return self.set_spec(self.CONST_DESCRIPTION, description)
+
+    @property
+    def freeform_tags(self) -> Dict:
+        """Model deployment freeform tags.
+
+        Returns
+        -------
+        Dict
+            Model deployment freeform tags.
+        """
+        return self.get_spec(self.CONST_FREEFORM_TAG, {})
+
+    def with_freeform_tags(self, **kwargs) -> "ModelDeployment":
+        """Sets the freeform tags of model deployment.
+
+        Parameters
+        ----------
+        kwargs
+            The freeform tags of model deployment.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return self.set_spec(self.CONST_FREEFORM_TAG, kwargs)
+
+    @property
+    def defined_tags(self) -> Dict:
+        """Model deployment defined tags.
+
+        Returns
+        -------
+        Dict
+            Model deployment defined tags.
+        """
+        return self.get_spec(self.CONST_DEFINED_TAG, {})
+
+    def with_defined_tags(self, **kwargs) -> "ModelDeployment":
+        """Sets the defined tags of model deployment.
+
+        Parameters
+        ----------
+        kwargs
+            The defined tags of model deployment.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return self.set_spec(self.CONST_DEFINED_TAG, kwargs)
+
+    @property
+    def runtime(self) -> "ModelDeploymentRuntime":
+        """Model deployment runtime.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            Model deployment runtime.
+        """
+        return self.get_spec(self.CONST_RUNTIME, None)
+
+    def with_runtime(self, runtime: ModelDeploymentRuntime) -> "ModelDeployment":
+        """Sets the runtime of model deployment.
+
+        Parameters
+        ----------
+        runtime: ModelDeploymentRuntime
+            The runtime of model deployment.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return self.set_spec(self.CONST_RUNTIME, runtime)
+
+    @property
+    def infrastructure(self) -> "ModelDeploymentInfrastructure":
+        """Model deployment infrastructure.
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            Model deployment infrastructure.
+        """
+        return self.get_spec(self.CONST_INFRASTRUCTURE, None)
+
+    def with_infrastructure(
+        self, infrastructure: ModelDeploymentInfrastructure
+    ) -> "ModelDeployment":
+        """Sets the infrastructure of model deployment.
+
+        Parameters
+        ----------
+        infrastructure: ModelDeploymentInfrastructure
+            The infrastructure of model deployment.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)
 
     def deploy(
         self,
@@ -169,7 +584,7 @@ class ModelDeployment:
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
     ):
-        """deploy deploys the current ModelDeployment object
+        """Deploys the current ModelDeployment object
 
         Parameters
         ----------
@@ -186,28 +601,31 @@ class ModelDeployment:
         -------
         ModelDeployment
            The instance of ModelDeployment.
+
+        Raises
+        ------
+        ModelDeploymentFailedError
+            If model deployment fails to deploy
         """
-        response = self.ds_composite_client.create_model_deployment_and_wait_for_state(
-            self.properties.build()
+        create_model_deployment_details = (
+            self._build_model_deployment_details()
+            if self._spec
+            else self.properties.build()
         )
-        self.workflow_req_id = response.headers["opc-work-request-id"]
-        res_payload = json.loads(str(response.data))
-        self.current_state = State._from_str(res_payload["lifecycle_state"])
-        self.model_deployment_id = res_payload["id"]
-        self.url = res_payload["model_deployment_url"]
-        if wait_for_completion:
-            try:
-                self._wait_for_progress_completion(
-                    State.ACTIVE.name,
-                    DEFAULT_WORKFLOW_STEPS,
-                    [State.FAILED.name, State.INACTIVE.name],
-                    max_wait_time,
-                    poll_interval,
-                )
-            except Exception as e:
-                utils.get_logger().error(f"Error while trying to deploy: {str(e)}")
-                raise e
-        return self
+
+        response = self.dsc_model_deployment.create(
+            create_model_deployment_details=create_model_deployment_details,
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+
+        if response.lifecycle_state == State.FAILED.name:
+            raise ModelDeploymentFailedError(
+                f"Model deployment {response.id} failed to deploy: {response.lifecycle_details}"
+            )
+
+        return self._update_from_oci_model(response)
 
     def delete(
         self,
@@ -233,31 +651,12 @@ class ModelDeployment:
         ModelDeployment
             The instance of ModelDeployment.
         """
-
-        response = self.ds_composite_client.delete_model_deployment_and_wait_for_state(
-            self.model_deployment_id
+        response = self.dsc_model_deployment.delete(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
         )
-        # response.data from deleting model is None, headers are populated
-        self.workflow_req_id = response.headers["opc-work-request-id"]
-        oci_model_deployment_object = self.ds_client.get_model_deployment(
-            self.model_deployment_id
-        ).data
-        self.current_state = State._from_str(
-            oci_model_deployment_object.lifecycle_state
-        )
-        if wait_for_completion:
-            try:
-                self._wait_for_progress_completion(
-                    State.DELETED.name,
-                    DELETE_WORKFLOW_STEPS,
-                    [State.FAILED.name, State.INACTIVE.name],
-                    max_wait_time,
-                    poll_interval,
-                )
-            except Exception as e:
-                utils.get_logger().error(f"Error while trying to delete: {str(e)}")
-                raise e
-        return self
+        return self._update_from_oci_model(response)
 
     def update(
         self,
@@ -295,45 +694,113 @@ class ModelDeployment:
         ModelDeployment
             The instance of ModelDeployment.
         """
+        updated_properties = properties
         if not isinstance(properties, ModelDeploymentProperties):
-            properties = ModelDeploymentProperties(
-                oci_model_deployment=properties, config=self.config, **kwargs
+            updated_properties = ModelDeploymentProperties(
+                oci_model_deployment=properties, **kwargs
             )
 
-        if wait_for_completion:
-            wait_for_states = ["SUCCEEDED", "FAILED"]
-        else:
-            wait_for_states = []
+        update_model_deployment_details = (
+            updated_properties.to_update_deployment()
+            if properties or updated_properties.oci_model_deployment or kwargs
+            else self._update_model_deployment_details()
+        )
 
+        response = self.dsc_model_deployment.update(
+            update_model_deployment_details=update_model_deployment_details,
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+
+        return self._update_from_oci_model(response)
+
+    def watch(
+        self,
+        log_type: str = ModelDeploymentLogType.ACCESS,
+        time_start: datetime = None,
+        interval: int = LOG_INTERVAL,
+        log_filter: str = None,
+    ) -> "ModelDeployment":
+        """Streams the access and/or predict logs of model deployment.
+
+        Parameters
+        ----------
+        log_type: str, optional
+            The log type. Can be `access`, `predict` or None.
+            Defaults to access.
+        time_start : datetime.datetime, optional
+            Starting time for the log query.
+            Defaults to None.
+        interval : int, optional
+            The time interval between sending each request to pull logs from OCI logging service.
+            Defaults to 3.
+        log_filter : str, optional
+            Expression for filtering the logs. This will be the WHERE clause of the query.
+            Defaults to None.
+
+        Returns
+        -------
+        ModelDeployment
+            The instance of ModelDeployment.
+        """
+        status = ""
+        while not self._stop_condition():
+            status = self._check_and_print_status(status)
+            time.sleep(interval)
+
+        time_start = time_start or self.time_created
         try:
-            response = (
-                self.ds_composite_client.update_model_deployment_and_wait_for_state(
-                    self.model_deployment_id,
-                    properties.to_update_deployment(),
-                    wait_for_states=wait_for_states,
-                    waiter_kwargs={
-                        "max_interval_seconds": poll_interval,
-                        "max_wait_seconds": max_wait_time,
-                    },
-                )
+            count = self.logs(log_type).stream(
+                source=self.model_deployment_id,
+                interval=interval,
+                stop_condition=self._stop_condition,
+                time_start=time_start,
+                log_filter=log_filter,
             )
-            if "opc-work-request-id" in response.headers:
-                self.workflow_req_id = response.headers["opc-work-request-id"]
-            # Refresh the properties when model is active
-            if wait_for_completion:
-                self.properties = ModelDeploymentProperties(
-                    oci_model_deployment=self.ds_client.get_model_deployment(
-                        self.model_deployment_id
-                    ).data,
-                    config=self.config,
-                )
-        except Exception as e:
-            utils.get_logger().error(
-                "Updating model deployment failed with error: %s", format(e)
-            )
-            raise e
 
-        return self
+            if not count:
+                print(
+                    "No logs in the last 14 days. Please reset time_start to see older logs."
+                )
+            return self.sync()
+        except KeyboardInterrupt:
+            print("Stop watching logs.")
+            pass
+
+    def _stop_condition(self):
+        """Stops the sync once the model deployment is in a terminal state."""
+        return self.state in TERMINAL_STATES
+
+    def _check_and_print_status(self, prev_status) -> str:
+        """Check and print the next status.
+
+        Parameters
+        ----------
+        prev_status: str
+            The previous model deployment status.
+
+        Returns
+        -------
+        str:
+            The next model deployment status.
+        """
+        status = self._model_deployment_status_text()
+        if status != prev_status:
+            timestamp = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{timestamp} - {status}")
+        return status
+
+    def _model_deployment_status_text(self) -> str:
+        """Formats the status message.
+
+        Returns
+        -------
+        str:
+            The model deployment life status and life cycle details.
+        """
+        details = f", {self.lifecycle_details}" if self.lifecycle_details else ""
+        return f"Model Deployment {self.lifecycle_state}" + details
 
     @property
     def state(self) -> State:
@@ -342,11 +809,7 @@ class ModelDeployment:
         while request_attempts < DEFAULT_RETRYING_REQUEST_ATTEMPTS:
             request_attempts += 1
             try:
-                oci_state = self.ds_client.get_model_deployment(
-                    retry_strategy=oci.retry.DEFAULT_RETRY_STRATEGY,
-                    model_deployment_id=self.model_deployment_id,
-                ).data.lifecycle_state
-                self.current_state = State._from_str(oci_state)
+                self.current_state = State._from_str(self.sync().lifecycle_state)
                 break
             except:
                 pass
@@ -359,39 +822,50 @@ class ModelDeployment:
         """Returns the deployment state of the current Model Deployment object"""
         return self.state
 
-    def list_workflow_logs(self) -> list:
-        """Returns a list of the steps involved in deploying a model
-
-        Returns
-        -------
-        list
-            List of dictionaries detailing the status of each step in the deployment process.
-        """
-        if self.workflow_req_id == "" or self.workflow_req_id == None:
-            utils.get_logger().info("Workflow req id not available")
-            raise Exception
-        return self.ds_client.list_work_request_logs(self.workflow_req_id).data
-
     def predict(
         self,
         json_input=None,
         data: Any = None,
+        serializer: "ads.model.ModelInputSerializer" = model_input_serializer,
         auto_serialize_data: bool = False,
+        model_name: str = None,
+        model_version: str = None,
         **kwargs,
     ) -> dict:
-        """Returns prediction of input data run against the model deployment endpoint
+        """Returns prediction of input data run against the model deployment endpoint.
+
+        Examples
+        --------
+        >>> import numpy as np
+        >>> from ads.model import ModelInputSerializer
+        >>> class MySerializer(ModelInputSerializer):
+        ...     def serialize(self, data):
+        ...         serialized_data = 1
+        ...         return serialized_data
+        >>> model_deployment = ModelDeployment.from_id(<model_deployment_id>)
+        >>> prediction = model_deployment.predict(
+        ...        data=np.array([1, 2, 3]),
+        ...        serializer=MySerializer(),
+        ...        auto_serialize_data=True,
+        ... )['prediction']
 
         Parameters
         ----------
         json_input: Json serializable
-            Json payload for the prediction.
+            JSON payload for the prediction.
         data: Any
             Data for the prediction.
-        auto_serialize_data: bool.
-            Whether to auto serialize input data. Defauls to `False`.
+        serializer: ads.model.ModelInputSerializer
+            Defaults to ads.model.JsonModelInputSerializer.
+        auto_serialize_data: bool
+            Defaults to False. Indicate whether to auto serialize input data using `serializer`.
             If `auto_serialize_data=False`, `data` required to be bytes or json serializable
             and `json_input` required to be json serializable. If `auto_serialize_data` set
             to True, data will be serialized before sending to model deployment endpoint.
+        model_name: str
+            Defaults to None. When the `inference_server="triton"`, the name of the model to invoke.
+        model_version: str
+            Defaults to None. When the `inference_server="triton"`, the version of the model to invoke.
         kwargs:
             content_type: str
                 Used to indicate the media type of the resource.
@@ -400,16 +874,17 @@ class ModelDeployment:
 
         Returns
         -------
-        dict
+        dict:
             Prediction results.
 
         """
         endpoint = f"{self.url}/predict"
-        signer = self.config.get("signer")
+        signer = authutil.default_signer()["signer"]
         header = {
             "signer": signer,
             "content_type": kwargs.get("content_type", None),
         }
+        header.update(kwargs.pop("headers", {}))
 
         if data is None and json_input is None:
             raise AttributeError(
@@ -422,10 +897,15 @@ class ModelDeployment:
 
         if auto_serialize_data:
             data = data or json_input
-            serialized_data = InputDataSerializer(data=data)
-            return serialized_data.send(endpoint, **header)
+            serialized_data = serializer.serialize(data=data)
+            return send_request(
+                data=serialized_data,
+                endpoint=endpoint,
+                is_json_payload=_is_json_serializable(serialized_data),
+                header=header,
+            )
 
-        elif json_input is not None:
+        if json_input is not None:
             if not _is_json_serializable(json_input):
                 raise ValueError(
                     "`json_input` must be json serializable. "
@@ -438,9 +918,18 @@ class ModelDeployment:
             )
             data = json_input
 
-        is_json_payload = True if _is_json_serializable(data) else False
+        is_json_payload = _is_json_serializable(data)
+        if not isinstance(data, bytes) and not is_json_payload:
+            raise TypeError(
+                "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
+            )
+        if model_name and model_version:
+            header['model-name'] = model_name
+            header['model-version'] = model_version
+        elif bool(model_version) ^ bool(model_name):
+            raise ValueError("`model_name` and `model_version` have to be provided together.")
         prediction = send_request(
-            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header
+            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header,
         )
         return prediction
 
@@ -468,34 +957,13 @@ class ModelDeployment:
         ModelDeployment
             The instance of ModelDeployment.
         """
-        response = (
-            self.ds_composite_client.activate_model_deployment_and_wait_for_state(
-                self.model_deployment_id
-            )
+        response = self.dsc_model_deployment.activate(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
         )
-        self.workflow_req_id = response.headers["opc-work-request-id"]
-        oci_model_deployment_object = self.ds_client.get_model_deployment(
-            self.model_deployment_id
-        ).data
-        self.current_state = State._from_str(
-            oci_model_deployment_object.lifecycle_state
-        )
-        self.model_deployment_id = oci_model_deployment_object.id
-        self.url = oci_model_deployment_object.model_deployment_url
 
-        if wait_for_completion:
-            try:
-                self._wait_for_progress_completion(
-                    State.ACTIVE.name,
-                    DEFAULT_WORKFLOW_STEPS,
-                    [State.FAILED.name, State.INACTIVE.name],
-                    max_wait_time,
-                    poll_interval,
-                )
-            except Exception as e:
-                utils.get_logger().error(f"Error while trying to activate: {str(e)}")
-                raise e
-        return self
+        return self._update_from_oci_model(response)
 
     def deactivate(
         self,
@@ -521,117 +989,13 @@ class ModelDeployment:
         ModelDeployment
             The instance of ModelDeployment.
         """
-        response = (
-            self.ds_composite_client.deactivate_model_deployment_and_wait_for_state(
-                self.model_deployment_id
-            )
+        response = self.dsc_model_deployment.deactivate(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
         )
-        self.workflow_req_id = response.headers["opc-work-request-id"]
-        oci_model_deployment_object = self.ds_client.get_model_deployment(
-            self.model_deployment_id
-        ).data
-        self.current_state = State._from_str(
-            oci_model_deployment_object.lifecycle_state
-        )
-        self.model_deployment_id = oci_model_deployment_object.id
-        self.url = oci_model_deployment_object.model_deployment_url
 
-        if wait_for_completion:
-            try:
-                self._wait_for_progress_completion(
-                    State.INACTIVE.name,
-                    DEACTIVATE_WORKFLOW_STEPS,
-                    [State.FAILED.name],
-                    max_wait_time,
-                    poll_interval,
-                )
-            except Exception as e:
-                utils.get_logger().error(f"Error while trying to deactivate: {str(e)}")
-                raise e
-        return self
-
-    def _wait_for_progress_completion(
-        self,
-        final_state: str,
-        work_flow_step: int,
-        disallowed_final_states: List[str],
-        max_wait_time: int = DEFAULT_WAIT_TIME,
-        poll_interval: int = DEFAULT_POLL_INTERVAL,
-    ):
-        """_wait_for_progress_completion blocks until progress is completed.
-
-        Parameters
-        ----------
-        final_state: str
-            Final state of model deployment aimed to be reached.
-        work_flow_step: int
-            Number of work flow step of the request.
-        disallowed_final_states: list[str]
-            List of disallowed final state to be reached.
-        max_wait_time: int
-            Maximum amount of time to wait in seconds (Defaults to 1200).
-            Negative implies infinite wait time.
-        poll_interval: int
-            Poll interval in seconds (Defaults to 10).
-        """
-
-        start_time = time.time()
-        prev_message = ""
-        prev_workflow_stage_len = 0
-        with utils.get_progress_bar(work_flow_step) as progress:
-            if max_wait_time > 0 and utils.seconds_since(start_time) >= max_wait_time:
-                utils.get_logger().error(
-                    f"Max wait time ({max_wait_time} seconds) exceeded."
-                )
-            while (
-                max_wait_time < 0 or utils.seconds_since(start_time) < max_wait_time
-            ) and self.current_state.name.upper() != final_state:
-                if self.current_state.name.upper() in disallowed_final_states:
-                    utils.get_logger().info(
-                        f"Operation failed due to deployment reaching state {self.current_state.name.upper()}. Use Deployment ID for further steps."
-                    )
-                    break
-
-                prev_state = self.current_state.name
-                try:
-                    model_deployment_payload = json.loads(
-                        str(
-                            self.ds_client.get_model_deployment(
-                                self.model_deployment_id
-                            ).data
-                        )
-                    )
-                    self.current_state = (
-                        State._from_str(model_deployment_payload["lifecycle_state"])
-                        if "lifecycle_state" in model_deployment_payload
-                        else State.UNKNOWN
-                    )
-                    workflow_payload = self.ds_client.list_work_request_logs(
-                        self.workflow_req_id
-                    ).data
-                    if isinstance(workflow_payload, list) and len(workflow_payload) > 0:
-                        if prev_message != workflow_payload[-1].message:
-                            for _ in range(
-                                len(workflow_payload) - prev_workflow_stage_len
-                            ):
-                                progress.update(workflow_payload[-1].message)
-                            prev_workflow_stage_len = len(workflow_payload)
-                            prev_message = workflow_payload[-1].message
-                            prev_workflow_stage_len = len(workflow_payload)
-                    if prev_state != self.current_state.name:
-                        if "model_deployment_url" in model_deployment_payload:
-                            self.url = model_deployment_payload["model_deployment_url"]
-                        utils.get_logger().info(
-                            f"Status Update: {self.current_state.name} in {utils.seconds_since(start_time)} seconds"
-                        )
-                except Exception as e:
-                    # utils.get_logger().warning(
-                    #     "Unable to update deployment status. Details: %s", format(
-                    #         e)
-                    # )
-                    pass
-                time.sleep(poll_interval)
-            progress.update("Done")
+        return self._update_from_oci_model(response)
 
     def _log_details(self, log_type: str = ModelDeploymentLogType.ACCESS):
         """Gets log details for the provided `log_type`.
@@ -652,14 +1016,22 @@ class ModelDeployment:
             Deployment doesn't have requested log configuration.
 
         """
-        if not self.properties.category_log_details or not getattr(
+        if self.properties.category_log_details and getattr(
             self.properties.category_log_details, log_type
         ):
-            raise LogNotConfiguredError(
-                f"Deployment `{self.model_deployment_id}` "
-                f"has no `{log_type}` log configuration."
-            )
-        return getattr(self.properties.category_log_details, log_type)
+            return getattr(self.properties.category_log_details, log_type)
+        elif self.infrastructure:
+            category_log_details = self._build_category_log_details()
+            log = category_log_details.get(log_type, None)
+            if log and log.get("logId", None) and log.get("logGroupId", None):
+                return LogDetails(
+                    log_id=log.get("logId"), log_group_id=log.get("logGroupId")
+                )
+
+        raise LogNotConfiguredError(
+            f"Deployment `{self.model_deployment_id}` "
+            f"has no `{log_type}` log configuration."
+        )
 
     @property
     def predict_log(self) -> OCILog:
@@ -672,8 +1044,13 @@ class ModelDeployment:
         """
         if not self._predict_log:
             log_details = self._log_details(log_type=ModelDeploymentLogType.PREDICT)
+            compartment_id = (
+                self.infrastructure.compartment_id
+                if self.infrastructure
+                else self.properties.compartment_id
+            )
             self._predict_log = OCILog(
-                compartment_id=self.properties.compartment_id,
+                compartment_id=compartment_id or COMPARTMENT_OCID,
                 id=log_details.log_id,
                 log_group_id=log_details.log_group_id,
                 source=self.model_deployment_id,
@@ -692,8 +1069,13 @@ class ModelDeployment:
         """
         if not self._access_log:
             log_details = self._log_details(log_type=ModelDeploymentLogType.ACCESS)
+            compartment_id = (
+                self.infrastructure.compartment_id
+                if self.infrastructure
+                else self.properties.compartment_id
+            )
             self._access_log = OCILog(
-                compartment_id=self.properties.compartment_id,
+                compartment_id=compartment_id or COMPARTMENT_OCID,
                 id=log_details.log_id,
                 log_group_id=log_details.log_group_id,
                 source=self.model_deployment_id,
@@ -788,3 +1170,526 @@ class ModelDeployment:
             limit=limit,
         )
         return pd.DataFrame([prepare_log_record(log.data) for log in logs])
+
+    def sync(self) -> "ModelDeployment":
+        """Updates the model deployment instance from backend.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return self._update_from_oci_model(
+            OCIDataScienceModelDeployment.from_id(self.model_deployment_id)
+        )
+
+    @classmethod
+    def list(
+        cls,
+        status: str = None,
+        compartment_id: str = None,
+        project_id: str = None,
+        **kwargs,
+    ) -> List["ModelDeployment"]:
+        """Lists the model deployments associated with current compartment id and status
+
+        Parameters
+        ----------
+        status : str
+            Status of deployment. Defaults to None.
+            Allowed values: `ACTIVE`, `CREATING`, `DELETED`, `DELETING`, `FAILED`, `INACTIVE` and `UPDATING`.
+        compartment_id : str
+            Target compartment to list deployments from.
+            Defaults to the compartment set in the environment variable "NB_SESSION_COMPARTMENT_OCID".
+            If "NB_SESSION_COMPARTMENT_OCID" is not set, the root compartment ID will be used.
+            An ValueError will be raised if root compartment ID cannot be determined.
+        project_id : str
+            Target project to list deployments from.
+            Defaults to the project id in the environment variable "PROJECT_OCID".
+        kwargs :
+            The values are passed to oci.data_science.DataScienceClient.list_model_deployments.
+
+        Returns
+        -------
+        list
+            A list of ModelDeployment objects.
+        """
+        deployments = OCIDataScienceModelDeployment.list(
+            status=status,
+            compartment_id=compartment_id,
+            project_id=project_id,
+            **kwargs,
+        )
+        return [cls()._update_from_oci_model(deployment) for deployment in deployments]
+
+    @classmethod
+    def list_df(
+        cls,
+        status: str = None,
+        compartment_id: str = None,
+        project_id: str = None,
+    ) -> pd.DataFrame:
+        """Returns the model deployments associated with current compartment and status
+            as a Dataframe that can be easily visualized
+
+        Parameters
+        ----------
+        status : str
+            Status of deployment. Defaults to None.
+            Allowed values: `ACTIVE`, `CREATING`, `DELETED`, `DELETING`, `FAILED`, `INACTIVE` and `UPDATING`.
+        compartment_id : str
+            Target compartment to list deployments from.
+            Defaults to the compartment set in the environment variable "NB_SESSION_COMPARTMENT_OCID".
+            If "NB_SESSION_COMPARTMENT_OCID" is not set, the root compartment ID will be used.
+            An ValueError will be raised if root compartment ID cannot be determined.
+        project_id : str
+            Target project to list deployments from.
+            Defaults to the project id in the environment variable "PROJECT_OCID".
+
+        Returns
+        -------
+        DataFrame
+            pandas Dataframe containing information about the ModelDeployments
+        """
+        model_deployments = cls.list(
+            status=status, compartment_id=compartment_id, project_id=project_id
+        )
+        if isinstance(status, str) or status == None:
+            status = State._from_str(status)
+        display = pd.DataFrame()
+        ids, urls, status_list = [], [], []
+        for model_deployment in model_deployments:
+            state_of_model = State._from_str(model_deployment.lifecycle_state)
+            if status == State.UNKNOWN or status.name == state_of_model.name:
+                ids.append(model_deployment.model_deployment_id)
+                urls.append(model_deployment.url)
+                status_list.append(model_deployment.lifecycle_state)
+        display["deployment_id"] = ids
+        display["deployment_url"] = urls
+        display["current_state"] = status_list
+        return display
+
+    @classmethod
+    def from_id(cls, id: str) -> "ModelDeployment":
+        """Loads the model deployment instance from ocid.
+
+        Parameters
+        ----------
+        id: str
+            The ocid of model deployment.
+
+        Returns
+        -------
+        ModelDeployment
+            The ModelDeployment instance (self).
+        """
+        return cls()._update_from_oci_model(OCIDataScienceModelDeployment.from_id(id))
+
+    @classmethod
+    def from_dict(cls, obj_dict: Dict) -> "ModelDeployment":
+        """Loads model deployment instance from a dictionary of configurations.
+
+        Parameters
+        ----------
+        obj_dict: Dict
+            A dictionary of configurations.
+
+        Returns
+        -------
+        ModelDeployment
+            The model deployment instance.
+        """
+        if not isinstance(obj_dict, dict):
+            raise ValueError(
+                "The config data for initializing the model deployment is invalid."
+            )
+        spec = ads_utils.batch_convert_case(
+            copy.deepcopy(obj_dict.get("spec")), "camel"
+        )
+
+        mappings = {
+            cls.CONST_INFRASTRUCTURE: {
+                MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE: ModelDeploymentInfrastructure,
+            },
+            cls.CONST_RUNTIME: {
+                ModelDeploymentRuntimeType.CONDA: ModelDeploymentCondaRuntime,
+                ModelDeploymentRuntimeType.CONTAINER: ModelDeploymentContainerRuntime,
+            },
+        }
+        model_deployment = cls()
+
+        for key, value in spec.items():
+            if key in mappings:
+                mapping = mappings[key]
+                child_config = value
+                if child_config.get("type") not in mapping:
+                    raise NotImplementedError(
+                        f"{key.title()} type: {child_config.get('type')} is not supported."
+                    )
+                model_deployment.set_spec(
+                    key, mapping[child_config.get("type")].from_dict(child_config)
+                )
+            else:
+                model_deployment.set_spec(key, value)
+
+        return model_deployment
+
+    def to_dict(self) -> Dict:
+        """Serializes model deployment to a dictionary.
+
+        Returns
+        -------
+        dict
+            The model deployment serialized as a dictionary.
+        """
+        spec = copy.deepcopy(self._spec)
+        for key, value in spec.items():
+            if hasattr(value, "to_dict"):
+                value = value.to_dict()
+            spec[key] = value
+
+        return {
+            "kind": self.kind,
+            "type": self.type,
+            "spec": ads_utils.batch_convert_case(spec, "camel"),
+        }
+
+    def _update_from_oci_model(self, oci_model_instance) -> "ModelDeployment":
+        """Updates model deployment instance from OCIDataScienceModelDeployment.
+
+        Parameters
+        ----------
+        oci_model_instance: OCIDataScienceModelDeployment
+            The OCIDataScienceModelDeployment instance.
+
+        Returns
+        -------
+        ModelDeployment
+            The model deployment instance.
+        """
+        self.dsc_model_deployment = oci_model_instance
+        for key, value in self.attribute_map.items():
+            if hasattr(oci_model_instance, value):
+                self.set_spec(key, getattr(oci_model_instance, value))
+
+        infrastructure = ModelDeploymentInfrastructure()
+        self._extract_from_oci_model(
+            infrastructure, oci_model_instance, infrastructure.sub_level_attribute_maps
+        )
+
+        model_deployment_configuration_details = getattr(
+            oci_model_instance, "model_deployment_configuration_details", None
+        )
+        environment_configuration_details = getattr(
+            model_deployment_configuration_details,
+            "environment_configuration_details",
+            None,
+        )
+        runtime = (
+            ModelDeploymentContainerRuntime()
+            if getattr(
+                environment_configuration_details,
+                "environment_configuration_type",
+                None,
+            )
+            == OCIModelDeploymentRuntimeType.CONTAINER
+            else ModelDeploymentCondaRuntime()
+        )
+
+        self._extract_from_oci_model(runtime, oci_model_instance)
+        infrastructure.set_spec(
+            infrastructure.CONST_WEB_CONCURRENCY,
+            runtime.env.get("WEB_CONCURRENCY", None),
+        )
+        if runtime.env.get("CONTAINER_TYPE", None) == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
+            runtime.set_spec(
+                runtime.CONST_INFERENCE_SERVER, MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON.lower()
+            )
+
+        self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)
+        self.set_spec(self.CONST_RUNTIME, runtime)
+
+        return self
+
+    @staticmethod
+    def _extract_from_oci_model(
+        dsc_instance: Union[ModelDeploymentInfrastructure, ModelDeploymentRuntime],
+        oci_model_instance: OCIDataScienceModelDeployment,
+        sub_level: Dict = {},
+    ) -> Union[ModelDeploymentInfrastructure, ModelDeploymentRuntime]:
+        """Extract attributes from OCIDataScienceModelDeployment.
+
+        Parameters
+        ----------
+        dsc_instance: Union[ModelDeploymentInfrastructure, ModelDeploymentRuntime]
+            The ModelDeploymentInfrastructure or ModelDeploymentRuntime instance.
+        oci_model_instance: OCIDataScienceModelDeployment
+            The OCIDataScienceModelDeployment instance.
+        sub_level: Dict
+            The sub level attribute maps of ModelDeploymentInfrastructure or ModelDeploymentRuntime
+
+        Returns
+        -------
+        Union[ModelDeploymentInfrastructure, ModelDeploymentRuntime]
+            The ModelDeploymentInfrastructure or ModelDeploymentRuntime instance.
+        """
+        for infra_attr, dsc_attr in dsc_instance.payload_attribute_map.items():
+            value = get_value(oci_model_instance, dsc_attr)
+            if value:
+                if infra_attr not in sub_level:
+                    dsc_instance._spec[infra_attr] = value
+                else:
+                    dsc_instance._spec[infra_attr] = {}
+                    for sub_infra_attr, sub_dsc_attr in sub_level[infra_attr].items():
+                        sub_value = get_value(value, sub_dsc_attr)
+                        if sub_value:
+                            dsc_instance._spec[infra_attr][sub_infra_attr] = sub_value
+        return dsc_instance
+
+    def _build_model_deployment_details(self) -> CreateModelDeploymentDetails:
+        """Builds CreateModelDeploymentDetails from model deployment instance.
+
+        Returns
+        -------
+        CreateModelDeploymentDetails
+            The CreateModelDeploymentDetails instance.
+        """
+        if not (self.infrastructure and self.runtime):
+            raise ValueError(
+                "Missing parameter runtime or infrastructure. Try reruning it after parameters are fully configured."
+            )
+
+        create_model_deployment_details = {
+            self.CONST_DISPLAY_NAME: self.display_name or self._random_display_name(),
+            self.CONST_DESCRIPTION: self.description,
+            self.CONST_DEFINED_TAG: self.defined_tags,
+            self.CONST_FREEFORM_TAG: self.freeform_tags,
+            self.runtime.CONST_DEPLOYMENT_MODE: self.runtime.deployment_mode
+            or ModelDeploymentMode.HTTPS,
+            self.infrastructure.CONST_COMPARTMENT_ID: self.infrastructure.compartment_id
+            or COMPARTMENT_OCID,
+            self.infrastructure.CONST_PROJECT_ID: self.infrastructure.project_id
+            or PROJECT_OCID,
+            self.infrastructure.CONST_MODEL_DEPLOYMENT_CONFIG_DETAILS: self._build_model_deployment_configuration_details(),
+            self.infrastructure.CONST_CATEGORY_LOG_DETAILS: self._build_category_log_details(),
+        }
+
+        return OCIDataScienceModelDeployment(
+            **create_model_deployment_details
+        ).to_oci_model(CreateModelDeploymentDetails)
+
+    def _update_model_deployment_details(self) -> UpdateModelDeploymentDetails:
+        """Builds UpdateModelDeploymentDetails from model deployment instance.
+
+        Returns
+        -------
+        UpdateModelDeploymentDetails
+            The UpdateModelDeploymentDetails instance.
+        """
+        if not (self.infrastructure and self.runtime):
+            raise ValueError(
+                "Missing parameter runtime or infrastructure. Try reruning it after parameters are fully configured."
+            )
+
+        update_model_deployment_details = {
+            self.CONST_DISPLAY_NAME: self.display_name,
+            self.CONST_DESCRIPTION: self.description,
+            self.CONST_DEFINED_TAG: self.defined_tags,
+            self.CONST_FREEFORM_TAG: self.freeform_tags,
+            self.infrastructure.CONST_MODEL_DEPLOYMENT_CONFIG_DETAILS: self._build_model_deployment_configuration_details(),
+            self.infrastructure.CONST_CATEGORY_LOG_DETAILS: self._build_category_log_details(),
+        }
+        return OCIDataScienceModelDeployment(
+            **update_model_deployment_details
+        ).to_oci_model(UpdateModelDeploymentDetails)
+
+    def _build_model_deployment_configuration_details(self) -> Dict:
+        """Builds model deployment configuration details from model deployment instance.
+
+        Returns
+        -------
+        Dict:
+            Dict contains model deployment configuration details.
+        """
+        infrastructure = self.infrastructure
+        runtime = self.runtime
+
+        instance_configuration = {
+            infrastructure.CONST_INSTANCE_SHAPE_NAME: infrastructure.shape_name
+            or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
+        }
+
+        if instance_configuration[infrastructure.CONST_INSTANCE_SHAPE_NAME].endswith(
+            "Flex"
+        ):
+            instance_configuration[
+                infrastructure.CONST_MODEL_DEPLOYMENT_INSTANCE_SHAPE_CONFIG_DETAILS
+            ] = {
+                infrastructure.CONST_OCPUS: infrastructure.shape_config_details.get(
+                    "ocpus", None
+                )
+                or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+                infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
+                    "memory_in_gbs", None
+                )
+                or infrastructure.shape_config_details.get(
+                    "memoryInGBs", None
+                )
+                or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+            }
+
+        if infrastructure.subnet_id:
+            instance_configuration[infrastructure.CONST_SUBNET_ID] = infrastructure.subnet_id
+
+        scaling_policy = {
+            infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
+            infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
+            or MODEL_DEPLOYMENT_INSTANCE_COUNT,
+        }
+
+        if not runtime.model_uri:
+            raise ValueError(
+                "Missing parameter model uri. Try reruning it after model uri is configured."
+            )
+
+        model_id = runtime.model_uri
+        if not model_id.startswith("ocid"):
+            model_id = OCIClientManager().prepare_artifact(
+                model_uri=runtime.model_uri,
+                properties=dict(
+                    display_name=self.display_name,
+                    compartment_id=self.infrastructure.compartment_id
+                    or COMPARTMENT_OCID,
+                    project_id=self.infrastructure.project_id or PROJECT_OCID,
+                ),
+            )
+
+        model_configuration_details = {
+            infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
+            or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
+            infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
+            runtime.CONST_MODEL_ID: model_id,
+            infrastructure.CONST_SCALING_POLICY: scaling_policy,
+        }
+
+        if runtime.env:
+            if not hasattr(
+                oci.data_science.models,
+                "ModelDeploymentEnvironmentConfigurationDetails",
+            ):
+                raise EnvironmentError(
+                    "Environment variable hasn't been supported in the current OCI SDK installed."
+                )
+
+        environment_variables = runtime.env
+        if infrastructure.web_concurrency:
+            environment_variables["WEB_CONCURRENCY"] = str(
+                infrastructure.web_concurrency
+            )
+            runtime.set_spec(runtime.CONST_ENV, environment_variables)
+        if hasattr(runtime, "inference_server") and runtime.inference_server and runtime.inference_server.upper() == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
+            environment_variables["CONTAINER_TYPE"] = MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+            runtime.set_spec(runtime.CONST_ENV, environment_variables)
+        environment_configuration_details = {
+            runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
+            runtime.CONST_ENVIRONMENT_VARIABLES: runtime.env,
+        }
+
+        if runtime.environment_config_type == OCIModelDeploymentRuntimeType.CONTAINER:
+            if not hasattr(
+                oci.data_science.models,
+                "OcirModelDeploymentEnvironmentConfigurationDetails",
+            ):
+                raise EnvironmentError(
+                    "Container runtime hasn't been supported in the current OCI SDK installed."
+                )
+            environment_configuration_details["image"] = runtime.image
+            environment_configuration_details["imageDigest"] = runtime.image_digest
+            environment_configuration_details["cmd"] = runtime.cmd
+            environment_configuration_details["entrypoint"] = runtime.entrypoint
+            environment_configuration_details["serverPort"] = runtime.server_port
+            environment_configuration_details[
+                "healthCheckPort"
+            ] = runtime.health_check_port
+
+        model_deployment_configuration_details = {
+            infrastructure.CONST_DEPLOYMENT_TYPE: "SINGLE_MODEL",
+            infrastructure.CONST_MODEL_CONFIG_DETAILS: model_configuration_details,
+            runtime.CONST_ENVIRONMENT_CONFIG_DETAILS: environment_configuration_details,
+        }
+
+        if runtime.deployment_mode == ModelDeploymentMode.STREAM:
+            if not hasattr(oci.data_science.models, "StreamConfigurationDetails"):
+                raise EnvironmentError(
+                    "Model deployment mode hasn't been supported in the current OCI SDK installed."
+                )
+            model_deployment_configuration_details[
+                infrastructure.CONST_STREAM_CONFIG_DETAILS
+            ] = {
+                runtime.CONST_INPUT_STREAM_IDS: runtime.input_stream_ids,
+                runtime.CONST_OUTPUT_STREAM_IDS: runtime.output_stream_ids,
+            }
+
+        return model_deployment_configuration_details
+
+    def _build_category_log_details(self) -> Dict:
+        """Builds category log details from model deployment instance.
+
+        Returns
+        -------
+        Dict:
+            Dict contains category log details.
+        """
+        if self.infrastructure.log_group_id and self.infrastructure.log_id:
+            log_group_details = {
+                self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.log_group_id,
+                self.infrastructure.CONST_LOG_ID: self.infrastructure.log_id,
+            }
+            return {
+                self.infrastructure.CONST_ACCESS: log_group_details,
+                self.infrastructure.CONST_PREDICT: log_group_details,
+            }
+
+        logs = {}
+        if self.infrastructure.access_log:
+            logs[self.infrastructure.CONST_ACCESS] = {
+                self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.access_log.get(
+                    "logGroupId", None
+                ),
+                self.infrastructure.CONST_LOG_ID: self.infrastructure.access_log.get(
+                    "logId", None
+                ),
+            }
+        if self.infrastructure.predict_log:
+            logs[self.infrastructure.CONST_PREDICT] = {
+                self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.predict_log.get(
+                    "logGroupId", None
+                ),
+                self.infrastructure.CONST_LOG_ID: self.infrastructure.predict_log.get(
+                    "logId", None
+                ),
+            }
+
+        return logs
+
+    def _random_display_name(self):
+        """Generates a random display name."""
+        return f"{self._PREFIX}-{ads_utils.get_random_name_for_resource()}"
+
+    def _extract_spec_kwargs(self, **kwargs) -> Dict:
+        """Extract spec related keyword arguments from kwargs.
+
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+        Dict:
+            Dict contains model deployment spec related keyword arguments.
+        """
+        spec_kwargs = {}
+        for attribute in self.initialize_spec_attributes:
+            if attribute in kwargs:
+                spec_kwargs[attribute] = kwargs[attribute]
+        return spec_kwargs

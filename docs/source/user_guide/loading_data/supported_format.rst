@@ -3,11 +3,11 @@ Supported Formats
 
 You can load datasets into ADS, either locally or from network file systems.
 
-You can open datasets with ``DatasetFactory``, ``DatasetBrowser`` or ``pandas``. ``DatasetFactory`` allows datasets to be loaded into ADS.
+You can open datasets with ``DatasetBrowser`` or ``pandas``.
 
 ``DatasetBrowser`` supports opening the datasets from web sites and libraries, such as scikit-learn directly into ADS.
 
-When you open a dataset in ``DatasetFactory``, you can get the summary statistics, correlations, and visualizations of the dataset.
+When you load a dataset in ``ADSDataset`` from ``pandas.DataFrame``, you can get the summary statistics, correlations, and visualizations of the dataset.
 
 ADS Supports:
 
