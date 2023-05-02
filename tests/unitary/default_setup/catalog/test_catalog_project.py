@@ -62,20 +62,6 @@ def generate_project_list(
 class ProjectCatalogTest(unittest.TestCase):
     """Contains test cases for catalog.project"""
 
-    with patch.object(auth, "default_signer"):
-        with patch.object(oci_client, "OCIClientFactory"):
-            project_id = "ocid1.projectcatalog.oc1.iad.<unique_ocid>"
-            comp_id = os.environ.get(
-                "NB_SESSION_COMPARTMENT_OCID", "ocid1.compartment.oc1.iad.<unique_ocid>"
-            )
-            date_time = datetime(2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc)
-
-            pc = ProjectCatalog(compartment_id=comp_id)
-            pc.ds_client = MagicMock()
-            pc.identity_client = MagicMock()
-
-            psl = ProjectSummaryList(generate_project_list())
-
     @classmethod
     def setUpClass(cls) -> None:
         os.environ[
@@ -83,6 +69,23 @@ class ProjectCatalogTest(unittest.TestCase):
         ] = "ocid1.compartment.oc1.<unique_ocid>"
         reload(ads.config)
         reload(ads.catalog.project)
+        # Initialize class properties after reloading
+        with patch.object(auth, "default_signer"):
+            with patch.object(oci_client, "OCIClientFactory"):
+                cls.project_id = "ocid1.projectcatalog.oc1.iad.<unique_ocid>"
+                cls.comp_id = os.environ.get(
+                    "NB_SESSION_COMPARTMENT_OCID",
+                    "ocid1.compartment.oc1.iad.<unique_ocid>",
+                )
+                cls.date_time = datetime(
+                    2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc
+                )
+
+                cls.pc = ProjectCatalog(compartment_id=cls.comp_id)
+                cls.pc.ds_client = MagicMock()
+                cls.pc.identity_client = MagicMock()
+
+                cls.psl = ProjectSummaryList(generate_project_list())
         return super().setUpClass()
 
     @classmethod

@@ -69,20 +69,6 @@ def generate_notebook_list(
 class NotebookCatalogTest(unittest.TestCase):
     """Contains test cases for catalog.notebook"""
 
-    with patch.object(auth, "default_signer"):
-        with patch.object(oci_client, "OCIClientFactory"):
-            notebook_id = "ocid1.notebookcatalog.oc1.iad.<unique_ocid>"
-            comp_id = os.environ.get(
-                "NB_SESSION_COMPARTMENT_OCID", "ocid1.compartment.oc1.iad.<unique_ocid>"
-            )
-            date_time = datetime(2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc)
-
-            notebook_catalog = NotebookCatalog(compartment_id=comp_id)
-            notebook_catalog.ds_client = MagicMock()
-            notebook_catalog.identity_client = MagicMock()
-
-            nsl = NotebookSummaryList(generate_notebook_list())
-
     @classmethod
     def setUpClass(cls) -> None:
         os.environ[
@@ -90,6 +76,23 @@ class NotebookCatalogTest(unittest.TestCase):
         ] = "ocid1.compartment.oc1.<unique_ocid>"
         reload(ads.config)
         reload(ads.catalog.notebook)
+        # Initialize class properties after reloading
+        with patch.object(auth, "default_signer"):
+            with patch.object(oci_client, "OCIClientFactory"):
+                cls.notebook_id = "ocid1.notebookcatalog.oc1.iad.<unique_ocid>"
+                cls.comp_id = os.environ.get(
+                    "NB_SESSION_COMPARTMENT_OCID",
+                    "ocid1.compartment.oc1.iad.<unique_ocid>",
+                )
+                cls.date_time = datetime(
+                    2020, 7, 1, 18, 24, 42, 110000, tzinfo=timezone.utc
+                )
+
+                cls.notebook_catalog = NotebookCatalog(compartment_id=cls.comp_id)
+                cls.notebook_catalog.ds_client = MagicMock()
+                cls.notebook_catalog.identity_client = MagicMock()
+
+                cls.nsl = NotebookSummaryList(generate_notebook_list())
         return super().setUpClass()
 
     @classmethod
