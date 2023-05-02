@@ -1,26 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import os
-import tempfile
 import json
+import os
 import shlex
+import tempfile
+import warnings
 from getopt import gnu_getopt
 
-from ads.opctl.constants import (
-    ADS_DATAFLOW_CONFIG_FILE_NAME,
-    DEFAULT_ADS_CONFIG_FOLDER,
-)
-from ads.jobs import Job, DataFlow, DataFlowRuntime, DataFlowRun
+from ads.common.decorator.runtime_dependency import (OptionalDependency,
+                                                     runtime_dependency)
+from ads.jobs import DataFlow, DataFlowRun, DataFlowRuntime, Job
 from ads.jobs.utils import get_dataflow_config
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
+from ads.opctl.constants import (ADS_DATAFLOW_CONFIG_FILE_NAME,
+                                 DEFAULT_ADS_CONFIG_FOLDER)
 
 
 def dataflow(line, cell=None):
@@ -91,6 +88,8 @@ Args:
         archive_name = options["-a"]
     elif "--archive" in options:
         archive_name = options["--archive"]
+    elif hasattr(dataflow_config, "archive_uri") and dataflow_config.archive_uri:
+        archive_name = dataflow_config.archive_uri
     else:
         archive_name = None
     with tempfile.TemporaryDirectory() as td:
@@ -105,7 +104,11 @@ Args:
             rt_spec["args"] = args[1:]
         if archive_name:
             rt_spec["archiveUri"] = archive_name
-            rt_spec["archiveBucket"] = dataflow_config.pop("archive_bucket")
+            rt_spec["archiveBucket"] = dataflow_config.pop("archive_bucket", None)
+            if not archive_name.startswith("oci://") and not rt_spec["archiveBucket"]:
+                raise ValueError(
+                    "`archiveBucket` has to be set in the config if `archive` is a local path."
+                )
         rt = DataFlowRuntime(rt_spec)
         infra = DataFlow(spec=dataflow_config)
         if "-o" in options or "--overwrite" in options:

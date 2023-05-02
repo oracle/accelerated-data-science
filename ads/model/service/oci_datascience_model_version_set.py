@@ -24,11 +24,11 @@ from oci.data_science.models import (
 )
 
 
-class ModelVersionSetNotExists(Exception):
+class ModelVersionSetNotExists(Exception):   # pragma: no cover
     pass
 
 
-class ModelVersionSetNotSaved(Exception):
+class ModelVersionSetNotSaved(Exception):   # pragma: no cover
     pass
 
 

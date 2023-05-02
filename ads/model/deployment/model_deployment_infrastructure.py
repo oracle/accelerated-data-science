@@ -39,6 +39,8 @@ class ModelDeploymentInfrastructure(Builder):
         The access and predict log id of model deployment
     web_concurrency: int
         The web concurrency of model deployment
+    subnet_id: str
+        The subnet id of model deployment
 
     Methods
     -------
@@ -64,6 +66,8 @@ class ModelDeploymentInfrastructure(Builder):
         Sets the access and predict log id of model deployment
     with_web_concurrency(web_concurrency)
         Sets the web concurrency of model deployment
+    with_subnet_id(subnet_id) 
+        Sets the subnet id of model deployment
 
     Example
     -------
@@ -79,6 +83,7 @@ class ModelDeploymentInfrastructure(Builder):
     ...        .with_replica(1)
     ...        .with_bandwidth_mbps(10)
     ...        .with_web_concurrency(10)
+    ...        .with_subnet_id(<subnet_id>)
     ...        .with_access_log(
     ...            log_group_id=<log_group_id>,
     ...            log_id=<log_id>
@@ -121,6 +126,7 @@ class ModelDeploymentInfrastructure(Builder):
     CONST_LOG_GROUP_ID = "logGroupId"
     CONST_WEB_CONCURRENCY = "webConcurrency"
     CONST_STREAM_CONFIG_DETAILS = "streamConfigurationDetails"
+    CONST_SUBNET_ID = "subnetId"
 
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
@@ -136,6 +142,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
         CONST_WEB_CONCURRENCY: "web_concurrency",
+        CONST_SUBNET_ID: "subnet_id"
     }
 
     shape_config_details_attribute_map = {
@@ -162,6 +169,7 @@ class ModelDeploymentInfrastructure(Builder):
         CONST_COMPARTMENT_ID: "compartment_id",
         CONST_SHAPE_NAME: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.instance_shape_name",
         CONST_SHAPE_CONFIG_DETAILS: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.model_deployment_instance_shape_config_details",
+        CONST_SUBNET_ID: f"{MODEL_CONFIG_DETAILS_PATH}.instance_configuration.subnet_id",
         CONST_REPLICA: f"{MODEL_CONFIG_DETAILS_PATH}.scaling_policy.instance_count",
         CONST_BANDWIDTH_MBPS: f"{MODEL_CONFIG_DETAILS_PATH}.bandwidth_mbps",
         CONST_ACCESS_LOG: "category_log_details.access",
@@ -518,3 +526,29 @@ class ModelDeploymentInfrastructure(Builder):
             The ModelDeploymentInfrastructure instance (self).
         """
         return self.set_spec(self.CONST_WEB_CONCURRENCY, web_concurrency)
+
+    def with_subnet_id(self, subnet_id: str) -> "ModelDeploymentInfrastructure":
+        """Sets the subnet id of model deployment.
+
+        Parameters
+        ----------
+        subnet_id : str
+            The subnet id of model deployment.
+
+        Returns
+        -------
+        ModelDeploymentInfrastructure
+            The ModelDeploymentInfrastructure instance (self).
+        """
+        return self.set_spec(self.CONST_SUBNET_ID, subnet_id)
+
+    @property
+    def subnet_id(self) -> str:
+        """The model deployment subnet id.
+        
+        Returns
+        -------
+        str
+            The model deployment subnet id.
+        """
+        return self.get_spec(self.CONST_SUBNET_ID, None)

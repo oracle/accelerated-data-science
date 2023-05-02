@@ -101,7 +101,7 @@ DIMENSION = 2
 # declare custom exception class
 
 
-class FileOverwriteError(Exception):
+class FileOverwriteError(Exception):   # pragma: no cover
     pass
 
 

@@ -1,0 +1,117 @@
+<style>
+    table,
+    th,
+    td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        padding: 10px;
+        text-align: left;
+    }
+
+    .th-key {
+        width: 160px;
+    }
+
+    .th-type {
+        width: 70px;
+    }
+</style>
+
+
+<p></p>
+<h4 id="job"><code>job</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>kind</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>job</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>apiVersion</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>spec</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See <a href="#job.spec"><code>job.spec</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="job.spec"><code>job.spec</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>id</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>infrastructure</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See Data Science Job or DataFlow schema. 
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>name</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>runtime</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See Job Runtime Schemas. 
+            </td>
+        </tr>
+        
+    </tbody>
+</table>

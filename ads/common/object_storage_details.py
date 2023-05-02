@@ -15,7 +15,7 @@ from ads.common import auth as authutil
 from ads.common import oci_client
 
 
-class InvalidObjectStoragePath(Exception):
+class InvalidObjectStoragePath(Exception):   # pragma: no cover
     """Invalid Object Storage Path."""
 
     pass

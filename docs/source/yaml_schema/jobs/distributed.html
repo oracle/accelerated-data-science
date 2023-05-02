@@ -1,23 +1,25 @@
 <style>
-    table, th, td {
-      border: 1px solid black;
-      border-collapse: collapse;
-      padding: 10px;
-      text-align: left;
+    table,
+    th,
+    td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        padding: 10px;
+        text-align: left;
     }
 
     .th-key {
         width: 160px;
     }
+
     .th-type {
         width: 70px;
     }
-    
 </style>
 
 
 <p></p>
-<p><code>distributed</code> schema</p>
+<h4 id="distributed"><code>distributed</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -30,45 +32,30 @@
         <tr>
             <th><code>kind</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                        Must be <code>distributed</code>
-                    
-                
+                Must be <code>distributed</code>
             </td>
         </tr>
         
         <tr>
             <th><code>apiVersion</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
-                
+                Must be <code>v1.0</code>
             </td>
         </tr>
         
         <tr>
             <th><code>spec</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec</code> schema.
-                
+                See <a href="#distributed.spec"><code>distributed.spec</code></a> schema.
             </td>
         </tr>
         
@@ -76,7 +63,7 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec</code> schema</p>
+<h4 id="distributed.spec"><code>distributed.spec</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -89,43 +76,30 @@
         <tr>
             <th><code>infrastructure</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.infrastructure</code> schema.
-                    
-                
+                See <a href="#distributed.spec.infrastructure"><code>distributed.spec.infrastructure</code></a> schema.
             </td>
         </tr>
         
         <tr>
             <th><code>cluster</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.cluster</code> schema.
-                
+                See <a href="#distributed.spec.cluster"><code>distributed.spec.cluster</code></a> schema.
             </td>
         </tr>
         
         <tr>
             <th><code>runtime</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.runtime</code> schema.
-                
+                See <a href="#distributed.spec.runtime"><code>distributed.spec.runtime</code></a> schema.
             </td>
         </tr>
         
@@ -133,7 +107,7 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec.infrastructure</code> schema</p>
+<h4 id="distributed.spec.infrastructure"><code>distributed.spec.infrastructure</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -146,61 +120,40 @@
         <tr>
             <th><code>kind</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                        Must be <code>infrastructure</code>
-                    
-                
+                Must be <code>infrastructure</code>
             </td>
         </tr>
         
         <tr>
             <th><code>type</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                        Must be <code>dataScienceJob</code>
-                    
-                
+                Must be <code>dataScienceJob</code>
             </td>
         </tr>
         
         <tr>
             <th><code>apiVersion</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
-                
+                Must be <code>v1.0</code>
             </td>
         </tr>
         
         <tr>
             <th><code>spec</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.infrastructure.spec</code> schema.
-                
+                See <a href="#distributed.spec.infrastructure.spec"><code>distributed.spec.infrastructure.spec</code></a> schema.
             </td>
         </tr>
         
@@ -208,7 +161,95 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec.infrastructure.spec</code> schema</p>
+<h4 id="distributed.spec.cluster"><code>distributed.spec.cluster</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>kind</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                <code>PYTORCH</code>, <code>DASK</code>, <code>HOROVOD</code>, <code>dask</code>, <code>pytorch</code>, or <code>horovod</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>apiVersion</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>v1.0</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>spec</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See <a href="#distributed.spec.cluster.spec"><code>distributed.spec.cluster.spec</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.runtime"><code>distributed.spec.runtime</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>kind</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>apiVersion</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>v1.0</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>spec</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See <a href="#distributed.spec.runtime.spec"><code>distributed.spec.runtime.spec</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.infrastructure.spec"><code>distributed.spec.infrastructure.spec</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -221,14 +262,9 @@
         <tr>
             <th><code>displayName</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -236,14 +272,9 @@
         <tr>
             <th><code>compartmentId</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -251,14 +282,9 @@
         <tr>
             <th><code>projectId</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -266,14 +292,9 @@
         <tr>
             <th><code>logGroupId</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -281,14 +302,9 @@
         <tr>
             <th><code>logId</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -296,14 +312,9 @@
         <tr>
             <th><code>subnetId</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -311,14 +322,9 @@
         <tr>
             <th><code>shapeName</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -326,17 +332,10 @@
         <tr>
             <th><code>blockStorageSize</code></th>
             <td class="th-type">
-                
                 <code>integer</code>
-                
             </td>
             <td>
-                
-                    
-                        Minimum: 50
-                    
-                    
-                
+                Minimum: <code>50</code>
             </td>
         </tr>
         
@@ -344,85 +343,7 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec.cluster</code> schema</p>
-<table style="width: 100%;">
-    <thead>
-        <tr>
-            <th class="th-key">Key</th>
-            <th colspan="2">Value</th>
-        </tr>
-    </thead>
-    <tbody>
-        
-        <tr>
-            <th><code>kind</code></th>
-            <td class="th-type">
-                
-                <code>string</code>
-                
-            </td>
-            <td>
-                
-                    
-                        Options:
-                        
-                            <code>PYTORCH</code>
-                            , 
-                        
-                            <code>DASK</code>
-                            , 
-                        
-                            <code>HOROVOD</code>
-                            , 
-                        
-                            <code>dask</code>
-                            , 
-                        
-                            <code>pytorch</code>
-                            , 
-                        
-                            <code>horovod</code>
-                            
-                        
-                    
-                
-            </td>
-        </tr>
-        
-        <tr>
-            <th><code>apiVersion</code></th>
-            <td class="th-type">
-                
-                <code>string</code>
-                
-            </td>
-            <td>
-                
-                    
-                    
-                
-            </td>
-        </tr>
-        
-        <tr>
-            <th><code>spec</code></th>
-            <td class="th-type">
-                
-                <code>dict</code>
-                
-            </td>
-            <td>
-                
-                    See <code>distributed.spec.cluster.spec</code> schema.
-                
-            </td>
-        </tr>
-        
-    </tbody>
-</table>
-
-<p></p>
-<p><code>distributed.spec.cluster.spec</code> schema</p>
+<h4 id="distributed.spec.cluster.spec"><code>distributed.spec.cluster.spec</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -435,44 +356,29 @@
         <tr>
             <th><code>image</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
-                
+                URI of the container image. 
             </td>
         </tr>
         
         <tr>
             <th><code>workDir</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
-                
+                Object storage URI to store cluster information during the training. 
             </td>
         </tr>
         
         <tr>
             <th><code>name</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -480,42 +386,30 @@
         <tr>
             <th><code>config</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.cluster.spec.config</code> schema.
-                
+                See <a href="#distributed.spec.cluster.spec.config"><code>distributed.spec.cluster.spec.config</code></a> schema.
             </td>
         </tr>
         
         <tr>
             <th><code>main</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.cluster.spec.main</code> schema.
-                
+                See <a href="#distributed.spec.cluster.spec.main"><code>distributed.spec.cluster.spec.main</code></a> schema.
             </td>
         </tr>
         
         <tr>
             <th><code>worker</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.cluster.spec.worker</code> schema.
-                
+                See <a href="#distributed.spec.cluster.spec.worker"><code>distributed.spec.cluster.spec.worker</code></a> schema.
             </td>
         </tr>
         
@@ -523,7 +417,111 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec.cluster.spec.config</code> schema</p>
+<h4 id="distributed.spec.runtime.spec"><code>distributed.spec.runtime.spec</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>type</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>uri</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                URI of the source code location. 
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>branch</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Name of the Git repository branch. 
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>commit</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Git commit (SHA-1 hash). 
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>gitSecretId</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>entryPoint</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>kwargs</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>args</code></th>
+            <td class="th-type">
+                <code>list</code>
+            </td>
+            <td>
+                List of <code>number</code> or <code>string</code>. 
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>env</code></th>
+            <td class="th-type">
+                <code>list</code>
+            </td>
+            <td>
+                List of dict. For each element, see <a href="#distributed.spec.runtime.spec.env"><code>distributed.spec.runtime.spec.env</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.cluster.spec.config"><code>distributed.spec.cluster.spec.config</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -536,40 +534,20 @@
         <tr>
             <th><code>startOptions</code></th>
             <td class="th-type">
-                
                 <code>list</code>
-                
             </td>
             <td>
-                
-                    List of 
-                    
-                        <code>string</code>
-                    
-                     items.
-                    
-                
+                List of string. 
             </td>
         </tr>
         
         <tr>
             <th><code>env</code></th>
             <td class="th-type">
-                
                 <code>list</code>
-                
             </td>
             <td>
-                
-                    List of 
-                    
-                        <code>dict</code>
-                    
-                     items.
-                    
-                    See <code>env</code> schema.
-                    
-                
+                List of dict. For each element, see <a href="#distributed.spec.cluster.spec.config.env"><code>distributed.spec.cluster.spec.config.env</code></a> schema.
             </td>
         </tr>
         
@@ -577,7 +555,7 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec.cluster.spec.main</code> schema</p>
+<h4 id="distributed.spec.cluster.spec.main"><code>distributed.spec.cluster.spec.main</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -590,14 +568,9 @@
         <tr>
             <th><code>name</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -605,14 +578,9 @@
         <tr>
             <th><code>replicas</code></th>
             <td class="th-type">
-                
                 <code>integer</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -620,14 +588,10 @@
         <tr>
             <th><code>config</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.cluster.spec.config</code> schema.
-                
+                See <a href="#distributed.spec.cluster.spec.main.config"><code>distributed.spec.cluster.spec.main.config</code></a> schema.
             </td>
         </tr>
         
@@ -635,7 +599,7 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec.cluster.spec.worker</code> schema</p>
+<h4 id="distributed.spec.cluster.spec.worker"><code>distributed.spec.cluster.spec.worker</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -648,14 +612,9 @@
         <tr>
             <th><code>name</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -663,14 +622,9 @@
         <tr>
             <th><code>replicas</code></th>
             <td class="th-type">
-                
                 <code>integer</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -678,14 +632,10 @@
         <tr>
             <th><code>config</code></th>
             <td class="th-type">
-                
                 <code>dict</code>
-                
             </td>
             <td>
-                
-                    See <code>distributed.spec.cluster.spec.config</code> schema.
-                
+                See <a href="#distributed.spec.cluster.spec.worker.config"><code>distributed.spec.cluster.spec.worker.config</code></a> schema.
             </td>
         </tr>
         
@@ -693,155 +643,7 @@
 </table>
 
 <p></p>
-<p><code>distributed.spec.runtime</code> schema</p>
-<table style="width: 100%;">
-    <thead>
-        <tr>
-            <th class="th-key">Key</th>
-            <th colspan="2">Value</th>
-        </tr>
-    </thead>
-    <tbody>
-        
-        <tr>
-            <th><code>kind</code></th>
-            <td class="th-type">
-                
-                <code>string</code>
-                
-            </td>
-            <td>
-                
-                    
-                    
-                
-            </td>
-        </tr>
-        
-        <tr>
-            <th><code>apiVersion</code></th>
-            <td class="th-type">
-                
-                <code>string</code>
-                
-            </td>
-            <td>
-                
-                    
-                    
-                
-            </td>
-        </tr>
-        
-        <tr>
-            <th><code>spec</code></th>
-            <td class="th-type">
-                
-                <code>dict</code>
-                
-            </td>
-            <td>
-                
-                    See <code>distributed.spec.runtime.spec</code> schema.
-                
-            </td>
-        </tr>
-        
-    </tbody>
-</table>
-
-<p></p>
-<p><code>distributed.spec.runtime.spec</code> schema</p>
-<table style="width: 100%;">
-    <thead>
-        <tr>
-            <th class="th-key">Key</th>
-            <th colspan="2">Value</th>
-        </tr>
-    </thead>
-    <tbody>
-        
-        <tr>
-            <th><code>entryPoint</code></th>
-            <td class="th-type">
-                
-                <code>string</code>
-                
-            </td>
-            <td>
-                
-                    
-                    
-                
-            </td>
-        </tr>
-        
-        <tr>
-            <th><code>kwargs</code></th>
-            <td class="th-type">
-                
-                <code>string</code>
-                
-            </td>
-            <td>
-                
-                    
-                    
-                
-            </td>
-        </tr>
-        
-        <tr>
-            <th><code>args</code></th>
-            <td class="th-type">
-                
-                <code>list</code>
-                
-            </td>
-            <td>
-                
-                    List of 
-                    
-                        
-                        <code>number</code>
-                        , 
-                        
-                        <code>string</code>
-                        
-                        
-                    
-                     items.
-                    
-                
-            </td>
-        </tr>
-        
-        <tr>
-            <th><code>env</code></th>
-            <td class="th-type">
-                
-                <code>list</code>
-                
-            </td>
-            <td>
-                
-                    List of 
-                    
-                        <code>dict</code>
-                    
-                     items.
-                    
-                    See <code>env</code> schema.
-                    
-                
-            </td>
-        </tr>
-        
-    </tbody>
-</table>
-
-<p></p>
-<p><code>env</code> schema</p>
+<h4 id="distributed.spec.runtime.spec.env"><code>distributed.spec.runtime.spec.env</code> schema</h4>
 <table style="width: 100%;">
     <thead>
         <tr>
@@ -854,14 +656,9 @@
         <tr>
             <th><code>name</code></th>
             <td class="th-type">
-                
                 <code>string</code>
-                
             </td>
             <td>
-                
-                    
-                    
                 
             </td>
         </tr>
@@ -869,20 +666,159 @@
         <tr>
             <th><code>value</code></th>
             <td class="th-type">
-                
-                    
-                    <code>number</code>
-                    , 
-                    
-                    <code>string</code>
-                    
-                    
-                
+                <code><code>number</code> or <code>string</code></code>
             </td>
             <td>
                 
-                    
-                    
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.cluster.spec.config.env"><code>distributed.spec.cluster.spec.config.env</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>name</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>value</code></th>
+            <td class="th-type">
+                <code><code>number</code> or <code>string</code></code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.cluster.spec.main.config"><code>distributed.spec.cluster.spec.main.config</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>env</code></th>
+            <td class="th-type">
+                <code>list</code>
+            </td>
+            <td>
+                List of dict. For each element, see <a href="#distributed.spec.cluster.spec.main.config.env"><code>distributed.spec.cluster.spec.main.config.env</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.cluster.spec.worker.config"><code>distributed.spec.cluster.spec.worker.config</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>env</code></th>
+            <td class="th-type">
+                <code>list</code>
+            </td>
+            <td>
+                List of dict. For each element, see <a href="#distributed.spec.cluster.spec.worker.config.env"><code>distributed.spec.cluster.spec.worker.config.env</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.cluster.spec.main.config.env"><code>distributed.spec.cluster.spec.main.config.env</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>name</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>value</code></th>
+            <td class="th-type">
+                <code><code>number</code> or <code>string</code></code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="distributed.spec.cluster.spec.worker.config.env"><code>distributed.spec.cluster.spec.worker.config.env</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>name</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>value</code></th>
+            <td class="th-type">
+                <code><code>number</code> or <code>string</code></code>
+            </td>
+            <td>
                 
             </td>
         </tr>

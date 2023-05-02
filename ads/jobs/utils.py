@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -43,7 +43,7 @@ def get_dataflow_config(path=None, oci_profile=None):
             )
         return config
     else:
-        logger.error(f"{dataflow_config_file_path} not found.")
+        logger.warning(f"{dataflow_config_file_path} not found. Follow this link https://accelerated-data-science.readthedocs.io/en/latest/user_guide/apachespark/dataflow.html to set up the config.")
         return {}
 
 

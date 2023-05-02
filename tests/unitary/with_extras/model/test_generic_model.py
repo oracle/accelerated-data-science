@@ -520,6 +520,7 @@ class TestGenericModel:
         infrastructure = ModelDeploymentInfrastructure(
             **{
                 "shape_name": "test_deployment_instance_shape",
+                "subnet_id": "test_deployment_subnet_id",
                 "replica": 10,
                 "bandwidth_mbps": 100,
                 "shape_config_details": {"memory_in_gbs": 10, "ocpus": 1},
@@ -560,6 +561,7 @@ class TestGenericModel:
             "display_name": "test_display_name",
             "description": "test_description",
             "deployment_instance_shape": "test_deployment_instance_shape",
+            "deployment_instance_subnet_id": "test_deployment_subnet_id",
             "deployment_instance_count": 10,
             "deployment_bandwidth_mbps": 100,
             "deployment_memory_in_gbs": 10,
@@ -604,6 +606,7 @@ class TestGenericModel:
             "ocpus": input_dict["deployment_ocpus"],
             "memory_in_gbs": input_dict["deployment_memory_in_gbs"],
         }
+        assert result.infrastructure.subnet_id == input_dict["deployment_instance_subnet_id"]
         assert result.runtime.image == input_dict["deployment_image"]
         assert result.runtime.entrypoint == input_dict["entrypoint"]
         assert result.runtime.server_port == input_dict["server_port"]
@@ -1328,6 +1331,7 @@ class TestGenericModel:
                     "display_name": "fake_deployment_display_name",
                     "description": None,
                     "deployment_instance_shape": None,
+                    "deployment_instance_subnet_id": None,
                     "deployment_instance_count": None,
                     "deployment_bandwidth_mbps": None,
                     "deployment_log_group_id": None,
@@ -1367,6 +1371,7 @@ class TestGenericModel:
                     "deployment_display_name": "fake_deployment_display_name",
                     "deployment_description": None,
                     "deployment_instance_shape": None,
+                    "deployment_instance_subnet_id": None,
                     "deployment_instance_count": None,
                     "deployment_bandwidth_mbps": None,
                     "deployment_log_group_id": None,
@@ -1417,6 +1422,7 @@ class TestGenericModel:
                     "display_name": "fake_deployment_display_name",
                     "description": None,
                     "deployment_instance_shape": None,
+                    "deployment_instance_subnet_id": None,
                     "deployment_instance_count": None,
                     "deployment_bandwidth_mbps": None,
                     "deployment_log_group_id": None,
@@ -1456,6 +1462,7 @@ class TestGenericModel:
                     "deployment_display_name": "fake_deployment_display_name",
                     "deployment_description": "fake_deployment_description",
                     "deployment_instance_shape": "2.1",
+                    "deployment_instance_subnet_id": "ocid1.subnet.oc1.iad.<unique_ocid>",
                     "deployment_instance_count": 1,
                     "deployment_bandwidth_mbps": 10,
                     "deployment_log_group_id": "ocid1.loggroup.oc1.iad.<unique_ocid>",
@@ -1512,6 +1519,7 @@ class TestGenericModel:
                     "deployment_instance_shape": "2.1",
                     "deployment_instance_count": 1,
                     "deployment_bandwidth_mbps": 10,
+                    "deployment_instance_subnet_id": "ocid1.subnet.oc1.iad.<unique_ocid>",
                     "deployment_log_group_id": "ocid1.loggroup.oc1.iad.<unique_ocid>",
                     "deployment_access_log_id": "ocid1.log.oc1.iad.<unique_ocid>",
                     "deployment_predict_log_id": "ocid1.log.oc1.iad.<unique_ocid>",
@@ -1553,6 +1561,7 @@ class TestGenericModel:
                     "deployment_display_name": "fake_deployment_display_name",
                     "deployment_description": "fake_deployment_description",
                     "deployment_instance_shape": "2.1",
+                    "deployment_instance_subnet_id": "ocid1.subnet.oc1.iad.<unique_ocid>",
                     "deployment_instance_count": 1,
                     "deployment_bandwidth_mbps": 10,
                     "deployment_log_group_id": "ocid",
@@ -1615,6 +1624,7 @@ class TestGenericModel:
                     "deployment_instance_shape": "2.1",
                     "deployment_instance_count": 1,
                     "deployment_bandwidth_mbps": 10,
+                    "deployment_instance_subnet_id": "ocid1.subnet.oc1.iad.<unique_ocid>",
                     "deployment_log_group_id": "ocid",
                     "deployment_access_log_id": "ocid",
                     "deployment_predict_log_id": "ocid",
@@ -1685,6 +1695,7 @@ class TestGenericModel:
             "display_name": utils.get_random_name_for_resource(),
             "description": None,
             "deployment_instance_shape": None,
+            "deployment_instance_subnet_id": None,
             "deployment_instance_count": None,
             "deployment_bandwidth_mbps": None,
             "deployment_memory_in_gbs": None,
