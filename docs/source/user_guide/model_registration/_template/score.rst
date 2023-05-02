@@ -38,7 +38,7 @@ GPU Deployments
 ~~~~~~~~~~~~~~~~
 When deploying your TensorFlow or PyTorch models onto a GPU shape, the ADS generated score.py manages GPU integration for you. It will automatically transfer your data to the GPU (or multiple GPUs) and perform the inference on that GPU. When using ADS 2.8.4 or later, any TensorFlow or PyTorch model artifact can be deployed efficiently on either CPU or GPU regardless of how it was trained.
 
-The Model Deployment Service handles parallelization for you. Whether you have a single or multi GPU deployment, the Model Deployment Service will determine how many replicas of your model can be supported, and the auto-generated score.py will randomly assign those replicas across the GPU(s). The following code example registers a PyTorch Model tuned and deployed on GPUs.
+The Model Deployment Service handles parallelization for you. Whether you have a single or multi GPU deployment, the Model Deployment Service will determine how many replicas of your model can be supported based on the size of your model artifact and the size of your GPU shape. Finally, the auto-generated score.py will randomly assign those replicas across the GPU(s). The following code example registers a PyTorch Model tuned and deployed on GPUs. `Learn more about the Model Deployment Service here. <https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_create.htm>`_
 
 .. code-block:: python3
 
@@ -68,8 +68,7 @@ The Model Deployment Service handles parallelization for you. Whether you have a
     pytorch_model.deploy(deployment_instance_shape="VM.GPU3.2")
     
     pytorch_model.predict(fake_input.to_numpy())
-   
-`Learn more about the Model Deployment Service here. <https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_create.htm>`_
+
 
 load_model
 ~~~~~~~~~~
