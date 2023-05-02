@@ -443,7 +443,7 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             * maximum_runtime_in_minutes: int
             * display_name: str
             * freeform_tags: dict(str, str)
-            * defined_tags: dict(str, object)
+            * defined_tags: dict(str, dict(str, object))
 
         If display_name is not specified, it will be generated as "<JOB_NAME>-run-<TIMESTAMP>".
 
@@ -865,6 +865,8 @@ class DataScienceJob(Infrastructure):
     CONST_LOG_ID = "logId"
     CONST_LOG_GROUP_ID = "logGroupId"
     CONST_STORAGE_MOUNT = "storageMount"
+    CONST_FREEFORM_TAGS = "freeformTags"
+    CONST_DEFINED_TAGS = "definedTags"
 
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
@@ -879,6 +881,8 @@ class DataScienceJob(Infrastructure):
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
         CONST_STORAGE_MOUNT: "storage_mount",
+        CONST_FREEFORM_TAGS: "freeform_tags",
+        CONST_DEFINED_TAGS: "defined_tags",
     }
 
     shape_config_details_attribute_map = {
@@ -1268,6 +1272,36 @@ class DataScienceJob(Infrastructure):
         """
         return self.get_spec(self.CONST_STORAGE_MOUNT, [])
 
+    def with_freeform_tag(self, **kwargs) -> DataScienceJob:
+        """Sets freeform tags
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        return self.set_spec(self.CONST_FREEFORM_TAGS, kwargs)
+
+    def with_defined_tag(self, **kwargs) -> DataScienceJob:
+        """Sets defined tags
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        return self.set_spec(self.CONST_DEFINED_TAGS, kwargs)
+
+    @property
+    def freeform_tags(self) -> dict:
+        """Freeform tags"""
+        return self.get_spec(self.CONST_FREEFORM_TAGS, {})
+
+    @property
+    def defined_tags(self) -> dict:
+        """Defined tags"""
+        return self.get_spec(self.CONST_DEFINED_TAGS, {})
+
     def _prepare_log_config(self) -> dict:
         if not self.log_group_id and not self.log_id:
             return None
@@ -1465,6 +1499,10 @@ class DataScienceJob(Infrastructure):
 
         payload["display_name"] = display_name
         payload["job_log_configuration_details"] = self._prepare_log_config()
+        if not payload.get("freeform_tags"):
+            payload["freeform_tags"] = self.freeform_tags
+        if not payload.get("defined_tags"):
+            payload["defined_tags"] = self.defined_tags
 
         self.dsc_job = DSCJob(**payload)
         # Set Job infra to user values after DSCJob initialized the defaults
