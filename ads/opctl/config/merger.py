@@ -26,6 +26,7 @@ from ads.opctl.constants import (
     ADS_ML_PIPELINE_CONFIG_FILE_NAME,
     ADS_DATAFLOW_CONFIG_FILE_NAME,
     ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+    ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
     DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
     BACKEND_NAME,
 )
@@ -178,9 +179,11 @@ class ConfigMerger(ConfigProcessor):
     def _get_service_config(self, oci_profile: str, ads_config_folder: str) -> Dict:
         backend = self.config["execution"].get("backend", None)
         backend_config = {
+            BACKEND_NAME.JOB.value: ADS_JOBS_CONFIG_FILE_NAME,
             BACKEND_NAME.DATAFLOW.value: ADS_DATAFLOW_CONFIG_FILE_NAME,
             BACKEND_NAME.PIPELINE.value: ADS_ML_PIPELINE_CONFIG_FILE_NAME,
             BACKEND_NAME.LOCAL.value: ADS_LOCAL_BACKEND_CONFIG_FILE_NAME,
+            BACKEND_NAME.MODEL_DEPLOYMENT.value: ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME,
         }
         config_file = backend_config.get(backend, ADS_JOBS_CONFIG_FILE_NAME)
 

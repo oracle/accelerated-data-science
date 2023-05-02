@@ -68,8 +68,8 @@ def update_oci_client_config(config: Optional[Dict[str, Any]] = None) -> Dict[st
             config.update(
                 {
                     USER_AGENT_KEY: (
-                        f"{LIBRARY}/version={__version__}/"
-                        f"surface={Surface.surface().name}/"
+                        f"{LIBRARY}/version={__version__}#"
+                        f"surface={Surface.surface().name}#"
                         f"api={os.environ.get(EXTRA_USER_AGENT_INFO,UNKNOWN) or UNKNOWN}"
                     )
                 }
