@@ -709,13 +709,6 @@ class LocalModelDeploymentBackend(LocalBackend):
                 timeout=timeout,
                 force_overwrite=True,
             )
-        if (
-            not os.path.exists(artifact_directory)
-            or len(os.listdir(artifact_directory)) == 0
-        ):
-            raise ValueError(
-                f"`artifact_directory` {artifact_directory} does not exist or is empty."
-            )
                 
         # conda
         conda_slug, conda_path = self.config["execution"].get("conda_slug"), self.config["execution"].get("conda_path")

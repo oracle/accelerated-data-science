@@ -123,7 +123,7 @@ MODEL_PROVENANCE:
                                     "bind": "/opt/ds/model/deployed_model/"
                                 },
                             },
-                            "/opt/ds/model/deployed_model/ fake_data fake_id fake_id",
+                            "/opt/ds/model/deployed_model/ fake_data",
                             install=True,
                             conda_uri="fake_path",
                         )
@@ -148,6 +148,7 @@ MODEL_PROVENANCE:
                         return_value=0,
                     ) as mock__run_with_conda_pack:
                         backend = LocalModelDeploymentBackend(self.config)
+                        
                         backend.predict()
                         mock__download.assert_called_once_with(
                             oci_auth=backend.oci_auth,
@@ -169,7 +170,7 @@ MODEL_PROVENANCE:
                                     "bind": "/opt/ds/model/deployed_model/"
                                 },
                             },
-                            "/opt/ds/model/deployed_model/ fake_data fake_id fake_id",
+                            "/opt/ds/model/deployed_model/ fake_data",
                             install=True,
                             conda_uri="fake_path",
                         )
