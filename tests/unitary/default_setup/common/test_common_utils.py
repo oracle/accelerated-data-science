@@ -241,7 +241,12 @@ class TestCommonUtils:
         """Ensures copying fails in case of destination folder/file already exists and
         `force_overwrite` flag is not set to True.
         """
+        from pathlib import Path
+
         with tempfile.TemporaryDirectory() as temp_dir:
+            tempdir = Path(temp_dir)
+            file_name = tempdir / "test.txt"
+            file_name.write_text("bla bla bla")
             with pytest.raises(
                 ValueError, match="The destination path already exists."
             ):

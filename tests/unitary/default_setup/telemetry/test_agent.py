@@ -38,7 +38,7 @@ class TestUserAgent:
             auth_info = ads.auth.api_keys("test_path", "TEST_PROFILE")
             assert (
                 auth_info["config"].get("additional_user_agent")
-                == f"{LIBRARY}/version={ads.__version__}/surface=WORKSTATION/api={UNKNOWN}"
+                == f"{LIBRARY}/version={ads.__version__}#surface=WORKSTATION#api={UNKNOWN}"
             )
 
     @patch("oci.auth.signers.get_resource_principals_signer")
@@ -49,7 +49,7 @@ class TestUserAgent:
         auth_info = ads.auth.resource_principal()
         assert (
             auth_info["config"].get("additional_user_agent")
-            == f"{LIBRARY}/version={ads.__version__}/surface=WORKSTATION/api={UNKNOWN}"
+            == f"{LIBRARY}/version={ads.__version__}#surface=WORKSTATION#api={UNKNOWN}"
         )
 
     @patch("oci.signer.load_private_key_from_file")
@@ -61,7 +61,7 @@ class TestUserAgent:
             auth_info = ads.auth.default_signer()
             assert (
                 auth_info["config"].get("additional_user_agent")
-                == f"{LIBRARY}/version={ads.__version__}/surface=WORKSTATION/api={UNKNOWN}"
+                == f"{LIBRARY}/version={ads.__version__}#surface=WORKSTATION#api={UNKNOWN}"
             )
 
     @pytest.mark.parametrize(
@@ -119,7 +119,7 @@ class TestUserAgent:
             auth_info = ads.auth.default_signer()
             assert (
                 auth_info["config"].get("additional_user_agent")
-                == f"{LIBRARY}/version={ads.__version__}/surface={EXPECTED_RESULT['USER_AGENT_VALUE']}/api={EXPECTED_RESULT[EXTRA_USER_AGENT_INFO]}"
+                == f"{LIBRARY}/version={ads.__version__}#surface={EXPECTED_RESULT['USER_AGENT_VALUE']}#api={EXPECTED_RESULT[EXTRA_USER_AGENT_INFO]}"
             )
         monkeypatch.delenv("OCI_RESOURCE_PRINCIPAL_VERSION", raising=False)
         monkeypatch.delenv(INPUT_DATA["RESOURCE_KEY"], raising=False)
@@ -140,6 +140,6 @@ class TestUserAgent:
             auth_info = ads.auth.default_signer()
             assert (
                 auth_info["config"].get("additional_user_agent")
-                == f"{LIBRARY}/version={ads.__version__}/surface=OCI_SERVICE/api={UNKNOWN}"
+                == f"{LIBRARY}/version={ads.__version__}#surface=OCI_SERVICE#api={UNKNOWN}"
             )
         monkeypatch.delenv("OCI_RESOURCE_PRINCIPAL_VERSION", raising=False)
