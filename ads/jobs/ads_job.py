@@ -3,7 +3,7 @@
 
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from typing import List, Union
+from typing import List, Union, Dict
 from urllib.parse import urlparse
 
 import fsspec
@@ -74,6 +74,9 @@ class Job(Builder):
                 .with_python_path("other_packages")
                 # Copy files in "code_dir/output" to object storage after job finishes.
                 .with_output("output", "oci://bucket_name@namespace/path/to/dir")
+                # Tags
+                .with_freeform_tag(my_tag="my_value")
+                .with_defined_tag(**{"Operations": {"CostCenter": "42"}})
             )
         )
         # Create and Run the job
@@ -356,6 +359,8 @@ class Job(Builder):
 
     def build(self) -> "Job":
         """Load default values from the environment for the job infrastructure."""
+        super().build()
+
         build_method = getattr(self.infrastructure, "build", None)
         if build_method and callable(build_method):
             build_method()
@@ -454,19 +459,27 @@ class Job(Builder):
         """
         return getattr(self.infrastructure, "status", None)
 
-    def to_dict(self) -> dict:
+    def to_dict(self, **kwargs: Dict) -> Dict:
         """Serialize the job specifications to a dictionary.
+
+        Parameters
+        ----------
+        **kwargs: Dict
+            The additional arguments.
+            - filter_by_attribute_map: bool
+                If True, then in the result will be included only the fields
+                presented in the `attribute_map`.
 
         Returns
         -------
-        dict
+        Dict
             A dictionary containing job specifications.
         """
         spec = {"name": self.name}
         if self.runtime:
-            spec["runtime"] = self.runtime.to_dict()
+            spec["runtime"] = self.runtime.to_dict(**kwargs)
         if self.infrastructure:
-            spec["infrastructure"] = self.infrastructure.to_dict()
+            spec["infrastructure"] = self.infrastructure.to_dict(**kwargs)
         if self.id:
             spec["id"] = self.id
         return {
@@ -492,7 +505,7 @@ class Job(Builder):
         Raises
         ------
         NotImplementedError
-            If the type of the intrastructure or runtime is not supported.
+            If the type of the infrastructure or runtime is not supported.
         """
         if not isinstance(config, dict):
             raise ValueError("The config data for initializing the job is invalid.")

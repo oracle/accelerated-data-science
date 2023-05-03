@@ -4,12 +4,14 @@ on:
   pull_request:
     branches:
       - main
-      - 'release/**'
+      - "release/**"
       - develop
     paths:
-      - 'ads/**'
+      - "ads/**"
       - setup.py
-      - '**requirements.txt'
+      - "**requirements.txt"
+      - .github/workflows/run-unittests.yml
+      - .github/workflows/run-unittests-default_setup.yml
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -74,7 +76,6 @@ jobs:
         timeout-minutes: 15
         shell: bash
         env:
-          NB_SESSION_COMPARTMENT_OCID: ocid1.compartment.oc1.<unique_ocid>
           NoDependency: True
         run: |
           set -x # print commands that are executed
