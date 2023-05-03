@@ -2,7 +2,7 @@
 Running your Spark Application on OCI Data Flow
 ===============================================
 
-Submit your code to DataFlow for workloads that require larger resources.
+Submit your code to Data Flow for workloads that require larger resources.
 
 Notebook Extension
 ==================
@@ -125,7 +125,7 @@ ADS CLI
 
 Sometimes your code is too complex to run in a single cell, and it's better run as a notebook or file. In that case, use the ADS Opctl CLI.
 
-To submit your notebook to DataFlow using the ``ads`` CLI, run:
+To submit your notebook to Data Flow using the ``ads`` CLI, run:
 
 .. code-block:: shell
 
@@ -208,7 +208,7 @@ You can set them using the ``with_{property}`` functions:
 - ``with_warehouse_bucket_uri``
 - ``with_private_endpoint_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pe-allowing.htm#pe-allowing>`__)
 
-For more details, see `DataFlow class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
+For more details, see `Data Flow class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
 
 ``DataFlowRuntime`` stores properties related to the script to be run, such as the path to the script and
 CLI arguments. Likewise all properties can be set using ``with_{property}``.
