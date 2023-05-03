@@ -544,6 +544,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     suppress_traceback(debug)(init_cmd)(**kwargs)
 
 
+@commands.command()
 @click.option(
     "--ocid",
     nargs=1,
@@ -597,7 +598,13 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "--conda-slug",
     nargs=1,
     required=False,
-    help="The conda env used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
+    help="The conda slug used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
+)
+@click.option(
+    "--conda-path",
+    nargs=1,
+    required=False,
+    help="The conda path used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
 )
 @click.option(
     "--model-version",
