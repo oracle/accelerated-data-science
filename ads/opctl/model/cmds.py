@@ -57,7 +57,6 @@ def _download_model(
     ocid, artifact_directory, oci_auth, region, bucket_uri, timeout, force_overwrite
 ):
     os.makedirs(artifact_directory, exist_ok=True)
-    os.chmod(artifact_directory, 777)
 
     try:
         dsc_model = DataScienceModel.from_id(ocid)
