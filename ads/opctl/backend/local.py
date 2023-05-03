@@ -718,9 +718,8 @@ class LocalModelDeploymentBackend(LocalBackend):
             conda_slug, conda_path = self._get_conda_info_from_runtime(
                 artifact_dir=artifact_directory
             )
-        if not conda_slug and conda_path:
-            conda_slug = conda_path.split("/")[-1]
-            self.config["execution"]["conda_slug"] = conda_slug
+        if 'conda_slug' not in self.config["execution"]:
+            self.config["execution"]["conda_slug"] = conda_path.split("/")[-1] if conda_path else conda_slug 
 
         self.config["execution"]["image"] = ML_JOB_IMAGE
         
