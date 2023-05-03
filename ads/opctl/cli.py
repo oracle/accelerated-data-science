@@ -621,7 +621,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def predict(**kwargs):
     """
-    Deactivates a data science service.
+    Make prediction using the model with the payload.
     """
     suppress_traceback(kwargs["debug"])(predict_cmd)(**kwargs)
 
