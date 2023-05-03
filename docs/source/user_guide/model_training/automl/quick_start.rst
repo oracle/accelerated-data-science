@@ -2,6 +2,7 @@ Quick Start
 ===========
 
 .. admonition:: Prerequisite
+    :class: note
 
     You need to check if AutoMLx library is installed in your environment. For more information on the conda environments that contain AutoMLx, check `this page <https://docs.oracle.com/en-us/iaas/data-science/using/conda-automlx-fam.htm>`__.
 
