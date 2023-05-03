@@ -10,12 +10,12 @@ import logging
 import os
 import subprocess
 import sys
+import shlex
 import tempfile
 import urllib.parse
 from distutils import dir_util
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union, List, Tuple, Dict
-import shlex
 import yaml
 
 import ads
@@ -31,6 +31,9 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+
+
+CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
 
 def get_service_pack_prefix() -> Dict:
@@ -175,11 +178,13 @@ def build_image(
             command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
         if os.environ.get("https_proxy"):
             command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
+        if os.environ.get(CONTAINER_NETWORK):
+            command += ["--network", os.environ[CONTAINER_NETWORK]]
         command += [os.path.abspath(curr_dir)]
-        logger.info(f"Build image with command {command}")
+        logger.info("Build image with command %s", command)
         proc = run_command(command)
     if proc.returncode != 0:
-        raise RuntimeError(f"Docker build failed.")
+        raise RuntimeError("Docker build failed.")
 
 
 def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
@@ -321,27 +326,51 @@ def run_container(
     logger.info(f"command: {command}")
     logger.info(f"entrypoint: {entrypoint}")
 
+    # Print out the equivalent docker run command for debugging purpose
+    docker_run_cmd = [">>> docker run --rm"]
+    if entrypoint:
+        docker_run_cmd.append(f"--entrypoint {entrypoint}")
+    if env_vars:
+        docker_run_cmd.extend([f"-e {key}={val}" for key, val in env_vars.items()])
+    if bind_volumes:
+        docker_run_cmd.extend(
+            [f'-v {source}:{bind.get("bind")}' for source, bind in bind_volumes.items()]
+        )
+    docker_run_cmd.append(image)
+    if command:
+        docker_run_cmd.append(command)
+    logger.debug(" ".join(docker_run_cmd))
+
     client = get_docker_client()
     try:
         client.api.inspect_image(image)
     except docker.errors.ImageNotFound:
-        logger.warn(f"Image {image} not found. Try pulling it now....")
+        logger.warning(f"Image {image} not found. Try pulling it now....")
         run_command(["docker", "pull", f"{image}"], None)
-    container = client.containers.run(
-        image=image,
-        volumes=bind_volumes,
-        command=shlex.split(command) if command else None,
-        environment=env_vars,
-        detach=True,
-        entrypoint=entrypoint,
-        user=0,
-        # auto_remove=True,
-    )
-    logger.info(f"Container ID: {container.id}")
+    try:
+        kwargs = {}
+        if CONTAINER_NETWORK in os.environ:
+            kwargs["network_mode"] = os.environ[CONTAINER_NETWORK]
+        container = client.containers.run(
+            image=image,
+            volumes=bind_volumes,
+            command=shlex.split(command) if command else None,
+            environment=env_vars,
+            detach=True,
+            entrypoint=entrypoint,
+            user=0,
+            **kwargs
+            # auto_remove=True,
+        )
+        logger.info("Container ID: %s", container.id)
+        for line in container.logs(stream=True, follow=True):
+            print(line.decode("utf-8"), end="")
 
-    for line in container.logs(stream=True, follow=True):
-        logger.info(line.decode("utf-8").strip())
-
-    result = container.wait()
-    container.remove()
-    return result.get("StatusCode", -1)
+        result = container.wait()
+        return result.get("StatusCode", -1)
+    except docker.errors.APIError as ex:
+        logger.error(ex.explanation)
+        return -1
+    finally:
+        # Remove the container
+        container.remove()

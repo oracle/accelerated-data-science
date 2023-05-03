@@ -237,6 +237,20 @@ class ModelDeploymentRuntime(Builder):
         """
         return self.set_spec(self.CONST_MODEL_URI, model_uri)
 
+    def init(self) -> "ModelDeploymentRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        Self
+            This method returns self to support chaining methods.
+        """
+        return (
+            self.with_env({"key": "value"})
+            .with_deployment_mode("HTTPS_ONLY")
+            .with_model_uri("<MODEL_URI>")
+        )
+
 
 class ModelDeploymentCondaRuntime(ModelDeploymentRuntime):
     """A class used to represent a Model Deployment Conda Runtime.
@@ -271,6 +285,16 @@ class ModelDeploymentCondaRuntime(ModelDeploymentRuntime):
             DEFAULT
         """
         return OCIModelDeploymentRuntimeType.CONDA
+
+    def init(self) -> "ModelDeploymentCondaRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        CondaRuntime
+            The runtime instance.
+        """
+        return super().init()
 
 
 class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
@@ -340,7 +364,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         CONST_ENTRYPOINT: "entrypoint",
         CONST_SERVER_PORT: "server_port",
         CONST_HEALTH_CHECK_PORT: "health_check_port",
-        CONST_INFERENCE_SERVER: "inference_server"
+        CONST_INFERENCE_SERVER: "inference_server",
     }
 
     payload_attribute_map = {
@@ -534,7 +558,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
             The ModelDeploymentContainerRuntime instance (self).
         """
         return self.set_spec(self.CONST_HEALTH_CHECK_PORT, health_check_port)
-    
+
     @property
     def inference_server(self) -> str:
         """Returns the inference server.
@@ -546,7 +570,9 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         """
         return self.get_spec(self.CONST_INFERENCE_SERVER, None)
 
-    def with_inference_server(self, inference_server: str = "triton") -> "ModelDeploymentRuntime":
+    def with_inference_server(
+        self, inference_server: str = "triton"
+    ) -> "ModelDeploymentRuntime":
         """Sets the inference server. Current supported inference server is "triton".
         Note if you are using byoc, you do not need to set the inference server.
 
@@ -559,7 +585,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         -------
         ModelDeploymentRuntime
             The ModelDeploymentRuntime instance (self).
-            
+
         Example
         -------
         >>> from ads.model.deployment import ModelDeployment, ModelDeploymentContainerRuntime, ModelDeploymentInfrastructure
@@ -588,3 +614,20 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         >>> deployment.deploy()
         """
         return self.set_spec(self.CONST_INFERENCE_SERVER, inference_server.lower())
+
+    def init(self) -> "ModelDeploymentContainerRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        CondaRuntime
+            The runtime instance.
+        """
+        super().init()
+        return (
+            self.with_image("iad.ocir.io/<namespace>/<image>:<tag>")
+            .with_image_digest("<IMAGE_DIGEST>")
+            .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
+            .with_server_port(5000)
+            .with_health_check_port(5000)
+        )

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import datetime
 import logging
+import oci
 import os
 import time
 import traceback
@@ -34,10 +35,14 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
+from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager
+
 logger = logging.getLogger(__name__)
 
 SLEEP_INTERVAL = 3
 WAIT_SECONDS_AFTER_FINISHED = 90
+MAXIMUM_MOUNT_COUNT = 5
+FILE_STORAGE_TYPE = "FILE_STORAGE"
 
 
 class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
@@ -437,6 +442,8 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
             * command_line_arguments: str
             * maximum_runtime_in_minutes: int
             * display_name: str
+            * freeform_tags: dict(str, str)
+            * defined_tags: dict(str, dict(str, object))
 
         If display_name is not specified, it will be generated as "<JOB_NAME>-run-<TIMESTAMP>".
 
@@ -833,6 +840,16 @@ class DataScienceJob(Infrastructure):
             .with_shape_config_details(memory_in_gbs=16, ocpus=1)
             # Minimum/Default block storage size is 50 (GB).
             .with_block_storage_size(50)
+            # A list of file systems to be mounted
+            .with_storage_mount(
+                {
+                    "src" : "<mount_target_ip_address>:<export_path>",
+                    "dest" : "<destination_directory_name>"
+                }
+            )
+            # Tags
+            .with_freeform_tag(my_tag="my_value")
+            .with_defined_tag(**{"Operations": {"CostCenter": "42"}})
         )
 
     """
@@ -850,6 +867,9 @@ class DataScienceJob(Infrastructure):
     CONST_OCPUS = "ocpus"
     CONST_LOG_ID = "logId"
     CONST_LOG_GROUP_ID = "logGroupId"
+    CONST_STORAGE_MOUNT = "storageMount"
+    CONST_FREEFORM_TAGS = "freeformTags"
+    CONST_DEFINED_TAGS = "definedTags"
 
     attribute_map = {
         CONST_PROJECT_ID: "project_id",
@@ -863,6 +883,9 @@ class DataScienceJob(Infrastructure):
         CONST_SHAPE_CONFIG_DETAILS: "shape_config_details",
         CONST_LOG_ID: "log_id",
         CONST_LOG_GROUP_ID: "log_group_id",
+        CONST_STORAGE_MOUNT: "storage_mount",
+        CONST_FREEFORM_TAGS: "freeform_tags",
+        CONST_DEFINED_TAGS: "defined_tags",
     }
 
     shape_config_details_attribute_map = {
@@ -888,6 +911,8 @@ class DataScienceJob(Infrastructure):
         v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()
     }
 
+    storage_mount_type_dict = {FILE_STORAGE_TYPE: OCIFileStorage}
+
     @staticmethod
     def standardize_spec(spec):
         if not spec:
@@ -898,16 +923,20 @@ class DataScienceJob(Infrastructure):
             **DataScienceJob.shape_config_details_attribute_map,
         }
         snake_to_camel_map = {v: k for k, v in attribute_map.items()}
+        snake_to_camel_map = {
+            **{v: k for k, v in attribute_map.items()},
+            **DataScienceJob.snake_to_camel_map,
+        }
 
         for key in list(spec.keys()):
-            if key not in attribute_map and key in snake_to_camel_map:
+            if key not in attribute_map and key.lower() in snake_to_camel_map:
                 value = spec.pop(key)
                 if isinstance(value, dict):
-                    spec[snake_to_camel_map[key]] = DataScienceJob.standardize_spec(
-                        value
-                    )
+                    spec[
+                        snake_to_camel_map[key.lower()]
+                    ] = DataScienceJob.standardize_spec(value)
                 else:
-                    spec[snake_to_camel_map[key]] = value
+                    spec[snake_to_camel_map[key.lower()]] = value
         return spec
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -1212,6 +1241,74 @@ class DataScienceJob(Infrastructure):
         """
         return self.get_spec(self.CONST_LOG_GROUP_ID)
 
+    def with_storage_mount(self, *storage_mount: List[dict]) -> DataScienceJob:
+        """Sets the file systems to be mounted for the data science job.
+        A maximum number of 5 file systems are allowed to be mounted for a single data science job.
+
+        Parameters
+        ----------
+        storage_mount : List[dict]
+            A list of file systems to be mounted.
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        storage_mount_list = []
+        for item in storage_mount:
+            if not isinstance(item, dict):
+                raise ValueError(
+                    "Parameter `storage_mount` should be a list of dictionaries."
+                )
+            storage_mount_list.append(item)
+        if len(storage_mount_list) > MAXIMUM_MOUNT_COUNT:
+            raise ValueError(
+                f"A maximum number of {MAXIMUM_MOUNT_COUNT} file systems are allowed to be mounted at this time for a job."
+            )
+        return self.set_spec(self.CONST_STORAGE_MOUNT, storage_mount_list)
+
+    @property
+    def storage_mount(self) -> List[dict]:
+        """Files systems that have been mounted for the data science job
+
+        Returns
+        -------
+        list
+            A list of file systems that have been mounted
+        """
+        return self.get_spec(self.CONST_STORAGE_MOUNT, [])
+
+    def with_freeform_tag(self, **kwargs) -> DataScienceJob:
+        """Sets freeform tags
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        return self.set_spec(self.CONST_FREEFORM_TAGS, kwargs)
+
+    def with_defined_tag(self, **kwargs) -> DataScienceJob:
+        """Sets defined tags
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        return self.set_spec(self.CONST_DEFINED_TAGS, kwargs)
+
+    @property
+    def freeform_tags(self) -> dict:
+        """Freeform tags"""
+        return self.get_spec(self.CONST_FREEFORM_TAGS, {})
+
+    @property
+    def defined_tags(self) -> dict:
+        """Defined tags"""
+        return self.get_spec(self.CONST_DEFINED_TAGS, {})
+
     def _prepare_log_config(self) -> dict:
         if not self.log_group_id and not self.log_id:
             return None
@@ -1285,6 +1382,42 @@ class DataScienceJob(Infrastructure):
                         sub_spec[sub_infra_attr] = sub_value
                 if sub_spec:
                     self._spec[infra_attr] = sub_spec
+
+        self._update_storage_mount_from_dsc_model(dsc_job, overwrite)
+        return self
+
+    def _update_storage_mount_from_dsc_model(
+        self, dsc_job: oci.data_science.models.Job, overwrite: bool = True
+    ) -> DataScienceJob:
+        """Update the mount storage properties from an OCI data science job model.
+
+        Parameters
+        ----------
+        dsc_job: oci.data_science.models.Job
+            An OCI data science job model.
+
+        overwrite: bool
+            Whether to overwrite the existing values.
+            If this is set to False, only the empty/None properties will be updated.
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        storage_mount_list = get_value(
+            dsc_job, "job_storage_mount_configuration_details_list"
+        )
+        if storage_mount_list:
+            storage_mount = [
+                self.storage_mount_type_dict[
+                    file_system.storage_type
+                ].update_from_dsc_model(file_system)
+                for file_system in storage_mount_list
+                if file_system.storage_type in self.storage_mount_type_dict
+            ]
+            if overwrite or not self.get_spec(self.CONST_STORAGE_MOUNT):
+                self.set_spec(self.CONST_STORAGE_MOUNT, storage_mount)
         return self
 
     def _update_job_infra(self, dsc_job: DSCJob) -> DataScienceJob:
@@ -1321,12 +1454,39 @@ class DataScienceJob(Infrastructure):
             dsc_job.job_infrastructure_configuration_details[
                 "jobInfrastructureType"
             ] = JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_STANDALONE
+
+        if self.storage_mount:
+            if not hasattr(
+                oci.data_science.models, "JobStorageMountConfigurationDetails"
+            ):
+                raise EnvironmentError(
+                    "Storage mount hasn't been supported in the current OCI SDK installed."
+                )
+            dsc_job.job_storage_mount_configuration_details_list = [
+                DSCFileSystemManager.initialize(file_system)
+                for file_system in self.storage_mount
+            ]
         return self
 
     def build(self) -> DataScienceJob:
         self.dsc_job.load_defaults()
         self._update_from_dsc_model(self.dsc_job, overwrite=False)
         return self
+
+    def init(self) -> DataScienceJob:
+        """Initializes a starter specification for the DataScienceJob.
+
+        Returns
+        -------
+        DataScienceJob
+            The DataScienceJob instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_project_id(self.project_id or "{Provide a project OCID}")
+            .with_subnet_id(self.subnet_id or "{Provide a subnet OCID or remove this field if you use a default networking}")
+        )
 
     def create(self, runtime, **kwargs) -> DataScienceJob:
         """Creates a job with runtime.
@@ -1361,6 +1521,10 @@ class DataScienceJob(Infrastructure):
 
         payload["display_name"] = display_name
         payload["job_log_configuration_details"] = self._prepare_log_config()
+        if not payload.get("freeform_tags"):
+            payload["freeform_tags"] = self.freeform_tags
+        if not payload.get("defined_tags"):
+            payload["defined_tags"] = self.defined_tags
 
         self.dsc_job = DSCJob(**payload)
         # Set Job infra to user values after DSCJob initialized the defaults
@@ -1371,7 +1535,13 @@ class DataScienceJob(Infrastructure):
         return self
 
     def run(
-        self, name=None, args=None, env_var=None, freeform_tags=None, wait=False
+        self,
+        name=None,
+        args=None,
+        env_var=None,
+        freeform_tags=None,
+        defined_tags=None,
+        wait=False,
     ) -> DataScienceJobRun:
         """Runs a job on OCI Data Science job
 
@@ -1385,6 +1555,8 @@ class DataScienceJob(Infrastructure):
             Environment variable for the job run, by default None
         freeform_tags : dict, optional
             Freeform tags for the job run, by default None
+        defined_tags : dict, optional
+            Defined tags for the job run, by default None
         wait : bool, optional
             Indicate if this method should wait for the run to finish before it returns, by default False.
 
@@ -1399,11 +1571,18 @@ class DataScienceJob(Infrastructure):
             raise RuntimeError(
                 "Job is not created. Call create() to create the job first."
             )
-        tags = self.runtime.freeform_tags
-        if not tags:
-            tags = {}
-        if freeform_tags:
-            tags.update(freeform_tags)
+
+        if not freeform_tags:
+            freeform_tags = {}
+        runtime_freeform_tags = self.runtime.freeform_tags
+        if runtime_freeform_tags:
+            freeform_tags.update(runtime_freeform_tags)
+
+        if not defined_tags:
+            defined_tags = {}
+        runtime_defined_tags = self.runtime.defined_tags
+        if runtime_defined_tags:
+            defined_tags.update(runtime_defined_tags)
 
         if name:
             envs = self.runtime.envs
@@ -1415,7 +1594,8 @@ class DataScienceJob(Infrastructure):
             display_name=name,
             command_line_arguments=args,
             environment_variables=env_var,
-            freeform_tags=tags,
+            freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
             wait=wait,
         )
         if hasattr(self.runtime, "run"):
