@@ -9,6 +9,7 @@ creating both the container and ``yaml`` spec to run the distributed workload.
 
 
 .. admonition:: Dask
+  :class: note
 
   This is a good choice when you want to use ``Scikit-Learn``, ``XGBoost``, ``LightGBM`` or have
   data parallel tasks for very large datasets where the data can be partitioned. 

@@ -4,6 +4,7 @@ Run a Container
 The :py:class:`~ads.jobs.ContainerRuntime` class allows you to run a container image using OCI data science jobs.
 
 .. admonition:: OCI Container Registry
+  :class: note
 
   To use the :py:class:`~ads.jobs.ContainerRuntime`, you need to first push the image to
   `OCI container registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_.
