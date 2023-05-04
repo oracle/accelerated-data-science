@@ -716,7 +716,7 @@ class LocalModelDeploymentBackend(LocalBackend):
         conda_slug, conda_path = self.config["execution"].get("conda_slug"), self.config["execution"].get("conda_path")
         if not conda_slug and not conda_path and ocid:
             conda_slug, conda_path = self._get_conda_info_from_custom_metadata(ocid)
-        if not conda_path and not conda_path:
+        if not conda_slug and not conda_path:
             conda_slug, conda_path = self._get_conda_info_from_runtime(
                 artifact_dir=artifact_directory
             )

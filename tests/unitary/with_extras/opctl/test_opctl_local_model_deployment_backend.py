@@ -188,8 +188,6 @@ MODEL_PROVENANCE:
                             timeout=None,
                             force_overwrite=True,
                         )
-                        dir_path = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../../../../"))
-                        script_path = os.path.join(dir_path, "ads/opctl/backend/../script.py")
                         mock_run_command.assert_called_once_with(
-                            cmd=f"python {script_path} --artifact-directory /Users/ziye/.ads_ops/models/fake_id --payload 'fake_data' --auth api_key --profile DEFAULT", shell=True
+                            cmd="python /home/runner/work/accelerated-data-science/accelerated-data-science/ads/opctl/backend/../script.py --artifact-directory /home/runner/.ads_ops/models/fake_id --payload 'fake_data' --auth api_key --profile DEFAULT", shell=True
                         )
