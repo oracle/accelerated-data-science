@@ -36,9 +36,12 @@ logger = driver_utils.set_log_level(logger)
 
 CONST_ENV_MAIN_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
 CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
+CONST_ENV_LAUNCHER = "OCI__LAUNCHER"
 CONST_MAIN_IP_LOG_PREFIX = "Distributed Training Main IP: "
 # Working count is the number of node - 1
 OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
+
+DEFAULT_LAUNCHER = "torchrun"
 
 set_auth("resource_principal")
 
@@ -62,6 +65,11 @@ class TorchRunner(driver_utils.JobRunner):
             self.host_ip = self.ip
         self.host_job_run = DataScienceJobRun.from_ocid(host_job_ocid)
         self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
+        self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
+        logger.debug("Node count: %s", self.node_count)
+        gpu_count = torch.cuda.device_count()
+        logger.debug("GPU count on this node: %s", self.gpu_count)
+
         logger.debug("Runner initialized.")
 
     def wait_for_main_ip_address(self, timeout=15 * 60):
@@ -156,18 +164,11 @@ class TorchRunner(driver_utils.JobRunner):
                 branch=branch, commit=commit
             )
 
-    def run(self):
-        node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
-        logger.debug("Node count: %s", node_count)
-
-        gpu_count = torch.cuda.device_count()
-        logger.debug("GPU count on this node: %s", gpu_count)
-
-        if gpu_count > 0:
-            nproc_per_node = gpu_count
+    def _torchrun(self) -> str:
+        if self.gpu_count > 0:
+            nproc_per_node = self.gpu_count
         else:
             nproc_per_node = 1
-
         cmd = ""
         # Use LD_PRELOAD only if LD_PRELOAD is not defined by the user.
         if CONST_ENV_LD_PRELOAD not in os.environ:
@@ -179,10 +180,19 @@ class TorchRunner(driver_utils.JobRunner):
         rdzv_conf = f"read_timeout={rdzv_timeout}"
         # For pytorch>=2.0, we can use f"--local_addr={self.ip} " instead of LD_PRELOAD.
         cmd += (
-            f"torchrun --nnode={node_count} --nproc_per_node={nproc_per_node} "
+            f"torchrun --nnode={self.node_count} --nproc_per_node={nproc_per_node} "
             + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 --rdzv_conf={rdzv_conf} "
             + f"{os.environ[self.entrypoint_env]}"
         )
+        return cmd
+
+    def run(self):
+
+        launcher_mapping = {
+            "torchrun": self._torchrun
+        }
+
+        cmd = launcher_mapping[os.environ.get(CONST_ENV_LAUNCHER, DEFAULT_LAUNCHER)]()
 
         if sys.argv[1:]:
             cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
