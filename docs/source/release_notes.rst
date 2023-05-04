@@ -272,7 +272,7 @@ Release date: March 3, 2022
 
 Release date: February 4, 2022
 
-* Fixed bug in DataFlow ``Job`` creation.
+* Fixed bug in Data Flow ``Job`` creation.
 * Fixed bug in ADSDataset ``get_recommendations`` raising ``HTML is not defined`` exception.
 * Fixed bug in jobs ``ScriptRuntime`` causing the parent artifact folder to be zipped and uploaded instead of the specified folder.
 * Fixed bug in ``ModelDeployment`` raising ``TypeError`` exception when updating an existing model deployment.
