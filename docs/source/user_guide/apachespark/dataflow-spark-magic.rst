@@ -79,6 +79,7 @@ Use the `%help` method to get a list of all the available commands, along with a
   %help
 
 .. admonition:: Tip
+   :class: note
 
   To access the docstrings of any magic command and figure out what arguments to provide, simply add ``?`` at the end of the command. For instance: ``%create_session?``
 
