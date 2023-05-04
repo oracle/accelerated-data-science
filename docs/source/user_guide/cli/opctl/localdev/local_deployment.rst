@@ -2,7 +2,7 @@
 Local Model Deployment Execution
 ++++++++++++++++++++++++++++++++
 
-Your can test whether deployment will work in a local container to facilitate development and troubleshooting by testing local predict.
+You can test whether deployment will work in a local container to facilitate development and troubleshooting by testing local predict.
 
 -------------
 Prerequisites
