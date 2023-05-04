@@ -1,12 +1,12 @@
 import os
 import shutil
 
-from ads.common.auth import create_signer
+from ads.common.auth import AuthContext
 from ads.model.datascience_model import DataScienceModel
 from ads.opctl import logger
-from ads.opctl.constants import DEFAULT_MODEL_FOLDER
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
+from ads.opctl.constants import DEFAULT_MODEL_FOLDER
 
 
 def download_model(**kwargs):
@@ -15,12 +15,6 @@ def download_model(**kwargs):
 
     auth_type = p.config["execution"].get("auth")
     profile = p.config["execution"].get("oci_profile", None)
-    oci_config = p.config["execution"].get("oci_config", None)
-    oci_auth = create_signer(
-        auth_type,
-        oci_config,
-        profile,
-    )
     model_folder = os.path.expanduser(
         p.config["execution"].get("model_save_folder", DEFAULT_MODEL_FOLDER)
     )
@@ -44,7 +38,8 @@ def download_model(**kwargs):
             bucket_uri=bucket_uri,
             timeout=timeout,
             force_overwrite=force_overwrite,
-            oci_auth=oci_auth,
+            auth=auth_type,
+            profile=profile
         )
     else:
         logger.error(f"Model already exists. Set `force_overwrite=True` to overwrite.")
@@ -54,23 +49,24 @@ def download_model(**kwargs):
 
 
 def _download_model(
-    ocid, artifact_directory, oci_auth, region, bucket_uri, timeout, force_overwrite
+    ocid, artifact_directory, region, bucket_uri, timeout, force_overwrite, auth, profile=None
 ):
     os.makedirs(artifact_directory, exist_ok=True)
-    os.chmod(artifact_directory, 777)
-
+    kwargs = {"auth": auth}
+    if profile:
+        kwargs["profile"] = profile
     try:
-        dsc_model = DataScienceModel.from_id(ocid)
-        dsc_model.download_artifact(
-            target_dir=artifact_directory,
-            force_overwrite=force_overwrite,
-            overwrite_existing_artifact=True,
-            remove_existing_artifact=True,
-            auth=oci_auth,
-            region=region,
-            timeout=timeout,
-            bucket_uri=bucket_uri,
-        )
+        with AuthContext(**kwargs):
+            dsc_model = DataScienceModel.from_id(ocid)
+            dsc_model.download_artifact(
+                target_dir=artifact_directory,
+                force_overwrite=force_overwrite,
+                overwrite_existing_artifact=True,
+                remove_existing_artifact=True,
+                region=region,
+                timeout=timeout,
+                bucket_uri=bucket_uri,
+            )
     except Exception as e:
         print(type(e))
         shutil.rmtree(artifact_directory, ignore_errors=True)

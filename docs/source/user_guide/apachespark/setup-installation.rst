@@ -178,8 +178,8 @@ Once the development environment is setup, you could write your code and run it 
 ``core-site.xml`` is setup automatically when you install a pyspark conda pack.
 
 
-Logging From DataFlow
-=====================
+Logging From Data Flow
+======================
 
 If using the ADS Python SDK, 
 

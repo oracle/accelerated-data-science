@@ -2,7 +2,7 @@
 Running your Spark Application on OCI Data Flow
 ===============================================
 
-Submit your code to DataFlow for workloads that require larger resources.
+Submit your code to Data Flow for workloads that require larger resources.
 
 Notebook Extension
 ==================
@@ -41,6 +41,7 @@ Define config. If you have not yet configured your dataflow setting, or would li
 Use the config defined above to submit the cell.
 
 .. admonition:: Tip
+   :class: note
 
   Get more information about the dataflow extension by running ``%dataflow -h``
 
@@ -124,18 +125,20 @@ ADS CLI
 
 Sometimes your code is too complex to run in a single cell, and it's better run as a notebook or file. In that case, use the ADS Opctl CLI.
 
-To submit your notebook to DataFlow using the ``ads`` CLI, run:
+To submit your notebook to Data Flow using the ``ads`` CLI, run:
 
 .. code-block:: shell
 
   ads opctl run -s <folder where notebook is located> -e <notebook name> -b dataflow
 
 .. admonition:: Tip
+   :class: note
 
   You can avoid running cells that are not DataFlow environment compatible by tagging the cells and then providing the tag names to ignore. In the following example cells that are tagged ``ignore`` and ``remove`` will be ignored -
   ``--exclude-tag ignore --exclude-tag remove``
 
 .. admonition:: Tip
+   :class: note
 
   You can run the notebook in your local pyspark environment before submitting to ``DataFlow`` using the same CLI with ``-b local``
 
@@ -205,7 +208,7 @@ You can set them using the ``with_{property}`` functions:
 - ``with_warehouse_bucket_uri``
 - ``with_private_endpoint_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pe-allowing.htm#pe-allowing>`__)
 
-For more details, see `DataFlow class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
+For more details, see `Data Flow class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
 
 ``DataFlowRuntime`` stores properties related to the script to be run, such as the path to the script and
 CLI arguments. Likewise all properties can be set using ``with_{property}``.
