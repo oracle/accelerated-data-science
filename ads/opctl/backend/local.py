@@ -219,6 +219,7 @@ class LocalBackend(Backend):
             )
             if os.path.exists(os.path.join(conda_pack_path, "spark-defaults.conf")):
                 env_vars["SPARK_CONF_DIR"] = os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)
+            logger.info(f"Running with conda pack in a container with command {command}")
             return self._activate_conda_env_and_run(
                 image, slug, command, bind_volumes, env_vars
             )
@@ -701,7 +702,8 @@ class LocalModelDeploymentBackend(LocalBackend):
             )
 
             _download_model(
-                oci_auth=self.oci_auth,
+                auth=self.auth_type,
+                profile=self.profile,
                 ocid=ocid,
                 artifact_directory=artifact_directory,
                 region=region,
@@ -724,32 +726,37 @@ class LocalModelDeploymentBackend(LocalBackend):
         # bind_volumnes
         bind_volumes = {}
         SCRIPT = "script.py"
+        dir_path = os.path.dirname(os.path.realpath(__file__))
         if not is_in_notebook_session():
             bind_volumes = {
                 os.path.expanduser(
                     os.path.dirname(self.config["execution"]["oci_config"])
                 ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
             }
-            dir_path = os.path.dirname(os.path.realpath(__file__))
-
+            
             self.config["execution"]["source_folder"] = os.path.abspath(
                 os.path.join(dir_path, "..")
             )
             self.config["execution"]["entrypoint"] = SCRIPT
             bind_volumes[artifact_directory] = {"bind": DEFAULT_MODEL_DEPLOYMENT_FOLDER}
         
-        # payload
+        # extra cmd
         data = self.config["execution"].get("payload")
+        extra_cmd = f"--payload '{data}' " + f"--auth {self.auth_type} "
+        if self.auth_type != "resource_principal":
+            extra_cmd += f"--profile {self.profile}"
         
         if is_in_notebook_session() or NO_CONTAINER:
-            script_path = os.path.join(self.config['execution']['source_folder'], SCRIPT)
-            run_command(cmd=f"python {script_path} " + f"{artifact_directory} "+ f"'{data}'", shell=True)
+            # _run_with_conda_pack has code to handle notebook session case,
+            # however, it activate the conda pack and then run the script. 
+            # For the deployment, we just take the current conda env and run it.
+            # Hence we just handle the notebook case directly here.
+            script_path = os.path.join(os.path.join(dir_path, ".."), SCRIPT)
+            cmd = f"python {script_path} " + f"--artifact-directory {artifact_directory} " + extra_cmd
+            logger.info(f"Running in a notebook or NO_CONTAINER with command {cmd}")
+            run_command(cmd=cmd, shell=True)
         else:
-            extra_cmd = (
-            DEFAULT_MODEL_DEPLOYMENT_FOLDER
-            + " "
-            + data
-        )
+            extra_cmd = f"--artifact-directory {DEFAULT_MODEL_DEPLOYMENT_FOLDER} "+ extra_cmd
             exit_code = self._run_with_conda_pack(
                     bind_volumes, extra_cmd, install=True, conda_uri=conda_path
                 )
@@ -758,7 +765,7 @@ class LocalModelDeploymentBackend(LocalBackend):
                     f"`predict` did not complete successfully. Exit code: {exit_code}. "
                     f"Run with the --debug argument to view container logs."
                 )
-
+                
     def _get_conda_info_from_custom_metadata(self, ocid):
         """
         Get conda env info from custom metadata from model catalog.

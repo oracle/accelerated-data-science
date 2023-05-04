@@ -622,6 +622,11 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     type=click.Choice(AuthType.values()),
     default=None,
 )
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def predict(**kwargs):
     """
