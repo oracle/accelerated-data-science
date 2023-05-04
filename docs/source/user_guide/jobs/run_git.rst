@@ -34,6 +34,7 @@ For repository on GitHub, you could setup the
 `GitHub Deploy Key <https://docs.github.com/en/developers/overview/managing-deploy-keys#deploy-keys>`_ as secret.
 
 .. admonition:: Git Version for Private Repository
+  :class: note
 
   Git version of 2.3+ is required to use a private repository.
 

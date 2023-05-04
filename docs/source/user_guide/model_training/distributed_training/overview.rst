@@ -3,6 +3,7 @@ Distributed Training
 ====================
 
 .. admonition:: Distributed Training with OCI Data Science
+  :class: note
 
   This documentation shows you how to preprocess, and train on a machine
   learning model, using Oracle Cloud Infrastructure. This section will not teach you about distributed training, 

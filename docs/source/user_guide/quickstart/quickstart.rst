@@ -12,7 +12,7 @@ The Accelerated Data Science (ADS) SDK is a Oracle Cloud Infrastructure Data Sci
 
 ADS is pre-installed in the notebook session environment of the Data Science service.
 
-For a guide on ADS features, check out the overview. This Quick Start guide is a five minute compressed set of instructions about what you can accomplish with ADS and includes:
+For a guide to ADS features, check out the overview. This Quick Start guide is a five minute compressed set of instructions about what you can accomplish with ADS and includes:
 
 * `Setting up ADS`_
 * `Getting Data into ADS`_
