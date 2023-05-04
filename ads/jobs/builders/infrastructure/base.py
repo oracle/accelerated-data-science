@@ -61,6 +61,7 @@ class Infrastructure(Builder):
         args: str = None,
         env_var: dict = None,
         freeform_tags: dict = None,
+        defined_tags: dict = None,
         wait: bool = False,
     ):
         """Runs a job on the infrastructure.
@@ -72,9 +73,11 @@ class Infrastructure(Builder):
         args : str, optional
             Command line arguments for the job run, by default None.
         env_var : dict, optional
-            Environment variable for the job run, by default None
+            Environment variable for the job run, by default None.
         freeform_tags : dict, optional
-            Freeform tags for the job run, by default None
+            Freeform tags for the job run, by default None.
+        defined_tags : dict, optional
+            Defined tags for the job run, by default None.
         wait : bool, optional
             Indicate if this method should wait for the run to finish before it returns, by default False.
         """

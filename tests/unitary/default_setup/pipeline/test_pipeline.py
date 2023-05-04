@@ -8,31 +8,31 @@ import datetime
 import os
 import random
 import tempfile
-import oci
 import unittest
-from unittest.mock import patch, PropertyMock, Mock
+from unittest.mock import Mock, PropertyMock, patch
 
+import oci
 import pytest
 import yaml
+
+from ads.common.oci_datascience import DSCNotebookSession
 from ads.common.oci_logging import OCILog
 from ads.common.oci_mixin import OCIModelMixin
-from ads.jobs.builders.runtimes.python_runtime import NotebookRuntime
 from ads.common.utils import batch_convert_case
-
-try:
-    from ads.pipeline.ads_pipeline_run import PipelineRun
-    from ads.pipeline.ads_pipeline import DataSciencePipeline, Pipeline
-    from ads.pipeline.ads_pipeline_step import PipelineStep
-    from ads.pipeline.builders.infrastructure.custom_script import CustomScriptStep
-    from ads.pipeline.visualizer.base import PipelineVisualizer
-except (ImportError, AttributeError) as e:
-    raise unittest.SkipTest(
-        "OCI MLPipeline is not available. Skipping the MLPipeline tests."
-    )
+from ads.jobs.builders.runtimes.python_runtime import NotebookRuntime
+from ads.pipeline.ads_pipeline import DataSciencePipeline, Pipeline
+from ads.pipeline.ads_pipeline_run import PipelineRun
+from ads.pipeline.ads_pipeline_step import PipelineStep
+from ads.pipeline.builders.infrastructure.custom_script import CustomScriptStep
+from ads.pipeline.visualizer.base import PipelineVisualizer
 
 PIPELINE_PAYLOAD = dict(
     compartment_id="ocid1.compartment.oc1..<unique_ocid>",
     project_id="ocid1.datascienceproject.oc1.iad.<unique_ocid>",
+    nb_session_ocid="ocid1.datasciencenotebooksession.oc1.iad..<unique_ocid>",
+    shape_name="VM.Standard.E3.Flex",
+    block_storage_size_in_gbs=100,
+    shape_config_details={"ocpus": 1, "memory_in_gbs": 16},
 )
 PIPELINE_OCID = "ocid.xxx.datasciencepipeline.<unique_ocid>"
 
@@ -268,8 +268,33 @@ spec:
 
 
 class TestDataSciencePipelineBase:
-    def test_pipeline_define(self):
+    def setup_method(self):
+        self.mock_default_properties = {
+            Pipeline.CONST_COMPARTMENT_ID: PIPELINE_PAYLOAD["compartment_id"],
+            Pipeline.CONST_PROJECT_ID: PIPELINE_PAYLOAD["project_id"],
+            Pipeline.CONST_SHAPE_NAME: PIPELINE_PAYLOAD["shape_name"],
+            Pipeline.CONST_BLOCK_STORAGE_SIZE: PIPELINE_PAYLOAD[
+                "block_storage_size_in_gbs"
+            ],
+            Pipeline.CONST_SHAPE_CONFIG_DETAILS: PIPELINE_PAYLOAD[
+                "shape_config_details"
+            ],
+        }
+        self.nb_session = DSCNotebookSession(
+            **{
+                "notebook_session_configuration_details": {
+                    "shape": "VM.Standard.E3.Flex",
+                    "block_storage_size_in_gbs": 100,
+                    "subnet_id": "test_subnet_id",
+                    "notebook_session_shape_config_details": {
+                        "ocpus": 1.0,
+                        "memory_in_gbs": 16.0,
+                    },
+                }
+            }
+        )
 
+    def test_pipeline_define(self):
         output_yaml_one = pipeline_one.to_yaml()
         output_yaml_two = pipeline_two.to_yaml()
         output_yaml_three = pipeline_three.to_yaml()
@@ -351,7 +376,6 @@ class TestDataSciencePipelineBase:
         assert actual_yaml_output == yaml.safe_load(output_yaml_four)
 
     def test_get_pipeline_details(self):
-
         actual_pipeline_details = pipeline_one._Pipeline__pipeline_details()
 
         assert actual_pipeline_details == {
@@ -429,7 +453,6 @@ class TestDataSciencePipelineBase:
         assert actual_pipeline_details == pipeline_three._Pipeline__pipeline_details()
 
     def test_get_pipeline_configuration_details(self):
-
         temp_pipeline_details = copy.deepcopy(pipeline_details)
         pipeline_configuration_details = (
             pipeline_one._Pipeline__pipeline_configuration_details(
@@ -506,7 +529,6 @@ class TestDataSciencePipelineBase:
         }
 
     def test_get_pipeline_log_configuration_details(self):
-
         temp_pipeline_details = copy.deepcopy(pipeline_details)
         pipeline_log_configuration_details = (
             pipeline_one._Pipeline__pipeline_log_configuration_details(
@@ -661,7 +683,6 @@ class TestDataSciencePipelineBase:
         }
 
     def test_get_step_details(self):
-
         step_details = pipeline_one._Pipeline__step_details(pipeline_details)
 
         assert step_details == [
@@ -1179,6 +1200,37 @@ class TestDataSciencePipelineBase:
             Pipeline.LIFECYCLE_STATE_DELETED
         )
         assert pipeline.status == Pipeline.LIFECYCLE_STATE_DELETED
+
+    @patch(
+        "ads.pipeline.ads_pipeline.COMPARTMENT_OCID", PIPELINE_PAYLOAD["compartment_id"]
+    )
+    @patch("ads.pipeline.ads_pipeline.PROJECT_OCID", PIPELINE_PAYLOAD["project_id"])
+    @patch(
+        "ads.pipeline.ads_pipeline.NB_SESSION_OCID", PIPELINE_PAYLOAD["nb_session_ocid"]
+    )
+    @patch.object(DSCNotebookSession, "from_ocid")
+    def test__load_default_properties(self, mock_from_ocid):
+        pipeline = copy.deepcopy(pipeline_one)
+        mock_from_ocid.return_value = self.nb_session
+        assert pipeline._load_default_properties() == self.mock_default_properties
+        mock_from_ocid.assert_called_with(PIPELINE_PAYLOAD["nb_session_ocid"])
+
+    @patch(
+        "ads.pipeline.ads_pipeline.COMPARTMENT_OCID", PIPELINE_PAYLOAD["compartment_id"]
+    )
+    @patch("ads.pipeline.ads_pipeline.PROJECT_OCID", PIPELINE_PAYLOAD["project_id"])
+    @patch(
+        "ads.pipeline.ads_pipeline.NB_SESSION_OCID", PIPELINE_PAYLOAD["nb_session_ocid"]
+    )
+    @patch.object(DSCNotebookSession, "from_ocid")
+    def test__load_default_properties_fail(self, mock_from_ocid):
+        pipeline = copy.deepcopy(pipeline_one)
+        mock_from_ocid.side_effect = ValueError("Something went wrong")
+        assert pipeline._load_default_properties() == {
+            Pipeline.CONST_COMPARTMENT_ID: PIPELINE_PAYLOAD["compartment_id"],
+            Pipeline.CONST_PROJECT_ID: PIPELINE_PAYLOAD["project_id"],
+        }
+        mock_from_ocid.assert_called_with(PIPELINE_PAYLOAD["nb_session_ocid"])
 
 
 class TestDataSciencePipeline:

@@ -10,7 +10,7 @@ import sys
 import unittest
 from unittest import mock
 from zipfile import ZipFile
-from unittest.mock import PropertyMock, patch
+from unittest.mock import patch
 import pytest
 
 
