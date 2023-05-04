@@ -16,6 +16,7 @@ import ads.opctl.distributed.cli
 import ads.opctl.model.cli
 import ads.opctl.spark.cli
 from ads.common import auth as authutil
+from ads.common.auth import AuthType
 from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import configure as configure_cmd
@@ -29,12 +30,8 @@ from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
 from ads.opctl.config.merger import ConfigMerger
-from ads.opctl.constants import (
-    BACKEND_NAME,
-    DEFAULT_MODEL_FOLDER,
-    RESOURCE_TYPE,
-    RUNTIME_TYPE,
-)
+from ads.opctl.constants import (BACKEND_NAME, DEFAULT_MODEL_FOLDER,
+                                 RESOURCE_TYPE, RUNTIME_TYPE)
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
@@ -544,6 +541,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     suppress_traceback(debug)(init_cmd)(**kwargs)
 
 
+@commands.command()
 @click.option(
     "--ocid",
     nargs=1,
@@ -597,7 +595,13 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "--conda-slug",
     nargs=1,
     required=False,
-    help="The conda env used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
+    help="The conda slug used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
+)
+@click.option(
+    "--conda-path",
+    nargs=1,
+    required=False,
+    help="The conda path used to load the model and conduct the prediction. This is only used when model id is passed to `ocid` and a local predict is conducted. It should match the inference conda env specified in the runtime.yaml file which is the conda pack being used when conducting real model deployment.",
 )
 @click.option(
     "--model-version",
@@ -611,10 +615,22 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     required=False,
     help="When the `inference_server='triton'`, the name of the model to invoke. This can only be used when model deployment id is passed in. For the other cases, it will be ignored.",
 )
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def predict(**kwargs):
     """
-    Deactivates a data science service.
+    Make prediction using the model with the payload.
     """
     suppress_traceback(kwargs["debug"])(predict_cmd)(**kwargs)
 

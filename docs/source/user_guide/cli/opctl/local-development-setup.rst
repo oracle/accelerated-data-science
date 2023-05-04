@@ -27,3 +27,4 @@ Setup up your workstation for development and testing your code locally before y
   localdev/jobs
   localdev/local_jobs
   localdev/local_pipelines
+  localdev/local_deployment
