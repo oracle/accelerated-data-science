@@ -21,7 +21,7 @@ class Backend:
 
     def __init__(self, config: Dict) -> None:
         self.config = config
-        self.auth_type = config["execution"].get("auth")
+        self.auth_type = config["execution"].get("auth", "api_key")
         self.profile = config["execution"].get("oci_profile", None)
         self.oci_config = config["execution"].get("oci_config", None)
 
