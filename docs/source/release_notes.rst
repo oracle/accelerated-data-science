@@ -4,7 +4,7 @@ Release Notes
 
 2.8.4
 -----
-Release date: May 3, 2023
+Release date: May 4, 2023
 
 * Added support for creating ADSDataset from pandas dataframe.
 * Added support for multi-model deployment using Triton.
