@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import dataclasses
 import json
 from abc import ABC, abstractmethod
+import dataclasses
+from typing import Dict, Union, Optional, List
 from enum import Enum
-from typing import Dict, Optional, Union
-from urllib.parse import urlparse
 
 import fsspec
 import yaml
-
 from ads.common import logger
 
 try:
@@ -55,19 +52,15 @@ class Serializable(ABC):
     """
 
     @abstractmethod
-    def to_dict(self, **kwargs: Dict) -> Dict:
-        """Serializes an instance of class into a dictionary.
-
-        Parameters
-        ----------
-        **kwargs: Dict
-            Additional arguments.
+    def to_dict(self, **kwargs) -> dict:
+        """Serializes instance of class into a dictionary.
 
         Returns
         -------
         Dict
-            The result dictionary.
+            A dictionary.
         """
+        pass
 
     @classmethod
     @abstractmethod
@@ -96,25 +89,17 @@ class Serializable(ABC):
             content
         uri: (string)
             URI location to save string s
-        kwargs : dict
-            keyword arguments to be passed into fsspec.open().
-            For OCI object storage, this can be config="path/to/.oci/config".
+
+        kwargs
+        ------
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
 
         Returns
         -------
         None
-            Nothing
+            Nothing.
         """
-
-        overwrite = kwargs.pop("overwrite", True)
-        if not overwrite:
-            dst_path_scheme = urlparse(uri).scheme or "file"
-            if fsspec.filesystem(dst_path_scheme, **kwargs).exists(uri):
-                raise FileExistsError(
-                    f"The `{uri}` is already exists. Set `overwrite` to True "
-                    "if you wish to overwrite."
-                )
-
         with fsspec.open(uri, "w", **kwargs) as f:
             f.write(s)
 
@@ -126,13 +111,15 @@ class Serializable(ABC):
         ----------
         uri: (string)
             URI location
-        kwargs : dict
-            keyword arguments to be passed into fsspec.open().
-            For OCI object storage, this can be config="path/to/.oci/config".
+
+        kwargs
+        ------
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
 
         Returns
         -------
-        string: Contents in file specified by URI
+            string: Contents in file specified by URI
         """
         with fsspec.open(uri, "r", **kwargs) as f:
             return f.read()
@@ -151,23 +138,15 @@ class Serializable(ABC):
 
         kwargs
         ------
-        overwrite: (bool, optional). Defaults to True.
-            Whether to overwrite existing file or not.
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
 
-        keyword arguments to be passed into fsspec.open().
-        For OCI object storage, this could be config="path/to/.oci/config".
-        For other storage connections consider e.g. host, port, username, password, etc.
-
-        Returns
-        -------
-        Union[str, None]
-            Serialized version of object.
-            `None` in case when `uri` provided.
+        Returns:
+            string: Serialized version of object
         """
         json_string = json.dumps(self.to_dict(**kwargs), cls=encoder)
         if uri:
             self._write_to_file(s=json_string, uri=uri, **kwargs)
-            return None
         return json_string
 
     @classmethod
@@ -210,30 +189,24 @@ class Serializable(ABC):
             return cls.from_dict(json_dict)
         raise ValueError("Must provide either JSON string or URI location")
 
-    def to_yaml(
-        self, uri: str = None, dumper: callable = yaml.SafeDumper, **kwargs
-    ) -> Union[str, None]:
+    def to_yaml(self, uri: str = None, dumper: callable = dumper, **kwargs) -> str:
         """Returns object serialized as a YAML string
 
         Parameters
         ----------
-        uri : str, optional
-            URI location to save the YAML string, by default None
-        dumper : callable, optional
-            Custom YAML Dumper, by default yaml.SafeDumper
-        kwargs : dict
-            overwrite: (bool, optional). Defaults to True.
-                Whether to overwrite existing file or not.
-            note: (str, optional)
-                The note that needs to be added in the beginning of the YAML.
-                It will be added as is without any formatting.
-            side_effect: Optional[SideEffect]
-                side effect to take on the dictionary. The side effect can be either
-                convert the dictionary keys to "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
-                or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value) cases.
+        uri: (string, optional)
+            URI location to save the YAML string. Defaults to None.
+        dumper: (callable, optional)
+            Custom YAML Dumper. Defaults to CDumper/SafeDumper.
 
-            The other keyword arguments to be passed into fsspec.open().
-            For OCI object storage, this could be config="path/to/.oci/config".
+        kwargs
+        ------
+        side_effect: Optional[SideEffect]
+            side effect to take on the dictionary. The side effect can be either
+            convert the dictionary keys to "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
+            or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value) cases.
+        keyword arguments to be passed into fsspec.open(). For OCI object storage, this should be config="path/to/.oci/config".
+            For other storage connections consider e.g. host, port, username, password, etc.
 
         Returns
         -------
@@ -241,13 +214,9 @@ class Serializable(ABC):
             Serialized version of object.
             `None` in case when `uri` provided.
         """
-        note = kwargs.pop("note", "")
-
-        yaml_string = f"{note}\n" + yaml.dump(self.to_dict(**kwargs), Dumper=dumper)
+        yaml_string = yaml.dump(self.to_dict(**kwargs), Dumper=dumper)
         if uri:
             self._write_to_file(s=yaml_string, uri=uri, **kwargs)
-            return None
-
         return yaml_string
 
     @classmethod

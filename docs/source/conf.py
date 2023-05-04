@@ -5,13 +5,11 @@
 import datetime
 import os
 import sys
-from typing import Any, Dict
-
 
 # This causes documentation within the __init__ method to be pulled into the documentation properly
 autoclass_content = "both"
 
-sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, os.path.abspath("../../advanced-ds"))
 
 # -- Project information -----------------------------------------------------
 
@@ -23,16 +21,15 @@ author = "Oracle Data Science"
 version = release = __import__("ads").__version__
 
 extensions = [
+    "sphinx_rtd_theme",
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
+    "sphinx.ext.todo",
     "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
-    "sphinx.ext.autodoc",
-    "sphinx.ext.todo",
-    "sphinx.ext.extlinks",
-    "sphinx.ext.intersphinx",    
     "sphinx.ext.graphviz",
+    "sphinx.ext.inheritance_diagram",
     "nbsphinx",
     "sphinx_code_tabs",
     "sphinx_copybutton",
@@ -66,29 +63,53 @@ language = 'en'
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
 # exclude_patterns = []
-exclude_patterns = ['build', '**.ipynb_checkpoints', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['build', '**.ipynb_checkpoints']
 
-language = "en"
+# The name of the Pygments (syntax highlighting) style to use.
+pygments_style = None
 
-html_theme = "furo"
-html_static_path = ["_static"]
+html_logo = "_static/oracle_logo.png"
 
-html_title = f"{project} v{release}"
+# -- Options for HTML output -------------------------------------------------
 
-# Disable the generation of the various indexes
-html_use_modindex = False
-html_use_index = False
+# The theme to use for HTML and HTML Help pages.  See the documentation for
+# a list of builtin themes.
+#
+html_theme = "sphinx_rtd_theme"
 
-# html_css_files = [
-#     'pied-piper-admonition.css',     
-# ]
-
+# Theme options are theme-specific and customize the look and feel of a theme
+# further.  For a list of options available for each theme, see the
+# documentation.
+#
 html_theme_options = {
-    "light_logo": "logo-light-mode.png",
-    "dark_logo": "logo-dark-mode.png",     
+    "logo_only": False,
+    # Toc options
+    "sticky_navigation": True,
+    "navigation_depth": 4,
+    "includehidden": True,
+    "titles_only": False,
+    "display_version": True,
 }
 
+# Add any paths that contain custom static files (such as style sheets) here,
+# relative to this directory. They are copied after the builtin static files,
+# so a file named "default.css" will overwrite the builtin "default.css".
+html_static_path = ["_static"]
 
+# Custom sidebar templates, must be a dictionary that maps document names
+# to template names.
+#
+# The default sidebars (for documents that don't match any pattern) are
+# defined by theme itself.  Builtin themes are using these templates by
+# default: ``['localtoc.html', 'relations.html', 'sourcelink.html',
+# 'searchbox.html']``.
+#
+# html_sidebars = {}
+
+
+# -- Options for HTMLHelp output ---------------------------------------------
+
+# Output file base name for HTML help builder.
 htmlhelp_basename = "pydoc"
 
 

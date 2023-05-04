@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -46,7 +46,7 @@ class MetadataMixin:
     """
 
     def _populate_metadata_taxonomy(
-        self, model: callable = None, use_case_type: str = None, **kwargs
+        self, model: callable = None, use_case_type: str = None
     ):
         """Populates the taxonomy metadata.
 
@@ -211,7 +211,6 @@ class MetadataMixin:
         self,
         X_sample: Union[List, Tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
         y_sample: Union[List, Tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
-        **kwargs,
     ):
         """
         Any Framework-specific work before generic schema generation.
@@ -306,24 +305,21 @@ class MetadataMixin:
             and self.metadata_taxonomy[MetadataTaxonomyKeys.ALGORITHM].value is None
         ):
             logger.info(
-                "To auto-extract taxonomy metadata the model must be provided. Supported models: keras, lightgbm, pytorch, sklearn, tensorflow, pyspark, and xgboost."
+                "To auto-extract taxonomy metadata the model must be provided. Supported models: automl, keras, lightgbm, pytorch, sklearn, tensorflow, pyspark, and xgboost."
             )
         if use_case_type is None:
             use_case_type = self.metadata_taxonomy[
                 MetadataTaxonomyKeys.USE_CASE_TYPE
             ].value
-
         self._populate_metadata_taxonomy(
-            model=self.estimator, use_case_type=use_case_type, **kwargs
+            model=self.estimator, use_case_type=use_case_type
         )
-        if not ignore_conda_error:
-            self._populate_metadata_custom()
+        self._populate_metadata_custom()
         self.populate_schema(
             data_sample=data_sample,
             X_sample=X_sample,
             y_sample=y_sample,
             max_col_num=max_col_num,
-            **kwargs,
         )
         self._populate_provenance_metadata(
             training_script_path=training_script_path,
@@ -331,8 +327,7 @@ class MetadataMixin:
             training_id=training_id,
         )
         self._summary_status.update_action(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            action="",
+            detail="Populated metadata(Custom, Taxonomy and Provenance)", action=""
         )
         self._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
@@ -345,7 +340,6 @@ class MetadataMixin:
         X_sample: Union[List, Tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
         y_sample: Union[List, Tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
-        **kwargs,
     ):
         """Populate input and output schemas.
         If the schema exceeds the limit of 32kb, save as json files to the artifact dir.
@@ -369,18 +363,16 @@ class MetadataMixin:
             X_sample = data_sample.X
             y_sample = data_sample.y
 
-        X_sample, y_sample = self._prepare_data_for_schema(X_sample, y_sample, **kwargs)
+        X_sample, y_sample = self._prepare_data_for_schema(X_sample, y_sample)
         self.schema_input = self._populate_schema(
             X_sample,
             schema_file_name=INPUT_SCHEMA_FILE_NAME,
             max_col_num=max_col_num,
-            **kwargs,
         )
         self.schema_output = self._populate_schema(
             y_sample,
             schema_file_name=OUTPUT_SCHEMA_FILE_NAME,
             max_col_num=max_col_num,
-            **kwargs,
         )
 
     def _populate_schema(
@@ -388,7 +380,6 @@ class MetadataMixin:
         data: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame],
         schema_file_name: str,
         max_col_num: int,
-        **kwargs,
     ):
         """Populates schema and if the schema exceeds the limit of 32kb, save as a json file to the artifact_dir.
 
@@ -412,10 +403,7 @@ class MetadataMixin:
             if data is not None:
                 data = utils.to_dataframe(data)
                 schema = data.ads.model_schema(max_col_num=max_col_num)
-                schema.to_json_file(
-                    file_path=os.path.join(self.artifact_dir, schema_file_name),
-                    storage_options=kwargs.pop("auth", {}),
-                )
+                schema.to_json_file(os.path.join(self.artifact_dir, schema_file_name))
                 if self._validate_schema_size(schema, schema_file_name):
                     result = schema
         except DataSizeTooWide:

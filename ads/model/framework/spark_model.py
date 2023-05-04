@@ -1,32 +1,131 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+from typing import Any, Callable, Dict, List, Optional, Union, Tuple
+
 import numpy as np
 import pandas as pd
-import fsspec
-from typing import Any, Callable, Dict, List, Optional, Union, Tuple
-from ads.common import logger, utils
+from ads.common import logger
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
-from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.extractor.spark_extractor import SparkExtractor
-from ads.model.serde.model_input import SparkModelInputSerializerType
-from ads.model.serde.model_serializer import SparkModelSerializerType
+from ads.common.data_serializer import InputDataSerializer
 from ads.model.generic_model import (
     FrameworkSpecificModel,
     DEFAULT_MODEL_FOLDER_NAME,
-    _prepare_artifact_dir,
 )
 from ads.model.model_properties import ModelProperties
-from ads.model.serde.common import SERDE
 
 SPARK_DATAFRAME_SCHEMA_PATH = "_input_data_schema.json"
+
+
+@runtime_dependency(
+    module="pyspark",
+    short_name="sql",
+    object="sql",
+    install_from=OptionalDependency.SPARK,
+)
+def _serialize_via_spark(data):
+    """
+    If data is either a spark SQLDataFrames and spark.pandas dataframe/series
+        Return pandas version and data type of original
+    Else
+        Return data and None
+    """
+    try:  # runtime_dependency could not import this for unknown reason
+        import pyspark.pandas as ps
+
+        ps_available = True
+    except:
+        ps_available = False
+
+    def _get_or_create_spark_session():
+        return sql.SparkSession.builder.appName("Convert pandas to spark").getOrCreate()
+
+    if isinstance(data, sql.DataFrame):
+        data_type = type(data)
+    elif ps_available and (
+        isinstance(data, ps.DataFrame) or isinstance(data, ps.Series)
+    ):
+        data_type = type(data)
+        data = data.to_spark()
+    elif isinstance(data, sql.types.Row):
+        spark_session = _get_or_create_spark_session()
+        data = spark_session.createDataFrame(data)
+        data_type = type(data)
+    elif isinstance(data, pd.core.frame.DataFrame):
+        data_type = type(data)
+        spark_session = _get_or_create_spark_session()
+        data = spark_session.createDataFrame(data)
+    elif isinstance(data, list):
+        if not len(data):
+            raise TypeError(f"Data cannot be empty. Provided data parameter is: {data}")
+        if isinstance(data[0], sql.types.Row):
+            spark_session = _get_or_create_spark_session()
+            data = spark_session.createDataFrame(data)
+            data_type = type(data)
+        else:
+            logger.warn(
+                f"ADS does not serialize data type: {type(data)} for Spark Models. User should proceed at their own risk. ADS supported data types are: `pyspark.sql.DataFrame`, `pandas.DataFrame`, and `pyspark.pandas.DataFrame`."
+            )
+            return data, type(data), None
+    else:
+        logger.warn(
+            f"ADS does not serialize data type: {type(data)} for Spark Models. User should proceed at their own risk. ADS supported data types are: `pyspark.sql.DataFrame`, `pandas.DataFrame`, and `pyspark.pandas.DataFrame`."
+        )
+        return data, type(data), None
+    return data, data_type, data.schema
+
+
+class SparkDataSerializer(InputDataSerializer):
+    """[An internal class]
+    Defines the contract for input data to spark pipeline models
+
+    """
+
+    @runtime_dependency(
+        module="pyspark",
+        short_name="sql",
+        object="sql",
+        install_from=OptionalDependency.SPARK,
+    )
+    def __init__(
+        self,
+        data: Union[
+            Dict,
+            str,
+            List,
+            np.ndarray,
+            pd.core.series.Series,
+            pd.core.frame.DataFrame,
+        ],
+        data_type=None,
+    ):
+        """
+        Parameters
+        ----------
+        data: Union[Dict, str, list, numpy.ndarray, pd.core.series.Series,
+        pd.core.frame.DataFrame]
+            Data expected by the model deployment predict API.
+        data_type: Any, defaults to None.
+            Type of the data. If not provided, it will be checked against data.
+
+        """
+        data, data_type, _ = _serialize_via_spark(data)
+        if isinstance(data, sql.DataFrame):
+            data = data.toJSON().collect()
+        try:
+            super().__init__(data=data, data_type=data_type)
+        except:
+            raise TypeError(
+                f"Data type: {type(data)} unsupported. Please use `pyspark.sql.DataFrame`, `pyspark.pandas.DataFrame`, `pandas.DataFrame`."
+            )
 
 
 class SparkPipelineModel(FrameworkSpecificModel):
@@ -42,6 +141,8 @@ class SparkPipelineModel(FrameworkSpecificModel):
         Default authentication is set using the `ads.set_auth` API. To override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create
         an authentication signer to instantiate an IdentityClient object.
+    ds_client: DataScienceClient
+        The data science client used by model deployment.
     estimator: Callable
         A trained pyspark estimator/model using pyspark.
     framework: str
@@ -63,7 +164,6 @@ class SparkPipelineModel(FrameworkSpecificModel):
         The model ID.
     properties: ModelProperties
         ModelProperties object required to save and deploy model.
-        For more details, check https://accelerated-data-science.readthedocs.io/en/latest/ads.model.html#module-ads.model.model_properties.
     runtime_info: RuntimeInfo
         A RuntimeInfo instance.
     schema_input: Schema
@@ -127,8 +227,6 @@ class SparkPipelineModel(FrameworkSpecificModel):
     """
 
     _PREFIX = "spark"
-    model_input_serializer_type = SparkModelInputSerializerType
-    model_save_serializer_type = SparkModelSerializerType
 
     @runtime_dependency(
         module="pyspark",
@@ -139,11 +237,9 @@ class SparkPipelineModel(FrameworkSpecificModel):
     def __init__(
         self,
         estimator: Callable,
-        artifact_dir: Optional[str] = None,
+        artifact_dir: str,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
-        model_save_serializer: Optional[SERDE] = model_save_serializer_type.SPARK,
-        model_input_serializer: Optional[SERDE] = model_input_serializer_type.SPARK,
         **kwargs,
     ):
         """
@@ -154,17 +250,13 @@ class SparkPipelineModel(FrameworkSpecificModel):
         estimator: Callable
             SparkPipelineModel
         artifact_dir: str
-            The URI for the generated artifact, which can be local path or OCI object storage URI.
+            Directory for generate artifact.
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
         auth :(Dict, optional). Defaults to None.
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
-        model_save_serializer: (SERDE or str, optional). Defaults to None.
-            Instance of ads.model.SERDE. Used for serialize/deserialize model.
-        model_input_serializer: (SERDE, optional). Defaults to `ads.model.serde.model_input.SparkModelInputSERDE`.
-            Instance of ads.model.SERDE. Used for serialize/deserialize data.
 
         Returns
         -------
@@ -206,8 +298,6 @@ class SparkPipelineModel(FrameworkSpecificModel):
             artifact_dir=artifact_dir,
             properties=properties,
             auth=auth,
-            model_save_serializer=model_save_serializer,
-            model_input_serializer=model_input_serializer,
             **kwargs,
         )
 
@@ -218,9 +308,7 @@ class SparkPipelineModel(FrameworkSpecificModel):
         self.hyperparameter = self._extractor.hyperparameter
 
     @staticmethod
-    def _handle_model_file_name(
-        as_onnx: bool, model_file_name: Optional[str] = DEFAULT_MODEL_FOLDER_NAME
-    ):
+    def _handle_model_file_name(as_onnx: bool, model_file_name: str):
         """
         Process folder name for saving model.
 
@@ -228,8 +316,8 @@ class SparkPipelineModel(FrameworkSpecificModel):
         ----------
         as_onnx: bool
             To convert to onnx format
-        model_file_name: Optional[str]
-            File name for saving model. Default value is `model`.
+        model_file_name: str
+            File name for saving model.
 
         Returns
         -------
@@ -278,13 +366,19 @@ class SparkPipelineModel(FrameworkSpecificModel):
             raise NotImplementedError(
                 "The Spark to Onnx Conversion is not supported because it is unstable. Please set as_onnx to False (default) to perform a spark model serialization"
             )
-
-        super().serialize_model(
-            as_onnx=as_onnx,
-            force_overwrite=force_overwrite,
-            X_sample=X_sample,
-            **kwargs,
-        )
+        if not X_sample:
+            raise TypeError(
+                "X_Sample is required to serialize spark models. Please pass in an X_sample to `prepare`."
+            )
+        model_path = os.path.join(self.artifact_dir, self.model_file_name)
+        if os.path.exists(model_path) and not force_overwrite:
+            raise ValueError(
+                "Model file already exists and will not be overwritten. "
+                "Set `force_overwrite` to True if you wish to overwrite."
+            )
+        if not os.path.exists(self.artifact_dir):
+            os.makedirs(self.artifact_dir)
+        self.estimator.write().overwrite().save(model_path)
 
     @runtime_dependency(
         module="pyspark",
@@ -303,21 +397,12 @@ class SparkPipelineModel(FrameworkSpecificModel):
             self.artifact_dir,
             self.model_file_name + SPARK_DATAFRAME_SCHEMA_PATH,
         )
-        (
-            X_sample,
-            data_type,
-            schema,
-        ) = self.get_data_serializer()._serialize_via_spark(X_sample)
+        X_sample, data_type, schema = _serialize_via_spark(X_sample)
         if not schema:
             raise TypeError(
                 f"Data type: {data_type} unsupported. Please use `pyspark.sql.DataFrame`, `pyspark.pandas.DataFrame`, or `pandas.DataFrame`."
             )
-        storage_options = kwargs.get("auth", {})
-        with fsspec.open(
-            input_schema_path,
-            mode="w",
-            **(storage_options),
-        ) as f:
+        with open(input_schema_path, "w") as f:
             f.write(schema.json())
 
         if isinstance(X_sample, sql.DataFrame):

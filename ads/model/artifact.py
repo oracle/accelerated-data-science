@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import fnmatch
@@ -11,40 +11,34 @@ import sys
 import shutil
 import tempfile
 import uuid
-import fsspec
 from typing import Dict, Optional, Tuple
+
 from ads.common import auth as authutil
 from ads.common import logger, utils
-from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import CONDA_BUCKET_NAME, CONDA_BUCKET_NS
 from ads.model.runtime.env_info import EnvInfo, InferenceEnvInfo, TrainingEnvInfo
 from ads.model.runtime.runtime_info import RuntimeInfo
 from jinja2 import Environment, PackageLoader
-import warnings
-from ads import __version__
-from datetime import datetime
 
 MODEL_ARTIFACT_VERSION = "3.0"
 REQUIRED_ARTIFACT_FILES = ("runtime.yaml", "score.py")
-SCORE_VERSION = "1.0"
-ADS_VERSION = __version__
 
 
-class ArtifactNestedFolderError(Exception):   # pragma: no cover
+class ArtifactNestedFolderError(Exception):
     def __init__(self, folder: str):
         self.folder = folder
         super().__init__("The required artifact files placed in a nested folder.")
 
 
-class ArtifactRequiredFilesError(Exception):   # pragma: no cover
+class ArtifactRequiredFilesError(Exception):
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "Not all required files presented in artifact folder. "
-            f"Required files for conda runtime: {required_files}. If you are using container runtime, set `ignore_conda_error=True`."
+            f"Required files: {required_files}"
         )
 
 
-class AritfactFolderStructureError(Exception):   # pragma: no cover
+class AritfactFolderStructureError(Exception):
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "The artifact folder has a wrong structure. "
@@ -126,19 +120,11 @@ class ModelArtifact:
         Parameters
         ----------
         artifact_dir: str
-            The artifact folder to store the files needed for deployment.
+            The local artifact folder to store the files needed for deployment.
         model_file_name: (str, optional). Defaults to `None`.
             The file name of the serialized model.
         reload: (bool, optional). Defaults to False.
             Determine whether will reload the Model into the env.
-        ignore_conda_error: (bool, optional). Defaults to False.
-            Parameter to ignore error when collecting conda information.
-        local_copy_dir: (str, optional). Defaults to None.
-            The local back up directory of the model artifacts.
-        auth :(Dict, optional). Defaults to None.
-            The default authetication is set using `ads.set_auth` API. If you need to override the
-            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-            authentication signer and kwargs required to instantiate IdentityClient object.
 
         Returns
         -------
@@ -153,18 +139,8 @@ class ModelArtifact:
         if not artifact_dir:
             raise ValueError("The `artifact_dir` needs to be provided.")
 
-        self.artifact_dir = (
-            artifact_dir
-            if ObjectStorageDetails.is_oci_path(artifact_dir)
-            else os.path.abspath(os.path.expanduser(artifact_dir))
-        )
-        self.local_copy_dir = (
-            local_copy_dir or tempfile.mkdtemp()
-            if ObjectStorageDetails.is_oci_path(artifact_dir)
-            else artifact_dir
-        )
-
         self.score = None
+        self.artifact_dir = os.path.abspath(os.path.expanduser(artifact_dir))
         sys.path.insert(0, self.artifact_dir)
         self.model_file_name = model_file_name
         self._env = Environment(loader=PackageLoader("ads", "templates"))
@@ -191,8 +167,6 @@ class ModelArtifact:
         force_overwrite: bool = False,
         namespace: str = CONDA_BUCKET_NS,
         bucketname: str = CONDA_BUCKET_NAME,
-        auth: dict = None,
-        ignore_conda_error: bool = False,
     ) -> None:
         """Generate a runtime yaml file and save it to the artifact
         directory.
@@ -214,13 +188,9 @@ class ModelArtifact:
         force_overwrite : (bool, optional). Defaults to False.
             Whether to overwrite existing files.
         namespace: (str, optional)
-            The namespace of region. Defaults to environment variable CONDA_BUCKET_NS.
+            The namespace of region.
         bucketname: (str, optional)
-            The bucketname of service pack. Defaults to environment variable CONDA_BUCKET_NAME.
-        auth :(Dict, optional). Defaults to None.
-            The default authetication is set using `ads.set_auth` API. If you need to override the
-            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-            authentication signer and kwargs required to instantiate IdentityClient object.
+            The bucketname of service pack.
 
         Raises
         ------
@@ -245,7 +215,6 @@ class ModelArtifact:
             conda_pack=inference_conda_env,
             bucketname=bucketname,
             namespace=namespace,
-            auth=auth,
         )
 
         if training_conda_env:
@@ -254,7 +223,6 @@ class ModelArtifact:
                 conda_pack=training_conda_env,
                 bucketname=bucketname,
                 namespace=namespace,
-                auth=auth,
             )
         else:
             training_conda_env = TrainingEnvInfo()
@@ -272,7 +240,7 @@ class ModelArtifact:
             or runtime_info.model_deployment.inference_conda_env.inference_python_version.strip()
             == ""
         ):
-            warnings.warn(
+            raise ValueError(
                 "Cannot automatically detect the inference python version. `inference_python_version` must be provided."
             )
         runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
@@ -282,16 +250,12 @@ class ModelArtifact:
                 "Set `force_overwrite` to True to overwrite all the files."
             )
         else:
-            runtime_info.save(storage_options=auth)
+            runtime_info.save()
         return runtime_info
 
     @staticmethod
     def _populate_env_info(
-        clss: EnvInfo,
-        conda_pack: str,
-        bucketname: str = None,
-        namespace: str = None,
-        auth: dict = None,
+        clss: EnvInfo, conda_pack: str, bucketname: str = None, namespace: str = None
     ) -> "EnvInfo":
         """Populates the Training/InferenceEnvInfo instance.
 
@@ -307,10 +271,6 @@ class ModelArtifact:
             The namespace of region.
         bucketname: (str, optional)
             The bucketname of service pack.
-        auth: (Dict, optional). Defaults to None.
-            The default authetication is set using `ads.set_auth` API. If you need to override the
-            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-            authentication signer and kwargs required to instantiate IdentityClient object.
 
         Returns
         -------
@@ -320,7 +280,7 @@ class ModelArtifact:
         if conda_pack.startswith("oci://"):
             return clss.from_path(conda_pack)
         return clss.from_slug(
-            env_slug=conda_pack, bucketname=bucketname, namespace=namespace, auth=auth
+            env_slug=conda_pack, bucketname=bucketname, namespace=namespace
         )
 
     def prepare_score_py(
@@ -336,7 +296,6 @@ class ModelArtifact:
             The file name of the serialized model.
         **kwargs: (dict)
             use_torch_script: bool
-            data_deserializer: str
 
         Returns
         -------
@@ -360,13 +319,9 @@ class ModelArtifact:
         ):
             raise FileExistsError(f"{jinja_template_filename}.jinja2 does not exists.")
         scorefn_template = self._env.get_template(f"{jinja_template_filename}.jinja2")
-        time_suffix = datetime.today().strftime("%Y%m%d_%H%M%S")
-
         context = {
             "model_file_name": self.model_file_name,
-            "SCORE_VERSION": SCORE_VERSION,
-            "ADS_VERSION": ADS_VERSION,
-            "time_created": time_suffix,
+            "use_torch_script": kwargs.get("use_torch_script", False),
         }
         storage_options = kwargs.pop("auth", {})
         storage_options = storage_options if storage_options else {}
@@ -383,26 +338,17 @@ class ModelArtifact:
         -------
         None
             Nothing
-
         """
-        if ObjectStorageDetails.is_oci_path(self.artifact_dir):
-            utils.copy_from_uri(
-                uri=self.artifact_dir,
-                to_path=self.local_copy_dir,
-                force_overwrite=True,
-                auth=self.auth,
-            )
-
         spec = importlib.util.spec_from_file_location(
-            "score%s" % uuid.uuid4(), os.path.join(self.local_copy_dir, "score.py")
+            "score%s" % uuid.uuid4(), os.path.join(self.artifact_dir, "score.py")
         )
         self.score = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(self.score)
         self.model = self.score.load_model()  # load model in cache
         # remove the cache files.
         for dir in [
-            os.path.join(self.local_copy_dir, "__pycache__"),
-            os.path.join(self.local_copy_dir, ".ipynb_checkpoints"),
+            os.path.join(self.artifact_dir, "__pycache__"),
+            os.path.join(self.artifact_dir, ".ipynb_checkpoints"),
         ]:
             if os.path.exists(dir):
                 shutil.rmtree(dir, ignore_errors=True)
@@ -415,7 +361,6 @@ class ModelArtifact:
         model_file_name: str = None,
         force_overwrite: Optional[bool] = False,
         auth: Optional[Dict] = None,
-        ignore_conda_error: Optional[bool] = False,
     ):
         """Constructs a ModelArtifact object from the existing model artifacts.
 
@@ -446,36 +391,21 @@ class ModelArtifact:
         ------
         ValueError
             If `uri` is equal to `artifact_dir`, and it not exists.
-            If `artifact_dir` is not provided.
         """
-        if not artifact_dir:
-            raise ValueError("The `artifact_dir` needs to be provided.")
-
-        artifact_dir = (
-            artifact_dir
-            if ObjectStorageDetails.is_oci_path(artifact_dir)
-            else os.path.join(os.path.abspath(os.path.expanduser(artifact_dir)), "")
+        artifact_dir = os.path.join(
+            os.path.abspath(os.path.expanduser(artifact_dir)), ""
         )
 
-        if not ObjectStorageDetails.is_oci_path(uri):
-            uri = os.path.join(os.path.abspath(os.path.expanduser(uri)).rstrip("/"), "")
-        auth = auth or authutil.default_signer()
-
-        to_path = (
-            tempfile.mkdtemp()
-            if ObjectStorageDetails.is_oci_path(artifact_dir)
-            else artifact_dir
-        )
-        force_overwrite = (
-            True if ObjectStorageDetails.is_oci_path(artifact_dir) else force_overwrite
-        )
-        if artifact_dir == uri and not ObjectStorageDetails.is_oci_path(artifact_dir):
-            if not utils.is_path_exists(artifact_dir, auth=auth):
+        if artifact_dir == os.path.join(
+            os.path.abspath(os.path.expanduser(uri)).rstrip("/"), ""
+        ):
+            if not os.path.exists(artifact_dir):
                 raise ValueError("Provided `uri` doesn't exist.")
         else:
+            auth = auth or authutil.default_signer()
             utils.copy_from_uri(
                 uri=uri,
-                to_path=to_path,
+                to_path=artifact_dir,
                 unpack=True,
                 force_overwrite=force_overwrite,
                 auth=auth,
@@ -515,11 +445,4 @@ class ModelArtifact:
 
     def __getattr__(self, item):
         """Makes the functions in `score.py` directly accessable by ModelArtifact class."""
-
-        try:
-            return getattr(self.score, item)
-        except:
-            if self.ignore_conda_error:
-                logger.warn("`verify` is not guarenteed to work for byoc case.")
-            else:
-                raise
+        return getattr(self.score, item)

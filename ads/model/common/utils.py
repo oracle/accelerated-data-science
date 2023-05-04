@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -11,10 +11,7 @@ import yaml
 from typing import Any, Dict, Optional
 from zipfile import ZipFile
 from ads.common import utils
-
-
-DEPRECATE_AS_ONNX_WARNING = "This attribute `as_onnx` will be deprecated in the future. You can choose specific format by setting `model_save_serializer`."
-DEPRECATE_USE_TORCH_SCRIPT_WARNING = "This attribute `use_torch_script` will be deprecated in the future. You can choose specific format by setting `model_save_serializer`."
+from ads.config import OCI_REGION_METADATA
 
 
 def _extract_locals(
@@ -90,6 +87,23 @@ def fetch_manifest_from_conda_location(env_location: str):
         env = yaml.load(mlf, Loader=yaml.FullLoader)
     manifest = env["manifest"]
     return manifest
+
+
+def extract_region() -> Union[str, None]:
+    """Extracts region information from the environment variables.
+
+    Returns
+    -------
+    Union[str, None]
+        The region identifier. For example: `us-ashburn-1`.
+        Returns `None` if region not extracted.
+    """
+    region = None
+    try:
+        region = json.loads(OCI_REGION_METADATA)["regionIdentifier"]
+    except:
+        pass
+    return region
 
 
 def zip_artifact(artifact_dir: str) -> str:

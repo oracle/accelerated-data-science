@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from typing import List, Union, Dict
+from typing import List, Union
 from urllib.parse import urlparse
 
 import fsspec
@@ -23,34 +23,28 @@ from ads.jobs.builders.runtimes.python_runtime import (
 
 
 class Job(Builder):
-    """Represents a Job defined by infrastructure and runtime.
+    """Represents a Job containing infrastructure and runtime.
 
-    Examples
-    --------
-    Here is an example for creating and running a job::
+    Example
+    -------
+    Here is an example for creating and running a job:
+
+    .. code-block:: python
 
         from ads.jobs import Job, DataScienceJob, PythonRuntime
-
         # Define an OCI Data Science job to run a python script
         job = (
             Job(name="<job_name>")
             .with_infrastructure(
                 DataScienceJob()
-                # Configure logging for getting the job run outputs.
-                .with_log_group_id("<log_group_ocid>")
-                # Log resource will be auto-generated if log ID is not specified.
-                .with_log_id("<log_ocid>")
-                # If you are in an OCI data science notebook session,
-                # the following configurations are not required.
-                # Configurations from the notebook session will be used as defaults.
                 .with_compartment_id("<compartment_ocid>")
                 .with_project_id("<project_ocid>")
                 .with_subnet_id("<subnet_ocid>")
                 .with_shape_name("VM.Standard.E3.Flex")
-                # Shape config details are applicable only for the flexible shapes.
                 .with_shape_config_details(memory_in_gbs=16, ocpus=1)
-                # Minimum/Default block storage size is 50 (GB).
                 .with_block_storage_size(50)
+                .with_log_group_id("<log_group_ocid>")
+                .with_log_id("<log_ocid>")
             )
             .with_runtime(
                 PythonRuntime()
@@ -86,10 +80,11 @@ class Job(Builder):
 
     If you are in an OCI notebook session and you would like to use the same infrastructure
     configurations, the infrastructure configuration can be simplified.
-    Here is another example of creating and running a jupyter notebook as a job::
+    Here is another example of creating and running a jupyter notebook as a job:
+
+    .. code-block:: python
 
         from ads.jobs import Job, DataScienceJob, NotebookRuntime
-
         # Define an OCI Data Science job to run a jupyter Python notebook
         job = (
             Job(name="<job_name>")
@@ -102,7 +97,7 @@ class Job(Builder):
             .with_runtime(
                 NotebookRuntime()
                 .with_notebook("path/to/notebook.ipynb")
-                .with_service_conda(tensorflow28_p38_cpu_v1")
+                .with_service_conda(tensorflow26_p37_cpu_v2")
                 # Saves the notebook with outputs to OCI object storage.
                 .with_output("oci://bucket_name@namespace/path/to/dir")
             )
@@ -148,7 +143,6 @@ class Job(Builder):
         -------
         Job
             A job instance.
-
         """
         dsc_infra = DataScienceJob.from_id(job_id)
         job = (
@@ -228,7 +222,7 @@ class Job(Builder):
          or by calling with_infrastructure() and with_runtime().
 
         The infrastructure should be a subclass of ADS job Infrastructure, e.g., DataScienceJob, DataFlow.
-        The runtime should be a subclass of ADS job Runtime, e.g., PythonRuntime, NotebookRuntime.
+        The runtime should be a subclass of ADS job Runtime, e.g., PythonRuntime, ScriptRuntime.
 
         Parameters
         ----------
@@ -243,7 +237,6 @@ class Job(Builder):
             Job infrastructure, by default None
         runtime : Runtime, optional
             Job runtime, by default None.
-
         """
         super().__init__()
         if name:
@@ -414,18 +407,6 @@ class Job(Builder):
         -------
         Job Run Instance
             A job run instance, depending on the infrastructure.
-
-        Examples
-        --------
-        To run a job and override the configurations::
-
-            job_run = job.run(
-                name="<my_job_run_name>",
-                args="new_arg --new_key new_val",
-                env_var={"new_env": "new_val"},
-                freeform_tags={"new_tag": "new_tag_val"}
-            )
-
         """
         return self.infrastructure.run(
             name=name,
@@ -459,27 +440,19 @@ class Job(Builder):
         """
         return getattr(self.infrastructure, "status", None)
 
-    def to_dict(self, **kwargs: Dict) -> Dict:
+    def to_dict(self) -> dict:
         """Serialize the job specifications to a dictionary.
-
-        Parameters
-        ----------
-        **kwargs: Dict
-            The additional arguments.
-            - filter_by_attribute_map: bool
-                If True, then in the result will be included only the fields
-                presented in the `attribute_map`.
 
         Returns
         -------
-        Dict
+        dict
             A dictionary containing job specifications.
         """
         spec = {"name": self.name}
         if self.runtime:
-            spec["runtime"] = self.runtime.to_dict(**kwargs)
+            spec["runtime"] = self.runtime.to_dict()
         if self.infrastructure:
-            spec["infrastructure"] = self.infrastructure.to_dict(**kwargs)
+            spec["infrastructure"] = self.infrastructure.to_dict()
         if self.id:
             spec["id"] = self.id
         return {
@@ -505,7 +478,7 @@ class Job(Builder):
         Raises
         ------
         NotImplementedError
-            If the type of the infrastructure or runtime is not supported.
+            If the type of the intrastructure or runtime is not supported.
         """
         if not isinstance(config, dict):
             raise ValueError("The config data for initializing the job is invalid.")

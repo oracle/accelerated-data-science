@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
 import copy
 import datetime
 import io
@@ -16,22 +15,20 @@ from typing import Any, Dict, List, Optional
 
 import fsspec
 import oci.data_flow
-import oci.util as oci_util
 import yaml
 from ads.common import utils
 from ads.common.auth import default_signer
-from ads.common.decorator.utils import class_or_instance_method
 from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_mixin import OCIModelMixin
-from ads.common.utils import batch_convert_case, camel_to_snake
+from ads.common.utils import camel_to_snake, batch_convert_case
+from ads.config import OCI_REGION_METADATA
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
 from ads.jobs.builders.infrastructure.utils import normalize_config
 from ads.jobs.builders.runtimes.python_runtime import DataFlowRuntime
 from ads.model.runtime.env_info import InferenceEnvInfo
 from oci.data_flow.models import CreateApplicationDetails, CreateRunDetails
+import oci.util as oci_util
 from tqdm import tqdm
-
-from ads.config import NB_SESSION_COMPARTMENT_OCID, NB_SESSION_OCID
 
 logger = logging.getLogger(__name__)
 
@@ -46,38 +43,9 @@ DEFAULT_SHAPE = "VM.Standard.E3.Flex"
 
 def conda_pack_name_to_dataflow_config(conda_uri):
     return {
-        "spark.archives": conda_uri + CONDA_PACK_SUFFIX,
+        "spark.archives": conda_uri + CONDA_PACK_SUFFIX,  # .replace(" ", "%20")
         "dataflow.auth": "resource_principal",
     }
-
-
-def _env_variables_to_dataflow_config(
-    env_vars: Dict[str, str] = None
-) -> Dict[str, str]:
-    """Prepares environment variables for the application.
-    Similar environment variables will be setup for the driver and executor.
-
-    Parameters
-    ----------
-    env_vars: (Dict[str, str], optional). Defaults to `None`
-        The dictionary with SRC env variables.
-        Example: {"env1": "value1"}
-
-    Returns
-    -------
-    Dict[str, str]
-        Dictionary with pre populated environment variables.
-        Example: {"spark.executorEnv.env1": "value1", "spark.driverEnv.env1": "value1"}
-    """
-    if not env_vars:
-        return {}
-
-    result = {}
-    for level in ("spark.executorEnv", "spark.driverEnv"):
-        for env_name, env_value in env_vars.items():
-            result[f"{level}.{env_name}"] = env_value
-
-    return result
 
 
 class DataFlowApp(OCIModelMixin, oci.data_flow.models.Application):
@@ -136,9 +104,6 @@ class DataFlowApp(OCIModelMixin, oci.data_flow.models.Application):
 
 
 class DataFlowRun(OCIModelMixin, oci.data_flow.models.Run, RunInstance):
-    _DETAILS_LINK = (
-        "https://console.{region}.oraclecloud.com/data-flow/runs/details/{id}"
-    )
 
     TERMINATED_STATES = [
         oci.data_flow.models.Run.LIFECYCLE_STATE_CANCELED,
@@ -203,7 +168,7 @@ class DataFlowRun(OCIModelMixin, oci.data_flow.models.Run, RunInstance):
         """
         return DataFlowLogs(run_id=self.id)
 
-    def wait(self, interval: int = SLEEP_INTERVAL) -> "DataFlowRun":
+    def wait(self, interval: int = 3) -> "DataFlowRun":
         """
         Wait for a run to terminate.
 
@@ -230,7 +195,7 @@ class DataFlowRun(OCIModelMixin, oci.data_flow.models.Run, RunInstance):
                 current = self.status
         return self
 
-    def watch(self, interval: int = SLEEP_INTERVAL) -> "DataFlowRun":
+    def watch(self, interval: int = 3) -> "DataFlowRun":
         """This is an alias of `wait()` method. It waits for a run to terminate.
 
         Parameters
@@ -248,6 +213,10 @@ class DataFlowRun(OCIModelMixin, oci.data_flow.models.Run, RunInstance):
         )
         return self.wait(interval=interval)
 
+    def __repr__(self) -> str:
+        """Displays the object as YAML."""
+        return self.to_yaml()
+
     def to_yaml(self) -> str:
         """Serializes the object into YAML string.
 
@@ -260,34 +229,36 @@ class DataFlowRun(OCIModelMixin, oci.data_flow.models.Run, RunInstance):
         run["lifecycleState"] = self.status
         return yaml.safe_dump(run)
 
-    def delete(self) -> "DataFlowRun":
+    def delete(self) -> None:
         """
-        Cancel and delete a Data Flow run if it is not yet terminated.
-        Will be executed asynchronously.
+        Cancel a Data Flow run if it is not yet terminated.
 
         Returns
         -------
-        self
-            The dataflow run instance.
+        None
         """
         if self.status not in self.TERMINATED_STATES:
             self.client.delete_run(self.id)
             self.lifecycle_state = oci.data_flow.models.Run.LIFECYCLE_STATE_CANCELING
 
-        return self
-
-    def cancel(self) -> "DataFlowRun":
-        """Cancel a Data Flow run if it is not yet terminated.
-        Will be executed synchronously.
+    @property
+    def run_details_link(self):
+        """
+        Link to run details page in OCI console
 
         Returns
         -------
-        self
-            The dataflow run instance.
+        DisplayHandle
+            html display
         """
-        self.delete()
-        self.wait()
-        return self
+        signer = default_signer()
+        if "region" in signer["config"]:
+            region = signer["config"]["region"]
+        else:
+            region = json.loads(OCI_REGION_METADATA)["regionIdentifier"]
+        return (
+            f"https://console.{region}.oraclecloud.com/data-flow/runs/details/{self.id}"
+        )
 
 
 class _Log:
@@ -367,6 +338,7 @@ class DataFlowLogs:
 
 
 class DataFlow(Infrastructure):
+
     CONST_COMPARTMENT_ID = "compartment_id"
     CONST_CONFIG = "configuration"
     CONST_EXECUTE = "execute"
@@ -383,7 +355,6 @@ class DataFlow(Infrastructure):
     CONST_MEMORY_IN_GBS = "memory_in_gbs"
     CONST_OCPUS = "ocpus"
     CONST_ID = "id"
-    CONST_PRIVATE_ENDPOINT_ID = "private_endpoint_id"
 
     attribute_map = {
         CONST_COMPARTMENT_ID: "compartmentId",
@@ -401,7 +372,6 @@ class DataFlow(Infrastructure):
         CONST_MEMORY_IN_GBS: "memoryInGBs",
         CONST_OCPUS: CONST_OCPUS,
         CONST_ID: CONST_ID,
-        CONST_PRIVATE_ENDPOINT_ID: "privateEndpointId",
     }
 
     def __init__(self, spec: dict = None, **kwargs):
@@ -417,13 +387,13 @@ class DataFlow(Infrastructure):
                 if f"with_{camel_to_snake(k)}" in self.__dir__() and v is not None
             }
             defaults.update(spec)
-            super().__init__(defaults, **kwargs)
-
+            super(DataFlow, self).__init__(defaults, **kwargs)
         self.df_app = DataFlowApp(**self._spec)
         self.runtime = None
         self._name = None
 
-    def _load_default_properties(self) -> Dict:
+    @staticmethod
+    def _load_default_properties() -> dict:
         """
         Load default properties from environment variables, notebook session, etc.
 
@@ -433,33 +403,30 @@ class DataFlow(Infrastructure):
             a dictionary of default properties
         """
         defaults = {}
-        if NB_SESSION_COMPARTMENT_OCID:
-            defaults[self.CONST_COMPARTMENT_ID] = NB_SESSION_COMPARTMENT_OCID
-        if NB_SESSION_OCID:
+        if "NB_SESSION_COMPARTMENT_OCID" in os.environ:
+            defaults["compartment_id"] = os.environ["NB_SESSION_COMPARTMENT_OCID"]
+        if "NB_SESSION_OCID" in os.environ:
             dsc_client = OCIClientFactory(**default_signer()).data_science
             try:
-                nb_session = dsc_client.get_notebook_session(NB_SESSION_OCID).data
+                nb_session = dsc_client.get_notebook_session(
+                    os.environ["NB_SESSION_OCID"]
+                ).data
                 nb_config = nb_session.notebook_session_configuration_details
-
-                defaults[self.CONST_DRIVER_SHAPE] = nb_config.shape
+                defaults["driver_shape"] = nb_config.shape
                 logger.debug(f"Set driver shape to {nb_config.shape}")
-
-                defaults[self.CONST_EXECUTOR_SHAPE] = nb_config.shape
+                defaults["executor_shape"] = nb_config.shape
                 logger.debug(f"Set executor shape to {nb_config.shape}")
-
                 if nb_config.notebook_session_shape_config_details:
                     notebook_shape_config_details = oci_util.to_dict(
                         nb_config.notebook_session_shape_config_details
                     )
-
-                    defaults[self.CONST_DRIVER_SHAPE_CONFIG] = copy.deepcopy(
+                    defaults["driver_shape_config"] = copy.deepcopy(
                         notebook_shape_config_details
                     )
                     logger.debug(
                         f"Set driver shape config to {nb_config.notebook_session_shape_config_details}"
                     )
-
-                    defaults[self.CONST_EXECUTOR_SHAPE_CONFIG] = copy.deepcopy(
+                    defaults["executor_shape_config"] = copy.deepcopy(
                         notebook_shape_config_details
                     )
                     logger.debug(
@@ -471,13 +438,11 @@ class DataFlow(Infrastructure):
                     f"Error fetching details about Notebook session: {os.environ['NB_SESSION_OCID']}. {e}"
                 )
 
-        defaults["language"] = DEFAULT_LANGUAGE
-        defaults["spark_version"] = DEFAULT_SPARK_VERSION
-        defaults["num_executors"] = DEFAULT_NUM_EXECUTORS
-
-        logger.debug(f"Set spark version to be {defaults['spark_version']}")
-        logger.debug(f"Set number of executors to be {defaults['num_executors']}")
-
+        defaults["language"] = "PYTHON"
+        defaults["spark_version"] = "3.2.1"
+        defaults["num_executors"] = 1
+        logger.debug("Set spark version to be 3.2.1.")
+        logger.debug("Set number of executors to be 1.")
         return defaults
 
     @property
@@ -760,22 +725,6 @@ class DataFlow(Infrastructure):
             },
         )
 
-    def with_private_endpoint_id(self, private_endpoint_id: str) -> "DataFlow":
-        """
-        Set the private endpoint ID for a Data Flow job infrastructure.
-
-        Parameters
-        ----------
-        private_endpoint_id: str
-            The OCID of a private endpoint.
-
-        Returns
-        -------
-        DataFlow
-            the Data Flow instance itself
-        """
-        return self.set_spec(self.CONST_PRIVATE_ENDPOINT_ID, private_endpoint_id)
-
     def __getattr__(self, item):
         if f"with_{item}" in self.__dir__():
             return self.get_spec(item)
@@ -801,10 +750,10 @@ class DataFlow(Infrastructure):
         if not self.name:
             self.name = utils.get_random_name_for_resource()
         payload = copy.deepcopy(self._spec)
-        overwrite = kwargs.pop("overwrite", runtime.overwrite) or False
-        runtime.convert(overwrite=overwrite)
+        runtime.convert(overwrite=kwargs.get("overwrite", False))
         if not runtime.script_uri:
             raise ValueError("script uri must be specified in runtime.")
+        overwrite = kwargs.get("overwrite", False)
         if runtime.script_uri.split(":")[0] != "oci":
             if runtime.script_bucket:
                 runtime.with_script_uri(
@@ -844,7 +793,6 @@ class DataFlow(Infrastructure):
             runtime_config = runtime.configuration or dict()
             runtime_config.update(conda_pack_name_to_dataflow_config(conda_uri))
             runtime.with_configuration(runtime_config)
-
         payload.update(
             {
                 "display_name": self.name,
@@ -955,7 +903,8 @@ class DataFlow(Infrastructure):
         logger.debug(f"Creating a DataFlow Run with payload {payload}")
         run = DataFlowRun(**payload).create()
         if wait:
-            run.wait(kwargs.pop("interval", SLEEP_INTERVAL))
+            interval = kwargs["interval"] if "interval" in kwargs else 3
+            run.wait(interval)
         return run
 
     def run_list(self, **kwargs) -> List[DataFlowRun]:
@@ -1044,7 +993,7 @@ class DataFlow(Infrastructure):
             for job in DataFlowApp.list_resource(compartment_id, **kwargs)
         ]
 
-    def to_dict(self, **kwargs) -> dict:
+    def to_dict(self) -> dict:
         """
         Serialize job to a dictionary.
 
@@ -1053,11 +1002,10 @@ class DataFlow(Infrastructure):
         dict
             serialized job as a dictionary
         """
-        spec = self._convert_shape_config(copy.deepcopy(self._spec), "camel")
         return {
             "kind": self.kind,
             "type": self.type,
-            "spec": batch_convert_case(spec, "camel"),
+            "spec": batch_convert_case(self._spec, "camel"),
         }
 
     @classmethod
@@ -1075,12 +1023,7 @@ class DataFlow(Infrastructure):
         DataFlow
             a Data Flow job instance
         """
-        spec = cls._convert_shape_config(copy.deepcopy(config["spec"]), "snake")
-        return cls(spec=batch_convert_case(spec, "snake"))
-
-    @class_or_instance_method
-    def _convert_shape_config(cls, spec: Dict, to_format: str) -> Dict:
-        """Converts the format of shape config details from camel to snake, or vice versa.
+        return cls(spec=batch_convert_case(config["spec"], "snake"))
 
         Parameters
         ----------
@@ -1089,41 +1032,7 @@ class DataFlow(Infrastructure):
         to_format: str
             the format that's converted to
 
-        Returns
-        -------
-        Dict
-            dictionary with converted shape config details
-        """
-        shape_config_map = [
-            cls.CONST_DRIVER_SHAPE_CONFIG,
-            cls.CONST_EXECUTOR_SHAPE_CONFIG,
-            cls.attribute_map[cls.CONST_DRIVER_SHAPE_CONFIG],
-            cls.attribute_map[cls.CONST_EXECUTOR_SHAPE_CONFIG],
-        ]
-        converted_map = {
-            "camel": {
-                cls.CONST_MEMORY_IN_GBS: cls.attribute_map[cls.CONST_MEMORY_IN_GBS],
-                cls.CONST_OCPUS: cls.CONST_OCPUS,
-            },
-            "snake": {
-                cls.attribute_map[cls.CONST_MEMORY_IN_GBS]: cls.CONST_MEMORY_IN_GBS,
-                cls.CONST_OCPUS: cls.CONST_OCPUS,
-            },
-        }
-        for shape_config in shape_config_map:
-            shape_config_value = spec.pop(shape_config, {})
-            if shape_config_value:
-                temp_maps = {}
-                for key, value in shape_config_value.items():
-                    converted_key = converted_map[to_format].get(key, None)
-                    if converted_key:
-                        temp_maps[converted_key] = value
-                    else:
-                        temp_maps[key] = value
-                spec[shape_config] = copy.deepcopy(temp_maps)
-        return spec
-
-    def to_yaml(self, **kwargs) -> str:
+    def to_yaml(self) -> str:
         """Serializes the object into YAML string.
 
         Returns
@@ -1131,22 +1040,4 @@ class DataFlow(Infrastructure):
         str
             YAML stored in a string.
         """
-        return yaml.safe_dump(self.to_dict(**kwargs))
-
-    def init(self) -> "DataFlow":
-        """Initializes a starter specification for the DataFlow.
-
-        Returns
-        -------
-        DataFlow
-            The DataFlow instance (self)
-        """
-        return (
-            self.build()
-            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
-            .with_language(self.language or DEFAULT_LANGUAGE)
-            .with_spark_version(self.spark_version or DEFAULT_SPARK_VERSION)
-            .with_num_executors(self.num_executors or DEFAULT_NUM_EXECUTORS)
-            .with_driver_shape(self.driver_shape or DEFAULT_SHAPE)
-            .with_executor_shape(self.executor_shape or DEFAULT_SHAPE)
-        )
+        return yaml.safe_dump(self.to_dict())

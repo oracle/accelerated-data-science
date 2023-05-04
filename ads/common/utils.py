@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, print_function
 
+import base64
 import collections
 import contextlib
 import copy
@@ -20,12 +21,11 @@ import shutil
 import string
 import sys
 import tempfile
-from datetime import datetime
 from enum import Enum
-from io import DEFAULT_BUFFER_SIZE
+from io import DEFAULT_BUFFER_SIZE, BytesIO
 from pathlib import Path
 from textwrap import fill
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 from urllib import request
 from urllib.parse import urlparse
 
@@ -36,23 +36,19 @@ import pandas as pd
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import TqdmProgressBar
+from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
 from cycler import cycler
+from datetime import datetime
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
-from ads.common import logger
-from ads.common.decorator.deprecate import deprecated
-from ads.common.decorator.runtime_dependency import (
-    OptionalDependency,
-    runtime_dependency,
-)
-from ads.common.word_lists import adjectives, animals
-from ads import config
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
-
 from . import auth as authutil
+
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
@@ -101,7 +97,7 @@ DIMENSION = 2
 # declare custom exception class
 
 
-class FileOverwriteError(Exception):   # pragma: no cover
+class FileOverwriteError(Exception):
     pass
 
 
@@ -495,7 +491,9 @@ def print_user_message(
         )
 
     if is_documentation_mode() and is_notebook():
+
         if display_type.lower() == "tip":
+
             if "\n" in msg:
                 t = "<b>{}:</b>".format(title.upper().strip()) if title else ""
 
@@ -565,6 +563,7 @@ def print_user_message(
             )
 
         elif display_type.startswith("info"):
+
             user_message = msg.strip().replace("\n", "<br>")
 
             if see_also_links:
@@ -637,6 +636,7 @@ def ellipsis_strings(raw, n=24):
 
     result = []
     for s in sequence:
+
         if len(str(s)) <= n:
             result.append(s)
         else:
@@ -682,28 +682,18 @@ def replace_spaces(lst):
     return [s.replace(" ", "_") for s in lst]
 
 
-def get_progress_bar(
-    max_progress: int, description: str = "Initializing", verbose: bool = False
-) -> TqdmProgressBar:
-    """Returns an instance of the TqdmProgressBar class.
+def get_progress_bar(max_progress, description="Initializing"):
+    """this will return an instance of ProgressBar, sensitive to the runtime environment"""
 
-    Parameters
-    ----------
-    max_progress: int
-        The number of steps for the progressbar.
-    description: (str, optional). Defaults to "Initializing".
-        The first step description.
-    verbose: (bool, optional). Defaults to `False`
-        If the progress should show the debug information.
-
-    Returns
-    -------
-    TqdmProgressBar
-        An instance of the TqdmProgressBar.
-    """
-    return TqdmProgressBar(
-        max_progress, description=description, verbose=verbose or is_debug_mode()
-    )
+    #
+    # this will return either a DummyProgressBar (non-notebook) or TqdmProgressBar (notebook environement)
+    #
+    if is_notebook():  # pragma: no cover
+        return TqdmProgressBar(
+            max_progress, description=description, verbose=is_debug_mode()
+        )
+    else:
+        return DummyProgressBar()
 
 
 class JsonConverter(json.JSONEncoder):
@@ -1132,17 +1122,13 @@ def is_data_too_wide(
     return col_num > max_col_num
 
 
-def get_files(directory: str, auth: Optional[Dict] = None):
+def get_files(directory: str):
     """List out all the file names under this directory.
 
     Parameters
     ----------
     directory: str
         The directory to list out all the files from.
-    auth: (Dict, optional). Defaults to None.
-        The default authentication is set using `ads.set_auth` API. If you need to override the
-        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-        authentication signer and kwargs required to instantiate IdentityClient object.
 
     Returns
     -------
@@ -1150,25 +1136,21 @@ def get_files(directory: str, auth: Optional[Dict] = None):
         List of the files in the directory.
     """
     directory = directory.rstrip("/")
-    path_scheme = urlparse(directory).scheme or "file"
-    storage_options = auth or authutil.default_signer()
-    model_ignore_path = os.path.join(directory, ".model-ignore")
-    if is_path_exists(model_ignore_path, auth=auth):
-        with fsspec.open(model_ignore_path, "r", **storage_options) as f:
-            ignore_patterns = f.read().strip().split("\n")
+    if os.path.exists(os.path.join(directory, ".model-ignore")):
+        ignore_patterns = (
+            Path(os.path.join(directory), ".model-ignore")
+            .read_text()
+            .strip()
+            .split("\n")
+        )
     else:
         ignore_patterns = []
     file_names = []
-    fs = fsspec.filesystem(path_scheme, **storage_options)
-    for root, dirs, files in fs.walk(directory):
+    for root, dirs, files in os.walk(directory):
         for name in files:
             file_names.append(os.path.join(root, name))
         for name in dirs:
             file_names.append(os.path.join(root, name))
-
-    # return all files in remote directory.
-    if directory.startswith("oci://"):
-        directory = directory.lstrip("oci://")
 
     for ignore in ignore_patterns:
         if not ignore.startswith("#") and ignore.strip() != "":
@@ -1232,7 +1214,7 @@ def copy_from_uri(
     force_overwrite: (bool, optional). Defaults to False.
         Whether to overwrite existing files or not.
     auth: (Dict, optional). Defaults to None.
-        The default authentication is set using `ads.set_auth` API. If you need to override the
+        The default authetication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -1263,13 +1245,12 @@ def copy_from_uri(
             to_path = temp_dir
         else:
             unpack_path = None
-
         fs = fsspec.filesystem(scheme, **auth)
-
-        if not (uri.endswith("/") or fs.isdir(uri)) and os.path.isdir(to_path):
+        try:
+            fs.get(uri, to_path, recursive=True)
+        except IsADirectoryError:
             to_path = os.path.join(to_path, os.path.basename(str(uri).rstrip("/")))
-
-        fs.get(uri, to_path, recursive=True)
+            fs.get(uri, to_path, recursive=True)
 
         if unpack_path:
             shutil.unpack_archive(to_path, unpack_path)
@@ -1298,7 +1279,7 @@ def copy_file(
     force_overwrite: (bool, optional). Defaults to False.
         Whether to overwrite existing files or not.
     auth: (Dict, optional). Defaults to None.
-        The default authentication is set using `ads.set_auth` API. If you need to override the
+        The default authetication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
     chunk_size: (int, optinal). Defaults to `DEFAULT_BUFFER_SIZE`
@@ -1361,7 +1342,7 @@ def remove_file(file_path: str, auth: Optional[Dict] = None) -> None:
     file_path: str
         The path of the source file, which can be local path or OCI object storage URI.
     auth: (Dict, optional). Defaults to None.
-        The default authentication is set using `ads.set_auth` API. If you need to override the
+        The default authetication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 

@@ -5,36 +5,29 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-from typing import Any, Dict
 
 import click
-import fsspec
 import yaml
 
-import ads.opctl.conda.cli
-import ads.opctl.distributed.cli
-import ads.opctl.model.cli
-import ads.opctl.spark.cli
-from ads.common import auth as authutil
 from ads.common.auth import AuthType
 from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import configure as configure_cmd
-from ads.opctl.cmds import deactivate as deactivate_cmd
 from ads.opctl.cmds import delete as delete_cmd
-from ads.opctl.cmds import init as init_cmd
-from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
-from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
-from ads.opctl.config.merger import ConfigMerger
-from ads.opctl.constants import (BACKEND_NAME, DEFAULT_MODEL_FOLDER,
-                                 RESOURCE_TYPE, RUNTIME_TYPE)
+from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
+from ads.opctl.config.merger import ConfigMerger
+from ads.opctl.constants import BACKEND_NAME
+
+import ads.opctl.conda.cli
+import ads.opctl.spark.cli
+import ads.opctl.distributed.cli
 
 
 @click.group("opctl")
@@ -229,42 +222,6 @@ _options = [
         type=click.Choice(["api_key", "resource_principal"]),
         default=None,
     ),
-    click.option(
-        "--wait-for-completion",
-        help="either to wait for process to complete or not",
-        is_flag=True,
-        required=False,
-    ),
-    click.option(
-        "--max-wait-time",
-        help="maximum wait time in seconds for progress to complete",
-        type=int,
-        required=False,
-        default=1200,
-    ),
-    click.option(
-        "--poll-interval",
-        help="poll interval in seconds",
-        type=int,
-        required=False,
-        default=10,
-    ),
-    click.option(
-        "--log-type", help="the type of logging.", required=False, default=None
-    ),
-    click.option(
-        "--log-filter",
-        help="expression for filtering the logs.",
-        required=False,
-        default=None,
-    ),
-    click.option(
-        "--interval",
-        help="log interval in seconds",
-        type=int,
-        required=False,
-        default=3,
-    ),
 ]
 
 
@@ -369,6 +326,7 @@ def add_options(options):
 )
 @click.option(
     "--auto_increment",
+    "-i",
     default=False,
     is_flag=True,
     help="Increments tag of the image while rebuilding",
@@ -399,12 +357,7 @@ def run(file, **kwargs):
     debug = kwargs["debug"]
     if file:
         if os.path.exists(file):
-            auth = {}
-            if kwargs["auth"]:
-                auth = authutil.create_signer(kwargs["auth"])
-            else:
-                auth = authutil.default_signer()
-
+            auth = kwargs["auth"] or authutil.default_signer()
             with fsspec.open(file, "r", **auth) as f:
                 config = suppress_traceback(debug)(yaml.safe_load)(f.read())
         else:
@@ -474,6 +427,12 @@ def cancel(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
+@click.option(
+    "--log_type",
+    default=None,
+    required=False,
+    help="The type of logging.",
+)
 @add_options(_options)
 def watch(**kwargs):
     """
@@ -636,6 +595,5 @@ def predict(**kwargs):
 
 
 commands.add_command(ads.opctl.conda.cli.commands)
-commands.add_command(ads.opctl.model.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)

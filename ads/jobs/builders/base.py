@@ -1,26 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import copy
-from typing import Any, Dict, TypeVar, Type
+from typing import Any, Dict
+
 from ads.jobs.serializer import Serializable
 
 
-Self = TypeVar("Self", bound="Builder")
-"""Special type to represent the current enclosed class.
-
-This type is used by factory class method or when a method returns ``self``.
-"""
-
-
 class Builder(Serializable):
+
     attribute_map = {}
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
-        """To initialize the object,
-        user can either pass in the specification as a dictionary or through keyword arguments.
+        """Initialize the object with specifications.
+
+        User can either pass in the specification as a dictionary or through keyword arguments.
 
         Parameters
         ----------
@@ -47,7 +42,7 @@ class Builder(Serializable):
         """
         return {}
 
-    def _standardize_spec(self, spec) -> dict:
+    def _standardize_spec(self, spec):
         if not spec:
             return {}
         snake_to_camel_map = {v: k for k, v in self.attribute_map.items()}
@@ -56,7 +51,7 @@ class Builder(Serializable):
                 spec[snake_to_camel_map[key]] = spec.pop(key)
         return spec
 
-    def set_spec(self: Self, k: str, v: Any) -> Self:
+    def set_spec(self, k: str, v: Any):
         """Sets a specification property for the object.
 
         Parameters
@@ -68,7 +63,7 @@ class Builder(Serializable):
 
         Returns
         -------
-        Self
+        Builder
             This method returns self to support chaining methods.
         """
         if v is not None:
@@ -137,11 +132,12 @@ class Builder(Serializable):
         return {
             "kind": self.kind,
             "type": self.type,
-            "spec": spec,
+            # "apiVersion": self.api_version,
+            "spec": self._spec,
         }
 
     @classmethod
-    def from_dict(cls: Type[Self], obj_dict: dict) -> Self:
+    def from_dict(cls, obj_dict: dict):
         """Initialize the object from a Python dictionary"""
         return cls(spec=obj_dict.get("spec"))
 
