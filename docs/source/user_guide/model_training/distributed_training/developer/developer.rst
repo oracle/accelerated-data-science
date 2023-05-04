@@ -9,6 +9,7 @@ Build Image
 -----------
 
 .. admonition:: Tip
+    :class: note
 
     Use `-h` option to see options and usage help
 
@@ -73,6 +74,7 @@ Run the container Image on the OCI Data Science or local
 --------------------------------------------------------
 
 .. admonition:: Tip
+    :class: note
 
     Use `-h` option to see options and usage help
 

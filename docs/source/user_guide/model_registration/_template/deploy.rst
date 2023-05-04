@@ -6,7 +6,8 @@ See `API documentation <../../ads.model.html#id1>`__ for more details about the 
 
 
 .. admonition:: Tips
+   :class: note
 
-    * Providing ``deployment_access_log_id`` and ``deployment_predict_log_id`` helps in debugging your model inference setup.
-    * Default Load Balancer configuration has bandwidth of 10 Mbps. `Refer service document to help you choose the right setup. <https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_create.htm>`_ 
-    * Check for supported instance shapes `here <https://docs.oracle.com/en-us/iaas/data-science/using/overview.htm#supported-shapes>`_ .
+   * Providing ``deployment_access_log_id`` and ``deployment_predict_log_id`` helps in debugging your model inference setup.
+   * Default Load Balancer configuration has bandwidth of 10 Mbps. `Refer service document to help you choose the right setup. <https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_create.htm>`_ 
+   * Check for supported instance shapes `here <https://docs.oracle.com/en-us/iaas/data-science/using/overview.htm#supported-shapes>`_ .
