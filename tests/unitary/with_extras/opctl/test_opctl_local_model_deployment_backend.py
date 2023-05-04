@@ -115,17 +115,7 @@ MODEL_PROVENANCE:
                         backend.predict()
                         mock__download.assert_not_called()
                         mock__run_with_conda_pack.assert_called_once_with(
-                            {
-                                os.path.expanduser("~/.oci"): {
-                                    "bind": "/home/datascience/.oci"
-                                },
-                                os.path.expanduser("~/.ads_ops/models/fake_id"): {
-                                    "bind": "/opt/ds/model/deployed_model/"
-                                },
-                            },
-                            "/opt/ds/model/deployed_model/ fake_data",
-                            install=True,
-                            conda_uri="fake_path",
+                            {os.path.expanduser('~/.oci'): {'bind': '/home/datascience/.oci'}, os.path.expanduser('~/.ads_ops/models/fake_id'): {'bind': '/opt/ds/model/deployed_model/'}}, "--artifact-directory /opt/ds/model/deployed_model/ --payload 'fake_data' --auth api_key --profile DEFAULT", install=True, conda_uri='fake_path'
                         )
 
     @patch("ads.opctl.backend.local.os.listdir", return_value=["path"])
@@ -151,7 +141,8 @@ MODEL_PROVENANCE:
                         
                         backend.predict()
                         mock__download.assert_called_once_with(
-                            oci_auth=backend.oci_auth,
+                            auth='api_key',
+                            profile='DEFAULT',
                             ocid="fake_id",
                             artifact_directory=os.path.expanduser(
                                 "~/.ads_ops/models/fake_id"
@@ -162,15 +153,5 @@ MODEL_PROVENANCE:
                             force_overwrite=True,
                         )
                         mock__run_with_conda_pack.assert_called_once_with(
-                            {
-                                os.path.expanduser("~/.oci"): {
-                                    "bind": "/home/datascience/.oci"
-                                },
-                                os.path.expanduser("~/.ads_ops/models/fake_id"): {
-                                    "bind": "/opt/ds/model/deployed_model/"
-                                },
-                            },
-                            "/opt/ds/model/deployed_model/ fake_data",
-                            install=True,
-                            conda_uri="fake_path",
+                            {os.path.expanduser('~/.oci'): {'bind': '/home/datascience/.oci'}, os.path.expanduser('~/.ads_ops/models/fake_id'): {'bind': '/opt/ds/model/deployed_model/'}}, "--artifact-directory /opt/ds/model/deployed_model/ --payload 'fake_data' --auth api_key --profile DEFAULT", install=True, conda_uri='fake_path'
                         )

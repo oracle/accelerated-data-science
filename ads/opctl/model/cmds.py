@@ -49,12 +49,14 @@ def download_model(**kwargs):
 
 
 def _download_model(
-    ocid, artifact_directory, region, bucket_uri, timeout, force_overwrite, auth, profile
+    ocid, artifact_directory, region, bucket_uri, timeout, force_overwrite, auth, profile=None
 ):
     os.makedirs(artifact_directory, exist_ok=True)
-
+    kwargs = {"auth": auth}
+    if profile:
+        kwargs["profile"] = profile
     try:
-        with AuthContext(auth=auth, profile=profile):
+        with AuthContext(**kwargs):
             dsc_model = DataScienceModel.from_id(ocid)
             dsc_model.download_artifact(
                 target_dir=artifact_directory,
