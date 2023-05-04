@@ -23,12 +23,12 @@ try:
     # This is used by ADS and testing
     from . import driver_utils
     from .driver_oci import GitSSHKey, GitManager
-    from .oci_metrics import collect_metrics
+    from .oci_metrics import collect_metrics, METRIC_NAMESPACE
 except ImportError:
     # This is used when the script is in a job run.
     import driver_utils
     from driver_oci import GitSSHKey, GitManager
-    from oci_metrics import collect_metrics
+    from oci_metrics import collect_metrics, METRIC_NAMESPACE
 
 logger = logging.getLogger(__name__)
 logger = driver_utils.set_log_level(logger)
@@ -208,7 +208,8 @@ def main():
 
 
 if __name__ == "__main__":
-    p = multiprocessing.Process(target=collect_metrics)
-    p.daemon = True
-    p.start()
+    if METRIC_NAMESPACE:
+        p = multiprocessing.Process(target=collect_metrics)
+        p.daemon = True
+        p.start()
     main()
