@@ -8,30 +8,34 @@ import copy
 import datetime
 import logging
 import os
+import traceback
+from typing import Any, Dict, List, Optional
+
 import fsspec
 import oci
-from typing import Any, Dict, List, Optional
-from ads.common.oci_datascience import OCIDataScienceMixin
+import oci.util as oci_util
+
+from ads.common import utils
+from ads.common.oci_datascience import DSCNotebookSession, OCIDataScienceMixin
 from ads.common.oci_logging import OCILog
 from ads.common.oci_resource import ResourceNotFoundError
-from ads.common import utils
+from ads.config import COMPARTMENT_OCID, NB_SESSION_OCID, PROJECT_OCID
 from ads.jobs.builders.base import Builder
-from ads.jobs.builders.infrastructure.dsc_job import DSCJob, DataScienceJob
+from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob, DSCJob
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     DataScienceJobRuntimeManager,
 )
 from ads.jobs.builders.runtimes.artifact import Artifact
-from ads.pipeline.ads_pipeline_step import PipelineStep
-from ads.pipeline.ads_pipeline_run import PipelineRun
-from ads.pipeline.visualizer.base import PipelineVisualizer, GraphOrientation
-from ads.pipeline.visualizer.graph_renderer import PipelineGraphRenderer
 from ads.jobs.builders.runtimes.python_runtime import (
-    CondaRuntime,
-    ScriptRuntime,
-    PythonRuntime,
-    NotebookRuntime,
     GitPythonRuntime,
+    NotebookRuntime,
+    PythonRuntime,
+    ScriptRuntime,
 )
+from ads.pipeline.ads_pipeline_run import PipelineRun
+from ads.pipeline.ads_pipeline_step import PipelineStep
+from ads.pipeline.visualizer.base import GraphOrientation, PipelineVisualizer
+from ads.pipeline.visualizer.graph_renderer import PipelineGraphRenderer
 
 logger = logging.getLogger(__name__)
 
@@ -354,6 +358,46 @@ class Pipeline(Builder):
             self.with_dag(spec.get("dag"))
         self.data_science_pipeline = None
         self.service_logging = None
+
+    def _load_default_properties(self) -> Dict:
+        """Load default properties from environment variables, notebook session, etc.
+
+        Returns
+        -------
+        Dict
+            A dictionary of default properties.
+        """
+        defaults = super()._load_default_properties()
+        if COMPARTMENT_OCID:
+            defaults[self.CONST_COMPARTMENT_ID] = COMPARTMENT_OCID
+        if PROJECT_OCID:
+            defaults[self.CONST_PROJECT_ID] = PROJECT_OCID
+
+        if NB_SESSION_OCID:
+            try:
+                nb_session = DSCNotebookSession.from_ocid(NB_SESSION_OCID)
+                nb_config = nb_session.notebook_session_configuration_details
+                defaults[self.CONST_SHAPE_NAME] = nb_config.shape
+                defaults[
+                    self.CONST_BLOCK_STORAGE_SIZE
+                ] = nb_config.block_storage_size_in_gbs
+
+                if nb_config.notebook_session_shape_config_details:
+                    notebook_shape_config_details = oci_util.to_dict(
+                        nb_config.notebook_session_shape_config_details
+                    )
+                    defaults[self.CONST_SHAPE_CONFIG_DETAILS] = copy.deepcopy(
+                        notebook_shape_config_details
+                    )
+
+            except Exception as e:
+                logger.warning(
+                    f"Error fetching details about Notebook "
+                    f"session: {NB_SESSION_OCID}. {e}"
+                )
+                logger.debug(traceback.format_exc())
+
+        return defaults
 
     @property
     def kind(self) -> str:
@@ -963,7 +1007,7 @@ class Pipeline(Builder):
         """
         return self.get_spec(self.CONST_SERVICE_LOG_ID)
 
-    def to_dict(self) -> dict:
+    def to_dict(self, **kwargs) -> dict:
         """Serializes the pipeline specifications to a dictionary.
 
         Returns
@@ -971,7 +1015,7 @@ class Pipeline(Builder):
         dict
             A dictionary containing pipeline specifications.
         """
-        dict_details = copy.deepcopy(super().to_dict())
+        dict_details = copy.deepcopy(super().to_dict(**kwargs))
         dict_details["spec"][self.CONST_DAG] = self.get_spec(self.CONST_DAG)
 
         step_details_list = []
@@ -1936,6 +1980,21 @@ class Pipeline(Builder):
         if self.data_science_pipeline:
             return self.data_science_pipeline.lifecycle_state
         return None
+
+    def init(self) -> "Pipeline":
+        """Initializes a starter specification for the Pipeline.
+
+        Returns
+        -------
+        Pipeline
+            The Pipeline instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_project_id(self.project_id or "{Provide a project OCID}")
+        )
+
 
 
 class DataSciencePipeline(OCIDataScienceMixin, oci.data_science.models.Pipeline):

@@ -122,13 +122,8 @@ def _set_test_mode(mode=False):
 
 
 def hello():
-    """
-    Imports Pandas, sets the documentation mode, and prints a fancy "Hello".
-    """
-    import pandas
-
-    global documentation_mode
-    global debug_mode
+    import oci
+    import ocifs
 
     print(
         f"""
@@ -139,11 +134,11 @@ o---o|   O o-o
 |   ||  /     |
 o   oo-o  o--o
 
-ADS SDK version: {__version__}
-Pandas version: {pandas.__version__}
-Debug mode: {debug_mode}
-"""
-    )
+ads v{__version__}
+oci v{oci.__version__}
+ocifs v{ocifs.__version__}
+
+""")
 
 
 configure_plotting()

@@ -36,6 +36,10 @@ extensions = [
     "nbsphinx",
     "sphinx_code_tabs",
     "sphinx_copybutton",
+    "sphinx.ext.duration",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.viewcode",
     "sphinx_autorun",
 ]
 

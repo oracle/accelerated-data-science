@@ -101,7 +101,7 @@ DIMENSION = 2
 # declare custom exception class
 
 
-class FileOverwriteError(Exception):
+class FileOverwriteError(Exception):   # pragma: no cover
     pass
 
 
@@ -495,9 +495,7 @@ def print_user_message(
         )
 
     if is_documentation_mode() and is_notebook():
-
         if display_type.lower() == "tip":
-
             if "\n" in msg:
                 t = "<b>{}:</b>".format(title.upper().strip()) if title else ""
 
@@ -567,7 +565,6 @@ def print_user_message(
             )
 
         elif display_type.startswith("info"):
-
             user_message = msg.strip().replace("\n", "<br>")
 
             if see_also_links:
@@ -640,7 +637,6 @@ def ellipsis_strings(raw, n=24):
 
     result = []
     for s in sequence:
-
         if len(str(s)) <= n:
             result.append(s)
         else:
@@ -1136,13 +1132,17 @@ def is_data_too_wide(
     return col_num > max_col_num
 
 
-def get_files(directory: str):
+def get_files(directory: str, auth: Optional[Dict] = None):
     """List out all the file names under this directory.
 
     Parameters
     ----------
     directory: str
         The directory to list out all the files from.
+    auth: (Dict, optional). Defaults to None.
+        The default authentication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
 
     Returns
     -------
@@ -1150,21 +1150,25 @@ def get_files(directory: str):
         List of the files in the directory.
     """
     directory = directory.rstrip("/")
-    if os.path.exists(os.path.join(directory, ".model-ignore")):
-        ignore_patterns = (
-            Path(os.path.join(directory), ".model-ignore")
-            .read_text()
-            .strip()
-            .split("\n")
-        )
+    path_scheme = urlparse(directory).scheme or "file"
+    storage_options = auth or authutil.default_signer()
+    model_ignore_path = os.path.join(directory, ".model-ignore")
+    if is_path_exists(model_ignore_path, auth=auth):
+        with fsspec.open(model_ignore_path, "r", **storage_options) as f:
+            ignore_patterns = f.read().strip().split("\n")
     else:
         ignore_patterns = []
     file_names = []
-    for root, dirs, files in os.walk(directory):
+    fs = fsspec.filesystem(path_scheme, **storage_options)
+    for root, dirs, files in fs.walk(directory):
         for name in files:
             file_names.append(os.path.join(root, name))
         for name in dirs:
             file_names.append(os.path.join(root, name))
+
+    # return all files in remote directory.
+    if directory.startswith("oci://"):
+        directory = directory.lstrip("oci://")
 
     for ignore in ignore_patterns:
         if not ignore.startswith("#") and ignore.strip() != "":
@@ -1228,7 +1232,7 @@ def copy_from_uri(
     force_overwrite: (bool, optional). Defaults to False.
         Whether to overwrite existing files or not.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -1294,7 +1298,7 @@ def copy_file(
     force_overwrite: (bool, optional). Defaults to False.
         Whether to overwrite existing files or not.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
     chunk_size: (int, optinal). Defaults to `DEFAULT_BUFFER_SIZE`
@@ -1357,7 +1361,7 @@ def remove_file(file_path: str, auth: Optional[Dict] = None) -> None:
     file_path: str
         The path of the source file, which can be local path or OCI object storage URI.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -1570,3 +1574,26 @@ def extract_region(auth: Optional[Dict] = None) -> Union[str, None]:
         pass
 
     return None
+
+
+def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
+    """Check if the given path which can be local path or OCI object storage URI exists.
+
+    Parameters
+    ----------
+    uri: str
+        The URI of the target, which can be local path or OCI object storage URI.
+    auth: (Dict, optional). Defaults to None.
+        The default authentication is set using `ads.set_auth` API. If you need to override the
+        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+        authentication signer and kwargs required to instantiate IdentityClient object.
+
+    Returns
+    -------
+    bool: return True if the path exists.
+    """
+    path_scheme = urlparse(uri).scheme or "file"
+    storage_options = auth or authutil.default_signer()
+    if fsspec.filesystem(path_scheme, **storage_options).exists(uri):
+        return True
+    return False

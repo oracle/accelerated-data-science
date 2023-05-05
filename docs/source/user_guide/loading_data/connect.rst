@@ -526,34 +526,34 @@ To load a dataframe from a remote web server source, use ``pandas`` directly and
 Convert Pandas DataFrame to ``ADSDataset``
 ==========================================
 
-To convert a Pandas dataframe to ``ADSDataset``, pass the ``pandas.DataFrame`` object directly into the ADS ``DatasetFactory.open`` method:
+To convert a Pandas dataframe to ``ADSDataset``, pass the ``pandas.DataFrame`` object directly into the ADS ``ADSDataset`` constructor or ``ADSDataset.from_dataframe()`` method:
 
 .. code-block:: python3
 
   import pandas as pd
-  from ads.dataset.factory import DatasetFactory
+  from ads.dataset.dataset import ADSDataset
 
   df = pd.read_csv('/path/some_data.csv) # load data with Pandas
 
   # use open...
 
-  ds = DatasetFactory.open(df) # construct **ADS** Dataset from DataFrame
+  ds = ADSDataset(df) # construct **ADS** Dataset from DataFrame
 
   # alternative form...
 
-  ds = DatasetFactory.from_dataframe(df)
+  ds = ADSDataset.from_dataframe(df)
 
   # an example using Pandas to parse data on the clipboard as a CSV and construct an ADS Dataset object
   # this allows easily transfering data from an application like Microsoft Excel, Apple Numbers, etc.
 
-  ds = DatasetFactory.from_dataframe(pd.read_clipboard())
+  ds = ADSDataset.from_dataframe(pd.read_clipboard())
 
   # use Pandas to query a SQL database:
 
   from sqlalchemy import create_engine
   engine = create_engine('dialect://user:pass@host:port/schema', echo=False)
   df = pd.read_sql_query('SELECT * FROM mytable', engine, index_col = 'ID')
-  ds = DatasetFactory.from_dataframe(df)
+  ds = ADSDataset.from_dataframe(df)
 
 
 Using ``PyArrow``

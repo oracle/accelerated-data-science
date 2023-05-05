@@ -15,7 +15,7 @@ from ads.common import auth as authutil
 from ads.common import oci_client
 
 
-class InvalidObjectStoragePath(Exception):
+class InvalidObjectStoragePath(Exception):   # pragma: no cover
     """Invalid Object Storage Path."""
 
     pass
@@ -121,3 +121,20 @@ class ObjectStorageDetails:
                 "It must follow the pattern `oci://<bucket_name>@<namespace>/<prefix>`."
             )
         return True
+
+    @staticmethod
+    def is_oci_path(uri: str = None) -> bool:
+        """Check if the given path is oci object storage uri.
+
+        Parameters
+        ----------
+        uri: str
+            The URI of the target.
+
+        Returns
+        -------
+        bool: return True if the path is oci object storage uri.
+        """
+        if not uri:
+            return False
+        return uri.startswith("oci://")

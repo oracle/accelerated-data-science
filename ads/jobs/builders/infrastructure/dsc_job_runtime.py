@@ -38,7 +38,7 @@ from ads.jobs.builders.runtimes.artifact import (
 from ads.jobs.builders.infrastructure.utils import get_value
 
 
-class IncompatibleRuntime(Exception):
+class IncompatibleRuntime(Exception):  # pragma: no cover
     """Represents an exception when runtime is not compatible with the OCI data science job configuration.
     This exception is designed to be raised during the extraction of a runtime from OCI data science job.
     The data science job does not explicitly contain information of the type of the ADS runtime.
@@ -104,6 +104,8 @@ class RuntimeHandler:
         payload["job_configuration_details"] = self._translate_config(runtime)
         if runtime.freeform_tags:
             payload["freeform_tags"] = runtime.freeform_tags
+        if runtime.defined_tags:
+            payload["defined_tags"] = runtime.defined_tags
         self.data_science_job.runtime = runtime
         return payload
 
@@ -353,10 +355,14 @@ class RuntimeHandler:
         dict
             A runtime specification dictionary for initializing a runtime.
         """
+        tags = {}
         value = get_value(dsc_job, "freeform_tags")
         if value:
-            return {Runtime.CONST_TAG: value}
-        return {}
+            tags[Runtime.CONST_FREEFORM_TAGS] = value
+        value = get_value(dsc_job, "defined_tags")
+        if value:
+            tags[Runtime.CONST_DEFINED_TAGS] = value
+        return tags
 
     def _extract_artifact(self, dsc_job):
         """Extract the job artifact from data science job.

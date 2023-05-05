@@ -1,0 +1,42 @@
+kind:
+  allowed:
+    - runtime
+  required: true
+  type: string
+type:
+  allowed:
+    - dataFlow
+  required: true
+  type: string
+spec:
+  type: dict
+  required: true
+  schema:
+    archiveBucket:
+      type: string
+    archiveUri:
+      type: string
+    args:
+      schema:
+        type: string
+      type: list
+    conda:
+      type: dict
+      required: false
+      schema:
+        slug:
+          type: string
+        type:
+          allowed:
+            - service
+          required: true
+          type: string
+    env:
+      required: false
+      schema:
+        type: dict
+      type: list
+    scriptBucket:
+      type: string
+    scriptPathURI:
+      type: string

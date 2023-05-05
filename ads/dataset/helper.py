@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import ast
@@ -832,3 +832,20 @@ def _log_yscale_not_set():
     logger.info(
         "`yscale` parameter is not set. Valid values are `'linear'`, `'log'`, `'symlog'`."
     )
+
+def infer_target_type(target, target_series, discover_target_type=True):
+    # if type discovery is turned off, infer type from pandas dtype
+    if discover_target_type:
+        target_type = TypeDiscoveryDriver().discover(
+            target, target_series, is_target=True
+        )
+    else:
+        target_type = get_feature_type(target, target_series)
+    return target_type
+
+def get_target_type(target, sampled_df, **init_kwargs):
+    discover_target_type = init_kwargs.get("type_discovery", True)
+    if target in init_kwargs.get("types", {}):
+        sampled_df[target] = sampled_df[target].astype(init_kwargs.get("types")[target])
+        discover_target_type = False
+    return infer_target_type(target, sampled_df[target], discover_target_type)

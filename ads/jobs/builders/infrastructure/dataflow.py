@@ -31,10 +31,17 @@ from ads.model.runtime.env_info import InferenceEnvInfo
 from oci.data_flow.models import CreateApplicationDetails, CreateRunDetails
 from tqdm import tqdm
 
+from ads.config import NB_SESSION_COMPARTMENT_OCID, NB_SESSION_OCID
+
 logger = logging.getLogger(__name__)
 
 CONDA_PACK_SUFFIX = "#conda"
 SLEEP_INTERVAL = 3
+
+DEFAULT_LANGUAGE = "PYTHON"
+DEFAULT_SPARK_VERSION = "3.2.1"
+DEFAULT_NUM_EXECUTORS = 1
+DEFAULT_SHAPE = "VM.Standard.E3.Flex"
 
 
 def conda_pack_name_to_dataflow_config(conda_uri):
@@ -360,7 +367,6 @@ class DataFlowLogs:
 
 
 class DataFlow(Infrastructure):
-
     CONST_COMPARTMENT_ID = "compartment_id"
     CONST_CONFIG = "configuration"
     CONST_EXECUTE = "execute"
@@ -417,8 +423,7 @@ class DataFlow(Infrastructure):
         self.runtime = None
         self._name = None
 
-    @staticmethod
-    def _load_default_properties() -> dict:
+    def _load_default_properties(self) -> Dict:
         """
         Load default properties from environment variables, notebook session, etc.
 
@@ -428,30 +433,33 @@ class DataFlow(Infrastructure):
             a dictionary of default properties
         """
         defaults = {}
-        if "NB_SESSION_COMPARTMENT_OCID" in os.environ:
-            defaults["compartment_id"] = os.environ["NB_SESSION_COMPARTMENT_OCID"]
-        if "NB_SESSION_OCID" in os.environ:
+        if NB_SESSION_COMPARTMENT_OCID:
+            defaults[self.CONST_COMPARTMENT_ID] = NB_SESSION_COMPARTMENT_OCID
+        if NB_SESSION_OCID:
             dsc_client = OCIClientFactory(**default_signer()).data_science
             try:
-                nb_session = dsc_client.get_notebook_session(
-                    os.environ["NB_SESSION_OCID"]
-                ).data
+                nb_session = dsc_client.get_notebook_session(NB_SESSION_OCID).data
                 nb_config = nb_session.notebook_session_configuration_details
-                defaults["driver_shape"] = nb_config.shape
+
+                defaults[self.CONST_DRIVER_SHAPE] = nb_config.shape
                 logger.debug(f"Set driver shape to {nb_config.shape}")
-                defaults["executor_shape"] = nb_config.shape
+
+                defaults[self.CONST_EXECUTOR_SHAPE] = nb_config.shape
                 logger.debug(f"Set executor shape to {nb_config.shape}")
+
                 if nb_config.notebook_session_shape_config_details:
                     notebook_shape_config_details = oci_util.to_dict(
                         nb_config.notebook_session_shape_config_details
                     )
-                    defaults["driver_shape_config"] = copy.deepcopy(
+
+                    defaults[self.CONST_DRIVER_SHAPE_CONFIG] = copy.deepcopy(
                         notebook_shape_config_details
                     )
                     logger.debug(
                         f"Set driver shape config to {nb_config.notebook_session_shape_config_details}"
                     )
-                    defaults["executor_shape_config"] = copy.deepcopy(
+
+                    defaults[self.CONST_EXECUTOR_SHAPE_CONFIG] = copy.deepcopy(
                         notebook_shape_config_details
                     )
                     logger.debug(
@@ -463,11 +471,13 @@ class DataFlow(Infrastructure):
                     f"Error fetching details about Notebook session: {os.environ['NB_SESSION_OCID']}. {e}"
                 )
 
-        defaults["language"] = "PYTHON"
-        defaults["spark_version"] = "3.2.1"
-        defaults["num_executors"] = 1
-        logger.debug("Set spark version to be 3.2.1.")
-        logger.debug("Set number of executors to be 1.")
+        defaults["language"] = DEFAULT_LANGUAGE
+        defaults["spark_version"] = DEFAULT_SPARK_VERSION
+        defaults["num_executors"] = DEFAULT_NUM_EXECUTORS
+
+        logger.debug(f"Set spark version to be {defaults['spark_version']}")
+        logger.debug(f"Set number of executors to be {defaults['num_executors']}")
+
         return defaults
 
     @property
@@ -1034,7 +1044,7 @@ class DataFlow(Infrastructure):
             for job in DataFlowApp.list_resource(compartment_id, **kwargs)
         ]
 
-    def to_dict(self) -> dict:
+    def to_dict(self, **kwargs) -> dict:
         """
         Serialize job to a dictionary.
 
@@ -1113,7 +1123,7 @@ class DataFlow(Infrastructure):
                 spec[shape_config] = copy.deepcopy(temp_maps)
         return spec
 
-    def to_yaml(self) -> str:
+    def to_yaml(self, **kwargs) -> str:
         """Serializes the object into YAML string.
 
         Returns
@@ -1121,4 +1131,22 @@ class DataFlow(Infrastructure):
         str
             YAML stored in a string.
         """
-        return yaml.safe_dump(self.to_dict())
+        return yaml.safe_dump(self.to_dict(**kwargs))
+
+    def init(self) -> "DataFlow":
+        """Initializes a starter specification for the DataFlow.
+
+        Returns
+        -------
+        DataFlow
+            The DataFlow instance (self)
+        """
+        return (
+            self.build()
+            .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
+            .with_language(self.language or DEFAULT_LANGUAGE)
+            .with_spark_version(self.spark_version or DEFAULT_SPARK_VERSION)
+            .with_num_executors(self.num_executors or DEFAULT_NUM_EXECUTORS)
+            .with_driver_shape(self.driver_shape or DEFAULT_SHAPE)
+            .with_executor_shape(self.executor_shape or DEFAULT_SHAPE)
+        )

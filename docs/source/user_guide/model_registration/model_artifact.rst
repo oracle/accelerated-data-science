@@ -30,6 +30,7 @@ Auto generation of ``score.py`` with framework specific code for loading models 
 
 To accomodate for other frameworks that are unknown to ADS, a template code for ``score.py`` is generated in the provided artificat directory location.
 
+
 Prepare the Model Artifact
 --------------------------
 
@@ -98,8 +99,25 @@ ADS automatically captures:
 *  ``UseCaseType`` in ``metadata_taxonomy`` cannot be automatically populated. One way to populate the use case is to pass ``use_case_type`` to the ``prepare`` method.
 *  Model introspection is automatically triggered.
 
-.. include:: _template/score.rst
+Prepare with custom ``score.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. versionadded:: 2.8.4
+
+You could provide the location of your own ``score.py`` by ``score_py_uri`` in :py:meth:`~ads.model.GenericModel.prepare`.
+The provided ``score.py`` will be added into model artifact.
+
+.. code-block:: python3
+
+    tf_model.prepare(
+        inference_conda_env="generalml_p38_cpu_v1",
+        use_case_type=UseCaseType.MULTINOMIAL_CLASSIFICATION,
+        X_sample=trainx,
+        y_sample=trainy,
+        score_py_uri="/path/to/score.py"
+    )
+
+.. include:: _template/score.rst
 
 Model Introspection
 -------------------

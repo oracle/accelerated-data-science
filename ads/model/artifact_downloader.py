@@ -56,7 +56,7 @@ class ArtifactDownloader(ABC):
         ValueError
             If target directory does not exist.
         """
-        if os.path.exists(self.target_dir):
+        if os.path.exists(self.target_dir) and len(os.listdir(self.target_dir)) > 0:
             if not self.force_overwrite:
                 raise ValueError(
                     f"The `{self.target_dir}` directory already exists. "

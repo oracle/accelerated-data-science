@@ -24,17 +24,17 @@ from oci.data_labeling_service_dataplane.models.annotation import (
 from oci.exceptions import ServiceError
 
 
-class ReadAnnotationError(Exception):
+class ReadAnnotationError(Exception):   # pragma: no cover
     def __init__(self, id: str):
         super().__init__(f"Error occurred in attempt to read annotation {id}.")
 
 
-class AnnotationNotFoundError(Exception):
+class AnnotationNotFoundError(Exception):   # pragma: no cover
     def __init__(self, id: str):
         super().__init__(f"{id} not found.")
 
 
-class DLSRecordParser(Parser):
+class DLSRecordParser(Parser):   # pragma: no cover
     """DLSRecordParser class which parses the labels from the record."""
 
     def __init__(

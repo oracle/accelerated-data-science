@@ -21,6 +21,7 @@ from ads.common import auth as authutil
 from ads.common import logger, utils
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM, get_files
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import (
     CONDA_BUCKET_NS,
     JOB_RUN_COMPARTMENT_OCID,
@@ -135,7 +136,7 @@ class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):
+class NotActiveDeploymentError(Exception):   # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -144,15 +145,15 @@ class NotActiveDeploymentError(Exception):
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):
+class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):
+class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):
+class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
     pass
 
 
@@ -169,6 +170,9 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     str
         The artifact dir.
     """
+    if artifact_dir and ObjectStorageDetails.is_oci_path(artifact_dir):
+        return artifact_dir
+
     if artifact_dir and isinstance(artifact_dir, str):
         return os.path.abspath(os.path.expanduser(artifact_dir))
 
@@ -344,6 +348,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model_input_serializer: (SERDE or str, optional). Defaults to None.
             Instance of ads.model.SERDE. Used for serialize/deserialize model input.
         """
+        if (
+            artifact_dir
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
+            and not self._PREFIX == "spark"
+        ):
+            raise ValueError(
+                f"Unsupported value of `artifact_dir`: {artifact_dir}. "
+                "Only SparkPipelineModel framework supports object storage path as `artifact_dir`."
+            )
 
         self.estimator = estimator
         self.auth = auth or authutil.default_signer()
@@ -357,7 +370,19 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
 
         self.model_file_name = None
-        self.artifact_dir = _prepare_artifact_dir(artifact_dir)
+        self.artifact_dir = (
+            artifact_dir
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else _prepare_artifact_dir(artifact_dir)
+        )
+        self.local_copy_dir = (
+            _prepare_artifact_dir()
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else self.artifact_dir
+        )
+        if ObjectStorageDetails.is_oci_path(self.artifact_dir):
+            os.environ["OCI_DEPLOYMENT_PATH"] = self.artifact_dir
+
         self.model_artifact = None
         self.framework = None
         self.algorithm = None
@@ -683,13 +708,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     def _check_model_file(self, model_file_name, force_overwrite):
         model_path = os.path.join(self.artifact_dir, model_file_name)
-
-        if os.path.exists(model_path) and not force_overwrite:
+        if utils.is_path_exists(uri=model_path, auth=self.auth) and not force_overwrite:
             raise ValueError(
                 f"The {model_path} already exists, set force_overwrite to True if you wish to overwrite."
             )
-
-        os.makedirs(self.artifact_dir, exist_ok=True)
+        if not ObjectStorageDetails.is_oci_path(self.artifact_dir):
+            os.makedirs(self.artifact_dir, exist_ok=True)
         return model_path
 
     def _handle_model_file_name(self, as_onnx: bool, model_file_name: str = None):
@@ -789,6 +813,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ignore_pending_changes: bool = True,
         max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
         ignore_conda_error: bool = False,
+        score_py_uri: str = None,
         **kwargs: Dict,
     ) -> "GenericModel":
         """Prepare and save the score.py, serialized model and runtime.yaml file.
@@ -841,6 +866,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             number of features(columns).
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
+        score_py_uri: (str, optional). Defaults to None.
+            The uri of the customized score.py, which can be local path or OCI object storage URI.
+            When provide with this attibute, the `score.py` will not be auto generated, and the
+            provided `score.py` will be added into artifact_dir.
         kwargs:
             impute_values: (dict, optional).
                 The dictionary where the key is the column index(or names is accepted
@@ -912,20 +941,22 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ):
             raise ValueError("The `model_file_name` needs to be provided.")
 
-        os.makedirs(self.artifact_dir, exist_ok=True)
+        if not ObjectStorageDetails.is_oci_path(self.artifact_dir):
+            os.makedirs(self.artifact_dir, exist_ok=True)
 
         # Bring in .model-ignore file
-        shutil.copyfile(
-            os.path.join(
-                os.path.dirname(os.path.realpath(__file__)),
-                "common/.model-ignore",
-            ),
-            os.path.join(self.artifact_dir, ".model-ignore"),
+        uri_src = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "common/.model-ignore",
         )
+        uri_dst = os.path.join(self.artifact_dir, ".model-ignore")
+        utils.copy_file(uri_src=uri_src, uri_dst=uri_dst, force_overwrite=True)
 
         self.model_artifact = ModelArtifact(
             artifact_dir=self.artifact_dir,
             model_file_name=self.model_file_name,
+            auth=self.auth,
+            local_copy_dir=self.local_copy_dir,
         )
         self.runtime_info = self.model_artifact.prepare_runtime_yaml(
             inference_conda_env=self.properties.inference_conda_env,
@@ -962,8 +993,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                     detail="Serialized model", status=ModelState.DONE.value
                 )
             except SerializeModelNotImplementedError as e:
-                if not os.path.exists(
-                    os.path.join(self.artifact_dir, self.model_file_name)
+                if not utils.is_path_exists(
+                    uri=os.path.join(self.artifact_dir, self.model_file_name),
+                    auth=self.auth,
                 ):
                     self._summary_status.update_action(
                         detail="Serialized model",
@@ -1001,13 +1033,23 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 jinja_template_filename = (
                     "score-pkl" if self._serialize else "score_generic"
                 )
-        self.model_artifact.prepare_score_py(
-            jinja_template_filename=jinja_template_filename,
-            model_file_name=self.model_file_name,
-            data_deserializer=self.model_input_serializer.name,
-            model_serializer=self.model_save_serializer.name,
-            **{**kwargs, **self._score_args},
-        )
+
+        if score_py_uri:
+            utils.copy_file(
+                uri_src=score_py_uri,
+                uri_dst=os.path.join(self.artifact_dir, "score.py"),
+                force_overwrite=force_overwrite,
+                auth=self.auth,
+            )
+        else:
+            self.model_artifact.prepare_score_py(
+                jinja_template_filename=jinja_template_filename,
+                model_file_name=self.model_file_name,
+                data_deserializer=self.model_input_serializer.name,
+                model_serializer=self.model_save_serializer.name,
+                auth=self.auth,
+                **{**kwargs, **self._score_args},
+            )
 
         self._summary_status.update_status(
             detail="Generated score.py", status=ModelState.DONE.value
@@ -1022,6 +1064,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             ignore_pending_changes=ignore_pending_changes,
             max_col_num=max_col_num,
             ignore_conda_error=self.ignore_conda_error,
+            auth=self.auth,
         )
 
         self._summary_status.update_status(
@@ -1283,12 +1326,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ValueError
             If `model_file_name` not provided.
         """
+        if (
+            cls._PREFIX is not "spark"
+            and artifact_dir
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
+        ):
+            raise ValueError(
+                f"Unsupported value of `artifact_dir`: {artifact_dir}. "
+                "Only SparkPipelineModel framework supports object storage path as artifact_dir."
+            )
 
         local_vars = _extract_locals(locals())
         properties = properties or ModelProperties()
         properties.with_dict(local_vars)
-        artifact_dir = _prepare_artifact_dir(artifact_dir)
         auth = auth or authutil.default_signer()
+        artifact_dir = _prepare_artifact_dir(artifact_dir)
         model_artifact = ModelArtifact.from_uri(
             uri=uri,
             artifact_dir=artifact_dir,
@@ -1305,6 +1357,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             **kwargs,
         )
         model.model_file_name = model_file_name or model_artifact.model_file_name
+        model.local_copy_dir = model_artifact.local_copy_dir
         model.model_artifact = model_artifact
         model.ignore_conda_error = ignore_conda_error
         model.reload_runtime_info()
@@ -1380,6 +1433,16 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         Self
             An instance of GenericModel class.
         """
+        if (
+            cls._PREFIX is not "spark"
+            and artifact_dir
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
+        ):
+            raise ValueError(
+                f"Unsupported value of `artifact_dir`: {artifact_dir}. "
+                "Only SparkPipelineModel framework supports object storage path as artifact_dir."
+            )
+
         local_vars = _extract_locals(locals())
         properties = properties or ModelProperties()
         properties.with_dict(local_vars)
@@ -1387,9 +1450,17 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         auth = auth or authutil.default_signer()
         artifact_dir = _prepare_artifact_dir(artifact_dir)
 
+        target_dir = (
+            artifact_dir
+            if not ObjectStorageDetails.is_oci_path(artifact_dir)
+            else tempfile.mkdtemp()
+        )
+        bucket_uri = bucket_uri or (
+            artifact_dir if ObjectStorageDetails.is_oci_path(artifact_dir) else None
+        )
         dsc_model = DataScienceModel.from_id(model_id)
         dsc_model.download_artifact(
-            target_dir=artifact_dir,
+            target_dir=target_dir,
             force_overwrite=force_overwrite,
             bucket_uri=bucket_uri,
             remove_existing_artifact=remove_existing_artifact,
@@ -1398,7 +1469,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             timeout=kwargs.pop("timeout", None),
         )
         result_model = cls.from_model_artifact(
-            uri=artifact_dir,
+            uri=target_dir,
             model_file_name=model_file_name,
             artifact_dir=artifact_dir,
             auth=auth,
@@ -1484,6 +1555,16 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         Self
             An instance of GenericModel class.
         """
+        if (
+            cls._PREFIX is not "spark"
+            and artifact_dir
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
+        ):
+            raise ValueError(
+                f"Unsupported value of `artifact_dir`: {artifact_dir}. "
+                "Only SparkPipelineModel framework supports object storage path as `artifact_dir`."
+            )
+
         model_deployment = ModelDeployer(config=auth).get_model_deployment(
             model_deployment_id=model_deployment_id
         )
@@ -1689,7 +1770,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         """
         # reload runtime.yaml
         runtime_yaml_file = os.path.join(self.artifact_dir, "runtime.yaml")
-        if not os.path.exists(runtime_yaml_file):
+        if not utils.is_path_exists(runtime_yaml_file, auth=self.auth):
             if self.ignore_conda_error:
                 return self.runtime_info
             else:
@@ -1697,7 +1778,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                     f"`runtime.yaml` does not exist in {self.artifact_dir}. "
                     "Use `RuntimeInfo` class to populate it."
                 )
-        self.runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
+        self.runtime_info = RuntimeInfo.from_yaml(
+            uri=runtime_yaml_file, storage_options=self.auth or {}
+        )
 
     def reload(self) -> "GenericModel":
         """Reloads the model artifact files: `score.py` and the `runtime.yaml`.
@@ -1797,7 +1880,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         # check if the runtime_info sync with the runtime.yaml.
         try:
-            runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
+            runtime_file_path = os.path.join(self.local_copy_dir, "runtime.yaml")
             runtime_info_from_yaml = RuntimeInfo.from_yaml(uri=runtime_file_path)
             if self.runtime_info != runtime_info_from_yaml:
                 raise RuntimeInfoInconsistencyError(
@@ -1848,7 +1931,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_description(description)
             .with_freeform_tags(**(freeform_tags or {}))
             .with_defined_tags(**(defined_tags or {}))
-            .with_artifact(self.artifact_dir)
+            .with_artifact(self.local_copy_dir)
             .with_model_version_set_id(model_version_set_id)
             .with_version_label(version_label)
         ).create(
@@ -1880,7 +1963,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         List
             List of the files in the artifact_dir.
         """
-        return get_files(self.artifact_dir)
+        return get_files(self.artifact_dir, auth=self.auth)
 
     def deploy(
         self,
@@ -1888,6 +1971,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         display_name: Optional[str] = None,
         description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -1936,6 +2020,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2069,6 +2155,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_shape_name(
                 self.properties.deployment_instance_shape
                 or existing_infrastructure.shape_name
+            )
+            .with_subnet_id(
+                self.properties.deployment_instance_subnet_id
+                or existing_infrastructure.subnet_id
             )
             .with_replica(
                 self.properties.deployment_instance_count
@@ -2239,6 +2329,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         deployment_display_name: Optional[str] = None,
         deployment_description: Optional[str] = None,
         deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
         deployment_instance_count: Optional[int] = None,
         deployment_bandwidth_mbps: Optional[int] = None,
         deployment_log_group_id: Optional[str] = None,
@@ -2326,6 +2417,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The description of the model.
         deployment_instance_shape: (str, optional). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
+        deployment_instance_subnet_id: (str, optional). Default to None.
+            The subnet id of the instance used for deployment.
         deployment_instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
         deployment_bandwidth_mbps: (int, optional). Defaults to 10.
@@ -2467,6 +2560,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             display_name=deployment_display_name,
             description=deployment_description,
             deployment_instance_shape=self.properties.deployment_instance_shape,
+            deployment_instance_subnet_id=self.properties.deployment_instance_subnet_id,
             deployment_instance_count=self.properties.deployment_instance_count,
             deployment_bandwidth_mbps=self.properties.deployment_bandwidth_mbps,
             deployment_log_group_id=self.properties.deployment_log_group_id,
@@ -2483,6 +2577,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self,
         data: Any = None,
         auto_serialize_data: bool = False,
+        local: bool = False,
         **kwargs,
     ) -> Dict[str, Any]:
         """Returns prediction of input data run against the model deployment endpoint.
@@ -2507,6 +2602,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Whether to auto serialize input data. Defauls to `False` for GenericModel, and `True` for other frameworks.
             `data` required to be json serializable if `auto_serialize_data=False`.
             If `auto_serialize_data` set to True, data will be serialized before sending to model deployment endpoint.
+        local: bool.
+            Whether to invoke the prediction locally. Default to False.
         kwargs:
             content_type: str, used to indicate the media type of the resource.
             image: PIL.Image Object or uri for the image.
@@ -2525,10 +2622,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         NotActiveDeploymentError
             If model deployment process was not started or not finished yet.
         ValueError
-            If `data` is empty or not JSON serializable.
+            If model is not deployed yet or the endpoint information is not available.
         """
-        if not self.model_deployment:
-            raise ValueError("Use `deploy()` method to start model deployment.")
+        if local:
+            return self.verify(
+                data=data, auto_serialize_data=auto_serialize_data, **kwargs
+            )
+
+        if not (self.model_deployment and self.model_deployment.url):
+            raise ValueError(
+                "Error invoking the remote endpoint as the model is not "
+                "deployed yet or the endpoint information is not available. "
+                "Use `deploy()` method to start model deployment. "
+                "If you intend to invoke inference using locally available "
+                "model artifact, set parameter `local=True`"
+            )
 
         current_state = self.model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:

@@ -33,6 +33,8 @@ jobs:
       - name: When tag 🏷️ pushed - Trigger Readthedocs build
         if: github.event_name == 'push' && startsWith(github.ref_name, 'v')
         run: |
+          # add 10 minutes wait time for readthedocs see freshly created tag
+          sleep 10m
           curl \
             -X POST \
             -H "Authorization: Token $RTDS_ADS_TOKEN" $RTDS_ADS_PROJECT/versions/${{ github.ref_name }}/builds/

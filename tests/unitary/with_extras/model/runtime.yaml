@@ -1,0 +1,22 @@
+MODEL_ARTIFACT_VERSION: '3.0'
+MODEL_DEPLOYMENT:
+  INFERENCE_CONDA_ENV:
+    INFERENCE_ENV_PATH: oci://service_conda_packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1
+    INFERENCE_ENV_SLUG: mlcpuv1
+    INFERENCE_ENV_TYPE: data_science
+    INFERENCE_PYTHON_VERSION: '3.6'
+MODEL_PROVENANCE:
+  PROJECT_OCID: fake_project_id
+  TENANCY_OCID: fake_tenancy_id
+  TRAINING_CODE:
+    ARTIFACT_DIRECTORY: fake_artifact_directory
+  TRAINING_COMPARTMENT_OCID: fake_training_compartment_id
+  TRAINING_CONDA_ENV:
+    TRAINING_ENV_PATH: oci://service_conda_packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1
+    TRAINING_ENV_SLUG: mlcpuv1
+    TRAINING_ENV_TYPE: data_science
+    TRAINING_PYTHON_VERSION: '3.6'
+  TRAINING_REGION: NOT_FOUND
+  TRAINING_RESOURCE_OCID: fake_resource_id
+  USER_OCID: NOT_FOUND
+  VM_IMAGE_INTERNAL_ID: VMIDNOTSET
