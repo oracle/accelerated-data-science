@@ -67,7 +67,7 @@ class TorchRunner(driver_utils.JobRunner):
         self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
         self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
         logger.debug("Node count: %s", self.node_count)
-        gpu_count = torch.cuda.device_count()
+        self.gpu_count = torch.cuda.device_count()
         logger.debug("GPU count on this node: %s", self.gpu_count)
 
         logger.debug("Runner initialized.")
