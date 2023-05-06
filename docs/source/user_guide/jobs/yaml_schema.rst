@@ -31,8 +31,8 @@ Following is the YAML schema for validating the YAML using `Cerberus <https://do
   :linenos:
 
 
-DataFlow
-========
+Data Flow
+=========
 
 .. raw:: html
   :file: ../../yaml_schema/jobs/dataFlow.html
@@ -126,8 +126,8 @@ Following is the YAML schema for validating the YAML using `Cerberus <https://do
   :linenos:
 
 
-DataFlow Runtime
---------------
+Data Flow Runtime
+----------------
 
 .. raw:: html
   :file: ../../yaml_schema/jobs/dataFlowRuntime.html
