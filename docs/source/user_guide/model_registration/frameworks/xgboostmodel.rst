@@ -3,7 +3,7 @@
 XGBoostModel
 ************
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.xgboost_model.XGBoostModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.xgboost_model.XGBoostModel>`__
 
 Overview
 ========

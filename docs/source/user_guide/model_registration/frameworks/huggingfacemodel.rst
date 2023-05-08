@@ -5,7 +5,7 @@ HuggingFacePipelineModel
 
 .. versionadded:: 2.8.2
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
 
 Overview
 ========
@@ -75,7 +75,7 @@ Prepare Model Artifact
 
 Instantiate a ``HuggingFacePipelineModel()`` object with HuggingFace pipelines. All the pipelines related files are saved under the ``artifact_dir``.
 
-For more detailed information on what parameters that ``HuggingFacePipelineModel`` takes, refer to the `API Documentation <../../../ads.model_framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
+For more detailed information on what parameters that ``HuggingFacePipelineModel`` takes, refer to the `API Documentation <../../../ads.model.framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
 
 
 

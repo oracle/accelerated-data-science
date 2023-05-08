@@ -3,7 +3,7 @@
 SparkPipelineModel
 *******************
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.spark_model.SparkPipelineModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.spark_model.SparkPipelineModel>`__
 
 Overview
 ========

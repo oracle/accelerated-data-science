@@ -3,7 +3,7 @@
 TensorFlowModel
 ***************
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.tensorflow_model.TensorFlowModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.tensorflow_model.TensorFlowModel>`__
 
 Overview
 ========
