@@ -4,7 +4,7 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from enum import Enum
+from ads.common.extended_enum import ExtendedEnum
 
 DEFAULT_OCI_CONFIG_FILE = "~/.oci/config"
 DEFAULT_PROFILE = "DEFAULT"
@@ -22,15 +22,36 @@ ADS_JOBS_CONFIG_FILE_NAME = "ml_job_config.ini"
 ADS_DATAFLOW_CONFIG_FILE_NAME = "dataflow_config.ini"
 ADS_ML_PIPELINE_CONFIG_FILE_NAME = "ml_pipeline.ini"
 ADS_LOCAL_BACKEND_CONFIG_FILE_NAME = "local_backend.ini"
+ADS_MODEL_DEPLOYMENT_CONFIG_FILE_NAME = "model_deployment_config.ini"
 DEFAULT_IMAGE_HOME_DIR = "/home/datascience"
 DEFAULT_IMAGE_SCRIPT_DIR = "/etc/datascience"
 DEFAULT_IMAGE_CONDA_DIR = "/opt/conda/envs"
 DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR = "/home/datascience/spark_conf_dir"
 DEFAULT_NOTEBOOK_SESSION_CONDA_DIR = "/home/datascience/conda"
+DEFAULT_SPECIFICATION_FILE_NAME = "oci-datascience-template.yaml"
 DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 
 
-class BACKEND_NAME(Enum):
+class RUNTIME_TYPE(ExtendedEnum):
+    PYTHON = "python"
+    CONTAINER = "container"
+    NOTEBOOK = "notebook"
+    GITPYTHON = "gitPython"
+    OPERATOR = "operator"
+    SCRIPT = "script"
+    DATAFLOW = "dataFlow"
+    DATAFLOWNOTEBOOK = "dataFlowNotebook"
+    CONDA = "conda"
+
+
+class RESOURCE_TYPE(ExtendedEnum):
+    JOB = "job"
+    DATAFLOW = "dataflow"
+    PIPELINE = "pipeline"
+    MODEL_DEPLOYMENT = "deployment"
+
+
+class BACKEND_NAME(ExtendedEnum):
     JOB = "job"
     DATAFLOW = "dataflow"
     PIPELINE = "pipeline"

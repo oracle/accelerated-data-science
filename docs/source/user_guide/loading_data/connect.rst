@@ -6,7 +6,7 @@ Load Data
 Connecting to Data Sources
 **************************
 
-You can load data into ADS in several different ways from Oracle Cloud Infrastructure Object Storage, cx_Oracle, or S3.  Following are some examples.
+You can load data into ADS in several different ways from Oracle Cloud Infrastructure Object Storage, Oracle RDBMS, or S3.  Following are some examples.
 
 Begin by loading the required libraries and modules:
 

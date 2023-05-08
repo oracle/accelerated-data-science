@@ -29,6 +29,7 @@ OCI Policies
 Several OCI policies are needed for distributed training.
 
 .. admonition:: Policy subject
+  :class: note
 
   In the following example, ``group <your_data_science_users>`` is the subject of the policy. When starting the job from an OCI notebook session using resource principal, the subject should be ``dynamic-group``, for example, ``dynamic-group <your_notebook_sessions>``
 

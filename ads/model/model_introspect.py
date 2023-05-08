@@ -37,6 +37,7 @@ from typing import List
 
 import pandas as pd
 from ads.model.model_metadata import MetadataTaxonomyKeys
+from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class IntrospectionNotPassed(ValueError):
@@ -176,12 +177,17 @@ class ModelIntrospect:
         ------
             FileNotFoundError: If path to model artifacts does not exist.
         """
-        if not os.path.isdir(self._artifact.artifact_dir):
+        artifact_dir = (
+            self._artifact.artifact_dir
+            if not ObjectStorageDetails.is_oci_path(self._artifact.artifact_dir)
+            else self._artifact.local_copy_dir
+        )
+        if not os.path.isdir(artifact_dir):
             raise FileNotFoundError(
-                errno.ENOENT, os.strerror(errno.ENOENT), self._artifact.artifact_dir
+                errno.ENOENT, os.strerror(errno.ENOENT), artifact_dir
             )
 
-        output_file = f"{self._artifact.artifact_dir}/{_INTROSPECT_RESULT_FILE_NAME}"
+        output_file = f"{artifact_dir}/{_INTROSPECT_RESULT_FILE_NAME}"
         with open(output_file, "w") as f:
             json.dump(self._result, f, indent=4)
 
@@ -206,8 +212,12 @@ class ModelIntrospect:
         ------
         FileNotFoundError: If path to model artifacts does not exist.
         """
-
-        if not os.path.isdir(self._artifact.artifact_dir):
+        artifact_dir = (
+            self._artifact.artifact_dir
+            if not ObjectStorageDetails.is_oci_path(self._artifact.artifact_dir)
+            else self._artifact.local_copy_dir
+        )
+        if not os.path.isdir(artifact_dir):
             raise FileNotFoundError(
                 errno.ENOENT,
                 os.strerror(errno.ENOENT),
@@ -216,7 +226,7 @@ class ModelIntrospect:
         module = importlib.import_module(_PATH_TO_MODEL_ARTIFACT_VALIDATOR)
         importlib.reload(module)
         method = getattr(module, _INTROSPECT_METHOD_NAME)
-        params = {"artifact": self._artifact.artifact_dir}
+        params = {"artifact": artifact_dir}
         test_result, _ = method(**params)
 
         self._status = _TEST_STATUS_MAP.get(test_result)

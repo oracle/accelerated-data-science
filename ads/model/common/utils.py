@@ -7,11 +7,9 @@
 import json
 import os
 import tempfile
+import yaml
 from typing import Any, Dict, Optional
 from zipfile import ZipFile
-
-import yaml
-
 from ads.common import utils
 
 

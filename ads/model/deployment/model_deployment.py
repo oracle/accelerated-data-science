@@ -81,11 +81,11 @@ class ModelDeploymentMode:
     STREAM = "STREAM_ONLY"
 
 
-class LogNotConfiguredError(Exception):   # pragma: no cover
+class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
 
-class ModelDeploymentFailedError(Exception):   # pragma: no cover
+class ModelDeploymentFailedError(Exception):  # pragma: no cover
     pass
 
 
@@ -924,12 +924,17 @@ class ModelDeployment(Builder):
                 "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
             )
         if model_name and model_version:
-            header['model-name'] = model_name
-            header['model-version'] = model_version
+            header["model-name"] = model_name
+            header["model-version"] = model_version
         elif bool(model_version) ^ bool(model_name):
-            raise ValueError("`model_name` and `model_version` have to be provided together.")
+            raise ValueError(
+                "`model_name` and `model_version` have to be provided together."
+            )
         prediction = send_request(
-            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header,
+            data=data,
+            endpoint=endpoint,
+            is_json_payload=is_json_payload,
+            header=header,
         )
         return prediction
 
@@ -1334,7 +1339,7 @@ class ModelDeployment(Builder):
 
         return model_deployment
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, **kwargs) -> Dict:
         """Serializes model deployment to a dictionary.
 
         Returns
@@ -1401,9 +1406,13 @@ class ModelDeployment(Builder):
             infrastructure.CONST_WEB_CONCURRENCY,
             runtime.env.get("WEB_CONCURRENCY", None),
         )
-        if runtime.env.get("CONTAINER_TYPE", None) == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
+        if (
+            runtime.env.get("CONTAINER_TYPE", None)
+            == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+        ):
             runtime.set_spec(
-                runtime.CONST_INFERENCE_SERVER, MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON.lower()
+                runtime.CONST_INFERENCE_SERVER,
+                MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON.lower(),
             )
 
         self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)
@@ -1587,8 +1596,15 @@ class ModelDeployment(Builder):
                 infrastructure.web_concurrency
             )
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
-        if hasattr(runtime, "inference_server") and runtime.inference_server and runtime.inference_server.upper() == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON:
-            environment_variables["CONTAINER_TYPE"] = MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+        if (
+            hasattr(runtime, "inference_server")
+            and runtime.inference_server
+            and runtime.inference_server.upper()
+            == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+        ):
+            environment_variables[
+                "CONTAINER_TYPE"
+            ] = MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
             runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
@@ -1693,3 +1709,12 @@ class ModelDeployment(Builder):
             if attribute in kwargs:
                 spec_kwargs[attribute] = kwargs[attribute]
         return spec_kwargs
+
+    def build(self) -> "ModelDeployment":
+        """Load default values from the environment for the job infrastructure."""
+        build_method = getattr(self.infrastructure, "build", None)
+        if build_method and callable(build_method):
+            build_method()
+        else:
+            raise NotImplementedError
+        return self
