@@ -15,6 +15,7 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_logging import ConsolidatedLog, OCILog
 from ads.common.oci_mixin import OCIModelMixin
 from ads.model.deployment.common.utils import OCIClientManager, State
+from ads.common.oci_datascience import DSCNotebookSession
 
 from ads.model.deployment.model_deployment import (
     ModelDeployment,
@@ -41,7 +42,7 @@ try:
         InstanceConfiguration,
         ModelDeploymentInstanceShapeConfigDetails,
         FixedSizeScalingPolicy,
-        #StreamConfigurationDetails,
+        # StreamConfigurationDetails,
         OcirModelDeploymentEnvironmentConfigurationDetails,
         CategoryLogDetails,
         LogDetails,
@@ -50,13 +51,14 @@ try:
         UpdateSingleModelDeploymentConfigurationDetails,
         UpdateOcirModelDeploymentEnvironmentConfigurationDetails,
         UpdateModelConfigurationDetails,
-        #UpdateStreamConfigurationDetails,
+        # UpdateStreamConfigurationDetails,
     )
 except (ImportError, AttributeError) as e:
     raise unittest.SkipTest(
         "Support for OCI ModelDeployment BYOC is not available. Skipping the ModelDeployment tests."
     )
 
+NB_SESSION_OCID = "ocid1.datasciencenotebooksession.oc1.iad..<unique_ocid>"
 
 OCI_MODEL_DEPLOYMENT_RESPONSE = oci.data_science.models.ModelDeployment(
     id="fakeid.datasciencemodeldeployment.oc1..xxx",
@@ -107,7 +109,7 @@ OCI_MODEL_DEPLOYMENT_RESPONSE = oci.data_science.models.ModelDeployment(
         ),
     ),
     model_deployment_url="model_deployment_url",
-    #deployment_mode="STREAM_ONLY",
+    # deployment_mode="STREAM_ONLY",
 )
 
 OCI_MODEL_DEPLOYMENT_DICT = {
@@ -230,10 +232,24 @@ runtime = (
     .with_entrypoint(["python", "/opt/ds/model/deployed_model/api.py"])
     .with_server_port(5000)
     .with_health_check_port(5000)
-    #.with_input_stream_ids(["123", "456"])
-    #.with_output_stream_ids(["321", "654"])
+    # .with_input_stream_ids(["123", "456"])
+    # .with_output_stream_ids(["321", "654"])
     .with_model_uri("fakeid.datasciencemodel.oc1.iad.xxx")
     .with_deployment_mode("HTTPS_ONLY")
+)
+
+nb_session = DSCNotebookSession(
+    **{
+        "notebook_session_configuration_details": {
+            "shape": "VM.Standard.E4.Flex",
+            "block_storage_size_in_gbs": 100,
+            "subnet_id": "test_subnet_id",
+            "notebook_session_shape_config_details": {
+                "ocpus": 10.0,
+                "memory_in_gbs": 36.0,
+            },
+        }
+    }
 )
 
 
@@ -262,27 +278,32 @@ class ModelDeploymentBYOCTestCase(unittest.TestCase):
                 "runtime": runtime,
             }
         )
-        
-    def initialize_model_deployment_triton_builder(self):
-        infrastructure = ModelDeploymentInfrastructure()\
-            .with_compartment_id("fakeid.compartment.oc1..xxx")\
-            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")\
-            .with_shape_name("VM.Standard.E4.Flex")\
-            .with_replica(2)\
-            .with_bandwidth_mbps(10)\
 
-        runtime = ModelDeploymentContainerRuntime()\
-            .with_image("fake_image")\
-            .with_server_port(5000)\
-            .with_health_check_port(5000)\
-            .with_model_uri("fake_model_id")\
-            .with_env({"key":"value", "key2":"value2"})\
+    def initialize_model_deployment_triton_builder(self):
+        infrastructure = (
+            ModelDeploymentInfrastructure()
+            .with_compartment_id("fakeid.compartment.oc1..xxx")
+            .with_project_id("fakeid.datascienceproject.oc1.iad.xxx")
+            .with_shape_name("VM.Standard.E4.Flex")
+            .with_replica(2)
+            .with_bandwidth_mbps(10)
+        )
+        runtime = (
+            ModelDeploymentContainerRuntime()
+            .with_image("fake_image")
+            .with_server_port(5000)
+            .with_health_check_port(5000)
+            .with_model_uri("fake_model_id")
+            .with_env({"key": "value", "key2": "value2"})
             .with_inference_server("triton")
-        
-        deployment = ModelDeployment()\
-            .with_display_name("triton case")\
-            .with_infrastructure(infrastructure)\
+        )
+
+        deployment = (
+            ModelDeployment()
+            .with_display_name("triton case")
+            .with_infrastructure(infrastructure)
             .with_runtime(runtime)
+        )
         return deployment
 
     def initialize_model_deployment_triton_yaml(self):
@@ -328,6 +349,37 @@ spec:
             infrastructure=infrastructure,
             runtime=runtime,
         )
+
+    @patch(
+        "ads.model.deployment.model_deployment_infrastructure.COMPARTMENT_OCID",
+        infrastructure.compartment_id,
+    )
+    @patch(
+        "ads.model.deployment.model_deployment_infrastructure.PROJECT_OCID",
+        infrastructure.project_id,
+    )
+    @patch(
+        "ads.model.deployment.model_deployment_infrastructure.NB_SESSION_OCID",
+        NB_SESSION_OCID,
+    )
+    @patch.object(DSCNotebookSession, "from_ocid")
+    def test__load_default_properties(self, mock_from_ocid):
+        mock_default_properties = {
+            ModelDeploymentInfrastructure.CONST_COMPARTMENT_ID: infrastructure.compartment_id,
+            ModelDeploymentInfrastructure.CONST_PROJECT_ID: infrastructure.project_id,
+            ModelDeploymentInfrastructure.CONST_SHAPE_NAME: infrastructure.shape_name,
+            ModelDeploymentInfrastructure.CONST_BANDWIDTH_MBPS: 10,
+            ModelDeploymentInfrastructure.CONST_SHAPE_CONFIG_DETAILS: {
+                "ocpus": 10.0,
+                "memory_in_gbs": 36.0,
+            },
+            ModelDeploymentInfrastructure.CONST_WEB_CONCURRENCY: 10,
+            ModelDeploymentInfrastructure.CONST_REPLICA: 1,
+        }
+
+        mock_from_ocid.return_value = nb_session
+        assert infrastructure._load_default_properties() == mock_default_properties
+        mock_from_ocid.assert_called_with(NB_SESSION_OCID)
 
     def test_initialize_model_deployment(self):
         temp_model_deployment = self.initialize_model_deployment()
@@ -406,14 +458,12 @@ spec:
                 },
             )
 
-
     def test_initialize_model_deployment_with_spec_kwargs(self):
         model_deployment_kwargs = self.initialize_model_deployment_from_kwargs()
         model_deployment_builder = self.initialize_model_deployment()
 
         assert model_deployment_kwargs.to_dict() == model_deployment_builder.to_dict()
-        
-        
+
     def test_initialize_model_deployment_triton_builder(self):
         temp_model_deployment = self.initialize_model_deployment_triton_builder()
         assert isinstance(
@@ -423,7 +473,7 @@ spec:
             temp_model_deployment.infrastructure, ModelDeploymentInfrastructure
         )
         assert temp_model_deployment.runtime.inference_server == "triton"
-    
+
     def test_initialize_model_deployment_triton_yaml(self):
         temp_model_deployment = self.initialize_model_deployment_triton_yaml()
         assert isinstance(
@@ -433,7 +483,6 @@ spec:
             temp_model_deployment.infrastructure, ModelDeploymentInfrastructure
         )
         assert temp_model_deployment.runtime.inference_server == "triton"
-        
 
     def test_model_deployment_to_dict(self):
         model_deployment = self.initialize_model_deployment()
@@ -796,9 +845,9 @@ spec:
         environment_configuration_details = (
             model_deployment_configuration_details.environment_configuration_details
         )
-#         stream_configuration_details = (
-#             model_deployment_configuration_details.stream_configuration_details
-#         )
+        #         stream_configuration_details = (
+        #             model_deployment_configuration_details.stream_configuration_details
+        #         )
         assert (
             runtime.environment_config_type
             == environment_configuration_details.environment_configuration_type
@@ -994,7 +1043,10 @@ spec:
         #     == model_deployment.runtime.output_stream_ids
         # )
 
-    def test_extract_from_oci_model(self):
+    @patch.object(
+        ModelDeploymentInfrastructure, "_load_default_properties", return_value={}
+    )
+    def test_extract_from_oci_model(self, mock_load_default_properties):
         infrastructure = ModelDeploymentInfrastructure()
         runtime = ModelDeploymentContainerRuntime()
 
@@ -1049,7 +1101,7 @@ spec:
                 # "inputStreamIds": ["123", "456"],
                 # "outputStreamIds": ["321", "654"],
                 "modelUri": "fakeid.datasciencemodel.oc1.iad.xxx",
-                #"deploymentMode": "HTTPS_ONLY",
+                # "deploymentMode": "HTTPS_ONLY",
             },
         }
 
@@ -1156,9 +1208,7 @@ spec:
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.activate(wait_for_completion=False)
         mock_activate.assert_called_with(
-            wait_for_completion=False, 
-            max_wait_time=1200, 
-            poll_interval=10
+            wait_for_completion=False, max_wait_time=1200, poll_interval=10
         )
 
     @patch.object(
@@ -1173,9 +1223,7 @@ spec:
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.deactivate(wait_for_completion=False)
         mock_deactivate.assert_called_with(
-            wait_for_completion=False, 
-            max_wait_time=1200, 
-            poll_interval=10
+            wait_for_completion=False, max_wait_time=1200, poll_interval=10
         )
 
     @patch.object(
@@ -1190,9 +1238,7 @@ spec:
         model_deployment.dsc_model_deployment.id = "test_model_deployment_id"
         model_deployment.delete(wait_for_completion=False)
         mock_delete.assert_called_with(
-            wait_for_completion=False, 
-            max_wait_time=1200, 
-            poll_interval=10
+            wait_for_completion=False, max_wait_time=1200, poll_interval=10
         )
 
     @patch.object(OCIDataScienceMixin, "sync")

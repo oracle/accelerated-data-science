@@ -15,7 +15,7 @@ spec:
       type: string
     infrastructure:
       type: dict
-      meta: See Data Science Job or DataFlow schema.
+      meta: See Data Science Job or Data Flow schema.
     name:
       required: false
       type: string

@@ -76,12 +76,13 @@ class TestArtifactDownloader:
 
     def test_downaload_fail(self):
         with patch("os.path.exists", return_value=True):
-            with pytest.raises(ValueError):
-                SmallArtifactDownloader(
-                    dsc_model=self.mock_dsc_model,
-                    target_dir="test_target_dir",
-                    force_overwrite=False,
-                ).download()
+            with patch("os.listdir", return_value=["test.txt"]):
+                with pytest.raises(ValueError):
+                    SmallArtifactDownloader(
+                        dsc_model=self.mock_dsc_model,
+                        target_dir="test_target_dir",
+                        force_overwrite=False,
+                    ).download()
 
     def test_downaload(self):
         with patch.object(SmallArtifactDownloader, "_download") as mock_download:
