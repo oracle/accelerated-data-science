@@ -3,7 +3,7 @@
 LightGBMModel
 *************
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.lightgbm_model.LightGBMModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.lightgbm_model.LightGBMModel>`__
 
 
 Overview
