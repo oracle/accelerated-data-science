@@ -202,7 +202,7 @@ class ModelEvaluator:
             self.metrics["false_positive_rate"],
             self.metrics["true_positive_rate"],
             _,
-        ) = metrics.roc_curve(self.y_true, self.y_pred, pos_label=self.positive_class)
+        ) = metrics.roc_curve(self.y_true, self.y_score, pos_label=self.positive_class)
         self.metrics["auc"] = metrics.auc(
             self.metrics["false_positive_rate"], self.metrics["true_positive_rate"]
         )
