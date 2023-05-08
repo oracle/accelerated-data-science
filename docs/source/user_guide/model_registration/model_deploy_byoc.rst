@@ -49,6 +49,7 @@ Below is an example of deploying Sklearn model on container runtime using ``Skle
         deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
         deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
         deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
+        deployment_instance_subnet_id="ocid1.subnet.oc1.xxx.xxxxx",
         deployment_image="iad.ocir.io/<namespace>/<image>:<tag>",
         entrypoint=["python", "/opt/ds/model/deployed_model/api.py"],
         server_port=5000,
@@ -100,6 +101,7 @@ Below is an example of deploying model on container runtime using ``ModelDeploym
             log_group_id="<PREDICT_LOG_GROUP_OCID>", 
             log_id="<PREDICT_LOG_OCID>"
         )
+        .with_subnet_id("<SUBNET_OCID>")
     )
 
     # configure model deployment runtime
@@ -162,6 +164,7 @@ Below is an example of deploying model on container runtime using ``ModelDeploym
           replica: 1
           bandWidthMbps: 10
           webConcurrency: 10
+          subnetId: <SUBNET_OCID>
       runtime:
         kind: runtime
         type: container
