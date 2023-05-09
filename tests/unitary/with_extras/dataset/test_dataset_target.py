@@ -54,7 +54,7 @@ class TestADSDatasetTarget:
         assert "type_discovery" in employees.init_kwargs
         assert isinstance(employees.transformer_pipeline, TransformerPipeline)
 
-    def test_fix_imbalance(self):
+    def test_seggested_sampling_for_imbalanced_dataset(self):
         employees = ADSDatasetWithTarget.from_dataframe(
             df=pd.read_csv(self.get_data_path()),
             target="Attrition",
