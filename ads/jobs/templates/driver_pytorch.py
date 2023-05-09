@@ -34,10 +34,13 @@ logger = logging.getLogger(__name__)
 logger = driver_utils.set_log_level(logger)
 
 
-CONST_ENV_MAIN_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
+CONST_ENV_HOST_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
 CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
 CONST_ENV_LAUNCHER = "OCI__LAUNCHER"
-CONST_MAIN_IP_LOG_PREFIX = "Distributed Training Main IP: "
+LOG_PREFIX_HOST_IP = "Distributed Training Main IP: "
+LOG_PREFIX_NODE_IP = "Node IP: "
+LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
+SSH_DIR = "/home/datascience/.ssh"
 # Working count is the number of node - 1
 OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
 
@@ -53,17 +56,23 @@ class TorchRunner(driver_utils.JobRunner):
             oci.data_science.DataScienceClient
         )
         self.ip = self.find_self_ip()
+        self.node_ip_list = []
+        self.node_runs = []
 
-        if CONST_ENV_MAIN_JOB_RUN_OCID in os.environ:
-            host_job_ocid = os.environ[CONST_ENV_MAIN_JOB_RUN_OCID]
-            logger.debug("Host job run OCID: %s", host_job_ocid)
+        if CONST_ENV_HOST_JOB_RUN_OCID in os.environ:
+            print(f"{LOG_PREFIX_NODE_IP}{self.ip}")
+            self.host_ocid = os.environ[CONST_ENV_HOST_JOB_RUN_OCID]
+            logger.debug("Host job run OCID: %s", self.host_ocid)
             time.sleep(300)
             self.host_ip = None
+            self.is_host = False
         else:
-            print(f"{CONST_MAIN_IP_LOG_PREFIX}{self.ip}")
-            host_job_ocid = os.environ["JOB_RUN_OCID"]
+            print(f"{LOG_PREFIX_HOST_IP}{self.ip}")
+            self.host_ocid = os.environ["JOB_RUN_OCID"]
             self.host_ip = self.ip
-        self.host_job_run = DataScienceJobRun.from_ocid(host_job_ocid)
+            self.is_host = True
+
+        self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
         self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
         self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
         logger.debug("Node count: %s", self.node_count)
@@ -72,27 +81,44 @@ class TorchRunner(driver_utils.JobRunner):
 
         logger.debug("Runner initialized.")
 
-    def wait_for_main_ip_address(self, timeout=15 * 60):
-        logger.info("Waiting for host's IP address...")
+    def wait_for_host_ip_address(self, timeout=15 * 60):
+        if not self.host_ip:
+            logger.info("Waiting for host's IP address...")
+            self.host_ip = self.wait_for_ip_address(self.host_job_run, timeout)
+        return self
+
+    def wait_for_ip_address(self, job_run, timeout=15 * 60):
+        logger.info("Waiting for IP address of job run %s", job_run.id)
+        if job_run == self.host_job_run:
+            log_prefix = LOG_PREFIX_HOST_IP
+        else:
+            log_prefix = LOG_PREFIX_NODE_IP
+        ip_address = self.wait_for_log(job_run, log_prefix, timeout)
+        logger.info("IP of %s: %s", job_run.id[-6:], ip_address)
+        return ip_address
+
+    def wait_for_log(self, job_run, log_prefix, timeout=15 * 60):
+        logger.debug("Waiting for logs with prefix %s from %s.", log_prefix, job_run.id)
         second_started = time.time()
-        while not self.host_ip:
-            self.host_ip = self.check_ip_address()
-            if self.host_ip:
+        log = None
+        while not log:
+            log = self.check_job_run_logs(job_run=job_run, log_prefix=log_prefix)
+            if log:
                 break
             if time.time() - second_started > timeout:
                 raise TimeoutError(
-                    f"Failed to obtain main node IP address in {timeout} seconds."
+                    f"Failed to obtain log with prefix {log_prefix} for {job_run.id} in {timeout} seconds."
                 )
             time.sleep(60)
-        logger.info("Found host IP: %s", self.host_ip)
-        return self
+        return log
 
-    def check_ip_address(self):
-        logger.debug("Looking for host IP...")
-        logs = self.host_job_run.logs()
+    @staticmethod
+    def check_job_run_logs(job_run, log_prefix):
+        logger.debug("Checking logs for job run %s", job_run.id)
+        logs = job_run.logs()
         for log in logs:
-            if log["message"].startswith(CONST_MAIN_IP_LOG_PREFIX):
-                return log["message"][len(CONST_MAIN_IP_LOG_PREFIX) :]
+            if log["message"].startswith(log_prefix):
+                return log["message"][len(log_prefix) :]
         return None
 
     def find_self_ip(self):
@@ -164,7 +190,7 @@ class TorchRunner(driver_utils.JobRunner):
                 branch=branch, commit=commit
             )
 
-    def _torchrun(self) -> str:
+    def torchrun(self) -> str:
         if self.gpu_count > 0:
             nproc_per_node = self.gpu_count
         else:
@@ -186,19 +212,107 @@ class TorchRunner(driver_utils.JobRunner):
         )
         return cmd
 
-    def run(self):
+    def generate_key_pair(self):
+        self.run_command(
+            "ssh-keygen -q -t rsa -N '' <<< $'\ny'", level=logging.DEBUG, check=True
+        )
+        with open(os.path.join(SSH_DIR, "id_rsa.pub"), "r", encoding="utf-8") as f:
+            public_key = f.read()
+        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
+        return self
 
+    def ssh_to_node(self, hostname, cmd=""):
+        return self.run_command(
+            f"ssh -v {hostname} exit", level=logging.DEBUG, check=True
+        )
+
+    def fetch_host_public_key(self):
+        public_key = self.wait_for_log(self.host_job_run, LOG_PREFIX_PUBLIC_KEY)
+        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
+        # logger.debug("%s", LOG_PREFIX_PUBLIC_KEY + public_key)
+        auth_keys_file = os.path.join(SSH_DIR, "authorized_keys")
+        os.makedirs(SSH_DIR, exist_ok=True)
+        with open(auth_keys_file, "a+", encoding="utf-8") as f:
+            f.write(public_key)
+            f.write("\n")
+        logger.debug("Host public key saved to %s", auth_keys_file)
+
+    def generate_hostfile(self):
+        runs = self.host_job_run.job.run_list()
+        self.node_runs = [
+            run
+            for run in runs
+            if run.status in ["ACCEPTED", "IN_PROGRESS"] and run.id != self.host_ocid
+        ]
+        # TODO: Save a mapping between OCIDs and IPs
+        self.node_ip_list = [self.wait_for_ip_address(run) for run in self.node_runs]
+        logger.info("Node IPs: %s", self.node_ip_list)
+        with open(os.path.join(SSH_DIR, "config"), "w", encoding="utf-8") as f:
+            for node_ip in self.node_ip_list:
+                f.writelines(
+                    [
+                        "",
+                        f"Host {node_ip}",
+                        "IdentityFile /home/datascience/.ssh/id_rsa",
+                        "User datascience",
+                    ]
+                )
+        return self
+
+    def start_ssh_server(self):
+        self.run_command(
+            "sudo --preserve-env yum install -y openssh-server",
+            level=logging.DEBUG,
+            check=True,
+        )
+        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
+
+    def deepspeed(self) -> str:
+        STOP_FILE = "/home/datascience/stop"
+        if self.is_host:
+            self.generate_key_pair().generate_hostfile()
+            # Wait for nodes to be ready
+            for run in self.node_runs:
+                self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
+            for node_ip in self.node_ip_list:
+                self.run_command(
+                    f"ssh-keyscan -H {node_ip} >> {SSH_DIR}/known_hosts",
+                    level=logging.DEBUG,
+                    check=True,
+                )
+            # TODO: Run job here.
+            # TODO: Use heartbeat to indicate job is still running.
+            # Stop file will not be generated if job run is killed from the console.
+            # Signal stop
+            for node_ip in self.node_ip_list:
+                logger.debug("Sending stop file to %s", node_ip)
+                self.run_command(
+                    f"ssh -vvv {node_ip} 'touch {STOP_FILE}'",
+                    level=logging.DEBUG,
+                    check=True,
+                )
+        else:
+            self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+            self.start_ssh_server()
+            self.fetch_host_public_key()
+            while not os.path.exists(STOP_FILE):
+                time.sleep(60)
+            logger.info("Stop file found. Stopping job run...")
+
+    def run(self):
         launcher_mapping = {
-            "torchrun": self._torchrun
+            "torchrun": self.torchrun,
+            "deepspeed": self.deepspeed,
         }
 
         cmd = launcher_mapping[os.environ.get(CONST_ENV_LAUNCHER, DEFAULT_LAUNCHER)]()
 
-        if sys.argv[1:]:
-            cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
-        training_start_time = time.time()
-        self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
-        logger.info("Training Time: %s seconds.", time.time() - training_start_time)
+        if cmd:
+            if sys.argv[1:]:
+                cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
+            training_start_time = time.time()
+            self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
+            logger.info("Training Time: %s seconds.", time.time() - training_start_time)
 
 
 def main():
@@ -213,12 +327,12 @@ def main():
 
     driver_utils.OCIHelper.copy_inputs()
 
-    runner.wait_for_main_ip_address().run()
+    runner.wait_for_host_ip_address().run()
     driver_utils.OCIHelper.copy_outputs()
 
 
 if __name__ == "__main__":
-    if METRIC_NAMESPACE:
+    if METRIC_NAMESPACE and torch.cuda.device_count():
         p = multiprocessing.Process(target=collect_metrics)
         p.daemon = True
         p.start()
