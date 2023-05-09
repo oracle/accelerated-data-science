@@ -255,7 +255,7 @@ class RecommendationTransformer(TransformerMixin):
 
                 # Suggest down sampling if minor_majority_ratio is 1:1000
                 suggested_sampling = (
-                    "Do nothing"
+                    "Up-sample"
                     if len(df) <= utils.MAX_LEN_FOR_UP_SAMPLING
                     else "Down-sample"
                     if minor_majority_ratio >= utils.MIN_RATIO_FOR_DOWN_SAMPLING
