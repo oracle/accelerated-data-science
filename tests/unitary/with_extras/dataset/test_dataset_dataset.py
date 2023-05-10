@@ -25,6 +25,10 @@ class TestADSDataset:
     def teardown_class(cls):
         cls.test_dir.cleanup()
 
+    def get_data_path(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(current_dir, "data", "orcl_attrition.csv")
+
     @pytest.mark.parametrize(
         "test_file_name, expected_file_name",
         [
@@ -85,6 +89,18 @@ class TestADSDataset:
         assert "type_discovery" in employees.init_kwargs
         assert isinstance(employees.transformer_pipeline, TransformerPipeline)
 
-    def get_data_path(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(current_dir, "data", "orcl_attrition.csv")
+    def test_get_recommendations_error_message(self):
+        """Test for validation user-friendly error message."""
+        employees = ADSDataset.from_dataframe(df=pd.read_csv(self.get_data_path()))
+
+        err_msg = "Please set the 'target' variable before invoking this API."
+        with pytest.raises(Exception, match=err_msg):
+            employees.get_recommendations()
+
+    def test_suggest_recommendations_error_message(self):
+        """Test for validation user-friendly error message."""
+        employees = ADSDataset.from_dataframe(df=pd.read_csv(self.get_data_path()))
+
+        err_msg = "Please set the 'target' variable before invoking this API."
+        with pytest.raises(Exception, match=err_msg):
+            employees.suggest_recommendations()

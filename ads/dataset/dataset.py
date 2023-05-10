@@ -1913,3 +1913,35 @@ class ADSDataset(PandasDataset):
 
         if visualize_features and not is_wide_dataset:
             self._visualize_feature_distribution(features)
+
+    def get_recommendations(self, *args, **kwargs):  # real signature may change
+        """
+        Returns user-friendly error message to set target variable before invoking this API.
+
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+        Exception
+            raises an :exc:`Exception`
+
+        """
+        raise Exception("Please set the 'target' variable before invoking this API.")
+
+    def suggest_recommendations(self, *args, **kwargs):  # real signature may change
+        """
+        Returns user-friendly error message to set target variable before invoking this API.
+
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+        Exception
+            raises an :exc:`Exception`
+
+        """
+        raise Exception("Please set the 'target' variable before invoking this API.")
