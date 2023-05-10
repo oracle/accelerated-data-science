@@ -89,18 +89,12 @@ class TestADSDataset:
         assert "type_discovery" in employees.init_kwargs
         assert isinstance(employees.transformer_pipeline, TransformerPipeline)
 
-    def test_get_recommendations_error_message(self):
+    def test_get_suggest_recommendations_error_message(self):
         """Test for validation user-friendly error message."""
         employees = ADSDataset.from_dataframe(df=pd.read_csv(self.get_data_path()))
 
         err_msg = "Please set the 'target' variable before invoking this API."
         with pytest.raises(Exception, match=err_msg):
             employees.get_recommendations()
-
-    def test_suggest_recommendations_error_message(self):
-        """Test for validation user-friendly error message."""
-        employees = ADSDataset.from_dataframe(df=pd.read_csv(self.get_data_path()))
-
-        err_msg = "Please set the 'target' variable before invoking this API."
         with pytest.raises(Exception, match=err_msg):
             employees.suggest_recommendations()
