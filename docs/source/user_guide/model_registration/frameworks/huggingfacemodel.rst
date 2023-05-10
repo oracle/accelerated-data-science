@@ -114,6 +114,21 @@ Deploy and Generate Endpoint
     ... )
     >>> print(f"Endpoint: {huggingface_pipeline_model.model_deployment.url}")
 
+Deploy with Flex Shape
+======================
+
+It is mandatory to provide ``deployment_ocpus`` and ``deployment_memory_in_gbs`` values, when deploy with Flex instance shapes.
+
+.. code-block:: python3
+
+    # Deploy with Flex shape
+    huggingface_pipeline_model.deploy(
+        display_name="HuggingFace Pipeline Model For Classification",
+        deployment_instance_shape="VM.Standard.E4.Flex",
+        deployment_ocpus=<number>,
+        deployment_memory_in_gbs=<number>,
+    )
+
 Run Prediction against Endpoint
 ===============================
 

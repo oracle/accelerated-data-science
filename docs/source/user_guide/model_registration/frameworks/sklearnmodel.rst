@@ -100,6 +100,20 @@ Deploy and Generate Endpoint
     >>> print(f"Endpoint: {sklearn_model.model_deployment.url}")
     https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx
 
+Deploy with Flex Shape
+======================
+
+It is mandatory to provide ``deployment_ocpus`` and ``deployment_memory_in_gbs`` values, when deploy with Flex instance shapes.
+
+.. code-block:: python3
+
+    # Deploy with Flex shape
+    sklearn_model.deploy(
+        display_name="Random Forest Model For Classification",
+        deployment_instance_shape="VM.Standard.E4.Flex",
+        deployment_ocpus=<number>,
+        deployment_memory_in_gbs=<number>,
+    )
 
 Run Prediction against Endpoint
 ===============================
