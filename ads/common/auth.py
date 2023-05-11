@@ -517,17 +517,12 @@ class APIKey(AuthSignerGenerator):
         """
         if self.oci_config:
             configuration = ads.telemetry.update_oci_client_config(self.oci_config)
+        elif self.signer_kwargs:
+            configuration = ads.telemetry.update_oci_client_config(self.signer_kwargs)
         else:
-            try:
-                configuration = ads.telemetry.update_oci_client_config(
-                    oci.config.from_file(self.oci_config_location, self.oci_key_profile)
-                )
-            except:
-                if not os.path.exists(os.path.expanduser(self.oci_config_location)):
-                    logger.info(f"Failed to get config from folder {self.oci_config_location}. Using 'signer_kwargs' instead.")
-                    configuration = ads.telemetry.update_oci_client_config(self.signer_kwargs)
-                else:
-                    raise
+            configuration = ads.telemetry.update_oci_client_config(
+                oci.config.from_file(self.oci_config_location, self.oci_key_profile)
+            )
             
         logger.info(f"Using 'api_key' authentication.")
         return {

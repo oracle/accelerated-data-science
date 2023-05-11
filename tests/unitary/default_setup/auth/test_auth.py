@@ -114,6 +114,7 @@ class TestEDAMixin(TestCase):
         assert signer["config"]["key_content"] == "test_key_content"
         assert "additional_user_agent" in signer["config"]
         assert signer["signer"] != None
+        set_auth()
 
 class TestOCIMixin(TestCase):
     def tearDown(self) -> None:
