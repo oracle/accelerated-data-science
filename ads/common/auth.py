@@ -117,7 +117,7 @@ def set_auth(
     >>> ads.set_auth("api_key", oci_config_location = "other_config_location") # use non-default oci_config_location
 
     >>> ads.set_auth("api_key", client_kwargs={"timeout": 60}) # default signer with connection and read timeouts set to 60 seconds for the client.
-    >>> ads.set_auth("api_key", )
+    >>> ads.set_auth("api_key", signer_kwargs={"key_content": "private_key_content"}) # Create config using key content
     >>> other_config = oci.config.from_file("other_config_location", "OTHER_PROFILE") # Create non-default config
     >>> ads.set_auth(config=other_config) # Set api keys type of authentication based on provided config
 
