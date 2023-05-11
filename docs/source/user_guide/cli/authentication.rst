@@ -148,11 +148,11 @@ More signers can be created using the ``create_signer()`` method. With the ``aut
   -----END RSA PRIVATE KEY-----
   """
   signer_kwargs = dict(
-    "user": "ocid1.user.oc1..xxx",
-    "fingerprint": "35:67:25:90:89:87:45:78:bf:4h:g5:13:16:32:4d:f4",
-    "tenancy": "ocid1.tenancy.oc1..xxx",
-    "region": "us-ashburn-1",
-    "key_content": private_key_content,
+    user="ocid1.user.oc1..xxx",
+    fingerprint="35:67:25:90:89:87:45:78:bf:4h:g5:13:16:32:4d:f4",
+    tenancy="ocid1.tenancy.oc1..xxx",
+    region="us-ashburn-1",
+    key_content=private_key_content,
   )
   auth = ads.auth.create_signer(signer_kwargs=signer_kwargs)
 
