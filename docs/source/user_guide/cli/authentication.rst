@@ -121,7 +121,7 @@ In the this example, the default authentication uses API keys specified with the
   os_auth = authutil.resource_principal() # use resource principal to as the preferred way to access object store
 
 
-More signers can be created using the ``create_signer()`` method. With the ``auth_type`` parameter set to ``instance_principal``, the method will return a signer that uses instance principals. For other signers there are ``signer`` or ``signer_callable`` parameters. Here are examples:
+More signers can be created using the ``create_signer()`` method. With the ``auth_type`` parameter set to ``instance_principal``, the method will return a signer that uses instance principals. For other signers there are ``signer``, ``signer_callable`` or ``signer_kwargs`` parameters. Here are examples:
 
 .. code-block:: python
 
@@ -139,5 +139,21 @@ More signers can be created using the ``create_signer()`` method. With the ``aut
   signer_callable = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
   signer_kwargs = dict(log_requests=True) # will log the request url and response data when retrieving
   auth = ads.auth.create_signer(signer_callable=signer_callable, signer_kwargs=signer_kwargs)
+  
+  # Example 4. Create signer that carries oci config in signer_kwargs. You can either pass key_file or key_content to signer_kwargs.
+  private_key_content = """
+  -----BEGIN RSA PRIVATE KEY-----
+  MIIBIjANBgkqhkiG9w0BAQE...
+  ...
+  -----END RSA PRIVATE KEY-----
+  """
+  signer_kwargs = dict(
+    "user": "ocid1.user.oc1..xxx",
+    "fingerprint": "35:67:25:90:89:87:45:78:bf:4h:g5:13:16:32:4d:f4",
+    "tenancy": "ocid1.tenancy.oc1..xxx",
+    "region": "us-ashburn-1",
+    "key_content": private_key_content,
+  )
+  auth = ads.auth.create_signer(signer_kwargs=signer_kwargs)
 
 ``AuthContext`` context class can also be used to specify the desired type of authentication. It supports API key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or API keys configurations from specified locations. See `API Documentation <../../ads.common.html#ads.common.auth.AuthContext>`__ for more details.
