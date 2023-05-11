@@ -117,7 +117,7 @@ def set_auth(
     >>> ads.set_auth("api_key", oci_config_location = "other_config_location") # use non-default oci_config_location
 
     >>> ads.set_auth("api_key", client_kwargs={"timeout": 60}) # default signer with connection and read timeouts set to 60 seconds for the client.
-
+    >>> ads.set_auth("api_key", )
     >>> other_config = oci.config.from_file("other_config_location", "OTHER_PROFILE") # Create non-default config
     >>> ads.set_auth(config=other_config) # Set api keys type of authentication based on provided config
 
@@ -157,7 +157,7 @@ def set_auth(
 
     auth_state.oci_config = config
     auth_state.oci_key_profile = profile
-    if auth == AuthType.API_KEY and not signer and not signer_callable:
+    if auth == AuthType.API_KEY and not signer and not signer_callable and not signer_kwargs:
         if os.path.exists(os.path.expanduser(oci_config_location)):
             auth_state.oci_config_path = oci_config_location
         else:
@@ -175,6 +175,7 @@ def api_keys(
     oci_config: str = os.path.join(os.path.expanduser("~"), ".oci", "config"),
     profile: str = DEFAULT_PROFILE,
     client_kwargs: Dict = None,
+    kwargs: Dict = None
 ) -> Dict:
     """
     Prepares authentication and extra arguments necessary for creating clients for different OCI services using API
@@ -188,6 +189,15 @@ def api_keys(
         Profile name to select from the config file.
     client_kwargs: Optional[Dict], default None
         kwargs that are required to instantiate the Client if we need to override the defaults.
+    kwargs:
+        kwargs for API authentication signer.
+        - user: OCID of the user calling the API.
+        - tenancy: OCID of user's tenancy.
+        - fingerprint: Fingerprint for the public key that was added to this user.
+        - region: An Oracle Cloud Infrastructure region.
+        - pass_phrase: Passphrase used for the key, if it is encrypted.
+        - key_file: Full path and filename of the private key.
+        - key_content: The private key as PEM string.
 
     Returns
     -------
@@ -208,6 +218,7 @@ def api_keys(
         oci_config_location=oci_config,
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
+        signer_kwargs=kwargs,
     )
     signer_generator = AuthFactory().signerGenerator(AuthType.API_KEY)
     return signer_generator(signer_args).create_signer()
@@ -316,6 +327,7 @@ def create_signer(
             oci_config_location=oci_config_location,
             oci_key_profile=profile,
             oci_config=config,
+            signer_kwargs=signer_kwargs,
             client_kwargs=client_kwargs,
         )
         if config:
@@ -386,6 +398,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
             oci_config_location=auth_state.oci_config_path,
             oci_key_profile=auth_state.oci_key_profile,
             oci_config=auth_state.oci_config,
+            signer_kwargs=auth_state.oci_signer_kwargs or {},
             client_kwargs={
                 **(auth_state.oci_client_kwargs or {}),
                 **(client_kwargs or {}),
@@ -470,11 +483,13 @@ class APIKey(AuthSignerGenerator):
             - oci_config_location - path to config file
             - oci_key_profile - the profile to load from config file
             - client_kwargs - optional parameters for OCI client creation in next steps
+            - signer_kwargs - optional parameters for signer
         """
         self.oci_config = args.get("oci_config")
         self.oci_config_location = args.get("oci_config_location")
         self.oci_key_profile = args.get("oci_key_profile")
         self.client_kwargs = args.get("client_kwargs")
+        self.signer_kwargs = args.get("signer_kwargs")
 
     def create_signer(self) -> Dict:
         """
@@ -503,18 +518,27 @@ class APIKey(AuthSignerGenerator):
         if self.oci_config:
             configuration = ads.telemetry.update_oci_client_config(self.oci_config)
         else:
-            configuration = ads.telemetry.update_oci_client_config(
-                oci.config.from_file(self.oci_config_location, self.oci_key_profile)
-            )
+            try:
+                configuration = ads.telemetry.update_oci_client_config(
+                    oci.config.from_file(self.oci_config_location, self.oci_key_profile)
+                )
+            except:
+                if not os.path.exists(os.path.expanduser(self.oci_config_location)):
+                    logger.info(f"Failed to get config from folder {self.oci_config_location}. Using 'signer_kwargs' instead.")
+                    configuration = ads.telemetry.update_oci_client_config(self.signer_kwargs)
+                else:
+                    raise
+            
         logger.info(f"Using 'api_key' authentication.")
         return {
             "config": configuration,
             "signer": oci.signer.Signer(
-                configuration["tenancy"],
-                configuration["user"],
-                configuration["fingerprint"],
-                configuration["key_file"],
+                configuration.get("tenancy"),
+                configuration.get("user"),
+                configuration.get("fingerprint"),
+                configuration.get("key_file"),
                 configuration.get("pass_phrase"),
+                configuration.get("key_content")
             ),
             "client_kwargs": self.client_kwargs,
         }

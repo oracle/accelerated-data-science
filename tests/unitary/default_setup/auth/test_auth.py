@@ -31,6 +31,14 @@ from ads.common.auth import (
 )
 from ads.common.oci_logging import OCILog
 
+MOCK_CONFIG_FROM_FILE = {
+    "user": "test_user",
+    "fingerprint": "test_fingerprint",
+    "tenancy": "test_tenancy",
+    "region": "us-ashburn-1",
+    "key_file": "test_key_file"
+}
+
 
 class TestEDAMixin(TestCase):
     @mock.patch("oci.config.from_file")
@@ -39,6 +47,7 @@ class TestEDAMixin(TestCase):
     def test_set_auth_overwrite_profile(
         self, mock_load_key_file, mock_path_exists, mock_config_from_file
     ):
+        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
         set_auth(profile="TEST")
         default_signer()
         mock_config_from_file.assert_called_with("~/.oci/config", "TEST")
@@ -50,6 +59,7 @@ class TestEDAMixin(TestCase):
     def test_set_auth_overwrite_config_location(
         self, mock_load_key_file, mock_path_exists, mock_config_from_file
     ):
+        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
         mock_path_exists.return_value = True
         set_auth(oci_config_location="test_path")
         default_signer()
@@ -85,6 +95,25 @@ class TestEDAMixin(TestCase):
         resource_principal()
         mock_rp_signer.assert_called_once()
 
+    @mock.patch("oci.signer.load_private_key")
+    def test_set_auth_with_kwargs(self, mock_load_private_key):
+        set_auth(
+            signer_kwargs={
+                "user": "test_user",
+                "fingerprint": "test_fingerprint",
+                "tenancy": "test_tenancy",
+                "region": "us-ashburn-1",
+                "key_content": "test_key_content"
+            }
+        )
+        signer = default_signer()
+        assert signer["config"]["user"] == "test_user"
+        assert signer["config"]["fingerprint"] == "test_fingerprint"
+        assert signer["config"]["tenancy"] == "test_tenancy"
+        assert signer["config"]["region"] == "us-ashburn-1"
+        assert signer["config"]["key_content"] == "test_key_content"
+        assert "additional_user_agent" in signer["config"]
+        assert signer["signer"] != None
 
 class TestOCIMixin(TestCase):
     def tearDown(self) -> None:
@@ -352,6 +381,7 @@ class TestAuthFactory(TestCase):
         that default_signer() returns proper signer based on saved state of auth values within AuthState().
         Checking that default_signer() runs two times in a row and returns signer based on AuthState().
         """
+        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
         config = dict(
             user="ocid1.user.oc1..<unique_ocid>",
             fingerprint="00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
