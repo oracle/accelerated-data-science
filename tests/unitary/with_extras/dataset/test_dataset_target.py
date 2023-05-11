@@ -6,6 +6,7 @@
 import os
 from typing import Tuple
 import pandas as pd
+import pytest
 from ads.dataset.classification_dataset import BinaryClassificationDataset
 from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 from ads.dataset.pipeline import TransformerPipeline
@@ -45,6 +46,16 @@ class TestADSDatasetTarget:
 
         assert isinstance(employees, BinaryClassificationDataset)
         self.assert_dataset(employees)
+
+    def test_accessor_with_target_error(self):
+        df=pd.read_csv(self.get_data_path())
+        wrong_column = "wrong_column"
+        with pytest.raises(
+            ValueError, match=f"{wrong_column} column doesn't exist in data frame. Specify a valid one instead."
+        ):
+            employees = df.ads.dataset_with_target(
+                target=wrong_column
+            )
 
     def assert_dataset(self, dataset):
         assert isinstance(dataset.df, pd.DataFrame)
