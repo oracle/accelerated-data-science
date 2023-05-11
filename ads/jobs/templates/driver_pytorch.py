@@ -49,7 +49,7 @@ DEFAULT_LAUNCHER = "torchrun"
 set_auth("resource_principal")
 
 
-class TorchRunner(driver_utils.JobRunner):
+class Runner(driver_utils.JobRunner):
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
         self.ds_client = driver_utils.OCIHelper.init_oci_client(
@@ -153,6 +153,31 @@ class TorchRunner(driver_utils.JobRunner):
             logger.info("Node IP address: %s", ip)
             return ip
 
+    def fetch_code(self):
+        if cluster_config_helper.OCI__RUNTIME_URI in os.environ:
+            self._fetch_git(code_dir=self.code_dir)
+        return self
+
+    def _fetch_git(self, code_dir):
+        uri = os.environ.get(cluster_config_helper.OCI__RUNTIME_URI)
+        branch = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_BRANCH)
+        commit = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_COMMIT)
+        secret_ocid = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_SECRET_ID)
+        # with GitSSHKey does nothing if secret_ocid is None or empty
+        with GitSSHKey(secret_ocid):
+            GitManager(uri, code_dir=code_dir).fetch_repo().checkout_code(
+                branch=branch, commit=commit
+            )
+
+    def run(self):
+        raise NotImplementedError()
+
+
+class TorchRunner(Runner):
+    def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
+        super().__init__(code_dir)
+        self.build_c_library()
+
     def build_c_library(self):
         C_SOURCE_CODE = "hostname_from_env.c"
         source_path = os.path.join(
@@ -174,23 +199,7 @@ class TorchRunner(driver_utils.JobRunner):
 
         return self
 
-    def fetch_code(self):
-        if cluster_config_helper.OCI__RUNTIME_URI in os.environ:
-            self._fetch_git(code_dir=self.code_dir)
-        return self
-
-    def _fetch_git(self, code_dir):
-        uri = os.environ.get(cluster_config_helper.OCI__RUNTIME_URI)
-        branch = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_BRANCH)
-        commit = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_COMMIT)
-        secret_ocid = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_SECRET_ID)
-        # with GitSSHKey does nothing if secret_ocid is None or empty
-        with GitSSHKey(secret_ocid):
-            GitManager(uri, code_dir=code_dir).fetch_repo().checkout_code(
-                branch=branch, commit=commit
-            )
-
-    def torchrun(self) -> str:
+    def run(self):
         if self.gpu_count > 0:
             nproc_per_node = self.gpu_count
         else:
@@ -210,8 +219,14 @@ class TorchRunner(driver_utils.JobRunner):
             + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 --rdzv_conf={rdzv_conf} "
             + f"{os.environ[self.entrypoint_env]}"
         )
-        return cmd
+        if sys.argv[1:]:
+            cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
+            training_start_time = time.time()
+            self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
+            logger.info("Training Time: %s seconds.", time.time() - training_start_time)
 
+
+class DeepSpeedRunner(Runner):
     def generate_key_pair(self):
         self.run_command(
             "ssh-keygen -q -t rsa -N '' <<< $'\ny'", level=logging.DEBUG, check=True
@@ -267,7 +282,7 @@ class TorchRunner(driver_utils.JobRunner):
         )
         self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
-    def deepspeed(self) -> str:
+    def run(self):
         STOP_FILE = "/home/datascience/stop"
         if self.is_host:
             self.generate_key_pair().generate_hostfile()
@@ -299,31 +314,13 @@ class TorchRunner(driver_utils.JobRunner):
                 time.sleep(60)
             logger.info("Stop file found. Stopping job run...")
 
-    def run(self):
-        launcher_mapping = {
-            "torchrun": self.torchrun,
-            "deepspeed": self.deepspeed,
-        }
-
-        cmd = launcher_mapping[os.environ.get(CONST_ENV_LAUNCHER, DEFAULT_LAUNCHER)]()
-
-        if cmd:
-            if sys.argv[1:]:
-                cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
-            training_start_time = time.time()
-            self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
-            logger.info("Training Time: %s seconds.", time.time() - training_start_time)
-
 
 def main():
-    runner = (
-        TorchRunner()
-        .fetch_code()
-        .build_c_library()
-        .set_working_dir()
-        .setup_python_path()
-        .install_dependencies()
-    )
+    launcher = os.environ.get(CONST_ENV_LAUNCHER, "torchrun").lower()
+    runner_class = {"torchrun": TorchRunner, "deepspeed": DeepSpeedRunner}[launcher]
+    runner = runner_class()
+    runner: Runner
+    runner.fetch_code().set_working_dir().setup_python_path().install_dependencies()
 
     driver_utils.OCIHelper.copy_inputs()
 
