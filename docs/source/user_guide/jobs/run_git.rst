@@ -3,7 +3,6 @@ Run Code from Git Repo
 
 The :py:class:`~ads.jobs.GitPythonRuntime` allows you to run source code from a Git repository as a job.
 
-.. include:: ../jobs/toc_local.rst
 
 PyTorch Example
 ===============
