@@ -135,7 +135,7 @@ jobs:
     needs: test
     if: ${{ success() }} && ${{ github.event.issue.pull_request }}
     env:
-      COMPARE_BRANCH: develop
+      COMPARE_BRANCH: main
 
     steps:
       - name: "Checkout current branch"
@@ -152,9 +152,14 @@ jobs:
           COV_BODY_INTRO="📌 Overall coverage:\n\n"
           echo COV_BODY="$COV_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
 
+          # Prepare file paths to .coverage files
+          # Filenames taken from job.test last step with name - "Save coverage files"
+          FILE_UNITARY="cov-reports-unitary/.coverage"; [[ ! -f $FILE_UNITARY ]] && FILE_UNITARY="" 
+          FILE_MODEL="cov-reports-model/.coverage"; [[ ! -f $FILE_MODEL ]] && FILE_MODEL=""
+          
           # Combine coverage files
           pip install coverage
-          coverage combine cov-reports-unitary/.coverage cov-reports-model/.coverage
+          coverage combine $FILE_UNITARY $FILE_MODEL
 
           # Make html report
           coverage html

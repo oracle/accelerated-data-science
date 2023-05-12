@@ -13,7 +13,6 @@ Subpackages
    ads.opctl.diagnostics
    ads.opctl.distributed
    ads.opctl.spark
-   ads.opctl.spec
 
 Submodules
 ----------

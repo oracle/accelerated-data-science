@@ -200,6 +200,11 @@ class ADSDatasetWithTarget(ADSDataset, metaclass=ABCMeta):
                 DatasetDefaults.sampling_confidence_interval,
                 **init_kwargs,
             )
+
+        if target not in df:
+            raise ValueError(
+                f"{target} column doesn't exist in data frame. Specify a valid one instead."
+            )
             
         if target_type is None:
             target_type = get_target_type(target, sampled_df, **init_kwargs)

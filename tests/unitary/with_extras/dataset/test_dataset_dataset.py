@@ -62,13 +62,8 @@ class TestADSDataset:
             description="test_description",
             storage_options={'config':{},'region':'us-ashburn-1'}
         )
-        assert isinstance(employees, ADSDataset)
-        assert isinstance(employees.df, pd.DataFrame)
-        assert isinstance(employees.shape, Tuple)
-        assert employees.name == "test_dataset"
-        assert employees.description == "test_description"
-        assert "type_discovery" in employees.init_kwargs
-        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+        
+        self.assert_dataset(employees)
 
     def test_from_dataframe(self):
         employees = ADSDataset.from_dataframe(
@@ -77,13 +72,26 @@ class TestADSDataset:
             description="test_description",
             storage_options={'config':{},'region':'us-ashburn-1'}
         )
-        assert isinstance(employees, ADSDataset)
-        assert isinstance(employees.df, pd.DataFrame)
-        assert isinstance(employees.shape, Tuple)
-        assert employees.name == "test_dataset"
-        assert employees.description == "test_description"
-        assert "type_discovery" in employees.init_kwargs
-        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+        
+        self.assert_dataset(employees)
+
+    def test_accessor(self):
+        df=pd.read_csv(self.get_data_path())
+        employees = df.ads.dataset(
+            name="test_dataset",
+            description="test_description",
+        )
+
+        self.assert_dataset(employees)
+
+    def assert_dataset(self, dataset):
+        assert isinstance(dataset, ADSDataset)
+        assert isinstance(dataset.df, pd.DataFrame)
+        assert isinstance(dataset.shape, Tuple)
+        assert dataset.name == "test_dataset"
+        assert dataset.description == "test_description"
+        assert "type_discovery" in dataset.init_kwargs
+        assert isinstance(dataset.transformer_pipeline, TransformerPipeline)
 
     def get_data_path(self):
         current_dir = os.path.dirname(os.path.abspath(__file__))

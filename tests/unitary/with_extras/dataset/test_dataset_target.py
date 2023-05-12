@@ -7,6 +7,7 @@ from mock import patch
 from typing import Tuple
 import os
 import pandas as pd
+import pytest
 
 from ads.common import utils
 from ads.dataset.classification_dataset import BinaryClassificationDataset
@@ -30,14 +31,9 @@ class TestADSDatasetTarget:
         )
 
         assert isinstance(employees, ADSDatasetWithTarget)
-        assert isinstance(employees.df, pd.DataFrame)
-        assert isinstance(employees.shape, Tuple)
-        assert isinstance(employees.target, TargetVariable)
-        assert employees.target.type["type"] == "categorical"
         assert employees.name == "test_dataset"
         assert employees.description == "test_description"
-        assert "type_discovery" in employees.init_kwargs
-        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+        self.assert_dataset(employees)
 
     def test_dataset_target_from_dataframe(self):
         employees = ADSDatasetWithTarget.from_dataframe(
@@ -47,12 +43,34 @@ class TestADSDatasetTarget:
         ).set_positive_class("Yes")
 
         assert isinstance(employees, BinaryClassificationDataset)
-        assert isinstance(employees.df, pd.DataFrame)
-        assert isinstance(employees.shape, Tuple)
-        assert isinstance(employees.target, TargetVariable)
-        assert employees.target.type["type"] == "categorical"
-        assert "type_discovery" in employees.init_kwargs
-        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+        self.assert_dataset(employees)
+
+    def test_accessor_with_target(self):
+        df=pd.read_csv(self.get_data_path())
+        employees = df.ads.dataset_with_target(
+            target="Attrition"
+        )
+
+        assert isinstance(employees, BinaryClassificationDataset)
+        self.assert_dataset(employees)
+
+    def test_accessor_with_target_error(self):
+        df=pd.read_csv(self.get_data_path())
+        wrong_column = "wrong_column"
+        with pytest.raises(
+            ValueError, match=f"{wrong_column} column doesn't exist in data frame. Specify a valid one instead."
+        ):
+            employees = df.ads.dataset_with_target(
+                target=wrong_column
+            )
+
+    def assert_dataset(self, dataset):
+        assert isinstance(dataset.df, pd.DataFrame)
+        assert isinstance(dataset.shape, Tuple)
+        assert isinstance(dataset.target, TargetVariable)
+        assert dataset.target.type["type"] == "categorical"
+        assert "type_discovery" in dataset.init_kwargs
+        assert isinstance(dataset.transformer_pipeline, TransformerPipeline)
 
     def test_seggested_sampling_for_imbalanced_dataset(self):
         employees = ADSDatasetWithTarget.from_dataframe(
