@@ -7,7 +7,6 @@ Quick Start
 
   See :doc:`policies` and  `About Data Science Policies <https://docs.oracle.com/en-us/iaas/data-science/using/policies.htm>`_.
 
-.. include:: ../jobs/toc_local.rst
 
 Define a Job
 ============

@@ -3,7 +3,6 @@ Infrastructure and Runtime
 
 This page describes the configurations of **Infrastructure** and **Runtime** defining a Data Science Job.
 
-.. include:: ../jobs/toc_local.rst
 
 Example
 =======

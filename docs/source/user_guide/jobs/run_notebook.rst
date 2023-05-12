@@ -3,7 +3,6 @@ Run a Notebook
 
 The :py:class:`~ads.jobs.NotebookRuntime` allows you to run a single Jupyter notebook as a job.
 
-.. include:: ../jobs/toc_local.rst
 
 TensorFlow Example
 ==================
