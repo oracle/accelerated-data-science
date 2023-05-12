@@ -22,13 +22,6 @@
         .with_shape_config_details(memory_in_gbs=16, ocpus=1)
         # Minimum/Default block storage size is 50 (GB).
         .with_block_storage_size(50)
-        # A maximum number of 5 file systems are allowed to be mounted for a job.
-        .with_storage_mount(
-          {
-            "src" : "<mount_target_ip_address>@<export_path>",
-            "dest" : "<destination_directory_name>"
-          }
-        )
     )
 
   .. code-tab:: yaml
@@ -47,6 +40,3 @@
         ocpus: 1
       shapeName: VM.Standard.E3.Flex
       subnetId: <subnet_ocid>
-      storageMount:
-      - src: <mount_target_ip_address>@<export_path>
-        dest: <destination_directory_name>

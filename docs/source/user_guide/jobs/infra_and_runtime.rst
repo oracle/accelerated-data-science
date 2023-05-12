@@ -120,48 +120,6 @@ see also `ADS Logging <../logging/logging.html>`_.
 
 With logging configured, you can call :py:meth:`~ads.jobs.DataScienceJobRun.watch` method to stream the logs.
 
-Mounting File Systems
----------------------
-
-Data Science Job supports mounting multiple types of file systems,
-see `Data Science Job Mounting File Systems <place_holder>`_. A maximum number of 5 file systems are
-allowed to be mounted for each Data Science Job. You can specify a list of file systems to be mounted
-by calling :py:meth:`~ads.jobs.DataScienceJob.with_storage_mount()`. For each file system to be mounted,
-you need to pass a dictionary with `src` and `dest` as keys. For example, you can pass
-*<mount_target_ip_address>@<export_path>* as the value for `src` to mount OCI File Storage. The value of
-`dest` must be the folder to which you want to mount the file system. See example below.
-
-.. tabs::
-
-  .. code-tab:: python
-    :caption: Python
-
-    from ads.jobs import DataScienceJob
-
-    infrastructure = (
-        DataScienceJob()
-        .with_log_group_id("<log_group_ocid>")
-        .with_log_id("<log_ocid>")
-        .with_storage_mount(
-          {
-            "src" : "<mount_target_ip_address>@<export_path>",
-            "dest" : "<destination_directory_name>"
-          }
-        )
-    )
-
-  .. code-tab:: yaml
-    :caption: YAML
-
-    kind: infrastructure
-    type: dataScienceJob
-    spec:
-      logGroupId: <log_group_ocid>
-      logId: <log_ocid>
-      storageMount:
-      - src: <mount_target_ip_address>@<export_path>
-        dest: <destination_directory_name>
-
 Runtime
 =======
 
