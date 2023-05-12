@@ -227,6 +227,9 @@ class TorchRunner(Runner):
 
 
 class DeepSpeedRunner(Runner):
+    STOP_FILE = "/home/datascience/stop"
+    HOST_FILE_LOCATION = "/job/hostfile"
+
     def generate_key_pair(self):
         self.run_command(
             "ssh-keygen -q -t rsa -N '' <<< $'\ny'", level=logging.DEBUG, check=True
@@ -235,11 +238,6 @@ class DeepSpeedRunner(Runner):
             public_key = f.read()
         print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
         return self
-
-    def ssh_to_node(self, hostname, cmd=""):
-        return self.run_command(
-            f"ssh -v {hostname} exit", level=logging.DEBUG, check=True
-        )
 
     def fetch_host_public_key(self):
         public_key = self.wait_for_log(self.host_job_run, LOG_PREFIX_PUBLIC_KEY)
@@ -259,10 +257,17 @@ class DeepSpeedRunner(Runner):
             for run in runs
             if run.status in ["ACCEPTED", "IN_PROGRESS"] and run.id != self.host_ocid
         ]
-        # TODO: Save a mapping between OCIDs and IPs
         self.node_ip_list = [self.wait_for_ip_address(run) for run in self.node_runs]
         logger.info("Node IPs: %s", self.node_ip_list)
-        with open(os.path.join(SSH_DIR, "config"), "w", encoding="utf-8") as f:
+        logger.debug(f"Writing hostfile to %s", self.HOST_FILE_LOCATION)
+        os.makedirs(os.path.dirname(self.HOST_FILE_LOCATION), exist_ok=True)
+        hostfile_content = [f"{ip} slots={self.gpu_count}" for ip in self.node_ip_list]
+        with open(self.HOST_FILE_LOCATION, "w", encoding="utf-8") as f:
+            f.writelines(hostfile_content)
+        self.run_command(f"cat {self.HOST_FILE_LOCATION}", level=logging.DEBUG)
+        ssh_config_path = os.path.join(SSH_DIR, "config")
+        logger.debug("Writing SSH config to %s", ssh_config_path)
+        with open(ssh_config_path, "w", encoding="utf-8") as f:
             for node_ip in self.node_ip_list:
                 f.writelines(
                     [
@@ -283,7 +288,6 @@ class DeepSpeedRunner(Runner):
         self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
     def run(self):
-        STOP_FILE = "/home/datascience/stop"
         if self.is_host:
             self.generate_key_pair().generate_hostfile()
             # Wait for nodes to be ready
@@ -302,7 +306,7 @@ class DeepSpeedRunner(Runner):
             for node_ip in self.node_ip_list:
                 logger.debug("Sending stop file to %s", node_ip)
                 self.run_command(
-                    f"ssh -vvv {node_ip} 'touch {STOP_FILE}'",
+                    f"ssh -v {node_ip} 'touch {self.STOP_FILE}'",
                     level=logging.DEBUG,
                     check=True,
                 )
@@ -310,7 +314,7 @@ class DeepSpeedRunner(Runner):
             self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
             self.start_ssh_server()
             self.fetch_host_public_key()
-            while not os.path.exists(STOP_FILE):
+            while not os.path.exists(self.STOP_FILE):
                 time.sleep(60)
             logger.info("Stop file found. Stopping job run...")
 
