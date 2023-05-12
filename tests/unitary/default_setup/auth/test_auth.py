@@ -47,11 +47,12 @@ class TestEDAMixin(TestCase):
     def test_set_auth_overwrite_profile(
         self, mock_load_key_file, mock_path_exists, mock_config_from_file
     ):
-        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
-        set_auth(profile="TEST")
-        default_signer()
-        mock_config_from_file.assert_called_with("~/.oci/config", "TEST")
-        set_auth(profile="DEFAULT")
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
+            set_auth(profile="TEST")
+            default_signer()
+            mock_config_from_file.assert_called_with("~/.oci/config", "TEST")
+            set_auth(profile="DEFAULT")
 
     @mock.patch("oci.config.from_file")
     @mock.patch("os.path.exists")
@@ -59,24 +60,27 @@ class TestEDAMixin(TestCase):
     def test_set_auth_overwrite_config_location(
         self, mock_load_key_file, mock_path_exists, mock_config_from_file
     ):
-        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
-        mock_path_exists.return_value = True
-        set_auth(oci_config_location="test_path")
-        default_signer()
-        mock_config_from_file.assert_called_with("test_path", "DEFAULT")
-        set_auth()
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
+            mock_path_exists.return_value = True
+            set_auth(oci_config_location="test_path")
+            default_signer()
+            mock_config_from_file.assert_called_with("test_path", "DEFAULT")
+            set_auth()
 
     @mock.patch("oci.config.from_file")
     @mock.patch("oci.signer.Signer")
     def test_api_keys_using_test_profile(self, mock_signer, mock_config_from_file):
-        api_keys("test_path", "TEST_PROFILE")
-        mock_config_from_file.assert_called_with("test_path", "TEST_PROFILE")
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            api_keys("test_path", "TEST_PROFILE")
+            mock_config_from_file.assert_called_with("test_path", "TEST_PROFILE")
 
     @mock.patch("oci.config.from_file")
     @mock.patch("oci.signer.Signer")
     def test_api_keys_using_default_profile(self, mock_signer, mock_config_from_file):
-        api_keys("test_path")
-        mock_config_from_file.assert_called_with("test_path", "DEFAULT")
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            api_keys("test_path")
+            mock_config_from_file.assert_called_with("test_path", "DEFAULT")
 
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
     @mock.patch("oci.config.from_file")
@@ -84,10 +88,11 @@ class TestEDAMixin(TestCase):
     def test_get_signer_with_api_keys(
         self, mock_signer, mock_config_from_file, mock_rp_signer
     ):
-        get_signer("test_path", "TEST_PROFILE")
-        mock_config_from_file.assert_called_with("test_path", "TEST_PROFILE")
-        get_signer()
-        mock_rp_signer.assert_called_once()
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            get_signer("test_path", "TEST_PROFILE")
+            mock_config_from_file.assert_called_with("test_path", "TEST_PROFILE")
+            get_signer()
+            mock_rp_signer.assert_called_once()
 
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
     @mock.patch.dict(os.environ, {"OCI_RESOURCE_PRINCIPAL_VERSION": "2.2"})
@@ -96,25 +101,26 @@ class TestEDAMixin(TestCase):
         mock_rp_signer.assert_called_once()
 
     @mock.patch("oci.signer.load_private_key")
-    def test_set_auth_with_kwargs(self, mock_load_private_key):
-        set_auth(
-            signer_kwargs={
-                "user": "test_user",
-                "fingerprint": "test_fingerprint",
-                "tenancy": "test_tenancy",
-                "region": "us-ashburn-1",
-                "key_content": "test_key_content"
-            }
-        )
-        signer = default_signer()
-        assert signer["config"]["user"] == "test_user"
-        assert signer["config"]["fingerprint"] == "test_fingerprint"
-        assert signer["config"]["tenancy"] == "test_tenancy"
-        assert signer["config"]["region"] == "us-ashburn-1"
-        assert signer["config"]["key_content"] == "test_key_content"
-        assert "additional_user_agent" in signer["config"]
-        assert signer["signer"] != None
-        set_auth()
+    def test_set_auth_with_key_content(self, mock_load_private_key):
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            set_auth(
+                config={
+                    "user": "test_user",
+                    "fingerprint": "test_fingerprint",
+                    "tenancy": "test_tenancy",
+                    "region": "us-ashburn-1",
+                    "key_content": "test_key_content"
+                }
+            )
+            signer = default_signer()
+            assert signer["config"]["user"] == "test_user"
+            assert signer["config"]["fingerprint"] == "test_fingerprint"
+            assert signer["config"]["tenancy"] == "test_tenancy"
+            assert signer["config"]["region"] == "us-ashburn-1"
+            assert signer["config"]["key_content"] == "test_key_content"
+            assert "additional_user_agent" in signer["config"]
+            assert signer["signer"] != None
+            set_auth()
 
 class TestOCIMixin(TestCase):
     def tearDown(self) -> None:
@@ -132,46 +138,47 @@ class TestOCIMixin(TestCase):
         """Tests initializing OCIMixin with default auth.
         Without any explicit config, the client should be initialized from DEFAULT OCI API key config.
         """
-        # Accessing the client property will trigger the authentication.
-        # By default, ADS uses API key with DEFAULT profile.
-        OCILog().client
-        self.assertIsNotNone(
-            mock_config_from_file.call_args, "OCI config not initialized from file."
-        )
-        args = mock_config_from_file.call_args[0]
-        config_location = args[0]
-        profile = args[1]
-        self.assertEqual(profile, "DEFAULT", mock_config_from_file.call_args_list)
-        self.assertEqual(
-            os.path.abspath(os.path.expanduser(config_location)),
-            os.path.abspath(os.path.expanduser("~/.oci/config")),
-        )
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            # Accessing the client property will trigger the authentication.
+            # By default, ADS uses API key with DEFAULT profile.
+            OCILog().client
+            self.assertIsNotNone(
+                mock_config_from_file.call_args, "OCI config not initialized from file."
+            )
+            args = mock_config_from_file.call_args[0]
+            config_location = args[0]
+            profile = args[1]
+            self.assertEqual(profile, "DEFAULT", mock_config_from_file.call_args_list)
+            self.assertEqual(
+                os.path.abspath(os.path.expanduser(config_location)),
+                os.path.abspath(os.path.expanduser("~/.oci/config")),
+            )
 
-        # Change the profile via ads.set_auth() to use a different profile
-        ads.set_auth(profile="TEST")
-        OCILog().client
-        args = mock_config_from_file.call_args[0]
-        profile = args[1]
-        self.assertEqual(profile, "TEST")
-        config = client.call_args[1]["config"]
-        signer = client.call_args[1]["signer"]
-        self.assertIsInstance(config, mock.MagicMock)
-        self.assertIsInstance(signer, mock.MagicMock)
+            # Change the profile via ads.set_auth() to use a different profile
+            ads.set_auth(profile="TEST")
+            OCILog().client
+            args = mock_config_from_file.call_args[0]
+            profile = args[1]
+            self.assertEqual(profile, "TEST")
+            config = client.call_args[1]["config"]
+            signer = client.call_args[1]["signer"]
+            self.assertIsInstance(config, mock.MagicMock)
+            self.assertIsInstance(signer, mock.MagicMock)
 
-        # Pass in a customized config
-        customized_config = dict(tenancy="my_tenancy")
-        OCILog(config=customized_config).client
-        config = client.call_args[1]["config"]
-        self.assertNotIn("signer", client.call_args[1])
-        self.assertEqual(config, customized_config)
+            # Pass in a customized config
+            customized_config = dict(tenancy="my_tenancy")
+            OCILog(config=customized_config).client
+            config = client.call_args[1]["config"]
+            self.assertNotIn("signer", client.call_args[1])
+            self.assertEqual(config, customized_config)
 
-        # Pass in a customized signer
-        customized_signer = oci.signer.Signer("tenancy", "user", "fingerprint", "key")
-        OCILog(signer=customized_signer).client
-        config = client.call_args[1]["config"]
-        signer = client.call_args[1]["signer"]
-        self.assertEqual(config, None)
-        self.assertEqual(signer, customized_signer)
+            # Pass in a customized signer
+            customized_signer = oci.signer.Signer("tenancy", "user", "fingerprint", "key")
+            OCILog(signer=customized_signer).client
+            config = client.call_args[1]["config"]
+            signer = client.call_args[1]["signer"]
+            self.assertEqual(config, None)
+            self.assertEqual(signer, customized_signer)
 
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
     @mock.patch("oci.config.from_file")
@@ -248,9 +255,6 @@ class TestAuthFactory(TestCase):
             set_auth(config={"test": "test"}, profile="TEST_PROFILE")
 
         with pytest.raises(ValueError):
-            set_auth(oci_config_location="not_extisting_path")
-
-        with pytest.raises(ValueError):
             AuthFactory().signerGenerator("not_existing_iam_type")
 
     def test_register_singer(self):
@@ -274,24 +278,25 @@ class TestAuthFactory(TestCase):
         """
         Testing api key setup with set_auth() and getting it with default_signer()
         """
-        set_auth(AuthType.API_KEY)
-        signer = default_signer(client_kwargs={"test": "test"})
-        assert "fingerprint" in signer["config"]
-        assert isinstance(signer["signer"], oci.signer.Signer)
-        assert "test" in signer["client_kwargs"]
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            set_auth(AuthType.API_KEY)
+            signer = default_signer(client_kwargs={"test": "test"})
+            assert "fingerprint" in signer["config"]
+            assert isinstance(signer["signer"], oci.signer.Signer)
+            assert "test" in signer["client_kwargs"]
 
-        set_auth(
-            AuthType.API_KEY,
-            config={
-                "tenancy": "test_tenancy",
-                "user": "test_user",
-                "fingerprint": "test_fingerprint",
-                "key_file": "test_key_file",
-            },
-        )
-        signer = default_signer(client_kwargs={"test": "test"})
-        assert signer["config"]["fingerprint"] == "test_fingerprint"
-        assert "test" in signer["client_kwargs"]
+            set_auth(
+                AuthType.API_KEY,
+                config={
+                    "tenancy": "test_tenancy",
+                    "user": "test_user",
+                    "fingerprint": "test_fingerprint",
+                    "key_file": "test_key_file",
+                },
+            )
+            signer = default_signer(client_kwargs={"test": "test"})
+            assert signer["config"]["fingerprint"] == "test_fingerprint"
+            assert "test" in signer["client_kwargs"]
 
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
     @mock.patch.dict(os.environ, {"OCI_RESOURCE_PRINCIPAL_VERSION": "2.2"})
@@ -382,84 +387,85 @@ class TestAuthFactory(TestCase):
         that default_signer() returns proper signer based on saved state of auth values within AuthState().
         Checking that default_signer() runs two times in a row and returns signer based on AuthState().
         """
-        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
-        config = dict(
-            user="ocid1.user.oc1..<unique_ocid>",
-            fingerprint="00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
-            tenancy="ocid1.tenancy.oc1..<unique_ocid>",
-            region="<region>",
-            key_file="<path>/<to>/<key_file>",
-        )
-        auth_type = AuthType.API_KEY
-        set_auth(auth=auth_type, config=config, client_kwargs={"timeout": 1})
-        auth_state = AuthState()
-        assert auth_state.oci_config
-        assert auth_state.oci_config_path == oci.config.DEFAULT_LOCATION
-        assert auth_state.oci_key_profile == "DEFAULT"
-        assert auth_state.oci_client_kwargs == {"timeout": 1}
-        signer = default_signer()
-        assert signer["config"]["user"] == config["user"]
-        default_signer()
-        assert signer["config"]["user"] == config["user"]
+        with pytest.raises(oci.exceptions.InvalidConfig):
+            mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
+            config = dict(
+                user="ocid1.user.oc1..<unique_ocid>",
+                fingerprint="00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
+                tenancy="ocid1.tenancy.oc1..<unique_ocid>",
+                region="<region>",
+                key_file="<path>/<to>/<key_file>",
+            )
+            auth_type = AuthType.API_KEY
+            set_auth(auth=auth_type, config=config, client_kwargs={"timeout": 1})
+            auth_state = AuthState()
+            assert auth_state.oci_config
+            assert auth_state.oci_config_path == oci.config.DEFAULT_LOCATION
+            assert auth_state.oci_key_profile == "DEFAULT"
+            assert auth_state.oci_client_kwargs == {"timeout": 1}
+            signer = default_signer()
+            assert signer["config"]["user"] == config["user"]
+            default_signer()
+            assert signer["config"]["user"] == config["user"]
 
-        set_auth(
-            auth=auth_type,
-            oci_config_location="~/path_to_config",
-            client_kwargs={"timeout": 2},
-        )
-        auth_state = AuthState()
-        assert not auth_state.oci_config
-        assert auth_state.oci_config_path == "~/path_to_config"
-        assert auth_state.oci_key_profile == "DEFAULT"
-        assert auth_state.oci_client_kwargs == {"timeout": 2}
-        default_signer()
-        mock_config_from_file.assert_called_with("~/path_to_config", "DEFAULT")
-        default_signer()
-        mock_config_from_file.assert_called_with("~/path_to_config", "DEFAULT")
+            set_auth(
+                auth=auth_type,
+                oci_config_location="~/path_to_config",
+                client_kwargs={"timeout": 2},
+            )
+            auth_state = AuthState()
+            assert not auth_state.oci_config
+            assert auth_state.oci_config_path == "~/path_to_config"
+            assert auth_state.oci_key_profile == "DEFAULT"
+            assert auth_state.oci_client_kwargs == {"timeout": 2}
+            default_signer()
+            mock_config_from_file.assert_called_with("~/path_to_config", "DEFAULT")
+            default_signer()
+            mock_config_from_file.assert_called_with("~/path_to_config", "DEFAULT")
 
-        set_auth(auth=auth_type, config=config, client_kwargs={"timeout": 3})
-        auth_state = AuthState()
-        assert auth_state.oci_config
-        assert auth_state.oci_config_path == oci.config.DEFAULT_LOCATION
-        assert auth_state.oci_key_profile == "DEFAULT"
-        assert auth_state.oci_client_kwargs == {"timeout": 3}
-        signer = default_signer()
-        assert signer["config"]["key_file"] == config["key_file"]
-        signer = default_signer()
-        assert signer["config"]["key_file"] == config["key_file"]
+            set_auth(auth=auth_type, config=config, client_kwargs={"timeout": 3})
+            auth_state = AuthState()
+            assert auth_state.oci_config
+            assert auth_state.oci_config_path == oci.config.DEFAULT_LOCATION
+            assert auth_state.oci_key_profile == "DEFAULT"
+            assert auth_state.oci_client_kwargs == {"timeout": 3}
+            signer = default_signer()
+            assert signer["config"]["key_file"] == config["key_file"]
+            signer = default_signer()
+            assert signer["config"]["key_file"] == config["key_file"]
 
-        set_auth(auth=auth_type, profile="NOT_DEFAULT")
-        auth_state = AuthState()
-        assert not auth_state.oci_config
-        assert auth_state.oci_config_path == oci.config.DEFAULT_LOCATION
-        assert auth_state.oci_key_profile == "NOT_DEFAULT"
-        default_signer()
-        mock_config_from_file.assert_called_with(
-            oci.config.DEFAULT_LOCATION, "NOT_DEFAULT"
-        )
-        default_signer()
-        mock_config_from_file.assert_called_with(
-            oci.config.DEFAULT_LOCATION, "NOT_DEFAULT"
-        )
+            set_auth(auth=auth_type, profile="NOT_DEFAULT")
+            auth_state = AuthState()
+            assert not auth_state.oci_config
+            assert auth_state.oci_config_path == oci.config.DEFAULT_LOCATION
+            assert auth_state.oci_key_profile == "NOT_DEFAULT"
+            default_signer()
+            mock_config_from_file.assert_called_with(
+                oci.config.DEFAULT_LOCATION, "NOT_DEFAULT"
+            )
+            default_signer()
+            mock_config_from_file.assert_called_with(
+                oci.config.DEFAULT_LOCATION, "NOT_DEFAULT"
+            )
 
-        set_auth(config={}, signer=mock.Mock(spec=EphemeralResourcePrincipalSigner))
-        signer = default_signer()
-        assert isinstance(signer["signer"], EphemeralResourcePrincipalSigner)
-        signer = default_signer()
-        assert isinstance(signer["signer"], EphemeralResourcePrincipalSigner)
+            set_auth(config={}, signer=mock.Mock(spec=EphemeralResourcePrincipalSigner))
+            signer = default_signer()
+            assert isinstance(signer["signer"], EphemeralResourcePrincipalSigner)
+            signer = default_signer()
+            assert isinstance(signer["signer"], EphemeralResourcePrincipalSigner)
 
-        set_auth(
-            config={"test", "test"},
-            signer=mock.Mock(spec=EphemeralResourcePrincipalSigner),
-        )
-        auth_state = AuthState()
-        assert auth_state.oci_iam_type == AuthType.API_KEY
+            set_auth(
+                config={"test", "test"},
+                signer=mock.Mock(spec=EphemeralResourcePrincipalSigner),
+            )
+            auth_state = AuthState()
+            assert auth_state.oci_iam_type == AuthType.API_KEY
 
-        test_ip_signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
-        test_signer_kwargs = {"test_signer_kwargs": "test_signer_kwargs"}
-        set_auth(signer_callable=test_ip_signer, signer_kwargs=test_signer_kwargs)
-        default_signer()
-        mock_ip_signer.assert_called_with(**test_signer_kwargs)
+            test_ip_signer = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
+            test_signer_kwargs = {"test_signer_kwargs": "test_signer_kwargs"}
+            set_auth(signer_callable=test_ip_signer, signer_kwargs=test_signer_kwargs)
+            default_signer()
+            mock_ip_signer.assert_called_with(**test_signer_kwargs)
 
 
 class TestOCIAuthContext(TestCase):

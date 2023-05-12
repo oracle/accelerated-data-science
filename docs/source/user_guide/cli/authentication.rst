@@ -82,6 +82,21 @@ The ``~/.oci/config`` configuration allow for multiple configurations to be stor
   ads.set_auth("api_key") # default signer is set to API Keys
   ads.set_auth("api_key", profile = "TEST") # default signer is set to API Keys and to use TEST profile
   ads.set_auth("api_key", oci_config_location = "~/.test_oci/config") # default signer is set to API Keys and to use non-default oci_config_location
+  private_key_content = """
+  -----BEGIN RSA PRIVATE KEY-----
+  MIIBIjANBgkqhkiG9w0BAQE...
+  ...
+  -----END RSA PRIVATE KEY-----
+  """
+  config = dict(
+    user="ocid1.user.oc1..xxx",
+    fingerprint="35:67:25:90:89:87:45:78:bf:4h:g5:13:16:32:4d:f4",
+    tenancy="ocid1.tenancy.oc1..xxx",
+    region="us-ashburn-1",
+    key_content=private_key_content,
+  )
+  ads.set_auth(config = config) # default signer is set to API Keys with private key content
+  
   ads.set_auth("resource_principal")  # default signer is set to resource principal authentication
   ads.set_auth("instance_principal")  # default signer is set to instance principal authentication
 
@@ -139,21 +154,5 @@ More signers can be created using the ``create_signer()`` method. With the ``aut
   signer_callable = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
   signer_kwargs = dict(log_requests=True) # will log the request url and response data when retrieving
   auth = ads.auth.create_signer(signer_callable=signer_callable, signer_kwargs=signer_kwargs)
-  
-  # Example 4. Create signer that carries oci config in signer_kwargs. You can either pass key_file or key_content to signer_kwargs.
-  private_key_content = """
-  -----BEGIN RSA PRIVATE KEY-----
-  MIIBIjANBgkqhkiG9w0BAQE...
-  ...
-  -----END RSA PRIVATE KEY-----
-  """
-  signer_kwargs = dict(
-    user="ocid1.user.oc1..xxx",
-    fingerprint="35:67:25:90:89:87:45:78:bf:4h:g5:13:16:32:4d:f4",
-    tenancy="ocid1.tenancy.oc1..xxx",
-    region="us-ashburn-1",
-    key_content=private_key_content,
-  )
-  auth = ads.auth.create_signer(signer_kwargs=signer_kwargs)
 
 ``AuthContext`` context class can also be used to specify the desired type of authentication. It supports API key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or API keys configurations from specified locations. See `API Documentation <../../ads.common.html#ads.common.auth.AuthContext>`__ for more details.

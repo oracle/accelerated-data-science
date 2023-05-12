@@ -7,7 +7,7 @@
 import copy
 import os
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Union
 
 import ads.telemetry
 import oci
@@ -45,7 +45,7 @@ class AuthState(metaclass=SingletonMeta):
     oci_cli_auth: str = None
     oci_config_path: str = None
     oci_key_profile: str = None
-    oci_config: str = None
+    oci_config: Dict = None
     oci_signer: Any = None
     oci_signer_callable: Callable = None
     oci_signer_kwargs: Dict = None
@@ -66,7 +66,6 @@ class AuthState(metaclass=SingletonMeta):
         )
         self.oci_config = self.oci_config or {}
         self.oci_signer = self.oci_signer
-        self.oci_signer_callable = self.oci_signer_callable
         self.oci_signer_kwargs = self.oci_signer_kwargs or {}
         self.oci_client_kwargs = self.oci_client_kwargs or {}
 
@@ -82,15 +81,14 @@ def set_auth(
     client_kwargs: Optional[Dict] = {},
 ) -> None:
     """
-    Save type of authentication, profile, config location, config (keypair identity) or signer, which will be used
-    when actual creation of config or signer happens.
+    Sets the default authentication type.
 
     Parameters
     ----------
     auth: Optional[str], default 'api_key'
         'api_key', 'resource_principal' or 'instance_principal'. Enable/disable resource principal identity,
          instance principal or keypair identity in a notebook session
-    oci_config_location: Optional[str], default oci.config.DEFAULT_LOCATION, which is '~/.oci/config'
+    oci_config_location: Optional[str], default '~/.oci/config'
         config file location
     profile: Optional[str], default is DEFAULT_PROFILE, which is 'DEFAULT'
          profile name for api keys config file
@@ -117,13 +115,49 @@ def set_auth(
     >>> ads.set_auth("api_key", oci_config_location = "other_config_location") # use non-default oci_config_location
 
     >>> ads.set_auth("api_key", client_kwargs={"timeout": 60}) # default signer with connection and read timeouts set to 60 seconds for the client.
-    >>> ads.set_auth("api_key", signer_kwargs={"key_content": "private_key_content"}) # Create config using key content
+
     >>> other_config = oci.config.from_file("other_config_location", "OTHER_PROFILE") # Create non-default config
     >>> ads.set_auth(config=other_config) # Set api keys type of authentication based on provided config
+
+    >>> config={
+    ...     user=ocid1.user.oc1..<unique_ID>,
+    ...     fingerprint=<fingerprint>,
+    ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
+    ...     region=us-ashburn-1,
+    ...     key_content=<private key content>,
+    ... }
+    >>> ads.set_auth(config=config) # Set api key authentication using private key content based on provided config
+
+    >>> config={
+    ...     user=ocid1.user.oc1..<unique_ID>,
+    ...     fingerprint=<fingerprint>,
+    ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
+    ...     region=us-ashburn-1,
+    ...     key_file=~/.oci/oci_api_key.pem,
+    ... }
+    >>> ads.set_auth(config=config) # Set api key authentication using private key file location based on provided config
 
     >>> ads.set_auth("resource_principal")  # Set resource principal authentication
 
     >>> ads.set_auth("instance_principal")  # Set instance principal authentication
+
+    >>> singer = oci.signer.Signer(
+    ...     user=ocid1.user.oc1..<unique_ID>,
+    ...     fingerprint=<fingerprint>,
+    ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
+    ...     region=us-ashburn-1,
+    ...     private_key_content=<private key content>,
+    ... )
+    >>> ads.set_auth(singer=singer) # Set api keys authentication with private key content based on provided signer
+
+    >>> singer = oci.signer.Signer(
+    ...     user=ocid1.user.oc1..<unique_ID>,
+    ...     fingerprint=<fingerprint>,
+    ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
+    ...     region=us-ashburn-1,
+    ...     private_key_file_location=<private key content>,
+    ... )
+    >>> ads.set_auth(singer=singer) # Set api keys authentication with private key file location based on provided signer
 
     >>> singer = oci.auth.signers.get_resource_principals_signer()
     >>> ads.auth.create_signer(config={}, singer=signer) # resource principals authentication dictionary created
@@ -157,14 +191,7 @@ def set_auth(
 
     auth_state.oci_config = config
     auth_state.oci_key_profile = profile
-    if auth == AuthType.API_KEY and not signer and not signer_callable and not signer_kwargs:
-        if os.path.exists(os.path.expanduser(oci_config_location)):
-            auth_state.oci_config_path = oci_config_location
-        else:
-            raise ValueError(
-                f"{oci_config_location} path does not exist, please provide existing path to config file."
-            )
-
+    auth_state.oci_config_path = oci_config_location
     auth_state.oci_signer = signer
     auth_state.oci_signer_callable = signer_callable
     auth_state.oci_signer_kwargs = signer_kwargs
@@ -172,10 +199,9 @@ def set_auth(
 
 
 def api_keys(
-    oci_config: str = os.path.join(os.path.expanduser("~"), ".oci", "config"),
+    oci_config: Union[str, Dict] = os.path.expanduser(DEFAULT_LOCATION),
     profile: str = DEFAULT_PROFILE,
     client_kwargs: Dict = None,
-    kwargs: Dict = None
 ) -> Dict:
     """
     Prepares authentication and extra arguments necessary for creating clients for different OCI services using API
@@ -183,21 +209,12 @@ def api_keys(
 
     Parameters
     ----------
-    oci_config: Optional[str], default is $HOME/.oci/config
-        OCI authentication config file location.
+    oci_config: Optional[Union[str, Dict]], default is ~/.oci/config
+        OCI authentication config file location or a dictionary with config attributes.
     profile: Optional[str], is DEFAULT_PROFILE, which is 'DEFAULT'
         Profile name to select from the config file.
     client_kwargs: Optional[Dict], default None
         kwargs that are required to instantiate the Client if we need to override the defaults.
-    kwargs:
-        kwargs for API authentication signer.
-        - user: OCID of the user calling the API.
-        - tenancy: OCID of user's tenancy.
-        - fingerprint: Fingerprint for the public key that was added to this user.
-        - region: An Oracle Cloud Infrastructure region.
-        - pass_phrase: Passphrase used for the key, if it is encrypted.
-        - key_file: Full path and filename of the private key.
-        - key_content: The private key as PEM string.
 
     Returns
     -------
@@ -215,10 +232,12 @@ def api_keys(
     >>> oc.OCIClientFactory(**auth).object_storage # Creates Object storage client with timeout set to 6000 using API Key authentication
     """
     signer_args = dict(
-        oci_config_location=oci_config,
+        oci_config=oci_config if isinstance(oci_config, Dict) else {},
+        oci_config_location=oci_config
+        if isinstance(oci_config, str)
+        else os.path.expanduser(DEFAULT_LOCATION),
         oci_key_profile=profile,
         client_kwargs=client_kwargs,
-        signer_kwargs=kwargs,
     )
     signer_generator = AuthFactory().signerGenerator(AuthType.API_KEY)
     return signer_generator(signer_args).create_signer()
@@ -302,6 +321,24 @@ def create_signer(
     >>> config = oci.config.from_file("other_config_location", "OTHER_PROFILE")
     >>> auth = ads.auth.create_signer(config=config) # api_key type of authentication dictionary created based on provided config
 
+    >>> config={
+    ...     user=ocid1.user.oc1..<unique_ID>,
+    ...     fingerprint=<fingerprint>,
+    ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
+    ...     region=us-ashburn-1,
+    ...     key_content=<private key content>,
+    ... }
+    >>> auth = ads.auth.create_signer(config=config) # api_key type of authentication dictionary with private key content created based on provided config
+
+    >>> config={
+    ...     user=ocid1.user.oc1..<unique_ID>,
+    ...     fingerprint=<fingerprint>,
+    ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
+    ...     region=us-ashburn-1,
+    ...     key_file=~/.oci/oci_api_key.pem,
+    ... }
+    >>> auth = ads.auth.create_signer(config=config) # api_key type of authentication dictionary with private key file location created based on provided config
+
     >>> singer = oci.auth.signers.get_resource_principals_signer()
     >>> auth = ads.auth.create_signer(config={}, signer=signer) # resource principals authentication dictionary created
 
@@ -327,7 +364,6 @@ def create_signer(
             oci_config_location=oci_config_location,
             oci_key_profile=profile,
             oci_config=config,
-            signer_kwargs=signer_kwargs,
             client_kwargs=client_kwargs,
         )
         if config:
@@ -398,7 +434,6 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
             oci_config_location=auth_state.oci_config_path,
             oci_key_profile=auth_state.oci_key_profile,
             oci_config=auth_state.oci_config,
-            signer_kwargs=auth_state.oci_signer_kwargs or {},
             client_kwargs={
                 **(auth_state.oci_client_kwargs or {}),
                 **(client_kwargs or {}),
@@ -483,13 +518,11 @@ class APIKey(AuthSignerGenerator):
             - oci_config_location - path to config file
             - oci_key_profile - the profile to load from config file
             - client_kwargs - optional parameters for OCI client creation in next steps
-            - signer_kwargs - optional parameters for signer
         """
         self.oci_config = args.get("oci_config")
         self.oci_config_location = args.get("oci_config_location")
         self.oci_key_profile = args.get("oci_key_profile")
         self.client_kwargs = args.get("client_kwargs")
-        self.signer_kwargs = args.get("signer_kwargs")
 
     def create_signer(self) -> Dict:
         """
@@ -497,8 +530,8 @@ class APIKey(AuthSignerGenerator):
         Signer constructed from the `oci_config` provided. If not 'oci_config', configuration will be
         constructed from 'oci_config_location' and 'oci_key_profile' in place.
 
-        Resturns
-        --------
+        Returns
+        -------
         dict
             Contains keys - config, signer and client_kwargs.
 
@@ -517,23 +550,22 @@ class APIKey(AuthSignerGenerator):
         """
         if self.oci_config:
             configuration = ads.telemetry.update_oci_client_config(self.oci_config)
-        elif self.signer_kwargs:
-            configuration = ads.telemetry.update_oci_client_config(self.signer_kwargs)
         else:
             configuration = ads.telemetry.update_oci_client_config(
                 oci.config.from_file(self.oci_config_location, self.oci_key_profile)
             )
-            
+
+        oci.config.validate_config(configuration)
         logger.info(f"Using 'api_key' authentication.")
         return {
             "config": configuration,
             "signer": oci.signer.Signer(
-                configuration.get("tenancy"),
-                configuration.get("user"),
-                configuration.get("fingerprint"),
-                configuration.get("key_file"),
-                configuration.get("pass_phrase"),
-                configuration.get("key_content")
+                tenancy=configuration["tenancy"],
+                user=configuration["user"],
+                fingerprint=configuration["fingerprint"],
+                private_key_file_location=configuration.get("key_file"),
+                pass_phrase= configuration.get("pass_phrase"),
+                private_key_content=configuration.get("key_content")
             ),
             "client_kwargs": self.client_kwargs,
         }
@@ -563,8 +595,8 @@ class ResourcePrincipal(AuthSignerGenerator):
         """
         Creates Resource Principal signer with extra arguments necessary for creating clients.
 
-        Resturns
-        --------
+        Returns
+        -------
         dict
             Contains keys - config, signer and client_kwargs.
 
@@ -619,8 +651,8 @@ class InstancePrincipal(AuthSignerGenerator):
         Signer instantiated from the `signer_callable` or if the `signer` provided is will be return by this method.
         If `signer_callable` or `signer` not provided new signer will be created in place.
 
-        Resturns
-        --------
+        Returns
+        -------
         dict
             Contains keys - config, signer and client_kwargs.
 
