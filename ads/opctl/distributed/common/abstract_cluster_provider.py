@@ -20,7 +20,8 @@ import pandas as pd  # Have to find a better way for timedelta
 import psutil
 from ads.jobs import Job
 from ads.opctl.distributed.common import cluster_config_helper
-from ads.jobs.templates.driver_oci import GitSSHKey, GitManager, JobRunner
+from ads.jobs.templates.driver_oci import GitSSHKey, GitManager
+from ads.jobs.templates.driver_utils import JobRunner
 from ads.jobs.builders.runtimes.artifact import Artifact
 
 

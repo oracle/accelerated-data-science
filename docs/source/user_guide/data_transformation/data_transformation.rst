@@ -3,7 +3,7 @@
 Transform Data 
 ##############
 
-When datasets are loaded with DatasetFactory, they can be transformed and manipulated easily with the built-in functions. Underlying, an ``ADSDataset`` object is a Pandas dataframe. Any operation that can be performed to a `Pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`_ can also be applied to an ADS Dataset.
+When datasets are loaded, they can be transformed and manipulated easily with the built-in functions. Underlying, an ``ADSDataset`` object is a Pandas dataframe. Any operation that can be performed to a `Pandas dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`_ can also be applied to an ADS Dataset.
 
 Loading the Dataset
 ********************
@@ -12,9 +12,9 @@ You can load a ``pandas`` dataframe into an ``ADSDataset`` by calling.
 
 .. code-block:: python3
 
-   from ads.dataset.factory import DatasetFactory
+   from ads.dataset.dataset import ADSDataset
 
-   ds = DatasetFactory.from_dataframe(df)
+   ds = ADSDataset.from_dataframe(df)
 
 
 Automated Transformations
@@ -513,11 +513,14 @@ The resulting three data subsets each have separate data (X) and labels (y).
     print(train.X)  # print out all features in train dataset
     print(train.y)  # print out labels in train dataset
 
-You can split the dataset right after the ``DatasetFactory.open()`` statement:
+You can split the dataset right after the ``ADSDatasetWithTarget.from_dataframe()`` statement:
 
 .. code-block:: python3
 
-    ds = DatasetFactory.open("path/data.csv").set_target('target')
+    ds = ADSDatasetWithTarget.from_dataframe(
+        df=pd.read_csv("path/data.csv"),
+        target="target"
+    )
     train, test = ds.train_test_split(test_size=0.25)
 
 Text Data 

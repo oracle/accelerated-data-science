@@ -36,6 +36,11 @@ except ImportError:
 logger = logging.getLogger(__name__)
 logger = set_log_level(logger)
 
+# The directory for storing the user code/notebook.
+# The basename of the directory should match the ADS PythonArtifact.USER_CODE_DIR
+CODE_DIR = os.path.join(os.path.dirname(__file__), "code")
+
+
 class ADSExecutePreprocessor(ExecutePreprocessor):
     """Customized Execute Preprocessor for running notebook."""
 
@@ -149,12 +154,10 @@ def main() -> None:
     """Runs the driver to execute a notebook."""
     JobRunner().conda_unpack()
 
-    notebook_file_path = os.path.join(
-        os.path.dirname(__file__), os.environ.get("JOB_RUN_NOTEBOOK")
-    )
-    output_dir = os.path.join(os.path.dirname(__file__), "outputs")
-    # Create the output directory
-    os.makedirs(output_dir, exist_ok=True)
+    notebook_file_path = os.path.join(CODE_DIR, os.environ.get("JOB_RUN_NOTEBOOK"))
+    # By default, the output directory will be the one containing the notebook
+    output_dir = os.environ.get("OUTPUT_DIR", os.path.dirname(notebook_file_path))
+
     # Exclude tags
     tags = os.environ.get("NOTEBOOK_EXCLUDE_TAGS")
     if tags:

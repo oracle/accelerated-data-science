@@ -121,7 +121,7 @@ class SklearnModel(FrameworkSpecificModel):
     def __init__(
         self,
         estimator: Callable,
-        artifact_dir: str,
+        artifact_dir: Optional[str] = None,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
         model_save_serializer: Optional[SERDE] = model_save_serializer_type.JOBLIB,
@@ -180,7 +180,10 @@ class SklearnModel(FrameworkSpecificModel):
             str(type(estimator)).startswith("<class 'sklearn.")
             or str(type(estimator)).startswith("<class 'onnxruntime.")
         ):
-            raise TypeError(f"{str(type(estimator))} is not supported in SklearnModel.")
+            if hasattr(self, "ignore_conda_error") and not self.ignore_conda_error:
+                raise TypeError(
+                    f"{str(type(estimator))} is not supported in SklearnModel."
+                )
         super().__init__(
             estimator=estimator,
             artifact_dir=artifact_dir,

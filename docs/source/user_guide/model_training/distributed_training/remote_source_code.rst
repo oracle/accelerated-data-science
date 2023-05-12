@@ -3,10 +3,11 @@ Run Source Code from Git or Object Storage
 ==========================================
 
 .. admonition:: Require ADS >=2.6.3
+  :class: note
 
-    Running source code from Git or Object Storage requires ADS 2.6.3 or newer.
+  Running source code from Git or Object Storage requires ADS 2.6.3 or newer.
 
-    ``python3 -m pip install oracle-ads>=2.6.3 --upgrade``
+  ``python3 -m pip install oracle-ads>=2.6.3 --upgrade``
 
 Instead of adding the training source code to the docker image, you can also fetch the code at runtime from Git repository or object storage.
 

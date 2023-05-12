@@ -1,0 +1,215 @@
+<style>
+    table,
+    th,
+    td {
+        border: 1px solid black;
+        border-collapse: collapse;
+        padding: 10px;
+        text-align: left;
+    }
+
+    .th-key {
+        width: 160px;
+    }
+
+    .th-type {
+        width: 70px;
+    }
+</style>
+
+
+<p></p>
+<h4 id="runtime"><code>runtime</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>kind</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>runtime</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>type</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>notebook</code>
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>spec</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See <a href="#runtime.spec"><code>runtime.spec</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="runtime.spec"><code>runtime.spec</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>excludeTags</code></th>
+            <td class="th-type">
+                <code>list</code>
+            </td>
+            <td>
+                List of string. 
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>notebookPathURI</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>notebookEncoding</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>outputUri</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>args</code></th>
+            <td class="th-type">
+                <code>list</code>
+            </td>
+            <td>
+                List of string. 
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>conda</code></th>
+            <td class="th-type">
+                <code>dict</code>
+            </td>
+            <td>
+                See <a href="#runtime.spec.conda"><code>runtime.spec.conda</code></a> schema.
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>env</code></th>
+            <td class="th-type">
+                <code>list</code>
+            </td>
+            <td>
+                List of dict. For each element, see <a href="#runtime.spec.env"><code>runtime.spec.env</code></a> schema.
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="runtime.spec.conda"><code>runtime.spec.conda</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>slug</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>type</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                Must be <code>service</code>
+            </td>
+        </tr>
+        
+    </tbody>
+</table>
+
+<p></p>
+<h4 id="runtime.spec.env"><code>runtime.spec.env</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        
+        <tr>
+            <th><code>name</code></th>
+            <td class="th-type">
+                <code>string</code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+        <tr>
+            <th><code>value</code></th>
+            <td class="th-type">
+                <code><code>number</code> or <code>string</code></code>
+            </td>
+            <td>
+                
+            </td>
+        </tr>
+        
+    </tbody>
+</table>

@@ -4,12 +4,14 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict
-import ads
+from typing import Dict, Union
 from ads.common.auth import create_signer, AuthContext
 from ads.common.oci_client import OCIClientFactory
 from ads.opctl.backend.base import Backend
-from ads.pipeline import Pipeline, PipelineRun
+from ads.opctl.backend.ads_ml_job import JobRuntimeFactory
+from ads.pipeline import Pipeline, PipelineRun, PipelineStep, CustomScriptStep
+
+from ads.jobs import PythonRuntime
 
 
 class PipelineBackend(Backend):
@@ -36,8 +38,7 @@ class PipelineBackend(Backend):
         """
         Create Pipeline and Pipeline Run from YAML.
         """
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             pipeline = Pipeline.from_dict(self.config)
             pipeline.create()
             pipeline_run = pipeline.run()
@@ -49,8 +50,7 @@ class PipelineBackend(Backend):
         Create Pipeline and Pipeline Run from OCID.
         """
         pipeline_id = self.config["execution"]["ocid"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             pipeline = Pipeline.from_ocid(ocid=pipeline_id)
             pipeline_run = pipeline.run()
             print("PIPELINE RUN OCID:", pipeline_run.id)
@@ -61,14 +61,12 @@ class PipelineBackend(Backend):
         """
         if self.config["execution"].get("id"):
             pipeline_id = self.config["execution"]["id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 Pipeline.from_ocid(pipeline_id).delete()
                 print(f"Pipeline {pipeline_id} has been deleted.")
         elif self.config["execution"].get("run_id"):
             run_id = self.config["execution"]["run_id"]
-            with AuthContext():
-                ads.set_auth(auth=self.auth_type, profile=self.profile)
+            with AuthContext(auth=self.auth_type, profile=self.profile):
                 PipelineRun.from_ocid(run_id).delete()
                 print(f"Pipeline run {run_id} has been deleted.")
 
@@ -77,8 +75,7 @@ class PipelineBackend(Backend):
         Cancel Pipeline Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             PipelineRun.from_ocid(run_id).cancel()
             print(f"Pipeline run {run_id} has been cancelled.")
 
@@ -88,6 +85,70 @@ class PipelineBackend(Backend):
         """
         run_id = self.config["execution"]["run_id"]
         log_type = self.config["execution"]["log_type"]
-        with AuthContext():
-            ads.set_auth(auth=self.auth_type, profile=self.profile)
+        with AuthContext(auth=self.auth_type, profile=self.profile):
             PipelineRun.from_ocid(run_id).watch(log_type=log_type)
+
+    def init(
+        self,
+        uri: Union[str, None] = None,
+        overwrite: bool = False,
+        runtime_type: Union[str, None] = None,
+        **kwargs: Dict,
+    ) -> Union[str, None]:
+        """Generates a starter YAML specification for an MLPipeline.
+
+        Parameters
+        ----------
+        overwrite: (bool, optional). Defaults to False.
+            Overwrites the result specification YAML if exists.
+        uri: (str, optional), Defaults to None.
+            The filename to save the resulting specification template YAML.
+        runtime_type: (str, optional). Defaults to None.
+                The resource runtime type.
+        **kwargs: Dict
+            The optional arguments.
+
+        Returns
+        -------
+        Union[str, None]
+            The YAML specification for the given resource if `uri` was not provided.
+            `None` otherwise.
+        """
+
+        with AuthContext(auth=self.auth_type, profile=self.profile):
+            # define a pipeline step
+            pipeline_step = (
+                PipelineStep("pipeline_step_name_1")
+                .with_description("A step running a python script")
+                .with_infrastructure(CustomScriptStep().init())
+                .with_runtime(
+                    JobRuntimeFactory.get_runtime(
+                        key=runtime_type or PythonRuntime().type
+                    ).init()
+                )
+            )
+
+            # define a pipeline
+            pipeline = (
+                Pipeline(
+                    name="Pipeline Name",
+                    spec=(self.config.get("infrastructure", {}) or {}),
+                )
+                .with_step_details([pipeline_step])
+                .with_dag(["pipeline_step_name_1"])
+                .init()
+            )
+
+            note = (
+                "# This YAML specification was auto generated by the `ads opctl init` command.\n"
+                "# The more details about the jobs YAML specification can be found in the ADS documentation:\n"
+                "# https://accelerated-data-science.readthedocs.io/en/latest/user_guide/pipeline/quick_start.html \n\n"
+            )
+
+            return pipeline.to_yaml(
+                uri=uri,
+                overwrite=overwrite,
+                note=note,
+                filter_by_attribute_map=True,
+                **kwargs,
+            )

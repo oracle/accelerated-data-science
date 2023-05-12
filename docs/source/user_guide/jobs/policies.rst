@@ -11,6 +11,7 @@ This section describe the policies you might need for running Data Science Jobs.
     You should further restrict the access to the resources base on your needs.
 
 .. admonition:: Policy subject
+    :class: note
 
     In the following example, ``group <your_data_science_users>`` is the subject of the policy
     when using OCI API keys for authentication. For resource principal authentication,

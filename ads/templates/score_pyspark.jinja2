@@ -32,10 +32,9 @@ def load_model(model_file_name=model_name):
     -------
     model:  a model instance on which predict API can be invoked
     """
-    model_dir = os.path.dirname(os.path.realpath(__file__))
+    model_dir = os.environ.get("OCI_DEPLOYMENT_PATH", os.path.dirname(os.path.realpath(__file__)))
     if model_dir not in sys.path:
         sys.path.insert(0, model_dir)
-    contents = os.listdir(model_dir)
     try:
         print(f'Start loading {model_file_name} from model directory {model_dir} ...')
         loaded_model = PipelineModel.load(os.path.join(model_dir, model_file_name))

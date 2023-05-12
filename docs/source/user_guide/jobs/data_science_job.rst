@@ -2,6 +2,7 @@ Quick Start
 ***********
 
 .. admonition:: Prerequisite
+  :class: note
 
   Before creating a job, ensure that you have policies configured for Data Science resources.
 

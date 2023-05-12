@@ -16,7 +16,6 @@ This type is used by factory class method or when a method returns ``self``.
 
 
 class Builder(Serializable):
-
     attribute_map = {}
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -111,9 +110,25 @@ class Builder(Serializable):
         class_name = self.__class__.__name__
         return class_name[0].lower() + class_name[1:] if len(class_name) > 1 else ""
 
-    def to_dict(self) -> dict:
-        """Converts the object to dictionary with kind, type and spec as keys."""
-        spec = copy.deepcopy(self._spec)
+    def to_dict(self, **kwargs) -> dict:
+        """Converts the object to dictionary with kind, type and spec as keys.
+
+        Parameters
+        ----------
+        **kwargs: Dict
+            The additional arguments.
+            - filter_by_attribute_map: bool
+                If True, then in the result will be included only the fields
+                presented in the `attribute_map`.
+        """
+        filter_by_attribute_map = kwargs.pop("filter_by_attribute_map", False)
+
+        spec = {
+            key: value
+            for key, value in copy.deepcopy(self._spec).items()
+            if not filter_by_attribute_map or key in self.attribute_map
+        }
+
         for key, value in spec.items():
             if hasattr(value, "to_dict"):
                 value = value.to_dict()
@@ -133,3 +148,9 @@ class Builder(Serializable):
     def __repr__(self) -> str:
         """Displays the object as YAML."""
         return self.to_yaml()
+
+    def build(self) -> Self:
+        """Load default values from the environment for the job infrastructure.
+        Should be implemented on the child level.
+        """
+        return self

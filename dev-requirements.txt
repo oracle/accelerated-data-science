@@ -1,0 +1,18 @@
+-r test-requirements.txt
+-e ".[opctl]"
+-e ".[all-optional]"
+arff
+category_encoders
+dask
+fastparquet
+imbalanced-learn
+lxml
+mysql-connector-python
+nltk
+pdfplumber
+py4j
+pyarrow
+pyspark
+setuptools
+tables
+xlrd>=1.2.0

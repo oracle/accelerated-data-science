@@ -1,0 +1,24 @@
+kind:
+  allowed:
+    - job
+  required: true
+  type: string
+apiVersion:
+  nullable: true
+  required: false
+  type: string
+spec:
+  type: dict
+  required: true
+  schema:
+    id:
+      type: string
+    infrastructure:
+      type: dict
+      meta: See Data Science Job or Data Flow schema.
+    name:
+      required: false
+      type: string
+    runtime:
+      type: dict
+      meta: See Job Runtime Schemas.

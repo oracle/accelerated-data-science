@@ -31,6 +31,15 @@ git commit --signoff
 Only pull requests from committers that can be verified as having signed the OCA
 are accepted.
 
+## Branching strategy
+
+Use GitHub flow branching strategy. With the GitHub flow, there are only 2 branches: main and feature.
+
+1. Every change that is worked on is branched directly off of main into a feature branch.
+2. Once a feature is ready it is tested on the feature branch and the code is reviewed before being merged to main.
+
+Hotfixes, bugfixes are treated the same as feature branches.
+
 ## Pull request process
 
 1. Ensure there is an issue created to track and discuss the fix or enhancement

@@ -139,3 +139,5 @@ More signers can be created using the ``create_signer()`` method. With the ``aut
   signer_callable = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
   signer_kwargs = dict(log_requests=True) # will log the request url and response data when retrieving
   auth = ads.auth.create_signer(signer_callable=signer_callable, signer_kwargs=signer_kwargs)
+
+``AuthContext`` context class can also be used to specify the desired type of authentication. It supports API key configuration, resource principal, and instance principal authentication, as well as predefined signers, callable signers, or API keys configurations from specified locations. See `API Documentation <../../ads.common.html#ads.common.auth.AuthContext>`__ for more details.

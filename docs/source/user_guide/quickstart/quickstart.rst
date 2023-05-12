@@ -12,7 +12,7 @@ The Accelerated Data Science (ADS) SDK is a Oracle Cloud Infrastructure Data Sci
 
 ADS is pre-installed in the notebook session environment of the Data Science service.
 
-For a guide on ADS features, check out the overview. This Quick Start guide is a five minute compressed set of instructions about what you can accomplish with ADS and includes:
+For a guide to ADS features, check out the overview. This Quick Start guide is a five minute compressed set of instructions about what you can accomplish with ADS and includes:
 
 * `Setting up ADS`_
 * `Getting Data into ADS`_
@@ -59,9 +59,9 @@ variable during modeling. The type of this target determines what type of modeli
 to use (regression, binary, and multi-class classification, or time series forecasting).
 
 There are several ways to turn data into an ``ADSDataset``. The simplest way is to
-use `DatasetFactory`, which takes as its first argument as a string URI or a
-``Pandas Dataframe`` object. The URI supports many formats, such as Object Storage
-or S3 files. The
+use `ADSDataset` or `ADSDatasetWithTarget` constructor, which takes as its first argument
+as a ``Pandas Dataframe`` object. The ``Pandas Dataframe`` supports loading data from many
+URL schemes, such as Object Storage or S3 files. The
 `class documentation <https://docs.cloud.oracle.com/en-us/iaas/tools/ads-sdk/latest/modules.html>_` describes all classes.
 
 For example:
@@ -77,12 +77,12 @@ For example:
   df = pd.DataFrame(data.data, columns=data.feature_names)
   df["species"] = data.target
 
-  from ads.dataset.factory import DatasetFactory
+  from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 
   # these two are equivalent:
-  ds = DatasetFactory.open(df, target="species")
+  ds = ADSDatasetWithTarget(df, target="species")
   # OR
-  ds = DatasetFactory.from_dataframe(df, target="species")
+  ds = ADSDatasetWithTarget.from_dataframe(df, target="species")
 
 The ``ds`` (``ADSDataset``) object is ``Pandas`` like. For example, you can use ``ds.head()``. It's
 an encapsulation of a `Pandas` Dataframe with immutability. Any attempt to
@@ -93,7 +93,7 @@ modify the data yields a new copy-on-write of the ``ADSDataset``.
    to memory. ADS also samples the dataset for visualization purposes, computes
    co-correlation of the columns in the dataset, and performs type discovery on the
    different columns in the dataset. That is why loading a dataset with
-   ``DatasetFactory`` can be slower than simply reading the same dataset
+   ``ADSDataset`` can be slower than simply reading the same dataset
    with ``Pandas``. In return, you get the added data visualizations and data
    profiling benefits of the ``ADSDataset`` object.
 
@@ -113,10 +113,12 @@ modify the data yields a new copy-on-write of the ``ADSDataset``.
 
   pd.DataFrame({'c1':[1,2,3], 'target': ['yes', 'no', 'yes']}).to_csv('Users/ysz/data/sample.csv')
 
-  ds = DatasetFactory.open('Users/ysz/data/sample.csv',
-                          target = 'target',
-                          type_discovery = False, # turn off ADS type discovery
-                          types = {'target': 'category'}) # specify target type
+  ds = ADSDatasetWithTarget(
+    df=pd.read_csv('Users/ysz/data/sample.csv'),
+    target='target',
+    type_discovery=False, # turn off ADS type discovery
+    types={'target': 'category'} # specify target type
+  )
 
 
 

@@ -3,7 +3,7 @@
 SklearnModel
 ************
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.sklearn_model.SklearnModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.sklearn_model.SklearnModel>`__
 
 
 Overview

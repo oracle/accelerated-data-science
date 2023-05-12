@@ -1,15 +1,16 @@
-Connect with ``DatasetFactory`` 
-*******************************
+Connect with ``ADSDataset`` and ``ADSDatasetWithTarget`` 
+********************************************************
 
 
-.. admonition:: Deprecation Note |deprecated|
+.. admonition:: |deprecated|
+  :class: note
 
-    * ``DataSetFactory.open`` is deprecated in favor of Pandas to read from file systems. 
-    * Pandas(>1.2.1) can connect to object storage using uri format - ``oci://bucket@namepace/path/to/data``.
-    * To read from Oracle database or MySQL, see DataBase sections under :doc:`Connecting to Datasources<connect>`
-    * ``DataSetFactory.from_dataframe`` is supported to create ``ADSDataset`` class from ``pandas`` dataframe
+  * ``DataSetFactory.open`` is deprecated in favor of Pandas to read from file systems. 
+  * Pandas(>1.2.1) can connect to object storage using uri format - ``oci://bucket@namepace/path/to/data``.
+  * To read from Oracle database or MySQL, see DataBase sections under :doc:`Connecting to Datasources<connect>`
+  * ``DataSetFactory.from_dataframe`` is supported to create ``ADSDataset`` class from ``pandas`` dataframe
 
-    See :doc:`Connecting to Datasources<connect>` for examples.
+  See :doc:`Connecting to Datasources<connect>` for examples.
 
 .. |deprecated| image:: /_static/badge_deprecated.svg
 
@@ -25,7 +26,8 @@ Begin by loading the required libraries and modules:
     import pandas as pd
 
     from ads.dataset.dataset_browser import DatasetBrowser
-    from ads.dataset.factory import DatasetFactory
+    from ads.dataset.dataset import ADSDataset
+    from ads.dataset.dataset_with_target import ADSDatasetWithTarget
 
 Object Storage
 ==============
@@ -37,14 +39,15 @@ To open a dataset from Object Storage using the resource principal method, you c
   import ads
   import os
 
-  from ads.dataset.factory import DatasetFactory
-
   ads.set_auth(auth='resource_principal')
   bucket_name = <bucket-name>
   file_name = <file-name>
   namespace = <namespace>
   storage_options = {'config':{}, 'tenancy': os.environ['TENANCY_OCID'], 'region': os.environ['NB_REGION']}
-  ds = DatasetFactory.open(f"oci://{bucket_name}@{namespace}/{file_name}", storage_options=storage_options)
+  ds = ADSDataset(
+    df=pd.read_csv(f"oci://{bucket_name}@{namespace}/{file_name}.csv"),
+    storage_options=storage_options
+  )
 
 
 To open a dataset from Object Storage using the Oracle Cloud Infrastructure configuration file method, include the location of the file using this format ``oci://<bucket_name>@<namespace>/<file_name>`` and modify the optional parameter ``storage_options``. Insert:
@@ -56,19 +59,22 @@ For example:
 
 .. code-block:: python3
 
-  ds = DatasetFactory.open("oci://<bucket_name>@<namespace>/<file_name>", storage_options = {
+  ds = ADSDataset(
+    df=pd.read_csv(f"oci://{bucket_name}@{namespace}/{file_name}.csv"),
+    storage_options={
      "config": "~/.oci/config",
      "profile": "DEFAULT"
-  })
+    }
+  )
 
 Local Storage
 =============
 
-To open a dataset from a local source, use ``DatasetFactory.open`` and specify the path of the data file:
+To open a dataset from a local source, use ``pandas`` to load the file into a dataframe, convert it to ``ADSDataset`` and specify the path of the data file:
 
 .. code-block:: python3
 
-  ds = DatasetFactory.open("/path/to/data.data", format='csv', delimiter=" ")
+  ds = ADSDataset(df=pd.read_csv("/path/to/data.csv"))
 
 Oracle Database
 ---------------
@@ -122,9 +128,16 @@ You can also use ``cx_Oracle`` within ADS by creating a connection string:
 .. code-block:: python3
 
   os.environ['TNS_ADMIN'] = creds['tns_admin']
-  from ads.dataset.factory import DatasetFactory
-  uri = 'oracle+cx_oracle://' + creds['user'] + ':' + creds['password'] + '@' + creds['sid']
-  ds = DatasetFactory.open(uri, format="sql", table=table, index_col=index_col)
+  with cx_Oracle.connect(creds['user'], creds['password'], creds['sid']) as ora_conn:
+    ds = ADSDataset(
+      df=pd.read_sql('''
+        SELECT ename, dname, job, empno, hiredate, loc
+        FROM emp, dept
+        WHERE emp.deptno = dept.deptno
+        ORDER BY ename
+      ''', con=ora_conn        
+      )
+    )
 
 Autonomous Database
 ===================
@@ -142,19 +155,17 @@ Oracle has two configurations of Autonomous Databases. They are the Autonomous D
 Load from ADB
 -------------
 
-After you have stored the ADB username, password, and database name (SID) as variables, you can build the URI as your connection source.
-
-.. code-block:: python3
-
-    uri = 'oracle+cx_oracle://' + creds['user'] + ':' + creds['password'] + '@' + creds['sid']
-
-You can use ADS to query a table from your database, and then load that table as an ``ADSDataset`` object through ``DatasetFactory``.
-When you open ``DatasetFactory``, specify the name of the table you want to pull using the ``table`` variable for a given table. For SQL expressions, use the table parameter also. For example, *(`table="SELECT * FROM sh.times WHERE rownum <= 30"`)*.
+You can use ADS to query a table from your database, by loading that database as a pandas dataframe and convert it to an ``ADSDataset`` or ``ADSDatasetWithTarget`` object.
+When you call ``pandas``, specify the name of the table you want to pull.
 
 .. code-block:: python3
 
     os.environ['TNS_ADMIN'] = creds['tns_admin']
-    ds = DatasetFactory.open(uri, format="sql", table=table, target='label')
+    with cx_Oracle.connect(creds['user'], creds['password'], creds['sid']) as ora_conn:
+      ds = ADSDatasetWithTarget(
+        df=pd.read_sql_table(table, con=ora_conn),
+        target='label'
+      )
 
 Query ADB
 ---------
@@ -172,11 +183,11 @@ Query ADB
       engine = create_engine(uri)
       df = pd.read_sql('SELECT * from <TABLENAME>', con=engine)
 
-You can convert the ``pd.DataFrame`` into ``ADSDataset`` using the ``DatasetFactory.from_dataframe()`` function.
+You can convert the ``pd.DataFrame`` into ``ADSDataset`` using the ``ADSDataset.from_dataframe()`` function.
 
 .. code-block:: python3
 
-      ds = DatasetFactory.from_dataframe(df)
+      ds = ADSDataset.from_dataframe(df)
 
 These two examples run a simple query on ADW data. With ``read_sql_query`` you can use SQL expressions not just for tables, but also to limit the number of rows and to apply conditions with filters, such as (``where``).
 
@@ -194,7 +205,6 @@ You can also query data from ADW using cx_Oracle. Use the cx_Oracle 7.0.0 versio
 
 .. code-block:: python3
 
-      import
       import pandas as pd
       import numpy as np
       import os
@@ -207,7 +217,7 @@ You can also query data from ADW using cx_Oracle. Use the cx_Oracle 7.0.0 versio
       data = results.fetchall()
       df = pd.DataFrame(np.array(data))
 
-      ds = DatasetFactory.from_dataframe(df)
+      ds = ADSDataset.from_dataframe(df)
 
 .. code-block:: python3
 
@@ -230,7 +240,7 @@ This example adds predictions programmatically using cx_Oracle. It uses ``execut
 
 .. code-block:: python3
 
-    ds = DatasetFactory.open("iris.csv")
+    ds = ADSDataset(pd.read_csv("iris.csv"))
 
     create_table = '''CREATE TABLE IRIS_PREDICTED (,
                             sepal_length number,
@@ -269,12 +279,14 @@ You can open Amazon S3 public or private files in ADS. For private files, you mu
 
 .. code-block:: python3
 
-  ds = DatasetFactory.open("s3://bucket_name/iris.csv", storage_options = {
+  ds = ADSDataset(
+    df=pd.read_csv("s3://bucket_name/iris.csv"),
+    storage_options = {
       'key': 'aws key',
       'secret': 'aws secret,
       'blocksize': 1000000,
       'client_kwargs': {
-              "endpoint_url": "https://s3-us-west-1.amazonaws.com"
+      'endpoint_url': 'https://s3-us-west-1.amazonaws.com'
       }
   })
 
@@ -282,11 +294,14 @@ You can open Amazon S3 public or private files in ADS. For private files, you mu
 HTTP(S) Sources
 ===============
 
-To open a dataset from a remote web server source, use ``DatasetFactory.open()`` and specify the URL of the data:
+To open a dataset from a remote web server source, use ``pandas`` to load the data from URL, convert it to ``ADSDataset`` or ``ADSDatasetWithTarget`` and specify the URL of the data:
 
 .. code-block:: python3
 
-   ds = DatasetFactory.open('https://example.com/path/to/data.csv', target='label')
+  ds = ADSDatasetWithTarget(
+    df=pd.read_csv('https://example.com/path/to/data.csv'),
+    target='label'
+  )
 
 
 ``DatasetBrowser``

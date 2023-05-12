@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import print_function, absolute_import, division
@@ -16,7 +16,7 @@ import uuid
 
 from collections import Counter
 from sklearn.preprocessing import FunctionTransformer
-from typing import Iterable, Union
+from typing import Iterable, Tuple, Union
 
 from ads import set_documentation_mode
 from ads.common import utils
@@ -71,8 +71,8 @@ class ADSDataset(PandasDataset):
     def __init__(
         self,
         df,
-        sampled_df,
-        shape,
+        sampled_df=None,
+        shape=None,
         name="",
         description=None,
         type_discovery=True,
@@ -88,6 +88,17 @@ class ADSDataset(PandasDataset):
         # to keep performance high and linear no matter the size of the distributed dataset we
         # create a pandas df that's used internally because this has a fixed upper size.
         #
+        if shape is None:
+            shape = df.shape
+
+        if sampled_df is None:
+            sampled_df = generate_sample(
+                df,
+                shape[0],
+                DatasetDefaults.sampling_confidence_level,
+                DatasetDefaults.sampling_confidence_interval,
+                **kwargs,
+            )
         super().__init__(
             sampled_df,
             type_discovery=type_discovery,
@@ -133,6 +144,36 @@ class ADSDataset(PandasDataset):
 
     def __len__(self):
         return self.shape[0]
+
+    @staticmethod
+    def from_dataframe(
+        df,
+        sampled_df=None,
+        shape=None,
+        name="",
+        description=None,
+        type_discovery=True,
+        types={},
+        metadata=None,
+        progress=DummyProgressBar(),
+        transformer_pipeline=None,
+        interactive=False,
+        **kwargs,
+    ) -> "ADSDataset":
+        return ADSDataset(
+            df=df,
+            sampled_df=sampled_df,
+            shape=shape,
+            name=name,
+            description=description,
+            type_discovery=type_discovery,
+            types=types,
+            metadata=metadata,
+            progress=progress,
+            transformer_pipeline=transformer_pipeline,
+            interactive=interactive,
+            **kwargs
+        )
 
     @property
     @deprecated(

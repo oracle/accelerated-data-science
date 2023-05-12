@@ -1,0 +1,23 @@
+<p></p>
+<h4 id="{{ schema.name }}"><code>{{ schema.name }}</code> schema</h4>
+<table style="width: 100%;">
+    <thead>
+        <tr>
+            <th class="th-key">Key</th>
+            <th colspan="2">Value</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in schema.rows %}
+        <tr>
+            <th><code>{{ item.key }}</code></th>
+            <td class="th-type">
+                <code>{{ item.type }}</code>
+            </td>
+            <td>
+                {{ item.description }}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

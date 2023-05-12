@@ -145,8 +145,9 @@ docs/ads-latest.zip
 # html reports of covered code by pytests and
 # execution data collected by coverage.py
 *coverage_html_report*
+*htmlcov*
 .coverage
-.coverage*
+.coverage_*
 **.sqlite
 
 extensions/**/node_modules/

@@ -17,7 +17,6 @@ import oci.loggingsearch
 from ads.common import auth as authutil
 import pandas as pd
 from ads.model.serde.model_input import JsonModelInputSERDE
-from ads.common import auth, oci_client
 from ads.common.oci_logging import (
     LOG_INTERVAL,
     LOG_RECORDS_LIMIT,
@@ -63,6 +62,13 @@ TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
+MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON = "TRITON"
+
+MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
+MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
+MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
+MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
+MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
 
 class ModelDeploymentLogType:
@@ -75,11 +81,11 @@ class ModelDeploymentMode:
     STREAM = "STREAM_ONLY"
 
 
-class LogNotConfiguredError(Exception):
+class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
 
-class ModelDeploymentFailedError(Exception):
+class ModelDeploymentFailedError(Exception):  # pragma: no cover
     pass
 
 
@@ -822,6 +828,8 @@ class ModelDeployment(Builder):
         data: Any = None,
         serializer: "ads.model.ModelInputSerializer" = model_input_serializer,
         auto_serialize_data: bool = False,
+        model_name: str = None,
+        model_version: str = None,
         **kwargs,
     ) -> dict:
         """Returns prediction of input data run against the model deployment endpoint.
@@ -854,6 +862,10 @@ class ModelDeployment(Builder):
             If `auto_serialize_data=False`, `data` required to be bytes or json serializable
             and `json_input` required to be json serializable. If `auto_serialize_data` set
             to True, data will be serialized before sending to model deployment endpoint.
+        model_name: str
+            Defaults to None. When the `inference_server="triton"`, the name of the model to invoke.
+        model_version: str
+            Defaults to None. When the `inference_server="triton"`, the version of the model to invoke.
         kwargs:
             content_type: str
                 Used to indicate the media type of the resource.
@@ -872,6 +884,7 @@ class ModelDeployment(Builder):
             "signer": signer,
             "content_type": kwargs.get("content_type", None),
         }
+        header.update(kwargs.pop("headers", {}))
 
         if data is None and json_input is None:
             raise AttributeError(
@@ -910,9 +923,18 @@ class ModelDeployment(Builder):
             raise TypeError(
                 "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
             )
-
+        if model_name and model_version:
+            header["model-name"] = model_name
+            header["model-version"] = model_version
+        elif bool(model_version) ^ bool(model_name):
+            raise ValueError(
+                "`model_name` and `model_version` have to be provided together."
+            )
         prediction = send_request(
-            data=data, endpoint=endpoint, is_json_payload=is_json_payload, header=header
+            data=data,
+            endpoint=endpoint,
+            is_json_payload=is_json_payload,
+            header=header,
         )
         return prediction
 
@@ -1317,7 +1339,7 @@ class ModelDeployment(Builder):
 
         return model_deployment
 
-    def to_dict(self) -> Dict:
+    def to_dict(self, **kwargs) -> Dict:
         """Serializes model deployment to a dictionary.
 
         Returns
@@ -1384,6 +1406,14 @@ class ModelDeployment(Builder):
             infrastructure.CONST_WEB_CONCURRENCY,
             runtime.env.get("WEB_CONCURRENCY", None),
         )
+        if (
+            runtime.env.get("CONTAINER_TYPE", None)
+            == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+        ):
+            runtime.set_spec(
+                runtime.CONST_INFERENCE_SERVER,
+                MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON.lower(),
+            )
 
         self.set_spec(self.CONST_INFRASTRUCTURE, infrastructure)
         self.set_spec(self.CONST_RUNTIME, runtime)
@@ -1443,7 +1473,8 @@ class ModelDeployment(Builder):
             self.CONST_DESCRIPTION: self.description,
             self.CONST_DEFINED_TAG: self.defined_tags,
             self.CONST_FREEFORM_TAG: self.freeform_tags,
-            self.runtime.CONST_DEPLOYMENT_MODE: self.runtime.deployment_mode,
+            self.runtime.CONST_DEPLOYMENT_MODE: self.runtime.deployment_mode
+            or ModelDeploymentMode.HTTPS,
             self.infrastructure.CONST_COMPARTMENT_ID: self.infrastructure.compartment_id
             or COMPARTMENT_OCID,
             self.infrastructure.CONST_PROJECT_ID: self.infrastructure.project_id
@@ -1493,13 +1524,36 @@ class ModelDeployment(Builder):
         runtime = self.runtime
 
         instance_configuration = {
-            infrastructure.CONST_INSTANCE_SHAPE_NAME: infrastructure.shape_name,
-            infrastructure.CONST_MODEL_DEPLOYMENT_INSTANCE_SHAPE_CONFIG_DETAILS: infrastructure.shape_config_details,
+            infrastructure.CONST_INSTANCE_SHAPE_NAME: infrastructure.shape_name
+            or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
         }
+
+        if instance_configuration[infrastructure.CONST_INSTANCE_SHAPE_NAME].endswith(
+            "Flex"
+        ):
+            instance_configuration[
+                infrastructure.CONST_MODEL_DEPLOYMENT_INSTANCE_SHAPE_CONFIG_DETAILS
+            ] = {
+                infrastructure.CONST_OCPUS: infrastructure.shape_config_details.get(
+                    "ocpus", None
+                )
+                or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+                infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
+                    "memory_in_gbs", None
+                )
+                or infrastructure.shape_config_details.get(
+                    "memoryInGBs", None
+                )
+                or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+            }
+
+        if infrastructure.subnet_id:
+            instance_configuration[infrastructure.CONST_SUBNET_ID] = infrastructure.subnet_id
 
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
-            infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica,
+            infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
+            or MODEL_DEPLOYMENT_INSTANCE_COUNT,
         }
 
         if not runtime.model_uri:
@@ -1520,17 +1574,37 @@ class ModelDeployment(Builder):
             )
 
         model_configuration_details = {
-            infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps,
+            infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
+            or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
             infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
             runtime.CONST_MODEL_ID: model_id,
             infrastructure.CONST_SCALING_POLICY: scaling_policy,
         }
+
+        if runtime.env:
+            if not hasattr(
+                oci.data_science.models,
+                "ModelDeploymentEnvironmentConfigurationDetails",
+            ):
+                raise EnvironmentError(
+                    "Environment variable hasn't been supported in the current OCI SDK installed."
+                )
 
         environment_variables = runtime.env
         if infrastructure.web_concurrency:
             environment_variables["WEB_CONCURRENCY"] = str(
                 infrastructure.web_concurrency
             )
+            runtime.set_spec(runtime.CONST_ENV, environment_variables)
+        if (
+            hasattr(runtime, "inference_server")
+            and runtime.inference_server
+            and runtime.inference_server.upper()
+            == MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
+        ):
+            environment_variables[
+                "CONTAINER_TYPE"
+            ] = MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON
             runtime.set_spec(runtime.CONST_ENV, environment_variables)
         environment_configuration_details = {
             runtime.CONST_ENVIRONMENT_CONFIG_TYPE: runtime.environment_config_type,
@@ -1592,24 +1666,27 @@ class ModelDeployment(Builder):
                 self.infrastructure.CONST_PREDICT: log_group_details,
             }
 
-        return {
-            self.infrastructure.CONST_ACCESS: {
+        logs = {}
+        if self.infrastructure.access_log:
+            logs[self.infrastructure.CONST_ACCESS] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.access_log.get(
                     "logGroupId", None
                 ),
                 self.infrastructure.CONST_LOG_ID: self.infrastructure.access_log.get(
                     "logId", None
                 ),
-            },
-            self.infrastructure.CONST_PREDICT: {
+            }
+        if self.infrastructure.predict_log:
+            logs[self.infrastructure.CONST_PREDICT] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.predict_log.get(
                     "logGroupId", None
                 ),
                 self.infrastructure.CONST_LOG_ID: self.infrastructure.predict_log.get(
                     "logId", None
                 ),
-            },
-        }
+            }
+
+        return logs
 
     def _random_display_name(self):
         """Generates a random display name."""
@@ -1632,3 +1709,12 @@ class ModelDeployment(Builder):
             if attribute in kwargs:
                 spec_kwargs[attribute] = kwargs[attribute]
         return spec_kwargs
+
+    def build(self) -> "ModelDeployment":
+        """Load default values from the environment for the job infrastructure."""
+        build_method = getattr(self.infrastructure, "build", None)
+        if build_method and callable(build_method):
+            build_method()
+        else:
+            raise NotImplementedError
+        return self

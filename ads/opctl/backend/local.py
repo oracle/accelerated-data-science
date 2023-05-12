@@ -10,36 +10,51 @@ import os
 import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
-from typing import List, Dict
+from typing import Dict, List
 
-from ads.opctl import logger
-from ads.opctl.backend.base import Backend
-from ads.opctl.config.resolver import ConfigResolver
-from ads.opctl.distributed.cmds import local_run, load_ini
-from ads.opctl.constants import (
-    ML_JOB_IMAGE,
-    ML_JOB_GPU_IMAGE,
-    DEFAULT_IMAGE_HOME_DIR,
-    DEFAULT_IMAGE_SCRIPT_DIR,
-    DEFAULT_IMAGE_CONDA_DIR,
-    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
-    DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
-)
-from ads.opctl.utils import get_docker_client, is_in_notebook_session
-from ads.opctl.utils import build_image, run_container, run_command
-from ads.opctl.spark.cmds import (
-    generate_core_site_properties_str,
-    generate_core_site_properties,
-)
-from ads.common.decorator.runtime_dependency import (
-    runtime_dependency,
-    OptionalDependency,
-)
-from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
 from oci.data_science.models import PipelineStepRun
 
+from ads.common.auth import create_signer
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 
-class CondaPackNotFound(Exception):
+from ads.model.model_metadata import ModelCustomMetadata
+from ads.model.runtime.runtime_info import RuntimeInfo
+from ads.opctl import logger
+from ads.opctl.backend.base import Backend
+from ads.opctl.conda.cmds import _install
+from ads.opctl.config.resolver import ConfigResolver
+from ads.opctl.constants import (
+    DEFAULT_IMAGE_CONDA_DIR,
+    DEFAULT_IMAGE_HOME_DIR,
+    DEFAULT_IMAGE_SCRIPT_DIR,
+    DEFAULT_MODEL_FOLDER,
+    DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
+    DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
+    ML_JOB_GPU_IMAGE,
+    ML_JOB_IMAGE,
+    DEFAULT_MODEL_DEPLOYMENT_FOLDER,
+)
+from ads.opctl.distributed.cmds import load_ini, local_run
+from ads.opctl.model.cmds import _download_model
+from ads.opctl.spark.cmds import (
+    generate_core_site_properties,
+    generate_core_site_properties_str,
+)
+from ads.opctl.utils import (
+    build_image,
+    get_docker_client,
+    is_in_notebook_session,
+    run_command,
+    run_container,
+)
+from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
+from ads.common.oci_client import OCIClientFactory
+from ads.config import NO_CONTAINER
+
+class CondaPackNotFound(Exception):  # pragma: no cover
     pass
 
 
@@ -53,7 +68,7 @@ class LocalBackend(Backend):
         config: dict
             dictionary of configurations
         """
-        self.config = config
+        super().__init__(config=config)
 
     def run(self):
         if self.config.get("version") == "v1.0":
@@ -146,7 +161,7 @@ class LocalBackend(Backend):
                     "extensions": ["ms-python.python"],
                 }
 
-        dev_container["containerEnv"] = self.config["execution"]["env_vars"]
+        dev_container["containerEnv"] = self.config["execution"].get("env_vars", {})
         for k, v in self.config["execution"]["volumes"].items():
             dev_container["mounts"].append(
                 f"source={os.path.abspath(k)},target={v['bind']},type=bind"
@@ -178,18 +193,24 @@ class LocalBackend(Backend):
                 f.write(json.dumps(dev_container, indent=2))
             print(f"File {os.path.abspath('.devcontainer.json')} created.")
 
-    def _run_with_conda_pack(self, bind_volumes: Dict) -> int:
-        env_vars = self.config["execution"]["env_vars"]
+    def _run_with_conda_pack(
+        self,
+        bind_volumes: Dict,
+        extra_cmd: str = "",
+        install: bool = False,
+        conda_uri: str = "",
+    ) -> int:
+        env_vars = self.config["execution"].get("env_vars", {})
         slug = self.config["execution"]["conda_slug"]
-        image = self.config["execution"]["image"]
+        image = self.config["execution"].get("image", None)
 
         # bind_volumes is modified in-place and does not need to be returned
         # it is returned just to be explicit that it is changed during this function call
         bind_volumes, env_vars = self._check_conda_pack_and_install_if_applicable(
-            slug, bind_volumes, env_vars
+            slug, bind_volumes, env_vars, install=install, conda_uri=conda_uri
         )
         bind_volumes = self._mount_source_folder_if_exists(bind_volumes)
-        command = self._build_command_for_conda_run()
+        command = self._build_command_for_conda_run(extra_cmd)
         if is_in_notebook_session():
             run_command(command, shell=True)
         else:
@@ -198,11 +219,12 @@ class LocalBackend(Backend):
             )
             if os.path.exists(os.path.join(conda_pack_path, "spark-defaults.conf")):
                 env_vars["SPARK_CONF_DIR"] = os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)
+            logger.info(f"Running with conda pack in a container with command {command}")
             return self._activate_conda_env_and_run(
                 image, slug, command, bind_volumes, env_vars
             )
 
-    def _build_command_for_conda_run(self) -> str:
+    def _build_command_for_conda_run(self, extra_cmd: str = "") -> str:
         if ConfigResolver(self.config)._is_ads_operator():
             if is_in_notebook_session():
                 curr_dir = os.path.dirname(os.path.abspath(__file__))
@@ -252,6 +274,7 @@ class LocalBackend(Backend):
                 command = f"cd {source_folder} && {entry_script} "
         if self.config["execution"].get("command"):
             command += f"{self.config['execution']['command']}"
+        command += extra_cmd
         return command
 
     def _run_with_image(self, bind_volumes: Dict) -> int:
@@ -272,6 +295,7 @@ class LocalBackend(Backend):
         if self.config["execution"].get("source_folder", None):
             bind_volumes.update(self._mount_source_folder_if_exists(bind_volumes))
         bind_volumes.update(self.config["execution"]["volumes"])
+
         return run_container(image, bind_volumes, env_vars, command, entrypoint)
 
     def _run_with_image_v1(self, bind_volumes: Dict) -> int:
@@ -294,15 +318,33 @@ class LocalBackend(Backend):
         )
 
     def _check_conda_pack_and_install_if_applicable(
-        self, slug: str, bind_volumes: Dict, env_vars: Dict
+        self,
+        slug: str,
+        bind_volumes: Dict,
+        env_vars: Dict,
+        install: bool = False,
+        conda_uri: str = None,
     ) -> Dict:
-        conda_pack_path = os.path.join(
-            os.path.expanduser(self.config["execution"]["conda_pack_folder"]), slug
+        conda_pack_folder = os.path.abspath(
+            os.path.expanduser(self.config["execution"]["conda_pack_folder"])
         )
+        conda_pack_path = os.path.join(conda_pack_folder, slug)
         if not os.path.exists(conda_pack_path):
-            raise CondaPackNotFound(
-                f"Conda pack {conda_pack_path} not found. Please run `ads opctl conda create` or `ads opctl conda install`."
-            )
+            if install:
+                logger.info(
+                    f"Downloading a `{slug}` to the `{conda_pack_folder}`. If this conda pack is already installed locally in a different location, pass in `conda_pack_folder` to avoid downloading it again."
+                )
+                _install(
+                    conda_uri=conda_uri,
+                    conda_pack_folder=conda_pack_folder,
+                    oci_config=self.oci_config,
+                    oci_profile=self.profile,
+                    auth_type=self.auth_type,
+                )
+            else:
+                raise CondaPackNotFound(
+                    f"Conda pack {conda_pack_path} not found. Please run `ads opctl conda create` or `ads opctl conda install`."
+                )
         if os.path.exists(os.path.join(conda_pack_path, "spark-defaults.conf")):
             if not is_in_notebook_session():
                 env_vars["SPARK_CONF_DIR"] = os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)
@@ -610,3 +652,158 @@ class LocalPipelineBackend(Backend):
             The message to log
         """
         logger.info(f"{self.LOG_PREFIX}: {str}")
+
+
+class LocalModelDeploymentBackend(LocalBackend):
+    def __init__(self, config: Dict) -> None:
+        """
+        Initialize a LocalModelDeploymentBackend object with given config.
+
+        Parameters
+        ----------
+        config: dict
+            dictionary of configurations
+        """
+        super().__init__(config)
+        self.oci_auth = create_signer(
+            self.auth_type,
+            self.oci_config,
+            self.profile,
+        )
+        self.client = OCIClientFactory(**self.oci_auth).data_science
+
+    def predict(self) -> None:
+        """
+        Conducts local verify.
+
+        Returns
+        -------
+        None
+            Nothing.
+        """
+        
+        # model artifact in artifact directory
+        artifact_directory = self.config["execution"].get("artifact_directory")
+        ocid = self.config["execution"].get("ocid")
+        
+        model_folder = os.path.expanduser(
+            self.config["execution"].get("model_save_folder", DEFAULT_MODEL_FOLDER)
+        )
+        artifact_directory = artifact_directory or os.path.join(model_folder, str(ocid))
+        if ocid and (
+            not os.path.exists(artifact_directory)
+            or len(os.listdir(artifact_directory)) == 0
+        ):
+            region = self.config["execution"].get("region", None)
+            bucket_uri = self.config["execution"].get("bucket_uri", None)
+            timeout = self.config["execution"].get("timeout", None)
+            logger.info(
+                f"No cached model found. Downloading the model {ocid} to {artifact_directory}. If you already have a copy of the model, specify `artifact_directory` instead of `ocid`. You can specify `model_save_folder` to decide where to store the model artifacts."
+            )
+
+            _download_model(
+                auth=self.auth_type,
+                profile=self.profile,
+                ocid=ocid,
+                artifact_directory=artifact_directory,
+                region=region,
+                bucket_uri=bucket_uri,
+                timeout=timeout,
+                force_overwrite=True,
+            )
+                
+        # conda
+        conda_slug, conda_path = self.config["execution"].get("conda_slug"), self.config["execution"].get("conda_path")
+        if not conda_slug and not conda_path and ocid:
+            conda_slug, conda_path = self._get_conda_info_from_custom_metadata(ocid)
+        if not conda_slug and not conda_path:
+            conda_slug, conda_path = self._get_conda_info_from_runtime(
+                artifact_dir=artifact_directory
+            )
+        if 'conda_slug' not in self.config["execution"]:
+            self.config["execution"]["conda_slug"] = conda_path.split("/")[-1] if conda_path else conda_slug 
+
+        self.config["execution"]["image"] = ML_JOB_IMAGE
+        
+        # bind_volumnes
+        bind_volumes = {}
+        SCRIPT = "script.py"
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        if not is_in_notebook_session():
+            bind_volumes = {
+                os.path.expanduser(
+                    os.path.dirname(self.config["execution"]["oci_config"])
+                ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
+            }
+            
+            self.config["execution"]["source_folder"] = os.path.abspath(
+                os.path.join(dir_path, "..")
+            )
+            self.config["execution"]["entrypoint"] = SCRIPT
+            bind_volumes[artifact_directory] = {"bind": DEFAULT_MODEL_DEPLOYMENT_FOLDER}
+        
+        # extra cmd
+        data = self.config["execution"].get("payload")
+        extra_cmd = f"--payload '{data}' " + f"--auth {self.auth_type} "
+        if self.auth_type != "resource_principal":
+            extra_cmd += f"--profile {self.profile}"
+        
+        if is_in_notebook_session() or NO_CONTAINER:
+            # _run_with_conda_pack has code to handle notebook session case,
+            # however, it activate the conda pack and then run the script. 
+            # For the deployment, we just take the current conda env and run it.
+            # Hence we just handle the notebook case directly here.
+            script_path = os.path.join(os.path.join(dir_path, ".."), SCRIPT)
+            cmd = f"python {script_path} " + f"--artifact-directory {artifact_directory} " + extra_cmd
+            logger.info(f"Running in a notebook or NO_CONTAINER with command {cmd}")
+            run_command(cmd=cmd, shell=True)
+        else:
+            extra_cmd = f"--artifact-directory {DEFAULT_MODEL_DEPLOYMENT_FOLDER} "+ extra_cmd
+            exit_code = self._run_with_conda_pack(
+                    bind_volumes, extra_cmd, install=True, conda_uri=conda_path
+                )
+            if exit_code != 0:
+                raise RuntimeError(
+                    f"`predict` did not complete successfully. Exit code: {exit_code}. "
+                    f"Run with the --debug argument to view container logs."
+                )
+                
+    def _get_conda_info_from_custom_metadata(self, ocid):
+        """
+        Get conda env info from custom metadata from model catalog.
+
+        Returns
+        -------
+        (str, str)
+            conda slug and conda path.
+        """
+        response = self.client.get_model(ocid)
+        custom_metadata = ModelCustomMetadata._from_oci_metadata(
+            response.data.custom_metadata_list
+        )
+        conda_slug, conda_path = None, None
+        if "CondaEnvironmentPath" in custom_metadata.keys:
+            conda_path = custom_metadata["CondaEnvironmentPath"].value
+        if "SlugName" in custom_metadata.keys:
+            conda_slug = custom_metadata["SlugName"].value
+        return conda_slug, conda_path
+
+    @staticmethod
+    def _get_conda_info_from_runtime(artifact_dir):
+        """
+        Get conda env info from runtime yaml file.
+
+        Returns
+        -------
+        (str, str)
+            conda slug and conda path.
+        """
+        runtime_yaml_file = os.path.join(artifact_dir, "runtime.yaml")
+        runtime_info = RuntimeInfo.from_yaml(uri=runtime_yaml_file)
+        conda_slug = (
+            runtime_info.model_deployment.inference_conda_env.inference_env_slug
+        )
+        conda_path = (
+            runtime_info.model_deployment.inference_conda_env.inference_env_path
+        )
+        return conda_slug, conda_path

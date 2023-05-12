@@ -30,6 +30,7 @@ Auto generation of ``score.py`` with framework specific code for loading models 
 
 To accomodate for other frameworks that are unknown to ADS, a template code for ``score.py`` is generated in the provided artificat directory location.
 
+
 Prepare the Model Artifact
 --------------------------
 
@@ -46,7 +47,7 @@ Here is an example for preparing a model artifact for ``TensorFlow`` model.
 .. code-block:: python3
 
     from ads.model.framework.tensorflow_model import TensorFlowModel
-    import tempfile
+    from uuid import uuid4
     import tensorflow as tf
     from ads.common.model_metadata import UseCaseType
 
@@ -66,7 +67,7 @@ Here is an example for preparing a model artifact for ``TensorFlow`` model.
     tf_estimator.compile(optimizer="adam", loss=loss_fn, metrics=["accuracy"])
     tf_estimator.fit(x_train, y_train, epochs=1)
 
-    tf_model = TensorFlowModel(tf_estimator, artifact_dir=tempfile.mkdtemp())
+    tf_model = TensorFlowModel(tf_estimator, artifact_dir=f"./model-artifact-{str(uuid4())}")
 
     # Autogenerate score.py, pickled model, runtime.yaml, input_schema.json and output_schema.json
     tf_model.prepare(inference_conda_env="generalml_p38_cpu_v1",
@@ -98,8 +99,25 @@ ADS automatically captures:
 *  ``UseCaseType`` in ``metadata_taxonomy`` cannot be automatically populated. One way to populate the use case is to pass ``use_case_type`` to the ``prepare`` method.
 *  Model introspection is automatically triggered.
 
-.. include:: _template/score.rst
+Prepare with custom ``score.py``
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. versionadded:: 2.8.4
+
+You could provide the location of your own ``score.py`` by ``score_py_uri`` in :py:meth:`~ads.model.GenericModel.prepare`.
+The provided ``score.py`` will be added into model artifact.
+
+.. code-block:: python3
+
+    tf_model.prepare(
+        inference_conda_env="generalml_p38_cpu_v1",
+        use_case_type=UseCaseType.MULTINOMIAL_CLASSIFICATION,
+        X_sample=trainx,
+        y_sample=trainy,
+        score_py_uri="/path/to/score.py"
+    )
+
+.. include:: _template/score.rst
 
 Model Introspection
 -------------------
@@ -171,8 +189,11 @@ If you don't have an Object Storage bucket, create one using the OCI SDK or the 
 
         Allow service datascience to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
-        Allow service objectstorage to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
+        Allow service objectstorage-<region_identifier> to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
+Because Object Storage is a regional service, you must authorize the Object Storage service for each region.
+To determine the region identifier value of an Oracle Cloud Infrastructure region,
+see `Regions and Availability Domains <https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm#top>`_.
 See `API documentation <../../ads.model.html#id15>`__ for more details.
 
 The following saves the :doc:`framework specific wrapper <quick_start>` object, ``model``, to the model catalog and returns the OCID from the model catalog:

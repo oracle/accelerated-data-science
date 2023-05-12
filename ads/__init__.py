@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import print_function, division, absolute_import
@@ -26,6 +26,7 @@ from ads.feature_engineering.accessor.series_accessor import ADSSeriesAccessor
 from ads.feature_engineering.accessor.dataframe_accessor import ADSDataFrameAccessor
 from ads.common import auth
 from ads.common.auth import set_auth
+from ads.common.config import Config
 
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
@@ -121,13 +122,8 @@ def _set_test_mode(mode=False):
 
 
 def hello():
-    """
-    Imports Pandas, sets the documentation mode, and prints a fancy "Hello".
-    """
-    import pandas
-
-    global documentation_mode
-    global debug_mode
+    import oci
+    import ocifs
 
     print(
         f"""
@@ -138,11 +134,11 @@ o---o|   O o-o
 |   ||  /     |
 o   oo-o  o--o
 
-ADS SDK version: {__version__}
-Pandas version: {pandas.__version__}
-Debug mode: {debug_mode}
-"""
-    )
+ads v{__version__}
+oci v{oci.__version__}
+ocifs v{ocifs.__version__}
+
+""")
 
 
 configure_plotting()

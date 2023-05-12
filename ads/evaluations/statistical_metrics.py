@@ -198,20 +198,27 @@ class ModelEvaluator:
             self.y_true, self.y_pred, pos_label=self.positive_class, average="binary"
         )
 
-        (
-            self.metrics["false_positive_rate"],
-            self.metrics["true_positive_rate"],
-            _,
-        ) = metrics.roc_curve(self.y_true, self.y_pred, pos_label=self.positive_class)
-        self.metrics["auc"] = metrics.auc(
-            self.metrics["false_positive_rate"], self.metrics["true_positive_rate"]
-        )
-
         if self.y_score is not None:
             if not all(0 >= x >= 1 for x in self.y_score):
                 self.y_score = np.asarray(
                     [0 if x < 0 else 1 if x > 1 else x for x in self.y_score]
                 )
+            if len(np.asarray(self.y_score).shape) > 1: 
+                # If the SKLearn classifier doesn't correctly identify the problem as 
+                # binary classification, y_score may be of shape (n_rows, 2) 
+                # instead of (n_rows,)
+                pos_class_idx = self.classes.index(self.positive_class)
+                positive_class_scores = self.y_score[:, pos_class_idx]
+            else:
+                positive_class_scores = self.y_score
+            (
+                self.metrics["false_positive_rate"],
+                self.metrics["true_positive_rate"],
+                _,
+            ) = metrics.roc_curve(y_true=self.y_true, y_score=positive_class_scores, pos_label=self.positive_class)
+            self.metrics["auc"] = metrics.auc(
+                self.metrics["false_positive_rate"], self.metrics["true_positive_rate"]
+            )
             self.y_score = list(self.y_score)
             self.metrics["youden_j"] = (
                 self.metrics["true_positive_rate"] - self.metrics["false_positive_rate"]

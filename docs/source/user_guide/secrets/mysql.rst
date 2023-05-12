@@ -40,7 +40,7 @@ The ``MySQLDBSecretKeeper.save`` API serializes and stores the credentials to th
 * ``freeform_tags`` (dict, optional): Freeform tags to be used for saving the secret in the OCI Console.
 * ``name`` (str): Name of the secret when saved in the vault.
 
-The secret has the following informatio:
+The secret has the following information:
 
 * ``database``
 * ``host``
@@ -66,7 +66,7 @@ Save Credentials
     connection_parameters={
          "user_name":"<your user name>",
          "password":"<your password>",
-         "service_name":"service_name",
+         "database":"database",
          "host":"<db host>",
          "port":"<db port>",
     }
@@ -123,7 +123,7 @@ The ``.load_secret()`` method has the following parameters:
 
 - ``auth``: Provide overriding ``auth`` information if the ``auth`` information is different from the ``ads.set_auth`` setting.
 - ``export_env``: The default is ``False``. If set to ``True``, the credentials are exported as environment variabled when used with the ``with`` operator.
-- ``export_prefix``: The default name for environment variable is user_name, password, service_name. and wallet_location. You can add a prefix to avoid name collision.
+- ``export_prefix``: The default name for environment variable is user_name, password, database. and wallet_location. You can add a prefix to avoid name collision.
 - ``format``: (Optional) If ``source`` is a file, then this value must be ``json`` or ``yaml`` depending on the file format.
 - ``source``: Either the file that was exported from ``export_vault_details``, or the OCID of the secret.
 

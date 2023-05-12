@@ -126,7 +126,7 @@ class LightGBMModel(FrameworkSpecificModel):
     def __init__(
         self,
         estimator: Callable,
-        artifact_dir: str,
+        artifact_dir: Optional[str] = None,
         properties: Optional[ModelProperties] = None,
         auth: Dict = None,
         model_save_serializer: Optional[SERDE] = None,

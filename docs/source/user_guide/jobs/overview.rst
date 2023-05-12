@@ -28,4 +28,4 @@ Each model can write its results to the Logging service or Object Storage.
 Then you can run a final sequential job that uses the best model class, and trains the final model on the entire dataset.
 
 The following sections provides details on running workloads with OCI Data Science Jobs using ADS Jobs APIs.
-You can use similar APIs to :doc:`Run a OCI DataFlow Application <../apachespark/quickstart>`.
+You can use similar APIs to :doc:`Run a OCI Data Flow Application <../apachespark/quickstart>`.
