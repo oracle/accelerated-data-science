@@ -101,7 +101,7 @@ DIMENSION = 2
 # declare custom exception class
 
 
-class FileOverwriteError(Exception):   # pragma: no cover
+class FileOverwriteError(Exception):  # pragma: no cover
     pass
 
 
@@ -1303,6 +1303,8 @@ def copy_file(
         authentication signer and kwargs required to instantiate IdentityClient object.
     chunk_size: (int, optinal). Defaults to `DEFAULT_BUFFER_SIZE`
         How much data can be copied in one iteration.
+    progressbar_description: (str, optinal). Defaults to `"Copying `{uri_src}` to `{uri_dst}`"`.
+        Prefix for the progressbar.
 
     Returns
     -------
