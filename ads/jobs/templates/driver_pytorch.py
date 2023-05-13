@@ -257,18 +257,23 @@ class DeepSpeedRunner(Runner):
         with open(os.path.join(SSH_DIR, "id_rsa.pub"), "r", encoding="utf-8") as f:
             public_key = f.read()
         print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
+        self.add_authoried_key(public_key)
         return self
 
-    def fetch_host_public_key(self):
-        public_key = self.wait_for_log(self.host_job_run, LOG_PREFIX_PUBLIC_KEY)
-        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
-        # logger.debug("%s", LOG_PREFIX_PUBLIC_KEY + public_key)
+    @staticmethod
+    def add_authoried_key(public_key):
         auth_keys_file = os.path.join(SSH_DIR, "authorized_keys")
         os.makedirs(SSH_DIR, exist_ok=True)
         with open(auth_keys_file, "a+", encoding="utf-8") as f:
             f.write(public_key)
             f.write("\n")
-        logger.debug("Host public key saved to %s", auth_keys_file)
+        logger.debug("Public key saved to %s", auth_keys_file)
+
+    def fetch_host_public_key(self):
+        public_key = self.wait_for_log(self.host_job_run, LOG_PREFIX_PUBLIC_KEY)
+        print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
+        # logger.debug("%s", LOG_PREFIX_PUBLIC_KEY + public_key)
+        self.add_authoried_key(public_key)
 
     def generate_hostfile(self):
         runs = self.host_job_run.job.run_list()
@@ -279,12 +284,15 @@ class DeepSpeedRunner(Runner):
         ]
         self.node_ip_list = [self.wait_for_ip_address(run) for run in self.node_runs]
         logger.info("Node IPs: %s", self.node_ip_list)
-        logger.debug(f"Writing hostfile to %s", self.HOST_FILE_LOCATION)
+        # Hostfile
+        logger.debug("Writing hostfile to %s", self.HOST_FILE_LOCATION)
         os.makedirs(os.path.dirname(self.HOST_FILE_LOCATION), exist_ok=True)
-        hostfile_content = [f"{ip} slots={self.gpu_count}" for ip in self.node_ip_list]
+        host_file_content = [f"{ip} slots={self.gpu_count}" for ip in self.node_ip_list]
         with open(self.HOST_FILE_LOCATION, "w", encoding="utf-8") as f:
-            f.writelines(hostfile_content)
+            f.write(f"{self.host_ip} slots={self.gpu_count}\n")
+            f.writelines(host_file_content)
         self.run_command(f"cat {self.HOST_FILE_LOCATION}", level=logging.DEBUG)
+        # SSH config
         ssh_config_path = os.path.join(SSH_DIR, "config")
         logger.debug("Writing SSH config to %s", ssh_config_path)
         with open(ssh_config_path, "w", encoding="utf-8") as f:
@@ -300,14 +308,29 @@ class DeepSpeedRunner(Runner):
         return self
 
     def start_ssh_server(self):
+        # Generate SSH host keys for SSH server
+        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+        # Install SSH server to accept SSH connections
+        # DeepSpeed uses "hostname -I" to determine the IP address
         self.run_command(
-            "sudo --preserve-env yum install -y openssh-server",
+            "sudo --preserve-env yum install -y openssh-server hostname",
             level=logging.DEBUG,
             check=True,
         )
+        # Start SSH service
         self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
+    def touch_file(self, filename):
+        for node_ip in self.node_ip_list:
+            logger.debug("Sending stop file to %s", node_ip)
+            self.run_command(
+                f"ssh -v {node_ip} 'touch {filename}'",
+                level=logging.DEBUG,
+                check=True,
+            )
+
     def run(self):
+        self.start_ssh_server()
         if self.is_host:
             self.generate_key_pair().generate_hostfile()
             # Wait for nodes to be ready
@@ -319,24 +342,39 @@ class DeepSpeedRunner(Runner):
                     level=logging.DEBUG,
                     check=True,
                 )
-            # TODO: Run job here.
-            # TODO: Use heartbeat to indicate job is still running.
-            # Stop file will not be generated if job run is killed from the console.
+            cmd_prefix = f"deepspeed --hostfile={self.HOST_FILE_LOCATION}"
+            launch_args = os.environ.get(CONST_ENV_LAUNCH_ARGS, "")
+            if launch_args:
+                cmd_prefix += f" {launch_args}"
+            try:
+                self.run_training_script(cmd_prefix=cmd_prefix)
+            except:
+                # Caution: file will not be generated if job run is killed from the console.
+                self.touch_file(self.ERROR_FILE)
             # Signal stop
-            for node_ip in self.node_ip_list:
-                logger.debug("Sending stop file to %s", node_ip)
-                self.run_command(
-                    f"ssh -v {node_ip} 'touch {self.STOP_FILE}'",
-                    level=logging.DEBUG,
-                    check=True,
-                )
+            self.touch_file(self.STOP_FILE)
         else:
-            self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
-            self.start_ssh_server()
             self.fetch_host_public_key()
+            # Keep the job run alive until host job run is finished.
             while not os.path.exists(self.STOP_FILE):
                 time.sleep(60)
-            logger.info("Stop file found. Stopping job run...")
+                # Stop the node if the host touched the error file.
+                if os.path.exists(self.ERROR_FILE):
+                    logger.error("There is an error in the host job run.")
+                    sys.exit(1)
+                # Stop the node if the host job run is CANCELLED or in unexpected state.
+                self.host_job_run.sync()
+                if self.host_job_run.status not in [
+                    "ACCEPTED",
+                    "IN_PROGRESS",
+                    "SUCCEEDED",
+                ]:
+                    logger.info(
+                        "Host job run status is %s. Stopping job run...",
+                        self.host_job_run.status,
+                    )
+                    sys.exit(2)
+            logger.info("Job finished successfully. Stopping job run...")
 
 
 def main():
