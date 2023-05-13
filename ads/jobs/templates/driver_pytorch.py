@@ -37,6 +37,7 @@ logger = driver_utils.set_log_level(logger)
 CONST_ENV_HOST_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
 CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
 CONST_ENV_LAUNCHER = "OCI__LAUNCHER"
+CONST_ENV_LAUNCH_ARGS = "OCI__LAUNCH_ARGS"
 LOG_PREFIX_HOST_IP = "Distributed Training Main IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
@@ -98,7 +99,9 @@ class Runner(driver_utils.JobRunner):
         return ip_address
 
     def wait_for_log(self, job_run, log_prefix, timeout=15 * 60):
-        logger.debug("Waiting for logs with prefix %s from %s.", log_prefix, job_run.id)
+        logger.debug(
+            "Waiting for logs with prefix '%s' from %s.", log_prefix, job_run.id
+        )
         second_started = time.time()
         log = None
         while not log:
@@ -169,6 +172,16 @@ class Runner(driver_utils.JobRunner):
                 branch=branch, commit=commit
             )
 
+    def run_training_script(self, cmd_prefix=""):
+        cmd = os.environ[self.entrypoint_env]
+        if cmd_prefix:
+            cmd = cmd_prefix + " " + cmd
+        if sys.argv[1:]:
+            cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
+        training_start_time = time.time()
+        self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
+        logger.info("Training Time: %s seconds.", time.time() - training_start_time)
+
     def run(self):
         raise NotImplementedError()
 
@@ -199,36 +212,43 @@ class TorchRunner(Runner):
 
         return self
 
+    def cmd_prefix_ld_preload(self):
+        cmd_prefix = ""
+        # Use LD_PRELOAD only if LD_PRELOAD is not defined by the user.
+        # For pytorch>=2.0, we can use f"--local_addr={self.ip} " instead of LD_PRELOAD.
+        if CONST_ENV_LD_PRELOAD not in os.environ:
+            cmd_prefix = f"LD_PRELOAD={self.conda_prefix}/lib/libhostname.so.1 OCI__HOSTNAME={self.ip} "
+        return cmd_prefix
+
     def run(self):
         if self.gpu_count > 0:
             nproc_per_node = self.gpu_count
         else:
             nproc_per_node = 1
-        cmd = ""
-        # Use LD_PRELOAD only if LD_PRELOAD is not defined by the user.
-        if CONST_ENV_LD_PRELOAD not in os.environ:
-            cmd = f"LD_PRELOAD={self.conda_prefix}/lib/libhostname.so.1 OCI__HOSTNAME={self.ip} "
 
-        # The default read_timeout is 60 seconds.
-        # The job run will fail if the node cannot reach the host within read_timeout.
-        rdzv_timeout = os.environ.get("OCI__RDZV_TIMEOUT", "600")
-        rdzv_conf = f"read_timeout={rdzv_timeout}"
-        # For pytorch>=2.0, we can use f"--local_addr={self.ip} " instead of LD_PRELOAD.
-        cmd += (
-            f"torchrun --nnode={self.node_count} --nproc_per_node={nproc_per_node} "
-            + f"--rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 --rdzv_conf={rdzv_conf} "
-            + f"{os.environ[self.entrypoint_env]}"
-        )
-        if sys.argv[1:]:
-            cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
-            training_start_time = time.time()
-            self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
-            logger.info("Training Time: %s seconds.", time.time() - training_start_time)
+        cmd_prefix = self.cmd_prefix_ld_preload()
+        launch_args = os.environ.get(CONST_ENV_LAUNCH_ARGS, "")
+        cmd_prefix += "torchrun"
+        # Add nnode, nproc_per_node and rdzv args only if they are not specified by the user.
+        if "--nnode" not in launch_args:
+            cmd_prefix += f" --nnode={self.node_count}"
+        if "--nproc_per_node" not in launch_args:
+            cmd_prefix += f" --nproc_per_node={nproc_per_node}"
+        if "--rdzv_backend" not in launch_args:
+            # The default read_timeout is 60 seconds.
+            # The job run will fail if the node cannot reach the host within read_timeout.
+            rdzv_timeout = os.environ.get("OCI__RDZV_TIMEOUT", "600")
+            rdzv_conf = f"read_timeout={rdzv_timeout}"
+            cmd_prefix += f" --rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:29400 --rdzv_conf={rdzv_conf}"
+        if launch_args:
+            cmd_prefix += f" {launch_args}"
+        self.run_training_script(cmd_prefix=cmd_prefix)
 
 
 class DeepSpeedRunner(Runner):
     STOP_FILE = "/home/datascience/stop"
-    HOST_FILE_LOCATION = "/job/hostfile"
+    ERROR_FILE = "/home/datascience/error"
+    HOST_FILE_LOCATION = "/home/datascience/hostfile"
 
     def generate_key_pair(self):
         self.run_command(
