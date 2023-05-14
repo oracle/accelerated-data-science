@@ -16,7 +16,7 @@ import sys
 import time
 import traceback
 from io import DEFAULT_BUFFER_SIZE
-from typing import List, Optional, Any
+from typing import List, Optional
 from urllib import request
 from urllib.parse import urlparse
 
@@ -404,6 +404,8 @@ class JobRunner:
                     print(msg, flush=True, end="")
                 else:
                     # logging will flush outputs by default
+                    # logging will add line break
+                    msg = msg.rstrip("\n")
                     logger.log(level=level, msg=msg)
             # Add a small delay so that
             # outputs from the subsequent code will have different timestamp for oci logging
