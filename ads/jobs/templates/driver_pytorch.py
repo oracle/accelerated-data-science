@@ -419,6 +419,11 @@ class DeepSpeedRunner(Runner):
             logger.info("Job finished successfully. Stopping job run...")
 
 
+class AccelerateRunner(TorchRunner, DeepSpeedRunner):
+    def run(self):
+        launch_args = os.environ.get(CONST_ENV_LAUNCH_ARGS, "")
+
+
 def main():
     launcher = os.environ.get(CONST_ENV_LAUNCHER, "torchrun").lower()
     runner_class = {"torchrun": TorchRunner, "deepspeed": DeepSpeedRunner}[launcher]
