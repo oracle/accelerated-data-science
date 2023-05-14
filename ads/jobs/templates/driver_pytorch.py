@@ -44,27 +44,30 @@ LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
 SSH_DIR = "/home/datascience/.ssh"
 # Working count is the number of node - 1
 OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
-
 DEFAULT_LAUNCHER = "torchrun"
 
 set_auth("resource_principal")
 
 
 class Runner(driver_utils.JobRunner):
+    """Base runner class for PyTorch training job"""
+
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
         self.ds_client = driver_utils.OCIHelper.init_oci_client(
             oci.data_science.DataScienceClient
         )
         self.ip = self.find_self_ip()
+        # IP address of other nodes as a list
         self.node_ip_list = []
+        # DataScienceJobRun objects of other nodes as a list
         self.node_runs = []
 
         if CONST_ENV_HOST_JOB_RUN_OCID in os.environ:
+            # Print the node IP address to logs so that it can be obtained by the host.
             print(f"{LOG_PREFIX_NODE_IP}{self.ip}")
             self.host_ocid = os.environ[CONST_ENV_HOST_JOB_RUN_OCID]
             logger.debug("Host job run OCID: %s", self.host_ocid)
-            time.sleep(300)
             self.host_ip = None
             self.is_host = False
         else:
@@ -248,7 +251,8 @@ class TorchRunner(Runner):
 class DeepSpeedRunner(Runner):
     STOP_FILE = "/home/datascience/stop"
     ERROR_FILE = "/home/datascience/error"
-    HOST_FILE_LOCATION = "/home/datascience/hostfile"
+    HOST_FILE = "/home/datascience/hostfile"
+    ENV_FILE = os.path.expanduser("~/.deepspeed_env")
 
     def generate_key_pair(self):
         self.run_command(
@@ -258,6 +262,12 @@ class DeepSpeedRunner(Runner):
             public_key = f.read()
         print(f"{LOG_PREFIX_PUBLIC_KEY}{public_key}")
         self.add_authoried_key(public_key)
+        self.run_command(
+            f"ssh-keyscan -H {self.host_ip} >> {SSH_DIR}/known_hosts",
+            level=logging.DEBUG,
+            check=True,
+        )
+        self.test_ssh_connection(self.host_ip)
         return self
 
     @staticmethod
@@ -285,17 +295,25 @@ class DeepSpeedRunner(Runner):
         self.node_ip_list = [self.wait_for_ip_address(run) for run in self.node_runs]
         logger.info("Node IPs: %s", self.node_ip_list)
         # Hostfile
-        logger.debug("Writing hostfile to %s", self.HOST_FILE_LOCATION)
-        os.makedirs(os.path.dirname(self.HOST_FILE_LOCATION), exist_ok=True)
+        logger.debug("Writing hostfile to %s", self.HOST_FILE)
+        os.makedirs(os.path.dirname(self.HOST_FILE), exist_ok=True)
         host_file_content = [f"{ip} slots={self.gpu_count}" for ip in self.node_ip_list]
-        with open(self.HOST_FILE_LOCATION, "w", encoding="utf-8") as f:
+        with open(self.HOST_FILE, "w", encoding="utf-8") as f:
             f.write(f"{self.host_ip} slots={self.gpu_count}\n")
             f.writelines(host_file_content)
-        self.run_command(f"cat {self.HOST_FILE_LOCATION}", level=logging.DEBUG)
+        self.run_command(f"cat {self.HOST_FILE}", level=logging.DEBUG)
         # SSH config
         ssh_config_path = os.path.join(SSH_DIR, "config")
         logger.debug("Writing SSH config to %s", ssh_config_path)
         with open(ssh_config_path, "w", encoding="utf-8") as f:
+            f.writelines(
+                [
+                    "",
+                    f"Host {self.host_ip}",
+                    "IdentityFile /home/datascience/.ssh/id_rsa",
+                    "User datascience",
+                ]
+            )
             for node_ip in self.node_ip_list:
                 f.writelines(
                     [
@@ -312,13 +330,24 @@ class DeepSpeedRunner(Runner):
         self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
         # Install SSH server to accept SSH connections
         # DeepSpeed uses "hostname -I" to determine the IP address
+        # pdsh is required for default multi node training
         self.run_command(
-            "sudo --preserve-env yum install -y openssh-server hostname",
+            "sudo --preserve-env yum install -y openssh-server hostname pdsh",
             level=logging.DEBUG,
             check=True,
         )
         # Start SSH service
         self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
+
+    def test_ssh_connection(self, host):
+        ret = self.run_command(
+            f"ssh -v -o PasswordAuthentication=no {host} hostname -I",
+            level=logging.DEBUG,
+        )
+        if ret == 0:
+            logger.debug("SSH connection to %s - OK", host)
+        else:
+            logger.debug("SSH connection to %s - FAILED", host)
 
     def touch_file(self, filename):
         for node_ip in self.node_ip_list:
@@ -329,20 +358,32 @@ class DeepSpeedRunner(Runner):
                 check=True,
             )
 
+    def save_deepspeed_env(self):
+        """Saves the environment variables for multi node training.
+        DeepSpeed performs multi-node training via SSH,
+        the environment variables configured by the job runs are not propagated to the SSH session.
+        DeepSpeed will load the environment variables from file for the SSH sessions.
+        """
+        with open(self.ENV_FILE, mode="w", encoding="utf-8") as f:
+            for k, v in os.environ.items():
+                f.write(f"{k}={v}\n")
+
     def run(self):
         self.start_ssh_server()
         if self.is_host:
             self.generate_key_pair().generate_hostfile()
+            self.save_deepspeed_env()
             # Wait for nodes to be ready
             for run in self.node_runs:
                 self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
+
             for node_ip in self.node_ip_list:
                 self.run_command(
                     f"ssh-keyscan -H {node_ip} >> {SSH_DIR}/known_hosts",
                     level=logging.DEBUG,
                     check=True,
                 )
-            cmd_prefix = f"deepspeed --hostfile={self.HOST_FILE_LOCATION}"
+            cmd_prefix = f"deepspeed --hostfile={self.HOST_FILE}"
             launch_args = os.environ.get(CONST_ENV_LAUNCH_ARGS, "")
             if launch_args:
                 cmd_prefix += f" {launch_args}"
@@ -351,6 +392,7 @@ class DeepSpeedRunner(Runner):
             except:
                 # Caution: file will not be generated if job run is killed from the console.
                 self.touch_file(self.ERROR_FILE)
+                raise
             # Signal stop
             self.touch_file(self.STOP_FILE)
         else:
