@@ -93,8 +93,8 @@ class TestADSDataset:
         """Test for validation user-friendly error message."""
         employees = ADSDataset.from_dataframe(df=pd.read_csv(self.get_data_path()))
 
-        err_msg = "Please set the 'target' variable before invoking this API."
-        with pytest.raises(Exception, match=err_msg):
+        err_msg = r"Please set the target using set_target\(\) before invoking this API."
+        with pytest.raises(NotImplementedError, match=err_msg):
             employees.get_recommendations()
-        with pytest.raises(Exception, match=err_msg):
+        with pytest.raises(NotImplementedError, match=err_msg):
             employees.suggest_recommendations()

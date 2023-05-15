@@ -172,7 +172,7 @@ class ADSDataset(PandasDataset):
             progress=progress,
             transformer_pipeline=transformer_pipeline,
             interactive=interactive,
-            **kwargs
+            **kwargs,
         )
 
     @property
@@ -1924,11 +1924,15 @@ class ADSDataset(PandasDataset):
 
         Returns
         -------
-        Exception
-            raises an :exc:`Exception`
+        NotImplementedError
+            raises NotImplementedError, if target parameter value not provided
 
         """
-        raise Exception("Please set the 'target' variable before invoking this API.")
+        raise NotImplementedError(
+            "Please set the target using set_target() before invoking this API. See "
+            "https://accelerated-data-science.readthedocs.io/en/latest/ads.dataset.html#ads.dataset.dataset.ADSDataset.set_target "
+            "for the API usage."
+        )
 
     def suggest_recommendations(self, *args, **kwargs):  # real signature may change
         """
@@ -1940,8 +1944,12 @@ class ADSDataset(PandasDataset):
 
         Returns
         -------
-        Exception
-            raises an :exc:`Exception`
+        NotImplementedError
+            raises NotImplementedError, if target parameter value not provided
 
         """
-        raise Exception("Please set the 'target' variable before invoking this API.")
+        raise NotImplementedError(
+            "Please set the target using set_target() before invoking this API. See "
+            "https://accelerated-data-science.readthedocs.io/en/latest/ads.dataset.html#ads.dataset.dataset.ADSDataset.set_target "
+            "for the API usage."
+        )
