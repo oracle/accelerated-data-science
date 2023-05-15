@@ -1,3 +1,8 @@
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+# Copyright (c) 2023 Oracle and/or its affiliates.
+
+# -*- coding: utf-8; -*-
+#!/usr/bin/env python
 """This module requires oracle-ads>=2.6.8
 """
 import ipaddress
