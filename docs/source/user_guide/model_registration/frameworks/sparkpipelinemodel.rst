@@ -117,31 +117,19 @@ Deploy and Generate Endpoint
 
 .. code-block:: python3
 
+    # Deploy and create an endpoint for the Spark Pipeline model
     spark_model.deploy(
         display_name="Spark Pipeline Model For Classification",
         deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
         deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
         deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
+        # Shape config details mandatory for flexible shapes:
+        # deployment_instance_shape="VM.Standard.E4.Flex",
+        # deployment_ocpus=<number>,
+        # deployment_memory_in_gbs=<number>,
     )
-
     print(f"Endpoint: {spark_model.model_deployment.url}")
-
-    # https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx
-
-Deploy with Flex Shape
-======================
-
-It is mandatory to provide ``deployment_ocpus`` and ``deployment_memory_in_gbs`` values, when deploy with Flex instance shapes.
-
-.. code-block:: python3
-
-    # Deploy with Flex shape
-    spark_model.deploy(
-        display_name="Spark Pipeline Model For Classification",
-        deployment_instance_shape="VM.Standard.E4.Flex",
-        deployment_ocpus=<number>,
-        deployment_memory_in_gbs=<number>,
-    )
+    # Output: "Endpoint: https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx"
 
 Run Prediction against Endpoint
 ===============================
