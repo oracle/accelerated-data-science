@@ -65,8 +65,6 @@ class AuthState(metaclass=SingletonMeta):
             "OCI_CONFIG_PROFILE", DEFAULT_PROFILE
         )
         self.oci_config = self.oci_config or {}
-        self.oci_signer = self.oci_signer
-        self.oci_signer_callable = self.oci_signer_callable
         self.oci_signer_kwargs = self.oci_signer_kwargs or {}
         self.oci_client_kwargs = self.oci_client_kwargs or {}
 
