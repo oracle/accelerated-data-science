@@ -35,7 +35,7 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager
+from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager, OCIObjectStorage
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ SLEEP_INTERVAL = 3
 WAIT_SECONDS_AFTER_FINISHED = 90
 MAXIMUM_MOUNT_COUNT = 5
 FILE_STORAGE_TYPE = "FILE_STORAGE"
+OBJECT_STORAGE_TYPE = "OBJECT_STORAGE"
 
 
 class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
@@ -911,7 +912,10 @@ class DataScienceJob(Infrastructure):
         v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()
     }
 
-    storage_mount_type_dict = {FILE_STORAGE_TYPE: OCIFileStorage}
+    storage_mount_type_dict = {
+        FILE_STORAGE_TYPE: OCIFileStorage,
+        OBJECT_STORAGE_TYPE: OCIObjectStorage,
+    }
 
     @staticmethod
     def standardize_spec(spec):

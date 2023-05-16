@@ -83,7 +83,11 @@ job = (
             {
                 "src" : "2.2.2.2:test_export_path_two",
                 "dest" : "test_mount_two",
-            },  
+            }, 
+            {
+                "src" : "oci://bucket_name@namespace/synthetic/",
+                "dest" : "test_mount_three",
+            } 
         )
     )
     .with_runtime(
@@ -111,6 +115,8 @@ spec:
         dest: test_mount_one
       - src: 2.2.2.2:test_export_path_two
         dest: test_mount_two
+      - src: oci://bucket_name@namespace/synthetic/
+        dest: test_mount_three
       subnetId: ocid1.subnet.oc1.iad.xxxx
     type: dataScienceJob
   name: My Job
@@ -141,6 +147,11 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         assert dsc_file_storage_two["src"] == "2.2.2.2:test_export_path_two"
         assert dsc_file_storage_two["dest"] == "test_mount_two"
 
+        dsc_object_storage = job.infrastructure.storage_mount[2]
+        assert isinstance(dsc_object_storage, dict)
+        assert dsc_object_storage["src"] == "oci://bucket_name@namespace/synthetic/"
+        assert dsc_object_storage["dest"] == "test_mount_three"
+
     def test_data_science_job_from_yaml(self):
         job_from_yaml = Job.from_yaml(job_yaml_string)
 
@@ -154,6 +165,11 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         assert isinstance(dsc_file_storage_two, dict)
         assert dsc_file_storage_two["src"] == "2.2.2.2:test_export_path_two"
         assert dsc_file_storage_two["dest"] == "test_mount_two"
+
+        dsc_object_storage = job.infrastructure.storage_mount[2]
+        assert isinstance(dsc_object_storage, dict)
+        assert dsc_object_storage["src"] == "oci://bucket_name@namespace/synthetic/"
+        assert dsc_object_storage["dest"] == "test_mount_three"
 
     def test_data_science_job_to_dict(self):
         assert job.to_dict() == {
@@ -189,6 +205,10 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
                                 "src" : "2.2.2.2:test_export_path_two",
                                 "dest" : "test_mount_two",
                             },
+                            {
+                                "src" : "oci://bucket_name@namespace/synthetic/",
+                                "dest" : "test_mount_three",
+                            } 
                         ],
                     },
                 },
@@ -265,7 +285,7 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
 
         assert (
             len(dsc_job_payload_copy.job_storage_mount_configuration_details_list)
-            == 2
+            == 3
         )
         assert dsc_job_payload_copy.job_storage_mount_configuration_details_list[
             0

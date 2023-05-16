@@ -10,6 +10,7 @@ import ipaddress
 from dataclasses import dataclass
 
 FILE_STORAGE_TYPE = "FILE_STORAGE"
+OBJECT_STORAGE_TYPE = "OBJECT_STORAGE"
 
 
 @dataclass
@@ -182,6 +183,48 @@ class OCIFileStorage(DSCFileSystem):
             "dest" : dsc_model.destination_directory_name
         }
 
+@dataclass
+class OCIObjectStorage(DSCFileSystem):
+
+    storage_type: str = OBJECT_STORAGE_TYPE
+
+    def update_to_dsc_model(self) -> dict:
+        arguments = {
+            "destinationDirectoryName" : self.dest,
+            "storageType" : self.storage_type
+        }
+        src_list = self.src.split("@")
+        bucket_segment = src_list[0]
+        namespace_segment = src_list[1].strip("/")
+        arguments["bucket"] = bucket_segment[6:]
+        if "/" in namespace_segment:
+            first_slash_index = namespace_segment.index("/")
+            arguments["namespace"] = namespace_segment[:first_slash_index]
+            arguments["prefix"] = namespace_segment[first_slash_index+1:]
+        else:
+            arguments["namespace"] = namespace_segment
+        return arguments
+
+    @classmethod
+    def update_from_dsc_model(cls, dsc_model) -> dict:
+        if not dsc_model.namespace:
+            raise ValueError(
+                "Missing parameter `namespace` from service. Check service log to see the error."
+            )
+        if not dsc_model.bucket:
+            raise ValueError(
+                "Missing parameter `bucket` from service. Check service log to see the error."
+            )
+        if not dsc_model.destination_directory_name:
+            raise ValueError(
+                "Missing parameter `destination_directory_name` from service. Check service log to see the error."
+            )
+
+        return {
+            "src" : f"oci://{dsc_model.bucket}@{dsc_model.namespace}/{dsc_model.prefix or ''}",
+            "dest" : dsc_model.destination_directory_name
+        }
+
 
 class DSCFileSystemManager:
 
@@ -203,6 +246,10 @@ class DSCFileSystemManager:
             raise ValueError(
                 "Parameter `dest` is required for mounting file storage system."
             )
+
+        # case oci://bucket@namespace/prefix
+        if arguments["src"].startswith("oci://") and "@" in arguments["src"]:
+            return OCIObjectStorage(**arguments).update_to_dsc_model()
 
         first_segment = arguments["src"].split(":")[0]
         # case <mount_target_id>:<export_id>
