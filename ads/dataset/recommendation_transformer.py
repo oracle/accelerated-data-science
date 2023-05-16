@@ -253,14 +253,15 @@ class RecommendationTransformer(TransformerMixin):
                 )[1]
                 minor_majority_ratio = minority_class_len / majority_class_len
 
-                # Suggest down sampling if minor_majority_ratio is 1:1000
-                suggested_sampling = (
-                    "Do nothing"
-                    if len(df) <= utils.MAX_LEN_FOR_UP_SAMPLING
-                    else "Down-sample"
-                    if minor_majority_ratio >= utils.MIN_RATIO_FOR_DOWN_SAMPLING
-                    else "Do nothing"
-                )
+                # up-sample if length of dataframe is less than or equal to MAX_LEN_FOR_UP_SAMPLING = 5000
+                # down-sample if minor_majority_ratio is greater than or equal to MIN_RATIO_FOR_DOWN_SAMPLING = 1/20
+                if len(df) <= utils.MAX_LEN_FOR_UP_SAMPLING:
+                    suggested_sampling = "Up-sample"
+                elif minor_majority_ratio >= utils.MIN_RATIO_FOR_DOWN_SAMPLING:
+                    suggested_sampling = "Down-sample"
+                else:
+                    suggested_sampling = "Do nothing"
+
                 self._build_recommendation(
                     recommendations,
                     "fix_imbalance",
