@@ -190,7 +190,7 @@ class RuntimeHandler:
         if runtime.args:
             # shlex.join() is not available until python 3.8
             job_configuration_details["command_line_arguments"] = " ".join(
-                shlex.quote(arg) for arg in runtime.get_spec(runtime.CONST_ARGS)
+                shlex.quote(str(arg)) for arg in runtime.get_spec(runtime.CONST_ARGS)
             )
         return job_configuration_details
 
