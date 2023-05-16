@@ -1990,7 +1990,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Example
         -------
-        # This is an example to deploy model on container runtime
+        >>> # This is an example to deploy model on container runtime
         >>> model = GenericModel(estimator=estimator, artifact_dir=tempfile.mkdtemp())
         >>> model.summary_status()
         >>> model.prepare(
@@ -2851,10 +2851,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ----------
         uri: str
             The destination location for the model artifacts, which can be a local path or
-            OCI object storage URI.
-            Examples:
+            OCI object storage URI. Examples:
+
             >>> upload_artifact(uri="/some/local/folder/")
             >>> upload_artifact(uri="oci://bucket@namespace/prefix/")
+
         auth: (Dict, optional). Defaults to `None`.
             The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate

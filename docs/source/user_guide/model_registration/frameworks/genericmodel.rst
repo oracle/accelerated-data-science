@@ -77,6 +77,10 @@ By default, the ``GenericModel`` serializes to a pickle file. The following exam
         deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
         deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
         deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
+        # Shape config details mandatory for flexible shapes:
+        # deployment_instance_shape="VM.Standard.E4.Flex",
+        # deployment_ocpus=<number>,
+        # deployment_memory_in_gbs=<number>,
     )
 
     print(f"Endpoint: {generic_model.model_deployment.url}")

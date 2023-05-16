@@ -1,5 +1,10 @@
 You can use the ``.deploy()`` method to deploy a model. You must first save the model to the model catalog, and then deploy it.
 
+.. admonition:: Deployment with Flex shape
+    :class: note
+
+    It is mandatory to provide ``ocpus`` and ``memory_in_gb`` values, when deploy with Flex instance shapes. They are set in ``deployment_ocpus`` and ``deployment_memory_in_gbs`` of the ``deploy()`` method.
+
 The ``.deploy()`` method returns a ``ModelDeployment`` object.  Specify deployment attributes such as display name, instance type, number of instances,  maximum router bandwidth, and logging groups.  The API takes the following parameters:
 
 See `API documentation <../../ads.model.html#id1>`__ for more details about the parameters.

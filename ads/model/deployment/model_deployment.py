@@ -165,7 +165,7 @@ class ModelDeployment(Builder):
 
     Examples
     --------
-    Build model deployment from builder apis:
+    >>> # Build model deployment from builder apis:
     >>> ds_model_deployment = (ModelDeployment()
     ...    .with_display_name("TestModelDeployment")
     ...    .with_description("Testing the test model deployment")
@@ -211,7 +211,7 @@ class ModelDeployment(Builder):
     >>> ds_model_deployment.list(status="ACTIVE")
     >>> ds_model_deployment.delete()
 
-    Build model deployment from yaml
+    >>> # Build model deployment from yaml
     >>> ds_model_deployment = ModelDeployment.from_yaml(uri=<path_to_yaml>)
     """
 
