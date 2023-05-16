@@ -1,7 +1,12 @@
+// -*- coding: utf-8; -*-
+
+// Copyright (c) 2023 Oracle and/or its affiliates.
+// Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.
+
 // Compile the file and save it into the lib directory:
-// gcc -fPIC -shared -Wl,-soname,libhostname.so.1 -ldl -o ${CONDA_PREFIX}/lib/libhostname.so.1 hostname_from_env.c
+// $ gcc -fPIC -shared -Wl,-soname,libhostname.so.1 -ldl -o ${CONDA_PREFIX}/lib/libhostname.so.1 hostname_from_env.c
 // Run the script with two environment variables:
-// LD_PRELOAD=${CONDA_PREFIX}/lib/libhostname.so.1 OCI__HOSTNAME=<> python script.py
+// $ LD_PRELOAD=${CONDA_PREFIX}/lib/libhostname.so.1 OCI__HOSTNAME=<> python script.py
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <netdb.h>

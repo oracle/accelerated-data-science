@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 """This module requires oracle-ads>=2.6.8
 """
 import ipaddress
@@ -71,6 +76,7 @@ class Runner(driver_utils.JobRunner):
             self.host_ip = None
             self.is_host = False
         else:
+            # Print the host IP address to logs so that it can be obtained by the nodes.
             print(f"{LOG_PREFIX_HOST_IP}{self.ip}")
             self.host_ocid = os.environ["JOB_RUN_OCID"]
             self.host_ip = self.ip
@@ -78,6 +84,7 @@ class Runner(driver_utils.JobRunner):
 
         self.host_job_run = DataScienceJobRun.from_ocid(self.host_ocid)
         self.entrypoint_env = PythonRuntimeHandler.CONST_CODE_ENTRYPOINT
+        # The total number of node is OCI__WORKER_COUNT + 1
         self.node_count = int(os.environ.get(OCI__WORKER_COUNT, 0)) + 1
         logger.debug("Node count: %s", self.node_count)
         self.gpu_count = torch.cuda.device_count()
@@ -86,12 +93,38 @@ class Runner(driver_utils.JobRunner):
         logger.debug("Runner initialized.")
 
     def wait_for_host_ip_address(self, timeout=15 * 60):
+        """Waits until the IP address of the host is obtained.
+
+        Parameters
+        ----------
+        timeout : int, optional
+            Timeout in seconds, by default 15 minutes.
+
+        Returns
+        -------
+        str
+            IP address
+        """
         if not self.host_ip:
             logger.info("Waiting for host's IP address...")
             self.host_ip = self.wait_for_ip_address(self.host_job_run, timeout)
         return self
 
     def wait_for_ip_address(self, job_run, timeout=15 * 60):
+        """Waits until the IP address of a particular job run is obtained.
+
+        Parameters
+        ----------
+        job_run : DataScienceJobRun
+            A DataScienceJobRun object
+        timeout : int, optional
+            Timeout in seconds, by default 15 minutes.
+
+        Returns
+        -------
+        str
+            IP address
+        """
         logger.info("Waiting for IP address of job run %s", job_run.id)
         if job_run == self.host_job_run:
             log_prefix = LOG_PREFIX_HOST_IP
@@ -102,6 +135,27 @@ class Runner(driver_utils.JobRunner):
         return ip_address
 
     def wait_for_log(self, job_run, log_prefix, timeout=15 * 60):
+        """Waits until a log message with specific prefix is found in the logs of a job run.
+
+        Parameters
+        ----------
+        job_run : DataScienceJobRun
+            A DataScienceJobRun object
+        log_prefix : str
+            The prefix of the log message to look for.
+        timeout : int, optional
+            Timeout in seconds, by default 15 minutes.
+
+        Returns
+        -------
+        str
+            _description_
+
+        Raises
+        ------
+        TimeoutError
+            _description_
+        """
         logger.debug(
             "Waiting for logs with prefix '%s' from %s.", log_prefix, job_run.id
         )
@@ -325,19 +379,6 @@ class DeepSpeedRunner(Runner):
                 )
         return self
 
-    def start_ssh_server(self):
-        # Generate SSH host keys for SSH server
-        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
-        # Install SSH server to accept SSH connections
-        # DeepSpeed uses "hostname -I" to determine the IP address
-        # pdsh is required for default multi node training
-        self.run_command(
-            "sudo --preserve-env yum install -y openssh-server hostname pdsh",
-            level=logging.DEBUG,
-            check=True,
-        )
-        # Start SSH service
-        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
     def test_ssh_connection(self, host):
         ret = self.run_command(
@@ -366,10 +407,39 @@ class DeepSpeedRunner(Runner):
         """
         with open(self.ENV_FILE, mode="w", encoding="utf-8") as f:
             for k, v in os.environ.items():
+                # As of deepspeed==0.9.2, empty value or line break will cause parsing error,
+                # as the .deepspeed_env file is parsed line by line.
+                if not v or "\n" in v:
+                    continue
+                # Quote the value if it contains space
+                # Environment variable containing space may not be exported correctly when using pdsh
+                # https://github.com/microsoft/DeepSpeed/blob/v0.9.2/deepspeed/launcher/multinode_runner.py#L79
+                if " " in v:
+                    v = shlex.quote(v)
+
                 f.write(f"{k}={v}\n")
+        logger.debug("Environment variables saved to %s", self.ENV_FILE)
+        self.run_command(f"cat {self.ENV_FILE}")
 
     def run(self):
-        self.start_ssh_server()
+        # Check DeepSpeed compatibility
+        self.run_command(
+            "ds_report", conda_prefix=self.conda_prefix, level=logging.DEBUG
+        )
+        # Generate SSH host keys for SSH server
+        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+        # Install SSH server to accept SSH connections
+        # DeepSpeed uses "hostname -I" to determine the IP address
+        # pdsh is required for default multi node training
+        # torch cpp extension uses which command to find compiler
+        # DeepSpeed async_io requires libaio-devel
+        self.run_command(
+            "sudo --preserve-env yum install -y openssh-server hostname pdsh which libaio-devel",
+            level=logging.DEBUG,
+            check=True,
+        )
+        # Start SSH service
+        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
         if self.is_host:
             self.generate_key_pair().generate_hostfile()
             self.save_deepspeed_env()
