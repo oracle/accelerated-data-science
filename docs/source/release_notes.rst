@@ -6,11 +6,11 @@ Release Notes
 -----
 Release date: May 17, 2023
 
-* Added support for ``key_content`` attribute in the ``ads.set_auth`` for the API KEY authentication.
-* Added support for the mounting file systems in the Jobs API.
-* Fixed bug in ``ModelEvaluator`` when it returned incorrect ROC AUC characteristics.
-* Fixed bug in ``ADSDataset.suggest_recommendations`` API, when it returned a error if target was not specified.
-* Fixed bug in ``ADSDataset.auto_transform`` API, when an incorrect sampling was suggested for imbalanced data
+* Added support for ``key_content`` attribute in ``ads.set_auth()`` for the API KEY authentication.
+* Added support for the mounting file systems in the Job API.
+* Fixed bug in :py:class:`~ads.evaluations.statistical_metrics.ModelEvaluator` when it returned incorrect ROC AUC characteristics.
+* Fixed bug in ``ADSDataset.suggest_recommendations()`` API, when it returned an error if the target wasn't specified.
+* Fixed bug in ``ADSDataset.auto_transform()`` API, when an incorrect sampling was suggested for imbalanced data.
 
 2.8.4
 -----
