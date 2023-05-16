@@ -82,6 +82,21 @@ The ``~/.oci/config`` configuration allow for multiple configurations to be stor
   ads.set_auth("api_key") # default signer is set to API Keys
   ads.set_auth("api_key", profile = "TEST") # default signer is set to API Keys and to use TEST profile
   ads.set_auth("api_key", oci_config_location = "~/.test_oci/config") # default signer is set to API Keys and to use non-default oci_config_location
+  private_key_content = """
+  -----BEGIN RSA PRIVATE KEY-----
+  MIIBIjANBgkqhkiG9w0BAQE...
+  ...
+  -----END RSA PRIVATE KEY-----
+  """
+  config = dict(
+    user="ocid1.user.oc1..xxx",
+    fingerprint="35:67:25:90:89:87:45:78:bf:4h:g5:13:16:32:4d:f4",
+    tenancy="ocid1.tenancy.oc1..xxx",
+    region="us-ashburn-1",
+    key_content=private_key_content,
+  )
+  ads.set_auth(config = config) # default signer is set to API Keys with private key content
+  
   ads.set_auth("resource_principal")  # default signer is set to resource principal authentication
   ads.set_auth("instance_principal")  # default signer is set to instance principal authentication
 
@@ -121,7 +136,7 @@ In the this example, the default authentication uses API keys specified with the
   os_auth = authutil.resource_principal() # use resource principal to as the preferred way to access object store
 
 
-More signers can be created using the ``create_signer()`` method. With the ``auth_type`` parameter set to ``instance_principal``, the method will return a signer that uses instance principals. For other signers there are ``signer`` or ``signer_callable`` parameters. Here are examples:
+More signers can be created using the ``create_signer()`` method. With the ``auth_type`` parameter set to ``instance_principal``, the method will return a signer that uses instance principals. For other signers there are ``signer``, ``signer_callable`` or ``signer_kwargs`` parameters. Here are examples:
 
 .. code-block:: python
 

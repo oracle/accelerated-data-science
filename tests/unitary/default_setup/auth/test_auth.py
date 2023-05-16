@@ -31,48 +31,63 @@ from ads.common.auth import (
 )
 from ads.common.oci_logging import OCILog
 
+MOCK_CONFIG_FROM_FILE = {
+    "user": "test_user",
+    "fingerprint": "test_fingerprint",
+    "tenancy": "test_tenancy",
+    "region": "us-ashburn-1",
+    "key_file": "test_key_file"
+}
+
 
 class TestEDAMixin(TestCase):
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.config.from_file")
     @mock.patch("os.path.exists")
     @mock.patch("oci.signer.load_private_key_from_file")
     def test_set_auth_overwrite_profile(
-        self, mock_load_key_file, mock_path_exists, mock_config_from_file
+        self, mock_load_key_file, mock_path_exists, mock_config_from_file, mock_validate_config
     ):
+        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
         set_auth(profile="TEST")
         default_signer()
         mock_config_from_file.assert_called_with("~/.oci/config", "TEST")
         set_auth(profile="DEFAULT")
 
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.config.from_file")
     @mock.patch("os.path.exists")
     @mock.patch("oci.signer.load_private_key_from_file")
     def test_set_auth_overwrite_config_location(
-        self, mock_load_key_file, mock_path_exists, mock_config_from_file
+        self, mock_load_key_file, mock_path_exists, mock_config_from_file, mock_validate_config
     ):
+        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
         mock_path_exists.return_value = True
         set_auth(oci_config_location="test_path")
         default_signer()
         mock_config_from_file.assert_called_with("test_path", "DEFAULT")
         set_auth()
 
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.config.from_file")
     @mock.patch("oci.signer.Signer")
-    def test_api_keys_using_test_profile(self, mock_signer, mock_config_from_file):
+    def test_api_keys_using_test_profile(self, mock_signer, mock_config_from_file, mock_validate_config):
         api_keys("test_path", "TEST_PROFILE")
         mock_config_from_file.assert_called_with("test_path", "TEST_PROFILE")
 
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.config.from_file")
     @mock.patch("oci.signer.Signer")
-    def test_api_keys_using_default_profile(self, mock_signer, mock_config_from_file):
+    def test_api_keys_using_default_profile(self, mock_signer, mock_config_from_file, mock_validate_config):
         api_keys("test_path")
         mock_config_from_file.assert_called_with("test_path", "DEFAULT")
 
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
     @mock.patch("oci.config.from_file")
     @mock.patch("oci.signer.Signer")
     def test_get_signer_with_api_keys(
-        self, mock_signer, mock_config_from_file, mock_rp_signer
+        self, mock_signer, mock_config_from_file, mock_rp_signer, mock_validate_config
     ):
         get_signer("test_path", "TEST_PROFILE")
         mock_config_from_file.assert_called_with("test_path", "TEST_PROFILE")
@@ -85,6 +100,27 @@ class TestEDAMixin(TestCase):
         resource_principal()
         mock_rp_signer.assert_called_once()
 
+    @mock.patch("oci.config.validate_config")
+    @mock.patch("oci.signer.load_private_key")
+    def test_set_auth_with_key_content(self, mock_load_private_key, mock_validate_config):
+        set_auth(
+            config={
+                "user": "test_user",
+                "fingerprint": "test_fingerprint",
+                "tenancy": "test_tenancy",
+                "region": "us-ashburn-1",
+                "key_content": "test_key_content"
+            }
+        )
+        signer = default_signer()
+        assert signer["config"]["user"] == "test_user"
+        assert signer["config"]["fingerprint"] == "test_fingerprint"
+        assert signer["config"]["tenancy"] == "test_tenancy"
+        assert signer["config"]["region"] == "us-ashburn-1"
+        assert signer["config"]["key_content"] == "test_key_content"
+        assert "additional_user_agent" in signer["config"]
+        assert signer["signer"] != None
+        set_auth()
 
 class TestOCIMixin(TestCase):
     def tearDown(self) -> None:
@@ -92,12 +128,13 @@ class TestOCIMixin(TestCase):
             ads.set_auth(AuthType.API_KEY)
             return super().tearDown()
 
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.config.from_file")
     @mock.patch("os.path.exists")
     @mock.patch("oci.signer.Signer")
     @mock.patch("oci.logging.LoggingManagementClient")
     def test_api_key_auth_with_logging(
-        self, client, mock_signer, mock_path_exists, mock_config_from_file
+        self, client, mock_signer, mock_path_exists, mock_config_from_file, mock_validate_config
     ):
         """Tests initializing OCIMixin with default auth.
         Without any explicit config, the client should be initialized from DEFAULT OCI API key config.
@@ -218,9 +255,6 @@ class TestAuthFactory(TestCase):
             set_auth(config={"test": "test"}, profile="TEST_PROFILE")
 
         with pytest.raises(ValueError):
-            set_auth(oci_config_location="not_extisting_path")
-
-        with pytest.raises(ValueError):
             AuthFactory().signerGenerator("not_existing_iam_type")
 
     def test_register_singer(self):
@@ -237,9 +271,10 @@ class TestAuthFactory(TestCase):
             "key_file": "",
         },
     )
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.signer.load_private_key_from_file")
     def test_api_key_create_signer(
-        self, mock_load_key_file, mock_config_from_file, mock_path_exists
+        self, mock_load_key_file, mock_config_from_file, mock_path_exists, mock_validate_config
     ):
         """
         Testing api key setup with set_auth() and getting it with default_signer()
@@ -334,6 +369,7 @@ class TestAuthFactory(TestCase):
         create_signer(config={"test_config": "test_config"})
         mock_signer_generator().signerGenerator.assert_called_with("api_key")
 
+    @mock.patch("oci.config.validate_config")
     @mock.patch("oci.auth.signers.InstancePrincipalsSecurityTokenSigner")
     @mock.patch("oci.auth.signers.get_resource_principals_signer")
     @mock.patch("oci.config.from_file")
@@ -346,12 +382,14 @@ class TestAuthFactory(TestCase):
         mock_config_from_file,
         mock_rp_signer,
         mock_ip_signer,
+        mock_validate_config
     ):
         """
         Testing behaviour when multiple times invoked set_auth() with different parameters and validate,
         that default_signer() returns proper signer based on saved state of auth values within AuthState().
         Checking that default_signer() runs two times in a row and returns signer based on AuthState().
         """
+        mock_config_from_file.return_value = MOCK_CONFIG_FROM_FILE
         config = dict(
             user="ocid1.user.oc1..<unique_ocid>",
             fingerprint="00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
