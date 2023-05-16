@@ -379,19 +379,6 @@ class DeepSpeedRunner(Runner):
                 )
         return self
 
-    def start_ssh_server(self):
-        # Generate SSH host keys for SSH server
-        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
-        # Install SSH server to accept SSH connections
-        # DeepSpeed uses "hostname -I" to determine the IP address
-        # pdsh is required for default multi node training
-        self.run_command(
-            "sudo --preserve-env yum install -y openssh-server hostname pdsh",
-            level=logging.DEBUG,
-            check=True,
-        )
-        # Start SSH service
-        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
     def test_ssh_connection(self, host):
         ret = self.run_command(
@@ -435,7 +422,24 @@ class DeepSpeedRunner(Runner):
         self.run_command(f"cat {self.ENV_FILE}")
 
     def run(self):
-        self.start_ssh_server()
+        # Check DeepSpeed compatibility
+        self.run_command(
+            "ds_report", conda_prefix=self.conda_prefix, level=logging.DEBUG
+        )
+        # Generate SSH host keys for SSH server
+        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+        # Install SSH server to accept SSH connections
+        # DeepSpeed uses "hostname -I" to determine the IP address
+        # pdsh is required for default multi node training
+        # torch cpp extension uses which command to find compiler
+        # DeepSpeed async_io requires libaio-devel
+        self.run_command(
+            "sudo --preserve-env yum install -y openssh-server hostname pdsh which libaio-devel",
+            level=logging.DEBUG,
+            check=True,
+        )
+        # Start SSH service
+        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
         if self.is_host:
             self.generate_key_pair().generate_hostfile()
             self.save_deepspeed_env()

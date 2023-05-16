@@ -373,6 +373,8 @@ class JobRunner:
         int
             The return code of the command.
         """
+        # Add a small time delay so the existing outputs will not intersect with the command outputs.
+        time.sleep(0.05)
         logger.info(">>> %s", command)
         if conda_prefix:
             # Conda activate
