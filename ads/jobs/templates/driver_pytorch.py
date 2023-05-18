@@ -569,6 +569,7 @@ def main():
 
 
 if __name__ == "__main__":
+    # Collect GPU metrics only if GPU is available and user defined METRIC_NAMESPACE
     if METRIC_NAMESPACE and torch.cuda.device_count():
         p = multiprocessing.Process(target=collect_metrics)
         p.daemon = True

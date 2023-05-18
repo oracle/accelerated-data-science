@@ -6,9 +6,7 @@ import time
 
 
 JOB_RUN_COMPARTMENT_OCID_ENV = "JOB_RUN_COMPARTMENT_OCID"
-# Default custom metric namespace. It must not start with "oci_"
-METRICS_DEFAULT_NAMESPACE = "jobrun_gpu"
-METRIC_NAMESPACE = os.environ.get("METRICS_NAMESPACE", METRICS_DEFAULT_NAMESPACE)
+METRIC_NAMESPACE = os.environ.get("OCI__METRICS_NAMESPACE")
 METRIC_COMPARTMENT = os.environ.get(JOB_RUN_COMPARTMENT_OCID_ENV)
 
 # When querying metrics, the smallest aggregation interval allowed is 1 minute.
