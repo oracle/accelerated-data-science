@@ -228,6 +228,8 @@ class OCIObjectStorage(DSCFileSystem):
 
 class DSCFileSystemManager:
 
+    storage_mount_dest = set()
+
     @classmethod
     def initialize(cls, arguments: dict) -> dict:
         """Initialize and update arguments to dsc model.
@@ -246,6 +248,12 @@ class DSCFileSystemManager:
             raise ValueError(
                 "Parameter `dest` is required for mounting file storage system."
             )
+
+        if arguments["dest"] in cls.storage_mount_dest:
+            raise ValueError(
+                "Duplicate `dest` found. Please specify different `dest` for each file system to be mounted."
+            )
+        cls.storage_mount_dest.add(arguments["dest"])
 
         # case oci://bucket@namespace/prefix
         if arguments["src"].startswith("oci://") and "@" in arguments["src"]:
