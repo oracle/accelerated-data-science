@@ -84,6 +84,8 @@ class PyTorchDistributedRuntime(PythonRuntime):
             envs = replica_kwargs.get("environment_variables")
             if not envs:
                 envs = {}
+            # Huggingface accelerate requires machine rank
+            envs["OCI__NODE_RANK"] = str(i)
             if main_run:
                 envs["MAIN_JOB_RUN_OCID"] = main_run.id
             name = replica_kwargs.get("display_name")
