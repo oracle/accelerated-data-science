@@ -13,6 +13,7 @@ class PyTorchDistributedRuntime(PythonRuntime):
     CONST_DEP = "dependencies"
     CONST_PIP_REQ = "pipRequirements"
     CONST_PIP_PKG = "pipPackages"
+    CONST_COMMAND = "command"
 
     def with_git(
         self, url: str, branch: str = None, commit: str = None, secret_ocid: str = None
@@ -75,6 +76,13 @@ class PyTorchDistributedRuntime(PythonRuntime):
     @property
     def dependencies(self) -> dict:
         return self.get_spec(self.CONST_DEP)
+
+    def with_command(self, command: str):
+        return self.set_spec(self.CONST_COMMAND, command)
+
+    @property
+    def command(self):
+        return self.get_spec(self.CONST_COMMAND)
 
     def run(self, dsc_job, **kwargs):
         replicas = self.replica if self.replica else 1

@@ -1044,6 +1044,7 @@ class ContainerRuntimeHandler(RuntimeHandler):
 class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     RUNTIME_CLASS = PyTorchDistributedRuntime
     CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
+    CONST_COMMAND = "OCI__LAUNCH_CMD"
 
     GIT_SPEC_MAPPINGS = {
         cluster_config_helper.OCI__RUNTIME_URI: GitPythonRuntime.CONST_GIT_URL,
@@ -1051,6 +1052,9 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
         cluster_config_helper.OCI__RUNTIME_GIT_COMMIT: GitPythonRuntime.CONST_COMMIT,
         cluster_config_helper.OCI__RUNTIME_GIT_SECRET_ID: GitPythonRuntime.CONST_GIT_SSH_SECRET_ID,
     }
+
+    SPEC_MAPPINGS = PythonRuntimeHandler.SPEC_MAPPINGS
+    SPEC_MAPPINGS.update({PyTorchDistributedRuntime.CONST_COMMAND: CONST_COMMAND})
 
     def _translate_artifact(self, runtime: PyTorchDistributedRuntime):
         return PyTorchDistributedArtifact(runtime.source_uri, runtime)
