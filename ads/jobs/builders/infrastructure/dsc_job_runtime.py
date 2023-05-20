@@ -659,7 +659,7 @@ class PythonRuntimeHandler(CondaRuntimeHandler):
 
         if runtime.entrypoint:
             envs[self.CONST_CODE_ENTRYPOINT] = runtime.entrypoint
-        else:
+        elif runtime.script_uri:
             envs[self.CONST_CODE_ENTRYPOINT] = os.path.basename(runtime.script_uri)
 
         envs[self.CONST_JOB_ENTRYPOINT] = PythonArtifact.CONST_DRIVER_SCRIPT

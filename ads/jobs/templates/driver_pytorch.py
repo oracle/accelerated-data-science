@@ -42,9 +42,9 @@ logger = driver_utils.set_log_level(logger)
 
 CONST_ENV_HOST_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
 CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
-CONST_ENV_LAUNCHER = "OCI__LAUNCHER"
+CONST_ENV_LAUNCH_CMD = "OCI__LAUNCH_CMD"
 CONST_ENV_LAUNCH_ARGS = "OCI__LAUNCH_ARGS"
-LOG_PREFIX_HOST_IP = "Distributed Training Main IP: "
+LOG_PREFIX_HOST_IP = "Distributed Training HOST IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
 SSH_DIR = "/home/datascience/.ssh"
@@ -58,9 +58,12 @@ set_auth("resource_principal")
 class Runner(driver_utils.JobRunner):
     """Base runner class for PyTorch training job"""
 
+    LAUNCHER = ""
+
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
-        self.launch_args = os.environ.get(CONST_ENV_LAUNCH_ARGS, "")
+        self.launch_cmd = os.environ.get(CONST_ENV_LAUNCH_CMD, "")
+
         self.ds_client = driver_utils.OCIHelper.init_oci_client(
             oci.data_science.DataScienceClient
         )
@@ -94,8 +97,8 @@ class Runner(driver_utils.JobRunner):
 
         logger.debug("Runner initialized.")
 
-    def launch_args_contains(self, arg):
-        return f"--{arg}" in self.launch_args
+    def launch_cmd_contains(self, arg):
+        return f"--{arg}" in self.launch_cmd
 
     def wait_for_host_ip_address(self, timeout=15 * 60):
         """Waits until the IP address of the host is obtained.
@@ -234,15 +237,37 @@ class Runner(driver_utils.JobRunner):
                 branch=branch, commit=commit
             )
 
-    def run_training_script(self, cmd_prefix=""):
+    def get_entrypoint_with_args(self, prefix=""):
         cmd = os.environ[self.entrypoint_env]
-        if cmd_prefix:
-            cmd = cmd_prefix + " " + cmd
+        if prefix:
+            cmd = prefix + " " + cmd
         if sys.argv[1:]:
-            cmd += " " + " ".join(shlex.quote(arg) for arg in sys.argv[1:])
+            cmd += " " + " ".join(sys.argv[1:])
+        return cmd
+
+    def prepare_cmd(self, launch_args, prefix=None):
+        # Append launch cmd args specified by the user.
+        if self.launch_cmd:
+            launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
+        else:
+            launch_args.append(self.get_entrypoint_with_args())
+
+        if prefix:
+            launcher = f"{prefix} {self.LAUNCHER}"
+        else:
+            launcher = self.LAUNCHER
+
+        return f"{launcher} {' '.join(launch_args)}"
+
+    def time_cmd(self, cmd):
+        """Run the command and log the time used."""
+        # Show current working directory for debugging purpose
+        self.run_command("pwd", level=logging.DEBUG)
+        # Show all environment variables
+        self.run_command("printenv", level=logging.DEBUG)
         training_start_time = time.time()
         self.run_command(cmd, conda_prefix=self.conda_prefix, check=True)
-        logger.info("Training Time: %s seconds.", time.time() - training_start_time)
+        logger.info("Time: %s seconds.", time.time() - training_start_time)
 
     def run(self):
         raise NotImplementedError()
@@ -250,6 +275,7 @@ class Runner(driver_utils.JobRunner):
 
 class TorchRunner(Runner):
     RDZV_PORT = 29400
+    LAUNCHER = "torchrun"
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
@@ -268,7 +294,7 @@ class TorchRunner(Runner):
             "gcc -fPIC -shared -Wl,-soname,libhostname.so.1 -ldl "
             f"-o {self.conda_prefix}/lib/libhostname.so.1 {source_path}",
             conda_prefix=self.conda_prefix,
-            check=True,
+            level=logging.DEBUG,
         )
         self.run_command(
             f"ls {self.conda_prefix}/lib/libhostname*", level=logging.DEBUG
@@ -276,17 +302,23 @@ class TorchRunner(Runner):
 
         return self
 
-    def cmd_prefix_ld_preload(self):
+    def env_ld_preload(self) -> str:
+        """Generate environment variable config for LD_PRELOAD and OCI__HOSTNAME.
+        The return value can be used as the prefix of a bash command.
+        """
         cmd_prefix = ""
         # Use LD_PRELOAD only if LD_PRELOAD is not defined by the user.
         # For pytorch>=2.0, we can use f"--local_addr={self.ip} " instead of LD_PRELOAD.
         if CONST_ENV_LD_PRELOAD not in os.environ:
-            cmd_prefix = f"LD_PRELOAD={self.conda_prefix}/lib/libhostname.so.1 OCI__HOSTNAME={self.ip} "
+            cmd_prefix = f"LD_PRELOAD={self.conda_prefix}/lib/libhostname.so.1 OCI__HOSTNAME={self.ip}"
         return cmd_prefix
 
-    def get_rdzv_conf(self):
-        # The default read_timeout is 60 seconds.
-        # The job run will fail if the node cannot reach the host within read_timeout.
+    def get_rdzv_conf(self) -> str:
+        """Prepare additional rendezvous config for torch run.
+
+        The default read_timeout is 60 seconds.
+        The job run will fail if the node cannot reach the host within read_timeout.
+        """
         rdzv_timeout = os.environ.get("OCI__RDZV_TIMEOUT", "600")
         rdzv_conf = f"read_timeout={rdzv_timeout}"
         return rdzv_conf
@@ -297,18 +329,18 @@ class TorchRunner(Runner):
         else:
             nproc_per_node = 1
 
-        cmd_prefix = self.cmd_prefix_ld_preload()
-        cmd_prefix += "torchrun"
+        launch_args = []
         # Add nnode, nproc_per_node and rdzv args only if they are not specified by the user.
-        if not self.launch_args_contains("nnode"):
-            cmd_prefix += f" --nnode={self.node_count}"
-        if not self.launch_args_contains("nproc_per_node"):
-            cmd_prefix += f" --nproc_per_node={nproc_per_node}"
-        if not self.launch_args_contains("rdzv_backend"):
-            cmd_prefix += f" --rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:{self.RDZV_PORT} --rdzv_conf={self.get_rdzv_conf()}"
-        if self.launch_args:
-            cmd_prefix += f" {self.launch_args}"
-        self.run_training_script(cmd_prefix=cmd_prefix)
+        if not self.launch_cmd_contains("nnode"):
+            launch_args.append(f"--nnode={self.node_count}")
+        if not self.launch_cmd_contains("nproc_per_node"):
+            launch_args.append(f" --nproc_per_node={nproc_per_node}")
+        if not self.launch_cmd_contains("rdzv_backend"):
+            launch_args.append(
+                f" --rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:{self.RDZV_PORT} --rdzv_conf={self.get_rdzv_conf()}"
+            )
+
+        self.time_cmd(cmd=self.prepare_cmd(launch_args, prefix=self.env_ld_preload()))
 
 
 class DeepSpeedRunner(Runner):
@@ -316,6 +348,27 @@ class DeepSpeedRunner(Runner):
     ERROR_FILE = "/home/datascience/error"
     HOST_FILE = "/home/datascience/hostfile"
     ENV_FILE = os.path.expanduser("~/.deepspeed_env")
+    LAUNCHER = "deepspeed"
+
+    def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
+        super().__init__(code_dir)
+        self.update_os()
+
+    def update_os(self):
+        # Generate SSH host keys for SSH server
+        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
+        # Install SSH server to accept SSH connections
+        # DeepSpeed uses "hostname -I" to determine the IP address
+        # pdsh is required for default multi node training
+        # torch cpp extension uses which command to find compiler
+        # DeepSpeed async_io requires libaio-devel
+        self.run_command(
+            "sudo --preserve-env yum install -y openssh-server hostname pdsh which libaio-devel",
+            level=logging.DEBUG,
+            check=True,
+        )
+        # Start SSH service
+        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
 
     def generate_key_pair(self):
         self.run_command(
@@ -331,6 +384,10 @@ class DeepSpeedRunner(Runner):
             check=True,
         )
         self.test_ssh_connection(self.host_ip)
+        # Check DeepSpeed compatibility
+        self.run_command(
+            "ds_report", conda_prefix=self.conda_prefix, level=logging.DEBUG
+        )
         return self
 
     @staticmethod
@@ -430,24 +487,6 @@ class DeepSpeedRunner(Runner):
         self.run_command(f"cat {self.ENV_FILE}")
 
     def run(self):
-        # Check DeepSpeed compatibility
-        self.run_command(
-            "ds_report", conda_prefix=self.conda_prefix, level=logging.DEBUG
-        )
-        # Generate SSH host keys for SSH server
-        self.run_command("sudo ssh-keygen -A", level=logging.DEBUG, check=True)
-        # Install SSH server to accept SSH connections
-        # DeepSpeed uses "hostname -I" to determine the IP address
-        # pdsh is required for default multi node training
-        # torch cpp extension uses which command to find compiler
-        # DeepSpeed async_io requires libaio-devel
-        self.run_command(
-            "sudo --preserve-env yum install -y openssh-server hostname pdsh which libaio-devel",
-            level=logging.DEBUG,
-            check=True,
-        )
-        # Start SSH service
-        self.run_command("sudo /usr/sbin/sshd", level=logging.DEBUG, check=True)
         if self.is_host:
             self.generate_key_pair().generate_hostfile()
             self.save_deepspeed_env()
@@ -461,11 +500,13 @@ class DeepSpeedRunner(Runner):
                     level=logging.DEBUG,
                     check=True,
                 )
-            cmd_prefix = f"deepspeed --hostfile={self.HOST_FILE}"
-            if self.launch_args:
-                cmd_prefix += f" {self.launch_args}"
+            # For DeepSpeed, we only need to run the cmd on the host
+            launch_args = [f"--hostfile={self.HOST_FILE}"]
+
+            cmd = self.prepare_cmd(launch_args)
+
             try:
-                self.run_training_script(cmd_prefix=cmd_prefix)
+                self.time_cmd(cmd)
             except:
                 # Caution: file will not be generated if job run is killed from the console.
                 self.touch_file(self.ERROR_FILE)
@@ -497,12 +538,17 @@ class DeepSpeedRunner(Runner):
 
 
 class AccelerateRunner(TorchRunner, DeepSpeedRunner):
-    DEFAULT_ARGS = ["multi_gpu", "num_processes", "num_machines", "machine_rank"]
+    DEFAULT_ARGS = ["num_processes", "num_machines", "machine_rank"]
     TORCHRUN_ARGS = ["main_process_ip", "main_process_port"]
+    LAUNCHER = "accelerate launch"
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
-        self.multi_gpu = bool(self.node_count > 1 or self.gpu_count > 1)
+        # For "accelerate launch", only one of the following options can be used at one time
+        # `--cpu`, `--multi_gpu`, `--tpu`, `--use_deepspeed`, `--use_fsdp`.
+        # When a config file is not provided, 
+        # --multi_gpu will be set automatically if there is more than 1 GPU
+        # self.multi_gpu = bool(self.node_count > 1 or self.gpu_count > 1)
         self.num_machines = self.node_count
         self.machine_rank = os.environ["OCI__NODE_RANK"]
         # Total number of processes across all nodes
@@ -510,31 +556,32 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.num_processes = (self.gpu_count if self.gpu_count else 1) * self.node_count
 
         self.main_process_port = self.RDZV_PORT
-        self.main_process_ip = self.host_ip
+        # Host IP is not ready at initialization
+        self.main_process_ip = None
 
     def use_deepspeed(self):
-        return self.launch_args_contains("use_deepspeed")
+        return self.launch_cmd_contains("use_deepspeed")
 
-    def accelerate_cmd(self):
-        cmd = ["accelerate launch"]
+    def accelerate_args(self):
+        args = []
         for arg in self.DEFAULT_ARGS:
             arg_val = getattr(self, arg, None)
             logger.debug("%s=%s", arg, arg_val)
             if arg_val is True:
-                cmd.append(f"--{arg}")
+                args.append(f"--{arg}")
             elif arg_val:
-                cmd.extend([f"--{arg}", str(arg_val)])
-        if self.launch_args:
-            cmd.append(self.launch_args)
-        return " ".join(cmd)
+                args.extend([f"--{arg}", str(arg_val)])
+        return args
 
     def run_with_torchrun(self):
-        cmd_prefix = self.cmd_prefix_ld_preload()
-        cmd_prefix += f" {self.accelerate_cmd()}"
+        self.main_process_ip = self.host_ip
+
+        launch_args = self.accelerate_args()
         for arg in self.TORCHRUN_ARGS:
-            if not self.launch_args_contains(arg):
-                cmd_prefix += f" --{arg} {getattr(self, arg)}"
-        self.run_training_script(cmd_prefix=cmd_prefix)
+            if not self.launch_cmd_contains(arg):
+                launch_args.extend([f"--{arg}", f"{getattr(self, arg)}"])
+        cmd = self.prepare_cmd(launch_args, prefix=self.env_ld_preload())
+        self.time_cmd(cmd=cmd)
 
     def run_with_deepspeed(self):
         raise NotImplementedError
@@ -542,7 +589,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
     def run(self):
         # Check if any default argument is provided by the user
         for arg in self.DEFAULT_ARGS:
-            if self.launch_args_contains(arg):
+            if self.launch_cmd_contains(arg):
                 logger.debug("%s found in launch args.", arg)
                 setattr(self, arg, None)
         if self.use_deepspeed():
@@ -552,12 +599,15 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
 
 
 def main():
-    launcher = os.environ.get(CONST_ENV_LAUNCHER, "torchrun").lower()
-    runner_class = {
-        "torchrun": TorchRunner,
-        "deepspeed": DeepSpeedRunner,
-        "accelerate": AccelerateRunner,
-    }[launcher]
+    launch_cmd = os.environ.get(CONST_ENV_LAUNCH_CMD)
+    if not launch_cmd or launch_cmd.startswith("torchrun "):
+        # Use torchrun as default if launch cmd is not provided
+        runner_class = TorchRunner
+    elif launch_cmd.startswith("deepspeed "):
+        runner_class = DeepSpeedRunner
+    elif launch_cmd.startswith("accelerate "):
+        runner_class = AccelerateRunner
+
     runner = runner_class()
     runner: Runner
     runner.fetch_code().set_working_dir().setup_python_path().install_dependencies()
