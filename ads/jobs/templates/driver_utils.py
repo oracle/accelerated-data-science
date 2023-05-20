@@ -459,9 +459,11 @@ class JobRunner:
         else:
             working_dir = self.code_dir
         os.chdir(working_dir)
+        logger.debug("Working directory set to %s", working_dir)
         # Add working dir to sys.path
         if working_dir not in sys.path:
             sys.path.append(working_dir)
+            logger.debug("Added %s to sys.path", working_dir)
         return self
 
     def setup_python_path(
@@ -487,6 +489,7 @@ class JobRunner:
             abs_path = os.path.abspath(os.path.expanduser(path))
             if abs_path not in sys.path:
                 sys.path.append(abs_path)
+                logger.debug("Added %s to sys.path", abs_path)
         logger.debug("Python Path: %s", sys.path)
         return self
 
