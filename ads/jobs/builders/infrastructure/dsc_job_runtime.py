@@ -1045,6 +1045,7 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     RUNTIME_CLASS = PyTorchDistributedRuntime
     CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
     CONST_COMMAND = "OCI__LAUNCH_CMD"
+    CONST_DEEPSPEED = "OCI__DEEPSPEED"
 
     GIT_SPEC_MAPPINGS = {
         cluster_config_helper.OCI__RUNTIME_URI: GitPythonRuntime.CONST_GIT_URL,
@@ -1054,7 +1055,11 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     }
 
     SPEC_MAPPINGS = PythonRuntimeHandler.SPEC_MAPPINGS
-    SPEC_MAPPINGS.update({PyTorchDistributedRuntime.CONST_COMMAND: CONST_COMMAND})
+    SPEC_MAPPINGS.update(
+        {
+            PyTorchDistributedRuntime.CONST_COMMAND: CONST_COMMAND,
+        }
+    )
 
     def _translate_artifact(self, runtime: PyTorchDistributedRuntime):
         return PyTorchDistributedArtifact(runtime.source_uri, runtime)
@@ -1062,6 +1067,7 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     def _translate_env(self, runtime: PyTorchDistributedRuntime) -> dict:
         envs = super()._translate_env(runtime)
         replica = runtime.replica if runtime.replica else 1
+        # WORKER_COUNT = REPLICA - 1
         envs[self.CONST_WORKER_COUNT] = str(replica - 1)
         envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
         if runtime.inputs:
@@ -1080,6 +1086,8 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
                 envs[driver_utils.CONST_ENV_PIP_REQ] = runtime.dependencies[
                     PyTorchDistributedRuntime.CONST_PIP_REQ
                 ]
+        if runtime.use_deepspeed:
+            envs[self.CONST_DEEPSPEED] = "1"
         return envs
 
     def _extract_envs(self, dsc_job) -> dict:
@@ -1117,6 +1125,8 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
             )
         if dep:
             spec[PyTorchDistributedRuntime.CONST_DEP] = dep
+        if envs.pop(self.CONST_DEEPSPEED, None):
+            spec[PyTorchDistributedRuntime.CONST_DEEPSPEED] = True
         # Envs
         if envs:
             spec[PythonRuntime.CONST_ENV_VAR] = envs

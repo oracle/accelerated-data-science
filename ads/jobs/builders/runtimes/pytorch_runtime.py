@@ -14,6 +14,7 @@ class PyTorchDistributedRuntime(PythonRuntime):
     CONST_PIP_REQ = "pipRequirements"
     CONST_PIP_PKG = "pipPackages"
     CONST_COMMAND = "command"
+    CONST_DEEPSPEED = "deepspeed"
 
     def with_git(
         self, url: str, branch: str = None, commit: str = None, secret_ocid: str = None
@@ -77,12 +78,20 @@ class PyTorchDistributedRuntime(PythonRuntime):
     def dependencies(self) -> dict:
         return self.get_spec(self.CONST_DEP)
 
-    def with_command(self, command: str):
+    def with_command(self, command: str, use_deepspeed=False):
+        if use_deepspeed:
+            self.set_spec(self.CONST_DEEPSPEED, True)
         return self.set_spec(self.CONST_COMMAND, command)
 
     @property
     def command(self):
         return self.get_spec(self.CONST_COMMAND)
+
+    @property
+    def use_deepspeed(self):
+        if self.get_spec(self.CONST_DEEPSPEED):
+            return True
+        return False
 
     def run(self, dsc_job, **kwargs):
         replicas = self.replica if self.replica else 1

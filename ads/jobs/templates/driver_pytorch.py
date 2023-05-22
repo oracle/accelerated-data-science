@@ -43,7 +43,7 @@ logger = driver_utils.set_log_level(logger)
 CONST_ENV_HOST_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
 CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
 CONST_ENV_LAUNCH_CMD = "OCI__LAUNCH_CMD"
-CONST_ENV_LAUNCH_ARGS = "OCI__LAUNCH_ARGS"
+CONST_ENV_DEEPSPEED = "OCI__DEEPSPEED"
 LOG_PREFIX_HOST_IP = "Distributed Training HOST IP: "
 LOG_PREFIX_NODE_IP = "Node IP: "
 LOG_PREFIX_PUBLIC_KEY = "HOST PUBLIC KEY: "
@@ -246,6 +246,8 @@ class Runner(driver_utils.JobRunner):
         return cmd
 
     def prepare_cmd(self, launch_args, prefix=None):
+        if not launch_args:
+            launch_args = []
         # Append launch cmd args specified by the user.
         if self.launch_cmd:
             launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
@@ -486,67 +488,90 @@ class DeepSpeedRunner(Runner):
         logger.debug("Environment variables saved to %s", self.ENV_FILE)
         self.run_command(f"cat {self.ENV_FILE}")
 
+    def run_deepspeed_host(self, launch_args=None):
+        """Prepares the host and launch the deepspeed training.
+
+        Parameters
+        ----------
+        launch_args : str, optional
+            Additional command line arguments, by default None.
+            The deepspeed host file should be specified in the launch args.
+            For "deepspeed": --hostfile
+            For "accelerate launch": --deepspeed_hostfile
+        """
+        self.generate_key_pair().generate_hostfile()
+        self.save_deepspeed_env()
+        # Wait for nodes to be ready
+        for run in self.node_runs:
+            self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
+
+        for node_ip in self.node_ip_list:
+            self.run_command(
+                f"ssh-keyscan -H {node_ip} >> {SSH_DIR}/known_hosts",
+                level=logging.DEBUG,
+                check=True,
+            )
+
+        cmd = self.prepare_cmd(launch_args)
+        # For DeepSpeed, we only need to run the cmd on the host
+        try:
+            self.time_cmd(cmd)
+        except:
+            # Caution: file will not be generated if job run is killed from the console.
+            self.touch_file(self.ERROR_FILE)
+            raise
+        # Signal stop
+        self.touch_file(self.STOP_FILE)
+
+    def run_deepspeed_worker(self):
+        self.fetch_host_public_key()
+        # Keep the job run alive until host job run is finished.
+        while not os.path.exists(self.STOP_FILE):
+            time.sleep(60)
+            # Stop the node if the host touched the error file.
+            if os.path.exists(self.ERROR_FILE):
+                logger.error("There is an error in the host job run.")
+                sys.exit(1)
+            # Stop the node if the host job run is CANCELLED or in unexpected state.
+            self.host_job_run.sync()
+            if self.host_job_run.status not in [
+                "ACCEPTED",
+                "IN_PROGRESS",
+                "SUCCEEDED",
+            ]:
+                logger.info(
+                    "Host job run status is %s. Stopping job run...",
+                    self.host_job_run.status,
+                )
+                sys.exit(2)
+        logger.info("Job finished successfully. Stopping job run...")
+
     def run(self):
         if self.is_host:
-            self.generate_key_pair().generate_hostfile()
-            self.save_deepspeed_env()
-            # Wait for nodes to be ready
-            for run in self.node_runs:
-                self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
-
-            for node_ip in self.node_ip_list:
-                self.run_command(
-                    f"ssh-keyscan -H {node_ip} >> {SSH_DIR}/known_hosts",
-                    level=logging.DEBUG,
-                    check=True,
-                )
-            # For DeepSpeed, we only need to run the cmd on the host
             launch_args = [f"--hostfile={self.HOST_FILE}"]
-
-            cmd = self.prepare_cmd(launch_args)
-
-            try:
-                self.time_cmd(cmd)
-            except:
-                # Caution: file will not be generated if job run is killed from the console.
-                self.touch_file(self.ERROR_FILE)
-                raise
-            # Signal stop
-            self.touch_file(self.STOP_FILE)
+            self.run_deepspeed_host(launch_args)
         else:
-            self.fetch_host_public_key()
-            # Keep the job run alive until host job run is finished.
-            while not os.path.exists(self.STOP_FILE):
-                time.sleep(60)
-                # Stop the node if the host touched the error file.
-                if os.path.exists(self.ERROR_FILE):
-                    logger.error("There is an error in the host job run.")
-                    sys.exit(1)
-                # Stop the node if the host job run is CANCELLED or in unexpected state.
-                self.host_job_run.sync()
-                if self.host_job_run.status not in [
-                    "ACCEPTED",
-                    "IN_PROGRESS",
-                    "SUCCEEDED",
-                ]:
-                    logger.info(
-                        "Host job run status is %s. Stopping job run...",
-                        self.host_job_run.status,
-                    )
-                    sys.exit(2)
-            logger.info("Job finished successfully. Stopping job run...")
+            self.run_deepspeed_worker()
 
 
 class AccelerateRunner(TorchRunner, DeepSpeedRunner):
-    DEFAULT_ARGS = ["num_processes", "num_machines", "machine_rank"]
-    TORCHRUN_ARGS = ["main_process_ip", "main_process_port"]
+    # accelerate launch will add main_process_port for deepspeed cmd even if it is not needed.
+    # https://github.com/huggingface/accelerate/blob/70920895e80f78d96d8f91e0beeb3ebdb8e5e5d6/src/accelerate/utils/launch.py#L233
+    DEFAULT_ARGS = [
+        "num_processes",
+        "num_machines",
+        "machine_rank",
+        "main_process_ip",
+        "main_process_port",
+    ]
+    TORCHRUN_ARGS = []
     LAUNCHER = "accelerate launch"
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
         super().__init__(code_dir)
         # For "accelerate launch", only one of the following options can be used at one time
         # `--cpu`, `--multi_gpu`, `--tpu`, `--use_deepspeed`, `--use_fsdp`.
-        # When a config file is not provided, 
+        # When a config file is not provided,
         # --multi_gpu will be set automatically if there is more than 1 GPU
         # self.multi_gpu = bool(self.node_count > 1 or self.gpu_count > 1)
         self.num_machines = self.node_count
@@ -560,7 +585,9 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.main_process_ip = None
 
     def use_deepspeed(self):
-        return self.launch_cmd_contains("use_deepspeed")
+        return os.environ.get(CONST_ENV_DEEPSPEED) or self.launch_cmd_contains(
+            "use_deepspeed"
+        )
 
     def accelerate_args(self):
         args = []
@@ -584,13 +611,18 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.time_cmd(cmd=cmd)
 
     def run_with_deepspeed(self):
-        raise NotImplementedError
+        if self.is_host:
+            launch_args = self.accelerate_args()
+            launch_args.append(f"--deepspeed_hostfile={self.HOST_FILE}")
+            self.run_deepspeed_host(launch_args)
+        else:
+            self.run_deepspeed_worker()
 
     def run(self):
         # Check if any default argument is provided by the user
         for arg in self.DEFAULT_ARGS:
             if self.launch_cmd_contains(arg):
-                logger.debug("%s found in launch args.", arg)
+                logger.debug("%s found in command.", arg)
                 setattr(self, arg, None)
         if self.use_deepspeed():
             self.run_with_deepspeed()
