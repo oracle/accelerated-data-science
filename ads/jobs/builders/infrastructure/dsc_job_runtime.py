@@ -1101,7 +1101,10 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
         # Inputs
         input_mappings = envs.pop(driver_utils.CONST_ENV_INPUT_MAPPINGS, None)
         if input_mappings:
-            spec[PyTorchDistributedRuntime.CONST_INPUT] = input_mappings
+            try:
+                spec[PyTorchDistributedRuntime.CONST_INPUT] = json.loads(input_mappings)
+            except ValueError:
+                spec[PyTorchDistributedRuntime.CONST_INPUT] = input_mappings
         # Dependencies
         dep = {}
         if driver_utils.CONST_ENV_PIP_PKG in envs:

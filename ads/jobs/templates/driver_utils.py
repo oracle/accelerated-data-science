@@ -283,7 +283,9 @@ class OCIHelper:
             else:
                 dest_dir = os.path.dirname(dest)
 
-            os.makedirs(dest_dir, exist_ok=True)
+            # Do not make dirs if user is using cwd.
+            if dest_dir:
+                os.makedirs(dest_dir, exist_ok=True)
 
             # Use native Python to download http/ftp.
             scheme = urlparse(src).scheme
