@@ -25,7 +25,7 @@ install_requires = [
     "numpy>=1.19.2",
     "oci>=2.102.0",
     "ocifs>=1.1.3",
-    "pandas>1.2.1",
+    "pandas>1.2.1,<1.6",
     "python_jsonschema_objects>=0.3.13",
     "PyYAML>=5.4,<6",
     "requests",
