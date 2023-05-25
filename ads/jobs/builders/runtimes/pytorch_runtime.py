@@ -48,23 +48,75 @@ class PyTorchDistributedRuntime(PythonRuntime):
 
     @property
     def git(self) -> str:
+        """The specification for source code from Git repository."""
         return self.get_spec(self.CONST_GIT)
 
     def with_inputs(self, mappings: dict):
+        """Specifies the input files to be copied into the job run.
+
+        Parameters
+        ----------
+        mappings : dict
+            Each key is the source path (uri). It can be http/ftp link or OCI object storage URI.
+            The corresponding value is the destination path in the job run, relative to the working directory.
+
+        Returns
+        -------
+        self
+            The runtime instance.
+
+        Examples
+        --------
+        >>> pt_runtime.with_inputs({"oci://bucket@namespace/path/to/file.txt": "data/input.txt"})
+
+        """
         return self.set_spec(self.CONST_INPUT, mappings)
 
     @property
     def inputs(self) -> dict:
+        """The input files to be copied into the job run."""
         return self.get_spec(self.CONST_INPUT)
 
     def with_replica(self, count: int):
+        """Specifies the number of nodes (job runs) for the job.
+
+        Parameters
+        ----------
+        count : int
+            Number of nodes (job runs)
+
+        Returns
+        -------
+        self
+            The runtime instance.
+        """
         return self.set_spec(self.CONST_REPLICA, count)
 
     @property
     def replica(self) -> int:
+        """The number of nodes (job runs)."""
         return self.get_spec(self.CONST_REPLICA)
 
     def with_dependency(self, pip_req=None, pip_pkg=None):
+        """Specifies additional dependencies to be installed using pip.
+
+        Parameters
+        ----------
+        pip_req : str, optional
+            Path of the requirements.txt file, relative to the working directory, by default None
+        pip_pkg : str, optional
+            Command line args for `pip install`, by default None.
+            Packages with version specification needs to be quoted.
+
+        Returns
+        -------
+        self
+            The runtime instance.
+
+        Examples
+        --------
+        >>> pt_runtime.with_dependency('"package>1.0"')
+        """
         dep = {}
         if pip_req:
             dep[self.CONST_PIP_REQ] = pip_req
@@ -76,24 +128,72 @@ class PyTorchDistributedRuntime(PythonRuntime):
 
     @property
     def dependencies(self) -> dict:
+        """Additional pip dependencies."""
         return self.get_spec(self.CONST_DEP)
 
     def with_command(self, command: str, use_deepspeed=False):
+        """Specifies the command for launching the workload.
+
+        Parameters
+        ----------
+        command : str
+            The command for launching the workload.
+            The command should start with `torchrun`, `deepspeed` or `accelerate launch`.
+
+            For `torchrun`,
+            ADS will set `--nnode`, `--nproc_per_node`, `--rdzv_backend` and `--rdzv_endpoint` automatically.
+            The default `rdzv_backend` will be `c10d`.
+            The default port for `rdzv_endpoint` is 29400
+
+            For `deepspeed`,
+            ADS will generate the hostfile automatically and setup the SSH configurations.
+
+            For `accelerate launch`
+            You can add your config YAML to the source code and specify it using `--config_file` argument.
+            In your config, please use `LOCAL_MACHINE` as the compute environment.
+            The same config file will be used by all nodes in multi-node workload.
+            ADS will set `--num_processes`, `--num_machines`, `--machine_rank`, `--main_process_ip`
+            and `--main_process_port` automatically. These values will override the ones from your config YAML.
+            The default `main_process_port` is 29400
+
+            If you don't want to use the options set by ADS automatically,
+            you can specify them explicitly in the command.
+
+        use_deepspeed : bool, optional
+            Indicate whether to configure deepspeed for multi-node workload, by default False.
+            If your command starts with "deepspeed" or contains the argument "--use_deepspeed",
+            your job runs will be configured for deepspeed regardless of this setting.
+            Make sure to set use_deepspeed to `True` here
+            if you are using `accelerate launch` with deepspeed setting in config YAML.
+
+        Returns
+        -------
+        self
+            The runtime instance.
+
+        Examples
+        --------
+        >>> pt_runtime.with_command("torchrun train.py")
+        """
         if use_deepspeed:
             self.set_spec(self.CONST_DEEPSPEED, True)
         return self.set_spec(self.CONST_COMMAND, command)
 
     @property
     def command(self):
+        """The command for launching the workload."""
         return self.get_spec(self.CONST_COMMAND)
 
     @property
     def use_deepspeed(self):
+        """Indicate whether whether to configure deepspeed for multi-node workload"""
         if self.get_spec(self.CONST_DEEPSPEED):
             return True
         return False
 
     def run(self, dsc_job, **kwargs):
+        """Starts the job runs
+        """
         replicas = self.replica if self.replica else 1
         main_run = None
         for i in range(replicas):
