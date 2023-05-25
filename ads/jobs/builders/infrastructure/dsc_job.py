@@ -1542,6 +1542,7 @@ class DataScienceJob(Infrastructure):
         freeform_tags=None,
         defined_tags=None,
         wait=False,
+        **kwargs
     ) -> DataScienceJobRun:
         """Runs a job on OCI Data Science job
 
@@ -1559,6 +1560,8 @@ class DataScienceJob(Infrastructure):
             Defined tags for the job run, by default None
         wait : bool, optional
             Indicate if this method should wait for the run to finish before it returns, by default False.
+        kwargs
+            additional keyword arguments
 
         Returns
         -------
@@ -1597,6 +1600,7 @@ class DataScienceJob(Infrastructure):
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
             wait=wait,
+            **kwargs
         )
 
     def delete(self) -> None:
