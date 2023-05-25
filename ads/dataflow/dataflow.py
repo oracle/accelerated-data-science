@@ -58,6 +58,7 @@ run_attributes = list(Run().swagger_types.keys())
 class SPARK_VERSION(str):
     v2_4_4 = "2.4.4"
     v3_0_2 = "3.0.2"
+    v3_2_1 = "3.2.1"
 
 
 class DataFlow:
