@@ -680,7 +680,7 @@ class PythonRuntimeHandler(CondaRuntimeHandler):
         """
         spec = super()._extract_envs(dsc_job)
         envs = spec.pop(PythonRuntime.CONST_ENV_VAR, {})
-        if self.CONST_CODE_ENTRYPOINT not in envs:
+        if self.__class__ == PythonRuntimeHandler and self.CONST_CODE_ENTRYPOINT not in envs:
             raise IncompatibleRuntime()
         envs.pop(PythonRuntimeHandler.CONST_JOB_ENTRYPOINT)
         spec.update(self._extract_specs(envs, self.SPEC_MAPPINGS))
