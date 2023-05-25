@@ -22,7 +22,6 @@ from ads.jobs import DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PythonRuntimeHandler,
 )
-from ads.jobs.templates import driver_utils
 from ads.opctl.distributed.common import cluster_config_helper
 
 try:
@@ -458,6 +457,7 @@ class DeepSpeedRunner(Runner):
             logger.debug("SSH connection to %s - FAILED", host)
 
     def touch_file(self, filename):
+        """Creates an empty file with specific name on all the worker nodes."""
         for node_ip in self.node_ip_list:
             logger.debug("Sending stop file to %s", node_ip)
             self.run_command(
@@ -499,18 +499,19 @@ class DeepSpeedRunner(Runner):
             For "deepspeed": --hostfile
             For "accelerate launch": --deepspeed_hostfile
         """
-        self.generate_key_pair().generate_hostfile()
-        self.save_deepspeed_env()
-        # Wait for nodes to be ready
-        for run in self.node_runs:
-            self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
+        if self.node_count > 1:
+            self.generate_key_pair().generate_hostfile()
+            self.save_deepspeed_env()
+            # Wait for nodes to be ready
+            for run in self.node_runs:
+                self.wait_for_log(run, LOG_PREFIX_PUBLIC_KEY)
 
-        for node_ip in self.node_ip_list:
-            self.run_command(
-                f"ssh-keyscan -H {node_ip} >> {SSH_DIR}/known_hosts",
-                level=logging.DEBUG,
-                check=True,
-            )
+            for node_ip in self.node_ip_list:
+                self.run_command(
+                    f"ssh-keyscan -H {node_ip} >> {SSH_DIR}/known_hosts",
+                    level=logging.DEBUG,
+                    check=True,
+                )
 
         cmd = self.prepare_cmd(launch_args)
         # For DeepSpeed, we only need to run the cmd on the host
@@ -533,7 +534,11 @@ class DeepSpeedRunner(Runner):
                 logger.error("There is an error in the host job run.")
                 sys.exit(1)
             # Stop the node if the host job run is CANCELLED or in unexpected state.
-            self.host_job_run.sync()
+            try:
+                self.host_job_run.sync()
+            except oci.exceptions.TransientServiceError:
+                # Ignore the transient error and try again next time.
+                continue
             if self.host_job_run.status not in [
                 "ACCEPTED",
                 "IN_PROGRESS",
@@ -548,7 +553,8 @@ class DeepSpeedRunner(Runner):
 
     def run(self):
         if self.is_host:
-            launch_args = [f"--hostfile={self.HOST_FILE}"]
+            if self.node_count > 1:
+                launch_args = [f"--hostfile={self.HOST_FILE}"]
             self.run_deepspeed_host(launch_args)
         else:
             self.run_deepspeed_worker()
@@ -601,8 +607,6 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         return args
 
     def run_with_torchrun(self):
-        self.main_process_ip = self.host_ip
-
         launch_args = self.accelerate_args()
         for arg in self.TORCHRUN_ARGS:
             if not self.launch_cmd_contains(arg):
@@ -613,12 +617,14 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
     def run_with_deepspeed(self):
         if self.is_host:
             launch_args = self.accelerate_args()
-            launch_args.append(f"--deepspeed_hostfile={self.HOST_FILE}")
+            if self.num_machines > 1:
+                launch_args.append(f"--deepspeed_hostfile={self.HOST_FILE}")
             self.run_deepspeed_host(launch_args)
         else:
             self.run_deepspeed_worker()
 
     def run(self):
+        self.main_process_ip = self.host_ip
         # Check if any default argument is provided by the user
         for arg in self.DEFAULT_ARGS:
             if self.launch_cmd_contains(arg):
