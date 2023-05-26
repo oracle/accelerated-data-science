@@ -1,4 +1,6 @@
 import json
+import time
+import traceback
 from ads.jobs.builders.runtimes.artifact import PythonArtifact, GitPythonArtifact
 from ads.jobs.builders.runtimes.python_runtime import (
     PythonRuntime,
@@ -192,28 +194,38 @@ class PyTorchDistributedRuntime(PythonRuntime):
         return False
 
     def run(self, dsc_job, **kwargs):
-        """Starts the job runs
-        """
+        """Starts the job runs"""
         replicas = self.replica if self.replica else 1
         main_run = None
-        for i in range(replicas):
-            replica_kwargs = kwargs.copy()
-            envs = replica_kwargs.get("environment_variables")
-            if not envs:
-                envs = {}
-            # Huggingface accelerate requires machine rank
-            envs["OCI__NODE_RANK"] = str(i)
-            if main_run:
-                envs["MAIN_JOB_RUN_OCID"] = main_run.id
-            name = replica_kwargs.get("display_name")
-            if not name:
-                name = dsc_job.display_name
+        job_runs = []
+        try:
+            for i in range(replicas):
+                replica_kwargs = kwargs.copy()
+                envs = replica_kwargs.get("environment_variables")
+                if not envs:
+                    envs = {}
+                # Huggingface accelerate requires machine rank
+                envs["OCI__NODE_RANK"] = str(i)
+                if main_run:
+                    envs["MAIN_JOB_RUN_OCID"] = main_run.id
+                name = replica_kwargs.get("display_name")
+                if not name:
+                    name = dsc_job.display_name
 
-            replica_kwargs["display_name"] = f"{name}-{str(i)}"
-            replica_kwargs["environment_variables"] = envs
-            run = dsc_job.run(**replica_kwargs)
-            if i == 0:
-                main_run = run
+                replica_kwargs["display_name"] = f"{name}-{str(i)}"
+                replica_kwargs["environment_variables"] = envs
+                run = dsc_job.run(**replica_kwargs)
+                job_runs.append(run)
+                if i == 0:
+                    main_run = run
+        except Exception:
+            traceback.print_exc()
+            # Wait a few second to avoid the job run being in a transient state.
+            time.sleep(2)
+            # If there is any error when creating the job runs
+            # cancel all the job runs.
+            for run in job_runs:
+                run.cancel()
         return main_run
 
 
