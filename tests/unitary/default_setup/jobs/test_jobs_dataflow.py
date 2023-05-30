@@ -37,9 +37,9 @@ SAMPLE_PAYLOAD = dict(
     arguments=["test-df"],
     compartment_id="ocid1.compartment.oc1..<unique_ocid>",
     display_name="test-df",
-    driver_shape="VM.Standard2.1",
+    driver_shape="VM.Standard.E4.Flex",
     driver_shape_config={"memory_in_gbs": 1, "ocpus": 16},
-    executor_shape="VM.Standard2.1",
+    executor_shape="VM.Standard.E4.Flex",
     executor_shape_config={"memory_in_gbs": 1, "ocpus": 16},
     file_uri="oci://test_bucket@test_namespace/test-dataflow/test-dataflow.py",
     num_executors=1,
@@ -124,7 +124,7 @@ class TestDataFlowApp:
                     df.lifecycle_state
                     == oci.data_flow.models.Application.LIFECYCLE_STATE_DELETED
                 )
-                assert len(df.to_yaml()) == 557
+                assert len(df.to_yaml()) == 567
 
     def test_create_df_app_with_default_display_name(
         self,
@@ -403,8 +403,8 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         mock_from_ocid.return_value = Application(**SAMPLE_PAYLOAD)
         df = DataFlow.from_id("ocid1.datasciencejob.oc1.iad.<unique_ocid>")
         assert df.name == "test-df"
-        assert df.driver_shape == "VM.Standard2.1"
-        assert df.executor_shape == "VM.Standard2.1"
+        assert df.driver_shape == "VM.Standard.E4.Flex"
+        assert df.executor_shape == "VM.Standard.E4.Flex"
         assert df.private_endpoint_id == "test_private_endpoint"
 
         assert (
@@ -424,7 +424,7 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
     def test_to_and_from_dict(self, df):
         df_dict = df.to_dict()
         assert df_dict["spec"]["numExecutors"] == 2
-        assert df_dict["spec"]["driverShape"] == "VM.Standard2.1"
+        assert df_dict["spec"]["driverShape"] == "VM.Standard.E4.Flex"
         assert df_dict["spec"]["logsBucketUri"] == "oci://test_bucket@test_namespace/"
         assert df_dict["spec"]["privateEndpointId"] == "test_private_endpoint"
         assert df_dict["spec"]["driverShapeConfig"] == {"memoryInGBs": 1, "ocpus": 16}
@@ -444,6 +444,51 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         assert df3_dict["spec"]["sparkVersion"] == "3.2.1"
         assert df3_dict["spec"]["numExecutors"] == 2
 
+    def test_shape_and_details(self, mock_to_dict, mock_client, df):
+        df.with_driver_shape(
+            "VM.Standard2.1"
+        ).with_executor_shape(
+            "VM.Standard2.8"
+        )
+
+        rt = (
+            DataFlowRuntime()
+                .with_script_uri(SAMPLE_PAYLOAD["file_uri"])
+                .with_archive_uri(SAMPLE_PAYLOAD["archive_uri"])
+                .with_custom_conda(
+                    "oci://my_bucket@my_namespace/conda_environments/cpu/PySpark 3.0 and Data Flow/5.0/pyspark30_p37_cpu_v5"
+                )
+                .with_overwrite(True)
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="`executor_shape` and `driver_shape` must be from the same shape family."
+        ):
+            with patch.object(DataFlowApp, "client", mock_client):
+                with patch.object(DataFlowApp, "to_dict", mock_to_dict):
+                    df.create(rt)
+
+        df.with_driver_shape(
+            "VM.Standard2.1"
+        ).with_driver_shape_config(
+            memory_in_gbs=SAMPLE_PAYLOAD["driver_shape_config"]["memory_in_gbs"],
+            ocpus=SAMPLE_PAYLOAD["driver_shape_config"]["ocpus"],
+        ).with_executor_shape(
+            "VM.Standard2.1"
+        ).with_executor_shape_config(
+            memory_in_gbs=SAMPLE_PAYLOAD["executor_shape_config"]["memory_in_gbs"],
+            ocpus=SAMPLE_PAYLOAD["executor_shape_config"]["ocpus"],
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Shape config is not required for non flex shape from user end."
+        ):
+            with patch.object(DataFlowApp, "client", mock_client):
+                with patch.object(DataFlowApp, "to_dict", mock_to_dict):
+                    df.create(rt)
+            
 
 class TestDataFlowNotebookRuntime:
     @pytest.mark.skipif(

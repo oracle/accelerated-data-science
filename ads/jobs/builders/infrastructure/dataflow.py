@@ -860,6 +860,18 @@ class DataFlow(Infrastructure):
             raise ValueError(
                 "Compartment id is required. Specify compartment id via 'with_compartment_id()'."
             )
+        if "executor_shape" not in payload:
+            payload["executor_shape"] = DEFAULT_SHAPE
+        if "driver_shape" not in payload:
+            payload["driver_shape"] = DEFAULT_SHAPE
+        executor_shape = payload["executor_shape"]
+        executor_shape_config = payload.get("executor_shape_config", {})
+        driver_shape = payload["driver_shape"]
+        driver_shape_config = payload.get("driver_shape_config", {})
+        if executor_shape != driver_shape:
+            raise ValueError("`executor_shape` and `driver_shape` must be from the same shape family.")
+        if (not executor_shape.endswith("Flex") and executor_shape_config) or (not driver_shape.endswith("Flex") and driver_shape_config):
+            raise ValueError("Shape config is not required for non flex shape from user end.")
         payload.pop("id", None)
         logger.debug(f"Creating a DataFlow Application with payload {payload}")
         self.df_app = DataFlowApp(**payload).create()
