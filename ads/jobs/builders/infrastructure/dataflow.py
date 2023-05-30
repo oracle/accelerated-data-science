@@ -802,18 +802,8 @@ class DataFlow(Infrastructure):
         """
         return self.set_spec(self.CONST_DEFINED_TAGS, kwargs)
 
-    @property
-    def freeform_tags(self) -> dict:
-        """Freeform tags"""
-        return self.get_spec(self.CONST_FREEFORM_TAGS, {})
-
-    @property
-    def defined_tags(self) -> dict:
-        """Defined tags"""
-        return self.get_spec(self.CONST_DEFINED_TAGS, {})
-
     def __getattr__(self, item):
-        if f"with_{item}" in self.__dir__():
+        if f"with_{item}" in self.__dir__() or (item == self.CONST_DEFINED_TAGS or self.CONST_FREEFORM_TAGS):
             return self.get_spec(item)
         raise AttributeError(f"Attribute {item} not found.")
 
