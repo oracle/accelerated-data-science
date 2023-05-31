@@ -45,6 +45,10 @@ followed by the spark version, 3.2.1.
             .with_executor_shape("VM.Standard.E4.Flex")
             .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.2.1")
+            .with_defined_tag(
+                **{"Oracle-Tags": {"CreatedBy": "test_name@oracle.com"}}
+            )
+            .with_freeform_tag(test_freeform_key="test_freeform_value")
         )
         runtime_config = (
             DataFlowRuntime()
@@ -95,6 +99,11 @@ Assuming you have the following two files written in your current directory as `
                   memory_in_gbs: 64
                 sparkVersion: 3.2.1
                 numExecutors: 1
+                definedTags:
+                  Oracle-Tags:
+                    CreatedBy: test_name@oracle.com
+                freeformTags:
+                  test_freeform_key: test_freeform_value
             type: dataFlow
         runtime:
             kind: runtime
@@ -185,6 +194,10 @@ From a Python Environment
             .with_executor_shape("VM.Standard.E4.Flex")
             .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.2.1")
+            .with_defined_tag(
+                **{"Oracle-Tags": {"CreatedBy": "test_name@oracle.com"}}
+            )
+            .with_freeform_tag(test_freeform_key="test_freeform_value")
         )
         runtime_config = (
             DataFlowRuntime()
@@ -275,6 +288,11 @@ Again, assume you have the following two files written in your current directory
                     memory_in_gbs: 64
                 sparkVersion: 3.2.1
                 numExecutors: 1
+                definedTags:
+                    Oracle-Tags:
+                        CreatedBy: test_name@oracle.com
+                freeformTags:
+                    test_freeform_key: test_freeform_value
             type: dataFlow
         runtime:
             kind: runtime
