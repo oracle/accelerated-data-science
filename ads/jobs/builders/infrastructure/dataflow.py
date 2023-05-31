@@ -384,6 +384,7 @@ class DataFlow(Infrastructure):
     CONST_OCPUS = "ocpus"
     CONST_ID = "id"
     CONST_PRIVATE_ENDPOINT_ID = "private_endpoint_id"
+    CONST_POOL_ID = "pool_id"
 
     attribute_map = {
         CONST_COMPARTMENT_ID: "compartmentId",
@@ -402,6 +403,7 @@ class DataFlow(Infrastructure):
         CONST_OCPUS: CONST_OCPUS,
         CONST_ID: CONST_ID,
         CONST_PRIVATE_ENDPOINT_ID: "privateEndpointId",
+        CONST_POOL_ID: "poolId",
     }
 
     def __init__(self, spec: dict = None, **kwargs):
@@ -775,6 +777,22 @@ class DataFlow(Infrastructure):
             the Data Flow instance itself
         """
         return self.set_spec(self.CONST_PRIVATE_ENDPOINT_ID, private_endpoint_id)
+
+    def with_pool_id(self, pool_id: str) -> "DataFlow":
+        """
+        Set the Data Flow Pool Id for a Data Flow job.
+
+        Parameters
+        ----------
+        pool_id: str
+            The OCID of a Data Flow Pool.
+
+        Returns
+        -------
+        DataFlow
+            the Data Flow instance itself
+        """
+        return self.set_spec(self.CONST_POOL_ID, pool_id)
 
     def __getattr__(self, item):
         if f"with_{item}" in self.__dir__():
