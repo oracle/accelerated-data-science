@@ -207,6 +207,7 @@ You can set them using the ``with_{property}`` functions:
 - ``with_spark_version``
 - ``with_warehouse_bucket_uri``
 - ``with_private_endpoint_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pe-allowing.htm#pe-allowing>`__)
+- ``with_pool_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pools.htm>`__)
 
 For more details, see `Data Flow class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
 
@@ -272,6 +273,8 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
 		    .with_executor_shape("VM.Standard.E4.Flex")
 		    .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.0.2")
+            # For using Data Flow Pool
+            # .with_pool_id("ocid1.dataflowpool.oc1..<unique_ocid>")
         )
         runtime_config = (
             DataFlowRuntime()
@@ -566,6 +569,7 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
         numExecutors: 1
         sparkVersion: 3.2.1
         privateEndpointId: <private_endpoint_ocid>
+        poolId: <dataflow_pool_ocid>
       type: dataFlow
     name: dataflow_app_name
     runtime:
@@ -642,6 +646,9 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
                 required: false
                 type: string
             privateEndpointId:
+                required: false
+                type: string
+            poolId:
                 required: false
                 type: string
             configuration:
