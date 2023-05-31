@@ -37,6 +37,8 @@ Define config. If you have not yet configured your dataflow setting, or would li
   dataflow_config.spark_version = "3.2.1"
   dataflow_config.configuration = {"spark.driver.memory": "512m"}
   dataflow_config.private_endpoint_id = "ocid1.dataflowprivateendpoint.oc1.iad.<your private endpoint ocid>"
+  # For using Data Flow Pools
+  # dataflow_config.poolId = "ocid1.dataflowpool.oc1..<unique_ocid>"
 
 Use the config defined above to submit the cell.
 
