@@ -47,6 +47,7 @@ SAMPLE_PAYLOAD = dict(
     language="PYTHON",
     logs_bucket_uri="oci://test_bucket@test_namespace/",
     private_endpoint_id="test_private_endpoint",
+    pool_id="ocid1.dataflowpool.oc1..<unique_ocid>",
 )
 random_seed = 42
 
@@ -124,7 +125,7 @@ class TestDataFlowApp:
                     df.lifecycle_state
                     == oci.data_flow.models.Application.LIFECYCLE_STATE_DELETED
                 )
-                assert len(df.to_yaml()) == 557
+                assert len(df.to_yaml()) == 604
 
     def test_create_df_app_with_default_display_name(
         self,
@@ -319,7 +320,9 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
             ).with_num_executors(
                 2
             ).with_private_endpoint_id(
-                "test_private_endpoint"
+                SAMPLE_PAYLOAD["private_endpoint_id"]
+            ).with_pool_id(
+                SAMPLE_PAYLOAD["pool_id"]
             )
         return df
 
@@ -327,6 +330,7 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         assert df.language == "PYTHON"
         assert df.spark_version == "3.2.1"
         assert df.num_executors == 2
+        assert df.pool_id == SAMPLE_PAYLOAD["pool_id"]
 
         rt = (
             DataFlowRuntime()
