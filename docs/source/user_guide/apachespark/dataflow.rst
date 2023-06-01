@@ -210,6 +210,8 @@ You can set them using the ``with_{property}`` functions:
 - ``with_warehouse_bucket_uri``
 - ``with_private_endpoint_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pe-allowing.htm#pe-allowing>`__)
 - ``with_pool_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pools.htm>`__)
+- ``with_defined_tags``
+- ``with_freeform_tags``
 
 For more details, see `Data Flow class documentation <https://docs.oracle.com/en-us/iaas/tools/ads-sdk/latest/ads.jobs.html#module-ads.jobs.builders.infrastructure.dataflow>`__.
 
@@ -232,10 +234,10 @@ create applications.
 
 In the following "hello-world" example, ``DataFlow`` is populated with ``compartment_id``,
 ``driver_shape``, ``driver_shape_config``, ``executor_shape``, ``executor_shape_config``
-and ``spark_version``. ``DataFlowRuntime`` is populated with ``script_uri`` and
-``script_bucket``. The ``script_uri`` specifies the path to the script. It can be
-local or remote (an Object Storage path). If the path is local, then
-``script_bucket`` must be specified additionally because Data Flow
+, ``spark_version``, ``defined_tags`` and ``freeform_tags``. ``DataFlowRuntime`` is
+populated with ``script_uri`` and ``script_bucket``. The ``script_uri`` specifies the
+path to the script. It can be local or remote (an Object Storage path). If the path
+is local, then ``script_bucket`` must be specified additionally because Data Flow
 requires a script to be available in Object Storage. ADS
 performs the upload step for you, as long as you give the bucket name
 or the Object Storage path prefix to upload the script. Either can be
@@ -277,6 +279,10 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
             .with_spark_version("3.0.2")
             # For using Data Flow Pool
             # .with_pool_id("ocid1.dataflowpool.oc1..<unique_ocid>")
+            .with_defined_tag(
+                **{"Oracle-Tags": {"CreatedBy": "test_name@oracle.com"}}
+            )
+            .with_freeform_tag(test_freeform_key="test_freeform_value")
         )
         runtime_config = (
             DataFlowRuntime()
@@ -398,6 +404,10 @@ In the next example, ``archive_uri`` is given as an Object Storage location.
                 "spark.driverEnv.myEnvVariable": "value1",
                 "spark.executorEnv.myEnvVariable": "value2",
             })
+            .with_defined_tag(
+                **{"Oracle-Tags": {"CreatedBy": "test_name@oracle.com"}}
+            )
+            .with_freeform_tag(test_freeform_key="test_freeform_value")
         )
         runtime_config = (
             DataFlowRuntime()
@@ -572,6 +582,11 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
         sparkVersion: 3.2.1
         privateEndpointId: <private_endpoint_ocid>
         poolId: <dataflow_pool_ocid>
+        definedTags:
+          Oracle-Tags:
+            CreatedBy: test_name@oracle.com
+        freeformTags:
+          test_freeform_key: test_freeform_value
       type: dataFlow
     name: dataflow_app_name
     runtime:
@@ -656,6 +671,12 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
             configuration:
                 required: false
                 type: dict
+            definedTags:
+                required: false
+                type: dict
+            freeformTags:
+                required: false
+                type: dict
     type:
         allowed:
             - dataFlow
@@ -703,7 +724,10 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
             configuration:
                 required: false
                 type: dict
-            freeform_tag:
+            definedTags:
+                required: false
+                type: dict
+            freeformTags:
                 required: false
                 type: dict
             scriptBucket:
