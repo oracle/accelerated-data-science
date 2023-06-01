@@ -24,6 +24,7 @@ from ads.common.decorator.utils import class_or_instance_method
 from ads.common.oci_client import OCIClientFactory
 from ads.common.oci_mixin import OCIModelMixin
 from ads.common.utils import batch_convert_case, camel_to_snake
+from ads.dataflow.dataflow import SPARK_VERSION
 from ads.jobs.builders.infrastructure.base import Infrastructure, RunInstance
 from ads.jobs.builders.infrastructure.utils import normalize_config
 from ads.jobs.builders.runtimes.python_runtime import DataFlowRuntime
@@ -39,7 +40,7 @@ CONDA_PACK_SUFFIX = "#conda"
 SLEEP_INTERVAL = 3
 
 DEFAULT_LANGUAGE = "PYTHON"
-DEFAULT_SPARK_VERSION = "3.2.1"
+DEFAULT_SPARK_VERSION = SPARK_VERSION.v3_2_1
 DEFAULT_NUM_EXECUTORS = 1
 DEFAULT_SHAPE = "VM.Standard.E3.Flex"
 
