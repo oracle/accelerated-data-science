@@ -792,6 +792,10 @@ class DataFlow(Infrastructure):
         DataFlow
             the Data Flow instance itself
         """
+        if not hasattr(CreateApplicationDetails, "pool_id"):
+            raise EnvironmentError(
+                "Data Flow Pool has not been supported in the current OCI SDK installed."
+            )
         return self.set_spec(self.CONST_POOL_ID, pool_id)
 
     def __getattr__(self, item):
@@ -815,6 +819,11 @@ class DataFlow(Infrastructure):
         DataFlow
             a Data Flow job instance
         """
+        if self.pool_id:
+            if not hasattr(CreateApplicationDetails, "pool_id"):
+                raise EnvironmentError(
+                    "Data Flow Pool has not been supported in the current OCI SDK installed."
+                )
         # Set default display_name if not specified - randomly generated easy to remember name
         if not self.name:
             self.name = utils.get_random_name_for_resource()
