@@ -1450,6 +1450,12 @@ class DataScienceJob(Infrastructure):
             if value:
                 dsc_job.job_infrastructure_configuration_details[camel_attr] = value
 
+        if (
+            not dsc_job.job_infrastructure_configuration_details.get("shapeName", "").endswith("Flex")
+            and dsc_job.job_infrastructure_configuration_details.get("jobShapeConfigDetails")
+        ):
+            raise ValueError("Shape config is not required for non flex shape from user end.")
+
         if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
             dsc_job.job_infrastructure_configuration_details[
                 "jobInfrastructureType"

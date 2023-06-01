@@ -473,6 +473,26 @@ class DataScienceJobCreationErrorTest(DataScienceJobPayloadTest):
             job.create()
         del os.environ["NB_SESSION_OCID"]
 
+    def test_job_with_non_flex_shape_and_shape_details(self):
+        job = (
+            Job(name="test")
+            .with_infrastructure(
+                infrastructure.DataScienceJob()
+                .with_compartment_id("ocid1.compartment.oc1..<unique_ocid>")
+                .with_project_id("ocid1.datascienceproject.oc1.iad.<unique_ocid>")
+                .with_shape_name("VM.Standard2.1")
+                .with_shape_config_details(memory_in_gbs=16, ocpus=1)
+                .with_block_storage_size(50)
+            )
+            .with_runtime(ScriptRuntime().with_script(self.SCRIPT_URI))
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Shape config is not required for non flex shape from user end."
+        ):
+            job.create()
+
 
 class ScriptRuntimeArtifactTest(unittest.TestCase):
     DIR_SOURCE_PATH = os.path.join(os.path.dirname(__file__), "test_files/job_archive")
