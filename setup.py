@@ -70,8 +70,10 @@ extras_require = {
         "inflection",
     ],
     "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
-    "spark": ["pyspark>=3.0.0"],
+    "spark": ["pyspark>=3.0.0", "delta-spark"],
+    "great-expectations": ["great-expectations==0.15.39"],
     "huggingface": ["transformers"],
+    "pydeequ": ["pydeequ==1.0.1"]
 }
 
 this_directory = Path(__file__).parent

@@ -64,6 +64,9 @@ class OptionalDependency:
     OPTUNA = "oracle-ads[optuna]"
     SPARK = "oracle-ads[spark]"
     HUGGINGFACE = "oracle-ads[huggingface]"
+    GREAT_EXPECTATIONS = "oracle-ads[great-expectations]"
+    PYDEEQU = "oracle-ads[pydeequ]"
+    GRAPHVIZ = "oracle-ads[graphviz]"
 
 
 def runtime_dependency(

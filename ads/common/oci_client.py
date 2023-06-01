@@ -15,6 +15,9 @@ from oci.identity import IdentityClient
 from oci.object_storage import ObjectStorageClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
+from oci.feature_store import FeatureStoreClient
+from oci.data_catalog import DataCatalogClient
+from oci.resource_search import ResourceSearchClient
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +65,10 @@ class OCIClientFactory:
             "ai_language": AIServiceLanguageClient,
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
+            "feature_store": FeatureStoreClient,
+            "resource_search": ResourceSearchClient,
+            "data_catalog": DataCatalogClient
+
         }
 
         assert (
@@ -109,6 +116,10 @@ class OCIClientFactory:
         return self.create_client("dataflow")
 
     @property
+    def feature_store(self):
+        return self.create_client("feature_store")
+
+    @property
     def secret(self):
         return self.create_client("secret")
 
@@ -127,3 +138,11 @@ class OCIClientFactory:
     @property
     def data_labeling_dp(self):
         return self.create_client("data_labeling_dp")
+
+    @property
+    def resource_search(self):
+        return self.create_client("resource_search")
+
+    @property
+    def data_catalog(self):
+        return self.create_client("data_catalog")
