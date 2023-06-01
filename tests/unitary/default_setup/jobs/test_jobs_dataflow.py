@@ -320,6 +320,12 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
                 2
             ).with_private_endpoint_id(
                 "test_private_endpoint"
+            ).with_freeform_tag(
+                test_freeform_tags_key="test_freeform_tags_value",
+            ).with_defined_tag(
+                test_defined_tags_namespace={
+                    "test_defined_tags_key": "test_defined_tags_value"
+                }
             )
         return df
 
@@ -327,6 +333,14 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         assert df.language == "PYTHON"
         assert df.spark_version == "3.2.1"
         assert df.num_executors == 2
+        assert df.freeform_tags == {
+            "test_freeform_tags_key": "test_freeform_tags_value"
+        }
+        assert df.defined_tags == {
+            "test_defined_tags_namespace": {
+                "test_defined_tags_key": "test_defined_tags_value"
+            }
+        }
 
         rt = (
             DataFlowRuntime()
@@ -335,9 +349,25 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
             .with_custom_conda(
                 "oci://my_bucket@my_namespace/conda_environments/cpu/PySpark 3.0 and Data Flow/5.0/pyspark30_p37_cpu_v5"
             )
+            .with_freeform_tag(
+                test_freeform_tags_runtime_key="test_freeform_tags_runtime_value"
+            )
+            .with_defined_tag(
+                test_defined_tags_namespace={
+                    "test_defined_tags_runtime_key": "test_defined_tags_runtime_value"
+                }
+            )
             .with_overwrite(True)
         )
         assert rt.overwrite == True
+        assert rt.freeform_tags == {
+            "test_freeform_tags_runtime_key": "test_freeform_tags_runtime_value"
+        }
+        assert rt.defined_tags == {
+            "test_defined_tags_namespace": {
+                "test_defined_tags_runtime_key": "test_defined_tags_runtime_value"
+            }
+        }
 
         with patch.object(DataFlowApp, "client", mock_client):
             with patch.object(DataFlowApp, "to_dict", mock_to_dict):
@@ -429,6 +459,14 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         assert df_dict["spec"]["privateEndpointId"] == "test_private_endpoint"
         assert df_dict["spec"]["driverShapeConfig"] == {"memoryInGBs": 1, "ocpus": 16}
         assert df_dict["spec"]["executorShapeConfig"] == {"memoryInGBs": 1, "ocpus": 16}
+        assert df_dict["spec"]["freeformTags"] == {
+            "test_freeform_tags_key": "test_freeform_tags_value"
+        }
+        assert df_dict["spec"]["definedTags"] == {
+            "test_defined_tags_namespace": {
+                "test_defined_tags_key": "test_defined_tags_value"
+            }
+        }
 
         df_dict["spec"].pop("language")
         df_dict["spec"].pop("numExecutors")
