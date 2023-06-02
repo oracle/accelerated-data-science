@@ -215,6 +215,7 @@ class DSCJobTestCase(unittest.TestCase):
 
         # Test serialization and de-serialization
         timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M")
+        random.seed(threading.get_ident() + os.getpid())
         random_suffix = "".join(random.choices(string.ascii_uppercase, k=6))
         yaml_uri = f"oci://{self.BUCKET}@{self.NAMESPACE}/tests/{timestamp}/example_job_{random_suffix}.yaml"
         config_path = "~/.oci/config"
