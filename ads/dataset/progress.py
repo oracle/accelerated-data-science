@@ -41,7 +41,7 @@ class TqdmProgressBar(ProgressBar):
             self.start_time = time.time()
             self.description = description
 
-    def update(self, description=None):
+    def update(self, description=None, n=1):
         """
         Updates the progress bar
         """
@@ -57,7 +57,7 @@ class TqdmProgressBar(ProgressBar):
                 description if description is not None else self.description
             )
             self.start_time = time.time()
-        self.progress_bar.update(1)
+        self.progress_bar.update(n)
         if description is not None:
             self.progress_bar.set_description(description, refresh=True)
 
