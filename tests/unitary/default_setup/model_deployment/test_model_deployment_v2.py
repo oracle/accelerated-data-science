@@ -11,6 +11,7 @@ import pytest
 import unittest
 import pandas
 from unittest.mock import MagicMock, patch
+from ads.common import utils
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_logging import ConsolidatedLog, OCILog
 from ads.common.oci_mixin import OCIModelMixin
@@ -22,6 +23,7 @@ from ads.model.deployment.model_deployment import (
     ModelDeployment,
     ModelDeploymentLogType,
     ModelDeploymentFailedError,
+    MAX_ARTIFACT_SIZE_IN_BYTES,
 )
 from ads.model.deployment.model_deployment_infrastructure import (
     ModelDeploymentInfrastructure,
@@ -1388,8 +1390,10 @@ spec:
         "create_model_deployment",
     )
     @patch.object(DataScienceModel, "upload_artifact")
+    @patch.object(utils, "folder_size")
     def test_model_deployment_with_large_size_artifact(
         self, 
+        mock_folder_size,
         mock_upload_artifact, 
         mock_create_model_deployment, 
         mock_sync
@@ -1400,7 +1404,6 @@ spec:
         model_deployment = self.initialize_model_deployment()
         (
             model_deployment.runtime
-            .with_bucket_uri("test_bucket_uri")
             .with_auth({"test_key":"test_value"})
             .with_region("test_region")
             .with_overwrite_existing_artifact(True)
@@ -1409,7 +1412,6 @@ spec:
         )
 
         runtime_dict = model_deployment.runtime.to_dict()["spec"]
-        assert runtime_dict["bucketUri"] == "test_bucket_uri"
         assert runtime_dict["auth"] == {"test_key": "test_value"}
         assert runtime_dict["region"] == "test_region"
         assert runtime_dict["overwriteExistingArtifact"] == True
@@ -1421,6 +1423,14 @@ spec:
         mock_create_model_deployment.return_value = response
         model_deployment = self.initialize_model_deployment()
         model_deployment.set_spec(model_deployment.CONST_ID, "test_model_deployment_id")
+        
+        mock_folder_size.return_value = MAX_ARTIFACT_SIZE_IN_BYTES + 1
+        with pytest.raises(ValueError):
+            model_deployment.deploy(wait_for_completion=False)
+
+        model_deployment.runtime.with_bucket_uri("test_bucket_uri")
+        runtime_dict = model_deployment.runtime.to_dict()["spec"]
+        assert runtime_dict["bucketUri"] == "test_bucket_uri"
         create_model_deployment_details = (
             model_deployment._build_model_deployment_details()
         )
