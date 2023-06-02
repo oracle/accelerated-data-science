@@ -1,0 +1,63 @@
+
+apiVersion: v1
+kind: featureStore
+spec:
+  displayName: FeatureStore Resource Minimal
+  compartmentId: "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
+  offlineConfig:
+    metastoreId: "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
+
+  entity: &credit_entity
+    - kind: entity
+      spec:
+        name: credit_card_entity_40
+
+  transformation: &transactions_df
+    - kind: transformation
+      spec:
+        displayName: transactions_df
+        transformationMode: SPARK_SQL
+        sourceCode: '
+        def transactions_df(transactions_batch):
+          sql_query = f"""
+                      SELECT
+                          tid,
+                          datetime,
+                          cc_num,
+                          category,
+                          amount,
+                          latitude
+                      FROM
+                          {transactions_batch}
+                  """
+          return sql_query
+        '
+
+  featureGroup:
+    - kind: featureGroup
+      spec:
+        entity: *credit_entity
+        name: profile_feature_group_name_40
+        primaryKeys:
+          - name
+        inputFeatureDetails:
+          - name: "name"
+            featureType: "STRING"
+            orderNumber: 1
+            cast: "STRING"
+          - name: "sex"
+            featureType: "STRING"
+            orderNumber: 2
+            cast: "STRING"
+          - name: "mail"
+            featureType: "STRING"
+            orderNumber: 3
+            cast: "STRING"
+
+  dataset:
+    - kind: dataset
+      spec:
+        name: credit_card_dataset_40
+        entity: *credit_entity
+        description: "Dataset for profile detection"
+        query: 'SELECT pfg.name, pfg.mail FROM profile_feature_group_name_40 pfg'
