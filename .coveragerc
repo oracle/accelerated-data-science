@@ -14,7 +14,6 @@ omit =
     ads/common/analyzer.py
     ads/common/artifact/*
     ads/common/function/*
-    ads/dataflow/*
     ads/dataset/dask_series.py
     ads/dataset/factory.py
     ads/environment/*
@@ -48,7 +47,6 @@ omit =
     ads/common/analyzer.py
     ads/common/artifact/*
     ads/common/function/*
-    ads/dataflow/*
     ads/dataset/dask_series.py
     ads/dataset/factory.py
     ads/environment/*
