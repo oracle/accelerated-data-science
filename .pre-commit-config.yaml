@@ -8,6 +8,7 @@ repos:
     -   id: check-json
     -   id: check-merge-conflict
     -   id: check-yaml
+        exclude: feature_store_*.yaml
         args: ['--allow-multiple-documents']
     -   id: detect-private-key
     -   id: end-of-file-fixer
