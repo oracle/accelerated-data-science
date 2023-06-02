@@ -448,7 +448,7 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         df.with_driver_shape(
             "VM.Standard2.1"
         ).with_executor_shape(
-            "VM.Standard2.8"
+            "VM.Standard.E4.Flex"
         )
 
         rt = (
@@ -475,7 +475,7 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
             memory_in_gbs=SAMPLE_PAYLOAD["driver_shape_config"]["memory_in_gbs"],
             ocpus=SAMPLE_PAYLOAD["driver_shape_config"]["ocpus"],
         ).with_executor_shape(
-            "VM.Standard2.1"
+            "VM.Standard2.16"
         ).with_executor_shape_config(
             memory_in_gbs=SAMPLE_PAYLOAD["executor_shape_config"]["memory_in_gbs"],
             ocpus=SAMPLE_PAYLOAD["executor_shape_config"]["ocpus"],
