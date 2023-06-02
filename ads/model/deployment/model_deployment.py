@@ -44,7 +44,7 @@ from ads.model.service.oci_datascience_model_deployment import (
 )
 from ads.common import utils as ads_utils
 from .common import utils
-from .common.utils import OCIClientManager, State
+from .common.utils import State
 from .model_deployment_properties import ModelDeploymentProperties
 from oci.data_science.models import (
     LogDetails,
@@ -70,6 +70,7 @@ MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
+MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 
 class ModelDeploymentLogType:
     PREDICT = "predict"
@@ -200,7 +201,10 @@ class ModelDeployment(Builder):
     ...        .with_health_check_port(<health_check_port>)
     ...        .with_env({"key":"value"})
     ...        .with_deployment_mode("HTTPS_ONLY")
-    ...        .with_model_uri(<model_uri>))
+    ...        .with_model_uri(<model_uri>)
+    ...        .with_bucket_uri(<bucket_uri>)
+    ...        .with_auth(<auth>)
+    ...        .with_timeout(<time_out>))
     ...    )
     ... )
     >>> ds_model_deployment.deploy()
@@ -1563,15 +1567,31 @@ class ModelDeployment(Builder):
 
         model_id = runtime.model_uri
         if not model_id.startswith("ocid"):
-            model_id = OCIClientManager().prepare_artifact(
-                model_uri=runtime.model_uri,
-                properties=dict(
-                    display_name=self.display_name,
-                    compartment_id=self.infrastructure.compartment_id
-                    or COMPARTMENT_OCID,
-                    project_id=self.infrastructure.project_id or PROJECT_OCID,
-                ),
+            if ads_utils.folder_size(runtime.model_uri) > MAX_ARTIFACT_SIZE_IN_BYTES:
+                if not runtime.bucket_uri:
+                    raise ValueError(
+                        f"The model artifacts size is greater than `{MAX_ARTIFACT_SIZE_IN_BYTES}`. "
+                        "The `bucket_uri` needs to be specified to copy artifacts to the object storage bucket. "
+                        "Example: `runtime.with_bucket_uri(oci://<bucket_name>@<namespace>/prefix/)`"
+                    )
+            
+            from ads.model.datascience_model import DataScienceModel
+            
+            dsc_model = DataScienceModel(
+                name=self.display_name,
+                compartment_id=self.infrastructure.compartment_id
+                or COMPARTMENT_OCID,
+                project_id=self.infrastructure.project_id or PROJECT_OCID,
+                artifact=runtime.model_uri,
+            ).upload_artifact(
+                bucket_uri=runtime.bucket_uri,
+                auth=runtime.auth,
+                region=runtime.region,
+                overwrite_existing_artifact=runtime.overwrite_existing_artifact,
+                remove_existing_artifact=runtime.remove_existing_artifact,
+                timeout=runtime.timeout
             )
+            model_id = dsc_model.id
 
         model_configuration_details = {
             infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
