@@ -537,17 +537,17 @@ spec:
             },
         }
 
-    @patch.object(DataScienceModel, "upload_artifact")
-    def test_build_model_deployment_configuration_details(self, mock_upload_artifact):
+    @patch.object(DataScienceModel, "create")
+    def test_build_model_deployment_configuration_details(self, mock_create):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_upload_artifact.return_value = dsc_model
+        mock_create.return_value = dsc_model
         model_deployment = self.initialize_model_deployment()
         model_deployment_configuration_details = (
             model_deployment._build_model_deployment_configuration_details()
         )
 
-        mock_upload_artifact.assert_called()
+        mock_create.assert_called()
         assert model_deployment_configuration_details == {
             "deploymentType": "SINGLE_MODEL",
             "modelConfigurationDetails": {
@@ -593,17 +593,17 @@ spec:
             },
         }
 
-    @patch.object(DataScienceModel, "upload_artifact")
-    def test_build_model_deployment_details(self, mock_upload_artifact):
+    @patch.object(DataScienceModel, "create")
+    def test_build_model_deployment_details(self, mock_create):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_upload_artifact.return_value = dsc_model
+        mock_create.return_value = dsc_model
         model_deployment = self.initialize_model_deployment()
         create_model_deployment_details = (
             model_deployment._build_model_deployment_details()
         )
 
-        mock_upload_artifact.assert_called()
+        mock_create.assert_called()
 
         assert isinstance(
             create_model_deployment_details,
@@ -886,17 +886,17 @@ spec:
 
         assert new_model_deployment.to_dict() == model_deployment.to_dict()
 
-    @patch.object(DataScienceModel, "upload_artifact")
-    def test_update_model_deployment_details(self, mock_upload_artifact):
+    @patch.object(DataScienceModel, "create")
+    def test_update_model_deployment_details(self, mock_create):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_upload_artifact.return_value = dsc_model        
+        mock_create.return_value = dsc_model        
         model_deployment = self.initialize_model_deployment()
         update_model_deployment_details = (
             model_deployment._update_model_deployment_details()
         )
 
-        mock_upload_artifact.assert_called()
+        mock_create.assert_called()
 
         assert isinstance(
             update_model_deployment_details,
@@ -1130,13 +1130,13 @@ spec:
         oci.data_science.DataScienceClient,
         "create_model_deployment",
     )
-    @patch.object(DataScienceModel, "upload_artifact")
+    @patch.object(DataScienceModel, "create")
     def test_deploy(
-        self, mock_upload_artifact, mock_create_model_deployment, mock_sync
+        self, mock_create, mock_create_model_deployment, mock_sync
     ):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_upload_artifact.return_value = dsc_model
+        mock_create.return_value = dsc_model
         response = MagicMock()
         response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
         mock_create_model_deployment.return_value = response
@@ -1146,7 +1146,7 @@ spec:
             model_deployment._build_model_deployment_details()
         )
         model_deployment.deploy(wait_for_completion=False)
-        mock_upload_artifact.assert_called()
+        mock_create.assert_called()
         mock_create_model_deployment.assert_called_with(create_model_deployment_details)
         mock_sync.assert_called()
 
@@ -1155,13 +1155,13 @@ spec:
         oci.data_science.DataScienceClient,
         "create_model_deployment",
     )
-    @patch.object(DataScienceModel, "upload_artifact")
+    @patch.object(DataScienceModel, "create")
     def test_deploy_failed(
-        self, mock_upload_artifact, mock_create_model_deployment, mock_sync
+        self, mock_create, mock_create_model_deployment, mock_sync
     ):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_upload_artifact.return_value = dsc_model
+        mock_create.return_value = dsc_model
         response = oci.response.Response(
             status=MagicMock(),
             headers=MagicMock(),
@@ -1182,7 +1182,7 @@ spec:
             match=f"Model deployment {response.data.id} failed to deploy: {response.data.lifecycle_details}",
         ):
             model_deployment.deploy(wait_for_completion=False)
-            mock_upload_artifact.assert_called()
+            mock_create.assert_called()
             mock_create_model_deployment.assert_called_with(
                 create_model_deployment_details
             )
@@ -1238,16 +1238,16 @@ spec:
         oci.data_science.DataScienceClientCompositeOperations,
         "update_model_deployment_and_wait_for_state",
     )
-    @patch.object(DataScienceModel, "upload_artifact")
+    @patch.object(DataScienceModel, "create")
     def test_update(
         self,
-        mock_upload_artifact,
+        mock_create,
         mock_update_model_deployment_and_wait_for_state,
         mock_sync,
     ):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_upload_artifact.return_value = dsc_model
+        mock_create.return_value = dsc_model
         response = MagicMock()
         response.data = OCI_MODEL_DEPLOYMENT_RESPONSE
         mock_update_model_deployment_and_wait_for_state.return_value = response
@@ -1257,7 +1257,7 @@ spec:
             model_deployment._update_model_deployment_details()
         )
         model_deployment.update(wait_for_completion=True)
-        mock_upload_artifact.assert_called()
+        mock_create.assert_called()
         mock_update_model_deployment_and_wait_for_state.assert_called_with(
             "test_model_deployment_id",
             update_model_deployment_details,
@@ -1389,18 +1389,18 @@ spec:
         oci.data_science.DataScienceClient,
         "create_model_deployment",
     )
-    @patch.object(DataScienceModel, "upload_artifact")
+    @patch.object(DataScienceModel, "create")
     @patch.object(utils, "folder_size")
     def test_model_deployment_with_large_size_artifact(
         self, 
         mock_folder_size,
-        mock_upload_artifact, 
+        mock_create, 
         mock_create_model_deployment, 
         mock_sync
     ):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_upload_artifact.return_value = dsc_model
+        mock_create.return_value = dsc_model
         model_deployment = self.initialize_model_deployment()
         (
             model_deployment.runtime
@@ -1435,7 +1435,7 @@ spec:
             model_deployment._build_model_deployment_details()
         )
         model_deployment.deploy(wait_for_completion=False)
-        mock_upload_artifact.assert_called_with(
+        mock_create.assert_called_with(
             bucket_uri="test_bucket_uri",
             auth={"test_key":"test_value"},
             region="test_region",

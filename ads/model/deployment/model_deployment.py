@@ -1583,7 +1583,7 @@ class ModelDeployment(Builder):
                 or COMPARTMENT_OCID,
                 project_id=self.infrastructure.project_id or PROJECT_OCID,
                 artifact=runtime.model_uri,
-            ).upload_artifact(
+            ).create(
                 bucket_uri=runtime.bucket_uri,
                 auth=runtime.auth,
                 region=runtime.region,
