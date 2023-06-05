@@ -426,9 +426,9 @@ class LocalBackend(Backend):
             with open(os.path.join(td, "entryscript.sh"), "w") as f:
                 f.write(
                     f"""
-    #!/bin/bash
-    source {os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug, 'bin/activate')}
-    {command}
+#!/bin/bash
+source {os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug, 'bin/activate')}
+{command}
                         """
                 )
             bind_volumes[os.path.join(td, "entryscript.sh")] = {
