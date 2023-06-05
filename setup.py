@@ -170,5 +170,9 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
-    scripts=["ads/ads"],
+    entry_points={
+        'console_scripts': [
+            'ads=ads.cli:cli'
+        ]
+    },
 )
