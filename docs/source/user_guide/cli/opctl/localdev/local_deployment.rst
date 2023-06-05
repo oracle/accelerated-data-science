@@ -34,7 +34,7 @@ This example below demonstrates how to run a local predict using an installed co
 
 .. code-block:: shell
 
-  ads opctl predict --ocid "ocid1.datasciencemodel.oc1.iad.<ocid>" --payload '[[-1.68671955,2.25814541,-0.5068027,0.25248417,0.62665134,0.23441123]]' --conda-slug myconda_p38_cpu_v1
+  ads opctl predict --ocid "ocid1.datasciencemodel.oc1.iad.<unique_ID>" --payload '[[-1.68671955,2.25814541,-0.5068027,0.25248417,0.62665134,0.23441123]]' --conda-slug myconda_p38_cpu_v1
 
 Parameter explanation:
   - ``--ocid``: Run the predict locally in a docker container when you pass in a model id. If you pass in a deployment id, e.g. ``ocid1.datasciencemodeldeployment.oc1.iad.``, it will actually predict against the remote endpoint. In that case, only ``--ocid`` and ``--payload`` are needed.
@@ -54,9 +54,9 @@ Running your Predict Against the Deployment Endpoint
 ----------------------------------------------------
 .. code-block:: shell
 
-  ads opctl predict --ocid "ocid1.datasciencemodeldeployment.oc1.iad.<ocid>" --payload '[[-1.68671955,2.25814541,-0.5068027,0.25248417,0.62665134,0.23441123]]'
+  ads opctl predict --ocid "ocid1.datasciencemodeldeployment.oc1.iad.<unique_ID>" --payload '[[-1.68671955,2.25814541,-0.5068027,0.25248417,0.62665134,0.23441123]]'
 
 
 Parameter explanation:
-  - ``--ocid ocid1.datasciencemodeldeployment.oc1.iad.<ocid>``: Run the predict remotely against the remote endpoint.
+  - ``--ocid``: Run the predict remotely against the remote endpoint.
   - ``--payload``: The payload to be passed to your model.
