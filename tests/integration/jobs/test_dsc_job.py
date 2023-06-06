@@ -314,6 +314,10 @@ class DSCJobCreationTestCase(DSCJobTestCaseWithCleanUp):
                 for sk, sv in v.items():
                     expected_infra_spec[attr_map[k]][attr_map[sk]] = sv
                 infra = builder_method(**v)
+                # Shape config is not required for non flex shape from user end.
+                # When we have shape config, we need Flex shape also:
+                if k == "shape_config_details":
+                    infra = infra.with_shape_name("VM.Standard.E3.Flex")
             else:
                 expected_infra_spec[attr_map[k]] = v
                 infra = builder_method(v)
