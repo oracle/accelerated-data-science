@@ -42,6 +42,13 @@ DEFAULT_LANGUAGE = "PYTHON"
 DEFAULT_SPARK_VERSION = "3.2.1"
 DEFAULT_NUM_EXECUTORS = 1
 DEFAULT_SHAPE = "VM.Standard.E3.Flex"
+DATAFLOW_SHAPE_FAMILY = [
+    "Standard.E3",
+    "Standard.E4",
+    "Standard3",
+    "Standard.A1",
+    "Standard2"
+]
 
 
 def conda_pack_name_to_dataflow_config(conda_uri):
@@ -889,11 +896,39 @@ class DataFlow(Infrastructure):
             raise ValueError(
                 "Compartment id is required. Specify compartment id via 'with_compartment_id()'."
             )
+        self._validate_shapes(payload)
         payload.pop("id", None)
         logger.debug(f"Creating a DataFlow Application with payload {payload}")
         self.df_app = DataFlowApp(**payload).create()
         self.with_id(self.df_app.id)
         return self
+    
+    @staticmethod
+    def _validate_shapes(payload: Dict):
+        if "executor_shape" not in payload:
+            payload["executor_shape"] = DEFAULT_SHAPE
+        if "driver_shape" not in payload:
+            payload["driver_shape"] = DEFAULT_SHAPE
+        executor_shape = payload["executor_shape"]
+        executor_shape_config = payload.get("executor_shape_config", {})
+        driver_shape = payload["driver_shape"]
+        driver_shape_config = payload.get("driver_shape_config", {})
+        same_shape_family = False
+        for shape in DATAFLOW_SHAPE_FAMILY:
+            if shape in executor_shape and shape in driver_shape:
+                same_shape_family = True
+                break
+        if not same_shape_family:
+            raise ValueError(
+                "`executor_shape` and `driver_shape` must be from the same shape family."
+            )
+        if (
+            (not executor_shape.endswith("Flex") and executor_shape_config) 
+            or (not driver_shape.endswith("Flex") and driver_shape_config)
+        ):
+            raise ValueError(
+                "Shape config is not required for non flex shape from user end."
+            )
 
     @staticmethod
     def _upload_file(local_path, bucket, overwrite=False):
