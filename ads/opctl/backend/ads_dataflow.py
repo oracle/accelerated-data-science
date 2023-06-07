@@ -39,7 +39,7 @@ REQUIRED_FIELDS = [
 class DataFlowBackend(Backend):
     def __init__(self, config: Dict) -> None:
         """
-        Initialize a MLJobBackend object given config dictionary.
+        Initialize a DataFlowBackend object given config dictionary.
 
         Parameters
         ----------

@@ -30,6 +30,7 @@ DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR = "/home/datascience/spark_conf_dir"
 DEFAULT_NOTEBOOK_SESSION_CONDA_DIR = "/home/datascience/conda"
 DEFAULT_SPECIFICATION_FILE_NAME = "oci-datascience-template.yaml"
 DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
+OPERATOR_KINDS = ["forecast"]
 
 
 class RUNTIME_TYPE(ExtendedEnum):

@@ -102,8 +102,6 @@ extras_require["onnx"] = extras_require["viz"] + [
     "onnxmltools>=1.10.0",
     "skl2onnx>=1.10.4",
     "tf2onnx",
-    "xgboost==1.5.1",
-    "lightgbm==3.3.1",
 ]
 extras_require["optuna"] = extras_require["viz"] + ["optuna==2.9.0"]
 

@@ -46,6 +46,7 @@ from ads.opctl.constants import (
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_PROFILE,
     RESOURCE_TYPE,
+    OPERATOR_KINDS,
 )
 from ads.opctl.distributed.cmds import (
     docker_build_cmd,
@@ -172,6 +173,8 @@ def run(config: Dict, **kwargs) -> Dict:
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    print(f"p:{p}\n p.config: {p.config}")
+    print(f"config.get('kind'):{config.get('kind')}")
     if config.get("kind") == "distributed":  # TODO: add kind factory
         print(
             "......................... Initializing the process ..................................."
@@ -242,6 +245,18 @@ def run(config: Dict, **kwargs) -> Dict:
                 print(yamlContent)
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
+    elif config.get("kind", "").lower() == "operator":
+        # create an ADS JOB here
+        job_def = YamlSpecParser.parse_content(config)
+        p = ConfigResolver(p.config)
+        backend = MLOperatorBackend(p.config)
+        print(f"job def: {job_def}")
+        print(f"p.config: {p.config}")
+        print(f"backend: {backend}")
+        jrun = backend.run(job_def, dry_run=p.config["execution"].get("dry_run"))
+        if jrun:
+            print(f"# \u2b50 To stream the logs of the operator job run:")
+            print(f"# \u0024 ads opctl watch {jrun.id}")
     else:
         if (
             "kind" in p.config
