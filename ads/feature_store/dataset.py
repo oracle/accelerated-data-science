@@ -38,6 +38,7 @@ from ads.feature_store.feature_lineage.graphviz_service import (
     GraphService,
     GraphOrientation,
 )
+from ads.feature_store.validation_output import ValidationOutput
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -857,14 +858,14 @@ class Dataset(Builder):
         )
         return Statistics(feature_statistics)
 
-    def get_validation_output_df(self, job_id: str = None) -> "pandas.DataFrame":
+    def get_validation_output(self, job_id: str = None) -> "ValidationOutput":
         """Retrieve Statistics object for the job with job_id
         if job_id is not specified the last run job will be considered.
         Args:
             job_id (str): [job id of the job for which the validation report need to be retrieved]
 
         Returns:
-           pandas.DataFrame -- The validation output data in DataFrame format.
+           ValidationOutput -- The validation output data in DataFrame format.
         """
 
         if not self.id:
@@ -890,12 +891,7 @@ class Dataset(Builder):
             json.loads(validation_output) if validation_output else None
         )
 
-        # Convert Python object to Pandas DataFrame and return the validation output DataFrame
-        return (
-            pandas.json_normalize(validation_output_json)
-            if validation_output_json
-            else None
-        )
+        return ValidationOutput(validation_output_json)
 
     @classmethod
     def list_df(cls, compartment_id: str = None, **kwargs) -> "pandas.DataFrame":
