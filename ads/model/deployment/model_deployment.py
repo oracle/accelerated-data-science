@@ -70,7 +70,6 @@ MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
-MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 
 class ModelDeploymentLogType:
     PREDICT = "predict"
@@ -1567,13 +1566,6 @@ class ModelDeployment(Builder):
 
         model_id = runtime.model_uri
         if not model_id.startswith("ocid"):
-            if ads_utils.folder_size(runtime.model_uri) > MAX_ARTIFACT_SIZE_IN_BYTES:
-                if not runtime.bucket_uri:
-                    raise ValueError(
-                        f"The model artifacts size is greater than `{MAX_ARTIFACT_SIZE_IN_BYTES}`. "
-                        "The `bucket_uri` needs to be specified to copy artifacts to the object storage bucket. "
-                        "Example: `runtime.with_bucket_uri(oci://<bucket_name>@<namespace>/prefix/)`"
-                    )
             
             from ads.model.datascience_model import DataScienceModel
             
