@@ -30,6 +30,7 @@ import time
 from datetime import datetime
 from ads.operators.forecast.utils import mape
 from sklearn.metrics import mean_absolute_percentage_error, explained_variance_score, r2_score, mean_squared_error
+from sklearn.datasets import load_files
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
@@ -51,19 +52,33 @@ class ForecastOperator:
         self.target_columns = args["forecast"]["target_columns"]
         self.datetime_column = args["forecast"]["datetime_column"]
         self.horizon = args["forecast"]["horizon"]
-        print(self.horizon)
         self.report_file_name = args["forecast"]["report_file_name"]
         
         # TODO: clean up
-        self.input_filename = "pypistats.csv" # self.historical_data["url"]  # "pypistats.csv"
-        self.output_filename = self.output_data["url"]  # "output.csv"
+        self.input_filename = self.historical_data["url"]
+        self.output_filename = self.output_data["url"]
         self.ds_column = self.datetime_column.get("name")
         self.datetime_format = self.datetime_column.get("format")
-
+        self.storage_options = {
+            "profile": self.args['execution'].get('oci_profile'),
+            "config": self.args['execution'].get('oci_config'),
+        }
 
     def load_data(self):
         # Load data and format datetime column
-        data = pd.read_csv(self.input_filename)
+        pd_format = self.historical_data.get("format")
+        if not pd_format:
+            _, pd_format = os.path.splitext(self.input_filename)
+            pd_format = pd_format[1:]
+        if pd_format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
+            read_fn = getattr(pd, f"read_{pd_format}")
+            data = read_fn(self.input_filename, storage_options=self.storage_options)
+            # if columns:
+            #     # keep only these columns, done after load because only CSV supports stream filtering
+            #     df = df[columns]
+        else:
+            raise ValueError(f"Unrecognized format: {pd_format}")
+
         data["ds"] = pd.to_datetime(data[self.ds_column], format=self.datetime_format)
         data.drop([self.ds_column], axis=1, inplace=True)
         data.fillna(0, inplace=True)
@@ -77,8 +92,6 @@ class ForecastOperator:
             data_i.rename({col:"y"}, axis=1, inplace=True)
             
             model = Prophet()
-            # Add regressors
-            # Use forecasting service datasets
             model.fit(data_i)
 
             future = model.make_future_dataframe(periods=self.horizon['periods']) #, freq=self.horizon['interval_unit']
@@ -93,7 +106,9 @@ class ForecastOperator:
         self.outputs = outputs
 
         print("===========Done===========")
-        output_total = pd.concat(self.outputs).to_csv(self.output_filename)
+        output_total = pd.concat(self.outputs)
+        
+        output_total.to_csv(self.output_filename, storage_options=self.storage_options)
         return self.outputs
 
     def evaluate(self):
@@ -159,15 +174,9 @@ def operate(args):
     report = operator.generate_report()
     return operator
 
-    # Return fully verbose yaml
-    # Offer some explanations
-    # Reccomend other possible models
-
 
 def run():
-    auth_type = os.environ.get("OCIFS_IAM_TYPE", "api_key")
-    print(f"Setting auth type as {auth_type}")
-    ads.set_auth(auth_type)
+    
     args = json.loads(os.environ.get("OPERATOR_ARGS", "{}"))
     return operate(args)
 
