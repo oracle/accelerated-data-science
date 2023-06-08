@@ -1,0 +1,151 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+
+version:
+  allowed:
+    - 1
+  required: true
+  type: string
+
+type:
+  allowed:
+    - forecast
+  required: true
+  type: string
+
+historical_data:
+  required: true
+  type: dict
+  schema:
+    format:
+      allowed:
+        - csv
+        - json
+        - clipboard
+        - excel
+        - hdf
+        - feather
+        - load_files
+      required: true
+      type: string
+    columns:
+      required: false
+      type: list
+      schema:
+        type: string
+    options:
+      nullable: true
+      required: false
+      type: dict
+    url:
+      required: false
+      type: string
+    limit:
+      required: false
+      type: integer
+
+output_data:
+  required: false
+  schema:
+    connect_args:
+      nullable: true
+      required: false
+      type: dict
+    format:
+      required: true
+      type: string
+      allowed:
+        - csv
+        - json
+        - clipboard
+        - excel
+        - hdf
+        - sql
+    name:
+      required: false
+      type: string
+    options:
+      nullable: true
+      required: false
+      type: dict
+  type: dict
+
+forecast:
+  required: false
+  schema:
+    report_file_name:
+      required: false
+      type: string
+      default: report.html
+    report_title:
+      required: false
+      type: string
+    report_theme:
+      required: false
+      type: string
+      default: light
+      allowed:
+        - light
+        - dark
+
+    target_columns:
+      type: list
+      required: false
+      schema:
+        type: string
+
+    datetime_column:
+      type: dict
+      required: false
+      schema:
+        name:
+          type: string
+          required: false
+        format: 
+          type: string
+          required: false
+    
+    category_columns:
+      type: list
+      required: false
+      schema:
+        type: string
+
+    horizon:
+      type: dict
+      required: false
+      schema:
+        period:
+          type: int
+          required: false
+        interval:
+          type: int
+          required: false
+        interval_unit:
+          required: false
+          type: sting
+          default: auto
+          allowed:
+            - auto
+            - Second
+            - Minute
+            - Hour
+            - Day
+            - Week
+            - Month
+            - Quarter
+            - Year
+
+    model:
+      type: string
+      required: false
+      default: prophet
+      allowed:
+        - prophet
+        - ARIMA
+        - neuralprophet
+
+  type: dict

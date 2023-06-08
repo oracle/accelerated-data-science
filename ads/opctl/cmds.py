@@ -11,6 +11,7 @@ from typing import Dict, List, Union
 import click
 import fsspec
 import yaml
+import json
 
 import ads
 from ads.common.auth import AuthContext, AuthType
@@ -58,6 +59,11 @@ from ads.opctl.distributed.cmds import (
 )
 from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
+from ads.operators.forecast.forecast import run as forecast_run
+
+OPERATOR_TYPES = {
+    "forecast": forecast_run,
+}
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     JOB = "datasciencejob"
@@ -173,8 +179,6 @@ def run(config: Dict, **kwargs) -> Dict:
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
-    print(f"p:{p}\n p.config: {p.config}")
-    print(f"config.get('kind'):{config.get('kind')}")
     if config.get("kind") == "distributed":  # TODO: add kind factory
         print(
             "......................... Initializing the process ..................................."
@@ -246,17 +250,21 @@ def run(config: Dict, **kwargs) -> Dict:
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     elif config.get("kind", "").lower() == "operator":
-        # create an ADS JOB here
-        job_def = YamlSpecParser.parse_content(config)
+        operator_type = config.get("type", "").lower()
+        if operator_type not in OPERATOR_TYPES.keys():
+            raise ValueError(f"The `type`: {operator_type} is not recognized as an `operator` type. Valid types are: {OPERATOR_TYPES.keys()}")
+        
         p = ConfigResolver(p.config)
-        backend = MLOperatorBackend(p.config)
-        print(f"job def: {job_def}")
         print(f"p.config: {p.config}")
-        print(f"backend: {backend}")
-        jrun = backend.run(job_def, dry_run=p.config["execution"].get("dry_run"))
-        if jrun:
-            print(f"# \u2b50 To stream the logs of the operator job run:")
-            print(f"# \u0024 ads opctl watch {jrun.id}")
+        os.environ["OPERATOR_ARGS"] = json.dumps(p.config)
+        return OPERATOR_TYPES[operator_type]()
+
+        # Backend Support WIP
+        # job_def = yaml_parser.parse(p.config)
+        # jrun = backend.run(job_def, dry_run=p.config["execution"].get("dry_run"))
+        # if jrun:
+        #     print(f"# \u2b50 To stream the logs of the operator job run:")
+        #     print(f"# \u0024 ads opctl watch {jrun.id}")
     else:
         if (
             "kind" in p.config
