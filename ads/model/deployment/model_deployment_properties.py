@@ -12,6 +12,18 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 
 from .common.utils import OCIClientManager
 
+import warnings
+
+warnings.warn(
+    (
+        "The `ads.model.deployment.model_deployment_properties` is deprecated in `oracle-ads 2.8.7` and will be removed in `oracle-ads 3.0`."
+        "Use `ModelDeploymentInfrastructure` and `ModelDeploymentRuntime` classes in `ads.model.deployment` module for configuring model deployment. "
+        "Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/introduction.html"
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class ModelDeploymentProperties(
     OCIDataScienceMixin, data_science_models.ModelDeployment

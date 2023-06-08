@@ -51,6 +51,16 @@ from .common.utils import OCIClientManager, State
 from .model_deployment import DEFAULT_POLL_INTERVAL, DEFAULT_WAIT_TIME, ModelDeployment
 from .model_deployment_properties import ModelDeploymentProperties
 
+warnings.warn(
+    (
+        "The `ads.model.deployment.model_deployer` is deprecated in `oracle-ads 2.8.7` and will be removed in `oracle-ads 3.0`."
+        "Use `ModelDeployment` class in `ads.model.deployment` module for initializing and deploy model deployment. "
+        "Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/introduction.html"
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
 
 class ModelDeployer:
     """ModelDeployer is the class responsible for deploying the ModelDeployment
@@ -96,7 +106,7 @@ class ModelDeployer:
         """
         if config:
             warnings.warn(
-                "`config` will be deprecated in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
+                "`config` will be removed in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
             )
 
         self.ds_client = None
