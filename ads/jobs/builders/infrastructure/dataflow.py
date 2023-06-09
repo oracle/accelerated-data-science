@@ -391,6 +391,7 @@ class DataFlow(Infrastructure):
     CONST_OCPUS = "ocpus"
     CONST_ID = "id"
     CONST_PRIVATE_ENDPOINT_ID = "private_endpoint_id"
+    CONST_POOL_ID = "pool_id"
     CONST_FREEFORM_TAGS = "freeform_tags"
     CONST_DEFINED_TAGS = "defined_tags"
 
@@ -411,8 +412,9 @@ class DataFlow(Infrastructure):
         CONST_OCPUS: CONST_OCPUS,
         CONST_ID: CONST_ID,
         CONST_PRIVATE_ENDPOINT_ID: "privateEndpointId",
+        CONST_POOL_ID: "poolId",
         CONST_FREEFORM_TAGS: "freeformTags",
-        CONST_DEFINED_TAGS: "definedTags"
+        CONST_DEFINED_TAGS: "definedTags",
     }
 
     def __init__(self, spec: dict = None, **kwargs):
@@ -425,8 +427,10 @@ class DataFlow(Infrastructure):
             spec = {
                 k: v
                 for k, v in spec.items()
-                if (f"with_{camel_to_snake(k)}" in self.__dir__()
-                or (k == "defined_tags" or "freeform_tags"))
+                if (
+                    f"with_{camel_to_snake(k)}" in self.__dir__()
+                    or (k == "defined_tags" or "freeform_tags")
+                )
                 and v is not None
             }
             defaults.update(spec)
@@ -809,10 +813,34 @@ class DataFlow(Infrastructure):
         """
         return self.set_spec(self.CONST_DEFINED_TAGS, kwargs)
 
+    def with_pool_id(self, pool_id: str) -> "DataFlow":
+        """
+        Set the Data Flow Pool Id for a Data Flow job.
+
+        Parameters
+        ----------
+        pool_id: str
+            The OCID of a Data Flow Pool.
+
+        Returns
+        -------
+        DataFlow
+            the Data Flow instance itself
+        """
+        if not hasattr(CreateApplicationDetails, "pool_id"):
+            raise EnvironmentError(
+                "Data Flow Pool has not been supported in the current OCI SDK installed."
+            )
+        return self.set_spec(self.CONST_POOL_ID, pool_id)
+
     def __getattr__(self, item):
         if item == self.CONST_DEFINED_TAGS or item == self.CONST_FREEFORM_TAGS:
             return self.get_spec(item)
-        elif f"with_{item}" in self.__dir__() and item != "defined_tag" and item != "freeform_tag":
+        elif (
+            f"with_{item}" in self.__dir__()
+            and item != "defined_tag"
+            and item != "freeform_tag"
+        ):
             return self.get_spec(item)
         raise AttributeError(f"Attribute {item} not found.")
 
@@ -832,6 +860,11 @@ class DataFlow(Infrastructure):
         DataFlow
             a Data Flow job instance
         """
+        if self.pool_id:
+            if not hasattr(CreateApplicationDetails, "pool_id"):
+                raise EnvironmentError(
+                    "Data Flow Pool has not been supported in the current OCI SDK installed."
+                )
         # Set default display_name if not specified - randomly generated easy to remember name
         if not self.name:
             self.name = utils.get_random_name_for_resource()

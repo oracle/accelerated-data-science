@@ -28,6 +28,7 @@ from ads.jobs.builders.runtimes.python_runtime import (
     DataFlowRuntime,
     DataFlowNotebookRuntime,
 )
+from oci.data_flow.models import CreateApplicationDetails
 
 logger.setLevel(logging.DEBUG)
 
@@ -47,7 +48,13 @@ SAMPLE_PAYLOAD = dict(
     language="PYTHON",
     logs_bucket_uri="oci://test_bucket@test_namespace/",
     private_endpoint_id="test_private_endpoint",
+    pool_id="ocid1.dataflowpool.oc1..<unique_ocid>",
 )
+EXPECTED_YAML_LENGTH = 614
+if not hasattr(CreateApplicationDetails, "pool_id"):
+    SAMPLE_PAYLOAD.pop("pool_id")
+    EXPECTED_YAML_LENGTH = 567
+
 random_seed = 42
 
 
@@ -124,7 +131,7 @@ class TestDataFlowApp:
                     df.lifecycle_state
                     == oci.data_flow.models.Application.LIFECYCLE_STATE_DELETED
                 )
-                assert len(df.to_yaml()) == 567
+                assert len(df.to_yaml()) == EXPECTED_YAML_LENGTH
 
     def test_create_df_app_with_default_display_name(
         self,
@@ -319,7 +326,7 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
             ).with_num_executors(
                 2
             ).with_private_endpoint_id(
-                "test_private_endpoint"
+                SAMPLE_PAYLOAD["private_endpoint_id"]
             ).with_freeform_tag(
                 test_freeform_tags_key="test_freeform_tags_value",
             ).with_defined_tag(
@@ -327,6 +334,8 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
                     "test_defined_tags_key": "test_defined_tags_value"
                 }
             )
+            if SAMPLE_PAYLOAD.get("pool_id", None):
+                df.with_pool_id(SAMPLE_PAYLOAD["pool_id"])
         return df
 
     def test_create_with_builder_pattern(self, mock_to_dict, mock_client, df):
@@ -341,6 +350,8 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
                 "test_defined_tags_key": "test_defined_tags_value"
             }
         }
+        if SAMPLE_PAYLOAD.get("pool_id", None):
+            assert df.pool_id == SAMPLE_PAYLOAD["pool_id"]
 
         rt = (
             DataFlowRuntime()
@@ -483,50 +494,44 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         assert df3_dict["spec"]["numExecutors"] == 2
 
     def test_shape_and_details(self, mock_to_dict, mock_client, df):
-        df.with_driver_shape(
-            "VM.Standard2.1"
-        ).with_executor_shape(
+        df.with_driver_shape("VM.Standard2.1").with_executor_shape(
             "VM.Standard.E4.Flex"
         )
 
         rt = (
             DataFlowRuntime()
-                .with_script_uri(SAMPLE_PAYLOAD["file_uri"])
-                .with_archive_uri(SAMPLE_PAYLOAD["archive_uri"])
-                .with_custom_conda(
-                    "oci://my_bucket@my_namespace/conda_environments/cpu/PySpark 3.0 and Data Flow/5.0/pyspark30_p37_cpu_v5"
-                )
-                .with_overwrite(True)
+            .with_script_uri(SAMPLE_PAYLOAD["file_uri"])
+            .with_archive_uri(SAMPLE_PAYLOAD["archive_uri"])
+            .with_custom_conda(
+                "oci://my_bucket@my_namespace/conda_environments/cpu/PySpark 3.0 and Data Flow/5.0/pyspark30_p37_cpu_v5"
+            )
+            .with_overwrite(True)
         )
 
         with pytest.raises(
             ValueError,
-            match="`executor_shape` and `driver_shape` must be from the same shape family."
+            match="`executor_shape` and `driver_shape` must be from the same shape family.",
         ):
             with patch.object(DataFlowApp, "client", mock_client):
                 with patch.object(DataFlowApp, "to_dict", mock_to_dict):
                     df.create(rt)
 
-        df.with_driver_shape(
-            "VM.Standard2.1"
-        ).with_driver_shape_config(
+        df.with_driver_shape("VM.Standard2.1").with_driver_shape_config(
             memory_in_gbs=SAMPLE_PAYLOAD["driver_shape_config"]["memory_in_gbs"],
             ocpus=SAMPLE_PAYLOAD["driver_shape_config"]["ocpus"],
-        ).with_executor_shape(
-            "VM.Standard2.16"
-        ).with_executor_shape_config(
+        ).with_executor_shape("VM.Standard2.16").with_executor_shape_config(
             memory_in_gbs=SAMPLE_PAYLOAD["executor_shape_config"]["memory_in_gbs"],
             ocpus=SAMPLE_PAYLOAD["executor_shape_config"]["ocpus"],
         )
 
         with pytest.raises(
             ValueError,
-            match="Shape config is not required for non flex shape from user end."
+            match="Shape config is not required for non flex shape from user end.",
         ):
             with patch.object(DataFlowApp, "client", mock_client):
                 with patch.object(DataFlowApp, "to_dict", mock_to_dict):
                     df.create(rt)
-            
+
 
 class TestDataFlowNotebookRuntime:
     @pytest.mark.skipif(
