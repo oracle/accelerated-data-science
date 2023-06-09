@@ -193,6 +193,8 @@ Example path : ``oci://<your-bucket>@<your-tenancy-namespace>/conda_environments
 
 **Example command with the Data Flow Pools**
 
+.. versionadded:: 2.8.6
+
 The `Data Flow Pools <https://docs.oracle.com/en-us/iaas/data-flow/using/pools.htm>`__  achieve fast job startup, resource isolation, manage budgets, and prioritize your Spark workloads. Use the `poolId` to use the Pool resources.
 
 .. code-block:: python
