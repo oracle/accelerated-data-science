@@ -299,12 +299,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
     >>> model.deploy()
     >>> # Update access log id, freeform tags and description for the model deployment
     >>> model.update_deployment(
-    >>>     properties=ModelDeploymentProperties(
-    >>>         access_log_id=<log_ocid>,
-    >>>         description="Description for Custom Model",
-    >>>         freeform_tags={"key": "value"},
-    >>>     )
-    >>> )
+    ...     access_log={
+    ...         log_id=<log_ocid>
+    ...     },
+    ...     description="Description for Custom Model",
+    ...     freeform_tags={"key": "value"},
+    ... )
     >>> model.predict(2)
     >>> # Uncomment the line below to delete the model and the associated model deployment
     >>> # model.delete(delete_associated_model_deployment = True)
@@ -1615,8 +1615,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Examples
         --------
-        >>> # Update access log id, freeform tags and description for the model deployment
-        >>> # Deprecated
+        >>> # Deprecated way to update access log id, freeform tags and description for the model deployment
         >>> model.update_deployment(
         >>>     properties=ModelDeploymentProperties(
         >>>         access_log_id=<log_ocid>,

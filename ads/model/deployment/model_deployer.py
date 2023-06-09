@@ -106,7 +106,7 @@ class ModelDeployer:
         """
         if config:
             warnings.warn(
-                "`config` will be removed in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
+                "`config` will be deprecated in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
             )
 
         self.ds_client = None

@@ -701,7 +701,7 @@ class ModelDeployment(Builder):
         """
         if properties:
             warnings.warn(
-                "Parameter `properties` will be removed from ModelDeployment update() in 3.0.0. Please use the builder pattern to update model deployment instance."
+                "Parameter `properties` will be removed from ModelDeployment `update()` in 3.0.0. Please use the builder pattern or kwargs to update model deployment instance."
             )
 
         updated_properties = properties
