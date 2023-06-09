@@ -53,8 +53,8 @@ from .model_deployment_properties import ModelDeploymentProperties
 
 warnings.warn(
     (
-        "The `ads.model.deployment.model_deployer` is deprecated in `oracle-ads 2.8.7` and will be removed in `oracle-ads 3.0`."
-        "Use `ModelDeployment` class in `ads.model.deployment` module for initializing and deploy model deployment. "
+        "The `ads.model.deployment.model_deployer` is deprecated in `oracle-ads 2.8.6` and will be removed in `oracle-ads 3.0`."
+        "Use `ModelDeployment` class in `ads.model.deployment` module for initializing and deploying model deployment. "
         "Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/introduction.html"
     ),
     DeprecationWarning,

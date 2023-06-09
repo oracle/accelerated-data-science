@@ -297,17 +297,20 @@ class ModelDeployment(Builder):
 
         if config:
             warnings.warn(
-                "Parameter `config` will be removed from ModelDeployment constructor in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
+                "Parameter `config` was deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. Please use `ads.set_auth()` to config the auth information. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html"
             )
 
         if properties:
             warnings.warn(
-                "Parameter `properties` will be removed from ModelDeployment constructor in 3.0.0. Please use `spec` or the builder pattern to initialize model deployment instance."
+                "Parameter `properties` was deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. Please use `spec` or the builder pattern to initialize model deployment instance. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
             )
 
         if model_deployment_url or model_deployment_id:
             warnings.warn(
-                "Parameter `model_deployment_url` and `model_deployment_id` will be removed from ModelDeployment constructor in 3.0.0 and will be ignored now. These two fields will be auto-populated from the service side."
+                "Parameter `model_deployment_url` and `model_deployment_id` were deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. These two fields will be auto-populated from the service side. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
             )
 
         initialize_spec = {}
@@ -701,7 +704,8 @@ class ModelDeployment(Builder):
         """
         if properties:
             warnings.warn(
-                "Parameter `properties` will be removed from ModelDeployment `update()` in 3.0.0. Please use the builder pattern or kwargs to update model deployment instance."
+                "Parameter `properties` is deprecated from ModelDeployment `update()` in 2.8.6 and will be removed in 3.0.0. Please use the builder pattern or kwargs to update model deployment instance. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
             )
 
         updated_properties = properties

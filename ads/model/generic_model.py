@@ -1615,15 +1615,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         Examples
         --------
-        >>> # Deprecated way to update access log id, freeform tags and description for the model deployment
-        >>> model.update_deployment(
-        >>>     properties=ModelDeploymentProperties(
-        >>>         access_log_id=<log_ocid>,
-        >>>         description="Description for Custom Model",
-        >>>         freeform_tags={"key": "value"},
-        >>>     )
-        >>> )
-        >>> # New way to update access log id, freeform tags and description for the model deployment
+        >>> # Update access log id, freeform tags and description for the model deployment
         >>> model.update_deployment(
         ...     access_log={
         ...         log_id=<log_ocid>
@@ -1673,8 +1665,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         """
         if properties:
             warnings.warn(
-                "Parameter `properties` will be removed from GenericModel `update_deployment()` in 3.0.0. Please use kwargs to update model deployment."
+                "Parameter `properties` is deprecated from GenericModel `update_deployment()` in 2.8.6 and will be removed in 3.0.0. Please use kwargs to update model deployment. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/introduction.html"
             )
+
         if not inspect.isclass(cls):
             if cls.model_deployment:
                 return cls.model_deployment.update(
