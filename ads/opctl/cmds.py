@@ -179,6 +179,7 @@ def run(config: Dict, **kwargs) -> Dict:
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    print(f"config: {config}\n\np.config: {p.config}")
     if config.get("kind") == "distributed":  # TODO: add kind factory
         print(
             "......................... Initializing the process ..................................."
