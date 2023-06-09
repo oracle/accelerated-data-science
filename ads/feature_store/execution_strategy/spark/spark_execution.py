@@ -177,17 +177,6 @@ class SparkExecutionEngine(Strategy):
             database = feature_group.entity_id
             self.spark_engine.create_database(database)
 
-            if data_frame is None:
-                raw_schema = get_raw_data_source_schema(
-                    feature_group.input_feature_details
-                )
-            elif isinstance(data_frame, pd.DataFrame):
-                raw_schema = self.spark_engine.convert_from_pandas_to_spark_dataframe(
-                    data_frame
-                ).schema
-            else:
-                raw_schema = data_frame.schema
-
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 
             # Apply validations
@@ -223,7 +212,7 @@ class SparkExecutionEngine(Strategy):
                 target_table,
                 feature_group.primary_keys,
                 feature_group_job.ingestion_mode,
-                raw_schema,
+                featured_data.schema,
                 feature_group_job.feature_option_details,
             )
 

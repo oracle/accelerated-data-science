@@ -67,6 +67,7 @@ class OptionalDependency:
     GREAT_EXPECTATIONS = "oracle-ads[great-expectations]"
     PYDEEQU = "oracle-ads[pydeequ]"
     GRAPHVIZ = "oracle-ads[graphviz]"
+    MLM_INSIGHTS = "oracle-ads[mlm-insights]"
 
 
 def runtime_dependency(
