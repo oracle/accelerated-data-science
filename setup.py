@@ -13,6 +13,7 @@ from pathlib import Path
 from setuptools.command.install import install
 from setuptools.command.develop import develop
 
+
 install_requires = [
     "asteval>=0.9.25",
     "cerberus>=1.3.4",
