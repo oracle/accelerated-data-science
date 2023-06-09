@@ -191,26 +191,6 @@ Example path : ``oci://<your-bucket>@<your-tenancy-namespace>/conda_environments
     "configuration":{\
       "spark.archives": "oci://<your-bucket>@<your-tenancy-namespace>/conda_environments/cpu/PySpark 3.2 and Data Flow/2.0/pyspark32_p38_cpu_v2#conda>"}}'
 
-**Example command with the Data Flow Pools**
-
-.. versionadded:: 2.8.6
-
-The `Data Flow Pools <https://docs.oracle.com/en-us/iaas/data-flow/using/pools.htm>`__  achieve fast job startup, resource isolation, manage budgets, and prioritize your Spark workloads. Use the `poolId` to use the Pool resources.
-
-.. code-block:: python
-
-  %create_session -l python -c '{\
-    "compartmentId":"<compartment_id>",\
-    "displayName":"TestDataFlowSession",\
-    "sparkVersion":"3.2.1",\
-    "driverShape":"VM.Standard.E4.Flex",\
-    "executorShape":"VM.Standard.E4.Flex",\
-    "numExecutors":1,\
-    "driverShapeConfig":{"ocpus":1,"memoryInGBs":16},\
-    "executorShapeConfig":{"ocpus":1,"memoryInGBs":16},\
-    "poolId": "<ocid1.dataflowpool...>",\
-    "logsBucketUri" : "oci://<bucket_name>@<namespace>/"}'
-
 
 Update Session
 **************
