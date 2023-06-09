@@ -28,6 +28,7 @@ from ads.jobs.builders.runtimes.python_runtime import (
     DataFlowRuntime,
     DataFlowNotebookRuntime,
 )
+from oci.data_flow.models import CreateApplicationDetails
 
 logger.setLevel(logging.DEBUG)
 
@@ -49,6 +50,11 @@ SAMPLE_PAYLOAD = dict(
     private_endpoint_id="test_private_endpoint",
     pool_id="ocid1.dataflowpool.oc1..<unique_ocid>",
 )
+EXPECTED_YAML_LENGTH = 614
+if not hasattr(CreateApplicationDetails, "pool_id"):
+    SAMPLE_PAYLOAD.pop("pool_id")
+    EXPECTED_YAML_LENGTH = 567
+
 random_seed = 42
 
 
@@ -125,7 +131,7 @@ class TestDataFlowApp:
                     df.lifecycle_state
                     == oci.data_flow.models.Application.LIFECYCLE_STATE_DELETED
                 )
-                assert len(df.to_yaml()) == 614
+                assert len(df.to_yaml()) == EXPECTED_YAML_LENGTH
 
     def test_create_df_app_with_default_display_name(
         self,
@@ -321,8 +327,6 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
                 2
             ).with_private_endpoint_id(
                 SAMPLE_PAYLOAD["private_endpoint_id"]
-            ).with_pool_id(
-                SAMPLE_PAYLOAD["pool_id"]
             ).with_freeform_tag(
                 test_freeform_tags_key="test_freeform_tags_value",
             ).with_defined_tag(
@@ -330,13 +334,14 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
                     "test_defined_tags_key": "test_defined_tags_value"
                 }
             )
+            if SAMPLE_PAYLOAD.get("pool_id", None):
+                df.with_pool_id(SAMPLE_PAYLOAD["pool_id"])
         return df
 
     def test_create_with_builder_pattern(self, mock_to_dict, mock_client, df):
         assert df.language == "PYTHON"
         assert df.spark_version == "3.2.1"
         assert df.num_executors == 2
-        assert df.pool_id == SAMPLE_PAYLOAD["pool_id"]
         assert df.freeform_tags == {
             "test_freeform_tags_key": "test_freeform_tags_value"
         }
@@ -345,6 +350,8 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
                 "test_defined_tags_key": "test_defined_tags_value"
             }
         }
+        if SAMPLE_PAYLOAD.get("pool_id", None):
+            assert df.pool_id == SAMPLE_PAYLOAD["pool_id"]
 
         rt = (
             DataFlowRuntime()
