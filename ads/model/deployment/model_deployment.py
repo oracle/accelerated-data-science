@@ -70,6 +70,11 @@ MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
+MODEL_DEPLOYMENT_RUNTIMES = {
+    ModelDeploymentRuntimeType.CONDA: ModelDeploymentCondaRuntime,
+    ModelDeploymentRuntimeType.CONTAINER: ModelDeploymentContainerRuntime,
+}
+
 
 class ModelDeploymentLogType:
     PREDICT = "predict"
@@ -295,17 +300,20 @@ class ModelDeployment(Builder):
 
         if config:
             warnings.warn(
-                "`config` will be deprecated in 3.0.0 and will be ignored now. Please use `ads.set_auth()` to config the auth information."
+                "Parameter `config` was deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. Please use `ads.set_auth()` to config the auth information. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/authentication.html"
             )
 
         if properties:
             warnings.warn(
-                "`properties` will be deprecated in 3.0.0. Please use `spec` or the builder pattern to initialize model deployment instance."
+                "Parameter `properties` was deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. Please use `spec` or the builder pattern to initialize model deployment instance. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
             )
 
         if model_deployment_url or model_deployment_id:
             warnings.warn(
-                "`model_deployment_url` and `model_deployment_id` will be deprecated in 3.0.0 and will be ignored now. These two fields will be auto-populated from the service side."
+                "Parameter `model_deployment_url` and `model_deployment_id` were deprecated in 2.8.2 from ModelDeployment constructor and will be removed in 3.0.0. These two fields will be auto-populated from the service side. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
             )
 
         initialize_spec = {}
@@ -697,6 +705,12 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
+        if properties:
+            warnings.warn(
+                "Parameter `properties` is deprecated from ModelDeployment `update()` in 2.8.6 and will be removed in 3.0.0. Please use the builder pattern or kwargs to update model deployment instance. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/quick_start.html"
+            )
+
         updated_properties = properties
         if not isinstance(properties, ModelDeploymentProperties):
             updated_properties = ModelDeploymentProperties(
@@ -706,7 +720,7 @@ class ModelDeployment(Builder):
         update_model_deployment_details = (
             updated_properties.to_update_deployment()
             if properties or updated_properties.oci_model_deployment or kwargs
-            else self._update_model_deployment_details()
+            else self._update_model_deployment_details(**kwargs)
         )
 
         response = self.dsc_model_deployment.update(
@@ -1490,7 +1504,7 @@ class ModelDeployment(Builder):
             **create_model_deployment_details
         ).to_oci_model(CreateModelDeploymentDetails)
 
-    def _update_model_deployment_details(self) -> UpdateModelDeploymentDetails:
+    def _update_model_deployment_details(self, **kwargs) -> UpdateModelDeploymentDetails:
         """Builds UpdateModelDeploymentDetails from model deployment instance.
 
         Returns
@@ -1502,7 +1516,7 @@ class ModelDeployment(Builder):
             raise ValueError(
                 "Missing parameter runtime or infrastructure. Try reruning it after parameters are fully configured."
             )
-
+        self._update_spec(**kwargs)
         update_model_deployment_details = {
             self.CONST_DISPLAY_NAME: self.display_name,
             self.CONST_DESCRIPTION: self.description,
@@ -1514,6 +1528,65 @@ class ModelDeployment(Builder):
         return OCIDataScienceModelDeployment(
             **update_model_deployment_details
         ).to_oci_model(UpdateModelDeploymentDetails)
+    
+    def _update_spec(self, **kwargs) -> "ModelDeployment":
+        """Updates model deployment specs from kwargs.
+
+        Parameters
+        ----------
+        kwargs:
+            display_name: (str)
+                Model deployment display name
+            description: (str)
+                Model deployment description
+            freeform_tags: (dict)
+                Model deployment freeform tags
+            defined_tags: (dict)
+                Model deployment defined tags
+            
+            Additional kwargs arguments.
+            Can be any attribute that `ads.model.deployment.ModelDeploymentCondaRuntime`, `ads.model.deployment.ModelDeploymentContainerRuntime`
+            and `ads.model.deployment.ModelDeploymentInfrastructure` accepts.
+
+        Returns
+        -------
+        ModelDeployment
+            The instance of ModelDeployment.
+        """
+        if not kwargs:
+            return self
+
+        converted_specs = ads_utils.batch_convert_case(kwargs, "camel")
+        specs = {
+            "self": self._spec,
+            "runtime": self.runtime._spec,
+            "infrastructure": self.infrastructure._spec
+        }
+        sub_set = {
+            self.infrastructure.CONST_ACCESS_LOG,
+            self.infrastructure.CONST_PREDICT_LOG,
+            self.infrastructure.CONST_SHAPE_CONFIG_DETAILS
+        }
+        for spec_value in specs.values():
+            for key in spec_value:
+                if key in converted_specs:
+                    if key in sub_set:
+                        for sub_key in converted_specs[key]:
+                            converted_sub_key = ads_utils.snake_to_camel(sub_key)
+                            spec_value[key][converted_sub_key] = converted_specs[key][sub_key]
+                    else:
+                        spec_value[key] = copy.deepcopy(converted_specs[key])
+        self = (
+            ModelDeployment(spec=specs["self"])
+            .with_runtime(
+                MODEL_DEPLOYMENT_RUNTIMES[self.runtime.type](spec=specs["runtime"])
+            )
+            .with_infrastructure(
+                ModelDeploymentInfrastructure(spec=specs["infrastructure"])
+            )
+        )
+
+        return self
 
     def _build_model_deployment_configuration_details(self) -> Dict:
         """Builds model deployment configuration details from model deployment instance.

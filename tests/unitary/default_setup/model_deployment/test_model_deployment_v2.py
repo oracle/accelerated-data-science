@@ -1382,6 +1382,50 @@ spec:
         model_deployment.infrastructure.with_subnet_id("test_id")
         assert model_deployment.infrastructure.subnet_id == "test_id"
 
+    def test_update_spec(self):
+        model_deployment = self.initialize_model_deployment()
+        model_deployment._update_spec(
+            display_name="test_updated_name",
+            freeform_tags={"test_updated_key":"test_updated_value"},
+            access_log={
+                "log_id": "test_updated_access_log_id"
+            },
+            predict_log={
+                "log_group_id": "test_updated_predict_log_group_id"
+            },
+            shape_config_details={
+                "ocpus": 100,
+                "memoryInGBs": 200
+            },
+            replica=20,
+            image="test_updated_image",
+            env={
+                "test_updated_env_key":"test_updated_env_value"
+            }
+        )
+
+        assert model_deployment.display_name == "test_updated_name"
+        assert model_deployment.freeform_tags == {
+            "test_updated_key":"test_updated_value"
+        }
+        assert model_deployment.infrastructure.access_log == {
+            "logId": "test_updated_access_log_id",
+            "logGroupId": "fakeid.loggroup.oc1.iad.xxx"
+        }
+        assert model_deployment.infrastructure.predict_log == {
+            "logId": "fakeid.log.oc1.iad.xxx",
+            "logGroupId": "test_updated_predict_log_group_id"
+        }
+        assert model_deployment.infrastructure.shape_config_details == {
+            "ocpus": 100,
+            "memoryInGBs": 200
+        }
+        assert model_deployment.infrastructure.replica == 20
+        assert model_deployment.runtime.image == "test_updated_image"
+        assert model_deployment.runtime.env == {
+            "test_updated_env_key":"test_updated_env_value"
+        }
+
     @patch.object(OCIDataScienceMixin, "sync")
     @patch.object(
         oci.data_science.DataScienceClient,
