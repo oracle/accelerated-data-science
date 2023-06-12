@@ -246,6 +246,7 @@ def run(config: Dict, **kwargs) -> Dict:
         if (
             "kind" in p.config
             and p.config["execution"].get("backend", None) != BACKEND_NAME.LOCAL.value
+            and "ocid" not in p.config["execution"]
         ):
             p.config["execution"]["backend"] = p.config["kind"]
             return _BackendFactory(p.config).backend.apply()

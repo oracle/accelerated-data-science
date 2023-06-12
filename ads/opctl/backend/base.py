@@ -32,7 +32,7 @@ class Backend:
 
         Returns
         -------
-        None
+        Dict
         """
 
     def delete(self) -> None:
@@ -62,13 +62,13 @@ class Backend:
         None
         """
 
-    def apply(self) -> None:
+    def apply(self) -> Dict:
         """
         Initiate Data Science service from YAML.
 
         Returns
         -------
-        None
+        Dict
         """
 
     def activate(self) -> None:
