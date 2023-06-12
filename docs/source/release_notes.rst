@@ -2,7 +2,7 @@
 Release Notes
 =============
 
-2.8.5
+2.8.6
 -----
 Release date: June 13, 2023
 
