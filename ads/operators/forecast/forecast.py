@@ -10,7 +10,6 @@ import os
 import sys
 import datapane as dp
 from prophet.plot import add_changepoints_to_plot
-from prophet import Prophet
 import pandas as pd
 from urllib.parse import urlparse
 import json
@@ -27,7 +26,11 @@ import oci
 import time
 from datetime import datetime
 from ads.operators.forecast.prophet import operate as prophet_operate
-# from ads.operators.forecast.neural_prophet import operate as neuralprophet_operate
+from ads.operators.forecast.prophet import get_prophet_report
+from ads.operators.forecast.neural_prophet import operate as neuralprophet_operate
+from ads.operators.forecast.neural_prophet import get_neuralprophet_report
+from ads.operators.forecast.arima import operate as arima_operate
+
 from ads.operators.forecast.utils import evaluate_metrics
 from sklearn.metrics import mean_absolute_percentage_error, explained_variance_score, r2_score, mean_squared_error
 from sklearn.datasets import load_files
@@ -38,6 +41,8 @@ handler.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+AVAILABLE_MODELS = ["prophet", "neuralprophet", "arima"]
 
 
 class ForecastOperator:
@@ -65,55 +70,44 @@ class ForecastOperator:
         }
 
     def build_model(self):
+        view = dp.View(dp.Text("# My report 3"))
         if self.model == "prophet":
             self.data, self.models, self.outputs = prophet_operate(self)
-            return self.generate_prophet_report()
-        # elif self.model == "neuralprophet":
-        #     operator = neuralprophet_operate(self)
-        #     return operator
+            return self.generate_report()
+        elif self.model == "neuralprophet":
+            self.data, self.models, self.outputs = neuralprophet_operate(self)
+            return self.generate_report()
         elif self.model == "arima":
-            raise NotImplementedError()
+            self.data, self.models, self.outputs = arima_operate(self)
+            return self.generate_report()
         raise ValueError(f"Unsupported model type: {self.model}")
         
-    def generate_prophet_report(self):
+    def generate_report(self):
         def get_select_plot_list(fn):
             return dp.Select(blocks=[dp.Plot(fn(i), label=col) for i, col in enumerate(self.target_columns)])
 
         title_text = dp.Text("# Forecast Report")
-        summary = dp.Text(f"You selected the `prophet` model. Based on your dataset, you could have also selected the `neuralprophet` and `ARIMA` models. The following report compares a variety of metrics and plots for your target columns: `{'`, `'.join(self.target_columns)}`.")
-
-        sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data with 80% confidence.")
-        sec1 = get_select_plot_list(lambda idx: self.models[idx].plot(self.outputs[idx], include_legend=True))
-
-        sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-        sec2 = get_select_plot_list(lambda idx: self.models[idx].plot_components(self.outputs[idx]))
-
-        sec3_text = dp.Text(f"## Forecast Changepoints")
-        sec3_figs = [self.models[idx].plot(self.outputs[idx]) for idx in range(len(self.target_columns))]
-        [add_changepoints_to_plot(sec3_figs[idx].gca(), self.models[idx], self.outputs[idx]) for idx in range(len(self.target_columns))]
-        sec3 = get_select_plot_list(lambda idx: sec3_figs[idx])
-
-        # Auto-corr
-        sec4_text = dp.Text(f"## Auto-Correlation Plots")
-        # output_series = [pd.DataFrame(self.outputs[idx][["yhat", "ds"]]).set_index("ds")["yhat"] for idx in range(len(self.target_columns))]
-        output_series = [pd.Series(self.outputs[idx]["yhat"]) for idx in range(len(self.target_columns))]
-        sec4 = get_select_plot_list(lambda idx: pd.plotting.autocorrelation_plot(output_series[idx]))
-
-        sec5_text = dp.Text(f"## Forecast Seasonality Parameters")
-        sec5 = dp.Select(blocks=[dp.Table(pd.DataFrame(m.seasonalities), label=self.target_columns[i]) for i, m in enumerate(self.models)])
-
-        self.eval_metrics = evaluate_metrics(self.target_columns, self.data, self.outputs)
+        summary = dp.Text(f"You selected the `{self.model}` model. Based on your dataset, you could have also selected any of the models: `{'`, `'.join(AVAILABLE_MODELS)}`. The following report compares a variety of metrics and plots for your target columns: `{'`, `'.join(self.target_columns)}`.")
+        if self.model == "prophet":
+            other_sections = get_prophet_report(self)
+            self.eval_metrics = evaluate_metrics(self.target_columns, self.data, self.outputs)
+        elif self.model == "neuralprophet":
+            other_sections = get_neuralprophet_report(self)
+            self.eval_metrics = evaluate_metrics(self.target_columns, self.data, self.outputs, target_col="yhat1")
+        elif self.model == "arima":
+            other_sections = []
+            self.eval_metrics = evaluate_metrics(self.target_columns, self.data, self.outputs)
+        else:
+            other_sections = []
         sec6_text = dp.Text(f"## Evaluation Metrics")
         sec6 = dp.Table(self.eval_metrics)
-
         yaml_appendix_title = dp.Text(f"## Reference: YAML File")
         yaml_appendix = dp.Code(code=yaml.dump(self.args), language="yaml")
-
-        self.view = dp.View(title_text, summary, sec1_text, sec1, sec2_text, sec2, sec3_text, sec3, sec4_text, sec4, sec5_text, sec5, sec6_text, sec6, yaml_appendix_title, yaml_appendix)
+        all_sections = [title_text, summary] + other_sections + [sec6_text, sec6, yaml_appendix_title, yaml_appendix]
+        self.view = dp.View(*all_sections)
         dp.save_report(self.view, self.report_file_name, open=True)
         print(f"Generated Report: {self.report_file_name}")
         return
-
 
 def operate(args):
     operator = ForecastOperator(args).build_model()
