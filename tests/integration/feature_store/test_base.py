@@ -19,15 +19,11 @@ from ads.feature_store.input_feature_detail import FeatureDetail
 from ads.feature_store.statistics_config import StatisticsConfig
 
 
-os.environ['DEVELOPER_MODE'] = "True"
-os.environ['JAVA_HOME'] = "/Library/Java/JavaVirtualMachines/jdk-11.0.14.jdk/Contents/Home"
-
-ads.set_auth(auth="api_key", client_kwargs={"service_endpoint": "http://localhost:21000/20230101"})
-# client_kwargs = dict(
-#     retry_strategy=oci.retry.NoneRetryStrategy,
-#     service_endpoint=os.getenv("service_endpoint"),
-# )
-# ads.set_auth(client_kwargs=client_kwargs)
+client_kwargs = dict(
+    retry_strategy=oci.retry.NoneRetryStrategy,
+    service_endpoint=os.getenv("service_endpoint"),
+)
+ads.set_auth(client_kwargs=client_kwargs)
 
 try:
     from ads.feature_store.feature_store import FeatureStore
