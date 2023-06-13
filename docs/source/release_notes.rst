@@ -16,7 +16,7 @@ Release date: June 13, 2023
 * Added the capability to create ``ADSDataset`` through the pandas accessor.
 * Made ``Docker`` dependency optional for ``ads opctl run``.
 * Provided a prebuilt watch command for monitoring Data Science jobs with ``ads opctl``.
-* Eliminated the legacy ``ads.dataflow`` package from the ADS code base.
+* Eliminated the legacy ``ads.dataflow`` package from ADS.
 
 2.8.5
 -----
