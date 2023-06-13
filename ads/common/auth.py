@@ -22,6 +22,7 @@ class AuthType(str, metaclass=ExtendedEnumMeta):
     API_KEY = "api_key"
     RESOURCE_PRINCIPAL = "resource_principal"
     INSTANCE_PRINCIPAL = "instance_principal"
+    SECURITY_TOKEN = "security_token"
 
 
 class SingletonMeta(type):
@@ -139,6 +140,14 @@ def set_auth(
     >>> ads.set_auth("resource_principal")  # Set resource principal authentication
 
     >>> ads.set_auth("instance_principal")  # Set instance principal authentication
+
+    >>> ads.set_auth("security_token")  # Set security token authentication
+
+    >>> config = dict(
+    ...     key_file=~/.oci/sessions/DEFAULT/oci_api_key.pem
+    ...     security_token_file=~/.oci/sessions/DEFAULT/token
+    ... )
+    >>> ads.set_auth("security_token", config=config) # Set security token authentication from provided config
 
     >>> singer = oci.signer.Signer(
     ...     user=ocid1.user.oc1..<unique_ID>,
@@ -274,6 +283,50 @@ def resource_principal(
     return signer_generator(signer_args).create_signer()
 
 
+def security_token(
+    oci_config: Union[str, Dict] = os.path.expanduser(DEFAULT_LOCATION),
+    profile: str = DEFAULT_PROFILE,
+    client_kwargs: Dict = None,
+) -> Dict:
+    """
+    Prepares authentication and extra arguments necessary for creating clients for different OCI services using Security Token.
+
+    Parameters
+    ----------
+    oci_config: Optional[Union[str, Dict]], default is ~/.oci/config
+        OCI authentication config file location or a dictionary with config attributes.
+    profile: Optional[str], is DEFAULT_PROFILE, which is 'DEFAULT'
+        Profile name to select from the config file.
+    client_kwargs: Optional[Dict], default None
+        kwargs that are required to instantiate the Client if we need to override the defaults.
+
+    Returns
+    -------
+    dict
+        Contains keys - config, signer and client_kwargs.
+
+        - The config contains the config loaded from the configuration loaded from `oci_config`.
+        - The signer contains the signer object created from the security token.
+        - client_kwargs contains the `client_kwargs` that was passed in as input parameter.
+
+    Examples
+    --------
+    >>> from ads.common import oci_client as oc
+    >>> auth = ads.auth.security_token(oci_config="/home/datascience/.oci/config", profile="TEST", client_kwargs={"timeout": 6000})
+    >>> oc.OCIClientFactory(**auth).object_storage # Creates Object storage client with timeout set to 6000 using Security Token authentication
+    """
+    signer_args = dict(
+        oci_config=oci_config if isinstance(oci_config, Dict) else {},
+        oci_config_location=oci_config
+        if isinstance(oci_config, str)
+        else os.path.expanduser(DEFAULT_LOCATION),
+        oci_key_profile=profile,
+        client_kwargs=client_kwargs,
+    )
+    signer_generator = AuthFactory().signerGenerator(AuthType.SECURITY_TOKEN)
+    return signer_generator(signer_args).create_signer()
+
+
 def create_signer(
     auth_type: Optional[str] = AuthType.API_KEY,
     oci_config_location: Optional[str] = DEFAULT_LOCATION,
@@ -346,6 +399,11 @@ def create_signer(
     >>> signer_callable = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
     >>> signer_kwargs = dict(log_requests=True) # will log the request url and response data when retrieving
     >>> auth = ads.auth.create_signer(signer_callable=signer_callable, signer_kwargs=signer_kwargs) # instance principals authentication dictionary created based on callable with kwargs parameters
+    >>> config = dict(
+    ...     key_file=~/.oci/sessions/DEFAULT/oci_api_key.pem
+    ...     security_token_file=~/.oci/sessions/DEFAULT/token
+    ... )
+    >>> auth = ads.auth.create_signer(auth_type="security_token", config=config) # security token authentication created based on provided config
     """
     if signer or signer_callable:
         configuration = ads.telemetry.update_oci_client_config()
@@ -365,8 +423,6 @@ def create_signer(
             oci_config=config,
             client_kwargs=client_kwargs,
         )
-        if config:
-            auth_type = AuthType.API_KEY
 
         signer_generator = AuthFactory().signerGenerator(auth_type)
 
@@ -678,6 +734,102 @@ class InstancePrincipal(AuthSignerGenerator):
         return signer_dict
 
 
+class SecurityToken(AuthSignerGenerator):
+    def __init__(self, args: Optional[Dict] = None):
+        """
+        Signer created based on args provided. If not provided current values of according arguments
+        will be used from current global state from AuthState class.
+
+        Parameters
+        ----------
+        args: dict
+            args that are required to create Security Token signer. Contains keys: oci_config,
+            oci_config_location, oci_key_profile, client_kwargs.
+
+            - oci_config is a configuration dict that can be used to create clients
+            - oci_config_location - path to config file
+            - oci_key_profile - the profile to load from config file
+            - client_kwargs - optional parameters for OCI client creation in next steps
+        """
+        self.oci_config = args.get("oci_config")
+        self.oci_config_location = args.get("oci_config_location")
+        self.oci_key_profile = args.get("oci_key_profile")
+        self.client_kwargs = args.get("client_kwargs")
+
+    def create_signer(self) -> Dict:
+        """
+        Creates security token configuration and signer with extra arguments necessary for creating clients.
+        Signer constructed from the `oci_config` provided. If not 'oci_config', configuration will be
+        constructed from 'oci_config_location' and 'oci_key_profile' in place.
+
+        Returns
+        -------
+        dict
+            Contains keys - config, signer and client_kwargs.
+
+            - config contains the configuration information
+            - signer contains the signer object created. It is instantiated from signer_callable, or
+            signer provided in args used, or instantiated in place
+            - client_kwargs contains the `client_kwargs` that was passed in as input parameter
+
+        Examples
+        --------
+        >>> signer_args = dict(
+        ...     client_kwargs=client_kwargs
+        ... )
+        >>> signer_generator = AuthFactory().signerGenerator(AuthType.SECURITY_TOKEN)
+        >>> signer_generator(signer_args).create_signer()
+        """
+        if self.oci_config:
+            configuration = ads.telemetry.update_oci_client_config(self.oci_config)
+        else:
+            configuration = ads.telemetry.update_oci_client_config(
+                oci.config.from_file(self.oci_config_location, self.oci_key_profile)
+            )
+
+        logger.info(f"Using 'security_token' authentication.")
+
+        if "security_token_file" not in configuration and "security_token_content" not in configuration:
+            raise ValueError(
+                "Parameter `security_token_file` or `security_token_content` must be provided for using `security_token` authentication."
+            )
+
+        if "key_file" not in configuration and "key_content" not in configuration:
+            raise ValueError(
+                "Parameter `key_file` or `key_content` must be provided for using `security_token` authentication."
+            )
+        
+        if "security_token_content" not in configuration and not self.oci_config:
+            os.system(f'oci session refresh --profile {self.oci_key_profile or DEFAULT_PROFILE}')
+
+        return {
+            "config": configuration,
+            "signer": oci.auth.signers.SecurityTokenSigner(
+                token=(
+                    configuration.get("security_token_content", None)
+                    or self._read_security_token_file(configuration.get("security_token_file"))
+                ),
+                private_key=(
+                    oci.signer.load_private_key(configuration.get("key_content"))
+                    if configuration.get("key_content")
+                    else oci.signer.load_private_key_from_file(configuration.get("key_file"))
+                ),
+                generic_headers=configuration.get("generic_headers"),
+                body_headers=configuration.get("body_headers")
+            ),
+            "client_kwargs": self.client_kwargs,
+        }
+    
+    def _read_security_token_file(self, security_token_file: str) -> str:
+        try:
+            token = None
+            with open(security_token_file, 'r') as f:
+                token = f.read()
+            return token
+        except:
+            raise
+
+
 class AuthFactory:
     """
     AuthFactory class which contains list of registered signers and alllows to register new signers.
@@ -687,12 +839,14 @@ class AuthFactory:
         * APIKey
         * ResourcePrincipal
         * InstancePrincipal
+        * SecurityToken
     """
 
     classes = {
         AuthType.API_KEY: APIKey,
         AuthType.RESOURCE_PRINCIPAL: ResourcePrincipal,
         AuthType.INSTANCE_PRINCIPAL: InstancePrincipal,
+        AuthType.SECURITY_TOKEN: SecurityToken,
     }
 
     @classmethod
@@ -726,7 +880,7 @@ class AuthFactory:
 
         Returns
         -------
-        :class:`APIKey` or :class:`ResourcePrincipal` or :class:`InstancePrincipal`
+        :class:`APIKey` or :class:`ResourcePrincipal` or :class:`InstancePrincipal` or :class:`SecurityToken`
             returns one of classes, which implements creation of signer of specified type
 
         Raises

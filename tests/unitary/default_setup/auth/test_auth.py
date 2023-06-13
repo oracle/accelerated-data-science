@@ -11,6 +11,7 @@ import oci
 from oci.auth.signers.ephemeral_resource_principals_signer import (
     EphemeralResourcePrincipalSigner,
 )
+from oci.auth.signers.security_token_signer import SecurityTokenSigner
 import ads
 from ads import set_auth
 from ads.common.utils import (
@@ -20,6 +21,7 @@ from ads.common.utils import (
 from ads.common.auth import (
     api_keys,
     resource_principal,
+    security_token,
     create_signer,
     default_signer,
     get_signer,
@@ -121,6 +123,76 @@ class TestEDAMixin(TestCase):
         assert "additional_user_agent" in signer["config"]
         assert signer["signer"] != None
         set_auth()
+
+    @mock.patch("oci.auth.signers.SecurityTokenSigner.__init__")
+    @mock.patch("oci.signer.load_private_key")
+    @mock.patch("oci.signer.load_private_key_from_file")
+    @mock.patch("ads.common.auth.SecurityToken._read_security_token_file")
+    def test_security_token(
+        self,
+        mock_read_security_token_file, 
+        mock_load_private_key_from_file,
+        mock_load_private_key,
+        mock_security_token_signer
+    ):
+        config = {
+            "fingerprint": "test_fingerprint",
+            "tenancy": "test_tenancy",
+            "region": "us-ashburn-1",
+            "generic_headers": [1,2,3],
+            "body_headers": [4,5,6]
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="Parameter `security_token_file` or `security_token_content` must be provided for using `security_token` authentication."
+        ):
+            signer = security_token(
+                oci_config=config,
+                client_kwargs={"test_client_key":"test_client_value"}
+            )
+
+        config["security_token_file"] = "test_security_token"
+        with pytest.raises(
+            ValueError,
+            match="Parameter `key_file` or `key_content` must be provided for using `security_token` authentication."
+        ):
+            signer = security_token(
+                oci_config=config,
+                client_kwargs={"test_client_key":"test_client_value"}
+            )
+
+        config["key_file"] = "test_key_file"
+        mock_security_token_signer.return_value = None
+        signer = security_token(
+            oci_config=config,
+            client_kwargs={"test_client_key":"test_client_value"}
+        )
+
+        mock_read_security_token_file.assert_called_with("test_security_token")
+        mock_load_private_key_from_file.assert_called_with("test_key_file")
+        assert signer["client_kwargs"] == {"test_client_key": "test_client_value"}
+        assert "additional_user_agent" in signer["config"]
+        assert signer["config"]["fingerprint"] == "test_fingerprint"
+        assert signer["config"]["tenancy"] == "test_tenancy"
+        assert signer["config"]["region"] == "us-ashburn-1"
+        assert signer["config"]["security_token_file"] == "test_security_token"
+        assert signer["config"]["key_file"] == "test_key_file"
+        assert isinstance(signer["signer"], SecurityTokenSigner)
+
+        config = {
+            "fingerprint": "test_fingerprint",
+            "tenancy": "test_tenancy",
+            "region": "us-ashburn-1",
+            "security_token_content": "test_security_token_content",
+            "key_content": "test_key_content"
+        }
+        signer = security_token(
+            oci_config=config,
+            client_kwargs={"test_client_key":"test_client_value"}
+        )
+        mock_load_private_key.assert_called_with("test_key_content")
+
 
 class TestOCIMixin(TestCase):
     def tearDown(self) -> None:
