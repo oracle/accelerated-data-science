@@ -38,10 +38,8 @@ class FeatureStoreTestCase:
     # networks compartment in feature store
     TIME_NOW = datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S")
     TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    # COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaap4gumyssud5udgkbyb2nv5y3vzrkgsnskeqc77dopagutu25sjhq"
-    # METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
-    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaaqc2qulqav5pzijun724nglvsent3634hqrc2ybu5vfi3fu35tkyq"
+    COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
+    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
     INPUT_FEATURE_DETAILS = [
         FeatureDetail("sepal_length")
         .with_feature_type(FeatureType.DOUBLE)
