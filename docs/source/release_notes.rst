@@ -10,7 +10,7 @@ Release date: June 13, 2023
 * Fixed a bug that prevented the support of defined tags for Data Science job runs.
 * Fixed a bug in the ``entryscript.sh`` of ``ads opctl`` that attempted to create a temporary folder in the ``/var/folders`` directory.
 * Added support for defined tags in the Data Flow application and application run.
-* Deprecated the old :py:class:`~ads.model.ModelDeploymentProperties`, :py:class:`~ads.model.ModelDeployer`  classes, and their corresponding APIs.
+* Deprecated the old :py:class:`~ads.model.ModelDeploymentProperties` and  :py:class:`~ads.model.ModelDeployer`  classes, and their corresponding APIs.
 * Enabled the uploading of large size model artifacts for the :py:class:`~ads.model.ModelDeployment` class.
 * Implemented validation for shape name and shape configuration details in Data Science jobs and Data Flow applications.
 * Added the capability to create ``ADSDataset`` using the Pandas accessor.
