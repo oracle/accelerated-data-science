@@ -28,7 +28,10 @@ def operate(operator):
     from neuralprophet import NeuralProphet
     data = _load_data(operator.input_filename, operator.historical_data.get("format"), operator.storage_options, columns=operator.historical_data.get("columns"))
     data = _preprocess_prophet(data, operator.ds_column, operator.datetime_format)
-    data = _clean_data(data)
+    data, operator.target_columns = _clean_data(data=data, 
+                                                target_columns=operator.target_columns, 
+                                                target_category_column=operator.target_category_column, 
+                                                datetime_column="ds")
     operator.data = data
     
     models = []

@@ -30,8 +30,11 @@ def _preprocess_arima(data, ds_column, datetime_format):
 
 def operate(operator):
     data = _load_data(operator.input_filename, operator.historical_data.get("format"), operator.storage_options, columns=operator.historical_data.get("columns"))
+    data, operator.target_columns = _clean_data(data=data, 
+                                                target_columns=operator.target_columns, 
+                                                target_category_column=operator.target_category_column, 
+                                                datetime_column=operator.ds_column)
     data = _preprocess_arima(data, operator.ds_column, operator.datetime_format)
-    data = _clean_data(data)
     operator.data = data
     
     models = []
@@ -53,15 +56,16 @@ def operate(operator):
         forecast = pd.concat([yhat_clean, conf_int_clean], axis=1)
         print(f"-----------------Model {i}----------------------")
         print(forecast[['yhat', 'yhat_lower', 'yhat_upper']].tail())
-        forecast_output = forecast.rename(lambda x: x+"_"+col if x != 'ds' else x, axis=1)
         models.append(model)
-        outputs.append(forecast_output)
+        outputs.append(forecast)
     
     operator.models = models
     operator.outputs = outputs
 
     print("===========Done===========")
-    output_total = pd.concat(operator.outputs, axis=1)
-    
+    outputs_merged = outputs.copy()
+    for i, col in enumerate(operator.target_columns):
+        outputs_merged[i] = outputs_merged[i].rename(lambda x: x+"_"+col if x != 'ds' else x, axis=1)
+    output_total = pd.concat(outputs_merged, axis=1)
     _write_data(output_total, operator.output_filename, "csv", operator.storage_options)
     return data, models, outputs
