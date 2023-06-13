@@ -15,7 +15,7 @@ Release date: June 13, 2023
 * Implemented validation for shape name and shape configuration details in Data Science jobs and Data Flow applications.
 * Added the capability to create ``ADSDataset`` through the pandas accessor.
 * Made ``Docker`` dependency optional for ``ads opctl run``.
-* Provided a prebuilt watch command for monitoring Data Science Jobs with ``ads opctl``.
+* Provided a prebuilt watch command for monitoring Data Science jobs with ``ads opctl``.
 * Eliminated the legacy ``ads.dataflow`` package from the ADS code base.
 
 2.8.5
