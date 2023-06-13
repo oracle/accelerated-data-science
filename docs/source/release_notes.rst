@@ -7,7 +7,7 @@ Release Notes
 Release date: June 13, 2023
 
 * Resolved an issue in ``ads opctl build-image job-local`` when the build of ``job-local`` would get stuck. Updated the Python version to 3.8 in the base environment of the ``job-local`` image.
-* Fixed a bug that prevented the support of defined tags for Data Science Job runs.
+* Fixed a bug that prevented the support of defined tags for Data Science job runs.
 * Fixed a bug in the ``entryscript.sh`` of ``ads opctl`` that attempted to create a temporary folder in the ``/var/folders`` directory.
 * Added support for defined tags in the Data Flow application and application run.
 * Deprecated the old :py:class:`~ads.model.ModelDeploymentProperties`, :py:class:`~ads.model.ModelDeployer`  classes, and their corresponding APIs.
