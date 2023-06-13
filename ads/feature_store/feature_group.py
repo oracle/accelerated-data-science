@@ -136,6 +136,7 @@ class FeatureGroup(Builder):
     CONST_STATISTICS_CONFIG = "statisticsConfig"
     CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_LAST_JOB_ID = "jobId"
+    CONST_INFER_SCHEMA = "isInferSchema"
 
     attribute_map = {
         CONST_ID: "id",
@@ -154,6 +155,7 @@ class FeatureGroup(Builder):
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_STATISTICS_CONFIG: "statistics_config",
+        CONST_INFER_SCHEMA: "is_infer_schema"
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -464,6 +466,8 @@ class FeatureGroup(Builder):
         FeatureGroup
             The FeatureGroup instance (self)
         """
+        if not self.is_infer_schema:
+            self.with_is_infer_schema(False)
         return self.set_spec(
             self.CONST_INPUT_FEATURE_DETAILS,
             [feature_details.to_dict() for feature_details in input_feature_details],
@@ -477,7 +481,7 @@ class FeatureGroup(Builder):
 
         for schema_detail in schema_details:
             feature_details.append(FeatureDetail(**schema_detail))
-
+        self.with_is_infer_schema(True)
         return self.with_input_feature_details(feature_details)
 
     def _with_features(self, features: List[Feature]):
@@ -564,6 +568,28 @@ class FeatureGroup(Builder):
             The FeatureGroup instance (self)
         """
         return self.set_spec(self.CONST_LAST_JOB_ID, feature_group_job_id)
+
+    @property
+    def is_infer_schema(self) -> bool:
+        return self.get_spec(self.CONST_INFER_SCHEMA)
+
+    @is_infer_schema.setter
+    def is_infer_schema(self, value: bool):
+        self.with_is_infer_schema(value)
+
+    def with_is_infer_schema(self, is_infer_schema: bool) -> "FeatureGroup":
+        """Sets the job_id for the last running job.
+
+        Parameters
+        ----------
+        is_infer_schema: bool
+            Infer Schema or not.
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(self.CONST_INFER_SCHEMA, is_infer_schema)
 
     def target_delta_table(self):
         """

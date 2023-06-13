@@ -138,7 +138,7 @@ class SparkEngine:
             target_table_columns.append(
                 {
                     "name": field.name,
-                    "featureType": map_spark_type_to_feature_type(field.dataType),
+                    "featureType": map_spark_type_to_feature_type(field.dataType).value,
                 }
             )
         return target_table_columns

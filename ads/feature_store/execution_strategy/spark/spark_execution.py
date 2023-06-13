@@ -28,7 +28,7 @@ from ads.feature_store.common.enums import (
 )
 from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
 from ads.feature_store.common.utils.feature_schema_mapper import (
-    get_raw_data_source_schema,
+    convert_pandas_datatype_with_schema,
 )
 from ads.feature_store.common.utils.transformation_utils import TransformationUtils
 from ads.feature_store.data_validation.great_expectation import ExpectationService
@@ -177,16 +177,9 @@ class SparkExecutionEngine(Strategy):
             database = feature_group.entity_id
             self.spark_engine.create_database(database)
 
-            if data_frame is None:
-                raw_schema = get_raw_data_source_schema(
-                    feature_group.input_feature_details
-                )
-            elif isinstance(data_frame, pd.DataFrame):
-                raw_schema = self.spark_engine.convert_from_pandas_to_spark_dataframe(
-                    data_frame
-                ).schema
-            else:
-                raw_schema = data_frame.schema
+            if isinstance(data_frame, pd.DataFrame):
+                if not feature_group.is_infer_schema:
+                    convert_pandas_datatype_with_schema(feature_group.input_feature_details, data_frame)
 
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 
@@ -223,7 +216,7 @@ class SparkExecutionEngine(Strategy):
                 target_table,
                 feature_group.primary_keys,
                 feature_group_job.ingestion_mode,
-                raw_schema,
+                featured_data.schema,
                 feature_group_job.feature_option_details,
             )
 
