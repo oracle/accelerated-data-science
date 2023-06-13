@@ -2,6 +2,22 @@
 Release Notes
 =============
 
+2.8.6
+-----
+Release date: June 13, 2023
+
+* Resolved an issue in ``ads opctl build-image job-local`` when the build of ``job-local`` would get stuck. Updated the Python version to 3.8 in the base environment of the ``job-local`` image.
+* Fixed a bug that prevented the support of defined tags for Data Science job runs.
+* Fixed a bug in the ``entryscript.sh`` of ``ads opctl`` that attempted to create a temporary folder in the ``/var/folders`` directory.
+* Added support for defined tags in the Data Flow application and application run.
+* Deprecated the old :py:class:`~ads.model.ModelDeploymentProperties` and  :py:class:`~ads.model.ModelDeployer`  classes, and their corresponding APIs.
+* Enabled the uploading of large size model artifacts for the :py:class:`~ads.model.ModelDeployment` class.
+* Implemented validation for shape name and shape configuration details in Data Science jobs and Data Flow applications.
+* Added the capability to create ``ADSDataset`` using the Pandas accessor.
+* Made ``Docker`` dependency optional for ``ads opctl run``.
+* Provided a prebuilt watch command for monitoring Data Science jobs with ``ads opctl``.
+* Eliminated the legacy ``ads.dataflow`` package from ADS.
+
 2.8.5
 -----
 Release date: May 17, 2023
