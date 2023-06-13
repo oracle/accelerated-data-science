@@ -735,6 +735,12 @@ class InstancePrincipal(AuthSignerGenerator):
 
 
 class SecurityToken(AuthSignerGenerator):
+    """
+    Creates security token auth instance. This signer is intended to be used when signing requests for
+    a given user - it requires that user's private key and security token.
+    It prepares extra arguments necessary for creating clients for variety of OCI services.
+    """
+
     def __init__(self, args: Optional[Dict] = None):
         """
         Signer created based on args provided. If not provided current values of according arguments
