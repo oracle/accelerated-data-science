@@ -138,3 +138,6 @@ def test_evaluate_metrics(target_columns, test_filename, outputs, operator, targ
         "Elapsed Time": operator.elapsed_time,
     }, index=['All Targets']) 
     return total_metrics, summary_metrics
+
+def plot_simple():
+    pass

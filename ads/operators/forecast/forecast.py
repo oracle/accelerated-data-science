@@ -110,17 +110,17 @@ class ForecastOperator:
         if train_metrics:
             self.eval_metrics = evaluate_metrics(self.target_columns, self.data, self.outputs, target_col=target_col_name)
             sec6_text = dp.Text(f"## Historical Data Evaluation Metrics")
-            sec6 = dp.Table(self.eval_metrics)
+            sec6 = dp.DataTable(self.eval_metrics)
             train_metric_sections = [sec6_text, sec6]
 
         test_eval_metrics = []
         if self.test_filename:
             self.test_eval_metrics, summary_metrics = test_evaluate_metrics(self.target_columns, self.test_filename, self.outputs, self, target_col=target_col_name)
             sec7_text = dp.Text(f"## Holdout Data Evaluation Metrics")
-            sec7 = dp.Table(self.test_eval_metrics)
+            sec7 = dp.DataTable(self.test_eval_metrics)
 
             sec8_text = dp.Text(f"## Holdout Data Summary Metrics")
-            sec8 = dp.Table(summary_metrics)
+            sec8 = dp.DataTable(summary_metrics)
 
             test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
 
