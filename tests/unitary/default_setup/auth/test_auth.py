@@ -125,27 +125,26 @@ class TestEDAMixin(TestCase):
         set_auth()
 
     @mock.patch("oci.auth.signers.SecurityTokenSigner.__init__")
-    @mock.patch("oci.signer.load_private_key")
     @mock.patch("oci.signer.load_private_key_from_file")
     @mock.patch("ads.common.auth.SecurityToken._read_security_token_file")
-    def test_security_token(
+    def test_security_token_from_config(
         self,
         mock_read_security_token_file, 
         mock_load_private_key_from_file,
-        mock_load_private_key,
         mock_security_token_signer
     ):
         config = {
             "fingerprint": "test_fingerprint",
             "tenancy": "test_tenancy",
             "region": "us-ashburn-1",
+            "key_file": "test_key_file",
             "generic_headers": [1,2,3],
             "body_headers": [4,5,6]
         }
 
         with pytest.raises(
             ValueError,
-            match="Parameter `security_token_file` or `security_token_content` must be provided for using `security_token` authentication."
+            match="Parameter `security_token_file` must be provided for using `security_token` authentication."
         ):
             signer = security_token(
                 oci_config=config,
@@ -153,16 +152,6 @@ class TestEDAMixin(TestCase):
             )
 
         config["security_token_file"] = "test_security_token"
-        with pytest.raises(
-            ValueError,
-            match="Parameter `key_file` or `key_content` must be provided for using `security_token` authentication."
-        ):
-            signer = security_token(
-                oci_config=config,
-                client_kwargs={"test_client_key":"test_client_value"}
-            )
-
-        config["key_file"] = "test_key_file"
         mock_security_token_signer.return_value = None
         signer = security_token(
             oci_config=config,
@@ -180,18 +169,51 @@ class TestEDAMixin(TestCase):
         assert signer["config"]["key_file"] == "test_key_file"
         assert isinstance(signer["signer"], SecurityTokenSigner)
 
-        config = {
+    @mock.patch("oci.auth.signers.SecurityTokenSigner.__init__")
+    @mock.patch("oci.signer.load_private_key_from_file")
+    @mock.patch("builtins.open")
+    @mock.patch("os.path.isfile")
+    @mock.patch("os.system")
+    @mock.patch("oci.config.from_file")
+    def test_security_token_from_file(
+        self,
+        mock_from_file,
+        mock_system,
+        mock_isfile,
+        mock_open,
+        mock_load_private_key_from_file,
+        mock_security_token_signer
+    ):
+        mock_from_file.return_value = {
             "fingerprint": "test_fingerprint",
             "tenancy": "test_tenancy",
             "region": "us-ashburn-1",
-            "security_token_content": "test_security_token_content",
-            "key_content": "test_key_content"
+            "key_file": "test_key_file",
+            "security_token_file": "test_security_token"
         }
+        mock_isfile.return_value = True
+        mock_security_token_signer.return_value = None
         signer = security_token(
-            oci_config=config,
+            oci_config="test_config_location",
+            profile="test_key_profile",
             client_kwargs={"test_client_key":"test_client_value"}
         )
-        mock_load_private_key.assert_called_with("test_key_content")
+
+        mock_from_file.assert_called_with("test_config_location", "test_key_profile")
+        mock_system.assert_called_with("oci session refresh --profile test_key_profile")
+        mock_isfile.assert_called_with("test_security_token")
+        mock_open.assert_called()
+        mock_load_private_key_from_file.assert_called_with("test_key_file")
+        mock_security_token_signer.assert_called()
+
+        assert signer["client_kwargs"] == {"test_client_key": "test_client_value"}
+        assert "additional_user_agent" in signer["config"]
+        assert signer["config"]["fingerprint"] == "test_fingerprint"
+        assert signer["config"]["tenancy"] == "test_tenancy"
+        assert signer["config"]["region"] == "us-ashburn-1"
+        assert signer["config"]["security_token_file"] == "test_security_token"
+        assert signer["config"]["key_file"] == "test_key_file"
+        assert isinstance(signer["signer"], SecurityTokenSigner)
 
 
 class TestOCIMixin(TestCase):

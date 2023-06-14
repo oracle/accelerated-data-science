@@ -17,6 +17,22 @@ from ads.common.extended_enum import ExtendedEnumMeta
 from oci.config import DEFAULT_LOCATION  # "~/.oci/config"
 from oci.config import DEFAULT_PROFILE  # "DEFAULT"
 
+SECURITY_TOKEN_GENERIC_HEADERS = [
+    "date", 
+    "(request-target)", 
+    "host"
+]
+SECURITY_TOKEN_BODY_HEADERS = [
+    "content-length", 
+    "content-type", 
+    "x-content-sha256"
+]
+SECURITY_TOKEN_REQUIRED = [
+    "security_token_file", 
+    "key_file", 
+    "region"
+]
+
 
 class AuthType(str, metaclass=ExtendedEnumMeta):
     API_KEY = "api_key"
@@ -144,7 +160,8 @@ def set_auth(
     >>> ads.set_auth("security_token")  # Set security token authentication
 
     >>> config = dict(
-    ...     key_file=~/.oci/sessions/DEFAULT/oci_api_key.pem
+    ...     region=us-ashburn-1,
+    ...     key_file=~/.oci/sessions/DEFAULT/oci_api_key.pem,
     ...     security_token_file=~/.oci/sessions/DEFAULT/token
     ... )
     >>> ads.set_auth("security_token", config=config) # Set security token authentication from provided config
@@ -400,7 +417,8 @@ def create_signer(
     >>> signer_kwargs = dict(log_requests=True) # will log the request url and response data when retrieving
     >>> auth = ads.auth.create_signer(signer_callable=signer_callable, signer_kwargs=signer_kwargs) # instance principals authentication dictionary created based on callable with kwargs parameters
     >>> config = dict(
-    ...     key_file=~/.oci/sessions/DEFAULT/oci_api_key.pem
+    ...     region=us-ashburn-1,
+    ...     key_file=~/.oci/sessions/DEFAULT/oci_api_key.pem,
     ...     security_token_file=~/.oci/sessions/DEFAULT/token
     ... )
     >>> auth = ads.auth.create_signer(auth_type="security_token", config=config) # security token authentication created based on provided config
@@ -795,38 +813,29 @@ class SecurityToken(AuthSignerGenerator):
 
         logger.info(f"Using 'security_token' authentication.")
 
-        if "security_token_file" not in configuration and "security_token_content" not in configuration:
-            raise ValueError(
-                "Parameter `security_token_file` or `security_token_content` must be provided for using `security_token` authentication."
-            )
-
-        if "key_file" not in configuration and "key_content" not in configuration:
-            raise ValueError(
-                "Parameter `key_file` or `key_content` must be provided for using `security_token` authentication."
-            )
+        for parameter in SECURITY_TOKEN_REQUIRED:
+            if parameter not in configuration:
+                raise ValueError(
+                    f"Parameter `{parameter}` must be provided for using `security_token` authentication."
+                )
         
-        if "security_token_content" not in configuration and not self.oci_config:
-            os.system(f'oci session refresh --profile {self.oci_key_profile or DEFAULT_PROFILE}')
+        if not self.oci_config:
+            os.system(f'oci session refresh --profile {self.oci_key_profile}')
 
         return {
             "config": configuration,
             "signer": oci.auth.signers.SecurityTokenSigner(
-                token=(
-                    configuration.get("security_token_content", None)
-                    or self._read_security_token_file(configuration.get("security_token_file"))
-                ),
-                private_key=(
-                    oci.signer.load_private_key(configuration.get("key_content"))
-                    if configuration.get("key_content")
-                    else oci.signer.load_private_key_from_file(configuration.get("key_file"))
-                ),
-                generic_headers=configuration.get("generic_headers"),
-                body_headers=configuration.get("body_headers")
+                token=self._read_security_token_file(configuration.get("security_token_file")),
+                private_key=oci.signer.load_private_key_from_file(configuration.get("key_file")),
+                generic_headers=configuration.get("generic_headers", SECURITY_TOKEN_GENERIC_HEADERS),
+                body_headers=configuration.get("body_headers", SECURITY_TOKEN_BODY_HEADERS)
             ),
             "client_kwargs": self.client_kwargs,
         }
     
     def _read_security_token_file(self, security_token_file: str) -> str:
+        if not os.path.isfile(security_token_file):
+            raise ValueError("Invalid `security_token_file`. Specify a valid path.")
         try:
             token = None
             with open(security_token_file, 'r') as f:
