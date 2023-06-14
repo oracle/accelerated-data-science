@@ -29,6 +29,7 @@ def _preprocess_prophet(data, ds_column, datetime_format):
 
 def operate(operator):
     data = _load_data(operator.input_filename, operator.historical_data.get("format"), operator.storage_options, columns=operator.historical_data.get("columns"))
+    operator.original_user_data = data.copy()
     data = _preprocess_prophet(data, operator.ds_column, operator.datetime_format)
     data, operator.target_columns = _clean_data(data=data, 
                                                 target_columns=operator.target_columns, 
@@ -45,7 +46,7 @@ def operate(operator):
         model = Prophet()
         model.fit(data_i)
 
-        future = model.make_future_dataframe(periods=operator.horizon['periods']) #, freq=operator.horizon['interval_unit'])
+        future = model.make_future_dataframe(periods=operator.horizon['periods'], freq=operator.horizon['interval_unit'])
         forecast = model.predict(future)
 
         print(f"-----------------Model {i}----------------------")
@@ -70,7 +71,7 @@ def get_prophet_report(self):
     def get_select_plot_list(fn):
         return dp.Select(blocks=[dp.Plot(fn(i), label=col) for i, col in enumerate(self.target_columns)])
     
-    sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data with 80% confidence.")
+    sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data.")
     sec1 = get_select_plot_list(lambda idx: self.models[idx].plot(self.outputs[idx], include_legend=True))
     
     sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
@@ -83,14 +84,23 @@ def get_prophet_report(self):
 
     # # Auto-corr
     # sec4_text = dp.Text(f"## Auto-Correlation Plots")
-    # output_series = []
+    # auto_corr_figures = []
     # for idx in range(len(self.target_columns)):
     #     series = pd.Series(self.outputs[idx]["yhat"])
     #     series.index = pd.DatetimeIndex(self.outputs[idx]["ds"])
-    #     output_series.append(series)
-    # sec4 = get_select_plot_list(lambda idx: pd.plotting.autocorrelation_plot(output_series[idx]))
+    #     auto_corr_figures.append(pd.plotting.autocorrelation_plot(series).figure)
+    # sec4 = get_select_plot_list(lambda idx: auto_corr_figures[idx])
 
-    # sec5_text = dp.Text(f"## Forecast Seasonality Parameters")
-    # sec5 = dp.Select(blocks=[dp.Table(pd.DataFrame(m.seasonalities), label=self.target_columns[i]) for i, m in enumerate(self.models)])
+    all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
+
     
-    return [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3] # sec4_text, sec4, sec5_text, sec5
+    sec5_text = dp.Text(f"## Prophet Model Seasonality Components")
+    model_states = []
+    for i, m in enumerate(self.models):
+        model_states.append(pd.Series(m.seasonalities, index=m.seasonalities.keys(), name=self.target_columns[i]))
+    all_model_states = pd.concat(model_states, axis=1)
+    if not all_model_states.empty:
+        sec5 = dp.DataTable(all_model_states)
+        all_sections = all_sections + [sec5_text, sec5]
+    
+    return all_sections #+ [sec4_text, sec4]

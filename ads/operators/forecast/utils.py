@@ -137,7 +137,36 @@ def test_evaluate_metrics(target_columns, test_filename, outputs, operator, targ
         "Median Explained Variance": np.median(total_metrics.loc["Explained Variance"]),
         "Elapsed Time": operator.elapsed_time,
     }, index=['All Targets']) 
-    return total_metrics, summary_metrics
+    return total_metrics, summary_metrics, data
 
-def plot_simple():
-    pass
+
+def get_forecast_plots(data, outputs, target_columns, test_data=None, ds_col=None, ds_forecast_col=None, forecast_col_name="yhat", ci_col_names=None):
+    import plotly.express as px
+    from plotly import graph_objects as go
+    import datapane as dp
+    if ds_forecast_col is None:
+        ds_forecast_col = ds_col
+    print(f"target_columns: {target_columns}\ndata:{data}")
+    def get_select_plot_list(fn):
+        return dp.Select(blocks=[dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)])
+
+    def plot_forecast_plotly(idx, col):
+        fig = go.Figure()
+        if ci_col_names is not None:
+            fig.add_traces([
+                go.Scatter(x = ds_forecast_col, y = outputs[idx][ci_col_names[0]],
+                        mode = 'lines', line_color = 'rgba(0,0,0,0)',
+                        showlegend = False),
+                go.Scatter(x = ds_forecast_col, y = outputs[idx][ci_col_names[1]],
+                        mode = 'lines', line_color = 'rgba(0,0,0,0)',
+                        name = '95% confidence interval',
+                        fill='tonexty', fillcolor = 'rgba(211, 211, 211, 0.5)')
+                ])
+        fig.add_trace(go.Scatter(x=ds_col, y=data[col], mode="markers", marker_color="black", name="Historical"))
+        fig.add_trace(go.Scatter(x=ds_forecast_col, y=outputs[idx][forecast_col_name],
+                    mode = 'lines+markers', line_color = 'blue',
+                    name = 'Forecast'))
+        fig.add_vline(x=ds_col[-1:].values[0], line_width=1, line_dash="dash", line_color="gray")
+        return fig
+
+    return get_select_plot_list(plot_forecast_plotly)

@@ -29,7 +29,7 @@ from ads.operators.forecast.neural_prophet import operate as neuralprophet_opera
 from ads.operators.forecast.neural_prophet import get_neuralprophet_report
 from ads.operators.forecast.arima import operate as arima_operate
 
-from ads.operators.forecast.utils import evaluate_metrics, test_evaluate_metrics
+from ads.operators.forecast.utils import evaluate_metrics, test_evaluate_metrics, get_forecast_plots
 from sklearn.metrics import (
     mean_absolute_percentage_error,
     explained_variance_score,
@@ -100,10 +100,12 @@ class ForecastOperator:
             )
 
         title_text = dp.Text("# Forecast Report")
-        target_col_name = "yhat"
+        forecast_col_name = "yhat"
+        ci_col_names = None
         train_metrics = True
         model_description = dp.Text("---")
         other_sections = []
+        ds_forecast_col = None
 
         if self.model == "prophet":
             model_description = dp.Text(
@@ -111,19 +113,24 @@ class ForecastOperator:
             )
             other_sections = get_prophet_report(self)
             ds_column_series = self.data["ds"]
+            ds_forecast_col = self.outputs[0]["ds"]
+            ci_col_names = ['yhat_lower', 'yhat_upper']
         elif self.model == "neuralprophet":
             model_description = dp.Text(
                 "NeuralProphet is an easy to learn framework for interpretable time series forecasting. NeuralProphet is built on PyTorch and combines Neural Network and traditional time-series algorithms, inspired by Facebook Prophet and AR-Net."
             )
             other_sections = get_neuralprophet_report(self)
-            target_col_name = "yhat1"
+            forecast_col_name = "yhat1"
             ds_column_series = self.data["ds"]
+            ds_forecast_col = self.outputs[0]["ds"]
         elif self.model == "arima":
             model_description = dp.Text(
                 "An autoregressive integrated moving average, or ARIMA, is a statistical analysis model that uses time series data to either better understand the data set or to predict future trends. A statistical model is autoregressive if it predicts future values based on past values."
             )
             train_metrics = False
             ds_column_series = self.data.index
+            ds_forecast_col = self.outputs[0].index
+            ci_col_names = ['yhat_lower', 'yhat_upper']
 
         md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
         summary = dp.Blocks(
@@ -150,9 +157,13 @@ class ForecastOperator:
                             dp.BigNumber(heading="Num series", value=len(self.target_columns)),
                             columns=4,
                         ),
-                        dp.DataTable(self.data.head(10), caption="Start"),
+                        dp.Text("### First 10 Rows of Data"),
+                        dp.DataTable(self.original_user_data.head(10), caption="Start"),
                         dp.Text("----"),
-                        dp.DataTable(self.data.tail(10), caption="End"),
+                        dp.Text("### Last 10 Rows of Data"),
+                        dp.DataTable(self.original_user_data.tail(10), caption="End"),
+                        dp.Text("### Data Summary Statistics"),
+                        dp.DataTable(self.data.describe(), caption="Summary Statistics"),
                         label="Summary",
                     ),
                     dp.Text(
@@ -166,20 +177,21 @@ class ForecastOperator:
         train_metric_sections = []
         if train_metrics:
             self.eval_metrics = evaluate_metrics(
-                self.target_columns, self.data, self.outputs, target_col=target_col_name
+                self.target_columns, self.data, self.outputs, target_col=forecast_col_name
             )
             sec6_text = dp.Text(f"## Historical Data Evaluation Metrics")
             sec6 = dp.DataTable(self.eval_metrics)
             train_metric_sections = [sec6_text, sec6]
 
         test_eval_metrics = []
+        test_data = None
         if self.test_filename:
-            self.test_eval_metrics, summary_metrics = test_evaluate_metrics(
+            self.test_eval_metrics, summary_metrics, test_data = test_evaluate_metrics(
                 self.target_columns,
                 self.test_filename,
                 self.outputs,
                 self,
-                target_col=target_col_name,
+                target_col=forecast_col_name,
             )
             sec7_text = dp.Text(f"## Holdout Data Evaluation Metrics")
             sec7 = dp.DataTable(self.test_eval_metrics)
@@ -188,11 +200,16 @@ class ForecastOperator:
             sec8 = dp.DataTable(summary_metrics)
 
             test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
+        
+        forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
+        forecast_sec = get_forecast_plots(self.data, self.outputs, self.target_columns, test_data=test_data, forecast_col_name=forecast_col_name, ds_col=ds_column_series, ds_forecast_col=ds_forecast_col, ci_col_names=ci_col_names)
+        forecast_plots = [forecast_text, forecast_sec]
 
         yaml_appendix_title = dp.Text(f"## Reference: YAML File")
         yaml_appendix = dp.Code(code=yaml.dump(self.args), language="yaml")
         all_sections = (
             [title_text, summary]
+            + forecast_plots
             + other_sections
             + test_eval_metrics
             + train_metric_sections

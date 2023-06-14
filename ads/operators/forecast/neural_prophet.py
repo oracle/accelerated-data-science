@@ -27,6 +27,7 @@ def _preprocess_prophet(data, ds_column, datetime_format):
 def operate(operator):
     from neuralprophet import NeuralProphet
     data = _load_data(operator.input_filename, operator.historical_data.get("format"), operator.storage_options, columns=operator.historical_data.get("columns"))
+    operator.original_user_data = data.copy()
     data = _preprocess_prophet(data, operator.ds_column, operator.datetime_format)
     data, operator.target_columns = _clean_data(data=data, 
                                                 target_columns=operator.target_columns, 
@@ -70,16 +71,14 @@ def get_neuralprophet_report(self):
     def get_select_plot_list(fn):
         return dp.Select(blocks=[dp.Plot(fn(i), label=col) for i, col in enumerate(self.target_columns)])
     
-    # sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data with 80% confidence.")
-    # sec1 = get_select_plot_list(lambda idx: self.models[idx].plot(self.outputs[idx]))
+    sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data.") # TODO add confidence intervals
+    sec1 = get_select_plot_list(lambda idx: self.models[idx].plot(self.outputs[idx]))
     
-    # sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-    # sec2 = get_select_plot_list(lambda idx: self.models[idx].plot_components(self.outputs[idx]))
+    sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
+    sec2 = get_select_plot_list(lambda idx: self.models[idx].plot_components(self.outputs[idx]))
     
-    # sec3_text = dp.Text(f"## Forecast Changepoints")
-    # sec3_figs = [self.models[idx].plot(self.outputs[idx]) for idx in range(len(self.target_columns))]
-    # [add_changepoints_to_plot(sec3_figs[idx].gca(), self.models[idx], self.outputs[idx]) for idx in range(len(self.target_columns))]
-    # sec3 = get_select_plot_list(lambda idx: sec3_figs[idx])
+    sec3_text = dp.Text(f"## Forecast Parameter Plots")
+    sec3 = get_select_plot_list(lambda idx: self.models[idx].plot_parameters())
 
     # Auto-corr
     # sec4_text = dp.Text(f"## Auto-Correlation Plots")
@@ -90,13 +89,15 @@ def get_neuralprophet_report(self):
     #     output_series.append(series)
     # sec4 = get_select_plot_list(lambda idx: pd.plotting.autocorrelation_plot(output_series[idx]))
 
-    # sec5_text = dp.Text(f"## Forecast Seasonality Parameters")
-    # sec5 = dp.Select(blocks=[dp.Table(pd.DataFrame(m.seasonalities), label=self.target_columns[i]) for i, m in enumerate(self.models)])
+    sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
+    model_states = []
+    for i, m in enumerate(self.models):
+        model_states.append(pd.Series(m.state_dict(), index=m.state_dict().keys(), name=self.target_columns[i]))
+    all_model_states = pd.concat(model_states, axis=1)
+    sec5 = dp.DataTable(all_model_states)
     
-    # return [sec1_text, sec1, sec2_text, sec2]
     # return [sec4_text, sec4]
-    return []
-
+    return [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3, sec5_text, sec5]
 
 
 # from neuralprophet import NeuralProphet

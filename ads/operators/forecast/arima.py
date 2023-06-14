@@ -30,6 +30,7 @@ def _preprocess_arima(data, ds_column, datetime_format):
 
 def operate(operator):
     data = _load_data(operator.input_filename, operator.historical_data.get("format"), operator.storage_options, columns=operator.historical_data.get("columns"))
+    operator.original_user_data = data.copy()
     data, operator.target_columns = _clean_data(data=data, 
                                                 target_columns=operator.target_columns, 
                                                 target_category_column=operator.target_category_column, 
