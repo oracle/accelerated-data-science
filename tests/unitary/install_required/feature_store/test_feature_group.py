@@ -39,6 +39,7 @@ FEATURE_GROUP_PAYLOAD = {
         {"featureType": "STRING", "name": "provider"},
         {"featureType": "STRING", "name": "expires"},
     ],
+    "isInferSchema": False,
 }
 
 
@@ -80,7 +81,9 @@ class TestFeatureGroup:
         self.payload = deepcopy(FEATURE_GROUP_PAYLOAD)
         self.payload_feature_group_job = deepcopy(FEATURE_GROUP_JOB_PAYLOAD)
         self.mock_dsc_feature_group = FeatureGroup(**self.payload)
-        self.mock_dsc_feature_group_job = FeatureGroupJob(**self.payload_feature_group_job)
+        self.mock_dsc_feature_group_job = FeatureGroupJob(
+            **self.payload_feature_group_job
+        )
 
     def prepare_dict(self, data):
         return data
@@ -268,7 +271,6 @@ class TestFeatureGroup:
                 ).to_dict()
             )
 
-
     @patch.object(OCIFeatureGroup, "update")
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
@@ -278,7 +280,9 @@ class TestFeatureGroup:
         with patch.object(FeatureGroupJob, "create") as mock_feature_group_job:
             with patch.object(FeatureStore, "from_id"):
                 with patch.object(FeatureGroupJob, "_mark_job_complete"):
-                    mock_feature_group_job.return_value = self.mock_dsc_feature_group_job
+                    mock_feature_group_job.return_value = (
+                        self.mock_dsc_feature_group_job
+                    )
                     self.mock_dsc_feature_group.with_id(FEATURE_GROUP_OCID)
                     self.mock_dsc_feature_group.materialise(dataframe_fixture_basic)
 
@@ -313,7 +317,9 @@ class TestFeatureGroup:
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
-    def test_restore(self, feature_store, spark_session, get_spark_session, mock_update):
+    def test_restore(
+        self, feature_store, spark_session, get_spark_session, mock_update
+    ):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
             mock_execution_strategy.return_value = None
             self.mock_dsc_feature_group.with_id(FEATURE_GROUP_OCID)

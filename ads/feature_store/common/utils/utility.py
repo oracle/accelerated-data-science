@@ -159,9 +159,7 @@ def get_schema_from_pandas_df(df: pd.DataFrame):
     for order_number, field in enumerate(df.columns, start=1):
         details = {
             "name": field,
-            "feature_type": FeatureType(
-                map_pandas_type_to_feature_type(str(df[field].dtype))
-            ),
+            "feature_type": map_pandas_type_to_feature_type(field, df[field]),
             "order_number": order_number,
         }
 
@@ -176,7 +174,7 @@ def get_schema_from_spark_df(df: DataFrame):
     for order_number, field in enumerate(df.schema.fields, start=1):
         details = {
             "name": field.name,
-            "feature_type": FeatureType(map_spark_type_to_feature_type(field.dataType)),
+            "feature_type": map_spark_type_to_feature_type(field.dataType),
             "order_number": order_number,
         }
         schema_details.append(details)
