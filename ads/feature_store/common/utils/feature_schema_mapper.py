@@ -6,12 +6,11 @@
 
 from typing import List
 
+import numpy as np
 import pandas as pd
-from ads.feature_store.input_feature_detail import FeatureDetail
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.feature_store.common.enums import FeatureType
-import numpy as np
 
 try:
     from pyspark.sql.types import *
@@ -76,22 +75,22 @@ def map_pandas_type_to_feature_type(feature_name, values):
     if pandas_type is "object":
         for row in values:
             if isinstance(row, (list, np.ndarray)):
-                raise TypeError(
-                    f"object of type {type(row)} not supported"
-                )
+                raise TypeError(f"object of type {type(row)} not supported")
             pandas_basic_type = type(row).__name__
-            current_dtype = map_pandas_basic_type_to_feature_type(
-                feature_name,pandas_basic_type)
+            current_dtype = map_pandas_basic_type_to_feature_type(pandas_basic_type)
             if inferred_dtype is FeatureType.UNKNOWN:
                 inferred_dtype = current_dtype
             else:
-                if current_dtype != inferred_dtype and current_dtype is not FeatureType.UNKNOWN:
+                if (
+                    current_dtype != inferred_dtype
+                    and current_dtype is not FeatureType.UNKNOWN
+                ):
                     raise TypeError(
                         f"Input feature '{feature_name}' has mixed types, {current_dtype} and {inferred_dtype}. "
                         f"That is not allowed. "
                     )
     else:
-        inferred_dtype = map_pandas_basic_type_to_feature_type(feature_name, pandas_type)
+        inferred_dtype = map_pandas_basic_type_to_feature_type(pandas_type)
     if inferred_dtype is FeatureType.UNKNOWN:
         raise TypeError(
             f"Input feature '{feature_name}' has type {str(pandas_type)} which is not supported"
@@ -100,13 +99,12 @@ def map_pandas_type_to_feature_type(feature_name, values):
         return inferred_dtype
 
 
-def map_pandas_basic_type_to_feature_type(feature_name, pandas_type):
+def map_pandas_basic_type_to_feature_type(pandas_type):
     """Returns the feature type corresponding to pandas_type
-    :param feature_name:
     :param pandas_type:
     :return:
     """
-    #TODO uint64 with bigger number cant be mapped to LongType
+    # TODO uint64 with bigger number cant be mapped to LongType
     pandas_type_to_feature_type = {
         "str": FeatureType.STRING,
         "string": FeatureType.STRING,
@@ -128,15 +126,11 @@ def map_pandas_basic_type_to_feature_type(feature_name, pandas_type):
         "timedelta64[ns]": FeatureType.LONG,
         "bool": FeatureType.BOOLEAN,
         "Decimal": FeatureType.DECIMAL,
-        "date": FeatureType.DATE
+        "date": FeatureType.DATE,
     }
     if pandas_type in pandas_type_to_feature_type:
         return pandas_type_to_feature_type.get(pandas_type)
     return FeatureType.UNKNOWN
-    # else:
-    #     raise TypeError(
-    #         f"Input feature '{feature_name}' has type {str(pandas_type)} which is not supported"
-    #     )
 
 
 def map_feature_type_to_spark_type(feature_type):
@@ -193,7 +187,6 @@ def get_raw_data_source_schema(raw_feature_details: List[dict]):
     Returns:
       StructType: Spark schema.
       :param raw_feature_details:
-      :param is_pandas_df:
     """
     # Initialize the schema
     features_schema = StructType()
@@ -216,7 +209,6 @@ def get_raw_data_source_schema(raw_feature_details: List[dict]):
 
 
 def map_feature_type_to_pandas(feature_type):
-
     feature_type_in = FeatureType(feature_type)
     supported_feature_type = {
         FeatureType.STRING: str,
@@ -232,13 +224,12 @@ def map_feature_type_to_pandas(feature_type):
     if feature_type_in in supported_feature_type:
         return supported_feature_type.get(feature_type_in)
     else:
-        raise TypeError(
-            f"Feature Type {feature_type} is not supported for pandas"
-        )
+        raise TypeError(f"Feature Type {feature_type} is not supported for pandas")
 
 
-def convert_pandas_datatype_with_schema(raw_feature_details: List[dict], input_df: pd.DataFrame):
-
+def convert_pandas_datatype_with_schema(
+    raw_feature_details: List[dict], input_df: pd.DataFrame
+):
     feature_detail_map = {}
     for feature_details in raw_feature_details:
         feature_detail_map[feature_details.get("name")] = feature_details
@@ -247,10 +238,8 @@ def convert_pandas_datatype_with_schema(raw_feature_details: List[dict], input_d
             feature_details = feature_detail_map[column]
             feature_type = feature_details.get("featureType")
             pandas_type = map_feature_type_to_pandas(feature_type)
-            input_df[column] = input_df[column].astype(pandas_type).where(pd.notnull(input_df[column]), None)
-
-
-
-
-
-
+            input_df[column] = (
+                input_df[column]
+                .astype(pandas_type)
+                .where(pd.notnull(input_df[column]), None)
+            )
