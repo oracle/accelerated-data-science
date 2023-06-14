@@ -726,7 +726,7 @@ class OCIModelMixin(OCISerializableMixin):
         for attr in self.swagger_types.keys():
             if (
                 hasattr(oci_model_instance, attr)
-                and getattr(oci_model_instance, attr)
+                and getattr(oci_model_instance, attr) is not None
                 and (
                     not hasattr(self, attr)
                     or not getattr(self, attr)
