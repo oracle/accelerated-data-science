@@ -230,7 +230,7 @@ _options = [
         "--auth",
         "-a",
         help="authentication method",
-        type=click.Choice(["api_key", "resource_principal"]),
+        type=click.Choice(["api_key", "resource_principal", "security_token"]),
         default=None,
     ),
     click.option(
