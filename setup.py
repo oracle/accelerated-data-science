@@ -104,6 +104,13 @@ extras_require["onnx"] = extras_require["viz"] + [
     "tf2onnx",
 ]
 extras_require["optuna"] = extras_require["viz"] + ["optuna==2.9.0"]
+extras_require["forecast"] = extras_require["opctl"] + [
+    "prophet",
+    "neuralprophet",
+    "pmdarima",
+    "statsmodels",
+    "datapane",
+]
 
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
 extras_require["all-optional"] = reduce(

@@ -19,17 +19,6 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-
-import oci
-import time
-from datetime import datetime
-from ads.operators.forecast.prophet import operate as prophet_operate
-from ads.operators.forecast.prophet import get_prophet_report
-from ads.operators.forecast.neural_prophet import operate as neuralprophet_operate
-from ads.operators.forecast.neural_prophet import get_neuralprophet_report
-from ads.operators.forecast.arima import operate as arima_operate
-
-from ads.operators.forecast.utils import evaluate_metrics, test_evaluate_metrics, get_forecast_plots
 from sklearn.metrics import (
     mean_absolute_percentage_error,
     explained_variance_score,
@@ -37,6 +26,9 @@ from sklearn.metrics import (
     mean_squared_error,
 )
 from sklearn.datasets import load_files
+import oci
+import time
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
@@ -44,6 +36,22 @@ handler.setLevel(logging.INFO)
 formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+try: 
+    from ads.operators.forecast.prophet import operate as prophet_operate
+    from ads.operators.forecast.prophet import get_prophet_report
+    from ads.operators.forecast.neural_prophet import operate as neuralprophet_operate
+    from ads.operators.forecast.neural_prophet import get_neuralprophet_report
+    from ads.operators.forecast.arima import operate as arima_operate
+    from ads.operators.forecast.utils import evaluate_metrics, test_evaluate_metrics, get_forecast_plots
+except Exception as ex:
+    print(
+    "Please run `pip install oracle-ads[forecast]` to install "
+    "the required dependencies for ADS CLI."
+    )
+    logger.debug(ex)
+    logger.debug(traceback.format_exc())
+    exit()
 
 AVAILABLE_MODELS = ["prophet", "neuralprophet", "arima"]
 
