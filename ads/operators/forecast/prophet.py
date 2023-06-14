@@ -67,19 +67,19 @@ def operate(operator):
 
 def get_prophet_report(self):
 
-    # def get_select_plot_list(fn):
-    #     return dp.Select(blocks=[dp.Plot(fn(i), label=col) for i, col in enumerate(self.target_columns)])
+    def get_select_plot_list(fn):
+        return dp.Select(blocks=[dp.Plot(fn(i), label=col) for i, col in enumerate(self.target_columns)])
     
-    # sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data with 80% confidence.")
-    # sec1 = get_select_plot_list(lambda idx: self.models[idx].plot(self.outputs[idx], include_legend=True))
+    sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data with 80% confidence.")
+    sec1 = get_select_plot_list(lambda idx: self.models[idx].plot(self.outputs[idx], include_legend=True))
     
-    # sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-    # sec2 = get_select_plot_list(lambda idx: self.models[idx].plot_components(self.outputs[idx]))
+    sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
+    sec2 = get_select_plot_list(lambda idx: self.models[idx].plot_components(self.outputs[idx]))
     
-    # sec3_text = dp.Text(f"## Forecast Changepoints")
-    # sec3_figs = [self.models[idx].plot(self.outputs[idx]) for idx in range(len(self.target_columns))]
-    # [add_changepoints_to_plot(sec3_figs[idx].gca(), self.models[idx], self.outputs[idx]) for idx in range(len(self.target_columns))]
-    # sec3 = get_select_plot_list(lambda idx: sec3_figs[idx])
+    sec3_text = dp.Text(f"## Forecast Changepoints")
+    sec3_figs = [self.models[idx].plot(self.outputs[idx]) for idx in range(len(self.target_columns))]
+    [add_changepoints_to_plot(sec3_figs[idx].gca(), self.models[idx], self.outputs[idx]) for idx in range(len(self.target_columns))]
+    sec3 = get_select_plot_list(lambda idx: sec3_figs[idx])
 
     # # Auto-corr
     # sec4_text = dp.Text(f"## Auto-Correlation Plots")
@@ -93,4 +93,4 @@ def get_prophet_report(self):
     # sec5_text = dp.Text(f"## Forecast Seasonality Parameters")
     # sec5 = dp.Select(blocks=[dp.Table(pd.DataFrame(m.seasonalities), label=self.target_columns[i]) for i, m in enumerate(self.models)])
     
-    return [] #[sec1_text, sec1, sec2_text, sec2, sec3_text, sec3, sec4_text, sec4, sec5_text, sec5]
+    return [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3] # sec4_text, sec4, sec5_text, sec5
