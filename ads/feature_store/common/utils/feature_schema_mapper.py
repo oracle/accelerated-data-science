@@ -4,12 +4,15 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
 from typing import List
 
 import numpy as np
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
+from mlm_insights.constants import types
+
 from ads.feature_store.common.enums import FeatureType
 
 try:
@@ -21,6 +24,8 @@ except ModuleNotFoundError:
     )
 except Exception as e:
     raise
+
+logger = logging.getLogger(__name__)
 
 
 def map_spark_type_to_feature_type(spark_type):
@@ -243,3 +248,40 @@ def convert_pandas_datatype_with_schema(
                 .astype(pandas_type)
                 .where(pd.notnull(input_df[column]), None)
             )
+
+def map_spark_type_to_stats_data_type(spark_type):
+    """Returns the MLM data type corresponding to SparkType
+    :param spark_type:
+    :return:
+    """
+    spark_type_to_feature_type = {
+        StringType(): types.DataType.STRING,
+        IntegerType(): types.DataType.INTEGER,
+        FloatType(): types.DataType.FLOAT,
+        DoubleType(): types.DataType.FLOAT,
+        BooleanType(): types.DataType.BOOLEAN,
+        DecimalType(): types.DataType.FLOAT,
+        ShortType(): types.DataType.INTEGER,
+        LongType(): types.DataType.INTEGER,
+    }
+
+    return spark_type_to_feature_type.get(spark_type)
+
+
+def map_spark_type_to_stats_variable_type(spark_type):
+    """Returns the MLM variable type corresponding to SparkType
+    :param spark_type:
+    :return:
+    """
+    spark_type_to_feature_type = {
+        StringType(): types.VariableType.NOMINAL,
+        IntegerType(): types.VariableType.CONTINUOUS,
+        FloatType(): types.VariableType.CONTINUOUS,
+        DoubleType(): types.VariableType.CONTINUOUS,
+        BooleanType(): types.VariableType.BINARY,
+        DecimalType(): types.VariableType.CONTINUOUS,
+        ShortType(): types.VariableType.CONTINUOUS,
+        LongType(): types.VariableType.CONTINUOUS,
+    }
+
+    return spark_type_to_feature_type.get(spark_type)

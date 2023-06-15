@@ -40,7 +40,7 @@ from ads.feature_store.execution_strategy.execution_strategy import Strategy
 from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.transformation import Transformation
 
-from ads.feature_store.feature_statistics.pydeequ_service import StatisticsService
+from ads.feature_store.feature_statistics.statistics_service import StatisticsService
 
 logger = logging.getLogger(__name__)
 
@@ -227,11 +227,10 @@ class SparkExecutionEngine(Strategy):
 
             logger.info(f"output features for the FeatureGroup: {output_features}")
             # Compute Feature Statistics
-            feature_statistics = StatisticsService.compute_statistics(
-                spark=self._spark_session,
+            
+            feature_statistics = StatisticsService.compute_stats_with_mlm(
                 statistics_config=feature_group.statistics_config,
-                input_df=featured_data,
-            )
+                input_df=featured_data)
 
         except Exception as ex:
             error_details = str(ex)
@@ -347,8 +346,7 @@ class SparkExecutionEngine(Strategy):
             logger.info(f"output features for the dataset: {output_features}")
 
             # Compute Feature Statistics
-            feature_statistics = StatisticsService.compute_statistics(
-                spark=self._spark_session,
+            feature_statistics = StatisticsService.compute_stats_with_mlm(
                 statistics_config=dataset.statistics_config,
                 input_df=dataset_dataframe,
             )
