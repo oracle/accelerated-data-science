@@ -363,6 +363,18 @@ xgboost
 * Source code: https://github.com/dmlc/xgboost
 * Project home: https://xgboost.ai/
 
+great-expectations
+* No listed copyright holder
+* License: Apache License 2.0
+* Source code: https://github.com/great-expectations/great_expectations
+* Project home: https://greatexpectations.io/
+
+delta
+* Copyright (2021) The Delta Lake Project Authors.  All rights reserved.
+* License: Apache License 2.0
+* Source code: https://github.com/delta-io/delta/
+* Project home: https://delta.io/
+
 =============================== Licenses ===============================
 ------------------------------------------------------------------------
 
