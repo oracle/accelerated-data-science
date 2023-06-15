@@ -958,14 +958,14 @@ class TestGenericModel:
         return_value=ModelDeploymentState.ACTIVE,
     )
     @patch.object(GenericModel, "from_model_catalog")
-    @patch.object(ModelDeployer, "get_model_deployment")
+    @patch.object(ModelDeployment, "from_id")
     @patch("ads.common.auth.default_signer")
     @patch("ads.common.oci_client.OCIClientFactory")
     def test_from_model_deployment(
         self,
         mock_client,
         mock_default_signer,
-        mock_get_model_deployment,
+        mock_from_id,
         mock_from_model_catalog,
         mock_model_deployment_state,
         mock_update_status,
@@ -977,7 +977,7 @@ class TestGenericModel:
         test_model_id = "model_ocid"
         md_props = ModelDeploymentProperties(model_id=test_model_id)
         md = ModelDeployment(properties=md_props)
-        mock_get_model_deployment.return_value = md
+        mock_from_id.return_value = md
 
         test_model = MagicMock(model_deployment=md, _summary_status=SummaryStatus())
         mock_from_model_catalog.return_value = test_model
@@ -994,8 +994,8 @@ class TestGenericModel:
             compartment_id="test_compartment_id",
         )
 
-        mock_get_model_deployment.assert_called_with(
-            model_deployment_id=test_model_deployment_id
+        mock_from_id.assert_called_with(
+            test_model_deployment_id
         )
         mock_from_model_catalog.assert_called_with(
             model_id=test_model_id,
@@ -1018,14 +1018,14 @@ class TestGenericModel:
         new_callable=PropertyMock,
         return_value=ModelDeploymentState.FAILED,
     )
-    @patch.object(ModelDeployer, "get_model_deployment")
+    @patch.object(ModelDeployment, "from_id")
     @patch("ads.common.auth.default_signer")
     @patch("ads.common.oci_client.OCIClientFactory")
     def test_from_model_deployment_fail(
         self,
         mock_client,
         mock_default_signer,
-        mock_get_model_deployment,
+        mock_from_id,
         mock_model_deployment_state,
     ):
         """Tests loading model from model deployment."""
@@ -1035,7 +1035,7 @@ class TestGenericModel:
         test_model_id = "model_ocid"
         md_props = ModelDeploymentProperties(model_id=test_model_id)
         md = ModelDeployment(properties=md_props)
-        mock_get_model_deployment.return_value = md
+        mock_from_id.return_value = md
 
         with pytest.raises(NotActiveDeploymentError):
             GenericModel.from_model_deployment(
@@ -1049,21 +1049,21 @@ class TestGenericModel:
                 remove_existing_artifact=True,
                 compartment_id="test_compartment_id",
             )
-            mock_get_model_deployment.assert_called_with(
-                model_deployment_id=test_model_deployment_id
+            mock_from_id.assert_called_with(
+                test_model_deployment_id
             )
 
     @patch.object(ModelDeployment, "update")
-    @patch.object(ModelDeployer, "get_model_deployment")
+    @patch.object(ModelDeployment, "from_id")
     @patch("ads.common.auth.default_signer")
     @patch("ads.common.oci_client.OCIClientFactory")
     def test_update_deployment_class_level(
-        self, mock_client, mock_signer, mock_get_model_deployment, mock_update
+        self, mock_client, mock_signer, mock_from_id, mock_update
     ):
         test_model_deployment_id = "xxxx.datasciencemodeldeployment.xxxx"
         md_props = ModelDeploymentProperties(model_id=test_model_deployment_id)
         md = ModelDeployment(properties=md_props)
-        mock_get_model_deployment.return_value = md
+        mock_from_id.return_value = md
 
         test_model = MagicMock(model_deployment=md, _summary_status=SummaryStatus())
         mock_update.return_value = test_model
@@ -1086,8 +1086,8 @@ class TestGenericModel:
             poll_interval=200,
         )
 
-        mock_get_model_deployment.assert_called_with(
-            model_deployment_id=test_model_deployment_id
+        mock_from_id.assert_called_with(
+            test_model_deployment_id
         )
 
         mock_update.assert_called_with(

@@ -32,7 +32,7 @@ Data Flow Sessions are accessible through the following conda environment:
 
 * PySpark 3.2 and Data Flow 2.0 (pyspark32_p38_cpu_v2)
 
-You can customize **pypspark32_p38_cpu_v1**, publish it, and use it as a runtime environment for a Data Flow Session.
+You can customize **pypspark32_p38_cpu_v2**, publish it, and use it as a runtime environment for a Data Flow Session.
 
 Policies
 ********

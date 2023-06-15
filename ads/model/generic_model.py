@@ -10,6 +10,7 @@ import shutil
 import tempfile
 from enum import Enum
 from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -44,7 +45,6 @@ from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment import (
     DEFAULT_POLL_INTERVAL,
     DEFAULT_WAIT_TIME,
-    ModelDeployer,
     ModelDeployment,
     ModelDeploymentMode,
     ModelDeploymentProperties,
@@ -299,12 +299,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
     >>> model.deploy()
     >>> # Update access log id, freeform tags and description for the model deployment
     >>> model.update_deployment(
-    >>>     properties=ModelDeploymentProperties(
-    >>>         access_log_id=<log_ocid>,
-    >>>         description="Description for Custom Model",
-    >>>         freeform_tags={"key": "value"},
-    >>>     )
-    >>> )
+    ...     access_log={
+    ...         log_id=<log_ocid>
+    ...     },
+    ...     description="Description for Custom Model",
+    ...     freeform_tags={"key": "value"},
+    ... )
     >>> model.predict(2)
     >>> # Uncomment the line below to delete the model and the associated model deployment
     >>> # model.delete(delete_associated_model_deployment = True)
@@ -1565,9 +1565,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 "Only SparkPipelineModel framework supports object storage path as `artifact_dir`."
             )
 
-        model_deployment = ModelDeployer(config=auth).get_model_deployment(
-            model_deployment_id=model_deployment_id
-        )
+        model_deployment = ModelDeployment.from_id(model_deployment_id)
 
         current_state = model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
@@ -1619,12 +1617,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         --------
         >>> # Update access log id, freeform tags and description for the model deployment
         >>> model.update_deployment(
-        >>>     properties=ModelDeploymentProperties(
-        >>>         access_log_id=<log_ocid>,
-        >>>         description="Description for Custom Model",
-        >>>         freeform_tags={"key": "value"},
-        >>>     )
-        >>> )
+        ...     access_log={
+        ...         log_id=<log_ocid>
+        ...     },
+        ...     description="Description for Custom Model",
+        ...     freeform_tags={"key": "value"},
+        ... )
 
         Parameters
         ----------
@@ -1647,12 +1645,30 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 If you need to override the default, use the `ads.common.auth.api_keys` or
                 `ads.common.auth.resource_principal` to create appropriate authentication signer
                 and kwargs required to instantiate IdentityClient object.
+            display_name: (str)
+                Model deployment display name
+            description: (str)
+                Model deployment description
+            freeform_tags: (dict)
+                Model deployment freeform tags
+            defined_tags: (dict)
+                Model deployment defined tags
+            
+            Additional kwargs arguments.
+            Can be any attribute that `ads.model.deployment.ModelDeploymentCondaRuntime`, `ads.model.deployment.ModelDeploymentContainerRuntime`
+            and `ads.model.deployment.ModelDeploymentInfrastructure` accepts.
 
         Returns
         -------
         ModelDeployment
             An instance of ModelDeployment class.
         """
+        if properties:
+            warnings.warn(
+                "Parameter `properties` is deprecated from GenericModel `update_deployment()` in 2.8.6 and will be removed in 3.0.0. Please use kwargs to update model deployment. "
+                "Check: https://accelerated-data-science.readthedocs.io/en/latest/user_guide/model_registration/introduction.html"
+            )
+
         if not inspect.isclass(cls):
             if cls.model_deployment:
                 return cls.model_deployment.update(
@@ -1666,10 +1682,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if not model_deployment_id:
             raise ValueError("Parameter `model_deployment_id` must be provided.")
 
-        auth = kwargs.pop("auth", authutil.default_signer())
-        model_deployment = ModelDeployer(config=auth).get_model_deployment(
-            model_deployment_id=model_deployment_id
-        )
+        model_deployment = ModelDeployment.from_id(model_deployment_id)
         return model_deployment.update(
             properties=properties,
             wait_for_completion=wait_for_completion,

@@ -27,12 +27,10 @@ from ads.jobs import (
     ScriptRuntime,
 )
 from ads.opctl import logger
-from ads.opctl.backend.base import (
-    Backend,
-    RuntimeFactory,
-)
+from ads.opctl.backend.base import Backend, RuntimeFactory
 from ads.opctl.config.resolver import ConfigResolver
 from ads.opctl.constants import DEFAULT_IMAGE_SCRIPT_DIR
+from ads.opctl.decorator.common import print_watch_command
 from ads.opctl.distributed.common.cluster_config_helper import (
     ClusterConfigToJobSpecConverter,
 )
@@ -126,7 +124,8 @@ class MLJobBackend(Backend):
                 **kwargs,
             )
 
-    def apply(self) -> None:
+    @print_watch_command
+    def apply(self) -> Dict:
         """
         Create Job and Job Run from YAML.
         """
@@ -136,8 +135,10 @@ class MLJobBackend(Backend):
             job_run = job.run()
             print("JOB OCID:", job.id)
             print("JOB RUN OCID:", job_run.id)
+            return {"job_id": job.id, "run_id": job_run.id}
 
-    def run(self) -> None:
+    @print_watch_command
+    def run(self) -> Dict:
         """
         Create Job and Job Run from OCID or cli parameters.
         """
