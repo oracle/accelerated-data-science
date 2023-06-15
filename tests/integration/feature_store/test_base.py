@@ -450,6 +450,14 @@ class FeatureStoreTestCase:
             exit(1)
 
     @staticmethod
+    def clean_up_transformation(transformation):
+        try:
+            transformation.delete()
+        except Exception as ex:
+            print("Failed to delete feature group: ", str(ex))
+            exit(1)
+
+    @staticmethod
     def clean_up_dataset(dataset):
         try:
             dataset.delete()
