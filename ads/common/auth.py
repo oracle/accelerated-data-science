@@ -16,8 +16,7 @@ import requests
 
 import ads.telemetry
 import oci
-from oci_cli import cli_util
-from ads.common import logger
+from ads.common import logger, utils
 from ads.common.decorator.deprecate import deprecated
 from ads.common.extended_enum import ExtendedEnumMeta
 from oci.config import DEFAULT_LOCATION  # "~/.oci/config"
@@ -877,7 +876,7 @@ class SecurityToken(AuthSignerGenerator):
     
     def _refresh_security_token(self, configuration: Dict[str, Any]):
         """Refreshes security token. The logic is mainly taken reference from:
-        https://github.com/oracle/oci-cli/blob/9a0978344950d7b7c24a688892f24968dce20ad3/src/oci_cli/cli_session.py#L152
+        https://github.com/oracle/oci-cli/blob/master/src/oci_cli/cli_session.py#L152
 
         Parameters
         ----------
@@ -919,7 +918,7 @@ class SecurityToken(AuthSignerGenerator):
             refreshed_token = json.loads(response.content.decode('UTF-8'))['token']
             with open(expanded_security_token_location, 'w') as security_token_file:
                 security_token_file.write(refreshed_token)
-            cli_util.apply_user_only_access_permissions(expanded_security_token_location)
+            utils.apply_user_only_access_permissions(expanded_security_token_location)
             logger.info("Successfully refreshed token")
         elif response.status_code == 401:
             raise SecurityTokenError(

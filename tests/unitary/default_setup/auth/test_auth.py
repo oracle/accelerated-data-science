@@ -638,7 +638,7 @@ class TestSecurityToken(TestCase):
         mock_get_jwt.assert_called()
         mock_refresh_security_token.assert_called_with(configuration)
 
-    @mock.patch("oci_cli.cli_util.apply_user_only_access_permissions")
+    @mock.patch("ads.common.utils.apply_user_only_access_permissions")
     @mock.patch("json.loads")
     @mock.patch("requests.post")
     @mock.patch("json.dumps")
