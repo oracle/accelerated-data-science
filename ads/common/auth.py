@@ -5,8 +5,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
+from datetime import datetime
 import os
 from dataclasses import dataclass
+import time
 from typing import Any, Callable, Dict, Optional, Union
 
 import ads.telemetry
@@ -32,6 +34,11 @@ SECURITY_TOKEN_REQUIRED = [
     "key_file", 
     "region"
 ]
+SECURITY_TOKEN_LEFT_TIME = 600
+
+
+class TokenExpiredError(Exception):  # pragma: no cover
+    pass
 
 
 class AuthType(str, metaclass=ExtendedEnumMeta):
@@ -819,21 +826,65 @@ class SecurityToken(AuthSignerGenerator):
                     f"Parameter `{parameter}` must be provided for using `security_token` authentication."
                 )
         
-        if not self.oci_config:
-            os.system(f'oci session refresh --profile {self.oci_key_profile}')
-
         return {
             "config": configuration,
             "signer": oci.auth.signers.SecurityTokenSigner(
-                token=self._read_security_token_file(configuration.get("security_token_file")),
+                token=self._validate_and_refresh_token(configuration.get("security_token_file")),
                 private_key=oci.signer.load_private_key_from_file(configuration.get("key_file")),
                 generic_headers=configuration.get("generic_headers", SECURITY_TOKEN_GENERIC_HEADERS),
                 body_headers=configuration.get("body_headers", SECURITY_TOKEN_BODY_HEADERS)
             ),
             "client_kwargs": self.client_kwargs,
         }
-    
+
+    def _validate_and_refresh_token(self, security_token_file: str) -> str:
+        """Validates and refreshes security token.
+
+        Parameters
+        ----------
+        security_token_file: str
+            Path to security token file.
+
+        Returns
+        -------
+        str:
+            Security token string.
+        """
+        security_token = self._read_security_token_file(security_token_file)
+        security_token_container = oci.auth.security_token_container.SecurityTokenContainer(
+            session_key_supplier=None,
+            security_token=security_token
+        )
+        
+        if not security_token_container.valid():
+            raise TokenExpiredError(
+                "Security token has expired. Call `oci session authenticate` to generate new session."
+            )
+        
+        time_now = int(time.time())
+        time_expired = security_token_container.get_jwt()["exp"]
+        if time_now - time_expired < SECURITY_TOKEN_LEFT_TIME:
+            if self.oci_config_location == DEFAULT_LOCATION and self.oci_key_profile:
+                os.system(f'oci session refresh --profile {self.oci_key_profile}')
+                security_token = self._read_security_token_file(security_token_file)
+        
+        date_time = datetime.fromtimestamp(time_expired).strftime("%Y-%m-%d %H:%M:%S")
+        logger.info(f"Session is valid until {date_time}.")
+        return security_token
+
     def _read_security_token_file(self, security_token_file: str) -> str:
+        """Reads security token from file.
+
+        Parameters
+        ----------
+        security_token_file: str
+            The path to security token file.
+
+        Returns
+        -------
+        str:
+            Security token string.
+        """
         if not os.path.isfile(security_token_file):
             raise ValueError("Invalid `security_token_file`. Specify a valid path.")
         try:

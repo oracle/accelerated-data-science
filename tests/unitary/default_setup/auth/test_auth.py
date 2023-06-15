@@ -12,6 +12,7 @@ from oci.auth.signers.ephemeral_resource_principals_signer import (
     EphemeralResourcePrincipalSigner,
 )
 from oci.auth.signers.security_token_signer import SecurityTokenSigner
+from oci.config import DEFAULT_LOCATION
 import ads
 from ads import set_auth
 from ads.common.utils import (
@@ -19,6 +20,8 @@ from ads.common.utils import (
     oci_config_location,
 )
 from ads.common.auth import (
+    SecurityToken,
+    TokenExpiredError,
     api_keys,
     resource_principal,
     security_token,
@@ -123,97 +126,6 @@ class TestEDAMixin(TestCase):
         assert "additional_user_agent" in signer["config"]
         assert signer["signer"] != None
         set_auth()
-
-    @mock.patch("oci.auth.signers.SecurityTokenSigner.__init__")
-    @mock.patch("oci.signer.load_private_key_from_file")
-    @mock.patch("ads.common.auth.SecurityToken._read_security_token_file")
-    def test_security_token_from_config(
-        self,
-        mock_read_security_token_file, 
-        mock_load_private_key_from_file,
-        mock_security_token_signer
-    ):
-        config = {
-            "fingerprint": "test_fingerprint",
-            "tenancy": "test_tenancy",
-            "region": "us-ashburn-1",
-            "key_file": "test_key_file",
-            "generic_headers": [1,2,3],
-            "body_headers": [4,5,6]
-        }
-
-        with pytest.raises(
-            ValueError,
-            match="Parameter `security_token_file` must be provided for using `security_token` authentication."
-        ):
-            signer = security_token(
-                oci_config=config,
-                client_kwargs={"test_client_key":"test_client_value"}
-            )
-
-        config["security_token_file"] = "test_security_token"
-        mock_security_token_signer.return_value = None
-        signer = security_token(
-            oci_config=config,
-            client_kwargs={"test_client_key":"test_client_value"}
-        )
-
-        mock_read_security_token_file.assert_called_with("test_security_token")
-        mock_load_private_key_from_file.assert_called_with("test_key_file")
-        assert signer["client_kwargs"] == {"test_client_key": "test_client_value"}
-        assert "additional_user_agent" in signer["config"]
-        assert signer["config"]["fingerprint"] == "test_fingerprint"
-        assert signer["config"]["tenancy"] == "test_tenancy"
-        assert signer["config"]["region"] == "us-ashburn-1"
-        assert signer["config"]["security_token_file"] == "test_security_token"
-        assert signer["config"]["key_file"] == "test_key_file"
-        assert isinstance(signer["signer"], SecurityTokenSigner)
-
-    @mock.patch("oci.auth.signers.SecurityTokenSigner.__init__")
-    @mock.patch("oci.signer.load_private_key_from_file")
-    @mock.patch("builtins.open")
-    @mock.patch("os.path.isfile")
-    @mock.patch("os.system")
-    @mock.patch("oci.config.from_file")
-    def test_security_token_from_file(
-        self,
-        mock_from_file,
-        mock_system,
-        mock_isfile,
-        mock_open,
-        mock_load_private_key_from_file,
-        mock_security_token_signer
-    ):
-        mock_from_file.return_value = {
-            "fingerprint": "test_fingerprint",
-            "tenancy": "test_tenancy",
-            "region": "us-ashburn-1",
-            "key_file": "test_key_file",
-            "security_token_file": "test_security_token"
-        }
-        mock_isfile.return_value = True
-        mock_security_token_signer.return_value = None
-        signer = security_token(
-            oci_config="test_config_location",
-            profile="test_key_profile",
-            client_kwargs={"test_client_key":"test_client_value"}
-        )
-
-        mock_from_file.assert_called_with("test_config_location", "test_key_profile")
-        mock_system.assert_called_with("oci session refresh --profile test_key_profile")
-        mock_isfile.assert_called_with("test_security_token")
-        mock_open.assert_called()
-        mock_load_private_key_from_file.assert_called_with("test_key_file")
-        mock_security_token_signer.assert_called()
-
-        assert signer["client_kwargs"] == {"test_client_key": "test_client_value"}
-        assert "additional_user_agent" in signer["config"]
-        assert signer["config"]["fingerprint"] == "test_fingerprint"
-        assert signer["config"]["tenancy"] == "test_tenancy"
-        assert signer["config"]["region"] == "us-ashburn-1"
-        assert signer["config"]["security_token_file"] == "test_security_token"
-        assert signer["config"]["key_file"] == "test_key_file"
-        assert isinstance(signer["signer"], SecurityTokenSigner)
 
 
 class TestOCIMixin(TestCase):
@@ -621,3 +533,110 @@ class TestAuthContext:
         with pytest.raises(ValueError):
             with AuthContext(auth="not_correct_auth_type"):
                 pass
+
+
+class TestSecurityToken(TestCase):
+
+    @mock.patch("oci.auth.signers.SecurityTokenSigner.__init__")
+    @mock.patch("oci.signer.load_private_key_from_file")
+    @mock.patch("ads.common.auth.SecurityToken._validate_and_refresh_token")
+    def test_security_token(
+        self,
+        mock_validate_and_refresh_token, 
+        mock_load_private_key_from_file,
+        mock_security_token_signer
+    ):
+        config = {
+            "fingerprint": "test_fingerprint",
+            "tenancy": "test_tenancy",
+            "region": "us-ashburn-1",
+            "key_file": "test_key_file",
+            "generic_headers": [1,2,3],
+            "body_headers": [4,5,6]
+        }
+
+        with pytest.raises(
+            ValueError,
+            match="Parameter `security_token_file` must be provided for using `security_token` authentication."
+        ):
+            signer = security_token(
+                oci_config=config,
+                client_kwargs={"test_client_key":"test_client_value"}
+            )
+
+        config["security_token_file"] = "test_security_token"
+        mock_security_token_signer.return_value = None
+        signer = security_token(
+            oci_config=config,
+            client_kwargs={"test_client_key":"test_client_value"}
+        )
+
+        mock_validate_and_refresh_token.assert_called_with("test_security_token")
+        mock_load_private_key_from_file.assert_called_with("test_key_file")
+        assert signer["client_kwargs"] == {"test_client_key": "test_client_value"}
+        assert "additional_user_agent" in signer["config"]
+        assert signer["config"]["fingerprint"] == "test_fingerprint"
+        assert signer["config"]["tenancy"] == "test_tenancy"
+        assert signer["config"]["region"] == "us-ashburn-1"
+        assert signer["config"]["security_token_file"] == "test_security_token"
+        assert signer["config"]["key_file"] == "test_key_file"
+        assert isinstance(signer["signer"], SecurityTokenSigner)
+
+    @mock.patch("os.system")
+    @mock.patch("oci.auth.security_token_container.SecurityTokenContainer.get_jwt")
+    @mock.patch("time.time")
+    @mock.patch("oci.auth.security_token_container.SecurityTokenContainer.valid")
+    @mock.patch("oci.auth.security_token_container.SecurityTokenContainer.__init__")
+    @mock.patch("ads.common.auth.SecurityToken._read_security_token_file")
+    def test_validate_and_refresh_token(
+        self, 
+        mock_read_security_token_file, 
+        mock_security_token_container,
+        mock_valid,
+        mock_time,
+        mock_get_jwt,
+        mock_system
+    ):
+        security_token = SecurityToken(
+            args={
+                "oci_config_location": DEFAULT_LOCATION,
+                "oci_key_profile": "test_profile"
+            }
+        )
+        mock_security_token_container.return_value = None
+        
+        mock_valid.return_value = False
+        with pytest.raises(
+            TokenExpiredError,
+            match="Security token has expired. Call `oci session authenticate` to generate new session."
+        ):
+            security_token._validate_and_refresh_token("test_security_token")
+        
+        
+        mock_valid.return_value = True
+        mock_time.return_value = 1
+        mock_get_jwt.return_value = {"exp" : 1}
+        
+        security_token._validate_and_refresh_token("test_security_token")
+        
+        mock_read_security_token_file.assert_called_with("test_security_token")
+        mock_security_token_container.assert_called()
+        mock_time.assert_called()
+        mock_get_jwt.assert_called()
+        mock_system.assert_called_with("oci session refresh --profile test_profile")
+
+    @mock.patch("builtins.open")
+    @mock.patch("os.path.isfile")
+    def test_read_security_token_file(self, mock_isfile, mock_open):
+        security_token = SecurityToken(args={})
+
+        mock_isfile.return_value = False
+        with pytest.raises(
+            ValueError,
+            match="Invalid `security_token_file`. Specify a valid path."
+        ):
+            security_token._read_security_token_file("test_security_token")
+
+        mock_isfile.return_value = True
+        security_token._read_security_token_file("test_security_token")
+        mock_open.assert_called()
