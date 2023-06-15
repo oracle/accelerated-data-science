@@ -17,7 +17,7 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import extract_region
-from ads.model.deployment.model_deployer import ModelDeployer
+from ads.model.deployment import ModelDeployment
 from oci.data_science.models import (
     ArtifactExportDetailsObjectStorage,
     ArtifactImportDetailsObjectStorage,
@@ -469,9 +469,7 @@ class OCIDataScienceModel(
                 logger.info(
                     f"Deleting model deployment `{oci_model_deployment.identifier}`."
                 )
-                ModelDeployer(ds_client=self.client).delete(
-                    model_deployment_id=oci_model_deployment.identifier
-                )
+                ModelDeployment.from_id(oci_model_deployment.identifier).delete()
 
         logger.info(f"Deleting model `{self.id}`.")
         self.client.delete_model(self.id)

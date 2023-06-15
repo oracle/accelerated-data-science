@@ -54,6 +54,7 @@ from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
 from ads.common.oci_client import OCIClientFactory
 from ads.config import NO_CONTAINER
 
+
 class CondaPackNotFound(Exception):  # pragma: no cover
     pass
 
@@ -219,7 +220,9 @@ class LocalBackend(Backend):
             )
             if os.path.exists(os.path.join(conda_pack_path, "spark-defaults.conf")):
                 env_vars["SPARK_CONF_DIR"] = os.path.join(DEFAULT_IMAGE_CONDA_DIR, slug)
-            logger.info(f"Running with conda pack in a container with command {command}")
+            logger.info(
+                f"Running with conda pack in a container with command {command}"
+            )
             return self._activate_conda_env_and_run(
                 image, slug, command, bind_volumes, env_vars
             )
@@ -419,8 +422,7 @@ class LocalBackend(Backend):
                 build_image("job-local", gpu=False)
             else:
                 build_image("job-local", gpu=True)
-
-        with tempfile.TemporaryDirectory() as td:
+        with tempfile.TemporaryDirectory(dir=os.path.expanduser("~")) as td:
             with open(os.path.join(td, "entryscript.sh"), "w") as f:
                 f.write(
                     f"""
@@ -681,11 +683,11 @@ class LocalModelDeploymentBackend(LocalBackend):
         None
             Nothing.
         """
-        
+
         # model artifact in artifact directory
         artifact_directory = self.config["execution"].get("artifact_directory")
         ocid = self.config["execution"].get("ocid")
-        
+
         model_folder = os.path.expanduser(
             self.config["execution"].get("model_save_folder", DEFAULT_MODEL_FOLDER)
         )
@@ -711,20 +713,23 @@ class LocalModelDeploymentBackend(LocalBackend):
                 timeout=timeout,
                 force_overwrite=True,
             )
-                
+
         # conda
-        conda_slug, conda_path = self.config["execution"].get("conda_slug"), self.config["execution"].get("conda_path")
+        conda_slug = self.config["execution"].get("conda_slug")
+        conda_path = self.config["execution"].get("conda_path")
         if not conda_slug and not conda_path and ocid:
             conda_slug, conda_path = self._get_conda_info_from_custom_metadata(ocid)
         if not conda_slug and not conda_path:
             conda_slug, conda_path = self._get_conda_info_from_runtime(
                 artifact_dir=artifact_directory
             )
-        if 'conda_slug' not in self.config["execution"]:
-            self.config["execution"]["conda_slug"] = conda_path.split("/")[-1] if conda_path else conda_slug 
+        if "conda_slug" not in self.config["execution"]:
+            self.config["execution"]["conda_slug"] = (
+                conda_path.split("/")[-1] if conda_path else conda_slug
+            )
 
         self.config["execution"]["image"] = ML_JOB_IMAGE
-        
+
         # bind_volumnes
         bind_volumes = {}
         SCRIPT = "script.py"
@@ -735,39 +740,45 @@ class LocalModelDeploymentBackend(LocalBackend):
                     os.path.dirname(self.config["execution"]["oci_config"])
                 ): {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, ".oci")}
             }
-            
+
             self.config["execution"]["source_folder"] = os.path.abspath(
                 os.path.join(dir_path, "..")
             )
             self.config["execution"]["entrypoint"] = SCRIPT
             bind_volumes[artifact_directory] = {"bind": DEFAULT_MODEL_DEPLOYMENT_FOLDER}
-        
+
         # extra cmd
         data = self.config["execution"].get("payload")
         extra_cmd = f"--payload '{data}' " + f"--auth {self.auth_type} "
         if self.auth_type != "resource_principal":
             extra_cmd += f"--profile {self.profile}"
-        
+
         if is_in_notebook_session() or NO_CONTAINER:
             # _run_with_conda_pack has code to handle notebook session case,
-            # however, it activate the conda pack and then run the script. 
+            # however, it activate the conda pack and then run the script.
             # For the deployment, we just take the current conda env and run it.
             # Hence we just handle the notebook case directly here.
             script_path = os.path.join(os.path.join(dir_path, ".."), SCRIPT)
-            cmd = f"python {script_path} " + f"--artifact-directory {artifact_directory} " + extra_cmd
+            cmd = (
+                f"python {script_path} "
+                + f"--artifact-directory {artifact_directory} "
+                + extra_cmd
+            )
             logger.info(f"Running in a notebook or NO_CONTAINER with command {cmd}")
             run_command(cmd=cmd, shell=True)
         else:
-            extra_cmd = f"--artifact-directory {DEFAULT_MODEL_DEPLOYMENT_FOLDER} "+ extra_cmd
+            extra_cmd = (
+                f"--artifact-directory {DEFAULT_MODEL_DEPLOYMENT_FOLDER} " + extra_cmd
+            )
             exit_code = self._run_with_conda_pack(
-                    bind_volumes, extra_cmd, install=True, conda_uri=conda_path
-                )
+                bind_volumes, extra_cmd, install=True, conda_uri=conda_path
+            )
             if exit_code != 0:
                 raise RuntimeError(
                     f"`predict` did not complete successfully. Exit code: {exit_code}. "
                     f"Run with the --debug argument to view container logs."
                 )
-                
+
     def _get_conda_info_from_custom_metadata(self, ocid):
         """
         Get conda env info from custom metadata from model catalog.

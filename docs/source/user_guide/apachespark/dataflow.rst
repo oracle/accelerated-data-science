@@ -159,9 +159,9 @@ You could submit a notebook using ADS SDK APIs. Here is an example to submit a n
             "ocid1.compartment.oc1.<your compartment id>"
         )
         .with_driver_shape("VM.Standard.E4.Flex")
-		.with_driver_shape_config(ocpus=2, memory_in_gbs=32)
-		.with_executor_shape("VM.Standard.E4.Flex")
-		.with_executor_shape_config(ocpus=4, memory_in_gbs=64)
+        .with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+        .with_executor_shape("VM.Standard.E4.Flex")
+        .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
         .with_logs_bucket_uri("oci://mybucket@mytenancy/")
         .with_private_endpoint_id("ocid1.dataflowprivateendpoint.oc1.iad.<your private endpoint ocid>")
         .with_configuration({
@@ -231,8 +231,8 @@ create applications.
 
 In the following "hello-world" example, ``DataFlow`` is populated with ``compartment_id``,
 ``driver_shape``, ``driver_shape_config``, ``executor_shape``, ``executor_shape_config``
-, ``spark_version``, ``defined_tags`` and ``freeform_tags``. ``DataFlowRuntime`` is 
-populated with ``script_uri`` and ``script_bucket``. The ``script_uri`` specifies the 
+, ``spark_version``, ``defined_tags`` and ``freeform_tags``. ``DataFlowRuntime`` is
+populated with ``script_uri`` and ``script_bucket``. The ``script_uri`` specifies the
 path to the script. It can be local or remote (an Object Storage path). If the path
 is local, then ``script_bucket`` must be specified additionally because Data Flow
 requires a script to be available in Object Storage. ADS
@@ -270,9 +270,9 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
             .with_compartment_id("oci.xx.<compartment_id>")
             .with_logs_bucket_uri("oci://mybucket@mynamespace/dflogs")
             .with_driver_shape("VM.Standard.E4.Flex")
-		    .with_driver_shape_config(ocpus=2, memory_in_gbs=32)
-		    .with_executor_shape("VM.Standard.E4.Flex")
-		    .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
+            .with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+            .with_executor_shape("VM.Standard.E4.Flex")
+            .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.0.2")
             .with_defined_tag(
                 **{"Oracle-Tags": {"CreatedBy": "test_name@oracle.com"}}
@@ -391,9 +391,9 @@ In the next example, ``archive_uri`` is given as an Object Storage location.
             .with_compartment_id("oci1.xxx.<compartment_ocid>")
             .with_logs_bucket_uri("oci://mybucket@mynamespace/prefix")
             .with_driver_shape("VM.Standard.E4.Flex")
-		    .with_driver_shape_config(ocpus=2, memory_in_gbs=32)
-		    .with_executor_shape("VM.Standard.E4.Flex")
-		    .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
+            .with_driver_shape_config(ocpus=2, memory_in_gbs=32)
+            .with_executor_shape("VM.Standard.E4.Flex")
+            .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.0.2")
             .with_configuration({
                 "spark.driverEnv.myEnvVariable": "value1",

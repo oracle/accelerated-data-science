@@ -106,10 +106,10 @@ You can update the existing Model Deployment by using ``.update_deployment()`` m
 .. code-block:: python3
 
   lightgbm_model.update_deployment(
-        properties=ModelDeploymentProperties(
-            access_log_id="ocid1.log.oc1.xxx.xxxxx",
-            description="Description for Custom Model",
-            freeform_tags={"key": "value"},
-        )
-        wait_for_completion = True,
-    )
+    wait_for_completion = True,
+    access_log={
+      log_id="ocid1.log.oc1.xxx.xxxxx",
+    },
+    description="Description for Custom Model",
+    freeform_tags={"key": "value"},
+  )
