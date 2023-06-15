@@ -24,7 +24,6 @@ from ads.common.oci_mixin import OCIModelMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.dataset.progress import TqdmProgressBar
 from ads.model.datascience_model import _MAX_ARTIFACT_SIZE_IN_BYTES
-from ads.model.deployment.model_deployer import ModelDeployer
 from ads.model.service.oci_datascience_model import (
     ModelArtifactNotFoundError,
     ModelProvenanceNotFoundError,
@@ -230,10 +229,10 @@ class TestOCIDataScienceModel:
                 mock_model_deployment.return_value = [
                     MagicMock(lifecycle_state="ACTIVE", identifier="md_id")
                 ]
-                with patch.object(ModelDeployer, "delete") as mock_md_delete:
+                with patch("ads.model.deployment.ModelDeployment.from_id") as mock_from_id:
                     with patch.object(OCIDataScienceModel, "sync") as mock_sync:
                         self.mock_model.delete(delete_associated_model_deployment=True)
-                        mock_md_delete.assert_called_with(model_deployment_id="md_id")
+                        mock_from_id.assert_called_with("md_id")
                         mock_client.delete_model.assert_called_with(self.mock_model.id)
                         mock_sync.assert_called()
 
