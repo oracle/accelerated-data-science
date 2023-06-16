@@ -131,11 +131,7 @@ class TestDataFlowApp:
                     df.lifecycle_state
                     == oci.data_flow.models.Application.LIFECYCLE_STATE_DELETED
                 )
-<<<<<<< HEAD
-                assert len(df.to_yaml()) == 614
-=======
                 assert len(df.to_yaml()) == EXPECTED_YAML_LENGTH
->>>>>>> bb86b6ef329e215b86febaa8fc0fb2c48b478ea1
 
     def test_create_df_app_with_default_display_name(
         self,
@@ -331,11 +327,6 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
                 2
             ).with_private_endpoint_id(
                 SAMPLE_PAYLOAD["private_endpoint_id"]
-<<<<<<< HEAD
-            ).with_pool_id(
-                SAMPLE_PAYLOAD["pool_id"]
-=======
->>>>>>> bb86b6ef329e215b86febaa8fc0fb2c48b478ea1
             ).with_freeform_tag(
                 test_freeform_tags_key="test_freeform_tags_value",
             ).with_defined_tag(
