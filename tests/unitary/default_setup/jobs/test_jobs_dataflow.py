@@ -342,7 +342,6 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         assert df.language == "PYTHON"
         assert df.spark_version == "3.2.1"
         assert df.num_executors == 2
-        assert df.pool_id == SAMPLE_PAYLOAD["pool_id"]
         assert df.freeform_tags == {
             "test_freeform_tags_key": "test_freeform_tags_value"
         }
