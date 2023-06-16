@@ -13,7 +13,7 @@ import datapane as dp
 from prophet.plot import add_changepoints_to_plot
 from prophet import Prophet
 import pandas as pd
-from ads.operators.forecast.utils import evaluate_metrics, _load_data, _clean_data, _write_data
+from ads.operators.forecast.utils import load_data_dict, _write_data
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
@@ -27,59 +27,94 @@ def _preprocess_prophet(data, ds_column, datetime_format):
     data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
     return data.drop([ds_column], axis=1)
 
+
 def operate(operator):
-    data = _load_data(operator.input_filename, operator.historical_data.get("format"), operator.storage_options, columns=operator.historical_data.get("columns"))
-    operator.original_user_data = data.copy()
-    data = _preprocess_prophet(data, operator.ds_column, operator.datetime_format)
-    data, operator.target_columns = _clean_data(data=data, 
-                                                target_columns=operator.target_columns, 
-                                                target_category_column=operator.target_category_column, 
-                                                datetime_column="ds")
-    operator.data = data
-    
+    operator = load_data_dict(operator)
+    full_data_dict = operator.full_data_dict
+
     models = []
     outputs = []
-    for i, col in enumerate(operator.target_columns):
-        data_i = data[[col, "ds"]]
-        data_i.rename({col:"y"}, axis=1, inplace=True)
-        
+    for i, (target, df) in enumerate(full_data_dict.items()):
+        df = _preprocess_prophet(df, operator.ds_column, operator.datetime_format)
+        data_i = df[df[target].notna()]
+        data_i.rename({target: "y"}, axis=1, inplace=True)
+        print(f"data_i: {data_i}")
+
+        additional_regressors = set(data_i.columns) - {"y", "ds"}
+        print(f"additional_regressors: {additional_regressors}")
+
         model = Prophet()
+        for add_reg in additional_regressors:
+            model.add_regressor(add_reg)
         model.fit(data_i)
 
-        future = model.make_future_dataframe(periods=operator.horizon['periods'], freq=operator.horizon['interval_unit'])
+        if len(additional_regressors):
+            # TOOD: this will use the period/range of the additional data
+            future = df.drop(target, axis=1)
+            # future = future.join(additional_data)
+        else:
+            future = model.make_future_dataframe(
+                periods=operator.horizon["periods"],
+                freq=operator.horizon["interval_unit"],
+            )
+
         forecast = model.predict(future)
 
         print(f"-----------------Model {i}----------------------")
-        print(forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail())
+        print(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail())
         models.append(model)
         outputs.append(forecast)
-    
+
     operator.models = models
     operator.outputs = outputs
 
     print("===========Done===========")
     outputs_merged = outputs.copy()
     for i, col in enumerate(operator.target_columns):
-        outputs_merged[i] = outputs_merged[i].rename(lambda x: x+"_"+col if x != 'ds' else x, axis=1)
+        outputs_merged[i] = outputs_merged[i].rename(
+            lambda x: x + "_" + col if x != "ds" else x, axis=1
+        )
     output_total = pd.concat(outputs_merged, axis=1)
     _write_data(output_total, operator.output_filename, "csv", operator.storage_options)
-    return data, models, outputs
+
+    data_merged = pd.concat(
+        [v[v[k].notna()].set_index("ds") for k, v in full_data_dict.items()], axis=1
+    ).reset_index()
+
+    return data_merged, models, outputs
 
 
 def get_prophet_report(self):
-
     def get_select_plot_list(fn):
-        return dp.Select(blocks=[dp.Plot(fn(i), label=col) for i, col in enumerate(self.target_columns)])
-    
-    sec1_text = dp.Text(f"## Forecast Overview \nThese plots show your forecast in the context of historical data.")
-    sec1 = get_select_plot_list(lambda idx: self.models[idx].plot(self.outputs[idx], include_legend=True))
-    
+        return dp.Select(
+            blocks=[
+                dp.Plot(fn(i), label=col) for i, col in enumerate(self.target_columns)
+            ]
+        )
+
+    sec1_text = dp.Text(
+        f"## Forecast Overview \nThese plots show your forecast in the context of historical data."
+    )
+    sec1 = get_select_plot_list(
+        lambda idx: self.models[idx].plot(self.outputs[idx], include_legend=True)
+    )
+
     sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-    sec2 = get_select_plot_list(lambda idx: self.models[idx].plot_components(self.outputs[idx]))
-    
+    sec2 = get_select_plot_list(
+        lambda idx: self.models[idx].plot_components(self.outputs[idx])
+    )
+
     sec3_text = dp.Text(f"## Forecast Changepoints")
-    sec3_figs = [self.models[idx].plot(self.outputs[idx]) for idx in range(len(self.target_columns))]
-    [add_changepoints_to_plot(sec3_figs[idx].gca(), self.models[idx], self.outputs[idx]) for idx in range(len(self.target_columns))]
+    sec3_figs = [
+        self.models[idx].plot(self.outputs[idx])
+        for idx in range(len(self.target_columns))
+    ]
+    [
+        add_changepoints_to_plot(
+            sec3_figs[idx].gca(), self.models[idx], self.outputs[idx]
+        )
+        for idx in range(len(self.target_columns))
+    ]
     sec3 = get_select_plot_list(lambda idx: sec3_figs[idx])
 
     # # Auto-corr
@@ -93,14 +128,19 @@ def get_prophet_report(self):
 
     all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
 
-    
     sec5_text = dp.Text(f"## Prophet Model Seasonality Components")
     model_states = []
     for i, m in enumerate(self.models):
-        model_states.append(pd.Series(m.seasonalities, index=m.seasonalities.keys(), name=self.target_columns[i]))
+        model_states.append(
+            pd.Series(
+                m.seasonalities,
+                index=m.seasonalities.keys(),
+                name=self.target_columns[i],
+            )
+        )
     all_model_states = pd.concat(model_states, axis=1)
     if not all_model_states.empty:
         sec5 = dp.DataTable(all_model_states)
         all_sections = all_sections + [sec5_text, sec5]
-    
-    return all_sections #+ [sec4_text, sec4]
+
+    return all_sections  # + [sec4_text, sec4]

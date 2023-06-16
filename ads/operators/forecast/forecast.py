@@ -37,17 +37,21 @@ formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(messag
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-try: 
+try:
     from ads.operators.forecast.prophet import operate as prophet_operate
     from ads.operators.forecast.prophet import get_prophet_report
     from ads.operators.forecast.neural_prophet import operate as neuralprophet_operate
     from ads.operators.forecast.neural_prophet import get_neuralprophet_report
     from ads.operators.forecast.arima import operate as arima_operate
-    from ads.operators.forecast.utils import evaluate_metrics, test_evaluate_metrics, get_forecast_plots
+    from ads.operators.forecast.utils import (
+        evaluate_metrics,
+        test_evaluate_metrics,
+        get_forecast_plots,
+    )
 except Exception as ex:
     print(
-    "Please run `pip install oracle-ads[forecast]` to install "
-    "the required dependencies for ADS CLI."
+        "Please run `pip install oracle-ads[forecast]` to install "
+        "the required dependencies for ADS CLI."
     )
     logger.debug(ex)
     logger.debug(traceback.format_exc())
@@ -63,6 +67,7 @@ class ForecastOperator:
         assert args["type"] == "forecast"
         assert args["version"] == "1"
         self.historical_data = args["historical_data"]
+        self.additional_data = args.get("additional_data", dict())
         self.output_data = args["output_data"]
         self.model = args["forecast"]["model"].lower()
         self.target_columns = args["forecast"]["target_columns"]
@@ -75,11 +80,12 @@ class ForecastOperator:
 
         # TODO: clean up
         self.input_filename = self.historical_data["url"]
+        self.additional_filename = self.additional_data.get("url")
         self.output_filename = self.output_data["url"]
         self.test_filename = self.test_data["url"]
         self.ds_column = self.datetime_column.get("name")
         self.datetime_format = self.datetime_column.get("format")
-        self.storage_options = {
+        self.storage_options = {  # TODO pull from ads config
             "profile": self.args["execution"].get("oci_profile"),
             "config": self.args["execution"].get("oci_config"),
         }
@@ -122,7 +128,7 @@ class ForecastOperator:
             other_sections = get_prophet_report(self)
             ds_column_series = self.data["ds"]
             ds_forecast_col = self.outputs[0]["ds"]
-            ci_col_names = ['yhat_lower', 'yhat_upper']
+            ci_col_names = ["yhat_lower", "yhat_upper"]
         elif self.model == "neuralprophet":
             model_description = dp.Text(
                 "NeuralProphet is an easy to learn framework for interpretable time series forecasting. NeuralProphet is built on PyTorch and combines Neural Network and traditional time-series algorithms, inspired by Facebook Prophet and AR-Net."
@@ -136,9 +142,9 @@ class ForecastOperator:
                 "An autoregressive integrated moving average, or ARIMA, is a statistical analysis model that uses time series data to either better understand the data set or to predict future trends. A statistical model is autoregressive if it predicts future values based on past values."
             )
             train_metrics = False
-            ds_column_series = self.data.index
+            ds_column_series = self.data[self.ds_column]
             ds_forecast_col = self.outputs[0].index
-            ci_col_names = ['yhat_lower', 'yhat_upper']
+            ci_col_names = ["yhat_lower", "yhat_upper"]
 
         md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
         summary = dp.Blocks(
@@ -157,12 +163,19 @@ class ForecastOperator:
                             ),
                             dp.BigNumber(
                                 heading="Starting time index",
-                                value=ds_column_series.min().strftime("%B %d, %Y"), # "%r" # TODO: Figure out a smarter way to format
+                                value=ds_column_series.min().strftime(
+                                    "%B %d, %Y"
+                                ),  # "%r" # TODO: Figure out a smarter way to format
                             ),
                             dp.BigNumber(
-                                heading="Ending time index", value=ds_column_series.max().strftime("%B %d, %Y") # "%r" # TODO: Figure out a smarter way to format
+                                heading="Ending time index",
+                                value=ds_column_series.max().strftime(
+                                    "%B %d, %Y"
+                                ),  # "%r" # TODO: Figure out a smarter way to format
                             ),
-                            dp.BigNumber(heading="Num series", value=len(self.target_columns)),
+                            dp.BigNumber(
+                                heading="Num series", value=len(self.target_columns)
+                            ),
                             columns=4,
                         ),
                         dp.Text("### First 10 Rows of Data"),
@@ -171,7 +184,10 @@ class ForecastOperator:
                         dp.Text("### Last 10 Rows of Data"),
                         dp.DataTable(self.original_user_data.tail(10), caption="End"),
                         dp.Text("### Data Summary Statistics"),
-                        dp.DataTable(self.data.describe(), caption="Summary Statistics"),
+                        dp.DataTable(
+                            self.original_user_data.describe(),
+                            caption="Summary Statistics",
+                        ),
                         label="Summary",
                     ),
                     dp.Text(
@@ -185,7 +201,10 @@ class ForecastOperator:
         train_metric_sections = []
         if train_metrics:
             self.eval_metrics = evaluate_metrics(
-                self.target_columns, self.data, self.outputs, target_col=forecast_col_name
+                self.target_columns,
+                self.data,
+                self.outputs,
+                target_col=forecast_col_name,
             )
             sec6_text = dp.Text(f"## Historical Data Evaluation Metrics")
             sec6 = dp.DataTable(self.eval_metrics)
@@ -208,9 +227,18 @@ class ForecastOperator:
             sec8 = dp.DataTable(summary_metrics)
 
             test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
-        
+
         forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
-        forecast_sec = get_forecast_plots(self.data, self.outputs, self.target_columns, test_data=test_data, forecast_col_name=forecast_col_name, ds_col=ds_column_series, ds_forecast_col=ds_forecast_col, ci_col_names=ci_col_names)
+        forecast_sec = get_forecast_plots(
+            self.data,
+            self.outputs,
+            self.target_columns,
+            test_data=test_data,
+            forecast_col_name=forecast_col_name,
+            ds_col=ds_column_series,
+            ds_forecast_col=ds_forecast_col,
+            ci_col_names=ci_col_names,
+        )
         forecast_plots = [forecast_text, forecast_sec]
 
         yaml_appendix_title = dp.Text(f"## Reference: YAML File")
