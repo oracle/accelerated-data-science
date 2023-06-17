@@ -389,7 +389,7 @@ class Transformation(Builder):
                 raise ValueError(
                     "Transformation display name and function name must be same."
                 )
-        elif self.transformation_mode == TransformationMode.SQL.value:
+        elif self.transformation_mode.lower() == TransformationMode.SQL.value:
             TransformationQueryValidator.verify_sql_input(self.transformation_query_input,
                                                           self.CONST_DATA_SOURCE_TRANSFORMATION_INPUT)
             # convert it to transformation function to ensure the integrity with backend
