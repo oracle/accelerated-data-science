@@ -454,7 +454,7 @@ class FeatureStoreTestCase:
         try:
             transformation.delete()
         except Exception as ex:
-            print("Failed to delete feature group: ", str(ex))
+            print("Failed to delete transformation: ", str(ex))
             exit(1)
 
     @staticmethod

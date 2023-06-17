@@ -10,6 +10,7 @@ from ads.feature_store.transformation import Transformation
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.common.enums import TransformationMode
 from tests.integration.feature_store.test_base import FeatureStoreTestCase
+from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
 
 
 class TestFeatureStoreTransformation(FeatureStoreTestCase):
@@ -18,7 +19,7 @@ class TestFeatureStoreTransformation(FeatureStoreTestCase):
     valid_spark_queries = [
         "SELECT requisitionId, length(title) As title_word_count,"
         " CASE When length(title) > 0 Then 0 Else 1 End As empty_title,"
-        " length(description) As description_word_count," \
+        " length(description) As description_word_count,"
         " length(designation) As designation_word_count FROM DATA_SOURCE_INPUT",
         "SELECT user_id, credit_score FROM DATA_SOURCE_INPUT",
         "SELECT  country, city, zipcode, state FROM DATA_SOURCE_INPUT WHERE state in ('PR', 'AZ', 'FL') order by state",
@@ -104,7 +105,19 @@ class TestFeatureStoreTransformation(FeatureStoreTestCase):
         )
         assert fg.oci_feature_group.id
 
-        fg.materialise(self.data)
+        # convert pandas to spark dataframe to run SPARK SQL transformation mode
+        spark = SparkSessionSingleton().get_spark_session()
+        spark_df = spark.createDataFrame(self.data)
+        # get item count
+        item_count = spark_df.count()
+        # materialise to delta table
+        fg.materialise(spark_df)
+        # read dataframe
+        df = fg.select().read()
+        # assert dataframe
+        assert df
+        # assert count
+        assert df.count() == item_count
 
         self.clean_up_feature_group(fg)
         self.clean_up_transformation(transformation)

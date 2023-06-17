@@ -16,6 +16,7 @@ spec:
       spec:
         displayName: '{entity_name}'
 
+  # we can pass sql query in case of spark based sql transformations by passing query inline in transformationQueryInput
   transformation: &transformation
     - kind: transformation
       spec:
