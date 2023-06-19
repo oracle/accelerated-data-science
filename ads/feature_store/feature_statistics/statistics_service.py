@@ -39,7 +39,7 @@ class StatisticsService:
             statistics_config: StatisticsConfig, input_df: DataFrame
     ):
         feature_metrics = None
-        if bool(input_df.head(1)) and statistics_config and statistics_config.get("isEnabled"):
+        if bool(input_df.head(1)) and statistics_config and statistics_config.is_enabled:
             feature_schema = {}
             if input_df.schema:
                 StatisticsService.__get_mlm_supported_schema(feature_schema, input_df, statistics_config)
@@ -66,7 +66,7 @@ class StatisticsService:
 
     @staticmethod
     def __get_mlm_supported_schema(feature_schema: dict, input_df: DataFrame, statistics_config: StatisticsConfig):
-        relevant_columns = statistics_config.get("columns")
+        relevant_columns = statistics_config.columns
         for field in input_df.schema.fields:
             data_type = map_spark_type_to_stats_data_type(field.dataType)
             if not data_type:
