@@ -229,7 +229,7 @@ class SparkExecutionEngine(Strategy):
             # Compute Feature Statistics
             
             feature_statistics = StatisticsService.compute_stats_with_mlm(
-                statistics_config=feature_group.statistics_config,
+                statistics_config=feature_group.oci_feature_group.statistics_config,
                 input_df=featured_data)
 
         except Exception as ex:
@@ -347,7 +347,7 @@ class SparkExecutionEngine(Strategy):
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
-                statistics_config=dataset.statistics_config,
+                statistics_config=dataset.oci_dataset.statistics_config,
                 input_df=dataset_dataframe,
             )
 

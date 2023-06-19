@@ -247,6 +247,12 @@ pyspark
 * Source code: https://github.com/apache/spark/tree/master/python
 * Project home: https://spark.apache.org/
 
+pyarrow
+* Copyright 2004 and onwards The Apache Software Foundation.
+* License: Apache-2.0 LICENSE
+* Source code: https://github.com/apache/arrow/tree/main/python
+* Project home: https://arrow.apache.org/
+
 python_jsonschema_objects
 * Copyright (c) 2014 Chris Wacek
 * License: MIT License
