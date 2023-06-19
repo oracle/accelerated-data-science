@@ -74,7 +74,7 @@ extras_require = {
     "huggingface": ["transformers"],
     "great-expectations": ["great-expectations==0.15.39"],
     "mlm_insights": ["mlm_insights==0.1.0.dev1"],
-    "pyarrow": ["pyspark[sql]"]
+    "pyarrow": ["pyarrow"]
 }
 
 this_directory = Path(__file__).parent
