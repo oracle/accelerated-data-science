@@ -74,12 +74,13 @@ class QueryGenerator:
         selected_features_map = {}
         index = 0
         on_condition = []
-        left_table = f"`{self.query.entity_id}`.{self.query.left_feature_group.name}"
-        left_table_alias = self.get_table_alias(len(self.query.joins))
+        table = f"`{self.query.entity_id}`.{self.query.left_feature_group.name}"
+        table_alias = self.get_table_alias(len(self.query.joins))
+        left_table_alias = table_alias
 
         # store the left features in the map
-        selected_features_map[left_table_alias] = self.query.left_features
-        feature_group_id_map = {self.query.left_feature_group.id: left_table_alias}
+        selected_features_map[table_alias] = self.query.left_features
+        feature_group_id_map = {self.query.left_feature_group.id: table_alias}
 
         for join in self.query.joins:
             # Ge table and alias and map the features
@@ -99,6 +100,8 @@ class QueryGenerator:
                 )
             )
 
+            left_table_alias = right_table_alias
+
         selected_columns = self._get_selected_columns(selected_features_map)
         filters = (
             None
@@ -109,7 +112,7 @@ class QueryGenerator:
         )
 
         # Define the SQL query as an f-string
-        query = f"SELECT {selected_columns} FROM {left_table} {left_table_alias}"
+        query = f"SELECT {selected_columns} FROM {table} {table_alias}"
 
         if on_condition:
             # If there is an ON condition, add it to the query

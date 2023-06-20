@@ -155,7 +155,7 @@ class FeatureGroup(Builder):
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_STATISTICS_CONFIG: "statistics_config",
-        CONST_INFER_SCHEMA: "is_infer_schema"
+        CONST_INFER_SCHEMA: "is_infer_schema",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -1225,7 +1225,8 @@ class FeatureGroup(Builder):
 
         if self.job_id is None:
             raise ValueError(
-                "Unable to retrieve the last job. Please provide the job ID and make sure you materialized the data.")
+                "Unable to retrieve the last job. Please provide the job ID and make sure you materialized the data."
+            )
 
         return self.job_id
 
@@ -1278,9 +1279,13 @@ class FeatureGroup(Builder):
         # Retrieve the validation output JSON from data_flow_batch_execution_output.
         fg_job = FeatureGroupJob.from_id(validation_job_id)
         output_details = fg_job.job_output_details
-        validation_output = output_details.get("validationOutput") if output_details else None
+        validation_output = (
+            output_details.get("validationOutput") if output_details else None
+        )
 
-        validation_output_json = json.loads(validation_output) if validation_output else None
+        validation_output_json = (
+            json.loads(validation_output) if validation_output else None
+        )
 
         return ValidationOutput(validation_output_json)
 
