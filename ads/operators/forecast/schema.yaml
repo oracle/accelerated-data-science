@@ -47,7 +47,64 @@ historical_data:
       required: false
       type: integer
 
-output_data:
+additional_data:
+  required: false
+  type: dict
+  schema:
+    format:
+      allowed:
+        - csv
+        - json
+        - clipboard
+        - excel
+        - hdf
+        - feather
+        - load_files
+      required: true
+      type: string
+    columns:
+      required: false
+      type: list
+      schema:
+        type: string
+    options:
+      nullable: true
+      required: false
+      type: dict
+    url:
+      required: false
+      type: string
+    limit:
+      required: false
+      type: integer
+
+test_data:
+  required: false
+  schema:
+    connect_args:
+      nullable: true
+      required: false
+      type: dict
+    format:
+      required: true
+      type: string
+      allowed:
+        - csv
+        - json
+        - clipboard
+        - excel
+        - hdf
+        - sql
+    name:
+      required: false
+      type: string
+    options:
+      nullable: true
+      required: false
+      type: dict
+  type: dict
+
+output_directory:
   required: false
   schema:
     connect_args:
@@ -151,5 +208,19 @@ forecast:
     model_kwargs:
       type: dict
       required: false
+
+    confidence_interval_width:
+      type: float
+      required: false
+
+    metric:
+      type: string
+      required: false
+      default: MAPE
+      allowed:
+        - MAPE
+        - RMSE
+        - MSE
+        - SMAPE
 
   type: dict

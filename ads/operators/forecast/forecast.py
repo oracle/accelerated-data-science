@@ -68,7 +68,7 @@ class ForecastOperator:
         assert args["version"] == "1"
         self.historical_data = args["historical_data"]
         self.additional_data = args.get("additional_data", dict())
-        self.output_data = args["output_data"]
+        self.output_directory = args["output_directory"]
         self.model = args["forecast"]["model"].lower()
         self.target_columns = args["forecast"]["target_columns"]
         self.original_target_columns = args["forecast"]["target_columns"]
@@ -76,12 +76,17 @@ class ForecastOperator:
         self.test_data = args["test_data"]
         self.datetime_column = args["forecast"]["datetime_column"]
         self.horizon = args["forecast"]["horizon"]
-        self.report_file_name = args["forecast"]["report_file_name"]
+        self.report_file_name = args["forecast"].get(
+            "report_file_name",
+            os.path.join(self.output_directory["url"], "report.html"),
+        )
 
         # TODO: clean up
         self.input_filename = self.historical_data["url"]
         self.additional_filename = self.additional_data.get("url")
-        self.output_filename = self.output_data["url"]
+        self.output_filename = os.path.join(
+            self.output_directory["url"], "forecast.csv"
+        )
         self.test_filename = self.test_data["url"]
         self.ds_column = self.datetime_column.get("name")
         self.datetime_format = self.datetime_column.get("format")

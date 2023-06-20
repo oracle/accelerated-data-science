@@ -62,7 +62,8 @@ def operate(operator):
         model.fit(training_data, freq=operator.horizon["interval_unit"])
 
         # Determine which regressors were accepted
-        accepted_regressors = list(model.config_regressors.keys())
+        accepted_regressors_config = model.config_regressors or dict()
+        accepted_regressors = list(accepted_regressors_config.keys())
         print(f"Found the following additional data columns: {additional_regressors}")
         print(
             f"While fitting the model, some additional data may have been discarded. Only using the columns: {accepted_regressors}"
