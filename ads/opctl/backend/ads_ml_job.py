@@ -227,8 +227,8 @@ class MLJobBackend(Backend):
         Watch Job Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
-        interval = self.config["execution"]["interval"]
-        wait = self.config["execution"]["wait"]
+        interval = self.config["execution"].get("interval")
+        wait = self.config["execution"].get("wait")
         with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataScienceJobRun.from_ocid(run_id)
             run.watch(interval=interval, wait=wait)
