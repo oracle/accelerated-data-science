@@ -179,7 +179,9 @@ class SparkExecutionEngine(Strategy):
 
             if isinstance(data_frame, pd.DataFrame):
                 if not feature_group.is_infer_schema:
-                    convert_pandas_datatype_with_schema(feature_group.input_feature_details, data_frame)
+                    convert_pandas_datatype_with_schema(
+                        feature_group.input_feature_details, data_frame
+                    )
 
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 

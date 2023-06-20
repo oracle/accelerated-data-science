@@ -109,6 +109,20 @@ class Query(Builder):
         """
         return self.set_spec(self.CONST_LEFT_FEATURE_GROUP, feature_group)
 
+    def get_last_joined_feature_group(self):
+        """
+        Retrieves the last joined feature group from the list of joins,
+        or returns the left feature group if no joins are present.
+
+        Returns:
+            The last joined feature group if the list of joins is non-empty,
+            otherwise returns the left feature group.
+        """
+        if self.joins:
+            return self.joins[-1].sub_query.left_feature_group
+        else:
+            return self.left_feature_group
+
     @property
     def _filter(self):
         return self.get_spec(self.CONST_FILTER)
@@ -291,7 +305,7 @@ class Query(Builder):
         """
 
         join = Join(sub_query, on, left_on, right_on, join_type)
-        QueryValidator.validate_query_join(self.left_feature_group, join)
+        QueryValidator.validate_query_join(self.get_last_joined_feature_group(), join)
         self.joins.append(join)
         return self
 
