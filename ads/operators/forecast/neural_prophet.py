@@ -32,67 +32,89 @@ def operate(operator):
     full_data_dict = operator.full_data_dict
 
     models = []
-    outputs = []
-    for i, (target, df) in enumerate(full_data_dict.items()):
+    outputs = dict()
+    outputs_legacy = []
 
+    # Extract the Confidence Interval Width and convert to neural prophets equivalent - quantiles
+    model_kwargs = operator.model_kwargs
+    if operator.confidence_interval_width is None:
+        quantiles = operator.model_kwargs.get("quantiles", [0.05, 0.95])
+        operator.confidence_interval_width = float(quantiles[1]) - float(quantiles[0])
+    else:
+        boundaries = round((1 - operator.confidence_interval_width) / 2, 2)
+        quantiles = [boundaries, operator.confidence_interval_width + boundaries]
+    model_kwargs["quantiles"] = quantiles
+
+    for i, (target, df) in enumerate(full_data_dict.items()):
+        # format the dataframe for this target. Dropping NA on target[df] will remove all future data
         df = _preprocess_prophet(df, operator.ds_column, operator.datetime_format)
         data_i = df[df[target].notna()]
         data_i.rename({target: "y"}, axis=1, inplace=True)
 
+        # Assume that all columns passed in should be used as additional data
         additional_regressors = set(data_i.columns) - {"y", "ds"}
-        illegal_columns = [
-            (data_i[ar][0] == data_i[ar]).all() for ar in additional_regressors
-        ]
-        additional_regressors = additional_regressors - set(illegal_columns)
-
         training_data = data_i[["y", "ds"] + list(additional_regressors)]
 
-        model = NeuralProphet()
-        future = model.make_future_dataframe(
-            df=training_data, periods=operator.horizon["periods"]
-        )
+        # Build and fit model
+        model = NeuralProphet(**model_kwargs)
         for add_reg in additional_regressors:
             model = model.add_future_regressor(name=add_reg)
         model.fit(training_data, freq=operator.horizon["interval_unit"])
 
-        # TOOD: this will use the period/range of the additional data
-        if len(additional_regressors):
-            future_sorted = future.set_index("ds")
-            df_sorted = df.set_index("ds")
-            future = (
-                future_sorted.drop(additional_regressors, axis=1)
-                .join(df_sorted)
-                .reset_index()
-            )
+        # Determine which regressors were accepted
+        accepted_regressors = list(model.config_regressors.keys())
+        print(f"Found the following additional data columns: {additional_regressors}")
+        print(
+            f"While fitting the model, some additional data may have been discarded. Only using the columns: {accepted_regressors}"
+        )
 
+        # Build future dataframe
+        future = df.reset_index(drop=True)
+        future["y"] = None
+        future = future[["y", "ds"] + list(accepted_regressors)]
+
+        # Forecaset model and collect outputs
         forecast = model.predict(future)
-
-        # future_only = model.make_future_dataframe(df=data_i, periods=operator.horizon['periods']) #, freq=operator.horizon['interval_unit'])
-        # all_dates = pd.concat([data_i[['ds', 'y']], future_only])
-        # forecast = model.predict(all_dates)
-
         print(f"-----------------Model {i}----------------------")
-        # forecast = forecast.rename({'yhat1': 'yhat'}, axis=1)
-        print(forecast.head())
+        print(forecast.tail())
         models.append(model)
-        outputs.append(forecast)
+        outputs[target] = forecast
+        outputs_legacy.append(forecast)
 
     operator.models = models
-    operator.outputs = outputs
+    operator.outputs = outputs_legacy
 
     print("===========Done===========")
-    outputs_merged = outputs.copy()
-    for i, col in enumerate(operator.target_columns):
-        outputs_merged[i] = outputs_merged[i].rename(
-            lambda x: x + "_" + col if x != "ds" else x, axis=1
-        )
-    output_total = pd.concat(outputs_merged, axis=1)
-    _write_data(output_total, operator.output_filename, "csv", operator.storage_options)
+    outputs_merged = pd.DataFrame()
 
+    # Merge the outputs from each model into 1 df with all outputs by target and category
+    for col in operator.original_target_columns:
+        output_col = pd.DataFrame()
+        for cat in operator.categories:  # Note: to restrict columns, set this to [:2]
+            output_i = pd.DataFrame()
+
+            output_i[operator.ds_column] = outputs[f"{col}_{cat}"]["ds"]
+            output_i[operator.target_category_column] = cat
+            output_i[f"{col}_forecast"] = outputs[f"{col}_{cat}"]["yhat1"]
+            output_i[f"{col}_forecast_upper"] = outputs[f"{col}_{cat}"][
+                f"yhat1 {quantiles[1]*100}%"
+            ]
+            output_i[f"{col}_forecast_lower"] = outputs[f"{col}_{cat}"][
+                f"yhat1 {quantiles[0]*100}%"
+            ]
+            output_col = pd.concat([output_col, output_i])
+        output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
+        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
+
+    _write_data(
+        outputs_merged, operator.output_filename, "csv", operator.storage_options
+    )
+
+    # Re-merge historical datas for processing
     data_merged = pd.concat(
         [v[v[k].notna()].set_index("ds") for k, v in full_data_dict.items()], axis=1
     ).reset_index()
-    return data_merged, models, outputs
+    return data_merged, models, outputs_legacy
 
 
 def get_neuralprophet_report(self):

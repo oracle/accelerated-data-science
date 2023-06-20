@@ -121,6 +121,8 @@ def _clean_merge_data(
 ):
     # Todo: KNN Imputer?
     df_by_target = dict()
+    target_column_mappings = dict()
+    categories = []
 
     if target_category_column is None:
         for col in target_columns:
@@ -134,11 +136,12 @@ def _clean_merge_data(
                     ],
                     axis=1,
                 ).reset_index()
-        return df_by_target, target_columns
+            target_column_mappings[col] = (col, None)
+        return df_by_target, target_columns, target_column_mappings, categories
 
     categories = data[target_category_column].unique()
     for col in target_columns:
-        for cat in categories[:2]:  # TODO remove  [:2]
+        for cat in categories:  # Note to restrict, add [:2]
             data_by_cat = data[data[target_category_column] == cat].rename(
                 {col: f"{col}_{cat}"}, axis=1
             )
@@ -162,9 +165,10 @@ def _clean_merge_data(
                 )
 
             df_by_target[f"{col}_{cat}"] = data_by_cat_clean.reset_index()
+            target_column_mappings[f"{col}_{cat}"] = (col, cat)
 
     new_target_columns = list(df_by_target.keys())
-    return df_by_target, new_target_columns
+    return df_by_target, new_target_columns, target_column_mappings, categories
 
 
 def load_data_dict(operator):
@@ -191,7 +195,12 @@ def load_data_dict(operator):
         )
         operator.original_additional_data = additional_data.copy()
         operator.original_total_data = pd.concat([data, additional_data], axis=1)
-    full_data_dict, operator.target_columns = _clean_merge_data(
+    (
+        full_data_dict,
+        operator.target_columns,
+        operator.target_column_mappings,
+        operator.categories,
+    ) = _clean_merge_data(
         data=data,
         target_columns=operator.target_columns,
         datetime_column=operator.ds_column,
@@ -281,6 +290,7 @@ def get_forecast_plots(
     ds_forecast_col=None,
     forecast_col_name="yhat",
     ci_col_names=None,
+    ci_interval_width=0.95,
 ):
     import plotly.express as px
     from plotly import graph_objects as go
@@ -313,7 +323,7 @@ def get_forecast_plots(
                         y=outputs[idx][ci_col_names[1]],
                         mode="lines",
                         line_color="rgba(0,0,0,0)",
-                        name="95% confidence interval",
+                        name=f"{ci_interval_width*100}% confidence interval",
                         fill="tonexty",
                         fillcolor="rgba(211, 211, 211, 0.5)",
                     ),

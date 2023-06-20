@@ -104,10 +104,10 @@ forecast:
         name:
           type: string
           required: false
-        format: 
+        format:
           type: string
           required: false
-    
+
     category_columns:
       type: list
       required: false
@@ -147,5 +147,9 @@ forecast:
         - prophet
         - ARIMA
         - neuralprophet
+
+    model_kwargs:
+      type: dict
+      required: false
 
   type: dict

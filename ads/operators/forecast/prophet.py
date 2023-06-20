@@ -29,59 +29,86 @@ def _preprocess_prophet(data, ds_column, datetime_format):
 
 
 def operate(operator):
+    # Load in the data as a dictionary of {target: dataset}
     operator = load_data_dict(operator)
     full_data_dict = operator.full_data_dict
-
     models = []
-    outputs = []
+    outputs = dict()
+    outputs_legacy = []
+
+    # Extract the Confidence Interval Width and convert to prophet's equivalent - interval_width
+    if operator.confidence_interval_width is None:
+        operator.confidence_interval_width = operator.model_kwargs.get(
+            "interval_width", 0.90
+        )
+    model_kwargs = operator.model_kwargs
+    model_kwargs["interval_width"] = operator.confidence_interval_width
+
     for i, (target, df) in enumerate(full_data_dict.items()):
+        # format the dataframe for this target. Dropping NA on target[df] will remove all future data
         df = _preprocess_prophet(df, operator.ds_column, operator.datetime_format)
         data_i = df[df[target].notna()]
         data_i.rename({target: "y"}, axis=1, inplace=True)
-        print(f"data_i: {data_i}")
 
+        # Assume that all columns passed in should be used as additional data
         additional_regressors = set(data_i.columns) - {"y", "ds"}
-        print(f"additional_regressors: {additional_regressors}")
+        print(f"Found the following additional data columns: {additional_regressors}")
 
-        model = Prophet()
+        # Build and fit model
+        model = Prophet(**model_kwargs)
         for add_reg in additional_regressors:
             model.add_regressor(add_reg)
         model.fit(data_i)
 
+        # Make future df for prediction
         if len(additional_regressors):
             # TOOD: this will use the period/range of the additional data
             future = df.drop(target, axis=1)
-            # future = future.join(additional_data)
         else:
             future = model.make_future_dataframe(
                 periods=operator.horizon["periods"],
                 freq=operator.horizon["interval_unit"],
             )
-
+        # Make Prediction
         forecast = model.predict(future)
-
         print(f"-----------------Model {i}----------------------")
         print(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail())
+
+        # Collect Outputs
         models.append(model)
-        outputs.append(forecast)
+        outputs[target] = forecast
+        outputs_legacy.append(forecast)
 
     operator.models = models
-    operator.outputs = outputs
+    operator.outputs = outputs_legacy
 
     print("===========Done===========")
-    outputs_merged = outputs.copy()
-    for i, col in enumerate(operator.target_columns):
-        outputs_merged[i] = outputs_merged[i].rename(
-            lambda x: x + "_" + col if x != "ds" else x, axis=1
-        )
-    output_total = pd.concat(outputs_merged, axis=1)
-    _write_data(output_total, operator.output_filename, "csv", operator.storage_options)
+    outputs_merged = pd.DataFrame()
 
+    # Merge the outputs from each model into 1 df with all outputs by target and category
+    for col in operator.original_target_columns:
+        output_col = pd.DataFrame()
+        for cat in operator.categories:  # Note: add [:2] to restrict
+            output_i = pd.DataFrame()
+
+            output_i[operator.ds_column] = outputs[f"{col}_{cat}"]["ds"]
+            output_i[operator.target_category_column] = cat
+            output_i[f"{col}_forecast"] = outputs[f"{col}_{cat}"]["yhat"]
+            output_i[f"{col}_forecast_upper"] = outputs[f"{col}_{cat}"]["yhat_upper"]
+            output_i[f"{col}_forecast_lower"] = outputs[f"{col}_{cat}"]["yhat_lower"]
+            output_col = pd.concat([output_col, output_i])
+        output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
+        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
+    _write_data(
+        outputs_merged, operator.output_filename, "csv", operator.storage_options
+    )
+
+    # Re-merge historical datas for processing
     data_merged = pd.concat(
         [v[v[k].notna()].set_index("ds") for k, v in full_data_dict.items()], axis=1
     ).reset_index()
 
-    return data_merged, models, outputs
+    return data_merged, models, outputs_legacy
 
 
 def get_prophet_report(self):

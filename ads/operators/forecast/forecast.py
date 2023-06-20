@@ -89,6 +89,10 @@ class ForecastOperator:
             "profile": self.args["execution"].get("oci_profile"),
             "config": self.args["execution"].get("oci_config"),
         }
+        self.model_kwargs = args["forecast"].get("model_kwargs", dict())
+        self.confidence_interval_width = args["forecast"].get(
+            "confidence_interval_width"
+        )
 
     def build_model(self):
         view = dp.View(dp.Text("# My report 3"))
@@ -238,6 +242,7 @@ class ForecastOperator:
             ds_col=ds_column_series,
             ds_forecast_col=ds_forecast_col,
             ci_col_names=ci_col_names,
+            ci_interval_width=self.confidence_interval_width,
         )
         forecast_plots = [forecast_text, forecast_sec]
 
