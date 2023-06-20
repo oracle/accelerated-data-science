@@ -22,21 +22,6 @@ from ads.common.extended_enum import ExtendedEnumMeta
 from oci.config import DEFAULT_LOCATION  # "~/.oci/config"
 from oci.config import DEFAULT_PROFILE  # "DEFAULT"
 
-SECURITY_TOKEN_GENERIC_HEADERS = [
-    "date", 
-    "(request-target)", 
-    "host"
-]
-SECURITY_TOKEN_BODY_HEADERS = [
-    "content-length", 
-    "content-type", 
-    "x-content-sha256"
-]
-SECURITY_TOKEN_REQUIRED = [
-    "security_token_file", 
-    "key_file", 
-    "region"
-]
 SECURITY_TOKEN_LEFT_TIME = 600
 
 
@@ -768,6 +753,21 @@ class SecurityToken(AuthSignerGenerator):
     a given user - it requires that user's private key and security token.
     It prepares extra arguments necessary for creating clients for variety of OCI services.
     """
+    SECURITY_TOKEN_GENERIC_HEADERS = [
+        "date",
+        "(request-target)",
+        "host"
+    ]
+    SECURITY_TOKEN_BODY_HEADERS = [
+        "content-length",
+        "content-type",
+        "x-content-sha256"
+    ]
+    SECURITY_TOKEN_REQUIRED = [
+        "security_token_file",
+        "key_file",
+        "region"
+    ]
 
     def __init__(self, args: Optional[Dict] = None):
         """
@@ -823,7 +823,7 @@ class SecurityToken(AuthSignerGenerator):
 
         logger.info(f"Using 'security_token' authentication.")
 
-        for parameter in SECURITY_TOKEN_REQUIRED:
+        for parameter in self.SECURITY_TOKEN_REQUIRED:
             if parameter not in configuration:
                 raise ValueError(
                     f"Parameter `{parameter}` must be provided for using `security_token` authentication."
@@ -838,8 +838,8 @@ class SecurityToken(AuthSignerGenerator):
                 private_key=oci.signer.load_private_key_from_file(
                     configuration.get("key_file"), configuration.get("pass_phrase")
                 ),
-                generic_headers=configuration.get("generic_headers", SECURITY_TOKEN_GENERIC_HEADERS),
-                body_headers=configuration.get("body_headers", SECURITY_TOKEN_BODY_HEADERS)
+                generic_headers=configuration.get("generic_headers", self.SECURITY_TOKEN_GENERIC_HEADERS),
+                body_headers=configuration.get("body_headers", self.SECURITY_TOKEN_BODY_HEADERS)
             ),
             "client_kwargs": self.client_kwargs,
         }
@@ -860,7 +860,7 @@ class SecurityToken(AuthSignerGenerator):
 
         if not security_token_container.valid():
             raise SecurityTokenError(
-                "Security token has expired. Call `oci session authenticate` to generate new session."
+                "Security token is invalid or has expired. Call `oci session authenticate` to generate new session."
             )
         
         time_now = int(time.time())
