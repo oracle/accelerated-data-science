@@ -189,9 +189,10 @@ class DataFlowBackend(Backend):
         Watch DataFlow Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
+        interval = self.config["execution"]["interval"]
         with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataFlowRun.from_ocid(run_id)
-            run.watch()
+            run.watch(interval=interval)
 
 
 class DataFlowRuntimeFactory(RuntimeFactory):
