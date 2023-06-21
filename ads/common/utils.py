@@ -17,9 +17,7 @@ import os
 import random
 import re
 import shutil
-import stat
 import string
-import subprocess
 import sys
 import tempfile
 from datetime import datetime
@@ -1601,58 +1599,3 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     if fsspec.filesystem(path_scheme, **storage_options).exists(uri):
         return True
     return False
-
-def apply_user_only_access_permissions(path: str):
-    """Applies user-only access permission to path. The logic is mainly taken reference from:
-    https://github.com/oracle/oci-cli/blob/master/src/oci_cli/cli_util.py#L2555
-
-    Parameters
-    ----------
-    path: str
-        Path to the file or folder
-    """
-    if not os.path.exists(path):
-        raise RuntimeError("Failed attempting to set permissions on path that does not exist: {}".format(path))
-
-    if is_windows():
-        # General permissions strategy is:
-        #   - if we create a new folder (e.g. C:\Users\opc\.oci), set access to allow full control for current user and no access for anyone else
-        #   - if we create a new file, set access to allow full control for current user and no access for anyone else
-        #   - thus if the user elects to place a new file (config or key) in an existing directory, we will not change the
-        #     permissions of that directory but will explicitly set the permissions on that file
-        username = os.environ['USERNAME']
-        userdomain = os.environ['UserDomain']
-        userWithDomain = os.environ['USERNAME']
-        if userdomain:
-            userWithDomain = userdomain + "\\" + username
-        admin_grp = '*S-1-5-32-544'
-        system_usr = '*S-1-5-18'
-        try:
-            if os.path.isfile(path):
-                subprocess.check_output('icacls "{path}" /reset'.format(path=path), stderr=subprocess.STDOUT)
-                try:
-                    subprocess.check_output('icacls "{path}" /inheritance:r /grant:r "{username}:F" /grant {admin_grp}:F /grant {system_usr}:F'.format(path=path, username=userWithDomain, admin_grp=admin_grp, system_usr=system_usr), stderr=subprocess.STDOUT)
-                except subprocess.CalledProcessError:
-                    subprocess.check_output('icacls "{path}" /inheritance:r /grant:r "{username}:F" /grant {admin_grp}:F /grant {system_usr}:F'.format(path=path, username=username, admin_grp=admin_grp, system_usr=system_usr), stderr=subprocess.STDOUT)
-            else:
-                if os.listdir(path):
-                    # safety check to make sure we aren't changing permissions of existing files
-                    raise RuntimeError("Failed attempting to set permissions on existing folder that is not empty.")
-                subprocess.check_output('icacls "{path}" /reset'.format(path=path), stderr=subprocess.STDOUT)
-                try:
-                    subprocess.check_output('icacls "{path}" /inheritance:r /grant:r "{username}:(OI)(CI)F"  /grant:r {admin_grp}:(OI)(CI)F /grant:r {system_usr}:(OI)(CI)F'.format(path=path, username=userWithDomain, admin_grp=admin_grp, system_usr=system_usr), stderr=subprocess.STDOUT)
-                except subprocess.CalledProcessError:
-                    subprocess.check_output('icacls "{path}" /inheritance:r /grant:r "{username}:(OI)(CI)F"  /grant:r {admin_grp}:(OI)(CI)F /grant:r {system_usr}:(OI)(CI)F'.format(path=path, username=username, admin_grp=admin_grp, system_usr=system_usr), stderr=subprocess.STDOUT)
-        except subprocess.CalledProcessError as exc_info:
-            print("Error occurred while attempting to set permissions for {path}: {exception}".format(path=path, exception=str(exc_info)))
-            sys.exit(exc_info.returncode)
-    else:
-        if os.path.isfile(path):
-            os.chmod(path, stat.S_IRUSR | stat.S_IWUSR)
-        else:
-            # For directories, we need to apply S_IXUSER otherwise it looks like on Linux/Unix/macOS if we create the directory then
-            # it won't behave like a directory and let files be put into it
-            os.chmod(path, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
-
-def is_windows():
-    return sys.platform == 'win32' or sys.platform == 'cygwin'

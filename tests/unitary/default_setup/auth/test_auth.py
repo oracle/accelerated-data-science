@@ -586,7 +586,7 @@ class TestSecurityToken(TestCase):
         assert signer["config"]["key_file"] == "test_key_file"
         assert isinstance(signer["signer"], SecurityTokenSigner)
 
-    @mock.patch("ads.common.auth.SecurityToken._refresh_security_token")
+    @mock.patch("os.system")
     @mock.patch("oci.auth.security_token_container.SecurityTokenContainer.get_jwt")
     @mock.patch("time.time")
     @mock.patch("oci.auth.security_token_container.SecurityTokenContainer.valid")
@@ -599,7 +599,7 @@ class TestSecurityToken(TestCase):
         mock_valid,
         mock_time,
         mock_get_jwt,
-        mock_refresh_security_token
+        mock_system
     ):
         security_token = SecurityToken(
             args={
@@ -625,10 +625,10 @@ class TestSecurityToken(TestCase):
         ):
             security_token._validate_and_refresh_token(configuration)
         
-        
         mock_valid.return_value = True
         mock_time.return_value = 1
         mock_get_jwt.return_value = {"exp" : 1}
+        mock_system.return_value = 1
         
         security_token._validate_and_refresh_token(configuration)
         
@@ -636,68 +636,7 @@ class TestSecurityToken(TestCase):
         mock_security_token_container.assert_called()
         mock_time.assert_called()
         mock_get_jwt.assert_called()
-        mock_refresh_security_token.assert_called_with(configuration)
-
-    @mock.patch("ads.common.utils.apply_user_only_access_permissions")
-    @mock.patch("json.loads")
-    @mock.patch("requests.post")
-    @mock.patch("json.dumps")
-    @mock.patch("oci.auth.signers.SecurityTokenSigner.__init__")
-    @mock.patch("oci.signer.load_private_key_from_file")
-    @mock.patch("builtins.open")
-    def test_refresh_security_token(
-        self,
-        mock_open,
-        mock_load_private_key_from_file,
-        mock_security_token_signer,
-        mock_dumps,
-        mock_post,
-        mock_loads,
-        mock_apply_user_only_access_permissions
-    ):
-        security_token = SecurityToken(args={})
-        configuration = {
-            "fingerprint": "test_fingerprint",
-            "tenancy": "test_tenancy",
-            "region": "us-ashburn-1",
-            "key_file": "test_key_file",
-            "security_token_file": "test_security_token",
-            "generic_headers": [1,2,3],
-            "body_headers": [4,5,6]
-        }
-        mock_security_token_signer.return_value = None
-        mock_loads.return_value = {
-            "token": "test_token"
-        }
-
-        response = MagicMock()
-        response.status_code = 401
-        mock_post.return_value = response
-        with pytest.raises(
-            SecurityTokenError,
-            match="Security token has expired. Call `oci session authenticate` to generate new session."
-        ):
-            security_token._refresh_security_token(configuration)
-
-        response.status_code = 500
-        mock_post.return_value = response
-        with pytest.raises(
-            SecurityTokenError,
-        ):
-            security_token._refresh_security_token(configuration)
-
-        response.status_code = 200
-        response.content = bytes("test_content", encoding='utf8')
-        mock_post.return_value = response
-        security_token._refresh_security_token(configuration)
-
-        mock_open.assert_called()
-        mock_load_private_key_from_file.assert_called_with("test_key_file", None)
-        mock_security_token_signer.assert_called()
-        mock_dumps.assert_called()
-        mock_post.assert_called()
-        mock_loads.assert_called()
-        mock_apply_user_only_access_permissions.assert_called()
+        mock_system.assert_called_with(f"oci session refresh --config-file {DEFAULT_LOCATION} --profile test_profile")
 
     @mock.patch("builtins.open")
     @mock.patch("os.path.isfile")
