@@ -480,14 +480,14 @@ def cancel(**kwargs):
 @click.option(
     "--interval",
     help="log interval in seconds",
-    type=[click.INT, click.FLOAT],
+    type=int,
     required=False,
     default=3,
 )
 @click.option(
     "--wait",
     help="time in seconds to keep updating the logs after the job run finished for job.",
-    type=[click.INT, click.FLOAT],
+    type=int,
     required=False,
     default=90
 )
