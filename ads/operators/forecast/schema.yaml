@@ -131,7 +131,7 @@ output_directory:
   type: dict
 
 forecast:
-  required: false
+  required: true
   schema:
     report_file_name:
       required: false
@@ -147,16 +147,20 @@ forecast:
       allowed:
         - light
         - dark
+    report_metrics_name:
+      required: false
+      type: string
+      default: report.csv
 
     target_columns:
       type: list
-      required: false
+      required: true
       schema:
         type: string
 
     datetime_column:
       type: dict
-      required: false
+      required: true
       schema:
         name:
           type: string
@@ -165,7 +169,7 @@ forecast:
           type: string
           required: false
 
-    category_columns:
+    target_category_column:
       type: list
       required: false
       schema:
@@ -175,7 +179,7 @@ forecast:
       type: dict
       required: false
       schema:
-        period:
+        periods:
           type: int
           required: false
         interval:
@@ -186,15 +190,14 @@ forecast:
           type: sting
           default: auto
           allowed:
-            - auto
-            - Second
-            - Minute
-            - Hour
-            - Day
-            - Week
-            - Month
-            - Quarter
-            - Year
+            - S
+            - M
+            - H
+            - D
+            - W
+            - Mo
+            - Q
+            - Y
 
     model:
       type: string
@@ -202,7 +205,7 @@ forecast:
       default: prophet
       allowed:
         - prophet
-        - ARIMA
+        - arima
         - neuralprophet
 
     model_kwargs:
