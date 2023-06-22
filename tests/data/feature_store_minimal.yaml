@@ -16,7 +16,7 @@ spec:
     - kind: transformation
       spec:
         displayName: transactions_df
-        transformationMode: SPARK_SQL
+        transformationMode: SQL
         sourceCode: '
         def transactions_df(transactions_batch):
           sql_query = f"""
