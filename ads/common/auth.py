@@ -6,17 +6,14 @@
 
 import copy
 from datetime import datetime
-import json
 import os
 from dataclasses import dataclass
 import time
 from typing import Any, Callable, Dict, Optional, Union
 
-import requests
-
 import ads.telemetry
 import oci
-from ads.common import logger, utils
+from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.extended_enum import ExtendedEnumMeta
 from oci.config import DEFAULT_LOCATION  # "~/.oci/config"
