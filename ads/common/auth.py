@@ -862,7 +862,7 @@ class SecurityToken(AuthSignerGenerator):
         
         time_now = int(time.time())
         time_expired = security_token_container.get_jwt()["exp"]
-        if time_now - time_expired < SECURITY_TOKEN_LEFT_TIME:
+        if time_expired - time_now < SECURITY_TOKEN_LEFT_TIME:
             if not self.oci_config_location:
                 logger.warning("Can not auto-refresh token. Specify parameter `oci_config_location` through ads.set_auth() or ads.auth.create_signer().")
             else:
