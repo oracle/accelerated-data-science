@@ -11,7 +11,7 @@ Install ADS CLI
 * Linux/Mac (Intel CPU)
 * For Mac on M series - Experimental.
 * For Windows: Use `Windows Subsystem for Linux (WSL) <https://learn.microsoft.com/windows/wsl/about>`_
-* python >=3.7, <3.10
+* python >=3.8, <=3.10
 
 ``ads`` cli provides a command line interface to Jobs API related features. Set up your development environment, build docker images compliant with Notebook session and Data Science Jobs, build and publish conda pack locally, start distributed training, etc.
 

@@ -37,9 +37,7 @@ You can choose to use the resource principal to authenticate while using the Acc
 
 Use API Key setup when you are working from a local workstation or on platform which does not support resource principals.
 
-This is the default method of authentication. You can also authenticate as your own personal IAM user by creating or uploading OCI configuration and API key files inside your notebook session environment. The OCI configuration file contains the necessary credentials to authenticate your user against the model catalog and other OCI services like Object Storage. The example notebook, `api_keys.ipynb` demonstrates how to create these files.
-
-You can follow the steps in `api_keys.ipynb <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/notebook_examples/api_keys.ipynb>`_ for step by step instruction on setting up API Keys.
+This is the default method of authentication. You can also authenticate as your own personal IAM user by creating or uploading OCI configuration and API key files inside your notebook session environment. The OCI configuration file contains the necessary credentials to authenticate your user against the model catalog and other OCI services like Object Storage. You can create this file using a setup dialog or manually using a text editor. See `Setting up the Configuration File <https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/cliinstall.htm#configfile>`_ for steps to follow.
 
 .. note::
    If you already have an OCI configuration file (``config``) and associated keys, you can upload them directly to the ``/home/datascience/.oci`` directory using the JupyterLab **Upload Files** or the drag-and-drop option.
@@ -82,6 +80,21 @@ The ``~/.oci/config`` configuration allow for multiple configurations to be stor
   ads.set_auth("api_key") # default signer is set to API Keys
   ads.set_auth("api_key", profile = "TEST") # default signer is set to API Keys and to use TEST profile
   ads.set_auth("api_key", oci_config_location = "~/.test_oci/config") # default signer is set to API Keys and to use non-default oci_config_location
+  private_key_content = """
+  -----BEGIN RSA PRIVATE KEY-----
+  MIIBIjANBgkqhkiG9w0BAQE...
+  ...
+  -----END RSA PRIVATE KEY-----
+  """
+  config = dict(
+    user="ocid1.user.oc1..xxx",
+    fingerprint="35:67:25:90:89:87:45:78:bf:4h:g5:13:16:32:4d:f4",
+    tenancy="ocid1.tenancy.oc1..xxx",
+    region="us-ashburn-1",
+    key_content=private_key_content,
+  )
+  ads.set_auth(config = config) # default signer is set to API Keys with private key content
+  
   ads.set_auth("resource_principal")  # default signer is set to resource principal authentication
   ads.set_auth("instance_principal")  # default signer is set to instance principal authentication
 
@@ -121,7 +134,7 @@ In the this example, the default authentication uses API keys specified with the
   os_auth = authutil.resource_principal() # use resource principal to as the preferred way to access object store
 
 
-More signers can be created using the ``create_signer()`` method. With the ``auth_type`` parameter set to ``instance_principal``, the method will return a signer that uses instance principals. For other signers there are ``signer`` or ``signer_callable`` parameters. Here are examples:
+More signers can be created using the ``create_signer()`` method. With the ``auth_type`` parameter set to ``instance_principal``, the method will return a signer that uses instance principals. For other signers there are ``signer``, ``signer_callable`` or ``signer_kwargs`` parameters. Here are examples:
 
 .. code-block:: python
 

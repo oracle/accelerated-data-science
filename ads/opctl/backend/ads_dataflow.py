@@ -11,6 +11,7 @@ import shlex
 from typing import Dict, Union
 
 from ads.opctl.backend.base import Backend
+from ads.opctl.decorator.common import print_watch_command
 from ads.common.auth import create_signer, AuthContext
 from ads.common.oci_client import OCIClientFactory
 
@@ -114,21 +115,22 @@ class DataFlowBackend(Backend):
                 **kwargs,
             )
 
-    def apply(self):
+    def apply(self) -> Dict:
         """
         Create DataFlow and DataFlow Run from YAML.
         """
         # TODO add the logic for build dataflow and dataflow run from YAML.
         raise NotImplementedError(f"`apply` hasn't been supported for data flow yet.")
 
-    def run(self) -> None:
+    @print_watch_command
+    def run(self) -> Dict:
         """
         Create DataFlow and DataFlow Run from OCID or cli parameters.
         """
         with AuthContext(auth=self.auth_type, profile=self.profile):
             if self.config["execution"].get("ocid", None):
-                data_flow_id = self.config["execution"]["ocid"]
-                run_id = Job.from_dataflow_job(data_flow_id).run().id
+                job_id = self.config["execution"]["ocid"]
+                run_id = Job.from_dataflow_job(job_id).run().id
             else:
                 infra = self.config.get("infrastructure", {})
                 if any(k not in infra for k in REQUIRED_FIELDS):

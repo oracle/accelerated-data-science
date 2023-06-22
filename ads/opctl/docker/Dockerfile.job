@@ -62,7 +62,6 @@ ENV LANG=$LANG
 ENV SHELL=/bin/bash
 
 # set /opt folder permissions for $DATASCIENCE_USER. Conda is going to live in this folder.
-ARG MINICONDA_VER=4.8.3
 RUN chown $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
@@ -71,7 +70,7 @@ RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.s
     && /bin/bash /home/datascience/miniconda.sh -f -b -p /opt/conda \
     && rm /home/datascience/miniconda.sh \
     && ls  /opt/**/* \
-    && /opt/conda/bin/conda install python=3.7 anaconda \
+    && /opt/conda/bin/conda install python=3.8 anaconda \
     && /opt/conda/bin/conda clean -yaf
 
 WORKDIR /
@@ -91,7 +90,7 @@ WORKDIR /home/datascience
 USER $DATASCIENCE_USER
 
 ####### WRAP UP ###############################
-RUN python -c 'import sys; assert(sys.version_info[:2]) == (3, 7), "Python 3.7 is not detected"'
+RUN python -c 'import sys; assert(sys.version_info[:2]) == (3, 8), "Python 3.8 is not detected"'
 WORKDIR /
 
 RUN conda list

@@ -30,8 +30,12 @@ from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
 from ads.opctl.config.merger import ConfigMerger
-from ads.opctl.constants import (BACKEND_NAME, DEFAULT_MODEL_FOLDER,
-                                 RESOURCE_TYPE, RUNTIME_TYPE)
+from ads.opctl.constants import (
+    BACKEND_NAME,
+    DEFAULT_MODEL_FOLDER,
+    RESOURCE_TYPE,
+    RUNTIME_TYPE,
+)
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback

@@ -2,6 +2,8 @@
 
 [Legacy]
 *********************
+`ads.dataflow.dataflow` module has been deleted since version v2.8.6: June 2023
+
 .. deprecated:: v2.6.3 July 2022
 
 .. image:: ../../_static/lifecycle-deprecated.svg
