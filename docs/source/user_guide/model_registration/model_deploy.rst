@@ -49,6 +49,10 @@ Here is an example of deploying LightGBM model:
             deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
             deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
             deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
+            # Shape config details mandatory for flexible shapes:
+            # deployment_instance_shape="VM.Standard.E4.Flex",
+            # deployment_ocpus=<number>,
+            # deployment_memory_in_gbs=<number>,
         )
 
     # Get endpoint of deployed model
@@ -102,10 +106,10 @@ You can update the existing Model Deployment by using ``.update_deployment()`` m
 .. code-block:: python3
 
   lightgbm_model.update_deployment(
-        properties=ModelDeploymentProperties(
-            access_log_id="ocid1.log.oc1.xxx.xxxxx",
-            description="Description for Custom Model",
-            freeform_tags={"key": "value"},
-        )
-        wait_for_completion = True,
-    )
+    wait_for_completion = True,
+    access_log={
+      log_id="ocid1.log.oc1.xxx.xxxxx",
+    },
+    description="Description for Custom Model",
+    freeform_tags={"key": "value"},
+  )

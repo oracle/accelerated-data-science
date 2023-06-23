@@ -35,7 +35,7 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager
+from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager, OCIObjectStorage
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ SLEEP_INTERVAL = 3
 WAIT_SECONDS_AFTER_FINISHED = 90
 MAXIMUM_MOUNT_COUNT = 5
 FILE_STORAGE_TYPE = "FILE_STORAGE"
+OBJECT_STORAGE_TYPE = "OBJECT_STORAGE"
 
 
 class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
@@ -911,7 +912,10 @@ class DataScienceJob(Infrastructure):
         v.split(".", maxsplit=1)[-1]: k for k, v in payload_attribute_map.items()
     }
 
-    storage_mount_type_dict = {FILE_STORAGE_TYPE: OCIFileStorage}
+    storage_mount_type_dict = {
+        FILE_STORAGE_TYPE: OCIFileStorage,
+        OBJECT_STORAGE_TYPE: OCIObjectStorage,
+    }
 
     @staticmethod
     def standardize_spec(spec):
@@ -1450,6 +1454,12 @@ class DataScienceJob(Infrastructure):
             if value:
                 dsc_job.job_infrastructure_configuration_details[camel_attr] = value
 
+        if (
+            not dsc_job.job_infrastructure_configuration_details.get("shapeName", "").endswith("Flex")
+            and dsc_job.job_infrastructure_configuration_details.get("jobShapeConfigDetails")
+        ):
+            raise ValueError("Shape config is not required for non flex shape from user end.")
+
         if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
             dsc_job.job_infrastructure_configuration_details[
                 "jobInfrastructureType"
@@ -1542,6 +1552,7 @@ class DataScienceJob(Infrastructure):
         freeform_tags=None,
         defined_tags=None,
         wait=False,
+        **kwargs
     ) -> DataScienceJobRun:
         """Runs a job on OCI Data Science job
 
@@ -1559,6 +1570,8 @@ class DataScienceJob(Infrastructure):
             Defined tags for the job run, by default None
         wait : bool, optional
             Indicate if this method should wait for the run to finish before it returns, by default False.
+        kwargs
+            additional keyword arguments
 
         Returns
         -------
@@ -1597,6 +1610,7 @@ class DataScienceJob(Infrastructure):
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
             wait=wait,
+            **kwargs
         )
         if hasattr(self.runtime, "run"):
             return self.runtime.run(self.dsc_job, **kwargs)

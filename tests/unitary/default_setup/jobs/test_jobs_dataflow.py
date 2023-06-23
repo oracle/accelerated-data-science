@@ -28,6 +28,7 @@ from ads.jobs.builders.runtimes.python_runtime import (
     DataFlowRuntime,
     DataFlowNotebookRuntime,
 )
+from oci.data_flow.models import CreateApplicationDetails
 
 logger.setLevel(logging.DEBUG)
 
@@ -37,9 +38,9 @@ SAMPLE_PAYLOAD = dict(
     arguments=["test-df"],
     compartment_id="ocid1.compartment.oc1..<unique_ocid>",
     display_name="test-df",
-    driver_shape="VM.Standard2.1",
+    driver_shape="VM.Standard.E4.Flex",
     driver_shape_config={"memory_in_gbs": 1, "ocpus": 16},
-    executor_shape="VM.Standard2.1",
+    executor_shape="VM.Standard.E4.Flex",
     executor_shape_config={"memory_in_gbs": 1, "ocpus": 16},
     file_uri="oci://test_bucket@test_namespace/test-dataflow/test-dataflow.py",
     num_executors=1,
@@ -47,7 +48,13 @@ SAMPLE_PAYLOAD = dict(
     language="PYTHON",
     logs_bucket_uri="oci://test_bucket@test_namespace/",
     private_endpoint_id="test_private_endpoint",
+    pool_id="ocid1.dataflowpool.oc1..<unique_ocid>",
 )
+EXPECTED_YAML_LENGTH = 614
+if not hasattr(CreateApplicationDetails, "pool_id"):
+    SAMPLE_PAYLOAD.pop("pool_id")
+    EXPECTED_YAML_LENGTH = 567
+
 random_seed = 42
 
 
@@ -124,7 +131,7 @@ class TestDataFlowApp:
                     df.lifecycle_state
                     == oci.data_flow.models.Application.LIFECYCLE_STATE_DELETED
                 )
-                assert len(df.to_yaml()) == 557
+                assert len(df.to_yaml()) == EXPECTED_YAML_LENGTH
 
     def test_create_df_app_with_default_display_name(
         self,
@@ -319,14 +326,32 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
             ).with_num_executors(
                 2
             ).with_private_endpoint_id(
-                "test_private_endpoint"
+                SAMPLE_PAYLOAD["private_endpoint_id"]
+            ).with_freeform_tag(
+                test_freeform_tags_key="test_freeform_tags_value",
+            ).with_defined_tag(
+                test_defined_tags_namespace={
+                    "test_defined_tags_key": "test_defined_tags_value"
+                }
             )
+            if SAMPLE_PAYLOAD.get("pool_id", None):
+                df.with_pool_id(SAMPLE_PAYLOAD["pool_id"])
         return df
 
     def test_create_with_builder_pattern(self, mock_to_dict, mock_client, df):
         assert df.language == "PYTHON"
         assert df.spark_version == "3.2.1"
         assert df.num_executors == 2
+        assert df.freeform_tags == {
+            "test_freeform_tags_key": "test_freeform_tags_value"
+        }
+        assert df.defined_tags == {
+            "test_defined_tags_namespace": {
+                "test_defined_tags_key": "test_defined_tags_value"
+            }
+        }
+        if SAMPLE_PAYLOAD.get("pool_id", None):
+            assert df.pool_id == SAMPLE_PAYLOAD["pool_id"]
 
         rt = (
             DataFlowRuntime()
@@ -335,9 +360,25 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
             .with_custom_conda(
                 "oci://my_bucket@my_namespace/conda_environments/cpu/PySpark 3.0 and Data Flow/5.0/pyspark30_p37_cpu_v5"
             )
+            .with_freeform_tag(
+                test_freeform_tags_runtime_key="test_freeform_tags_runtime_value"
+            )
+            .with_defined_tag(
+                test_defined_tags_namespace={
+                    "test_defined_tags_runtime_key": "test_defined_tags_runtime_value"
+                }
+            )
             .with_overwrite(True)
         )
         assert rt.overwrite == True
+        assert rt.freeform_tags == {
+            "test_freeform_tags_runtime_key": "test_freeform_tags_runtime_value"
+        }
+        assert rt.defined_tags == {
+            "test_defined_tags_namespace": {
+                "test_defined_tags_runtime_key": "test_defined_tags_runtime_value"
+            }
+        }
 
         with patch.object(DataFlowApp, "client", mock_client):
             with patch.object(DataFlowApp, "to_dict", mock_to_dict):
@@ -403,8 +444,8 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         mock_from_ocid.return_value = Application(**SAMPLE_PAYLOAD)
         df = DataFlow.from_id("ocid1.datasciencejob.oc1.iad.<unique_ocid>")
         assert df.name == "test-df"
-        assert df.driver_shape == "VM.Standard2.1"
-        assert df.executor_shape == "VM.Standard2.1"
+        assert df.driver_shape == "VM.Standard.E4.Flex"
+        assert df.executor_shape == "VM.Standard.E4.Flex"
         assert df.private_endpoint_id == "test_private_endpoint"
 
         assert (
@@ -424,11 +465,19 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
     def test_to_and_from_dict(self, df):
         df_dict = df.to_dict()
         assert df_dict["spec"]["numExecutors"] == 2
-        assert df_dict["spec"]["driverShape"] == "VM.Standard2.1"
+        assert df_dict["spec"]["driverShape"] == "VM.Standard.E4.Flex"
         assert df_dict["spec"]["logsBucketUri"] == "oci://test_bucket@test_namespace/"
         assert df_dict["spec"]["privateEndpointId"] == "test_private_endpoint"
         assert df_dict["spec"]["driverShapeConfig"] == {"memoryInGBs": 1, "ocpus": 16}
         assert df_dict["spec"]["executorShapeConfig"] == {"memoryInGBs": 1, "ocpus": 16}
+        assert df_dict["spec"]["freeformTags"] == {
+            "test_freeform_tags_key": "test_freeform_tags_value"
+        }
+        assert df_dict["spec"]["definedTags"] == {
+            "test_defined_tags_namespace": {
+                "test_defined_tags_key": "test_defined_tags_value"
+            }
+        }
 
         df_dict["spec"].pop("language")
         df_dict["spec"].pop("numExecutors")
@@ -443,6 +492,45 @@ class TestDataFlow(TestDataFlowApp, TestDataFlowRun):
         df3_dict = df3.to_dict()
         assert df3_dict["spec"]["sparkVersion"] == "3.2.1"
         assert df3_dict["spec"]["numExecutors"] == 2
+
+    def test_shape_and_details(self, mock_to_dict, mock_client, df):
+        df.with_driver_shape("VM.Standard2.1").with_executor_shape(
+            "VM.Standard.E4.Flex"
+        )
+
+        rt = (
+            DataFlowRuntime()
+            .with_script_uri(SAMPLE_PAYLOAD["file_uri"])
+            .with_archive_uri(SAMPLE_PAYLOAD["archive_uri"])
+            .with_custom_conda(
+                "oci://my_bucket@my_namespace/conda_environments/cpu/PySpark 3.0 and Data Flow/5.0/pyspark30_p37_cpu_v5"
+            )
+            .with_overwrite(True)
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="`executor_shape` and `driver_shape` must be from the same shape family.",
+        ):
+            with patch.object(DataFlowApp, "client", mock_client):
+                with patch.object(DataFlowApp, "to_dict", mock_to_dict):
+                    df.create(rt)
+
+        df.with_driver_shape("VM.Standard2.1").with_driver_shape_config(
+            memory_in_gbs=SAMPLE_PAYLOAD["driver_shape_config"]["memory_in_gbs"],
+            ocpus=SAMPLE_PAYLOAD["driver_shape_config"]["ocpus"],
+        ).with_executor_shape("VM.Standard2.16").with_executor_shape_config(
+            memory_in_gbs=SAMPLE_PAYLOAD["executor_shape_config"]["memory_in_gbs"],
+            ocpus=SAMPLE_PAYLOAD["executor_shape_config"]["ocpus"],
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="Shape config is not required for non flex shape from user end.",
+        ):
+            with patch.object(DataFlowApp, "client", mock_client):
+                with patch.object(DataFlowApp, "to_dict", mock_to_dict):
+                    df.create(rt)
 
 
 class TestDataFlowNotebookRuntime:

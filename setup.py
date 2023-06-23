@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import sys
@@ -23,7 +23,7 @@ install_requires = [
     "gitpython>=3.1.2",
     "matplotlib>=3.1.3",
     "numpy>=1.19.2",
-    "oci>=2.96.0",
+    "oci>=2.104.3",
     "ocifs>=1.1.3",
     "pandas>1.2.1,<1.6",
     "python_jsonschema_objects>=0.3.13",
@@ -170,5 +170,5 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
-    scripts=["ads/ads"],
+    entry_points={"console_scripts": ["ads=ads.cli:cli"]},
 )

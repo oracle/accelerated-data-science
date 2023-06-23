@@ -25,6 +25,10 @@ class TestADSDataset:
     def teardown_class(cls):
         cls.test_dir.cleanup()
 
+    def get_data_path(self):
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        return os.path.join(current_dir, "data", "orcl_attrition.csv")
+
     @pytest.mark.parametrize(
         "test_file_name, expected_file_name",
         [
@@ -62,13 +66,8 @@ class TestADSDataset:
             description="test_description",
             storage_options={'config':{},'region':'us-ashburn-1'}
         )
-        assert isinstance(employees, ADSDataset)
-        assert isinstance(employees.df, pd.DataFrame)
-        assert isinstance(employees.shape, Tuple)
-        assert employees.name == "test_dataset"
-        assert employees.description == "test_description"
-        assert "type_discovery" in employees.init_kwargs
-        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+        
+        self.assert_dataset(employees)
 
     def test_from_dataframe(self):
         employees = ADSDataset.from_dataframe(
@@ -77,14 +76,33 @@ class TestADSDataset:
             description="test_description",
             storage_options={'config':{},'region':'us-ashburn-1'}
         )
-        assert isinstance(employees, ADSDataset)
-        assert isinstance(employees.df, pd.DataFrame)
-        assert isinstance(employees.shape, Tuple)
-        assert employees.name == "test_dataset"
-        assert employees.description == "test_description"
-        assert "type_discovery" in employees.init_kwargs
-        assert isinstance(employees.transformer_pipeline, TransformerPipeline)
+        
+        self.assert_dataset(employees)
 
-    def get_data_path(self):
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(current_dir, "data", "orcl_attrition.csv")
+    def test_accessor(self):
+        df=pd.read_csv(self.get_data_path())
+        employees = df.ads.dataset(
+            name="test_dataset",
+            description="test_description",
+        )
+
+        self.assert_dataset(employees)
+
+    def assert_dataset(self, dataset):
+        assert isinstance(dataset, ADSDataset)
+        assert isinstance(dataset.df, pd.DataFrame)
+        assert isinstance(dataset.shape, Tuple)
+        assert dataset.name == "test_dataset"
+        assert dataset.description == "test_description"
+        assert "type_discovery" in dataset.init_kwargs
+        assert isinstance(dataset.transformer_pipeline, TransformerPipeline)
+
+    def test_get_suggest_recommendations_error_message(self):
+        """Test for validation user-friendly error message."""
+        employees = ADSDataset.from_dataframe(df=pd.read_csv(self.get_data_path()))
+
+        err_msg = r"Please set the target using set_target\(\) before invoking this API."
+        with pytest.raises(NotImplementedError, match=err_msg):
+            employees.get_recommendations()
+        with pytest.raises(NotImplementedError, match=err_msg):
+            employees.suggest_recommendations()

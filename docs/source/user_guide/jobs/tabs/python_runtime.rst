@@ -92,7 +92,6 @@
           - other_packages
           scriptPathURI: local/path/to/code_dir
           workingDir: code_dir
-          workingDir: code_dir
 
 
 .. code-block:: python

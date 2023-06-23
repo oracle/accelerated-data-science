@@ -3,7 +3,7 @@
 TensorFlowModel
 ***************
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.tensorflow_model.TensorFlowModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.tensorflow_model.TensorFlowModel>`__
 
 Overview
 ========
@@ -94,19 +94,19 @@ Deploy and Generate Endpoint
 
 .. code-block:: python3
 
-    >>> # Deploy and create an endpoint for the TensorFlow model
-    >>> tensorflow_model.deploy(
-            display_name="TensorFlow Model For Classification",
-            deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
-            deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
-            deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
-        )
-
-
-    >>> print(f"Endpoint: {tensorflow_model.model_deployment.url}")
-
-    https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx
-
+    # Deploy and create an endpoint for the TensorFlow model
+    tensorflow_model.deploy(
+        display_name="TensorFlow Model For Classification",
+        deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
+        deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
+        deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
+        # Shape config details mandatory for flexible shapes:
+        # deployment_instance_shape="VM.Standard.E4.Flex",
+        # deployment_ocpus=<number>,
+        # deployment_memory_in_gbs=<number>,
+    )
+    print(f"Endpoint: {tensorflow_model.model_deployment.url}")
+    # Output: "Endpoint: https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx"
 
 Run Prediction against Endpoint
 ===============================

@@ -9,6 +9,7 @@ from ads.common.auth import create_signer, AuthContext
 from ads.common.oci_client import OCIClientFactory
 from ads.opctl.backend.base import Backend
 from ads.opctl.backend.ads_ml_job import JobRuntimeFactory
+from ads.opctl.decorator.common import print_watch_command
 from ads.pipeline import Pipeline, PipelineRun, PipelineStep, CustomScriptStep
 
 from ads.jobs import PythonRuntime
@@ -34,7 +35,8 @@ class PipelineBackend(Backend):
         self.profile = config["execution"].get("oci_profile", None)
         self.client = OCIClientFactory(**self.oci_auth).data_science
 
-    def apply(self) -> None:
+    @print_watch_command
+    def apply(self) -> Dict:
         """
         Create Pipeline and Pipeline Run from YAML.
         """
@@ -44,8 +46,10 @@ class PipelineBackend(Backend):
             pipeline_run = pipeline.run()
             print("PIPELINE OCID:", pipeline.id)
             print("PIPELINE RUN OCID:", pipeline_run.id)
+            return {"job_id": pipeline.id, "run_id": pipeline_run.id}
 
-    def run(self) -> None:
+    @print_watch_command
+    def run(self) -> Dict:
         """
         Create Pipeline and Pipeline Run from OCID.
         """
@@ -53,7 +57,9 @@ class PipelineBackend(Backend):
         with AuthContext(auth=self.auth_type, profile=self.profile):
             pipeline = Pipeline.from_ocid(ocid=pipeline_id)
             pipeline_run = pipeline.run()
+            print("PIPELINE OCID:", pipeline.id)
             print("PIPELINE RUN OCID:", pipeline_run.id)
+            return {"job_id": pipeline.id, "run_id": pipeline_run.id}
 
     def delete(self) -> None:
         """
@@ -84,9 +90,13 @@ class PipelineBackend(Backend):
         Watch Pipeline Run from OCID.
         """
         run_id = self.config["execution"]["run_id"]
-        log_type = self.config["execution"]["log_type"]
+        log_type = self.config["execution"].get("log_type")
+        interval = self.config["execution"].get("interval")
         with AuthContext(auth=self.auth_type, profile=self.profile):
-            PipelineRun.from_ocid(run_id).watch(log_type=log_type)
+            PipelineRun.from_ocid(run_id).watch(
+                interval=interval,
+                log_type=log_type
+            )
 
     def init(
         self,

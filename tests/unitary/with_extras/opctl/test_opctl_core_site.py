@@ -5,6 +5,8 @@
 
 import os
 import tempfile
+import pytest
+import oci
 
 from mock import patch
 
@@ -12,9 +14,10 @@ from ads.opctl.spark.cmds import generate_core_site_properties
 
 
 class TestCoreSite:
+    @patch("oci.config.validate_config")
     @patch("oci.signer.load_private_key_from_file")
     @patch("oci.config.invalid_key_file_path_checker")
-    def test_generate_core_site_with_api_key(self, mock_checker, mock_load_key):
+    def test_generate_core_site_with_api_key(self, mock_checker, mock_load_key, mock_validate_config):
         with tempfile.TemporaryDirectory() as td:
             with open(os.path.join(td, "config.ini"), "w") as f:
                 f.write(

@@ -5,7 +5,7 @@ HuggingFacePipelineModel
 
 .. versionadded:: 2.8.2
 
-See `API Documentation <../../../ads.model_framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
+See `API Documentation <../../../ads.model.framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
 
 Overview
 ========
@@ -75,7 +75,7 @@ Prepare Model Artifact
 
 Instantiate a ``HuggingFacePipelineModel()`` object with HuggingFace pipelines. All the pipelines related files are saved under the ``artifact_dir``.
 
-For more detailed information on what parameters that ``HuggingFacePipelineModel`` takes, refer to the `API Documentation <../../../ads.model_framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
+For more detailed information on what parameters that ``HuggingFacePipelineModel`` takes, refer to the `API Documentation <../../../ads.model.framework.html#ads.model.framework.huggingface_model.HuggingFacePipelineModel>`__
 
 
 
@@ -105,14 +105,19 @@ Deploy and Generate Endpoint
 
 .. code-block:: python3
 
-    >>> # Deploy and create an endpoint for the huggingface_pipeline_model 
-    >>> huggingface_pipeline_model.deploy(
-    ...     display_name="HuggingFace Pipeline Model For Image Segmentation",
-    ...     deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
-    ...     deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
-    ...     deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
-    ... )
-    >>> print(f"Endpoint: {huggingface_pipeline_model.model_deployment.url}")
+    # Deploy and create an endpoint for the huggingface_pipeline_model
+    huggingface_pipeline_model.deploy(
+        display_name="HuggingFace Pipeline Model For Image Segmentation",
+        deployment_log_group_id="ocid1.loggroup.oc1.xxx.xxxxx",
+        deployment_access_log_id="ocid1.log.oc1.xxx.xxxxx",
+        deployment_predict_log_id="ocid1.log.oc1.xxx.xxxxx",
+        # Shape config details mandatory for flexible shapes:
+        # deployment_instance_shape="VM.Standard.E4.Flex",
+        # deployment_ocpus=<number>,
+        # deployment_memory_in_gbs=<number>,
+    )
+    print(f"Endpoint: {huggingface_pipeline_model.model_deployment.url}")
+    # Output: "Endpoint: https://modeldeployment.{region}.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.xxx.xxxxx"
 
 Run Prediction against Endpoint
 ===============================

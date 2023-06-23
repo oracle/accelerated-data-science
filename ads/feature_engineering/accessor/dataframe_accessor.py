@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -41,6 +41,7 @@ import numpy as np
 import pandas as pd
 from ads.common.utils import DATA_SCHEMA_MAX_COL_NUM
 from ads.data_labeling.mixin.data_labeling import DataLabelingAccessMixin
+from ads.dataset.mixin.dataset_accessor import ADSDatasetAccessMixin
 from ads.dbmixin.db_pandas_accessor import DBAccessMixin
 from ads.feature_engineering import schema
 from ads.feature_engineering.accessor.mixin.eda_mixin import EDAMixin
@@ -53,7 +54,11 @@ from pandas.core.dtypes.common import is_list_like
 
 @pd.api.extensions.register_dataframe_accessor("ads")
 class ADSDataFrameAccessor(
-    ADSFeatureTypesMixin, EDAMixin, DBAccessMixin, DataLabelingAccessMixin
+    ADSFeatureTypesMixin,
+    EDAMixin,
+    DBAccessMixin,
+    DataLabelingAccessMixin,
+    ADSDatasetAccessMixin
 ):
     """ADS accessor for the Pandas DataFrame.
 

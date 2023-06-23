@@ -159,7 +159,7 @@ class EvaluationMetricsTest(unittest.TestCase):
         rf_clf = RandomForestClassifier(n_estimators=10, random_state=0).fit(
             X_train, y_train
         )
-        svc_clf = SVC(kernel="linear", C=1.0, random_state=0).fit(X_train, y_train)
+        svc_clf = SVC(kernel="linear", C=1.0, random_state=0, probability=True).fit(X_train, y_train)
 
         bin_lr_model = ADSModel.from_estimator(lr_clf, classes=[0, 1])
         bin_rf_model = ADSModel.from_estimator(rf_clf, classes=[0, 1])
@@ -178,7 +178,8 @@ class EvaluationMetricsTest(unittest.TestCase):
             ("rf", bin_rf_model),
             ("svc", svc_model),
         ]:
-            fpr, tpr, _ = roc_curve(test.y, model.est.predict(test.X), pos_label=1)
+            pos_label_idx = model.classes_.index(1)
+            fpr, tpr, _ = roc_curve(test.y, model.est.predict_proba(test.X)[:,pos_label_idx], pos_label=1)
             sklearn_metrics[model_type] = round(auc(fpr, tpr), 4)
 
         assert (

@@ -1,0 +1,43 @@
+name: "Add 3P License Warning to PR"
+
+on:
+  pull_request:
+    paths:
+      - setup.py
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  warning-message-3plicense:
+    name: Add ⚠️ Warning about 3p license
+    runs-on: ubuntu-latest
+    if: ${{ success() }} && ${{ github.event.issue.pull_request }}
+    steps:
+      - run: |
+          BODY_MSG=$(cat << EOF
+          ⚠️ This PR changed **setup.py** file. ⚠️ 
+            - PR Creator must update 📃 THIRD_PARTY_LICENSES.txt, if any 📚 library added/removed in **setup.py**.
+            - PR Approver must confirm 📃 THIRD_PARTY_LICENSES.txt updated, if any 📚 library added/removed in **setup.py**.
+          EOF
+          )
+          echo "BODY_MSG<<EOF" >> $GITHUB_ENV
+          echo "$BODY_MSG" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `${{ env.BODY_MSG }}`
+            })

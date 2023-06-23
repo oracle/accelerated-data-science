@@ -2,6 +2,38 @@
 Release Notes
 =============
 
+2.8.7
+-----
+Release date: June 22, 2023
+
+* Added support for leveraging pools in the Data Flow applications.
+* Added support for token-based authentication.
+* Revised help information for ``opctl`` commands.
+
+2.8.6
+-----
+Release date: June 13, 2023
+
+* Resolved an issue in ``ads opctl build-image job-local`` when the build of ``job-local`` would get stuck. Updated the Python version to 3.8 in the base environment of the ``job-local`` image.
+* Fixed a bug that prevented the support of defined tags for Data Science job runs.
+* Fixed a bug in the ``entryscript.sh`` of ``ads opctl`` that attempted to create a temporary folder in the ``/var/folders`` directory.
+* Added support for defined tags in the Data Flow application and application run.
+* Deprecated the old :py:class:`~ads.model.ModelDeploymentProperties` and  :py:class:`~ads.model.ModelDeployer`  classes, and their corresponding APIs.
+* Enabled the uploading of large size model artifacts for the :py:class:`~ads.model.ModelDeployment` class.
+* Implemented validation for shape name and shape configuration details in Data Science jobs and Data Flow applications.
+* Added the capability to create ``ADSDataset`` using the Pandas accessor.
+* Provided a prebuilt watch command for monitoring Data Science jobs with ``ads opctl``.
+* Eliminated the legacy ``ads.dataflow`` package from ADS.
+
+2.8.5
+-----
+Release date: May 17, 2023
+
+* Added support for ``key_content`` attribute in ``ads.set_auth()`` for the API KEY authentication.
+* Fixed bug in :py:class:`~ads.evaluations.statistical_metrics.ModelEvaluator` when it returned incorrect ROC AUC characteristics.
+* Fixed bug in ``ADSDataset.suggest_recommendations()`` API, when it returned an error if the target wasn't specified.
+* Fixed bug in ``ADSDataset.auto_transform()`` API, when an incorrect sampling was suggested for imbalanced data.
+
 2.8.4
 -----
 Release date: May 5, 2023
@@ -361,8 +393,8 @@ The following features related to the Data Labeling service were added:
 The following improvements were effected:
 
 * Improve ads import time.
-* Fix the version of the `jsonschema` package.
-* Update `numpy` deps to >= 1.19.2 for compatibility with `TensorFlow 2.6`.
+* Fix the version of the ``jsonschema`` package.
+* Update ``numpy`` deps to >= 1.19.2 for compatibility with ``TensorFlow 2.6``.
 * Added progress bar when creating a Data Flow application.
 * Fixed the file upload path in Data Flow.
 * Added supporting tags when saving model artifacts to the model catalog.
@@ -426,7 +458,7 @@ Release notes: August 3, 2021
 This release of the model catalog includes these enhancements:
 
 * Automatic extraction of model taxonomy metadata that lets data scientists document the use case, framework, and hyperparameters of their models.
-* Improvement to the model provenance metadata, including a reference to the model training resource (notebook sessions) by passing in the `training_id` to the `.save()` method.
+* Improvement to the model provenance metadata, including a reference to the model training resource (notebook sessions) by passing in the ``training_id`` to the ``.save()`` method.
 * Support for custom metadata which lets data scientists document the context around their models, automatic extraction references to the conda environment used to train the model, the training and validation datasets, and so on.
 * Automatcal extraction of the model input feature vector and prediction schemas.
 * Model introspection tests that are run on the model artifact before the model is saved to the model catalog. Model introspection validates the artifact against a series of common issues and errors found with artifacts. These introspection tests are part of the model artifact code template that is included.
@@ -543,10 +575,10 @@ January 13, 2021
 * Corrected the ``up_sample()`` method in ``get_recommendations()`` so that it does not fail when all features are categorical. Up-sampling is possible for datasets containing continuous and categorical features.
 * Resolved issues with serializing ``ndarray`` objects into JSON.
 * A table of all of the ADS notebook examples can be found in our service documentation: `Oracle Cloud Infrastructure Data Science <https://docs.cloud.oracle.com/en-us/iaas/data-science/using/use-notebook-sessions.htm#conda_understand_environments>`__
-* Changed `set_documentation_mode` to false by default.
+* Changed ``set_documentation_mode`` to false by default.
 * Added unit-tests related to the dataset helper.
-* Fixed the `_check_object_exists` to handle situations where the object storage bucket has more than 1000 objects.
-* Added option `overwrite_script` in the `create_app()` method to allow a user to override a pre-existing file.
+* Fixed the ``_check_object_exists`` to handle situations where the object storage bucket has more than 1000 objects.
+* Added option ``overwrite_script`` in the ``create_app()`` method to allow a user to override a pre-existing file.
 * Added support for newer fsspec versions.
 * Added support for the C library Snappy.
 * Fixed issue with uploading model provenance data due to inconsistency with OCI interface.

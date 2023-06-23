@@ -36,6 +36,18 @@ class ModelDeploymentRuntime(Builder):
         The output stream ids of model deployment.
     model_uri: str
         The model uri of model deployment.
+    bucket_uri: str
+        The OCI Object Storage URI where large size model artifacts will be copied to.
+    auth: Dict
+        The default authentication is set using `ads.set_auth` API.
+    region: str
+        The destination Object Storage bucket region.
+    overwrite_existing_artifact: bool
+        Whether overwrite existing target bucket artifact or not.
+    remove_existing_artifact: bool
+        Whether artifacts uploaded to object storage bucket need to be removed or not.
+    timeout: int
+        The connection timeout in seconds for the client.
 
     Methods
     -------
@@ -49,6 +61,18 @@ class ModelDeploymentRuntime(Builder):
         Sets the output stream ids of model deployment
     with_model_uri(model_uri)
         Sets the model uri of model deployment
+    with_bucket_uri(bucket_uri)
+        Sets the bucket uri when uploading large size model.
+    with_auth(auth)
+        Sets the default authentication when uploading large size model.
+    with_region(region)
+        Sets the region when uploading large size model.
+    with_overwrite_existing_artifact(overwrite_existing_artifact)
+        Sets whether to overwrite existing artifact when uploading large size model.
+    with_remove_existing_artifact(remove_existing_artifact)
+        Sets whether to remove existing artifact when uploading large size model.
+    with_timeout(timeout)
+        Sets the connection timeout when uploading large size model.
     """
 
     CONST_MODEL_ID = "modelId"
@@ -60,6 +84,12 @@ class ModelDeploymentRuntime(Builder):
     CONST_INPUT_STREAM_IDS = "inputStreamIds"
     CONST_OUTPUT_STREAM_IDS = "outputStreamIds"
     CONST_ENVIRONMENT_CONFIG_DETAILS = "environmentConfigurationDetails"
+    CONST_BUCKET_URI = "bucketUri"
+    CONST_AUTH = "auth"
+    CONST_REGION = "region"
+    CONST_OVERWRITE_EXISTING_ARTIFACT = "overwriteExistingArtifact"
+    CONST_REMOVE_EXISTING_ARTIFACT = "removeExistingArtifact"
+    CONST_TIMEOUT = "timeout"
 
     attribute_map = {
         CONST_ENV: "env",
@@ -68,6 +98,12 @@ class ModelDeploymentRuntime(Builder):
         CONST_OUTPUT_STREAM_IDS: "output_stream_ids",
         CONST_DEPLOYMENT_MODE: "deployment_mode",
         CONST_MODEL_URI: "model_uri",
+        CONST_BUCKET_URI: "bucket_uri",
+        CONST_AUTH: "auth",
+        CONST_REGION: "region",
+        CONST_OVERWRITE_EXISTING_ARTIFACT: "overwrite_existing_artifact",
+        CONST_REMOVE_EXISTING_ARTIFACT: "remove_existing_artifact",
+        CONST_TIMEOUT: "timeout"
     }
 
     ENVIRONMENT_CONFIG_DETAILS_PATH = (
@@ -236,7 +272,172 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_MODEL_URI, model_uri)
+    
+    @property
+    def bucket_uri(self) -> str:
+        """The bucket uri of model.
 
+        Returns
+        -------
+        str
+            The bucket uri of model.
+        """
+        return self.get_spec(self.CONST_BUCKET_URI, None)
+
+    def with_bucket_uri(self, bucket_uri: str) -> "ModelDeploymentRuntime":
+        """Sets the bucket uri of model.
+
+        Parameters
+        ----------
+        bucket_uri: str
+            The bucket uri of model.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_BUCKET_URI, bucket_uri)
+    
+    @property
+    def auth(self) -> Dict:
+        """The auth when uploading large-size model.
+
+        Returns
+        -------
+        Dict
+            The auth when uploading large-size model.
+        """
+        return self.get_spec(self.CONST_AUTH, {})
+    
+    def with_auth(self, auth: Dict) -> "ModelDeploymentRuntime":
+        """Sets the auth when uploading large-size model.
+
+        Parameters
+        ----------
+        auth: Dict
+            The auth when uploading large-size model.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_AUTH, auth)
+    
+    @property
+    def region(self) -> str:
+        """The region when uploading large-size model.
+
+        Returns
+        -------
+        str
+            The region when uploading large-size model.
+        """
+        return self.get_spec(self.CONST_REGION, None)
+    
+    def with_region(self, region: str) -> "ModelDeploymentRuntime":
+        """Sets the region when uploading large-size model.
+
+        Parameters
+        ----------
+        region: str
+            The region when uploading large-size model.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_REGION, region)
+    
+    @property
+    def overwrite_existing_artifact(self) -> bool:
+        """Overwrite existing artifact when uploading large size model.
+
+        Returns
+        -------
+        bool
+            Overwrite existing artifact when uploading large size model.
+        """
+        return self.get_spec(self.CONST_OVERWRITE_EXISTING_ARTIFACT, True)
+    
+    def with_overwrite_existing_artifact(
+        self, 
+        overwrite_existing_artifact: bool
+    ) -> "ModelDeploymentRuntime":
+        """Sets whether to overwrite existing artifact when uploading large size model.
+
+        Parameters
+        ----------
+        overwrite_existing_artifact: bool
+            Overwrite existing artifact when uploading large size model.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(
+            self.CONST_OVERWRITE_EXISTING_ARTIFACT,
+            overwrite_existing_artifact
+        )
+    
+    @property
+    def remove_existing_artifact(self) -> bool:
+        """Remove existing artifact when uploading large size model.
+
+        Returns
+        -------
+        bool
+            Remove existing artifact when uploading large size model.
+        """
+        return self.get_spec(self.CONST_REMOVE_EXISTING_ARTIFACT, True)
+    
+    def with_remove_existing_artifact(
+        self,
+        remove_existing_artifact: bool
+    ) -> "ModelDeploymentRuntime":
+        """Sets whether to remove existing artifact when uploading large size model.
+
+        Parameters
+        ----------
+        remove_existing_artifact: bool
+            Remove existing artifact when uploading large size model.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_REMOVE_EXISTING_ARTIFACT, remove_existing_artifact)
+    
+    @property
+    def timeout(self) -> int:
+        """The timeout when uploading large-size model.
+
+        Returns
+        -------
+        int
+            The timeout when uploading large-size model.
+        """
+        return self.get_spec(self.CONST_TIMEOUT, None)
+    
+    def with_timeout(self, timeout: int) -> "ModelDeploymentRuntime":
+        """Sets the timeout when uploading large-size model.
+
+        Parameters
+        ----------
+        timeout: int
+            The timeout when uploading large-size model.
+
+        Returns
+        -------
+        ModelDeploymentRuntime
+            The ModelDeploymentRuntime instance (self).
+        """
+        return self.set_spec(self.CONST_TIMEOUT, timeout)
+    
     def init(self) -> "ModelDeploymentRuntime":
         """Initializes a starter specification for the runtime.
 

@@ -172,7 +172,7 @@ class ADSDataset(PandasDataset):
             progress=progress,
             transformer_pipeline=transformer_pipeline,
             interactive=interactive,
-            **kwargs
+            **kwargs,
         )
 
     @property
@@ -1913,3 +1913,43 @@ class ADSDataset(PandasDataset):
 
         if visualize_features and not is_wide_dataset:
             self._visualize_feature_distribution(features)
+
+    def get_recommendations(self, *args, **kwargs):  # real signature may change
+        """
+        Returns user-friendly error message to set target variable before invoking this API.
+
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+        NotImplementedError
+            raises NotImplementedError, if target parameter value not provided
+
+        """
+        raise NotImplementedError(
+            "Please set the target using set_target() before invoking this API. See "
+            "https://accelerated-data-science.readthedocs.io/en/latest/ads.dataset.html#ads.dataset.dataset.ADSDataset.set_target "
+            "for the API usage."
+        )
+
+    def suggest_recommendations(self, *args, **kwargs):  # real signature may change
+        """
+        Returns user-friendly error message to set target variable before invoking this API.
+
+        Parameters
+        ----------
+        kwargs
+
+        Returns
+        -------
+        NotImplementedError
+            raises NotImplementedError, if target parameter value not provided
+
+        """
+        raise NotImplementedError(
+            "Please set the target using set_target() before invoking this API. See "
+            "https://accelerated-data-science.readthedocs.io/en/latest/ads.dataset.html#ads.dataset.dataset.ADSDataset.set_target "
+            "for the API usage."
+        )

@@ -385,7 +385,14 @@ class Job(Builder):
         return self
 
     def run(
-        self, name=None, args=None, env_var=None, freeform_tags=None, wait=False
+        self,
+        name=None,
+        args=None,
+        env_var=None,
+        freeform_tags=None,
+        defined_tags=None,
+        wait=False,
+        **kwargs
     ) -> Union[DataScienceJobRun, DataFlowRun]:
         """Runs the job.
 
@@ -406,11 +413,15 @@ class Job(Builder):
             Additional environment variables for the job run, by default None
         freeform_tags : dict, optional
             Freeform tags for the job run, by default None
+        defined_tags : dict, optional
+            Defined tags for the job run, by default None
         wait : bool, optional
             Indicate if this method call should wait for the job run.
             By default False, this method returns as soon as the job run is created.
             If this is set to True, this method will stream the job logs and wait until it finishes,
             similar to `job.run().watch()`.
+        kwargs
+            additional keyword arguments
 
         Returns
         -------
@@ -425,7 +436,8 @@ class Job(Builder):
                 name="<my_job_run_name>",
                 args="new_arg --new_key new_val",
                 env_var={"new_env": "new_val"},
-                freeform_tags={"new_tag": "new_tag_val"}
+                freeform_tags={"new_tag": "new_tag_val"},
+                defined_tags={"Operations": {"CostCenter": "42"}}
             )
 
         """
@@ -434,7 +446,9 @@ class Job(Builder):
             args=args,
             env_var=env_var,
             freeform_tags=freeform_tags,
+            defined_tags=defined_tags,
             wait=wait,
+            **kwargs
         )
 
     def run_list(self, **kwargs) -> list:
