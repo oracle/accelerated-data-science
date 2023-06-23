@@ -13,6 +13,7 @@ import time
 import shlex
 import socket
 import sys
+import traceback
 
 import oci
 import psutil
@@ -40,6 +41,7 @@ logger = driver_utils.set_log_level(logger)
 
 
 CONST_ENV_HOST_JOB_RUN_OCID = "MAIN_JOB_RUN_OCID"
+CONST_ENV_JOB_RUN_OCID = "JOB_RUN_OCID"
 CONST_ENV_LD_PRELOAD = "LD_PRELOAD"
 CONST_ENV_LAUNCH_CMD = "OCI__LAUNCH_CMD"
 CONST_ENV_DEEPSPEED = "OCI__DEEPSPEED"
@@ -51,12 +53,53 @@ SSH_DIR = "/home/datascience/.ssh"
 OCI__WORKER_COUNT = "OCI__WORKER_COUNT"
 DEFAULT_LAUNCHER = "torchrun"
 
-set_auth("resource_principal")
+# Set authentication method to resource principal
+# This script is expected to be running inside the job run
+if "OCI_RESOURCE_PRINCIPAL_VERSION" in os.environ:
+    set_auth("resource_principal")
+
+
+class LazyEvaluate:
+    """This is a class to delay the function call until
+    its return value is needed for logging purpose.
+
+    Example::
+        logger.debug("The value is %s", LazyEvaluate(the_function, *args, **kwargs))
+
+    Python logging will only call the __str__() method when the value is needed.
+
+    In the above example, if the log level is INFO or above,
+    the_function() will not be called/evaluated.
+    If the log level is DEBUG, the_function will be called,
+    and if there is an error, the error will be logged.
+    The program will continue to run even if the error happens during logging.
+
+    """
+
+    def __init__(self, func, *args, **kwargs) -> None:
+        self.func = func
+        self.args = args
+        self.kwargs = kwargs
+
+    def eval(self):
+        """Evaluates the function call."""
+        return self.func(*self.args, **self.kwargs)
+
+    def __str__(self) -> str:
+        """Evaluate the function call and convert the return value as a string."""
+        try:
+            val = str(self.eval())
+        except Exception as ex:
+            logger.debug(traceback.format_exc())
+            val = f"ERROR: {str(ex)}"
+        return val
 
 
 class Runner(driver_utils.JobRunner):
     """Base runner class for PyTorch training job"""
 
+    # LAUNCHER stores the main command for launching the training job.
+    # e.g. torchrun, deepspeed, accelerate, etc.
     LAUNCHER = ""
 
     def __init__(self, code_dir: str = driver_utils.DEFAULT_CODE_DIR) -> None:
@@ -82,7 +125,7 @@ class Runner(driver_utils.JobRunner):
         else:
             # Print the host IP address to logs so that it can be obtained by the nodes.
             print(f"{LOG_PREFIX_HOST_IP}{self.ip}")
-            self.host_ocid = os.environ["JOB_RUN_OCID"]
+            self.host_ocid = os.environ.get(CONST_ENV_JOB_RUN_OCID)
             self.host_ip = self.ip
             self.is_host = True
 
@@ -96,10 +139,11 @@ class Runner(driver_utils.JobRunner):
 
         logger.debug("Runner initialized.")
 
-    def launch_cmd_contains(self, arg):
+    def launch_cmd_contains(self, arg) -> bool:
+        """Checks if the cmd for launching the training contains specific keyword argument."""
         return f"--{arg}" in self.launch_cmd
 
-    def wait_for_host_ip_address(self, timeout=15 * 60):
+    def wait_for_host_ip_address(self, timeout=15 * 60) -> str:
         """Waits until the IP address of the host is obtained.
 
         Parameters
@@ -117,7 +161,7 @@ class Runner(driver_utils.JobRunner):
             self.host_ip = self.wait_for_ip_address(self.host_job_run, timeout)
         return self
 
-    def wait_for_ip_address(self, job_run, timeout=15 * 60):
+    def wait_for_ip_address(self, job_run, timeout=15 * 60) -> str:
         """Waits until the IP address of a particular job run is obtained.
 
         Parameters
@@ -137,11 +181,11 @@ class Runner(driver_utils.JobRunner):
             log_prefix = LOG_PREFIX_HOST_IP
         else:
             log_prefix = LOG_PREFIX_NODE_IP
-        ip_address = self.wait_for_log(job_run, log_prefix, timeout)
+        ip_address = self.wait_for_log(job_run, log_prefix, timeout).strip()
         logger.info("IP of %s: %s", job_run.id[-6:], ip_address)
         return ip_address
 
-    def wait_for_log(self, job_run, log_prefix, timeout=15 * 60):
+    def wait_for_log(self, job_run, log_prefix, timeout=15 * 60) -> str:
         """Waits until a log message with specific prefix is found in the logs of a job run.
 
         Parameters
@@ -156,12 +200,12 @@ class Runner(driver_utils.JobRunner):
         Returns
         -------
         str
-            _description_
+            The log message with out the prefix.
 
         Raises
         ------
         TimeoutError
-            _description_
+            Failed to obtain the log message within the specific timeout.
         """
         logger.debug(
             "Waiting for logs with prefix '%s' from %s.", log_prefix, job_run.id
@@ -180,7 +224,21 @@ class Runner(driver_utils.JobRunner):
         return log
 
     @staticmethod
-    def check_job_run_logs(job_run, log_prefix):
+    def check_job_run_logs(job_run, log_prefix: str) -> str:
+        """Checks the logs of a specific job run and find the log message with specific prefix.
+
+        Parameters
+        ----------
+        job_run : DataScienceJobRun
+            The Job run object from which the logs will be obtained.
+        log_prefix : str
+            The prefix to look for.
+
+        Returns
+        -------
+        str
+            The log message without the prefix.
+        """
         logger.debug("Checking logs for job run %s", job_run.id)
         logs = job_run.logs()
         for log in logs:
@@ -195,8 +253,10 @@ class Runner(driver_utils.JobRunner):
         """
         hostname = socket.gethostname()
         logger.debug("Hostname: %s", hostname)
-        logger.debug("Get Host by Addr: %s", socket.gethostbyaddr(socket.gethostname()))
-        logger.debug("FQDN: %s", socket.getfqdn(socket.gethostname()))
+        logger.debug(
+            "Get Host by Addr: %s", LazyEvaluate(socket.gethostbyaddr, hostname)
+        )
+        logger.debug("FQDN: %s", LazyEvaluate(socket.getfqdn, hostname))
         if os.environ.get("JOB_OCID"):
             subnet_id = self.ds_client.get_job(
                 os.environ["JOB_OCID"]
@@ -213,19 +273,20 @@ class Runner(driver_utils.JobRunner):
                     os.environ["GLOO_SOCKET_IFNAME"] = interface
                     os.environ["NCCL_SOCKET_IFNAME"] = interface
                     return ip
-            logger.critical("Unable to determine node IP address.")
-            return None
+            raise EnvironmentError("Unable to determine node IP address.")
         else:
             ip = socket.gethostbyname(hostname)
             logger.info("Node IP address: %s", ip)
             return ip
 
     def fetch_code(self):
+        """Fetches source code from Git if repo uri is specified."""
         if cluster_config_helper.OCI__RUNTIME_URI in os.environ:
             self._fetch_git(code_dir=self.code_dir)
         return self
 
     def _fetch_git(self, code_dir):
+        """Fetches source code from Git repository."""
         uri = os.environ.get(cluster_config_helper.OCI__RUNTIME_URI)
         branch = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_BRANCH)
         commit = os.environ.get(cluster_config_helper.OCI__RUNTIME_GIT_COMMIT)
@@ -236,7 +297,21 @@ class Runner(driver_utils.JobRunner):
                 branch=branch, commit=commit
             )
 
-    def get_entrypoint_with_args(self, prefix=""):
+    def get_cmd_with_entrypoint_and_args(self, prefix: str = "") -> str:
+        """Gets the command based on entrypoint and arguments.
+
+        Parameters
+        ----------
+        prefix : str, optional
+            Command prefix, by default ""
+            This can be used to set environment variables for the command.
+            e.g. ENV=1 command
+
+        Returns
+        -------
+        str
+            The command including the prefix, entrypoint and arguments.
+        """
         cmd = os.environ[self.entrypoint_env]
         if prefix:
             cmd = prefix + " " + cmd
@@ -244,14 +319,30 @@ class Runner(driver_utils.JobRunner):
             cmd += " " + " ".join(sys.argv[1:])
         return cmd
 
-    def prepare_cmd(self, launch_args, prefix=None):
+    def prepare_cmd(self, launch_args: list = None, prefix=""):
+        """Prepares the command for starting the training.
+
+        Parameters
+        ----------
+        launch_args : list
+            The command and arguments for starting the training as a list.
+        prefix : str, optional
+            The prefix to be added to the launch_args in the command, by default ""
+            This can be used to set environment variables for the command.
+            e.g. ENV=1 command
+
+        Returns
+        -------
+        str
+            The command for starting the training.
+        """
         if not launch_args:
             launch_args = []
         # Append launch cmd args specified by the user.
         if self.launch_cmd:
             launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
         else:
-            launch_args.append(self.get_entrypoint_with_args())
+            launch_args.append(self.get_cmd_with_entrypoint_and_args())
 
         if prefix:
             launcher = f"{prefix} {self.LAUNCHER}"
@@ -581,7 +672,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         # --multi_gpu will be set automatically if there is more than 1 GPU
         # self.multi_gpu = bool(self.node_count > 1 or self.gpu_count > 1)
         self.num_machines = self.node_count
-        self.machine_rank = os.environ["OCI__NODE_RANK"]
+        self.machine_rank = os.environ["RANK"]
         # Total number of processes across all nodes
         # Here we assume all nodes are having the same shape
         self.num_processes = (self.gpu_count if self.gpu_count else 1) * self.node_count

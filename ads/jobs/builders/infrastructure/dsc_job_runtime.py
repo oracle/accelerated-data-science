@@ -1071,7 +1071,7 @@ class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
     def _translate_env(self, runtime: PyTorchDistributedRuntime) -> dict:
         envs = super()._translate_env(runtime)
         replica = runtime.replica if runtime.replica else 1
-        # WORKER_COUNT = REPLICA - 1
+        # WORKER_COUNT = REPLICA - 1 so that it will be same as distributed training
         envs[self.CONST_WORKER_COUNT] = str(replica - 1)
         envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
         if runtime.inputs:
