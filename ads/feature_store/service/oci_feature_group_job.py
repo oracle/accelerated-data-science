@@ -92,7 +92,7 @@ class OCIFeatureGroupJob(
         client = super().init_client(**kwargs)
 
         # Define the list entities callable to list the resources
-        cls.OCI_LIST_METHOD = client.list_entities
+        cls.OCI_LIST_METHOD = client.list_feature_group_jobs
 
         return client
 
