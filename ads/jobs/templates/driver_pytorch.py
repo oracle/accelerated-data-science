@@ -340,6 +340,12 @@ class Runner(driver_utils.JobRunner):
             launch_args = []
         # Append launch cmd args specified by the user.
         if self.launch_cmd:
+            if not self.launch_cmd.startswith(self.LAUNCHER):
+                raise ValueError(
+                    f"Command not supported: '{self.launch_cmd}'. "
+                    f"The command should start with '{self.LAUNCHER}'."
+                )
+
             launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
         else:
             launch_args.append(self.get_cmd_with_entrypoint_and_args())
