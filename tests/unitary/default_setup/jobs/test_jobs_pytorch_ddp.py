@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+import os
 import unittest
 import zipfile
 from unittest import mock
@@ -148,3 +149,13 @@ class PyTorchRuntimeHandlerTest(unittest.TestCase):
                 },
             ],
         )
+
+    @mock.patch.dict(
+        os.environ, {utils.CONST_ENV_INPUT_MAPPINGS: json.dumps({INPUT_SRC: INPUT_DST})}
+    )
+    @mock.patch("os.makedirs")
+    @mock.patch("fsspec.filesystem")
+    def test_copy_inputs(self, fs, makedirs):
+        utils.OCIHelper.copy_inputs()
+        self.assertEqual(fs.call_args.args[0], "oci")
+        self.assertEqual(makedirs.call_args.args[0], "data")
