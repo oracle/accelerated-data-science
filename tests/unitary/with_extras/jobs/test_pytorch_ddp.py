@@ -6,15 +6,10 @@ import os
 import sys
 import unittest
 from unittest import mock
-from ads.jobs import PyTorchDistributedRuntime, DataScienceJob, DataScienceJobRun
+from ads.jobs import DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     PyTorchDistributedRuntimeHandler as Handler,
 )
-from ads.jobs.builders.runtimes.pytorch_runtime import (
-    PyTorchDistributedArtifact,
-    GitPythonArtifact,
-)
-from ads.opctl.distributed.common import cluster_config_helper as cluster
 from ads.jobs.templates import driver_utils as utils
 from ads.jobs.templates import driver_pytorch as driver
 
@@ -96,6 +91,30 @@ class PyTorchRunnerTest(unittest.TestCase):
             ),
             cmd,
         )
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            utils.CONST_ENV_PIP_PKG: "abc==1.0",
+            utils.CONST_ENV_PIP_REQ: "abc/requirements.txt",
+        },
+    )
+    @mock.patch("ads.jobs.templates.driver_utils.JobRunner.run_command")
+    def test_install_deps(self, run_command):
+        runner = self.init_torch_runner()
+        runner.install_dependencies()
+        cmd_list = [call_args.args[0] for call_args in run_command.call_args_list]
+        self.assertEqual(
+            cmd_list,
+            [
+                "pip install -r abc/requirements.txt",
+                "pip install abc==1.0",
+            ],
+        )
+
+    def test_run_command(self):
+        runner = self.init_torch_runner()
+        self.assertEqual(runner.run_command("pwd", runner.conda_prefix, check=True), 0)
 
 
 class LazyEvaluateTest(unittest.TestCase):
