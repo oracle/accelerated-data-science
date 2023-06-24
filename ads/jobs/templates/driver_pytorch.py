@@ -426,10 +426,14 @@ class TorchRunner(Runner):
         if not self.launch_cmd_contains("nnode"):
             launch_args.append(f"--nnode={self.node_count}")
         if not self.launch_cmd_contains("nproc_per_node"):
-            launch_args.append(f" --nproc_per_node={nproc_per_node}")
+            launch_args.append(f"--nproc_per_node={nproc_per_node}")
         if not self.launch_cmd_contains("rdzv_backend"):
-            launch_args.append(
-                f" --rdzv_backend=c10d --rdzv_endpoint={self.host_ip}:{self.RDZV_PORT} --rdzv_conf={self.get_rdzv_conf()}"
+            launch_args.extend(
+                [
+                    "--rdzv_backend=c10d",
+                    f"--rdzv_endpoint={self.host_ip}:{self.RDZV_PORT}",
+                    f"--rdzv_conf={self.get_rdzv_conf()}",
+                ]
             )
 
         self.time_cmd(cmd=self.prepare_cmd(launch_args, prefix=self.env_ld_preload()))
