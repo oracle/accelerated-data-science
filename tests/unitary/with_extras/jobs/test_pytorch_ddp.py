@@ -117,6 +117,66 @@ class PyTorchRunnerTest(unittest.TestCase):
         self.assertEqual(runner.run_command("pwd", runner.conda_prefix, check=True), 0)
 
 
+class AccelerateRunnerTest(unittest.TestCase):
+    TEST_IP = "10.0.0.1"
+
+    def init_runner(self):
+        with mock.patch(
+            "ads.jobs.templates.driver_pytorch.TorchRunner.build_c_library"
+        ), mock.patch("socket.gethostbyname") as GetHostIP, mock.patch(
+            "ads.jobs.DataScienceJobRun.from_ocid"
+        ) as GetJobRun, mock.patch(
+            "ads.jobs.templates.driver_utils.JobRunner.run_command"
+        ):
+            GetHostIP.return_value = self.TEST_IP
+            GetJobRun.return_value = DataScienceJobRun(id="ocid.abcdefghijk")
+            return driver.AccelerateRunner()
+
+    @mock.patch.dict(
+        os.environ,
+        {
+            driver.CONST_ENV_DEEPSPEED: "1",
+            driver.OCI__WORKER_COUNT: "1",
+            driver.CONST_ENV_LAUNCH_CMD: "accelerate launch train.py --data abc",
+            "RANK": "0",
+        },
+    )
+    @mock.patch("ads.jobs.templates.driver_pytorch.DeepSpeedRunner.run_deepspeed_host")
+    @mock.patch("ads.jobs.templates.driver_utils.JobRunner.run_command")
+    @mock.patch("ads.jobs.templates.driver_pytorch.Runner.time_cmd")
+    def test_run(self, time_cmd, run_command, run_deepspeed):
+        run_command.return_value = 0
+
+        runner = self.init_runner()
+        runner.run_with_torchrun()
+        self.assertTrue(
+            time_cmd.call_args.kwargs["cmd"].endswith(
+                "libhostname.so.1 OCI__HOSTNAME=10.0.0.1 "
+                "accelerate launch --num_processes 2 --num_machines 2 --machine_rank 0 --main_process_port 29400 "
+                "train.py --data abc"
+            ),
+            time_cmd.call_args.kwargs["cmd"],
+        )
+
+        runner.run()
+        self.assertEqual(
+            run_deepspeed.call_args.args[0],
+            [
+                "--num_processes",
+                "2",
+                "--num_machines",
+                "2",
+                "--machine_rank",
+                "0",
+                "--main_process_ip",
+                "10.0.0.1",
+                "--main_process_port",
+                "29400",
+                "--deepspeed_hostfile=/home/datascience/hostfile",
+            ],
+        )
+
+
 class LazyEvaluateTest(unittest.TestCase):
     def test_lazy_evaluation(self):
         def func(a, b):
