@@ -424,9 +424,9 @@ class JobRunner:
             logger.info("conda-unpack exits with non-zero return code.")
         return self
 
-    def install_pip_requirements(
-        self, req_path: str = os.environ.get(CONST_ENV_PIP_REQ)
-    ):
+    def install_pip_requirements(self, req_path: str = None):
+        if not req_path:
+            req_path = os.environ.get(CONST_ENV_PIP_REQ)
         if not req_path:
             return self
         self.run_command(
@@ -434,7 +434,9 @@ class JobRunner:
         )
         return self
 
-    def install_pip_packages(self, packages: str = os.environ.get(CONST_ENV_PIP_PKG)):
+    def install_pip_packages(self, packages: str = None):
+        if not packages:
+            packages = os.environ.get(CONST_ENV_PIP_PKG)
         if not packages:
             return self
         self.run_command(
