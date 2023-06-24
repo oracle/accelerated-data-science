@@ -78,6 +78,25 @@ class PyTorchRunnerTest(unittest.TestCase):
             "A=1 torchrun --key val train.py hello --data abc",
         )
 
+    @mock.patch.dict(
+        os.environ, {driver.CONST_ENV_LAUNCH_CMD: "torchrun train.py --data abc"}
+    )
+    @mock.patch("ads.jobs.templates.driver_utils.JobRunner.run_command")
+    def test_run_torchrun(self, run_command):
+        runner = self.init_torch_runner()
+        runner.run()
+        cmd = run_command.call_args.args[0]
+        self.assertTrue(cmd.startswith("LD_PRELOAD="))
+        self.assertTrue(
+            cmd.endswith(
+                "libhostname.so.1 OCI__HOSTNAME=10.0.0.1 "
+                "torchrun --nnode=1 --nproc_per_node=1 "
+                "--rdzv_backend=c10d --rdzv_endpoint=10.0.0.1:29400 --rdzv_conf=read_timeout=600 "
+                "train.py --data abc"
+            ),
+            cmd,
+        )
+
 
 class LazyEvaluateTest(unittest.TestCase):
     def test_lazy_evaluation(self):
