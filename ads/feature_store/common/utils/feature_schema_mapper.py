@@ -4,12 +4,15 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import logging
 from typing import List
 
 import numpy as np
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
+from mlm_insights.constants import types
+
 from ads.feature_store.common.enums import FeatureType
 
 try:
@@ -21,6 +24,8 @@ except ModuleNotFoundError:
     )
 except Exception as e:
     raise
+
+logger = logging.getLogger(__name__)
 
 
 def map_spark_type_to_feature_type(spark_type):
@@ -82,8 +87,8 @@ def map_pandas_type_to_feature_type(feature_name, values):
                 inferred_dtype = current_dtype
             else:
                 if (
-                    current_dtype != inferred_dtype
-                    and current_dtype is not FeatureType.UNKNOWN
+                        current_dtype != inferred_dtype
+                        and current_dtype is not FeatureType.UNKNOWN
                 ):
                     raise TypeError(
                         f"Input feature '{feature_name}' has mixed types, {current_dtype} and {inferred_dtype}. "
@@ -228,7 +233,7 @@ def map_feature_type_to_pandas(feature_type):
 
 
 def convert_pandas_datatype_with_schema(
-    raw_feature_details: List[dict], input_df: pd.DataFrame
+        raw_feature_details: List[dict], input_df: pd.DataFrame
 ):
     feature_detail_map = {}
     for feature_details in raw_feature_details:
@@ -240,6 +245,48 @@ def convert_pandas_datatype_with_schema(
             pandas_type = map_feature_type_to_pandas(feature_type)
             input_df[column] = (
                 input_df[column]
-                .astype(pandas_type)
-                .where(pd.notnull(input_df[column]), None)
+                    .astype(pandas_type)
+                    .where(pd.notnull(input_df[column]), None)
             )
+
+
+def map_spark_type_to_stats_data_type(spark_type):
+    """ Maps the spark data types to MLM library data types
+    args:
+        param spark_type: Spark data type input from the feature dataframe on which we need stats
+    :return:
+        Returns the MLM data type corresponding to SparkType
+    """
+    spark_type_to_mlm_data_type = {
+        StringType(): types.DataType.STRING,
+        IntegerType(): types.DataType.INTEGER,
+        FloatType(): types.DataType.FLOAT,
+        DoubleType(): types.DataType.FLOAT,
+        BooleanType(): types.DataType.BOOLEAN,
+        DecimalType(): types.DataType.FLOAT,
+        ShortType(): types.DataType.INTEGER,
+        LongType(): types.DataType.INTEGER,
+    }
+
+    return spark_type_to_mlm_data_type.get(spark_type)
+
+
+def map_spark_type_to_stats_variable_type(spark_type):
+    """ Maps the spark data types to MLM library variable types
+    args:
+        param spark_type: Spark data type input from the feature dataframe on which we need stats
+    :return:
+        Returns the MLM variable type corresponding to SparkType
+    """
+    spark_type_to_feature_type = {
+        StringType(): types.VariableType.NOMINAL,
+        IntegerType(): types.VariableType.CONTINUOUS,
+        FloatType(): types.VariableType.CONTINUOUS,
+        DoubleType(): types.VariableType.CONTINUOUS,
+        BooleanType(): types.VariableType.BINARY,
+        DecimalType(): types.VariableType.CONTINUOUS,
+        ShortType(): types.VariableType.CONTINUOUS,
+        LongType(): types.VariableType.CONTINUOUS,
+    }
+
+    return spark_type_to_feature_type.get(spark_type)

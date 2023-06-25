@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import sys
@@ -73,7 +73,8 @@ extras_require = {
     "spark": ["pyspark>=3.0.0", "delta-spark"],
     "huggingface": ["transformers"],
     "great-expectations": ["great-expectations==0.15.39"],
-    "pydeequ": ["pydeequ==1.0.1"],
+    "mlm_insights": ["mlm_insights==0.1.0.dev1"],
+    "pyarrow": ["pyarrow"]
 }
 
 this_directory = Path(__file__).parent
@@ -172,5 +173,9 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
-    entry_points={"console_scripts": ["ads=ads.cli:cli"]},
+    entry_points={
+        'console_scripts': [
+            'ads=ads.cli:cli'
+        ]
+    },
 )
