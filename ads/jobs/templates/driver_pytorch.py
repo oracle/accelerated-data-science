@@ -656,6 +656,8 @@ class DeepSpeedRunner(Runner):
         if self.is_host:
             if self.node_count > 1:
                 launch_args = [f"--hostfile={self.HOST_FILE}"]
+            else:
+                launch_args = []
             self.run_deepspeed_host(launch_args)
         else:
             self.run_deepspeed_worker()

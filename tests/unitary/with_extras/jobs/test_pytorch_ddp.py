@@ -117,6 +117,40 @@ class PyTorchRunnerTest(unittest.TestCase):
         self.assertEqual(runner.run_command("pwd", runner.conda_prefix, check=True), 0)
 
 
+class DeepSpeedRunnerTest(unittest.TestCase):
+    TEST_IP = "10.0.0.1"
+
+    def init_runner(self):
+        with mock.patch("socket.gethostbyname") as GetHostIP, mock.patch(
+            "ads.jobs.DataScienceJobRun.from_ocid"
+        ) as GetJobRun, mock.patch(
+            "ads.jobs.templates.driver_utils.JobRunner.run_command"
+        ):
+            GetHostIP.return_value = self.TEST_IP
+            GetJobRun.return_value = DataScienceJobRun(id="ocid.abcdefghijk")
+            return driver.DeepSpeedRunner()
+
+    @mock.patch.dict(
+        os.environ, {driver.CONST_ENV_LAUNCH_CMD: "deepspeed train.py --data abc"}
+    )
+    @mock.patch("ads.jobs.templates.driver_utils.JobRunner.run_command")
+    @mock.patch("ads.jobs.templates.driver_pytorch.Runner.time_cmd")
+    def test_run_single_node(self, time_cmd, *args):
+        runner = self.init_runner()
+        runner.run()
+        self.assertEqual(time_cmd.call_args.args[0], "deepspeed train.py --data abc")
+
+    @mock.patch("ads.jobs.templates.driver_utils.JobRunner.run_command")
+    def test_touch_file(self, run_command):
+        runner = self.init_runner()
+        runner.node_ip_list = ["10.0.0.2", "10.0.0.3"]
+        runner.touch_file("stop")
+        commasnds = [call_args.args[0] for call_args in run_command.call_args_list]
+        self.assertEqual(
+            commasnds, ["ssh -v 10.0.0.2 'touch stop'", "ssh -v 10.0.0.3 'touch stop'"]
+        )
+
+
 class AccelerateRunnerTest(unittest.TestCase):
     TEST_IP = "10.0.0.1"
 
