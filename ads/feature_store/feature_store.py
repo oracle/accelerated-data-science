@@ -426,11 +426,12 @@ class FeatureStore(Builder):
 
     def _build_transformation(
         self,
-        source_code_func,
-        transformation_mode,
+        transformation_mode: TransformationMode,
+        source_code_func=None,
         display_name: str = None,
         description: str = None,
         compartment_id: str = None,
+        sql_query: str = None
     ):
         transformation = (
             Transformation()
@@ -442,17 +443,19 @@ class FeatureStore(Builder):
                 compartment_id if compartment_id else self.compartment_id
             )
             .with_feature_store_id(self.id)
+            .with_transformation_query_input(sql_query)
         )
 
         return transformation
 
     def create_transformation(
         self,
-        source_code_func,
         transformation_mode: TransformationMode,
+        source_code_func=None,
         display_name: str = None,
         description: str = None,
         compartment_id: str = None,
+        sql_query: str = None
     ) -> "Transformation":
         """Creates transformation resource from feature store.
 
@@ -468,6 +471,9 @@ class FeatureStore(Builder):
              description for the entity.
         compartment_id: str
              compartment_id for the entity.
+        sql_query: str
+           inline sql query to be passed for transformation creation,
+            Please ensure to use DATA_SOURCE_INPUT as FROM table name
 
         Returns
         -------
@@ -480,11 +486,12 @@ class FeatureStore(Builder):
             )
 
         self.oci_transformation = self._build_transformation(
-            source_code_func,
             transformation_mode,
+            source_code_func,
             display_name,
             description,
             compartment_id,
+            sql_query
         )
 
         return self.oci_transformation.create()
