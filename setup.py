@@ -74,7 +74,7 @@ extras_require = {
     "huggingface": ["transformers"],
     "great-expectations": ["great-expectations==0.15.39"],
     "mlm_insights": ["mlm_insights==0.1.0.dev1"],
-    "pyarrow": ["pyarrow"]
+    "pyarrow": ["pyarrow"],
 }
 
 this_directory = Path(__file__).parent
@@ -173,9 +173,5 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
-    entry_points={
-        'console_scripts': [
-            'ads=ads.cli:cli'
-        ]
-    },
+    entry_points={"console_scripts": ["ads=ads.cli:cli"]},
 )
