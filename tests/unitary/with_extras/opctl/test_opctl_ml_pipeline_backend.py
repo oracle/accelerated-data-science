@@ -129,10 +129,11 @@ class TestMLPipelineBackend:
         config = self.config
         config["execution"]["run_id"] = "test_pipeline_run_id"
         config["execution"]["log_type"] = "custom_log"
+        config["execution"]["interval"] = 10
         backend = PipelineBackend(config)
         backend.watch()
         mock_from_ocid.assert_called_with("test_pipeline_run_id")
-        mock_watch.assert_called_with(log_type="custom_log")
+        mock_watch.assert_called_with(interval=10, log_type="custom_log")
 
     @pytest.mark.parametrize(
         "runtime_type",
