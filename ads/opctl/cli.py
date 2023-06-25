@@ -230,44 +230,31 @@ _options = [
         "--auth",
         "-a",
         help="authentication method",
-        type=click.Choice(["api_key", "resource_principal"]),
+        type=click.Choice(["api_key", "resource_principal", "security_token"]),
         default=None,
     ),
+]
+
+_model_deployment_options = [
     click.option(
         "--wait-for-completion",
-        help="either to wait for process to complete or not",
+        help="either to wait for process to complete or not for model deployment",
         is_flag=True,
         required=False,
     ),
     click.option(
         "--max-wait-time",
-        help="maximum wait time in seconds for progress to complete",
+        help="maximum wait time in seconds for progress to complete for model deployment",
         type=int,
         required=False,
         default=1200,
     ),
     click.option(
         "--poll-interval",
-        help="poll interval in seconds",
+        help="poll interval in seconds for model deployment",
         type=int,
         required=False,
         default=10,
-    ),
-    click.option(
-        "--log-type", help="the type of logging.", required=False, default=None
-    ),
-    click.option(
-        "--log-filter",
-        help="expression for filtering the logs.",
-        required=False,
-        default=None,
-    ),
-    click.option(
-        "--interval",
-        help="log interval in seconds",
-        type=int,
-        required=False,
-        default=3,
     ),
 ]
 
@@ -464,21 +451,46 @@ def init_operator(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@add_options(_model_deployment_options)
 def delete(**kwargs):
     suppress_traceback(kwargs["debug"])(delete_cmd)(**kwargs)
 
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@add_options(_model_deployment_options)
 def cancel(**kwargs):
     suppress_traceback(kwargs["debug"])(cancel_cmd)(**kwargs)
 
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@click.option(
+    "--log-type", 
+    help="the type of logging. Allowed value: `custom_log` and `service_log` for pipeline, `access` and `predict` for model deployment.", 
+    required=False, 
+    default=None
+)
+@click.option(
+    "--log-filter",
+    help="expression for filtering the logs for model deployment.",
+    required=False,
+    default=None,
+)
+@click.option(
+    "--interval",
+    help="log interval in seconds",
+    type=int,
+    required=False,
+    default=3,
+)
+@click.option(
+    "--wait",
+    help="time in seconds to keep updating the logs after the job run finished for job.",
+    type=int,
+    required=False,
+    default=90
+)
 def watch(**kwargs):
     """
     ``tail`` logs form a job run, dataflow run or pipeline run.
@@ -489,7 +501,7 @@ def watch(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@add_options(_model_deployment_options)
 def activate(**kwargs):
     """
     Activates a data science service.
@@ -499,7 +511,7 @@ def activate(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_options)
+@add_options(_model_deployment_options)
 def deactivate(**kwargs):
     """
     Deactivates a data science service.
