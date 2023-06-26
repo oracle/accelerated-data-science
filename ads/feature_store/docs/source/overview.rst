@@ -26,7 +26,7 @@ Oracle feature store is a stack based solution that is deployed in the customer 
       * - Package Name
         - Latest Version
       * - python
-        - .. image:: https://img.shields.io/pypi/pyversions/oracle-ads.svg?style=for-the-badge&logo=pypi&logoColor=white
+        - .. image:: https://img.shields.io/badge/python-3.8-blue?style=for-the-badge&logo=pypi&logoColor=white
       * - fspyspark32_p38_cpu_v1
         - .. image:: https://img.shields.io/badge/fspyspark32_p38_cpu_v1-1.0-blue?style=for-the-badge&logo=pypi&logoColor=white
       * - delta-spark
