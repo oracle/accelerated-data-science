@@ -431,7 +431,7 @@ class FeatureStore(Builder):
         display_name: str = None,
         description: str = None,
         compartment_id: str = None,
-        sql_query: str = None
+        sql_query: str = None,
     ):
         transformation = (
             Transformation()
@@ -455,7 +455,7 @@ class FeatureStore(Builder):
         display_name: str = None,
         description: str = None,
         compartment_id: str = None,
-        sql_query: str = None
+        sql_query: str = None,
     ) -> "Transformation":
         """Creates transformation resource from feature store.
 
@@ -491,7 +491,7 @@ class FeatureStore(Builder):
             display_name,
             description,
             compartment_id,
-            sql_query
+            sql_query,
         )
 
         return self.oci_transformation.create()

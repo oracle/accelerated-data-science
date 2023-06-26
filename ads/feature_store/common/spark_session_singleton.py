@@ -87,6 +87,7 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
             self.spark_session = spark_builder.getOrCreate()
 
         self.spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
+        self.spark_session.sparkContext.setLogLevel("OFF")
 
     def get_spark_session(self):
         """Access method to get the spark session."""
