@@ -109,6 +109,24 @@ class TestMLJobBackend:
         job_create.assert_called()
         job_run.assert_called()
 
+    @patch(
+        "ads.opctl.backend.ads_ml_job.DataScienceJobRun.watch",
+        return_value=DataScienceJobRun(),
+    )
+    @patch(
+        "ads.opctl.backend.ads_ml_job.DataScienceJobRun.from_ocid",
+        return_value=DataScienceJobRun(),
+    )
+    def test_watch(self, mock_from_ocid, mock_watch):
+        config = self.config
+        config["execution"]["run_id"] = "test_job_run_id"
+        config["execution"]["interval"] = 10
+        config["execution"]["wait"] = 15
+        backend = MLJobBackend(config)
+        backend.watch()
+        mock_from_ocid.assert_called_with("test_job_run_id")
+        mock_watch.assert_called_with(interval=10, wait=15)
+
     @pytest.mark.parametrize(
         "runtime_type",
         ["container", "script", "python", "notebook", "gitPython"],

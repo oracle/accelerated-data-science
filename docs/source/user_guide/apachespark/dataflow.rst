@@ -37,6 +37,8 @@ Define config. If you have not yet configured your dataflow setting, or would li
   dataflow_config.spark_version = "3.2.1"
   dataflow_config.configuration = {"spark.driver.memory": "512m"}
   dataflow_config.private_endpoint_id = "ocid1.dataflowprivateendpoint.oc1.iad.<your private endpoint ocid>"
+  # For using Data Flow Pools
+  # dataflow_config.poolId = "ocid1.dataflowpool.oc1..<unique_ocid>"
 
 Use the config defined above to submit the cell.
 
@@ -207,6 +209,7 @@ You can set them using the ``with_{property}`` functions:
 - ``with_spark_version``
 - ``with_warehouse_bucket_uri``
 - ``with_private_endpoint_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pe-allowing.htm#pe-allowing>`__)
+- ``with_pool_id`` (`doc <https://docs.oracle.com/en-us/iaas/data-flow/using/pools.htm>`__)
 - ``with_defined_tags``
 - ``with_freeform_tags``
 
@@ -274,6 +277,8 @@ accepted. In the next example, the prefix is given for ``script_bucket``.
             .with_executor_shape("VM.Standard.E4.Flex")
             .with_executor_shape_config(ocpus=4, memory_in_gbs=64)
             .with_spark_version("3.0.2")
+            # For using Data Flow Pool
+            # .with_pool_id("ocid1.dataflowpool.oc1..<unique_ocid>")
             .with_defined_tag(
                 **{"Oracle-Tags": {"CreatedBy": "test_name@oracle.com"}}
             )
@@ -576,6 +581,7 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
         numExecutors: 1
         sparkVersion: 3.2.1
         privateEndpointId: <private_endpoint_ocid>
+        poolId: <dataflow_pool_ocid>
         definedTags:
           Oracle-Tags:
             CreatedBy: test_name@oracle.com
@@ -657,6 +663,9 @@ into the ``Job.from_yaml()`` function to build a Data Flow job:
                 required: false
                 type: string
             privateEndpointId:
+                required: false
+                type: string
+            poolId:
                 required: false
                 type: string
             configuration:

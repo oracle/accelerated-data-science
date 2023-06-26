@@ -91,8 +91,12 @@ class PipelineBackend(Backend):
         """
         run_id = self.config["execution"]["run_id"]
         log_type = self.config["execution"].get("log_type")
+        interval = self.config["execution"].get("interval")
         with AuthContext(auth=self.auth_type, profile=self.profile):
-            PipelineRun.from_ocid(run_id).watch(log_type=log_type)
+            PipelineRun.from_ocid(run_id).watch(
+                interval=interval,
+                log_type=log_type
+            )
 
     def init(
         self,
