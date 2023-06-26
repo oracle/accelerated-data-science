@@ -36,14 +36,22 @@ class StatisticsService:
 
     @staticmethod
     def compute_stats_with_mlm(
-            statistics_config: StatisticsConfig, input_df: DataFrame
+        statistics_config: StatisticsConfig, input_df: DataFrame
     ):
         feature_metrics = None
-        if bool(input_df.head(1)) and statistics_config and statistics_config.is_enabled:
+        if (
+            bool(input_df.head(1))
+            and statistics_config
+            and statistics_config.is_enabled
+        ):
             feature_schema = {}
             if input_df.schema:
-                StatisticsService.__get_mlm_supported_schema(feature_schema, input_df, statistics_config)
-                feature_metrics = StatisticsService.__get_feature_metric(feature_schema, input_df)
+                StatisticsService.__get_mlm_supported_schema(
+                    feature_schema, input_df, statistics_config
+                )
+                feature_metrics = StatisticsService.__get_feature_metric(
+                    feature_schema, input_df
+                )
             else:
                 raise ValueError("Dataframe schema is missing")
         return feature_metrics
@@ -51,34 +59,41 @@ class StatisticsService:
     @staticmethod
     def __get_feature_metric(feature_schema: dict, data_frame: DataFrame):
         feature_metrics = None
-        runner = InsightsBuilder(). \
-            with_input_schema(input_schema=feature_schema). \
-            with_data_frame(data_frame=data_frame). \
-            with_engine(engine=EngineDetail(engine_name="spark")). \
-            build()
+        runner = (
+            InsightsBuilder()
+            .with_input_schema(input_schema=feature_schema)
+            .with_data_frame(data_frame=data_frame)
+            .with_engine(engine=EngineDetail(engine_name="spark"))
+            .build()
+        )
         result = runner.run()
         if result and result.profile:
             profile = result.profile
             feature_metrics = json.dumps(profile.to_json()[CONST_FEATURE_METRICS])
         else:
-            logger.warning(f"stats computation failed with MLM for schema {feature_schema}")
+            logger.warning(
+                f"stats computation failed with MLM for schema {feature_schema}"
+            )
         return feature_metrics
 
     @staticmethod
-    def __get_mlm_supported_schema(feature_schema: dict, input_df: DataFrame, statistics_config: StatisticsConfig):
+    def __get_mlm_supported_schema(
+        feature_schema: dict, input_df: DataFrame, statistics_config: StatisticsConfig
+    ):
         relevant_columns = statistics_config.columns
         for field in input_df.schema.fields:
             data_type = map_spark_type_to_stats_data_type(field.dataType)
             if not data_type:
-                logger.warning(f"Unable to map spark data type fields to MLM fields, "
-                               f"Actual data type {field.dataType}")
+                logger.warning(
+                    f"Unable to map spark data type fields to MLM fields, "
+                    f"Actual data type {field.dataType}"
+                )
             elif relevant_columns:
                 if field.name in relevant_columns:
-                    feature_schema[field.name] = FeatureType(data_type,
-                                                             map_spark_type_to_stats_variable_type(
-                                                                 field.dataType))
+                    feature_schema[field.name] = FeatureType(
+                        data_type, map_spark_type_to_stats_variable_type(field.dataType)
+                    )
             else:
-                feature_schema[field.name] = FeatureType(data_type,
-                                                         map_spark_type_to_stats_variable_type(
-                                                             field.dataType))
-
+                feature_schema[field.name] = FeatureType(
+                    data_type, map_spark_type_to_stats_variable_type(field.dataType)
+                )
