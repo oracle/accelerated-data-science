@@ -73,7 +73,8 @@ extras_require = {
     "spark": ["pyspark>=3.0.0", "delta-spark"],
     "huggingface": ["transformers"],
     "great-expectations": ["great-expectations==0.15.39"],
-    "pydeequ": ["pydeequ==1.0.1"]
+    "mlm_insights": ["mlm_insights==0.1.0.dev1"],
+    "pyarrow": ["pyarrow"]
 }
 
 this_directory = Path(__file__).parent

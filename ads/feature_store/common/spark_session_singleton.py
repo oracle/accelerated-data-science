@@ -80,15 +80,13 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
         if developer_enabled():
             # Configure spark session with delta jars only in developer mode. In other cases,
             # jars should be part of the conda pack
-            spark_builder.config(
-                "spark.jars",
-                "https://repo1.maven.org/maven2/com/amazon/deequ/deequ/2.0.1-spark-3.2/deequ-2.0.1-spark-3.2.jar",
-            )
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder
             ).getOrCreate()
         else:
             self.spark_session = spark_builder.getOrCreate()
+
+        self.spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
 
     def get_spark_session(self):
         """Access method to get the spark session."""
