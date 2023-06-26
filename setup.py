@@ -23,7 +23,7 @@ install_requires = [
     "gitpython>=3.1.2",
     "matplotlib>=3.1.3",
     "numpy>=1.19.2",
-    "oci>=2.102.0",
+    "oci>=2.104.3",
     "ocifs>=1.1.3",
     "pandas>1.2.1,<1.6",
     "python_jsonschema_objects>=0.3.13",
@@ -74,7 +74,7 @@ extras_require = {
     "huggingface": ["transformers"],
     "great-expectations": ["great-expectations==0.15.39"],
     "mlm_insights": ["mlm_insights==0.1.0.dev1"],
-    "pyarrow": ["pyarrow"]
+    "pyarrow": ["pyarrow"],
 }
 
 this_directory = Path(__file__).parent
@@ -173,9 +173,5 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
-    entry_points={
-        'console_scripts': [
-            'ads=ads.cli:cli'
-        ]
-    },
+    entry_points={"console_scripts": ["ads=ads.cli:cli"]},
 )

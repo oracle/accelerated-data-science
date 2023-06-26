@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 import pytest
 import yaml
+from ads.jobs.builders.infrastructure.dataflow import DataFlowRun
 
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 
@@ -86,6 +87,23 @@ class TestDataFlowBackend:
                 "oci://<bucket_name>@<namespace>/<prefix>",
                 False,
             )
+
+    @patch(
+        "ads.opctl.backend.ads_dataflow.DataFlowRun.watch",
+        return_value=DataFlowRun(),
+    )
+    @patch(
+        "ads.opctl.backend.ads_dataflow.DataFlowRun.from_ocid",
+        return_value=DataFlowRun(),
+    )
+    def test_watch(self, mock_from_ocid, mock_watch):
+        config = self.config
+        config["execution"]["run_id"] = "test_dataflow_run_id"
+        config["execution"]["interval"] = 10
+        backend = DataFlowBackend(config)
+        backend.watch()
+        mock_from_ocid.assert_called_with("test_dataflow_run_id")
+        mock_watch.assert_called_with(interval=10)
 
     @pytest.mark.parametrize(
         "runtime_type",
