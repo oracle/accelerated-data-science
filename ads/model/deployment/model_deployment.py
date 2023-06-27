@@ -920,11 +920,10 @@ class ModelDeployment(Builder):
                 "`data` and `json_input` are both provided. You can only use one of them."
             )
         
-        self._validate_bandwidth(data or json_input)
-
         if auto_serialize_data:
             data = data or json_input
             serialized_data = serializer.serialize(data=data)
+            self._validate_bandwidth(serialized_data)
             return send_request(
                 data=serialized_data,
                 endpoint=endpoint,
@@ -957,6 +956,7 @@ class ModelDeployment(Builder):
             raise ValueError(
                 "`model_name` and `model_version` have to be provided together."
             )
+        self._validate_bandwidth(data)
         prediction = send_request(
             data=data,
             endpoint=endpoint,
