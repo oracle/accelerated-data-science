@@ -66,14 +66,14 @@ class ForecastOperator:
         assert args["kind"] == "operator"
         assert args["type"] == "forecast"
         assert args["version"] == 1
-        self.historical_data = args["historical_data"]
-        self.additional_data = args.get("additional_data", dict())
-        self.output_directory = args["output_directory"]
+        self.historical_data = args["spec"]["historical_data"]
+        self.additional_data = args["spec"].get("additional_data", dict())
+        self.output_directory = args["spec"]["output_directory"]
         self.model = args["spec"]["model"].lower()
         self.target_columns = args["spec"]["target_columns"]
         self.original_target_columns = args["spec"]["target_columns"]
         self.target_category_column = args["spec"]["target_category_column"]
-        self.test_data = args["test_data"]
+        self.test_data = args["spec"]["test_data"]
         self.datetime_column = args["spec"]["datetime_column"]
         self.horizon = args["spec"]["horizon"]
         self.report_file_name = args["spec"].get(
