@@ -69,14 +69,14 @@ class ForecastOperator:
         self.historical_data = args["historical_data"]
         self.additional_data = args.get("additional_data", dict())
         self.output_directory = args["output_directory"]
-        self.model = args["forecast"]["model"].lower()
-        self.target_columns = args["forecast"]["target_columns"]
-        self.original_target_columns = args["forecast"]["target_columns"]
-        self.target_category_column = args["forecast"]["target_category_column"]
+        self.model = args["spec"]["model"].lower()
+        self.target_columns = args["spec"]["target_columns"]
+        self.original_target_columns = args["spec"]["target_columns"]
+        self.target_category_column = args["spec"]["target_category_column"]
         self.test_data = args["test_data"]
-        self.datetime_column = args["forecast"]["datetime_column"]
-        self.horizon = args["forecast"]["horizon"]
-        self.report_file_name = args["forecast"].get(
+        self.datetime_column = args["spec"]["datetime_column"]
+        self.horizon = args["spec"]["horizon"]
+        self.report_file_name = args["spec"].get(
             "report_file_name",
             os.path.join(self.output_directory["url"], "report.html"),
         )
@@ -94,10 +94,8 @@ class ForecastOperator:
             "profile": self.args["execution"].get("oci_profile"),
             "config": self.args["execution"].get("oci_config"),
         }
-        self.model_kwargs = args["forecast"].get("model_kwargs", dict())
-        self.confidence_interval_width = args["forecast"].get(
-            "confidence_interval_width"
-        )
+        self.model_kwargs = args["spec"].get("model_kwargs", dict())
+        self.confidence_interval_width = args["spec"].get("confidence_interval_width")
 
     def build_model(self):
         view = dp.View(dp.Text("# My report 3"))

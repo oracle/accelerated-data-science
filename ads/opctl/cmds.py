@@ -65,10 +65,6 @@ OPERATOR_TYPES = {
     "forecast": forecast_run,
 }
 
-OPERATOR_SCHEMAS = {
-    "forecast": "ads.operators.forecast.schema.yaml",
-}
-
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     JOB = "datasciencejob"

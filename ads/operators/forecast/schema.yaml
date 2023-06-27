@@ -156,7 +156,7 @@ output_directory:
       type: dict
   type: dict
 
-forecast:
+spec:
   required: false
   schema:
     report_file_name:
