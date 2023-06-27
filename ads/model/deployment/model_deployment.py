@@ -8,6 +8,7 @@
 import collections
 import copy
 import datetime
+import sys
 import oci
 import warnings
 import time
@@ -69,6 +70,9 @@ MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
 MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
+
+TIME_FRAME = 60
+MAXIMUM_PAYLOAD_SIZE = 10 * 1024 * 1024 # bytes
 
 MODEL_DEPLOYMENT_RUNTIMES = {
     ModelDeploymentRuntimeType.CONDA: ModelDeploymentCondaRuntime,
@@ -252,6 +256,10 @@ class ModelDeployment(Builder):
         CONST_LIFECYCLE_DETAILS: "lifecycle_details",
         CONST_TIME_CREATED: "time_created",
     }
+
+    count_start_time = 0
+    request_counter = 0
+    estimate_request_per_second = 100
 
     initialize_spec_attributes = [
         "display_name",
@@ -911,6 +919,8 @@ class ModelDeployment(Builder):
             raise AttributeError(
                 "`data` and `json_input` are both provided. You can only use one of them."
             )
+        
+        self._validate_bandwidth(data or json_input)
 
         if auto_serialize_data:
             data = data or json_input
@@ -1794,6 +1804,45 @@ class ModelDeployment(Builder):
             if attribute in kwargs:
                 spec_kwargs[attribute] = kwargs[attribute]
         return spec_kwargs
+    
+    def _validate_bandwidth(self, data: Any):
+        """Validates payload size and load balancer bandwidth.
+
+        Parameters
+        ----------
+        data: Any
+            Data or JSON payload for the prediction.
+        """
+        payload_size = sys.getsizeof(data)
+        if payload_size > MAXIMUM_PAYLOAD_SIZE:
+            raise ValueError(
+                f"Payload size exceeds the maximum allowed {MAXIMUM_PAYLOAD_SIZE} bytes. Size down the payload."
+            )
+                        
+        time_now = int(time.time())
+        if self.count_start_time == 0:
+            self.count_start_time = time_now
+        if time_now - self.count_start_time < TIME_FRAME:
+            self.request_counter += 1
+        else:
+            self.estimate_request_per_second = (int)(self.request_counter / TIME_FRAME)
+            self.request_counter = 0
+            self.count_start_time = 0
+
+        if not self.infrastructure or not self.runtime:
+            raise ValueError("Missing parameter infrastructure or runtime. Try reruning it after parameters are fully configured.")
+        
+        # load balancer bandwidth is only needed for HTTPS mode.
+        if self.runtime.deployment_mode == ModelDeploymentMode.HTTPS:
+            bandwidth_mbps = self.infrastructure.bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
+            # formula: (payload size in KB) * (estimated requests per second) * 8 / 1024
+            # 20% extra for estimation errors and sporadic peak traffic
+            payload_size_in_kb = payload_size / 1024
+            if (payload_size_in_kb * self.estimate_request_per_second * 8 * 1.2) / 1024 > bandwidth_mbps:
+                raise ValueError(
+                    f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
+                    "Try sizing down the payload, slowing down the request rate or increasing bandwidth."
+                )
 
     def build(self) -> "ModelDeployment":
         """Load default values from the environment for the job infrastructure."""

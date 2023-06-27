@@ -6,10 +6,12 @@
 
 import copy
 from datetime import datetime
+import time
 import oci
 import pytest
 import unittest
 import pandas
+import sys
 from unittest.mock import MagicMock, patch
 from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_logging import ConsolidatedLog, OCILog
@@ -19,6 +21,7 @@ from ads.common.oci_datascience import DSCNotebookSession
 from ads.model.datascience_model import DataScienceModel
 
 from ads.model.deployment.model_deployment import (
+    MAXIMUM_PAYLOAD_SIZE,
     ModelDeployment,
     ModelDeploymentLogType,
     ModelDeploymentFailedError,
@@ -1480,3 +1483,33 @@ spec:
         )
         mock_create_model_deployment.assert_called_with(create_model_deployment_details)
         mock_sync.assert_called()
+
+    @patch.object(sys, "getsizeof")
+    def test_validate_bandwidth(self, mock_get_size_of):
+        model_deployment = self.initialize_model_deployment()
+
+        mock_get_size_of.return_value = 11 * 1024 * 1024
+        with pytest.raises(
+            ValueError,
+            match=f"Payload size exceeds the maximum allowed {MAXIMUM_PAYLOAD_SIZE} bytes. Size down the payload."
+        ):
+            model_deployment._validate_bandwidth("test")
+            mock_get_size_of.assert_called()
+
+        mock_get_size_of.return_value = 9 * 1024 * 1024
+        with pytest.raises(
+            ValueError,
+            match=f"Load balancer bandwidth exceeds the allocated {model_deployment.infrastructure.bandwidth_mbps} Mbps."
+                    "Try sizing down the payload, slowing down the request rate or increasing bandwidth."
+        ):
+            model_deployment._validate_bandwidth("test")
+            mock_get_size_of.assert_called()
+
+        mock_get_size_of.return_value = 5
+        model_deployment._validate_bandwidth("test")
+        mock_get_size_of.assert_called()
+
+        model_deployment.count_start_time = (int)(time.time()) - 700
+        model_deployment._validate_bandwidth("test")
+        mock_get_size_of.assert_called()
+ 
