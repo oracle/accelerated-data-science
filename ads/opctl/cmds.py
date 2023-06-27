@@ -65,6 +65,11 @@ OPERATOR_TYPES = {
     "forecast": forecast_run,
 }
 
+OPERATOR_SCHEMAS = {
+    "forecast": "ads.operators.forecast.schema.yaml",
+}
+
+
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
     JOB = "datasciencejob"
     DATAFLOW = "dataflowapplication"
@@ -253,8 +258,48 @@ def run(config: Dict, **kwargs) -> Dict:
     elif config.get("kind", "").lower() == "operator":
         operator_type = config.get("type", "").lower()
         if operator_type not in OPERATOR_TYPES.keys():
-            raise ValueError(f"The `type`: {operator_type} is not recognized as an `operator` type. Valid types are: {OPERATOR_TYPES.keys()}")
-        
+            raise ValueError(
+                f"The `type`: {operator_type} is not recognized as an `operator` type. Valid types are: {OPERATOR_TYPES.keys()}"
+            )
+
+        def _validate_yaml(operator_type, config):
+            from cerberus import Validator
+
+            schema = None
+            try:
+                import importlib.resources as pkg_resources
+            except ImportError:
+                # Try backported to PY<37 `importlib_resources`.
+                import importlib_resources as pkg_resources
+
+            try:
+                forecast_module = pkg_resources.import_module(
+                    f"ads.operators.{operator_type}"
+                )
+                try:
+                    inp_file = pkg_resources.files(forecast_module) / "schema.yaml"
+                    with inp_file.open("rb") as f:
+                        schema = yaml.safe_load(f.read())
+                except AttributeError:
+                    # Python < PY3.9, fall back to method deprecated in PY3.11.
+                    schema = pkg_resources.read_text(forecast_module, "schema.yaml")
+                    # or for a file-like stream:
+                    schema = pkg_resources.open_text(forecast_module, "schema.yaml")
+            except:
+                logger.warn(
+                    "Yaml Validation file not found. Continuing without formal validation."
+                )
+                return config
+
+            v = Validator(schema)
+            valid = v.validate(config)
+            if not valid:
+                raise ValueError(json.dumps(v.errors, indent=2))
+            return v.normalized(config)
+
+        normalized_spec = _validate_yaml(operator_type=operator_type, config=p.config)
+        print(f"normalized spec: {normalized_spec}")
+
         p = ConfigResolver(p.config)
         print(f"p.config: {p.config}")
         os.environ["OPERATOR_ARGS"] = json.dumps(p.config)

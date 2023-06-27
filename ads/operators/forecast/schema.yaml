@@ -3,22 +3,30 @@ kind:
     - operator
   required: true
   type: string
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
 
 version:
   allowed:
     - 1
   required: true
-  type: string
+  type: number
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
 
 type:
   allowed:
     - forecast
   required: true
   type: string
+  meta:
+    description: "Type should always be `forecast` when using a forecat operator"
 
 historical_data:
   required: true
   type: dict
+  meta:
+    description: "This should be indexed by date and target category (optionally). It should include all targets and endogeneous data."
   schema:
     format:
       allowed:
@@ -29,7 +37,7 @@ historical_data:
         - hdf
         - feather
         - load_files
-      required: true
+      required: false
       type: string
     columns:
       required: false
@@ -43,6 +51,8 @@ historical_data:
     url:
       required: false
       type: string
+      meta:
+        description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
     limit:
       required: false
       type: integer
@@ -50,6 +60,8 @@ historical_data:
 additional_data:
   required: false
   type: dict
+  meta:
+    description: "Additional datasets must be indexed by the same targets and target categories as the historical data. Also is must have datapoints for each date/category for your horizon. This must be exogeneous data."
   schema:
     format:
       allowed:
@@ -60,7 +72,7 @@ additional_data:
         - hdf
         - feather
         - load_files
-      required: true
+      required: false
       type: string
     columns:
       required: false
@@ -74,19 +86,23 @@ additional_data:
     url:
       required: false
       type: string
+      meta:
+        description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
     limit:
       required: false
       type: integer
 
 test_data:
   required: false
+  meta:
+    description: "Optional, only if evaluation is needed."
   schema:
     connect_args:
       nullable: true
       required: false
       type: dict
     format:
-      required: true
+      required: false
       type: string
       allowed:
         - csv
@@ -95,6 +111,11 @@ test_data:
         - excel
         - hdf
         - sql
+    url:
+      required: false
+      type: string
+      meta:
+        description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
     name:
       required: false
       type: string
@@ -112,7 +133,7 @@ output_directory:
       required: false
       type: dict
     format:
-      required: true
+      required: false
       type: string
       allowed:
         - csv
@@ -121,6 +142,11 @@ output_directory:
         - excel
         - hdf
         - sql
+    url:
+      required: false
+      type: string
+      meta:
+        description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
     name:
       required: false
       type: string
@@ -131,12 +157,14 @@ output_directory:
   type: dict
 
 forecast:
-  required: true
+  required: false
   schema:
     report_file_name:
       required: false
       type: string
       default: report.html
+      meta:
+        description: "Placed into output_directory location. Defaults to report.html"
     report_title:
       required: false
       type: string
@@ -151,6 +179,8 @@ forecast:
       required: false
       type: string
       default: report.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to report.csv"
 
     target_columns:
       type: list
@@ -170,24 +200,21 @@ forecast:
           required: false
 
     target_category_column:
-      type: list
+      type: string
       required: false
-      schema:
-        type: string
 
     horizon:
-      type: dict
       required: false
       schema:
         periods:
-          type: int
+          type: integer
           required: false
         interval:
-          type: int
+          type: integer
           required: false
         interval_unit:
           required: false
-          type: sting
+          type: string
           default: auto
           allowed:
             - S
@@ -198,6 +225,7 @@ forecast:
             - Mo
             - Q
             - Y
+      type: dict
 
     model:
       type: string
@@ -225,5 +253,10 @@ forecast:
         - RMSE
         - MSE
         - SMAPE
-
   type: dict
+infrastructure:
+  type: dict
+  required: false
+execution:
+  type: dict
+  required: false

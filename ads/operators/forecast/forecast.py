@@ -65,7 +65,7 @@ class ForecastOperator:
         self.args = args
         assert args["kind"] == "operator"
         assert args["type"] == "forecast"
-        assert args["version"] == "1"
+        assert args["version"] == 1
         self.historical_data = args["historical_data"]
         self.additional_data = args.get("additional_data", dict())
         self.output_directory = args["output_directory"]

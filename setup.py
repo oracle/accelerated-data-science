@@ -110,6 +110,7 @@ extras_require["forecast"] = extras_require["opctl"] + [
     "pmdarima",
     "statsmodels",
     "datapane",
+    "cerberus",
 ]
 
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
@@ -175,9 +176,5 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
-    entry_points={
-        'console_scripts': [
-            'ads=ads.cli:cli'
-        ]
-    },
+    entry_points={"console_scripts": ["ads=ads.cli:cli"]},
 )
