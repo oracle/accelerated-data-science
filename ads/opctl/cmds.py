@@ -275,7 +275,7 @@ def run(config: Dict, **kwargs) -> Dict:
                 try:
                     inp_file = pkg_resources.files(forecast_module) / "schema.yaml"
                     with inp_file.open("rb") as f:
-                        schema = yaml.safe_load(f.read())
+                        schema = f.read()
                 except AttributeError:
                     # Python < PY3.9, fall back to method deprecated in PY3.11.
                     schema = pkg_resources.read_text(forecast_module, "schema.yaml")
@@ -287,7 +287,7 @@ def run(config: Dict, **kwargs) -> Dict:
                 )
                 return config
 
-            v = Validator(schema)
+            v = Validator(yaml.safe_load(schema))
             valid = v.validate(config)
             if not valid:
                 raise ValueError(json.dumps(v.errors, indent=2))

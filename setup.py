@@ -110,7 +110,7 @@ extras_require["forecast"] = extras_require["opctl"] + [
     "pmdarima",
     "statsmodels",
     "datapane",
-    "cerberus",
+    "Cerberus",
 ]
 
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
