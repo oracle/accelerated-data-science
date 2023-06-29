@@ -87,8 +87,8 @@ def map_pandas_type_to_feature_type(feature_name, values):
                 inferred_dtype = current_dtype
             else:
                 if (
-                        current_dtype != inferred_dtype
-                        and current_dtype is not FeatureType.UNKNOWN
+                    current_dtype != inferred_dtype
+                    and current_dtype is not FeatureType.UNKNOWN
                 ):
                     raise TypeError(
                         f"Input feature '{feature_name}' has mixed types, {current_dtype} and {inferred_dtype}. "
@@ -233,7 +233,7 @@ def map_feature_type_to_pandas(feature_type):
 
 
 def convert_pandas_datatype_with_schema(
-        raw_feature_details: List[dict], input_df: pd.DataFrame
+    raw_feature_details: List[dict], input_df: pd.DataFrame
 ):
     feature_detail_map = {}
     for feature_details in raw_feature_details:
@@ -245,13 +245,13 @@ def convert_pandas_datatype_with_schema(
             pandas_type = map_feature_type_to_pandas(feature_type)
             input_df[column] = (
                 input_df[column]
-                    .astype(pandas_type)
-                    .where(pd.notnull(input_df[column]), None)
+                .astype(pandas_type)
+                .where(pd.notnull(input_df[column]), None)
             )
 
 
 def map_spark_type_to_stats_data_type(spark_type):
-    """ Maps the spark data types to MLM library data types
+    """Maps the spark data types to MLM library data types
     args:
         param spark_type: Spark data type input from the feature dataframe on which we need stats
     :return:
@@ -272,7 +272,7 @@ def map_spark_type_to_stats_data_type(spark_type):
 
 
 def map_spark_type_to_stats_variable_type(spark_type):
-    """ Maps the spark data types to MLM library variable types
+    """Maps the spark data types to MLM library variable types
     args:
         param spark_type: Spark data type input from the feature dataframe on which we need stats
     :return:

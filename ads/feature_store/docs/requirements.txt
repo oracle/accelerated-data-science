@@ -1,0 +1,10 @@
+sphinx
+nbsphinx
+pandoc
+ipython
+sphinx_rtd_theme
+autodoc
+sphinxcontrib-napoleon
+sphinx_code_tabs
+sphinx_copybutton
+sphinx-autobuild

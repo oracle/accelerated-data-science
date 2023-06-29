@@ -19,7 +19,9 @@ from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderD
 from ads.common.oci_mixin import OCIModelMixin
 from ads.feature_store.service.oci_transformation import OCITransformation
 from ads.jobs.builders.base import Builder
-from ads.feature_store.common.utils.transformation_query_validator import TransformationQueryValidator
+from ads.feature_store.common.utils.transformation_query_validator import (
+    TransformationQueryValidator,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -278,8 +280,7 @@ class Transformation(Builder):
                 Base64EncoderDecoder.encode(source_code),
             )
         else:
-            return self.set_spec(
-                self.CONST_SOURCE_CODE, None)
+            return self.set_spec(self.CONST_SOURCE_CODE, None)
 
     @property
     def transformation_query_input(self) -> str:
@@ -287,7 +288,10 @@ class Transformation(Builder):
 
     @transformation_query_input.setter
     def transformation_query_input(self, transformation_query):
-        self.set_spec(self.CONST_TRANSFORMATION_QUERY_INPUT, Base64EncoderDecoder.encode(transformation_query))
+        self.set_spec(
+            self.CONST_TRANSFORMATION_QUERY_INPUT,
+            Base64EncoderDecoder.encode(transformation_query),
+        )
 
     def with_transformation_query_input(self, transformation_query) -> "Transformation":
         """Sets the source code function for the transformation.
@@ -303,7 +307,8 @@ class Transformation(Builder):
             The Transformation instance (self)
         """
         return self.set_spec(
-            self.CONST_TRANSFORMATION_QUERY_INPUT, transformation_query)
+            self.CONST_TRANSFORMATION_QUERY_INPUT, transformation_query
+        )
 
     def with_id(self, id: str) -> "Transformation":
         return self.set_spec(self.CONST_ID, id)
@@ -380,7 +385,9 @@ class Transformation(Builder):
 
         if not self.transformation_query_input:
             if not self.source_code_function:
-                raise ValueError("Transformation source code function must be provided.")
+                raise ValueError(
+                    "Transformation source code function must be provided."
+                )
 
             if not self.display_name:
                 self.display_name = self._transformation_function_name
@@ -390,13 +397,16 @@ class Transformation(Builder):
                     "Transformation display name and function name must be same."
                 )
         elif self.transformation_mode.lower() == TransformationMode.SQL.value:
-            TransformationQueryValidator.verify_sql_input(self.transformation_query_input,
-                                                          self.CONST_DATA_SOURCE_TRANSFORMATION_INPUT)
+            TransformationQueryValidator.verify_sql_input(
+                self.transformation_query_input,
+                self.CONST_DATA_SOURCE_TRANSFORMATION_INPUT,
+            )
             # convert it to transformation function to ensure the integrity with backend
-            output = TransformationQueryValidator \
-                .create_transformation_template(self.transformation_query_input,
-                                                self.CONST_DATA_SOURCE_TRANSFORMATION_INPUT,
-                                                self.CONST_TRANSFORMATION_FUNCTION_NAME)
+            output = TransformationQueryValidator.create_transformation_template(
+                self.transformation_query_input,
+                self.CONST_DATA_SOURCE_TRANSFORMATION_INPUT,
+                self.CONST_TRANSFORMATION_FUNCTION_NAME,
+            )
             self.with_display_name(self.CONST_TRANSFORMATION_FUNCTION_NAME)
             self.with_source_code_function(output)
         else:

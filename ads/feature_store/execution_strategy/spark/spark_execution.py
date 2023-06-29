@@ -179,7 +179,9 @@ class SparkExecutionEngine(Strategy):
 
             if isinstance(data_frame, pd.DataFrame):
                 if not feature_group.is_infer_schema:
-                    convert_pandas_datatype_with_schema(feature_group.input_feature_details, data_frame)
+                    convert_pandas_datatype_with_schema(
+                        feature_group.input_feature_details, data_frame
+                    )
 
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 
@@ -227,10 +229,11 @@ class SparkExecutionEngine(Strategy):
 
             logger.info(f"output features for the FeatureGroup: {output_features}")
             # Compute Feature Statistics
-            
+
             feature_statistics = StatisticsService.compute_stats_with_mlm(
                 statistics_config=feature_group.oci_feature_group.statistics_config,
-                input_df=featured_data)
+                input_df=featured_data,
+            )
 
         except Exception as ex:
             error_details = str(ex)
