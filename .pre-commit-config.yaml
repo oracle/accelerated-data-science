@@ -39,7 +39,7 @@ repos:
     -   id: gitleaks
 # Oracle copyright checker
 -   repo: https://github.com/oracle-samples/oci-data-science-ai-samples/
-    rev: cbe0136
+    rev: cbe0136f7aaffe463b31ddf3f34b0e16b4b124ff
     hooks:
     -   id: check-copyright
         name: check-copyright
