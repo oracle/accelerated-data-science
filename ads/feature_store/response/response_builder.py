@@ -51,11 +51,9 @@ class ResponseBuilder(Builder):
 
     @property
     def kind(self) -> str:
-
         return "response_builder"
 
     def to_dict(self) -> Dict:
-
         spec = deepcopy(self._spec)
         for key, value in spec.items():
             if hasattr(value, "to_dict"):

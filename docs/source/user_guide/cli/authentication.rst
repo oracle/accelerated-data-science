@@ -62,13 +62,28 @@ You can choose to use the instance principal to authenticate while using the Acc
   mc = ModelCatalog(compartment_id="<compartment_id>")
   mc.list_models()
 
+4. Authenticating Using Security Token
+--------------------------------------
 
-4. Overriding Defaults
+**Prerequisite**
+
+* You have setup security token as per the instruction `here <https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clitoken.htm>`_
+
+You can choose to use the security token to authenticate while using the Accelerated Data Science (ADS) SDK by running ``ads.set_auth(auth='security_token')``. For example:
+
+.. code-block:: python
+
+  import ads
+  ads.set_auth(auth='security_token')
+  mc = ModelCatalog(compartment_id="<compartment_id>")
+  mc.list_models()
+
+5. Overriding Defaults
 ----------------------
 
 The default authentication that is used by ADS is set with the ``set_auth()`` method. However, each relevant ADS method has an optional parameter to specify the authentication method to use. The most common use case for this is when you have different permissions in different API keys or there are differences between the permissions granted in the resource principals and your API keys.
 
-By default, ADS uses API keys to sign requests to OCI resources. The ``set_auth()`` method is used to explicitly set a default signing method. This method accepts one of three strings ``"api_key"``, ``"resource_principal"``, or ``instance_principal``.
+By default, ADS uses API keys to sign requests to OCI resources. The ``set_auth()`` method is used to explicitly set a default signing method. This method accepts one of four strings ``"api_key"``, ``"resource_principal"``, ``instance_principal`` or ``security_token``.
 
 The ``~/.oci/config`` configuration allow for multiple configurations to be stored in the same file. The ``set_auth()`` method takes is ``oci_config_location`` parameter that specifies the location of the configuration, and the default is ``"~/.oci/config"``. Each configuration is called a profile, and the default profile is ``DEFAULT``. The ``set_auth()`` method takes in a parameter ``profile``. It specifies which profile in the ``~/.oci/config`` configuration file to use. In this context, the ``profile`` parameter is only used when API keys are being used. If no value for ``profile`` is specified, then the ``DEFAULT`` profile section is used.
 
@@ -97,6 +112,7 @@ The ``~/.oci/config`` configuration allow for multiple configurations to be stor
   
   ads.set_auth("resource_principal")  # default signer is set to resource principal authentication
   ads.set_auth("instance_principal")  # default signer is set to instance principal authentication
+  ads.set_auth("security_token")  # default signer is set to security token authentication
 
   singer = oci.auth.signers.ResourcePrincipalsFederationSigner()
   ads.set_auth(config={}, singer=signer) # default signer is set to ResourcePrincipalsFederationSigner
@@ -122,9 +138,12 @@ Additional signers may be provided by running ``set_auth()`` with ``signer`` or 
   oc.OCIClientFactory(**auth).object_storage
 
   # Example 3: Create Object Storage client with timeout set to 6000 using API Key authentication.
-  auth = authutil.api_keys(oci_config="/home/datascience/.oci/config", profile="TEST", kwargs={"timeout": 6000})
+  auth = authutil.api_keys(oci_config="/home/datascience/.oci/config", profile="TEST", client_kwargs={"timeout": 6000})
   oc.OCIClientFactory(**auth).object_storage
 
+  # Example 4: Create Object Storage client with timeout set to 6000 using security token authentication.
+  auth = authutil.security_token(oci_config="/home/datascience/.oci/config", profile="test_session", client_kwargs={"timeout": 6000})
+  oc.OCIClientFactory(**auth).object_storage
 
 In the this example, the default authentication uses API keys specified with the ``set_auth`` method. However, since the ``os_auth`` is specified to use resource principals, the notebook session uses the resource principal to access OCI Object Store.
 
@@ -144,11 +163,14 @@ More signers can be created using the ``create_signer()`` method. With the ``aut
   # Example 1. Create signer that uses instance principals
   auth = ads.auth.create_signer("instance_principal")
 
-  # Example 2. Provide a ResourcePrincipalsFederationSigner object
+  # Example 2. Create signer that uses security token
+  auth = ads.auth.create_signer("security_token", profile="test_session")
+
+  # Example 3. Provide a ResourcePrincipalsFederationSigner object
   singer = oci.auth.signers.ResourcePrincipalsFederationSigner()
   auth = ads.auth.create_signer(config={}, singer=signer)
 
-  # Example 3. Create signer that uses instance principals with log requests enabled
+  # Example 4. Create signer that uses instance principals with log requests enabled
   signer_callable = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
   signer_kwargs = dict(log_requests=True) # will log the request url and response data when retrieving
   auth = ads.auth.create_signer(signer_callable=signer_callable, signer_kwargs=signer_kwargs)

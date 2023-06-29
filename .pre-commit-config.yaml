@@ -1,10 +1,12 @@
 repos:
+# Standard hooks
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.4.0
     hooks:
     -   id: check-ast
+        exclude: ^docs/
     -   id: check-docstring-first
-        exclude: ^tests/
+        exclude: ^(docs/|tests/)
     -   id: check-json
     -   id: check-merge-conflict
     -   id: check-yaml
@@ -15,14 +17,34 @@ repos:
     -   id: pretty-format-json
         args: ['--autofix']
     -   id: trailing-whitespace
+        args: [--markdown-linebreak-ext=md]
+        exclude: ^docs/
+# Black, the code formatter, natively supports pre-commit
 -   repo: https://github.com/psf/black
-    rev: 22.12.0
+    rev: 23.3.0
     hooks:
     -   id: black
+        exclude: ^docs/
+# Regex based rst files common mistakes detector
 -   repo: https://github.com/pre-commit/pygrep-hooks
-    rev: v1.9.0
+    rev: v1.10.0
     hooks:
     -   id: rst-backticks
+        files: ^docs/
     -   id: rst-inline-touching-normal
-
-exclude: ^(docs/)
+        files: ^docs/
+# Hardcoded secrets and ocids detector
+-   repo: https://github.com/gitleaks/gitleaks
+    rev: v8.17.0
+    hooks:
+    -   id: gitleaks
+# Oracle copyright checker
+-   repo: https://github.com/oracle-samples/oci-data-science-ai-samples/
+    rev: cbe0136
+    hooks:
+    -   id: check-copyright
+        name: check-copyright
+        entry: .pre-commit-scripts/check-copyright.py
+        language: script
+        types_or: ['python', 'shell', 'bash']
+        exclude: ^docs/

@@ -13,14 +13,12 @@ Args:
     function_name: Transformation function name 
     input : The input placeholder for the FROM clause
 """
-USER_TRANSFORMATION_FUNCTION = \
-    """def {function_name}(input):
+USER_TRANSFORMATION_FUNCTION = """def {function_name}(input):
     sql_query = f\"\"\"{query}\"\"\"
     return sql_query"""
 
 
 class TransformationQueryValidator:
-
     @staticmethod
     def __verify_sql_query_plan(parser_plan, input_symbol: str):
         """
@@ -41,21 +39,23 @@ class TransformationQueryValidator:
         cte = re.findall(r"CTE \[(.*?)\]", plan_string)
         table_names = []
         for plan_item in plan_items:
-            if plan_item['class'] == 'org.apache.spark.sql.catalyst.analysis.UnresolvedRelation':
-                table = plan_item['multipartIdentifier']
-                res = table.strip('][').split(', ')
+            if (
+                plan_item["class"]
+                == "org.apache.spark.sql.catalyst.analysis.UnresolvedRelation"
+            ):
+                table = plan_item["multipartIdentifier"]
+                res = table.strip("][").split(", ")
                 if len(res) >= 2:
-                    raise ValueError(
-                        "FROM Clause has invalid input {0}".format(table))
+                    raise ValueError("FROM Clause has invalid input {0}".format(table))
                 else:
                     if res[0].lower() != input_symbol.lower():
                         raise ValueError(
-                            f"Incorrect table template name, It should be {input_symbol}")
+                            f"Incorrect table template name, It should be {input_symbol}"
+                        )
                     if table not in cte:
                         table_names.append(f"{table}")
                         if len(table_names) > 1:
-                            raise ValueError(
-                                "Multiple tables are not supported ")
+                            raise ValueError("Multiple tables are not supported ")
 
     @staticmethod
     def verify_sql_input(query_input: str, input_symbol: str):
@@ -71,13 +71,17 @@ class TransformationQueryValidator:
         try:
             parser_plan = parser.parsePlan(query_input)
         except ParseException as pe:
-            raise ParseException(f"Unable to parse the sql expression, exception occurred:  {pe}")
+            raise ParseException(
+                f"Unable to parse the sql expression, exception occurred:  {pe}"
+            )
 
         # verify if the parser plan has only FROM DATA_SOURCE_INPUT template
         TransformationQueryValidator.__verify_sql_query_plan(parser_plan, input_symbol)
 
     @staticmethod
-    def create_transformation_template(query: str, input_symbol: str, function_name: str):
+    def create_transformation_template(
+        query: str, input_symbol: str, function_name: str
+    ):
         """
         Creates the query transformation function to ensure backend integrity
         Args:
@@ -86,5 +90,7 @@ class TransformationQueryValidator:
             function_name : The name of the transformation function
         """
         transformation_query = query.replace(input_symbol, "{input}")
-        output = USER_TRANSFORMATION_FUNCTION.format(query=transformation_query, function_name=function_name)
+        output = USER_TRANSFORMATION_FUNCTION.format(
+            query=transformation_query, function_name=function_name
+        )
         return output

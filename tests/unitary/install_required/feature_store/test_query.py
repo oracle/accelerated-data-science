@@ -92,7 +92,7 @@ FEATURE_GROUP_PAYLOAD_2 = {
 FEATURE_GROUP_OCID_3 = "ocid1.featuregroup1.oc1.iad.xxx"
 
 FEATURE_GROUP_PAYLOAD_3 = {
-    "id": FEATURE_GROUP_OCID_2,
+    "id": FEATURE_GROUP_OCID_3,
     "name": "feature_group3",
     "entityId": "ocid1.entity.oc1.iad.xxx",
     "description": "feature group description",
@@ -111,17 +111,17 @@ FEATURE_GROUP_PAYLOAD_3 = {
             {
                 "featureType": "STRING",
                 "name": "X",
-                "featureGroupId": FEATURE_GROUP_OCID_2,
+                "featureGroupId": FEATURE_GROUP_OCID_3,
             },
             {
                 "featureType": "STRING",
                 "name": "Y",
-                "featureGroupId": FEATURE_GROUP_OCID_2,
+                "featureGroupId": FEATURE_GROUP_OCID_3,
             },
             {
                 "featureType": "STRING",
                 "name": "Z",
-                "featureGroupId": FEATURE_GROUP_OCID_2,
+                "featureGroupId": FEATURE_GROUP_OCID_3,
             },
         ],
     },
@@ -277,42 +277,41 @@ class TestQuery:
         self, spark_session, get_spark_session, mock_feature_store
     ):
         """Tests with select and join query."""
-        with pytest.raises(
-                ValueError,
-                match="Cannot join feature group '" + self.mock_dsc_feature_group_1.name + "' on 'X', as it is not present "
-                                                                                           "in the feature group. "):
-                dsc_query = (
-                    Query(
-                        left_feature_group=self.mock_dsc_feature_group_1,
-                        left_features=["cc_num", "provider"],
-                        feature_store_id=self.feature_store_id,
-                        entity_id=self.entity_id,
-                    )
-                    .join(
-                        Query(
-                            left_feature_group=self.mock_dsc_feature_group_2,
-                            left_features=["cc_num", "provider"],
-                            feature_store_id=self.feature_store_id,
-                            entity_id=self.entity_id,
-                        ),
-                        on=["cc_num"],
-                    )
-                    .join(
-                        Query(
-                            left_feature_group=self.mock_dsc_feature_group_3,
-                            left_features=["X", "Y"],
-                            feature_store_id=self.feature_store_id,
-                            entity_id=self.entity_id,
-                        ),
-                        on=["X"],
-                    )
+        dsc_query = (
+            Query(
+                left_feature_group=self.mock_dsc_feature_group_1,
+                left_features=["cc_num", "provider"],
+                feature_store_id=self.feature_store_id,
+                entity_id=self.entity_id,
+            )
+            .join(
+                Query(
+                    left_feature_group=self.mock_dsc_feature_group_2,
+                    left_features=["cc_num", "provider"],
+                    feature_store_id=self.feature_store_id,
+                    entity_id=self.entity_id,
+                ),
+                on=["cc_num"],
+            )
+            .join(
+                Query(
+                    left_feature_group=self.mock_dsc_feature_group_3,
+                    left_features=["X", "Y"],
+                    feature_store_id=self.feature_store_id,
+                    entity_id=self.entity_id,
+                ),
+                left_on=["cc_num"],
+                right_on=["X"]
+            )
         )
-        # TODO(fixme): Query not nesting all feature groups
-        # assert dsc_query.to_string() == (
-        #     "SELECT fg_2.cc_num cc_num, fg_2.provider provider, fg_1.X X, fg_1.Y Y FROM "
-        #     "`ocid1.entity.oc1.iad.xxx`.feature_group1 fg_2 INNER JOIN "
-        #     "`ocid1.entity.oc1.iad.xxx`.feature_group3 fg_1 ON fg_2.X = fg_1.X"
-        # )
+        assert dsc_query.to_string() == (
+            "SELECT fg_2.cc_num cc_num, fg_2.provider provider, fg_1.X X, fg_1.Y Y "
+            "FROM `ocid1.entity.oc1.iad.xxx`.feature_group1 fg_2 "
+            "INNER JOIN `ocid1.entity.oc1.iad.xxx`.feature_group2 fg_0 "
+            "ON fg_2.cc_num = fg_0.cc_num "
+            "INNER JOIN `ocid1.entity.oc1.iad.xxx`.feature_group3 fg_1 "
+            "ON fg_0.cc_num = fg_1.X"
+        )
 
     @patch.object(SparkSessionSingleton, "get_spark_session")
     @patch.object(FeatureStore, "from_id")

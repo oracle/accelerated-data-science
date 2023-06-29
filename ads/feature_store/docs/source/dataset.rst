@@ -1,0 +1,262 @@
+Dataset
+********
+
+A dataset is a collection of feature that are used together to either train a model or perform model inference.
+
+Define
+======
+
+In an ADS feature store module, you can either use the Python API or YAML to define a dataset.
+
+
+With the specified way below, you can define a dataset and give it a name.
+A ``Dataset`` instance will be created.
+
+.. tabs::
+
+  .. code-tab:: Python3
+    :caption: Python
+
+    from ads.feature_store.dataset import Dataset
+
+    dataset = (
+        Dataset
+        .with_name("<dataset_name>")
+        .with_entity_id(<entity_id>)
+        .with_feature_store_id("<feature_store_id>")
+        .with_description("<dataset_description>")
+        .with_compartment_id("<compartment_id>")
+        .with_dataset_ingestion_mode(DatasetIngestionMode.SQL)
+        .with_query('SELECT col FROM <entity_id>.<feature_group_nmae>')
+    )
+
+  .. code-tab:: Python3
+    :caption: YAML
+
+    from ads.feature_store.dataset import Dataset
+
+    yaml_string = """
+    kind: dataset
+    spec:
+      compartmentId: ocid1.compartment..<unique_id>
+      description: <dataset_description>
+      name: <dataset_name>
+      featureStoreId: <feature_store_id>
+    type: dataset
+    """
+
+    dataset = Dataset.from_yaml(yaml_string)
+
+
+Create
+======
+
+You can call the ``create()`` method of the ``Dataset`` instance to create an dataset.
+
+.. important::
+
+  This method is lazy and does not persist any metadata or feature data in the feature store on its own.
+  To persist the dataset and save feature data along the metadata in the feature store, call the ``materialise()``
+  method with a DataFrame.
+
+.. code-block:: python3
+
+  # Create an dataset
+  dataset.create()
+
+
+Load
+====
+
+Use the ``from_id()`` method from the ``Dataset`` class to load an existing dataset with its OCID provided. It returns a ``Dataset`` instance.
+
+.. code-block:: python3
+
+  from ads.feature_store.dataset import Dataset
+
+  dataset = Dataset.from_id("ocid1.dataset..<unique_id>")
+
+Materialise
+===========
+
+You can call the ``materialise() -> DatasetJob`` method of the ``Dataset`` instance to load the data to dataset. To persist the dataset and save dataset data along the metadata in the feature store, call the ``materialise()``
+
+The ``.materialise()`` method takes the following parameter:
+
+- ``input_dataframe: Union[DataFrame, pd.DataFrame]``. Spark dataframe or pandas dataframe.
+- ``from_timestamp: str(Optional)``. From timestamp of dataset.
+- ``to_timestamp: str(Optional)``. To timestamp of dataset.
+- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for materialise operation.
+    - ``write_config_details: (merge_schema: bool, overwrite_schema: bool)``. Write config details for feature option details
+    - ``read_config_details: (version_as_of: int, timestamp_as_of: datetime)``. Read config details for feature option details
+
+.. code-block:: python3
+
+  from ads.feature_store.dataset_job import DatasetJob
+
+  dataset_job: DatasetJob = dataset.materialise(dataframe)
+
+.. seealso::
+   :ref:`Dataset Job`
+
+
+Delete
+======
+
+Use the ``.delete()`` method on the ``Dataset`` instance to delete a dataset.
+
+A dataset can only be deleted when its associated entities are all deleted,
+
+.. code-block:: python3
+
+  dataset.delete()
+
+Get last dataset job
+====================
+Dataset job is the execution instance of a dataset. Each dataset job will include validation results and statistics results.
+
+With a Dataset instance, we can get the last dataset job details using ``get_last_job()``
+
+.. code-block:: python3
+
+  # Fetch validation results for a dataset
+  dataset_job = dataset.get_last_job()
+  df = dataset_job.get_validation_output().to_dataframe()
+  df.show()
+
+
+Save expectation entity
+=======================
+
+With a Dataset instance, we can save the expectation entity using ``save_expectation()``
+
+.. note::
+
+  Great Expectations is a Python-based open-source library for validating, documenting, and profiling your data. It helps you to maintain data quality and improve communication about data between teams. Software developers have long known that automated testing is essential for managing complex codebases.
+
+.. image:: figures/validation.png
+
+
+The ``.save_expectation()`` method takes the following optional parameter:
+
+- ``expectation_suite: ExpectationSuite``. Expectation suite of great expectation
+- ``expectation_type: ExpectationType``. Type of expectation
+        - ``ExpectationType.STRICT``: Fail the job if expectation not met
+        - ``ExpectationType.LENIENT``: Pass the job even if expectation not met
+
+.. code-block:: python3
+
+  dataset.save_expectation(expectation_suite, expectation_type="STRICT")
+
+
+Statistics Results
+==================
+You can call the ``get_statistics()`` method of the Dataset instance to fetch feature statistics results of a dataset job.
+
+.. note::
+
+  PyDeequ is a Python API for Deequ, a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets.
+
+
+The ``.get_statistics()`` method takes the following optional parameter:
+
+- ``job_id: string``. Id of dataset job
+
+.. code-block:: python3
+
+  # Fetch stats results for a dataset job
+  df = dataset.get_statistics(job_id).to_pandas()
+
+
+Get features
+============
+You can call the ``get_features_dataframe()`` method of the Dataset instance to fetch features in a dataset.
+
+.. code-block:: python3
+
+  # Fetch features for a dataset
+  df = dataset.get_features_dataframe()
+  df.show()
+
+Get input schema details
+========================
+You can call the ``get_input_schema_dataframe()`` method of the Dataset instance to fetch input schema details of a dataset.
+
+.. code-block:: python3
+
+  # Fetch input schema details for a dataset
+  df = dataset.get_input_schema_dataframe()
+  df.show()
+
+Preview
+========
+
+You can call the ``preview()`` method of the Dataset instance to preview the dataset.
+
+The ``.preview()`` method takes the following optional parameter:
+- ``timestamp: date-time``. Commit timestamp for dataset
+- ``version_number: int``. Version number for dataset
+- ``row_count: int``. Defaults to 10. Total number of row to return
+
+.. code-block:: python3
+
+  # Preview dataset
+  df = dataset.preview(row_count=50)
+  df.show()
+
+
+Restore
+=======
+You can call the ``restore()`` method of the Dataset instance to restore the dataset to a particular version and timestamp.
+
+The ``.restore()`` method takes the following optional parameter:
+- ``timestamp: date-time``. Commit timestamp for dataset
+- ``version_number: int``. Version number for dataset
+
+.. code-block:: python3
+
+  # Restore dataset to a particular version and timestamp
+  df = feature_group.restore(version_number=2)
+  df.show()
+
+
+Profile
+=======
+You can call the ``profile()`` method of the Dataset instance to profile the dataset.
+
+.. code-block:: python3
+
+  # Profile dataset
+  df = dataset.profile()
+  df.show()
+
+
+History
+=======
+You can call the ``history()`` method of the Dataset instance to show history of the dataset.
+
+.. code-block:: python3
+
+  # Show history of dataset
+  df = dataset.history()
+  df.show()
+
+
+Visualize Lineage
+=================
+
+Use the ``show()`` method on the ``Dataset`` instance to visualize the lineage of the dataset.
+
+The ``show()`` method takes the following optional parameter:
+
+  - ``rankdir: (str, optional)``. Defaults to ``LR``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
+
+
+.. code-block:: python3
+
+  dataset.show()
+
+Below is an example of the output.
+
+.. figure:: figures/dataset_lineage.png
+  :width: 400
