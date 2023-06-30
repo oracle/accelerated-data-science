@@ -155,6 +155,25 @@ def _save_yaml(yaml_content, **kwargs):
         print(f"Job run info saved to {yaml_path}")
 
 
+def apply(config: Dict, **kwargs) -> Dict:
+    """Creates a Job, DataFlow, Pipeline or Model Deployment from YAML.
+
+    Parameters
+    ----------
+    config: dict
+        dictionary of configurations
+    kwargs: dict
+        keyword arguments, stores configuration from command line args
+
+    Returns
+    -------
+    Dict
+        dictionary of service id and service run id if not running locally, else empty.
+    """
+    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    p.config["execution"]["backend"] = p.config["kind"]
+    return _BackendFactory(p.config).backend.apply()
+
 def run(config: Dict, **kwargs) -> Dict:
     """
     Run a job given configuration and command line args passed in (kwargs).
@@ -243,14 +262,6 @@ def run(config: Dict, **kwargs) -> Dict:
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     else:
-        if (
-            "kind" in p.config
-            and p.config["execution"].get("backend", None) != BACKEND_NAME.LOCAL.value
-            and "ocid" not in p.config["execution"]
-        ):
-            p.config["execution"]["backend"] = p.config["kind"]
-            return _BackendFactory(p.config).backend.apply()
-
         if "ocid" in p.config["execution"]:
             resource_to_backend = {
                 DataScienceResource.JOB: BACKEND_NAME.JOB,
