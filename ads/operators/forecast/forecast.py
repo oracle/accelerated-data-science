@@ -40,7 +40,9 @@ logger.addHandler(handler)
 
 try:
     from ads.operators.forecast.prophet import operate as prophet_operate
+    from ads.operators.forecast.automlx import operate as automlx_operate
     from ads.operators.forecast.prophet import get_prophet_report
+    from ads.operators.forecast.automlx import get_automlx_report
     from ads.operators.forecast.neural_prophet import operate as neuralprophet_operate
     from ads.operators.forecast.neural_prophet import get_neuralprophet_report
     from ads.operators.forecast.arima import operate as arima_operate
@@ -138,6 +140,8 @@ class ForecastOperator:
             self.data, self.models, self.outputs = neuralprophet_operate(self)
         elif self.model == "arima":
             self.data, self.models, self.outputs = arima_operate(self)
+        elif self.model == "automlx":
+            self.data, self.models, self.outputs = automlx_operate(self)
         else:
             raise ValueError(f"Unsupported model type: {self.model}")
         self.elapsed_time = time.time() - start_time
@@ -184,6 +188,16 @@ class ForecastOperator:
             train_metrics = False
             ds_column_series = self.data[self.ds_column]
             ds_forecast_col = self.outputs[0].index
+            ci_col_names = ["yhat_lower", "yhat_upper"]
+        elif self.model == "automlx":
+            model_description = dp.Text(
+                "The automlx model automatically preprocesses, selects and engineers high-quality features in your dataset, which then given to an automatically chosen and optimized machine learning model.."
+            )
+            train_metrics = False
+            other_sections = get_automlx_report(self)
+            date_column = self.datetime_column['name']
+            ds_column_series = self.data[date_column]
+            ds_forecast_col = self.outputs[0]["ds"]
             ci_col_names = ["yhat_lower", "yhat_upper"]
 
         md_columns = " * ".join([f"{x} \n" for x in self.target_columns])

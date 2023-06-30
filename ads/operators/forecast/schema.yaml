@@ -234,6 +234,7 @@ spec:
         - prophet
         - arima
         - neuralprophet
+        - automlx
 
     model_kwargs:
       type: dict
