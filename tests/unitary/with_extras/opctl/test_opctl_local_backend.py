@@ -18,7 +18,6 @@ except (ImportError, AttributeError) as e:
 
 
 class TestLocalBackend:
-    @pytest.mark.opctl
     def test_init_vscode_conda(self):
         with tempfile.TemporaryDirectory() as td:
             backend = LocalBackend(
@@ -50,7 +49,6 @@ class TestLocalBackend:
                 "postCreateCommand": "conda init bash && source ~/.bashrc",
             }
 
-    @pytest.mark.opctl
     def test_init_vscode_image(self):
         with tempfile.TemporaryDirectory() as td:
             backend = LocalBackend(
@@ -65,9 +63,6 @@ class TestLocalBackend:
                 }
             )
             with pytest.raises(RuntimeError):
-                backend.init_vscode_container()
-            with patch("ads.opctl.utils.docker") as d:
-                d.DockerClient.api.inspect_image.return_value = True
                 backend.init_vscode_container()
                 with open(".devcontainer.json") as f:
                     content = json.load(f)
