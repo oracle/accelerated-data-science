@@ -23,6 +23,7 @@ class TestLocalBackend:
             backend = LocalBackend(
                 {
                     "execution": {
+                        "image": "ml-job",
                         "use_conda": True,
                         "source_folder": td,
                         "oci_config": "~/.oci/config",
