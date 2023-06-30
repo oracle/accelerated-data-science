@@ -32,23 +32,22 @@ class TestLocalBackend:
                     }
                 }
             )
-            with pytest.raises(RuntimeError):
-                backend.init_vscode_container()
-                with open(os.path.join(td, ".devcontainer.json")) as f:
-                    content = json.load(f)
-                assert content == {
-                    "image": "ml-job",
-                    "extensions": ["ms-python.python"],
-                    "mounts": [
-                        f"source={os.path.expanduser('~/.oci')},target=/home/datascience/.oci,type=bind",
-                        f"source={os.path.expanduser('~/conda')},target=/opt/conda/envs,type=bind",
-                    ],
-                    "workspaceMount": f"source={td},target=/home/datascience/{os.path.basename(td)},type=bind",
-                    "workspaceFolder": "/home/datascience",
-                    "containerEnv": {},
-                    "name": "ml-job-dev-env",
-                    "postCreateCommand": "conda init bash && source ~/.bashrc",
-                }
+            backend.init_vscode_container()
+            with open(os.path.join(td, ".devcontainer.json")) as f:
+                content = json.load(f)
+            assert content == {
+                "image": "ml-job",
+                "extensions": ["ms-python.python"],
+                "mounts": [
+                    f"source={os.path.expanduser('~/.oci')},target=/home/datascience/.oci,type=bind",
+                    f"source={os.path.expanduser('~/conda')},target=/opt/conda/envs,type=bind",
+                ],
+                "workspaceMount": f"source={td},target=/home/datascience/{os.path.basename(td)},type=bind",
+                "workspaceFolder": "/home/datascience",
+                "containerEnv": {},
+                "name": "ml-job-dev-env",
+                "postCreateCommand": "conda init bash && source ~/.bashrc",
+            }
 
     def test_init_vscode_image(self):
         with tempfile.TemporaryDirectory() as td:
