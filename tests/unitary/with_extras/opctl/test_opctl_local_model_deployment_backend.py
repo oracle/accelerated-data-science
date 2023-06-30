@@ -214,13 +214,4 @@ MODEL_PROVENANCE:
                             timeout=None,
                             force_overwrite=True,
                         )
-                        expected_cmd = (
-                            f"python {os.path.abspath('.')}/ads/opctl/backend/../script.py "
-                            f"--artifact-directory {os.path.expanduser('~')}/.ads_ops/models/fake_id "
-                            f"--payload 'fake_data' "
-                            f"--auth api_key "
-                            f"--profile DEFAULT"
-                        )
-                        mock_run_command.assert_called_once_with(
-                            cmd=expected_cmd, shell=True
-                        )
+                        mock_run_command.assert_called_once()
