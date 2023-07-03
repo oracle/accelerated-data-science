@@ -15,10 +15,10 @@ Release Notes
         - Latest Version
         - Notes
       * - Conda pack
-        - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/VJWQtNGgle9O586k-yue2VFPAjCpbjeDQ5WEYArrhlzsk90O7U_Zx3jFqkxMZROd/n/ociodscdev/b/ads_conda_pack_builds/o/PySpark_3/teamcity_20230606_035041_39584362/2545638616602bafe2efc01d8e0e9fda/PySpark_3.2_and_Feature_Store.tar.gz>`__
-        - Par link expires Jun 13, 2030
+        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1`
+        -
       * - SERVICE_VERSION
-        - 0.1.197.master
+        - 0.1.203.master
         -
       * - Terraform Stack
         - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/MokUwWRFZLj1Dgfev7D_0ALc8YL7jEBmM8FIeWH3AysnH2zxavptSobzR6ezErfZ/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__

@@ -25,8 +25,7 @@ Demos
 
     * - `UI exploration for feature store <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/ui-interface.mp4>`__
       - | 1. More about `conda environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm">`__
-        | 2. UI exploration of feature store
-        | 3. UI exploration of feature groups and datasets
+        | 2. UI exploration of feature store, feature groups and dataset
 
     * - `Feature store on the notebook using spark magic <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-spark-magic.mp4>`__
       - | 1. More about `conda environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm">`__
