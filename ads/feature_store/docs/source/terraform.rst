@@ -6,6 +6,11 @@ Oracle feature store is a stack based solution that is deployed in the customer 
 Customer can stand up the service with infrastructure in their own tenancy. The service consists of API in customer
 tenancy using resource manager.
 
+Below is the terraform stack deployment diagram of the feature store resources.
+
+.. figure:: figures/feature_store_deployment.png
+  :width: 400
+
 .. note::
 
   Blue-green deployment is a strategy for releasing new versions of an application with minimal downtime and risk. It is used in Kubernetes, as well as other deployment environments, to achieve a smooth transition between application versions with the ability to quickly rollback if issues are detected.
