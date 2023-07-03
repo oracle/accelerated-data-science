@@ -193,7 +193,12 @@ class TestQuery:
         self, spark_session, get_spark_session, mock_feature_store
     ):
         """Tests with select and join query with not matching column"""
-        with pytest.raises(ValueError, match="Cannot join feature group '"+self.mock_dsc_feature_group_1.name+"' on 'X', as it is not present in the feature group. "):
+        with pytest.raises(
+            ValueError,
+            match="Cannot join feature group '"
+            + self.mock_dsc_feature_group_1.name
+            + "' on 'X', as it is not present in the feature group. ",
+        ):
             dsc_query = Query(
                 left_feature_group=self.mock_dsc_feature_group_1,
                 left_features=["cc_num", "provider"],
@@ -218,14 +223,17 @@ class TestQuery:
     @patch.object(SparkSessionSingleton, "get_spark_session")
     @patch.object(FeatureStore, "from_id")
     def test_select_subset_with_no_matching_column_without_on(
-        self, spark_session, get_spark_session,mock_feature_store
+        self, spark_session, get_spark_session, mock_feature_store
     ):
         """Tests with select and join query with not matching column"""
         with pytest.raises(
-                ValueError,
-                match="Cannot join feature groups '"+self.mock_dsc_feature_group_1.name+"' and '"
-                                            +self.mock_dsc_feature_group_3.name+"', as no matching primary keys were found."):
-
+            ValueError,
+            match="Cannot join feature groups '"
+            + self.mock_dsc_feature_group_1.name
+            + "' and '"
+            + self.mock_dsc_feature_group_3.name
+            + "', as no matching primary keys were found.",
+        ):
             dsc_query = Query(
                 left_feature_group=self.mock_dsc_feature_group_1,
                 left_features=["cc_num", "provider"],
@@ -239,7 +247,6 @@ class TestQuery:
                     entity_id=self.entity_id,
                 )
             )
-
 
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
@@ -301,7 +308,7 @@ class TestQuery:
                     entity_id=self.entity_id,
                 ),
                 left_on=["cc_num"],
-                right_on=["X"]
+                right_on=["X"],
             )
         )
         assert dsc_query.to_string() == (
