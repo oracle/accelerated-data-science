@@ -366,7 +366,7 @@ The data will be stored in a data type native to each store. There is an option 
          - DOUBLE_ARRAY
          - List of values
        * - ArrayType(BinaryType())
-         - object (list), object (np.ndarray)
+         - object (list), object (np.ndarray) - not supported
          - BINARY_ARRAY
          - List of values
        * - ArrayType(DateType())
