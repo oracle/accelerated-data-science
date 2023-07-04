@@ -6,10 +6,12 @@
 
 import logging
 import sys
-import pandas as pd
-import time
 import traceback
+
 import datapane as dp
+import numpy as np
+import pandas as pd
+
 from ads.operators.forecast.utils import load_data_dict, _write_data
 
 logger = logging.getLogger(__name__)
@@ -49,7 +51,6 @@ def operate(operator):
         y = df.set_index(date_column)
         y_train = y
         print("Time Index is", "" if y.index.is_monotonic else "NOT", "monotonic.")
-        start_time = time.time()
         model = automl.Pipeline(task='forecasting', n_algos_tuned=4)
         model.fit(X=None, y=y_train)
         print('Selected model: {}'.format(model.selected_model_))
@@ -63,6 +64,10 @@ def operate(operator):
         summary_frame = summary_frame.rename_axis("ds").reset_index()
         summary_frame = summary_frame.rename(
             columns={f"{target}_ci_upper": 'yhat_upper', f"{target}_ci_lower": 'yhat_lower', f"{target}": 'yhat'})
+        # In case of Naive model, model.forecast function call does not return confidence intervals.
+        if 'yhat_upper' not in summary_frame:
+            summary_frame['yhat_upper'] = np.NAN
+            summary_frame['yhat_lower'] = np.NAN
         outputs[target] = summary_frame
         outputs_legacy.append(summary_frame)
 
@@ -74,11 +79,9 @@ def operate(operator):
         output_col = pd.DataFrame()
         for cat in operator.categories:  # Note: add [:2] to restrict
             output_i = pd.DataFrame()
-            output_i[operator.ds_column] = outputs[f"{col}_{cat}"].index.to_series
+            output_i[operator.ds_column] = outputs[f"{col}_{cat}"]["ds"]
             output_i[operator.target_category_column] = cat
             output_i[f"{col}_forecast"] = outputs[f"{col}_{cat}"]["yhat"]
-            if 'yhat_upper' not in outputs[f"{col}_{cat}"]:
-                print(outputs[f"{col}_{cat}"])
             output_i[f"{col}_forecast_upper"] = outputs[f"{col}_{cat}"]["yhat_upper"]
             output_i[f"{col}_forecast_lower"] = outputs[f"{col}_{cat}"]["yhat_lower"]
             output_col = pd.concat([output_col, output_i])
