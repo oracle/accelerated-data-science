@@ -175,10 +175,6 @@ Statistics Results
 ==================
 You can call the ``get_statistics()`` method of the FeatureGroup instance to fetch validation results for a specific ingestion job.
 
-.. note::
-
-  PyDeequ is a Python API for Deequ, a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets.
-
 .. code-block:: python3
 
   # Fetch stats results for a feature group job
@@ -196,26 +192,17 @@ With a FeatureGroup instance, we can get the last feature group job details usin
 
   # Fetch validation results for a feature group
   feature_group_job = feature_group.get_last_job()
-  df = feature_group_job.get_validation().to_pandas()
-  df.show()
+  feature_group_job.get_validation_output_df()
 
 Get features
 =============
-You can call the ``get_features_dataframe()`` method of the FeatureGroup instance to fetch features in a feature group
+You can call the ``get_features_df`` method of the FeatureGroup instance to fetch features in a feature group
 
 .. code-block:: python3
 
   # Fetch features for a feature group
-  df = feature_group.get_features_dataframe()
+  df = feature_group.get_features_df()
 
-Get input schema details
-==========================
-You can call the ``get_input_schema_dataframe()`` method of the FeatureGroup instance to fetch input schema details of a feature group
-
-.. code-block:: python3
-
-  # Fetch features for a feature group
-  df = feature_group.get_input_schema_dataframe()
 
 Filter
 ======
@@ -363,31 +350,31 @@ The data will be stored in a data type native to each store. There is an option 
          - STRING
          - Textual data
        * - ArrayType(IntegerType())
-         - object (list), object (np.ndarray) - not supported
+         - object (list), object (np.ndarray)
          - INTEGER_ARRAY
          - List of values
        * - ArrayType(LongType())
-         - object (list), object (np.ndarray) - not supported
+         - object (list), object (np.ndarray)
          - LONG_ARRAY
          - List of values
        * - ArrayType(FloatType())
-         - object (list), object (np.ndarray) - not supported
+         - object (list), object (np.ndarray)
          - FLOAT_ARRAY
          - List of values
        * - ArrayType(DoubleType())
-         - object (list), object (np.ndarray) - not supported
+         - object (list), object (np.ndarray)
          - DOUBLE_ARRAY
          - List of values
        * - ArrayType(BinaryType())
-         - object (list), object (np.ndarray) - not supported
+         - object (list), object (np.ndarray)
          - BINARY_ARRAY
          - List of values
        * - ArrayType(DateType())
-         - object (list), object (np.ndarray) - not supported
+         - object (list), object (np.ndarray)
          - DATE_ARRAY
          - List of values
        * - ArrayType(TimestampType())
-         - object (list), object (np.ndarray) - not supported
+         - object (list), object (np.ndarray)
          - TIMESTAMP_ARRAY
          - List of values
        * - StructType
