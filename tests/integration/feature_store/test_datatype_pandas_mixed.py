@@ -5,15 +5,14 @@ import pandas as pd
 import numpy as np
 import pytest
 
-flights_df = pd.read_csv("https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/data/flights/flights.csv")
-flights_df_mixed = pd.DataFrame(flights_df["CANCELLATION_REASON"])
 
 
 class TestDataTypePandasMixed(FeatureStoreTestCase):
+    flights_df = pd.read_csv("https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/data/flights/flights.csv")
+    flights_df_mixed = pd.DataFrame(flights_df["CANCELLATION_REASON"])
 
     input_feature_details_mixed = [
-        FeatureDetail("CANCELLATION_REASON").with_feature_type(FeatureType.STRING).with_order_number(1)]
-
+            FeatureDetail("CANCELLATION_REASON").with_feature_type(FeatureType.STRING).with_order_number(1)]
     def define_feature_group_resource_with_pandas_mixed_infer_schema(
         self, entity_id, feature_store_id
     ):
@@ -27,7 +26,7 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
                 .with_entity_id(entity_id)
                 .with_feature_store_id(feature_store_id)
                 .with_primary_keys([])
-                .with_schema_details_from_dataframe(flights_df_mixed)
+                .with_schema_details_from_dataframe(self.flights_df_mixed)
                 .with_statistics_config(False)
             )
 
@@ -76,7 +75,7 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
         feature_group.create()
         assert feature_group.oci_feature_group.id
 
-        feature_group.materialise(flights_df_mixed)
+        feature_group.materialise(self.flights_df_mixed)
         df = feature_group.select().read()
         assert df
 
