@@ -8,6 +8,6 @@ dependencies:
   - main::cffi>=1.15.1
   - pip:
     - PyYAML==5.4.1
-    - oci==2.99.0
+    - oci
     - oci-cli
     - conda-pack
