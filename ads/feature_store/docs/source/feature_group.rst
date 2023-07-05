@@ -173,7 +173,7 @@ The ``.save_expectation()`` method takes the following optional parameter:
 
 Statistics Results
 ==================
-You can call the ``get_statistics()`` method of the FeatureGroup instance to fetch validation results for a specific ingestion job.
+You can call the ``get_statistics()`` method of the FeatureGroup instance to fetch statistics for a specific ingestion job.
 
 .. code-block:: python3
 
@@ -295,7 +295,8 @@ The data will be stored in a data type native to each store. There is an option 
 
     Offline data types
     ###################
-    Please refer to the following mapping when registering a Spark DataFrame, or a Pandas DataFrame.
+    Please refer to the following mapping when registering a Spark DataFrame, or a Pandas DataFrame.For spark dataframes we support
+    all the data types and the ones which are not specified in the following table will be mapped to  Offline Feature Type COMPLEX
 
     .. list-table::
        :widths: 20 25 25 40

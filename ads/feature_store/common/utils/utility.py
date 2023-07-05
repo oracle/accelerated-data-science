@@ -264,7 +264,7 @@ def largest_matching_subset_of_primary_keys(left_feature_group, right_feature_gr
 
 def convert_pandas_datatype_with_schema(
         raw_feature_details: List[dict], input_df: pd.DataFrame
-):
+) -> pd.DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
     for feature_details in raw_feature_details:
@@ -280,19 +280,21 @@ def convert_pandas_datatype_with_schema(
                 .where(pd.notnull(input_df[column]), None)
             )
         else:
-            logger.warning("column" + column + "doesnt exist in the input feature details")
+            logger.warning("column" + column + "doesn't exist in the input feature details")
             columns_to_remove.append(column)
     return input_df.drop(columns = columns_to_remove)
 
 
-def validate_spark_dataframe_schema(raw_feature_details: List[dict], input_df: DataFrame):
+def convert_spark_dataframe_with_schema(
+        raw_feature_details: List[dict], input_df: DataFrame
+) -> DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
     for feature_details in raw_feature_details:
         feature_detail_map[feature_details.get("name")] = feature_details
     for column in input_df.columns:
         if column not in feature_detail_map.keys():
-            logger.warning("column" + column + "doesnt exist in the input feature details")
+            logger.warning("column" + column + "doesn't exist in the input feature details")
             columns_to_remove.append(column)
 
     return input_df.drop(*columns_to_remove)
@@ -301,4 +303,4 @@ def validate_spark_dataframe_schema(raw_feature_details: List[dict], input_df: D
 def validate_input_feature_details(input_feature_details, data_frame):
     if isinstance(data_frame, pd.DataFrame):
         return convert_pandas_datatype_with_schema(input_feature_details, data_frame)
-    return validate_spark_dataframe_schema(input_feature_details, data_frame)
+    return convert_spark_dataframe_with_schema(input_feature_details, data_frame)
