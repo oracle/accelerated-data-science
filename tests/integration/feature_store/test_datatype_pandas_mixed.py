@@ -72,16 +72,13 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
 
         entity = self.create_entity_resource(fs)
         assert entity.oci_fs_entity.id
-
-        feature_group = self.define_feature_group_resource_with_pandas_mixed_infer_schema(
-            entity.oci_fs_entity.id, fs.oci_fs.id
-        )
-        feature_group.create()
-        feature_group.materialise(self.pandas_mixed_df)
-        df = feature_group.select().read()
-        assert df
-
-        self.clean_up_feature_group(feature_group)
+        try:
+            feature_group = self.define_feature_group_resource_with_pandas_mixed_infer_schema(
+                entity.oci_fs_entity.id, fs.oci_fs.id
+            )
+        except TypeError as e:
+            assert e.__str__() == "field MixedColumn: Can not merge type <class 'pyspark.sql.types.StringType'> " \
+                                  "and <class 'pyspark.sql.types.LongType'>"
         self.clean_up_entity(entity)
         self.clean_up_feature_store(fs)
 
@@ -92,14 +89,15 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
 
         entity = self.create_entity_resource(fs)
         assert entity.oci_fs_entity.id
-        try:
-            feature_group = self.define_feature_group_resource_with_pandas_mixed_infer_schema_nan(
-                entity.oci_fs_entity.id, fs.oci_fs.id
-            )
-        except TypeError as e:
-            assert e.__str__() == "Can not merge type <class 'pyspark.sql.types.StringType'> and <class " \
-                                  "'pyspark.sql.types.LongType'>"
+        feature_group = self.define_feature_group_resource_with_pandas_mixed_infer_schema_nan(
+            entity.oci_fs_entity.id, fs.oci_fs.id
+        )
+        feature_group.create()
+        feature_group.materialise(self.pandas_mixed_df_nan)
+        df = feature_group.select().read()
+        assert df
 
+        self.clean_up_feature_group(feature_group)
         self.clean_up_entity(entity)
         self.clean_up_feature_store(fs)
 
