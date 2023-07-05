@@ -11,7 +11,7 @@ import traceback
 import datapane as dp
 import numpy as np
 import pandas as pd
-
+from sktime.forecasting.model_selection import temporal_train_test_split
 from ads.operators.forecast.utils import load_data_dict, _write_data
 
 logger = logging.getLogger(__name__)
@@ -41,21 +41,29 @@ def operate(operator):
     outputs = dict()
     outputs_legacy = []
     selected_models = dict()
+    n_algos_tuned = operator.model_kwargs.get('n_algos_tuned', 4)
     date_column = operator.datetime_column['name']
+    horizon = operator.horizon["periods"]
     for i, (target, df) in enumerate(full_data_dict.items()):
         print("Running automl for {} at position {}".format(target, i))
         series_values = df[df[target].notna()]
         # drop NaNs for the time period where data wasn't recorded
         series_values.dropna(inplace=True)
         df[date_column] = pd.to_datetime(df[date_column])
-        y = df.set_index(date_column)
-        y_train = y
-        print("Time Index is", "" if y.index.is_monotonic else "NOT", "monotonic.")
-        model = automl.Pipeline(task='forecasting', n_algos_tuned=4)
-        model.fit(X=None, y=y_train)
+        df = df.set_index(date_column)
+        if len(df.columns) > 1:
+            # when additional columns are present
+            y_train, y_test = temporal_train_test_split(df, test_size=horizon)
+            forecast_x = y_test.drop(target, axis=1)
+        else:
+            y_train = df
+            forecast_x = None
+        print("Time Index is", "" if y_train.index.is_monotonic else "NOT", "monotonic.")
+        model = automl.Pipeline(task='forecasting', n_algos_tuned=n_algos_tuned)
+        model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
         print('Selected model: {}'.format(model.selected_model_))
         print('Selected model params: {}'.format(model.selected_model_params_))
-        summary_frame = model.forecast(periods=operator.horizon["periods"],
+        summary_frame = model.forecast(X=forecast_x, periods=horizon,
                                        alpha=1 - (operator.confidence_interval_width / 100))
         # Collect Outputs
         selected_models[target] = {"series_id": target, "selected_model": model.selected_model_,
