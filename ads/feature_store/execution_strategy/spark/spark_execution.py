@@ -289,7 +289,9 @@ class SparkExecutionEngine(Strategy):
             )
 
         show_ingestion_summary(
-            entity_type=EntityType.FEATURE_GROUP, error_details=error_details
+            entity_id=feature_group.id,
+            entity_type=EntityType.FEATURE_GROUP,
+            error_details=error_details,
         )
 
         output_details = {
@@ -422,7 +424,9 @@ class SparkExecutionEngine(Strategy):
             )
 
         show_ingestion_summary(
-            entity_type=EntityType.DATASET, error_details=error_details
+            entity_id=dataset.id,
+            entity_type=EntityType.DATASET,
+            error_details=error_details,
         )
 
         output_details = {
