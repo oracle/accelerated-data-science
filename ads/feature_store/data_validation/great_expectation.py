@@ -115,7 +115,7 @@ class ExpectationService:
         str
             A string representation of the validation result.
         """
-        validation_output = None
+        expectation_response = None
         if (
             expectation_details
             and expectation_details.get("expectationType")
@@ -126,14 +126,4 @@ class ExpectationService:
                 expectation_details, expectation_suite_name, dataframe
             )
 
-            validation_output = str(expectation_response)
-
-            if expectation_details["expectationType"] == ExpectationType.STRICT.value:
-                if not expectation_response["success"]:
-                    raise Exception(
-                        "Expectation failed with statistics: {0} ... Aborting ingestion.".format(
-                            expectation_response["statistics"]
-                        )
-                    )
-
-        return validation_output
+        return expectation_response

@@ -40,6 +40,7 @@ import logging
 from ads.feature_engineering.feature_type import datetime
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def get_execution_engine_type(
@@ -114,6 +115,60 @@ def validate_delta_format_parameters(
         if version_number is not None and version_number < 0:
             logger.error(f"version number {version_number} cannot be negative")
             raise Exception(f"version number cannot be negative")
+
+
+def show_ingestion_summary(
+    entity_type: EntityType = EntityType.FEATURE_GROUP, error_details: str = None
+):
+    """
+    Displays a ingestion summary table with the given entity type and error details.
+
+    Args:
+        entity_type (EntityType, optional): The type of entity being ingested. Defaults to EntityType.FEATURE_GROUP.
+        error_details (str, optional): Details of any errors that occurred during ingestion. Defaults to None.
+    """
+    from tabulate import tabulate
+
+    table_headers = ["entity_type", "ingestion_status", "error_details"]
+    ingestion_status = "Failed" if error_details else "Succeeded"
+
+    table_values = [
+        entity_type.value,
+        ingestion_status,
+        error_details if error_details else "None",
+    ]
+
+    logger.info(
+        "Ingestion Summary \n"
+        + tabulate(
+            [table_values],
+            headers=table_headers,
+            tablefmt="fancy_grid",
+            numalign="center",
+            stralign="center",
+        )
+    )
+
+
+def show_validation_summary(ingestion_status: str, statistics, expectation_type):
+    from tabulate import tabulate
+
+    table_headers = (
+        ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
+    )
+
+    table_values = [expectation_type] + list(statistics.values()) + [ingestion_status]
+
+    logger.info(
+        "Validation Summary \n"
+        + tabulate(
+            [table_values],
+            headers=table_headers,
+            tablefmt="fancy_grid",
+            numalign="center",
+            stralign="center",
+        )
+    )
 
 
 def get_features(
