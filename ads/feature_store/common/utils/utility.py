@@ -118,21 +118,25 @@ def validate_delta_format_parameters(
 
 
 def show_ingestion_summary(
-    entity_type: EntityType = EntityType.FEATURE_GROUP, error_details: str = None
+    entity_id: str,
+    entity_type: EntityType = EntityType.FEATURE_GROUP,
+    error_details: str = None,
 ):
     """
     Displays a ingestion summary table with the given entity type and error details.
 
     Args:
+        entity_id: str
         entity_type (EntityType, optional): The type of entity being ingested. Defaults to EntityType.FEATURE_GROUP.
         error_details (str, optional): Details of any errors that occurred during ingestion. Defaults to None.
     """
     from tabulate import tabulate
 
-    table_headers = ["entity_type", "ingestion_status", "error_details"]
+    table_headers = ["entity_id", "entity_type", "ingestion_status", "error_details"]
     ingestion_status = "Failed" if error_details else "Succeeded"
 
     table_values = [
+        entity_id,
         entity_type.value,
         ingestion_status,
         error_details if error_details else "None",
