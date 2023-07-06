@@ -152,7 +152,12 @@ Feature store provides an API similar to Pandas to join feature groups together 
 
 Save expectation entity
 =======================
-With a ``FeatureGroup`` instance, we can save the expectation entity using ``save_expectation()``
+With a ``FeatureGroup`` instance, You can save the expectation details using ``with_expectation_suite()`` with parameters
+
+- ``expectation_suite: ExpectationSuite``. ExpectationSuit of great expectation
+- ``expectation_type: ExpectationType``. Type of expectation
+        - ``ExpectationType.STRICT``: Fail the job if expectation not met
+        - ``ExpectationType.LENIENT``: Pass the job even if expectation not met
 
 .. note::
 
@@ -160,16 +165,32 @@ With a ``FeatureGroup`` instance, we can save the expectation entity using ``sav
 
 .. image:: figures/validation.png
 
-The ``.save_expectation()`` method takes the following optional parameter:
-
-- ``expectation: Expectation``. Expectation of great expectation
-- ``expectation_type: ExpectationType``. Type of expectation
-        - ``ExpectationType.STRICT``: Fail the job if expectation not met
-        - ``ExpectationType.LENIENT``: Pass the job even if expectation not met
-
 .. code-block:: python3
 
-  feature_group.save_expectation(expectation_suite, expectation_type="STRICT")
+    expectation_suite = ExpectationSuite(
+        expectation_suite_name="expectation_suite_name"
+    )
+    expectation_suite.add_expectation(
+        ExpectationConfiguration(
+            expectation_type="expect_column_values_to_not_be_null",
+            kwargs={"column": "<column>"},
+        )
+
+    feature_group_resource = (
+        FeatureGroup()
+        .with_feature_store_id(feature_store.id)
+        .with_primary_keys(["<key>"])
+        .with_name("<name>")
+        .with_entity_id(entity.id)
+        .with_compartment_id(<compartment_id>)
+        .with_schema_details_from_dataframe(<datframe>)
+        .with_expectation_suite(
+            expectation_suite=expectation_suite,
+            expectation_type=ExpectationType.STRICT,
+         )
+    )
+
+You can call the ``get_validation_output()`` method of the FeatureGroup instance to fetch validation results for a specific ingestion job.
 
 Statistics Results
 ==================
@@ -192,7 +213,6 @@ With a FeatureGroup instance, we can get the last feature group job details usin
 
   # Fetch validation results for a feature group
   feature_group_job = feature_group.get_last_job()
-  feature_group_job.get_validation_output_df()
 
 Get features
 =============
