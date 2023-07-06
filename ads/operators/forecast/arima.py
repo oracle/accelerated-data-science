@@ -96,23 +96,20 @@ def operate(operator):
     outputs_merged = pd.DataFrame()
 
     # Merge the outputs from each model into 1 df with all outputs by target and category
-    for col in operator.original_target_columns:
-        output_col = pd.DataFrame()
-        for cat in operator.categories:
-            output_i = pd.DataFrame()
+    col = operator.original_target_column
+    output_col = pd.DataFrame()
+    for cat in operator.categories:
+        output_i = pd.DataFrame()
 
-            output_i[operator.ds_column] = outputs[f"{col}_{cat}"].index
-            output_i[operator.target_category_column] = cat
-            output_i[f"{col}_forecast"] = outputs[f"{col}_{cat}"]["yhat"].values
-            output_i[f"{col}_forecast_upper"] = outputs[f"{col}_{cat}"][
-                "yhat_upper"
-            ].values
-            output_i[f"{col}_forecast_lower"] = outputs[f"{col}_{cat}"][
-                "yhat_lower"
-            ].values
-            output_col = pd.concat([output_col, output_i])
-        output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
+        output_i["Date"] = outputs[f"{col}_{cat}"].index
+        output_i["Series"] = cat
+        output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"].values
+        output_i[f"p90"] = outputs[f"{col}_{cat}"]["yhat_upper"].values
+        output_i[f"p10"] = outputs[f"{col}_{cat}"]["yhat_lower"].values
+        output_col = pd.concat([output_col, output_i])
+    # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
+    output_col = output_col.reset_index(drop=True)
+    outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
     _write_data(
         outputs_merged, operator.output_filename, "csv", operator.storage_options
     )
@@ -126,3 +123,14 @@ def operate(operator):
         axis=1,
     ).reset_index()
     return data_merged, models, outputs_legacy
+
+
+def get_arima_report(operator):
+    sec5_text = dp.Text(f"## ARIMA Model Parameters")
+    sec5 = dp.Select(
+        blocks=[
+            dp.HTML(m.summary().as_html(), label=operator.target_columns[i])
+            for i, m in enumerate(operator.models)
+        ]
+    )
+    return [sec5_text, sec5]  # + [sec4_text, sec4]

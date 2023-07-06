@@ -174,15 +174,6 @@ def operate(operator):
             additional_regressors=additional_regressors,
             select_metric=operator.selected_metric,
         )
-        # model = NeuralProphet(**model_kwargs_i)
-        # model.metrics = _get_np_metrics_dict(operator.selected_metric)
-        # for add_reg in additional_regressors:
-        #     model = model.add_future_regressor(name=add_reg)
-        # model.fit(training_data, freq=operator.horizon["interval_unit"])
-
-        # Determine which regressors were accepted
-        # accepted_regressors_config = model.config_regressors or dict()
-        # accepted_regressors = list(accepted_regressors_config.keys())
         print(f"Found the following additional data columns: {additional_regressors}")
         print(
             f"While fitting the model, some additional data may have been discarded. Only using the columns: {accepted_regressors}"
@@ -208,23 +199,24 @@ def operate(operator):
     outputs_merged = pd.DataFrame()
 
     # Merge the outputs from each model into 1 df with all outputs by target and category
-    for col in operator.original_target_columns:
-        output_col = pd.DataFrame()
-        for cat in operator.categories:  # Note: to restrict columns, set this to [:2]
-            output_i = pd.DataFrame()
+    col = operator.original_target_column
+    output_col = pd.DataFrame()
+    for cat in operator.categories:  # Note: to restrict columns, set this to [:2]
+        output_i = pd.DataFrame()
 
-            output_i[operator.ds_column] = outputs[f"{col}_{cat}"]["ds"]
-            output_i[operator.target_category_column] = cat
-            output_i[f"{col}_forecast"] = outputs[f"{col}_{cat}"]["yhat1"]
-            output_i[f"{col}_forecast_upper"] = outputs[f"{col}_{cat}"][
-                f"yhat1 {quantiles[1]*100}%"
-            ]
-            output_i[f"{col}_forecast_lower"] = outputs[f"{col}_{cat}"][
-                f"yhat1 {quantiles[0]*100}%"
-            ]
-            output_col = pd.concat([output_col, output_i])
-        output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
+        output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
+        output_i["Series"] = cat
+        output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat1"]
+        output_i[f"p{quantiles[1]*100}"] = outputs[f"{col}_{cat}"][
+            f"yhat1 {quantiles[1]*100}%"
+        ]
+        output_i[f"p{quantiles[0]*100}"] = outputs[f"{col}_{cat}"][
+            f"yhat1 {quantiles[0]*100}%"
+        ]
+        output_col = pd.concat([output_col, output_i])
+    # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
+    output_col = output_col.reset_index(drop=True)
+    outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
     _write_data(
         outputs_merged, operator.output_filename, "csv", operator.storage_options

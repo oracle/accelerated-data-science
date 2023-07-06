@@ -29,6 +29,7 @@ from sklearn.datasets import load_files
 import oci
 import time
 from datetime import datetime
+import fsspec
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
@@ -43,6 +44,7 @@ try:
     from ads.operators.forecast.neural_prophet import operate as neuralprophet_operate
     from ads.operators.forecast.neural_prophet import get_neuralprophet_report
     from ads.operators.forecast.arima import operate as arima_operate
+    from ads.operators.forecast.arima import get_arima_report
     from ads.operators.forecast.utils import (
         evaluate_metrics,
         test_evaluate_metrics,
@@ -70,9 +72,12 @@ class ForecastOperator:
         self.additional_data = args["spec"].get("additional_data", dict())
         self.output_directory = args["spec"]["output_directory"]
         self.model = args["spec"]["model"].lower()
-        self.target_columns = args["spec"]["target_columns"]
-        self.original_target_columns = args["spec"]["target_columns"]
-        self.target_category_column = args["spec"]["target_category_column"]
+        self.target_columns = (
+            None  # This will become [target__category1__category2 ...]
+        )
+        self.target_column = args["spec"]["target_column"]
+        self.original_target_column = args["spec"]["target_column"]
+        self.target_category_columns = args["spec"]["target_category_columns"]
         self.test_data = args["spec"]["test_data"]
         self.datetime_column = args["spec"]["datetime_column"]
         self.horizon = args["spec"]["horizon"]
@@ -105,6 +110,21 @@ class ForecastOperator:
         else:
             # TODO: should we differ to ads config
             self.storage_options = dict()
+        output_dir_name = self.output_directory["url"]
+        output_dir_protocol = fsspec.utils.get_protocol(output_dir_name)
+
+        if output_dir_protocol == "file":
+            from pathlib import Path
+
+            Path(output_dir_name).mkdir(parents=True, exist_ok=True)
+        else:
+            try:
+                fs = fsspec.filesystem(output_dir_protocol, **self.storage_options)
+                fs.mkdir(output_dir_name)
+            except:
+                logger.debug(
+                    f"Output directory is in remote filesystem: {output_dir_protocol}. Failed to mkdir. Ensure the remote output directory exists."
+                )
 
         self.model_kwargs = args["spec"].get("model_kwargs", dict())
         self.confidence_interval_width = args["spec"].get("confidence_interval_width")
@@ -160,6 +180,7 @@ class ForecastOperator:
             model_description = dp.Text(
                 "An autoregressive integrated moving average, or ARIMA, is a statistical analysis model that uses time series data to either better understand the data set or to predict future trends. A statistical model is autoregressive if it predicts future values based on past values."
             )
+            other_sections = get_arima_report(self)
             train_metrics = False
             ds_column_series = self.data[self.ds_column]
             ds_forecast_col = self.outputs[0].index

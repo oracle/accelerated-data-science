@@ -181,11 +181,9 @@ spec:
       meta:
         description: "Placed into output_directory location. Defaults to report.csv"
 
-    target_columns:
-      type: list
+    target_column:
+      type: string
       required: true
-      schema:
-        type: string
 
     datetime_column:
       type: dict
@@ -198,9 +196,11 @@ spec:
           type: string
           required: false
 
-    target_category_column:
-      type: string
+    target_category_columns:
+      type: list
       required: false
+      schema:
+        type: string
 
     horizon:
       required: false

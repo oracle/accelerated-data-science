@@ -164,19 +164,20 @@ def operate(operator):
     outputs_merged = pd.DataFrame()
 
     # Merge the outputs from each model into 1 df with all outputs by target and category
-    for col in operator.original_target_columns:
-        output_col = pd.DataFrame()
-        for cat in operator.categories:  # Note: add [:2] to restrict
-            output_i = pd.DataFrame()
+    col = operator.original_target_column
+    output_col = pd.DataFrame()
+    for cat in operator.categories:  # Note: add [:2] to restrict
+        output_i = pd.DataFrame()
 
-            output_i[operator.ds_column] = outputs[f"{col}_{cat}"]["ds"]
-            output_i[operator.target_category_column] = cat
-            output_i[f"{col}_forecast"] = outputs[f"{col}_{cat}"]["yhat"]
-            output_i[f"{col}_forecast_upper"] = outputs[f"{col}_{cat}"]["yhat_upper"]
-            output_i[f"{col}_forecast_lower"] = outputs[f"{col}_{cat}"]["yhat_lower"]
-            output_col = pd.concat([output_col, output_i])
-        output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
+        output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
+        output_i["Series"] = cat
+        output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
+        output_i[f"p90"] = outputs[f"{col}_{cat}"]["yhat_upper"]
+        output_i[f"p10"] = outputs[f"{col}_{cat}"]["yhat_lower"]
+        output_col = pd.concat([output_col, output_i])
+    # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
+    output_col = output_col.reset_index(drop=True)
+    outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
     _write_data(
         outputs_merged, operator.output_filename, "csv", operator.storage_options
     )
