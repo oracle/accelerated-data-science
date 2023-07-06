@@ -123,7 +123,7 @@ class ContainerRuntime(Runtime):
         self._spec[self.CONST_CMD] = cmd
         return self
 
-    def init(self) -> "ContainerRuntime":
+    def init(self, **kwargs) -> "ContainerRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns

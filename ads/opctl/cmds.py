@@ -16,9 +16,12 @@ import ads
 from ads.common.auth import AuthContext, AuthType
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.oci_datascience import DSCNotebookSession
-from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
-from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
+from ads.opctl.backend.ads_ml_job import (
+    MLJobBackend,
+    MLJobDistributedBackend,
+    MLJobOperatorBackend,
+)
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
 from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 from ads.opctl.backend.local import (
@@ -56,6 +59,7 @@ from ads.opctl.distributed.cmds import (
     verify_and_publish_image,
 )
 from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
+import subprocess
 
 
 class DataScienceResource(str, metaclass=ExtendedEnumMeta):
@@ -155,7 +159,7 @@ def _save_yaml(yaml_content, **kwargs):
         print(f"Job run info saved to {yaml_path}")
 
 
-def run(config: Dict, **kwargs) -> Dict:
+def run(config: Dict, backend_config: Dict, **kwargs) -> Dict:
     """
     Run a job given configuration and command line args passed in (kwargs).
 
@@ -242,6 +246,45 @@ def run(config: Dict, **kwargs) -> Dict:
                 print(yamlContent)
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
+    elif config.get("kind", "").lower() == "operator":
+        from ads.mloperator import __operators__, OperatorNotFoundError
+
+        mode = (kwargs["backend"] or BACKEND_NAME.LOCAL.value).lower()
+
+        supported_backends = (
+            BACKEND_NAME.LOCAL.value,
+            BACKEND_NAME.JOB.value,
+            BACKEND_NAME.DATAFLOW.value,
+        )
+
+        if mode not in supported_backends:
+            raise RuntimeError(
+                f"Not supported backend - {mode}. Supported backends: {supported_backends}"
+            )
+
+        operator_name = config.get("name", "").lower()
+
+        if not (operator_name and operator_name in __operators__):
+            raise OperatorNotFoundError(operator_name)
+
+        # merge backend config with the predefined values
+        p = ConfigProcessor(backend_config).step(ConfigMerger, **kwargs)
+
+        if not mode or mode == BACKEND_NAME.LOCAL.value:
+            subprocess.run(
+                [
+                    "python",
+                    "-m",
+                    f"ads.mloperator.lowcode.{operator_name}",
+                    "-s",
+                    yaml.dump(config, allow_unicode=True),
+                ]
+            )
+        elif mode == BACKEND_NAME.JOB.value:
+            backend = MLJobOperatorBackend(config=p.config, operator_config=config)
+            backend.run()
+        else:
+            raise RuntimeError("Not implemented backend.")
     else:
         if (
             "kind" in p.config

@@ -239,7 +239,7 @@ class Runtime(Builder):
         """Maximum runtime in minutes"""
         return self.get_spec(self.CONST_MAXIMUM_RUNTIME_IN_MINUTES)
 
-    def init(self) -> Self:
+    def init(self, **kwargs) -> Self:
         """Initializes a starter specification for the runtime.
 
         Returns

@@ -122,6 +122,7 @@ def publish_image(image: str, registry: str = None) -> None:  # pragma: no cover
         print(f"pushed {image}")
         return image
     else:
+        registry = registry.rstrip('/')
         run_command(
             ["docker", "tag", f"{image}", f"{registry}/{os.path.basename(image)}"]
         )
@@ -308,6 +309,8 @@ def run_container(
     entrypoint: str = None,
     verbose: bool = False,
 ):
+    import docker
+
     if env_vars is None:
         env_vars = {}
     # If Proxy variables are setup, pass it on to the docker run

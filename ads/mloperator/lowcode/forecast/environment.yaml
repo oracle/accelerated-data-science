@@ -1,0 +1,14 @@
+name: forecast
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+      - prophet
+      - neuralprophet
+      - pmdarima
+      - statsmodels
+      - datapane
+      - cerberus
+      - json2table

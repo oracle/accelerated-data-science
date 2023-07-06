@@ -279,10 +279,10 @@ class Serializable(ABC):
             Returns instance of the class
         """
         if yaml_string:
-            return cls.from_dict(yaml.load(yaml_string, Loader=loader))
+            return cls.from_dict(yaml.load(yaml_string, Loader=loader), **kwargs)
         if uri:
             yaml_dict = yaml.load(cls._read_from_file(uri=uri, **kwargs), Loader=loader)
-            return cls.from_dict(yaml_dict)
+            return cls.from_dict(yaml_dict, **kwargs)
         raise ValueError("Must provide either YAML string or URI location")
 
     @classmethod
@@ -336,8 +336,8 @@ class DataClassSerializable(Serializable):
         Returns an instance of the class instantiated from the dictionary provided.
     """
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
+    @classmethod
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
         """validate the dictionary.
 
         Parameters
@@ -379,6 +379,7 @@ class DataClassSerializable(Serializable):
         cls,
         obj_dict: dict,
         side_effect: Optional[SideEffect] = SideEffect.CONVERT_KEYS_TO_LOWER.value,
+        **kwargs
     ) -> "DataClassSerializable":
         """Returns an instance of the class instantiated by the dictionary provided.
 
@@ -412,7 +413,7 @@ class DataClassSerializable(Serializable):
                 "These fields will be ignored."
             )
 
-        obj = cls(**{key: obj_dict[key] for key in allowed_fields})
+        obj = cls(**{key: obj_dict.get(key) for key in allowed_fields})
 
         for key, value in obj_dict.items():
             if isinstance(value, dict) and hasattr(
@@ -424,7 +425,8 @@ class DataClassSerializable(Serializable):
 
     @staticmethod
     def _normalize_dict(
-        obj_dict: Dict, case: str = SideEffect.CONVERT_KEYS_TO_LOWER.value
+        obj_dict: Dict,
+        case: str = SideEffect.CONVERT_KEYS_TO_LOWER.value
     ) -> Dict:
         """lower all the keys.
 
@@ -445,7 +447,7 @@ class DataClassSerializable(Serializable):
         for key, value in obj_dict.items():
             if isinstance(value, dict):
                 value = DataClassSerializable._normalize_dict(
-                    value, case=SideEffect.CONVERT_KEYS_TO_UPPER.value
+                    value, case=case
                 )
             normalized_obj_dict = DataClassSerializable._normalize_key(
                 normalized_obj_dict=normalized_obj_dict, key=key, value=value, case=case
@@ -458,7 +460,7 @@ class DataClassSerializable(Serializable):
     ) -> Dict:
         """helper function to normalize the key in the case specified and add it back to the dictionary.
 
-        Paramaters
+        Parameters
         ----------
         normalized_obj_dict: (Dict)
             the dictionary to append the key and value to.

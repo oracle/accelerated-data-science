@@ -16,7 +16,8 @@ try:
 except Exception as ex:
     print(
         "Please run `pip install oracle-ads[opctl]` to install "
-        "the required dependencies for ADS CLI."
+        "the required dependencies for ADS CLI. \n"
+        f"{str(ex)}"
     )
     logger.debug(ex)
     logger.debug(traceback.format_exc())

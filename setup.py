@@ -68,6 +68,7 @@ extras_require = {
         "nbconvert",
         "nbformat",
         "inflection",
+        "json2table",
     ],
     "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
     "spark": ["pyspark>=3.0.0"],
@@ -106,6 +107,13 @@ extras_require["onnx"] = extras_require["viz"] + [
     "lightgbm==3.3.1",
 ]
 extras_require["optuna"] = extras_require["viz"] + ["optuna==2.9.0"]
+extras_require["forecast"] = extras_require["opctl"] + [
+    "prophet",
+    "neuralprophet",
+    "pmdarima",
+    "statsmodels",
+    "datapane",
+]
 
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
 extras_require["all-optional"] = reduce(

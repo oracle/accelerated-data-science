@@ -11,6 +11,7 @@ import click
 import fsspec
 import yaml
 
+import ads.mloperator.cli
 import ads.opctl.conda.cli
 import ads.opctl.distributed.cli
 import ads.opctl.model.cli
@@ -283,6 +284,12 @@ def add_options(options):
 
 @commands.command()
 @add_options(_options)
+@click.option(
+    "--backend-config",
+    help="path to the backend config YAML file",
+    required=False,
+    default=None,
+)
 @click.option("--image", "-i", help="image name", required=False, default=None)
 @click.option("--conda-slug", help="slug name", required=False, default=None)
 @click.option(
@@ -397,26 +404,29 @@ def add_options(options):
 )
 def run(file, **kwargs):
     """
-    Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science
-    Jobs
+    Runs the workload on the targeted backend. When run `distributed` yaml spec,
+    the backend is always OCI Data Science Jobs.
     """
     debug = kwargs["debug"]
-    if file:
-        if os.path.exists(file):
-            auth = {}
-            if kwargs["auth"]:
-                auth = authutil.create_signer(kwargs["auth"])
-            else:
-                auth = authutil.default_signer()
+    config = {"kind": "job"}
+    backend_config = {"kind": "job"}
 
-            with fsspec.open(file, "r", **auth) as f:
-                config = suppress_traceback(debug)(yaml.safe_load)(f.read())
-        else:
-            raise FileNotFoundError(f"{file} is not found")
+    auth = {}
+    if kwargs["auth"]:
+        auth = authutil.create_signer(kwargs["auth"])
     else:
-        # If no yaml is provided, we assume there's cmdline args to define a job.
-        config = {"kind": "job"}
-    suppress_traceback(debug)(run_cmd)(config, **kwargs)
+        auth = authutil.default_signer()
+
+    if file:
+        with fsspec.open(file, "r", **auth) as f:
+            config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+
+    backend_config_file = kwargs.pop("backend_config")
+    if backend_config_file:
+        with fsspec.open(backend_config_file, "r", **auth) as f:
+            backend_config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+
+    suppress_traceback(debug)(run_cmd)(config, backend_config, **kwargs)
 
 
 @commands.command()
@@ -643,3 +653,4 @@ commands.add_command(ads.opctl.conda.cli.commands)
 commands.add_command(ads.opctl.model.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)
+commands.add_command(ads.mloperator.cli.commands)

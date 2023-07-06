@@ -24,3 +24,5 @@ exclude build/lib/notebooks/**
 exclude benchmark/**
 include ads/ads
 include ads/model/common/*.*
+include ads/mloperator/**/*.md
+include ads/mloperator/**/*.yaml

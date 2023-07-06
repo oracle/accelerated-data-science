@@ -10,8 +10,11 @@ import shlex
 import shutil
 import tempfile
 from distutils import dir_util
+from string import Template
 from typing import Dict, Tuple, Union
+import time
 
+import yaml
 from jinja2 import Environment, PackageLoader
 
 from ads.common.auth import AuthContext, create_signer
@@ -26,6 +29,7 @@ from ads.jobs import (
     PythonRuntime,
     ScriptRuntime,
 )
+from ads.mloperator.mloperator import MLOperator
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend, RuntimeFactory
 from ads.opctl.config.resolver import ConfigResolver
@@ -544,6 +548,120 @@ class MLJobDistributedBackend(MLJobBackend):
                         worker_jobruns.append(jobrun)
                 self.job = job
                 return job, main_jobrun, worker_jobruns
+
+
+class MLJobOperatorBackend(MLJobBackend):
+    def __init__(self, config: Dict, operator_config: Dict) -> None:
+        super().__init__(config=config)
+        self.job = None
+        self.operator_config = operator_config
+        self.operator_name = operator_config["name"]
+
+        # registering supported runtime adjusters
+        self._RUNTIME_MAP = {
+            ContainerRuntime().type: self._adjust_container_runtime,
+            PythonRuntime().type: self._adjust_python_runtime,
+        }
+
+    def _adjust_common_information(self):
+        if self.job.name.lower().startswith("{job"):
+            self.job.with_name(
+                f"job_{self.operator_config.get('name','operator').lower()}"
+                f"_v{self.operator_config.get('version','unknown').lower()}"
+            )
+        self.job.runtime.with_maximum_runtime_in_minutes(
+            self.config["execution"]["max_wait_time"]
+        )
+
+    def _adjust_python_runtime(self):
+        code = (
+            Template(
+                """python -m ads.mloperator.lowcode.$operator_name -s $operator_spec"""
+            )
+            .substitute(
+                operator_name=self.operator_name,
+                operator_spec=yaml.dump(self.operator_config, allow_unicode=True),
+            )
+            .encode()
+            .decode("utf-8")
+        )
+
+        dir = tempfile.mkdtemp()
+        script_file = os.path.join(
+            dir, f"{self.operator_name}_{int(time.time())}_run.sh"
+        )
+        with open(script_file, "w") as fp:
+            fp.write(code)
+
+        with open(script_file) as fp:
+            print(fp.read())
+
+        self.job.runtime.with_source(
+            script_file,
+            entrypoint=os.path.basename(script_file),
+        ).with_custom_conda(
+            os.path.join(
+                self.config["execution"]["conda_pack_os_prefix"],
+                self.config["execution"].get("conda_slug", ""),
+            )
+        ).with_working_dir(
+            "."
+        )
+
+    def _adjust_container_runtime(self):
+        entrypoint = self.job.runtime.entrypoint
+        image = self.job.runtime.image.lower()
+        if self.job.runtime.image.lower() == "iad.ocir.io/namespace/image:tag":
+            image = (
+                image
+            ) = f"{self.config['infrastructure']['docker_registry'].rstrip('/')}/{self.config['execution']['image']}"
+        cmd = " ".join(
+            [
+                "python",
+                "-m",
+                f"{self.operator_name}",
+                "-s",
+                yaml.dump(self.operator_config, allow_unicode=True),
+            ]
+        )
+        self.job.runtime.with_image(image=image, entrypoint=entrypoint, cmd=cmd)
+
+    @print_watch_command
+    def run(self, **kwargs) -> Union[Dict, None]:
+        # configure job object
+        if "spec" in self.config and self.config["spec"]:
+            self.job = Job.from_dict(self.config).build()
+        else:
+            if self.config["execution"].get("conda_slug"):
+                runtime_type = PythonRuntime().type
+            elif self.config["execution"].get("image"):
+                runtime_type = ContainerRuntime().type
+            else:
+                raise ValueError(
+                    "Either conda info or image name needs to be provided."
+                )
+            self.job = Job.from_yaml(self.init(runtime_type=runtime_type, **kwargs))
+
+        # adjust a job's common information
+        self._adjust_common_information()
+
+        # adjust runtime information
+        self._RUNTIME_MAP.get(self.job.runtime.type, lambda: None)()
+
+        # run the job if only it is not a dry run mode
+        if not self.config["execution"].get("dry_run"):
+            job = self.job.create()
+            print(f"{'*' * 50}Job{'*' * 50}")
+            print(job)
+
+            job_run = job.run()
+            print(f"{'*' * 50}JobRun{'*' * 50}")
+            print(job_run)
+
+            return {"job_id": job.id, "run_id": job_run.id}
+        else:
+            print(f"{'*' * 50}Job{'*' * 50}")
+            print(self.job)
 
 
 class JobRuntimeFactory(RuntimeFactory):
