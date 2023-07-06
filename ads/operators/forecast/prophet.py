@@ -14,6 +14,7 @@ from prophet.plot import add_changepoints_to_plot
 from prophet import Prophet
 import pandas as pd
 from ads.operators.forecast.utils import load_data_dict, _write_data
+import numpy as np
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
@@ -26,6 +27,14 @@ logger.addHandler(handler)
 def _preprocess_prophet(data, ds_column, datetime_format):
     data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
     return data.drop([ds_column], axis=1)
+
+
+def _fit_prophet_model(data, params, additional_regressors):
+    model = Prophet(**params)
+    for add_reg in additional_regressors:
+        model.add_regressor(add_reg)
+    model.fit(data)
+    return model
 
 
 def operate(operator):
@@ -45,6 +54,7 @@ def operate(operator):
     model_kwargs["interval_width"] = operator.confidence_interval_width
 
     for i, (target, df) in enumerate(full_data_dict.items()):
+        model_kwargs_i = model_kwargs.copy()
         # format the dataframe for this target. Dropping NA on target[df] will remove all future data
         df = _preprocess_prophet(df, operator.ds_column, operator.datetime_format)
         data_i = df[df[target].notna()]
@@ -52,13 +62,81 @@ def operate(operator):
 
         # Assume that all columns passed in should be used as additional data
         additional_regressors = set(data_i.columns) - {"y", "ds"}
-        print(f"Found the following additional data columns: {additional_regressors}")
 
-        # Build and fit model
-        model = Prophet(**model_kwargs)
-        for add_reg in additional_regressors:
-            model.add_regressor(add_reg)
-        model.fit(data_i)
+        if operator.perform_tuning:
+            import optuna
+            from sklearn.metrics import mean_absolute_percentage_error
+            from prophet.diagnostics import cross_validation, performance_metrics
+
+            def objective(trial):
+                params = {
+                    "seasonality_mode": trial.suggest_categorical(
+                        "seasonality_mode", ["additive", "multiplicative"]
+                    ),
+                    "changepoint_prior_scale": trial.suggest_float(
+                        "changepoint_prior_scale", 0.001, 0.5, log=True
+                    ),
+                    "seasonality_prior_scale": trial.suggest_float(
+                        "seasonality_prior_scale", 0.01, 10, log=True
+                    ),
+                    "holidays_prior_scale": trial.suggest_float(
+                        "holidays_prior_scale", 0.01, 10, log=True
+                    ),
+                    "changepoint_range": trial.suggest_float(
+                        "changepoint_range", 0.8, 0.95
+                    ),
+                }
+                params.update(model_kwargs_i)
+
+                model = _fit_prophet_model(
+                    data=data_i,
+                    params=params,
+                    additional_regressors=additional_regressors,
+                )
+
+                def _add_unit(num, unit=operator.horizon["interval_unit"]):
+                    return f"{num} {unit}"
+
+                horizon = _add_unit(operator.horizon["periods"])
+                initial = _add_unit(data_i.shape[0] / 2)
+                period = _add_unit(data_i.shape[0] / 4)
+
+                df_cv = cross_validation(
+                    model,
+                    horizon=horizon,
+                    initial=initial,
+                    period=period,
+                    parallel="threads",
+                )
+                df_p = performance_metrics(df_cv)
+                try:
+                    return np.mean(df_p[operator.selected_metric])
+                except KeyError:
+                    logger.warn(
+                        f"Could not find the metric {operator.selected_metric} within the performance metrics: {df_p.columns}. Defaulting to `rmse`"
+                    )
+                    return np.mean(df_p["rmse"])
+
+            study = optuna.create_study(direction="minimize")
+            m_temp = Prophet()
+            study.enqueue_trial(
+                {
+                    "seasonality_mode": m_temp.seasonality_mode,
+                    "changepoint_prior_scale": m_temp.changepoint_prior_scale,
+                    "seasonality_prior_scale": m_temp.seasonality_prior_scale,
+                    "holidays_prior_scale": m_temp.holidays_prior_scale,
+                    "changepoint_range": m_temp.changepoint_range,
+                }
+            )
+            study.optimize(objective, n_trials=operator.num_tuning_trials, n_jobs=-1)
+
+            study.best_params.update(model_kwargs_i)
+            model_kwargs_i = study.best_params
+        model = _fit_prophet_model(
+            data=data_i,
+            params=model_kwargs_i,
+            additional_regressors=additional_regressors,
+        )
 
         # Make future df for prediction
         if len(additional_regressors):

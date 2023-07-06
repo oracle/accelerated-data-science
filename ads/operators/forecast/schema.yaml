@@ -20,7 +20,7 @@ type:
   required: true
   type: string
   meta:
-    description: "Type should always be `forecast` when using a forecat operator"
+    description: "Type should always be `forecast` when using a forecast operator"
 
 spec:
   required: false
@@ -242,6 +242,15 @@ spec:
     confidence_interval_width:
       type: float
       required: false
+
+    tuning:
+      type: dict
+      required: false
+      schema:
+        n_trials:
+          type: integer
+          required: false
+          default: 10
 
     metric:
       type: string

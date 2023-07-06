@@ -80,6 +80,13 @@ class ForecastOperator:
             "report_file_name",
             os.path.join(self.output_directory["url"], "report.html"),
         )
+        self.selected_metric = args["spec"].get("metric", "smape").lower()
+        if args["spec"].get("tuning") is not None:
+            self.perform_tuning = True
+            self.num_tuning_trials = int(args["spec"]["tuning"].get("n_trials", 10))
+        else:
+            self.perform_tuning = False
+            self.num_tuning_trials = 1
 
         # TODO: clean up
         self.input_filename = self.historical_data["url"]
@@ -90,10 +97,15 @@ class ForecastOperator:
         self.test_filename = self.test_data["url"]
         self.ds_column = self.datetime_column.get("name")
         self.datetime_format = self.datetime_column.get("format")
-        self.storage_options = {  # TODO pull from ads config
-            "profile": self.args["execution"].get("oci_profile"),
-            "config": self.args["execution"].get("oci_config"),
-        }
+        if args["execution"]["auth"] == "api_key":
+            self.storage_options = {
+                "profile": self.args["execution"].get("oci_profile"),
+                "config": self.args["execution"].get("oci_config"),
+            }
+        else:
+            # TODO: should we differ to ads config
+            self.storage_options = dict()
+
         self.model_kwargs = args["spec"].get("model_kwargs", dict())
         self.confidence_interval_width = args["spec"].get("confidence_interval_width")
 

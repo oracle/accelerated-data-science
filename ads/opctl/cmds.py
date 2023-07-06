@@ -259,15 +259,31 @@ def run(config: Dict, **kwargs) -> Dict:
         p.step(ConfigValidator)
         p = ConfigResolver(p.config)
         logger.debug(f"Calling Operator with config: {p.config}")
-        os.environ["OPERATOR_ARGS"] = json.dumps(p.config)
-        return OPERATOR_TYPES[operator_type]()
+        backend_type = kwargs.get("backend") or "local"
+        if backend_type == "local":
+            os.environ["OPERATOR_ARGS"] = json.dumps(p.config)
+            return OPERATOR_TYPES[operator_type]()
+        elif backend_type == "job":
+            raise ValueError(
+                f"Backend type `{backend_type}` not currently supported for this operator."
+            )
+            # p.config['execution'].update({
+            #     'kind': "runtime",
+            #     'type': 'python',
+            #     'conda_type': 'service',
+            #     'conda_slug': 'automlx_p38_cpu_v3',
+            #     'env_vars': {'OPERATOR_ARGS': json.dumps(p.config)},
+            #     'entrypoint': "oci://allen_data@ociodscdev/epm-scripts/run_operator.py",
+            #     'source_folder': "",
+            # })
+            # p.config['kind'] = 'job'
+            # p.config['type'] = 'job'
+            # MLJobBackend(config=p.config).run()
+        else:
+            raise ValueError(
+                f"Backend type `{backend_type}` not currently supported for this operator."
+            )
 
-        # Backend Support WIP
-        # job_def = yaml_parser.parse(p.config)
-        # jrun = backend.run(job_def, dry_run=p.config["execution"].get("dry_run"))
-        # if jrun:
-        #     print(f"# \u2b50 To stream the logs of the operator job run:")
-        #     print(f"# \u0024 ads opctl watch {jrun.id}")
     else:
         if (
             "kind" in p.config

@@ -31,6 +31,8 @@ from ads.opctl.constants import (
     BACKEND_NAME,
 )
 
+DO_NOT_UPDATE_SECTIONS = ["spec"]
+
 
 class ConfigMerger(ConfigProcessor):
     """Merge configurations from command line args, YAML, ini and default configs.
@@ -43,6 +45,7 @@ class ConfigMerger(ConfigProcessor):
     def process(self, **kwargs) -> None:
         config_string = Template(json.dumps(self.config)).safe_substitute(os.environ)
         self.config = json.loads(config_string)
+
         # 1. merge and overwrite values from command line args
         self._merge_config_with_cmd_args(kwargs)
         # 1.5 merge environment variables
@@ -68,7 +71,8 @@ class ConfigMerger(ConfigProcessor):
         def _overwrite(cfg, args):
             for k, v in cfg.items():
                 if isinstance(v, dict):
-                    _overwrite(v, args)
+                    if k not in DO_NOT_UPDATE_SECTIONS:
+                        _overwrite(v, args)
                 elif k in args:
                     if (
                         isinstance(args[k], bool)

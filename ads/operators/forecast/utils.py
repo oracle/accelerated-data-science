@@ -47,9 +47,7 @@ def _preprocess_prophet(data, ds_column, datetime_format):
 
 def smape(actual, predicted) -> float:
     if not all([isinstance(actual, np.ndarray), isinstance(predicted, np.ndarray)]):
-        actual, predicted = (np.array(actual),)
-        np.array(predicted)
-
+        actual, predicted = (np.array(actual), np.array(predicted))
     return round(
         np.mean(np.abs(actual - predicted) / (np.abs(actual) + np.abs(predicted)))
         * 100,
@@ -171,10 +169,33 @@ def _clean_merge_data(
     return df_by_target, new_target_columns, target_column_mappings, categories
 
 
+def _build_indexed_datasets(
+    data,
+    target_columns,
+    datetime_column,
+    target_category_columns=None,
+    additional_data=None,
+    metadata_data=None,
+):
+    df_by_target = dict()
+    target_column_mappings = dict()
+    categories = dict()  # category_column_name: unique_categories
+
+    data_long = None
+    data_wide = None
+
+    for tar_col in target_columns:
+        for cat_col in target_category_columns:
+            categories = data[cat_col].unique()
+            for cat in categories:
+                print(f"indexing data by: ({tar_col, cat_col, cat})")
+                data[data[tar_col]]
+
+
 def load_data_dict(operator):
     """
     load_data_dict takes in an operator and returns the same operator.
-    It adds/updates the operators "data_dict" attribute to be a dictionary of {target_name: dataset with 1) that target 2) exogeneous variables 3) datatime}
+    It adds/updates the operators "data_dict" attribute to be a dictionary of {target_name: dataset with 1) that target 2) exogeneous variables 3) datetime}
     """
     data = _load_data(
         operator.input_filename,
@@ -329,6 +350,17 @@ def get_forecast_plots(
                     ),
                 ]
             )
+        if test_data is not None:
+            fig.add_trace(
+                go.Scatter(
+                    x=test_data["ds"],
+                    y=test_data[col],
+                    mode="markers",
+                    marker_color="green",
+                    name="Actual",
+                )
+            )
+
         fig.add_trace(
             go.Scatter(
                 x=ds_col,

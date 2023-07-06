@@ -11,6 +11,7 @@ import sys
 from ads.jobs.builders.runtimes.python_runtime import PythonRuntime
 import pandas as pd
 from ads.operators.forecast.utils import load_data_dict, _write_data
+import numpy as np
 
 logger = logging.getLogger(__name__)
 handler = logging.StreamHandler(sys.stdout)
@@ -20,9 +21,45 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
+def _get_np_metrics_dict(selected_metric):
+    from torchmetrics.regression import (
+        MeanAbsolutePercentageError,
+        SymmetricMeanAbsolutePercentageError,
+        MeanAbsoluteError,
+        R2Score,
+        MeanSquaredError,
+    )
+
+    metric_translation = {
+        "mape": MeanAbsolutePercentageError,
+        "smape": SymmetricMeanAbsolutePercentageError,
+        "mae": MeanAbsoluteError,
+        "r2": R2Score,
+        "rmse": MeanSquaredError,
+    }
+    if selected_metric not in metric_translation.keys():
+        logger.warn(
+            f"Could not find the metric: {selected_metric} in torchmetrics. Defaulting to MAE and RMSE"
+        )
+        return {"MAE": MeanAbsoluteError(), "RMSE": MeanSquaredError()}
+    return {selected_metric: metric_translation[selected_metric]()}
+
+
 def _preprocess_prophet(data, ds_column, datetime_format):
     data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
     return data.drop([ds_column], axis=1)
+
+
+def _fit_neuralprophet_model(data, params, additional_regressors, select_metric):
+    from neuralprophet import NeuralProphet
+
+    m = NeuralProphet(**params)
+    m.metrics = _get_np_metrics_dict(select_metric)
+    for add_reg in additional_regressors:
+        m = m.add_future_regressor(name=add_reg)
+    m.fit(df=data)
+    accepted_regressors_config = m.config_regressors or dict()
+    return m, list(accepted_regressors_config.keys())
 
 
 def operate(operator):
@@ -46,6 +83,7 @@ def operate(operator):
     model_kwargs["quantiles"] = quantiles
 
     for i, (target, df) in enumerate(full_data_dict.items()):
+        model_kwargs_i = model_kwargs.copy()
         # format the dataframe for this target. Dropping NA on target[df] will remove all future data
         df = _preprocess_prophet(df, operator.ds_column, operator.datetime_format)
         data_i = df[df[target].notna()]
@@ -55,15 +93,96 @@ def operate(operator):
         additional_regressors = set(data_i.columns) - {"y", "ds"}
         training_data = data_i[["y", "ds"] + list(additional_regressors)]
 
+        if operator.perform_tuning:
+            import optuna
+            from torch import Tensor
+
+            def objective(trial):
+                params = {
+                    # 'seasonality_mode': trial.suggest_categorical('seasonality_mode', ['additive', 'multiplicative']),
+                    # 'seasonality_reg': trial.suggest_float('seasonality_reg', 0.1, 500, log=True),
+                    # 'learning_rate': trial.suggest_float('learning_rate',  0.0001, 0.1, log=True),
+                    "newer_samples_start": trial.suggest_float(
+                        "newer_samples_start", 0.001, 0.999
+                    ),
+                    "newer_samples_weight": trial.suggest_float(
+                        "newer_samples_weight", 0, 100
+                    ),
+                    "changepoints_range": trial.suggest_float(
+                        "changepoints_range", 0.8, 0.95
+                    ),
+                }
+                # trend_reg, trend_reg_threshold, ar_reg, impute_rolling/impute_linear,
+                params.update(model_kwargs_i)
+
+                folds = NeuralProphet(**params).crossvalidation_split_df(data_i, k=3)
+                test_metrics_total_i = []
+                for df_train, df_test in folds:
+                    m, accepted_regressors = _fit_neuralprophet_model(
+                        data=df_train,
+                        params=params,
+                        additional_regressors=additional_regressors,
+                        select_metric=operator.selected_metric,
+                    )
+                    # m = NeuralProphet(**params)
+                    # m.metrics = _get_np_metrics_dict(operator.selected_metric)
+                    # for add_reg in additional_regressors:
+                    #     m = m.add_future_regressor(name=add_reg)
+                    # m.fit(df=df_train)
+
+                    # accepted_regressors_config = m.config_regressors or dict()
+                    # accepted_regressors = list(accepted_regressors_config.keys())
+                    df_test = df_test[["y", "ds"] + accepted_regressors]
+
+                    test_forecast_i = m.predict(df=df_test)
+                    fold_metric_i = (
+                        m.metrics[operator.selected_metric]
+                        .forward(
+                            Tensor(test_forecast_i["yhat1"]),
+                            Tensor(test_forecast_i["y"]),
+                        )
+                        .item()
+                    )
+                    test_metrics_total_i.append(fold_metric_i)
+                print(
+                    f"----------------------{np.asarray(test_metrics_total_i).mean()}----------------------"
+                )
+                return np.asarray(test_metrics_total_i).mean()
+
+            study = optuna.create_study(direction="minimize")
+            m_params = NeuralProphet().parameters()
+            study.enqueue_trial(
+                {
+                    # 'seasonality_mode': m_params['seasonality_mode'],
+                    # 'seasonality_reg': m_params['seasonality_reg'],
+                    # 'learning_rate': m_params['learning_rate'],
+                    "newer_samples_start": m_params["newer_samples_start"],
+                    "newer_samples_weight": m_params["newer_samples_weight"],
+                    "changepoints_range": m_params["changepoints_range"],
+                }
+            )
+            study.optimize(objective, n_trials=operator.num_tuning_trials, n_jobs=-1)
+
+            selected_params = study.best_params
+            selected_params.update(model_kwargs_i)
+            model_kwargs_i = selected_params
+
         # Build and fit model
-        model = NeuralProphet(**model_kwargs)
-        for add_reg in additional_regressors:
-            model = model.add_future_regressor(name=add_reg)
-        model.fit(training_data, freq=operator.horizon["interval_unit"])
+        model, accepted_regressors = _fit_neuralprophet_model(
+            data=training_data,
+            params=model_kwargs_i,
+            additional_regressors=additional_regressors,
+            select_metric=operator.selected_metric,
+        )
+        # model = NeuralProphet(**model_kwargs_i)
+        # model.metrics = _get_np_metrics_dict(operator.selected_metric)
+        # for add_reg in additional_regressors:
+        #     model = model.add_future_regressor(name=add_reg)
+        # model.fit(training_data, freq=operator.horizon["interval_unit"])
 
         # Determine which regressors were accepted
-        accepted_regressors_config = model.config_regressors or dict()
-        accepted_regressors = list(accepted_regressors_config.keys())
+        # accepted_regressors_config = model.config_regressors or dict()
+        # accepted_regressors = list(accepted_regressors_config.keys())
         print(f"Found the following additional data columns: {additional_regressors}")
         print(
             f"While fitting the model, some additional data may have been discarded. Only using the columns: {accepted_regressors}"
