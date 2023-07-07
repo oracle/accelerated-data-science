@@ -294,17 +294,20 @@ class ForecastOperator:
         )
         self.view = dp.View(*all_sections)
 
-        if self.output_dir_protocol == "file":
-            dp.save_report(self.view, self.report_file_name, open=True)
-        else:
-            dp.save_report(self.view, "___report.html")
-            with open("___report.html") as f1:
-                with fsspec.open(
-                    self.report_file_name, "w", **self.storage_options
-                ) as f2:
-                    f2.write(f1.read())
-        print(f"Generated Report: {self.report_file_name}.")
-        return
+        try:
+            if self.output_dir_protocol == "file":
+                dp.save_report(self.view, self.report_file_name, open=True)
+            else:
+                dp.save_report(self.view, "___report.html")
+                with open("___report.html") as f1:
+                    with fsspec.open(
+                        self.report_file_name, "w", **self.storage_options
+                    ) as f2:
+                        f2.write(f1.read())
+            print(f"Generated Report: {self.report_file_name}.")
+        except Exception as e:
+            logger.debug(f"Issue generating report: {e}")
+        return self
 
 
 def operate(args):
