@@ -1,11 +1,19 @@
 Quick start
 ************
+1. Create a `OCI notebook session <https://docs.oracle.com/en-us/iaas/data-science/using/create-notebook-sessions.htm>`__ to access jupyterlab interface.
 
-- Install the ``fspyspark32_p38_cpu_v1`` plugin
+2. Open the terminal in the notebook session and install the ``fspyspark32_p38_cpu_v1`` plugin
 
   ..  code-block:: shell
 
     odsc conda install --uri https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda
+
+3. Download the notebooks from the example notebook section.
+
+.. seealso::
+   Refer :ref:`Notebook Examples` to check out more example for using feature store
+
+4. Upload the notebook in the notebook session and run the notebook after replacing the required variables.
 
 
 Background reading to understand the concepts of Feature Store and OCI Data Science:
@@ -25,9 +33,6 @@ Background reading to understand the concepts of Feature Store and OCI Data Scie
 .. seealso::
 
    Refer `Terraform section <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/index.html#document-terraform>`__ for setting up feature store server.
-
-.. seealso::
-   Refer :ref:`Notebook Examples` to check out more example for using feature store
 
 .. warning::
 
