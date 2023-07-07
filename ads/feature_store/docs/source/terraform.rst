@@ -105,6 +105,7 @@ Steps
     oci resource-manager stack create \
       --compartment-id <compartment-id> \
       --config-source <path-to-downloaded-zip-file> \
+      --terraform-version 1.1.x \
       --variables '{
         "service_version": "<SERVICE_VERSION>",
         "tenancy_ocid": "<TENANCY_OCID>",
