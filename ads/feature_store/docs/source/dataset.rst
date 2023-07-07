@@ -124,50 +124,6 @@ With a Dataset instance, we can get the last dataset job details using ``get_las
   df = dataset_job.get_validation_output().to_dataframe()
   df.show()
 
-
-Save expectation entity
-=======================
-
-With a Dataset instance, we can save the expectation entity using ``save_expectation()``
-
-.. note::
-
-  Great Expectations is a Python-based open-source library for validating, documenting, and profiling your data. It helps you to maintain data quality and improve communication about data between teams. Software developers have long known that automated testing is essential for managing complex codebases.
-
-.. image:: figures/validation.png
-
-
-The ``.save_expectation()`` method takes the following optional parameter:
-
-- ``expectation_suite: ExpectationSuite``. Expectation suite of great expectation
-- ``expectation_type: ExpectationType``. Type of expectation
-        - ``ExpectationType.STRICT``: Fail the job if expectation not met
-        - ``ExpectationType.LENIENT``: Pass the job even if expectation not met
-
-.. code-block:: python3
-
-  dataset.save_expectation(expectation_suite, expectation_type="STRICT")
-
-
-Statistics Results
-==================
-You can call the ``get_statistics()`` method of the Dataset instance to fetch feature statistics results of a dataset job.
-
-.. note::
-
-  PyDeequ is a Python API for Deequ, a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets.
-
-
-The ``.get_statistics()`` method takes the following optional parameter:
-
-- ``job_id: string``. Id of dataset job
-
-.. code-block:: python3
-
-  # Fetch stats results for a dataset job
-  df = dataset.get_statistics(job_id).to_pandas()
-
-
 Get features
 ============
 You can call the ``get_features_dataframe()`` method of the Dataset instance to fetch features in a dataset.
