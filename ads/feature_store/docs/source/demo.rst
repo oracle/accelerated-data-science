@@ -27,11 +27,6 @@ Demos
       - | 1. More about `conda environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm">`__
         | 2. UI exploration of feature store, feature groups and dataset
 
-    * - `Feature store on the notebook using spark magic <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-spark-magic.mp4>`__
-      - | 1. More about `conda environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm">`__
-        | 2. Policies requires to run feature store using spark magic
-        | 3. More about `OCI Data Flow Studio <https://accelerated-data-science.readthedocs.io/en/latest/user_guide/apachespark/dataflow-spark-magic.html>`__
-
     * - `Feature Store Stats and Validation <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-stats-validation.mp4>`__
       - | 1. More about `conda environment <https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm">`__
         | 2. Feature Store Statistics and Validation
