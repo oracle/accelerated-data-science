@@ -81,7 +81,9 @@ def _write_data(data, filename, format, storage_options, **kwargs):
         format = format[1:]
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         write_fn = getattr(data, f"to_{format}")
-        return _call_pandas_fsspec(write_fn, filename, storage_options=storage_options)
+        return _call_pandas_fsspec(
+            write_fn, filename, index=False, storage_options=storage_options
+        )
     raise ValueError(f"Unrecognized format: {format}")
 
 

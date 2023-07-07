@@ -111,19 +111,19 @@ class ForecastOperator:
             # TODO: should we differ to ads config
             self.storage_options = dict()
         output_dir_name = self.output_directory["url"]
-        output_dir_protocol = fsspec.utils.get_protocol(output_dir_name)
+        self.output_dir_protocol = fsspec.utils.get_protocol(output_dir_name)
 
-        if output_dir_protocol == "file":
+        if self.output_dir_protocol == "file":
             from pathlib import Path
 
             Path(output_dir_name).mkdir(parents=True, exist_ok=True)
         else:
             try:
-                fs = fsspec.filesystem(output_dir_protocol, **self.storage_options)
+                fs = fsspec.filesystem(self.output_dir_protocol, **self.storage_options)
                 fs.mkdir(output_dir_name)
             except:
                 logger.debug(
-                    f"Output directory is in remote filesystem: {output_dir_protocol}. Failed to mkdir. Ensure the remote output directory exists."
+                    f"Output directory is in remote filesystem: {self.output_dir_protocol}. Failed to mkdir. Ensure the remote output directory exists."
                 )
 
         self.model_kwargs = args["spec"].get("model_kwargs", dict())
@@ -293,7 +293,16 @@ class ForecastOperator:
             + [yaml_appendix_title, yaml_appendix]
         )
         self.view = dp.View(*all_sections)
-        dp.save_report(self.view, self.report_file_name, open=True)
+
+        if self.output_dir_protocol == "file":
+            dp.save_report(self.view, self.report_file_name, open=True)
+        else:
+            dp.save_report(self.view, "___report.html")
+            with open("___report.html") as f1:
+                with fsspec.open(
+                    self.report_file_name, "w", **self.storage_options
+                ) as f2:
+                    f2.write(f1.read())
         print(f"Generated Report: {self.report_file_name}.")
         return
 

@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.opctl.config.base import ConfigProcessor
+from ads.opctl import logger
 from cerberus import Validator
 import yaml
 import json
