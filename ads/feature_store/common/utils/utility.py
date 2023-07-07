@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-
+import copy
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -154,8 +154,9 @@ def show_ingestion_summary(
     )
 
 
-def show_validation_summary(ingestion_status: str, statistics, expectation_type):
+def show_validation_summary(ingestion_status: str, validation_output, expectation_type):
     from tabulate import tabulate
+    statistics = validation_output["statistics"]
 
     table_headers = (
         ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
@@ -168,6 +169,28 @@ def show_validation_summary(ingestion_status: str, statistics, expectation_type)
         + tabulate(
             [table_values],
             headers=table_headers,
+            tablefmt="fancy_grid",
+            numalign="center",
+            stralign="center",
+        )
+    )
+
+    rule_table_headers = ["rule_type", "arguments", "status"]
+
+    rule_table_values = [
+        [
+            rule_output["expectation_config"].get("expectation_type"),
+            {key: value for key, value in rule_output["expectation_config"]["kwargs"].items() if key != "batch_id"},
+            rule_output.get("success")
+        ]
+        for rule_output in validation_output["results"]
+    ]
+
+    logger.info(
+        "Validations Rules Summary \n"
+        + tabulate(
+            rule_table_values,
+            headers=rule_table_headers,
             tablefmt="fancy_grid",
             numalign="center",
             stralign="center",

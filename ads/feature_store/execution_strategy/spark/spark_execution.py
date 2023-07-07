@@ -174,12 +174,11 @@ class SparkExecutionEngine(Strategy):
         ingestion_status = "Ingestion in progress"
 
         if not validation_output["success"]:
-            statistics = validation_output["statistics"]
             if expectation_type == ExpectationType.STRICT.value:
                 error_message = f"Expectation failed with Insufficient Success Rate, Aborting ingestion"
                 ingestion_status = "Insufficient Success Rate, Aborting ingestion"
 
-        show_validation_summary(ingestion_status, statistics, expectation_type)
+        show_validation_summary(ingestion_status, validation_output, expectation_type)
 
         if error_message:
             raise Exception(error_message)
