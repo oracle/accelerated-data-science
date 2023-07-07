@@ -5,7 +5,7 @@ Quick start
 
   ..  code-block:: shell
 
-    odsc conda install --uri https://objectstorage.us-ashburn-1.oraclecloud.com/p/b-LDcmxLYuCi3gIgvLV8KPAIih8CD2vgtBwgjEtY_CnE3HZyBHb00JGsS7OV5ls5/n/ociodscdev/b/ads_conda_pack_builds/o/PySpark_3/teamcity_20230511_061348_38940786/f227145b7ee5fc1c73a69ebaa671b81e/PySpark_3.2_and_Feature_Store.tar.gz
+    odsc conda install --uri https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda
 
 
 Background reading to understand the concepts of Feature Store and OCI Data Science:
