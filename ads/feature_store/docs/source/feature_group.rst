@@ -150,6 +150,7 @@ Feature store provides an API similar to Pandas to join feature groups together 
                 .join(feature_group_c.select(), left_on=['b_1'], right_on=['c_1'])
   query.show(5)
 
+<<<<<<< Updated upstream
 Save expectation entity
 =======================
 With a ``FeatureGroup`` instance, You can save the expectation details using ``with_expectation_suite()`` with parameters
@@ -202,6 +203,8 @@ You can call the ``get_statistics()`` method of the FeatureGroup instance to fet
   df = feature_group.get_statistics(job_id).to_pandas()
 
 .. image:: figures/stats_1.png
+=======
+>>>>>>> Stashed changes
 
 Get last feature group job
 ==========================
