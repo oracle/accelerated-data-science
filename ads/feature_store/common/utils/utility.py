@@ -11,11 +11,12 @@ from great_expectations.core import ExpectationSuite
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.feature_store.common.utils.feature_schema_mapper import (
     map_spark_type_to_feature_type,
-    map_pandas_type_to_feature_type,
+    map_feature_type_to_pandas,
 )
 from ads.feature_store.feature import Feature, DatasetFeature
 from ads.feature_store.feature_group_expectation import Rule, Expectation
 from ads.feature_store.input_feature_detail import FeatureDetail
+from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
 
 try:
     from pyspark.pandas import DataFrame
@@ -154,18 +155,9 @@ def get_features(
 
 
 def get_schema_from_pandas_df(df: pd.DataFrame):
-    schema_details = []
-
-    for order_number, field in enumerate(df.columns, start=1):
-        details = {
-            "name": field,
-            "feature_type": map_pandas_type_to_feature_type(field, df[field]),
-            "order_number": order_number,
-        }
-
-        schema_details.append(details)
-
-    return schema_details
+    spark = SparkSessionSingleton().get_spark_session()
+    converted_df = spark.createDataFrame(df)
+    return get_schema_from_spark_df(converted_df)
 
 
 def get_schema_from_spark_df(df: DataFrame):
@@ -268,3 +260,47 @@ def largest_matching_subset_of_primary_keys(left_feature_group, right_feature_gr
     common_keys = left_primary_keys.intersection(right_primary_keys)
 
     return common_keys
+
+
+def convert_pandas_datatype_with_schema(
+        raw_feature_details: List[dict], input_df: pd.DataFrame
+) -> pd.DataFrame:
+    feature_detail_map = {}
+    columns_to_remove = []
+    for feature_details in raw_feature_details:
+        feature_detail_map[feature_details.get("name")] = feature_details
+    for column in input_df.columns:
+        if column in feature_detail_map.keys():
+            feature_details = feature_detail_map[column]
+            feature_type = feature_details.get("featureType")
+            pandas_type = map_feature_type_to_pandas(feature_type)
+            input_df[column] = (
+                input_df[column]
+                .astype(pandas_type)
+                .where(pd.notnull(input_df[column]), None)
+            )
+        else:
+            logger.warning("column" + column + "doesn't exist in the input feature details")
+            columns_to_remove.append(column)
+    return input_df.drop(columns = columns_to_remove)
+
+
+def convert_spark_dataframe_with_schema(
+        raw_feature_details: List[dict], input_df: DataFrame
+) -> DataFrame:
+    feature_detail_map = {}
+    columns_to_remove = []
+    for feature_details in raw_feature_details:
+        feature_detail_map[feature_details.get("name")] = feature_details
+    for column in input_df.columns:
+        if column not in feature_detail_map.keys():
+            logger.warning("column" + column + "doesn't exist in the input feature details")
+            columns_to_remove.append(column)
+
+    return input_df.drop(*columns_to_remove)
+
+
+def validate_input_feature_details(input_feature_details, data_frame):
+    if isinstance(data_frame, pd.DataFrame):
+        return convert_pandas_datatype_with_schema(input_feature_details, data_frame)
+    return convert_spark_dataframe_with_schema(input_feature_details, data_frame)

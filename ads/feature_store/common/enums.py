@@ -295,6 +295,7 @@ class FeatureType(Enum):
     STRING_BINARY_MAP = "STRING_BINARY_MAP"
     STRING_BOOLEAN_MAP = "STRING_BOOLEAN_MAP"
     UNKNOWN = "UNKNOWN"
+    COMPLEX = "COMPLEX"
 
 
 class EntityType(Enum):

@@ -41,6 +41,9 @@ class FeatureStoreTestCase:
     COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
     INPUT_FEATURE_DETAILS = [
+        FeatureDetail("flower")
+        .with_feature_type(FeatureType.STRING)
+        .with_order_number(1),
         FeatureDetail("sepal_length")
         .with_feature_type(FeatureType.DOUBLE)
         .with_order_number(1),

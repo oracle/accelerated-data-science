@@ -75,7 +75,8 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
                 "spark.hadoop.oracle.dcat.metastore.id", metastore_id
             ).config(
                 "spark.sql.warehouse.dir", metastore.default_managed_table_location
-            )
+            )\
+                .config("spark.driver.memory", "16G")
 
         if developer_enabled():
             # Configure spark session with delta jars only in developer mode. In other cases,

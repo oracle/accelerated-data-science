@@ -71,7 +71,7 @@ def map_spark_type_to_feature_type(spark_type):
     if spark_type in spark_type_to_feature_type:
         return spark_type_to_feature_type.get(spark_type)
     else:
-        return FeatureType.UNKNOWN
+        return FeatureType.COMPLEX
 
 
 def map_pandas_type_to_feature_type(feature_name, values):
@@ -180,7 +180,7 @@ def map_feature_type_to_spark_type(feature_type):
     if feature_type_in in spark_types:
         return spark_types.get(feature_type_in)
     else:
-        return "UNKNOWN"
+        return "COMPLEX"
 
 
 def get_raw_data_source_schema(raw_feature_details: List[dict]):
@@ -225,29 +225,21 @@ def map_feature_type_to_pandas(feature_type):
         FeatureType.INTEGER: "int32",
         FeatureType.DECIMAL: "object",
         FeatureType.DATE: "object",
+        FeatureType.STRING_ARRAY: "object",
+        FeatureType.INTEGER_ARRAY: "object",
+        FeatureType.LONG_ARRAY: "object",
+        FeatureType.FLOAT_ARRAY: "object",
+        FeatureType.DOUBLE_ARRAY: "object",
+        FeatureType.TIMESTAMP_ARRAY: "object",
+        FeatureType.BOOLEAN_ARRAY: "object",
+        # FeatureType.DECIMAL_ARRAY: "object",
+        FeatureType.DATE_ARRAY: "object",
     }
     if feature_type_in in supported_feature_type:
         return supported_feature_type.get(feature_type_in)
     else:
         raise TypeError(f"Feature Type {feature_type} is not supported for pandas")
 
-
-def convert_pandas_datatype_with_schema(
-    raw_feature_details: List[dict], input_df: pd.DataFrame
-):
-    feature_detail_map = {}
-    for feature_details in raw_feature_details:
-        feature_detail_map[feature_details.get("name")] = feature_details
-    for column in input_df.columns:
-        if column in feature_detail_map.keys():
-            feature_details = feature_detail_map[column]
-            feature_type = feature_details.get("featureType")
-            pandas_type = map_feature_type_to_pandas(feature_type)
-            input_df[column] = (
-                input_df[column]
-                .astype(pandas_type)
-                .where(pd.notnull(input_df[column]), None)
-            )
 
 
 def map_spark_type_to_stats_data_type(spark_type):

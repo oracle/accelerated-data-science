@@ -30,21 +30,21 @@ Feature Store users need to provide the following access permissions in order to
 
     define tenancy <feature store service tenancy> as <feature store service tenancy ocid>
     endorse group <feature store user group> to read repos in tenancy <feature store service tenancy>
-    allow group <feature store user group> to manage orm-stacks in compartment <compartmentId>
-    allow group <feature store user group> to manage orm-jobs in compartment <compartmentId>
-    allow group <feature store user group> to manage object-family in compartment <compartmentId>
-    allow group <feature store user group> to manage users in compartment <compartmentId>
-    allow group <feature store user group> to manage instance-family in compartment <compartmentId>
-    allow group <feature store user group> to manage tag-namespaces in compartment <compartmentId>
-    allow group <feature store user group> to manage groups in compartment <compartmentId>
-    allow group <feature store user group> to manage policies in compartment <compartmentId>
-    allow group <feature store user group> to manage dynamic-groups in compartment <compartmentId>
-    allow group <feature store user group> to manage virtual-network-family in compartment <compartmentId>
-    allow group <feature store user group> to manage functions-family in compartment <compartmentId>
-    allow group <feature store user group> to inspect compartments in compartment <compartmentId>
-    allow group <feature store user group> to manage cluster-family in compartment <compartmentId>
-    allow group <feature store user group> to manage mysql-family in compartment <compartmentId>
-    allow group <feature store user group> to manage api-gateway-family in compartment <compartmentId>
+    allow group <feature store user group> to manage orm-stacks in compartment <compartmentName>
+    allow group <feature store user group> to manage orm-jobs in compartment <compartmentName>
+    allow group <feature store user group> to manage object-family in compartment <compartmentName>
+    allow group <feature store user group> to manage users in compartment <compartmentName>
+    allow group <feature store user group> to manage instance-family in compartment <compartmentName>
+    allow group <feature store user group> to manage tag-namespaces in compartment <compartmentName>
+    allow group <feature store user group> to manage groups in compartment <compartmentName>
+    allow group <feature store user group> to manage policies in compartment <compartmentName>
+    allow group <feature store user group> to manage dynamic-groups in compartment <compartmentName>
+    allow group <feature store user group> to manage virtual-network-family in compartment <compartmentName>
+    allow group <feature store user group> to manage functions-family in compartment <compartmentName>
+    allow group <feature store user group> to inspect compartments in compartment <compartmentName>
+    allow group <feature store user group> to manage cluster-family in compartment <compartmentName>
+    allow group <feature store user group> to manage mysql-family in compartment <compartmentName>
+    allow group <feature store user group> to manage api-gateway-family in compartment <compartmentName>
 
 Deploy Using Oracle Resource Manager
 ====================================
