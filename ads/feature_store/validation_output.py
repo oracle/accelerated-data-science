@@ -22,7 +22,7 @@ class ValidationOutput(ResponseBuilder):
             The validation output information as a pandas DataFrame.
         """
         if self.content:
-            profile_result = pd.json_normalize(self.content)
+            profile_result = pd.json_normalize(self.content).transpose()
             return profile_result
 
     @property

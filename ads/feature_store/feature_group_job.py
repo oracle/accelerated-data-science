@@ -177,7 +177,7 @@ class FeatureGroupJob(Builder):
         )
 
         # Convert Python object to Pandas DataFrame
-        validation_output_df = pandas.json_normalize(validation_output_json)
+        validation_output_df = pandas.json_normalize(validation_output_json).transpose()
 
         # return the validation output DataFrame
         return validation_output_df
