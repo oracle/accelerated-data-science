@@ -62,6 +62,7 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
         )
 
         if not developer_enabled() and metastore_id:
+            print("Not Developer Enabled")
             # Get the authentication credentials for the OCI data catalog service
             auth = copy.copy(ads.auth.default_signer())
 
@@ -79,6 +80,7 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
                 .config("spark.driver.memory", "16G")
 
         if developer_enabled():
+            print("Developer Enabled")
             # Configure spark session with delta jars only in developer mode. In other cases,
             # jars should be part of the conda pack
             self.spark_session = configure_spark_with_delta_pip(

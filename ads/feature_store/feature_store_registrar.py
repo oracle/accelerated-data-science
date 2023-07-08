@@ -73,11 +73,11 @@ class DataSetMultipleEntitiesError(Exception):
 
 class _ModelBuilderHashDict(Generic[_ModelBuilderT]):
     def __init__(
-        self,
-        builders: Optional[List[_ModelBuilderT]],
-        hash_fn: Callable = lambda model: model.name
-        if model.attribute_map.get("name")
-        else model.display_name,
+            self,
+            builders: Optional[List[_ModelBuilderT]],
+            hash_fn: Callable = lambda model: model.name
+            if model.attribute_map.get("name")
+            else model.display_name,
     ):
         self.__hash_fn = hash_fn
         self._dict: Dict[str, _ModelBuilderT] = {}
@@ -125,10 +125,10 @@ class _ModelBuilderHashDict(Generic[_ModelBuilderT]):
 
 class _ElementMap(Generic[_ModelBuilderT]):
     def __init__(
-        self,
-        element_type: _ModelBuilderT,
-        element_dict: _ModelBuilderHashDict[_ModelBuilderT],
-        parent_child_map: Dict[str, "_ParentChildMap"] = None,
+            self,
+            element_type: _ModelBuilderT,
+            element_dict: _ModelBuilderHashDict[_ModelBuilderT],
+            parent_child_map: Dict[str, "_ParentChildMap"] = None,
     ):
         self.element_type = element_type
         self.element_dict = element_dict
@@ -140,9 +140,9 @@ class _ElementMap(Generic[_ModelBuilderT]):
 
 class _ParentChildMap:
     def __init__(
-        self,
-        child_mapping: "_ElementMap",
-        parent_child_hash_map: DefaultDict[str, List[str]],
+            self,
+            child_mapping: "_ElementMap",
+            parent_child_hash_map: DefaultDict[str, List[str]],
     ):
         self.child_mapping = child_mapping
         self.parent_child_hash_map = parent_child_hash_map
@@ -158,12 +158,12 @@ class FeatureStoreRegistrar:
     DATASET_SPEC = "dataset"
 
     def __init__(
-        self,
-        feature_store: FeatureStore = None,
-        entities: List[Entity] = None,
-        datasets: List[Dataset] = None,
-        feature_groups: List[FeatureGroup] = None,
-        transformations: List[Transformation] = None,
+            self,
+            feature_store: FeatureStore = None,
+            entities: List[Entity] = None,
+            datasets: List[Dataset] = None,
+            feature_groups: List[FeatureGroup] = None,
+            transformations: List[Transformation] = None,
     ):
         """
         Initialised feature registrar resource
@@ -189,7 +189,7 @@ class FeatureStoreRegistrar:
         self._entity_map = {}
 
     def create(
-        self,
+            self,
     ) -> Tuple[
         FeatureStore,
         List[Entity],
@@ -248,13 +248,12 @@ class FeatureStoreRegistrar:
         for transformation in self._transformations.get_dict().values():
             transformation.feature_store_id = self._feature_store_id
             transformation.compartment_id = (
-                transformation.compartment_id or self._root_compartment_id
+                    transformation.compartment_id or self._root_compartment_id
             )
-            if transformation.source_code_function:
-                # to encode to base64
-                transformation.source_code_function = (
-                    transformation.source_code_function
-                )
+            # to encode to base64
+            transformation.source_code_function = (
+                transformation.source_code_function
+            )
         return self._transformations.create_models(self._progress)
 
     def _create_feature_groups(self) -> List[FeatureGroup]:
@@ -289,7 +288,7 @@ class FeatureStoreRegistrar:
             feature_group.primary_keys = feature_group.primary_keys
             feature_group.feature_store_id = self._feature_store_id
             feature_group.compartment_id = (
-                feature_group.compartment_id or self._root_compartment_id
+                    feature_group.compartment_id or self._root_compartment_id
             )
 
         return self._feature_groups.create_models(self._progress)
@@ -395,11 +394,11 @@ class FeatureStoreRegistrar:
 
     @classmethod
     def from_yaml(
-        cls,
-        yaml_string: str = None,
-        uri: str = None,
-        loader: callable = Loader,
-        **kwargs,
+            cls,
+            yaml_string: str = None,
+            uri: str = None,
+            loader: callable = Loader,
+            **kwargs,
     ) -> "FeatureStoreRegistrar":
         """Creates an object from YAML string provided or from URI location containing YAML string
 
@@ -446,11 +445,11 @@ class FeatureStoreRegistrar:
 
     def _get_progress_steps_count(self) -> int:
         return (
-            self._feature_store.get_count()
-            + self._entities.get_count()
-            + self._transformations.get_count()
-            + self._feature_groups.get_count()
-            + self._datasets.get_count()
+                self._feature_store.get_count()
+                + self._entities.get_count()
+                + self._transformations.get_count()
+                + self._feature_groups.get_count()
+                + self._datasets.get_count()
         )
 
     @staticmethod
@@ -471,7 +470,7 @@ class FeatureStoreRegistrar:
 
     @staticmethod
     def _populate_child_mappings(
-        parent_dict: dict, parent_map: _ElementMap, parent_hash: str
+            parent_dict: dict, parent_map: _ElementMap, parent_hash: str
     ):
         for key, elements in parent_dict.get("spec").items():
             if key in parent_map.parent_child_map:
