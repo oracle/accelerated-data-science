@@ -28,7 +28,9 @@ Release Notes
 Release notes: July 5, 2023
 
 * [FEATURE] Supporting Offline Feature Type COMPLEX
-* [[DOCS] Data Type update for Offline Feature Type COMPLEX
+* [FEATURE] Added k8 default version as v1.26.2
+* [DOCS] Data Type update for Offline Feature Type COMPLEX
+* [DOCS] Updated terraform default version as 1.1.x
 
 1.0
 ---
