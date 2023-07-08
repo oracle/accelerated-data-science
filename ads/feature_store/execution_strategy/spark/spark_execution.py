@@ -38,9 +38,7 @@ from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.transformation import Transformation
 
 from ads.feature_store.feature_statistics.statistics_service import StatisticsService
-from ads.feature_store.common.utils.utility import (
-    validate_input_feature_details
-)
+from ads.feature_store.common.utils.utility import validate_input_feature_details
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +176,9 @@ class SparkExecutionEngine(Strategy):
             self.spark_engine.create_database(database)
 
             if not feature_group.is_infer_schema:
-                data_frame = validate_input_feature_details(feature_group.input_feature_details, data_frame)
+                data_frame = validate_input_feature_details(
+                    feature_group.input_feature_details, data_frame
+                )
 
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 

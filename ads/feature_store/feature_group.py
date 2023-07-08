@@ -476,9 +476,10 @@ class FeatureGroup(Builder):
     def with_schema_details_from_dataframe(
         self, data_frame: Union[DataFrame, pd.DataFrame]
     ) -> "FeatureGroup":
-
         if not self.feature_store_id:
-            raise ValueError("FeatureStore id must be set before calling `with_schema_details_from_dataframe`")
+            raise ValueError(
+                "FeatureStore id must be set before calling `with_schema_details_from_dataframe`"
+            )
 
         schema_details = get_schema_from_df(data_frame, self.feature_store_id)
         feature_details = []

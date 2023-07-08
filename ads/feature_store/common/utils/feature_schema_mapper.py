@@ -241,7 +241,6 @@ def map_feature_type_to_pandas(feature_type):
         raise TypeError(f"Feature Type {feature_type} is not supported for pandas")
 
 
-
 def map_spark_type_to_stats_data_type(spark_type):
     """Maps the spark data types to MLM library data types
     args:
