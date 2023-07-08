@@ -370,7 +370,7 @@ class Entity(Builder):
         raw_feature_details = (
             input_feature_details
             if input_feature_details
-            else get_input_features_from_df(schema_details_dataframe)
+            else get_input_features_from_df(schema_details_dataframe, self.feature_store_id)
         )
 
         self.oci_feature_group = self._build_feature_group(
