@@ -68,7 +68,7 @@ class TestDataTypePandasObject(FeatureStoreTestCase):
             FeatureGroup()
             .with_description("feature group resource for pandas datatypes")
             .with_compartment_id(self.COMPARTMENT_ID)
-            .with_name(self.get_name("feature_group_pandas_mixed_schema"))
+            .with_name(self.get_name("feature_group_pandas_string_schema"))
             .with_entity_id(entity_id)
             .with_feature_store_id(feature_store_id)
             .with_primary_keys([])
@@ -84,7 +84,7 @@ class TestDataTypePandasObject(FeatureStoreTestCase):
             FeatureGroup()
             .with_description("feature group resource for pandas datatypes")
             .with_compartment_id(self.COMPARTMENT_ID)
-            .with_name(self.get_name("feature_group_pandas_object_string"))
+            .with_name(self.get_name("feature_group_pandas_object_decimal"))
             .with_entity_id(entity_id)
             .with_feature_store_id(feature_store_id)
             .with_primary_keys([])
@@ -257,7 +257,7 @@ class TestDataTypePandasObject(FeatureStoreTestCase):
         self.clean_up_feature_store(fs)
 
     def test_feature_group_pandas_object_date_with_schema(self):
-        """Tests  pandas object decimal data types"""
+        """Tests  pandas object date data types"""
         fs = self.define_feature_store_resource().create()
         assert fs.oci_fs.id
 

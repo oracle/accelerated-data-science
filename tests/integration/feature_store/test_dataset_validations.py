@@ -55,7 +55,7 @@ class TestFeatureGroupValidation(FeatureStoreTestCase):
         assert dataset.oci_dataset.id
 
         dataset.materialise()
-        df = dataset.get_validation_output().to_pandas()
+        df = dataset.get_validation_output().to_pandas().T
         assert df is not None
         assert "success" in df.columns
         assert True in df["success"].values

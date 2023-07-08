@@ -68,7 +68,7 @@ class TestFeatureGroupValidation(FeatureStoreTestCase):
 
         assert fg.oci_feature_group.id
         fg.materialise(self.data)
-        df = fg.get_validation_output().to_pandas()
+        df = fg.get_validation_output().to_pandas().T
         assert df is not None
         assert "success" in df.columns
         assert True in df["success"].values
@@ -110,7 +110,7 @@ class TestFeatureGroupValidation(FeatureStoreTestCase):
 
         assert fg.oci_feature_group.id
         fg.materialise(self.data)
-        df = fg.get_validation_output().to_pandas()
+        df = fg.get_validation_output().to_pandas().T
         assert df is not None
         assert "success" in df.columns
         assert True in df["success"].values

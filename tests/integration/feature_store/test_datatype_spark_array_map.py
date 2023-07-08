@@ -42,8 +42,8 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         FeatureDetail("timestamp_array_col").with_feature_type(FeatureType.TIMESTAMP_ARRAY).with_order_number(8),
         FeatureDetail("byte_array_col").with_feature_type(FeatureType.BYTE_ARRAY).with_order_number(9),
         FeatureDetail("short_array_col").with_feature_type(FeatureType.INTEGER_ARRAY).with_order_number(10),
-        FeatureDetail("decimal_array_col").with_feature_type(FeatureType.UNKNOWN).with_order_number(11),
-        FeatureDetail("boolean_array_col").with_feature_type(FeatureType.UNKNOWN).with_order_number(12),
+        FeatureDetail("decimal_array_col").with_feature_type(FeatureType.COMPLEX).with_order_number(11),
+        FeatureDetail("boolean_array_col").with_feature_type(FeatureType.COMPLEX).with_order_number(12),
     ]
 
     schema_map = StructType([
@@ -57,7 +57,7 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         StructField("string_date_map_col", MapType(StringType(), DateType()), True),
         StructField("string_binary_map_col", MapType(StringType(), BinaryType()), True),
         StructField("string_byte_map_col", MapType(StringType(), ByteType()), True),
-        StructField("string_byte_map_col", MapType(StringType(), DecimalType(10,2)), True),
+        StructField("string_decimal_map_col", MapType(StringType(), DecimalType(10,2)), True),
         StructField("string_boolean_map_col", MapType(StringType(), BooleanType()), True)
     ])
 
@@ -72,8 +72,8 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         FeatureDetail("string_date_map_col").with_feature_type(FeatureType.STRING_DATE_MAP).with_order_number(9),
         FeatureDetail("string_binary_map_col").with_feature_type(FeatureType.STRING_BINARY_MAP).with_order_number(8),
         FeatureDetail("string_byte_map_col").with_feature_type(FeatureType.STRING_BYTE_MAP).with_order_number(10),
-        FeatureDetail("string_decimal_map_col").with_feature_type(FeatureType.UNKNOWN).with_order_number(11),
-        FeatureDetail("string_boolean_map_col").with_feature_type(FeatureType.UNKNOWN).with_order_number(12),
+        FeatureDetail("string_decimal_map_col").with_feature_type(FeatureType.COMPLEX).with_order_number(11),
+        FeatureDetail("string_boolean_map_col").with_feature_type(FeatureType.COMPLEX).with_order_number(12),
     ]
 
     # Add data to the DataFrame
@@ -185,7 +185,7 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
             FeatureGroup()
             .with_description("feature group resource spark map types")
             .with_compartment_id(self.COMPARTMENT_ID)
-            .with_name(self.get_name("feature_group_spark_array"))
+            .with_name(self.get_name("feature_group_spark_map"))
             .with_entity_id(entity_id)
             .with_feature_store_id(feature_store_id)
             .with_primary_keys([])
@@ -211,7 +211,7 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         return feature_group_spark_map_schema
 
     def test_feature_group_spark_datatypes_array_infer_schema(self):
-        """Test supported pandas data types"""
+        """Test supported spark array types"""
         fs = self.define_feature_store_resource().create()
         assert fs.oci_fs.id
 
@@ -234,7 +234,7 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         self.clean_up_feature_store(fs)
 
     def test_feature_group_spark_datatypes_array_with_schema(self):
-        """Test supported pandas data types"""
+        """Test supported spark array types types with schema"""
         fs = self.define_feature_store_resource().create()
         assert fs.oci_fs.id
 
@@ -257,7 +257,7 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         self.clean_up_feature_store(fs)
 
     def test_feature_group_spark_datatypes_map_infer_schema(self):
-        """Test supported pandas data types"""
+        """Test supported spark map types"""
         fs = self.define_feature_store_resource().create()
         assert fs.oci_fs.id
 
@@ -280,7 +280,7 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         self.clean_up_feature_store(fs)
 
     def test_feature_group_spark_datatypes_map_with_schema(self):
-        """Test supported pandas data types"""
+        """Test supported spark map types with schema"""
         fs = self.define_feature_store_resource().create()
         assert fs.oci_fs.id
 
@@ -294,7 +294,7 @@ class TestDataTypeSparkArrayMap(FeatureStoreTestCase):
         feature_group.create()
         assert feature_group.oci_feature_group.id
 
-        feature_group.materialise(self.array_df)
+        feature_group.materialise(self.map_df)
         df = feature_group.select().read()
         assert df
 

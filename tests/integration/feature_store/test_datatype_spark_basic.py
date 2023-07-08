@@ -13,25 +13,6 @@ from ads.feature_store.common.spark_session_singleton import SparkSessionSinglet
 
 
 class TestDataTypeSparkBasic(FeatureStoreTestCase):
-    # TODO: change the creation as it would run on Conda
-
-    # spark_builder = (
-    #     SparkSession.builder.appName("FeatureStore")
-    #     .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
-    #     .config(
-    #         "spark.sql.catalog.spark_catalog",
-    #         "org.apache.spark.sql.delta.catalog.DeltaCatalog",
-    #     )
-    #     .config("spark.driver.memory", "16G")
-    #     .enableHiveSupport()
-    # )
-    # spark_builder.config(
-    #     "spark.jars",
-    #     "https://repo1.maven.org/maven2/com/amazon/deequ/deequ/2.0.1-spark-3.2/deequ-2.0.1-spark-3.2.jar",
-    # )
-    # spark = configure_spark_with_delta_pip(
-    #     spark_builder
-    # ).getOrCreate()
 
     schema = StructType([
         StructField("short_col", ShortType(), True),
@@ -52,6 +33,7 @@ class TestDataTypeSparkBasic(FeatureStoreTestCase):
         FeatureDetail("long_col").with_feature_type(FeatureType.LONG).with_order_number(3),
         FeatureDetail("float_col").with_feature_type(FeatureType.FLOAT).with_order_number(4),
         FeatureDetail("double_col").with_feature_type(FeatureType.DOUBLE).with_order_number(5),
+        FeatureDetail("bool_col").with_feature_type(FeatureType.BOOLEAN).with_order_number(5),
         FeatureDetail("string_col").with_feature_type(FeatureType.STRING).with_order_number(6),
         FeatureDetail("byte_col").with_feature_type(FeatureType.BYTE).with_order_number(7),
         FeatureDetail("binary_col").with_feature_type(FeatureType.BINARY).with_order_number(8),
@@ -65,7 +47,7 @@ class TestDataTypeSparkBasic(FeatureStoreTestCase):
     ]
 
     spark = SparkSessionSingleton(FeatureStoreTestCase.METASTORE_ID).get_spark_session()
-    basic_df = spark.createDataFrame(data)
+    basic_df = spark.createDataFrame(data,schema)
 
     def define_feature_group_resource_with_spark_basic_infer_schema(
             self, entity_id, feature_store_id
@@ -79,7 +61,6 @@ class TestDataTypeSparkBasic(FeatureStoreTestCase):
             .with_feature_store_id(feature_store_id)
             .with_primary_keys([])
             .with_schema_details_from_dataframe(self.basic_df)
-            .with_statistics_config(False)
         )
         return feature_group_spark_basic
 
@@ -100,7 +81,7 @@ class TestDataTypeSparkBasic(FeatureStoreTestCase):
         return feature_group_spark_basic_schema
 
     def test_feature_group_spark_datatypes_infer_schema(self):
-        """Test supported pandas data types"""
+        """Test supported spark data types"""
         fs = self.define_feature_store_resource().create()
         assert fs.oci_fs.id
 
@@ -123,7 +104,7 @@ class TestDataTypeSparkBasic(FeatureStoreTestCase):
         self.clean_up_feature_store(fs)
 
     def test_feature_group_spark_datatypes_with_schema(self):
-        """Test supported pandas data types"""
+        """Test supported spark data types"""
         fs = self.define_feature_store_resource().create()
         assert fs.oci_fs.id
 
