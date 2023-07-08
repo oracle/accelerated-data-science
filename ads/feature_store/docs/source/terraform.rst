@@ -82,11 +82,53 @@ Prerequisites
 
 1. Install `oci-cli <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/cliconcepts.htm>`__ if not installed
 
-2. Download the stack from ``Terraform Stack`` column in :ref:`Release Notes`.
+Steps
+#####
 
-3. (Optional: Skip if default deployment is required) To use this file just copy the example ``terraform.tfvars.example`` and save it in the outermost directory.
+.. note::
 
-4. (Optional: Skip if default deployment is required) Next, rename the file to ``terraform.tfvars``. You can override the example values set in this file.
+  Refer :ref:`Release Notes` for getting the latest conda pack and ``SERVICE_VERSION``. Remember to replace the values within angle brackets ("<>" symbols) in the command above with the relevant values for your environment. Also, Refer :ref:`User Policies` to create feature store stack for non admin users. No policies are explicitly required for admin user.
+
+1. Run the shell command.
+  ..  code-block:: shell
+
+    rm -f feature-store-terraform.zip \
+    && wget https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip \
+    && oci resource-manager stack create \
+        --compartment-id <compartment-id> \
+        --config-source <path-to-downloaded-zip-file> \
+        --terraform-version 1.1.x \
+        --variables '{
+            "service_version": "<SERVICE_VERSION>",
+            "tenancy_ocid": "<TENANCY_OCID>",
+            "compartment_ocid": "<COMPARTMENT_OCID>",
+            "region": "<REGION>",
+            "user_ocid": "<USER_OCID>"
+        }' \
+        --display-name "Feature Store Stack" \
+        --working-directory "feature-store-terraform" \
+    | tee stack_output.json \
+    && stack_id=$(jq -r '.data."id"' stack_output.json) \
+    && oci resource-manager job create-apply-job \
+        --execution-plan-strategy AUTO_APPROVED \
+        --stack-id $stack_id \
+        --wait-for-state SUCCEEDED \
+        --wait-for-state FAILED
+
+Update Feature Store Stack with the Latest using OCI CLI
+==============================
+
+Prerequisites
+#############
+
+1. Install `oci-cli <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/cliconcepts.htm>`__ if not installed
+2. In order to update the stack, get the <STACK_ID> from console by navigating to `OCI Resource Manager <https://www.oracle.com/devops/resource-manager/>`__.
+
+.. figure:: figures/resource_manager.png
+
+.. figure:: figures/resource_manager_home.png
+
+.. figure:: figures/resource_manager_feature_store_stack.png
 
 
 Steps
@@ -96,33 +138,20 @@ Steps
 
   Refer :ref:`Release Notes` for getting the latest conda pack and ``SERVICE_VERSION``. Remember to replace the values within angle brackets ("<>" symbols) in the command above with the relevant values for your environment. Also, Refer :ref:`User Policies` to create feature store stack for non admin users. No policies are explicitly required for admin user.
 
-
-1. Download the stack from ``Terraform Stack`` column in :ref:`Release Notes`.
-
-2. Run the shell command.
+1. Run the shell command.
   ..  code-block:: shell
 
-    oci resource-manager stack create \
-      --compartment-id <compartment-id> \
-      --config-source <path-to-downloaded-zip-file> \
-      --terraform-version 1.1.x \
-      --variables '{
-        "service_version": "<SERVICE_VERSION>",
-        "tenancy_ocid": "<TENANCY_OCID>",
-        "compartment_ocid": "<COMPARTMENT_OCID>",
-        "region": "<REGION>",
-        "user_ocid": "<USER_OCID>"
-      }' \
-      --display-name "Feature Store Stack" \
-      --working-directory "feature-store-terraform" \
-      | tee stack_output.json \
-      && stack_id=$(jq -r '.data."id"' stack_output.json) \
-      && oci resource-manager job create-apply-job \
+    rm -f feature-store-terraform.zip \
+    && wget https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip \
+    && oci resource-manager stack update \
+        --stack-id <STACK_ID> \
+        --variables '{"service_version": "<SERVICE_VERSION>", "tenancy_ocid": "<TENANCY_OCID>", "compartment_ocid": "<COMPARTMENT_OCID>", "region": "<REGION>", "user_ocid": "<USER_OCID>"}' \
+        --config-source "feature-store-terraform.zip" \
+        --working-directory "feature-store-terraform" --force \
+    && oci resource-manager job create-apply-job \
         --execution-plan-strategy AUTO_APPROVED \
-        --stack-id $stack_id \
-        --wait-for-state SUCCEEDED \
-        --wait-for-state FAILED
-
+        --stack-id <STACK_ID> \
+        --wait-for-state SUCCEEDED --wait-for-state FAILED
 
 Terraform Variables (Advanced)
 ===============================
