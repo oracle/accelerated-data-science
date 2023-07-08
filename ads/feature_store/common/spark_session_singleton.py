@@ -11,6 +11,7 @@ from ads.common.decorator.runtime_dependency import OptionalDependency
 import os
 
 from ads.common.oci_client import OCIClientFactory
+from ads.feature_store.common.utils.utility import get_env_bool
 
 try:
     from delta import configure_spark_with_delta_pip
@@ -33,7 +34,7 @@ except Exception as e:
 
 
 def developer_enabled():
-    return os.getenv("DEVELOPER_MODE")
+    return get_env_bool("DEVELOPER_MODE", False)
 
 
 class SingletonMeta(type):
