@@ -292,7 +292,7 @@ class SparkExecutionEngine(Strategy):
 
         output_details = {
             "error_details": error_details,
-            "validation_output": str(validation_output),
+            "validation_output": str(validation_output) if validation_output else None,
             "commit_id": "commit_id",
             "feature_statistics": feature_statistics,
         }
@@ -427,7 +427,7 @@ class SparkExecutionEngine(Strategy):
 
         output_details = {
             "error_details": error_details,
-            "validation_output": str(validation_output),
+            "validation_output": str(validation_output) if validation_output else None,
             "commit_id": "commit_id",
             "feature_statistics": feature_statistics,
         }

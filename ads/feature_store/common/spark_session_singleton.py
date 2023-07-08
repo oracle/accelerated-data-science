@@ -10,7 +10,6 @@ import ads
 from ads.common.decorator.runtime_dependency import OptionalDependency
 import os
 from ads.common.oci_client import OCIClientFactory
-from ads.feature_store.common.utils.utility import get_env_bool
 
 try:
     from delta import configure_spark_with_delta_pip
@@ -87,6 +86,7 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
         )
 
         if not developer_enabled() and metastore_id:
+            print("Developer not  Enabled")
             # Get the authentication credentials for the OCI data catalog service
             auth = copy.copy(ads.auth.default_signer())
 
@@ -105,6 +105,7 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
             )
 
         if developer_enabled():
+            print("developer_enabled")
             # Configure spark session with delta jars only in developer mode. In other cases,
             # jars should be part of the conda pack
             self.spark_session = configure_spark_with_delta_pip(
