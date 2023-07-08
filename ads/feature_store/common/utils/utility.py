@@ -63,26 +63,6 @@ def get_execution_engine_type(
         else ExecutionEngine.SPARK
     )
 
-def get_env_bool(env_var: str, default: bool = False) -> bool:
-    """
-    :param env_var: Environment variable name
-    :param default: Default environment variable value
-    :return: Value of the boolean env variable
-    """
-    env_val = os.getenv(env_var)
-    if env_val is None:
-        env_val = default
-    else:
-        env_val = env_val.lower()
-        if env_val == "true":
-            env_val = True
-        elif env_val == "false":
-            env_val = False
-        else:
-            raise ValueError("For environment variable: {0} only string values T/true or F/false are allowed but: \
-                {1} was provided.".format(env_var, env_val))
-    return env_val
-
 def get_metastore_id(feature_store_id: str):
     """
     Retrieves the metastore ID for a given feature store ID.
