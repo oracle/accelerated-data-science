@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
+import json
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -8,7 +9,11 @@ import logging
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
-from ads.feature_store.common.utils.utility import get_features
+from ads.feature_store.common.utils.utility import (
+    get_features,
+    show_ingestion_summary,
+    show_validation_summary,
+)
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 
 try:
@@ -25,6 +30,7 @@ from ads.feature_store.common.enums import (
     FeatureStoreJobType,
     LifecycleState,
     EntityType,
+    ExpectationType,
 )
 from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
 from ads.feature_store.common.utils.transformation_utils import TransformationUtils
@@ -145,6 +151,36 @@ class SparkExecutionEngine(Strategy):
                 output_details=output_details,
             )
 
+    @staticmethod
+    def _validate_expectation(expectation_type, validation_output):
+        """
+        Validates the expectation based on the given expectation type and the validation output.
+
+        Args:
+            expectation_type (str): The type of expectation to validate (e.g., "STRICT", "LENIENT").
+            validation_output (dict): The output of the validation containing success status and statistics.
+
+        Raises:
+            Exception: If the expectation fails in strict mode, raises an exception with an error message.
+
+        Warnings:
+            If the expectation fails in lenient mode, logs a warning message.
+
+        """
+
+        error_message = None
+        ingestion_status = "Ingestion in progress"
+
+        if not validation_output["success"]:
+            if expectation_type == ExpectationType.STRICT.value:
+                error_message = f"Expectation failed with Insufficient Success Rate, Aborting ingestion"
+                ingestion_status = "Insufficient Success Rate, Aborting ingestion"
+
+        show_validation_summary(ingestion_status, validation_output, expectation_type)
+
+        if error_message:
+            raise Exception(error_message)
+
     def _save_offline_dataframe(
         self, data_frame, feature_group, feature_group_job: FeatureGroupJob
     ):
@@ -182,12 +218,22 @@ class SparkExecutionEngine(Strategy):
 
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 
-            # Apply validations
-            validation_output = ExpectationService.apply_validations(
-                expectation_details=feature_group.expectation_details,
-                expectation_suite_name=feature_group.name,
-                dataframe=data_frame,
-            )
+            if feature_group.expectation_details:
+                expectation_type = feature_group.expectation_details["expectationType"]
+                logger.info(f"Validation expectation type: {expectation_type}")
+
+                # Apply validations
+                validation_output = ExpectationService.apply_validations(
+                    expectation_details=feature_group.expectation_details,
+                    expectation_suite_name=feature_group.name,
+                    dataframe=data_frame,
+                )
+
+                if validation_output:
+                    self._validate_expectation(
+                        expectation_type=expectation_type,
+                        validation_output=validation_output,
+                    )
 
             # Apply the transformation
             if feature_group.transformation_id:
@@ -238,9 +284,15 @@ class SparkExecutionEngine(Strategy):
                 f"FeatureGroup Materialization Failed with : {type(ex)} with error message: {ex}"
             )
 
+        show_ingestion_summary(
+            entity_id=feature_group.id,
+            entity_type=EntityType.FEATURE_GROUP,
+            error_details=error_details,
+        )
+
         output_details = {
             "error_details": error_details,
-            "validation_output": validation_output,
+            "validation_output": str(validation_output),
             "commit_id": "commit_id",
             "feature_statistics": feature_statistics,
         }
@@ -323,12 +375,22 @@ class SparkExecutionEngine(Strategy):
             # Execute the SQL query on the spark and load the dataframe.
             dataset_dataframe = self.spark_engine.sql(dataset.query)
 
-            # Apply validations
-            validation_output = ExpectationService.apply_validations(
-                expectation_details=dataset.expectation_details,
-                expectation_suite_name=dataset.name,
-                dataframe=dataset_dataframe,
-            )
+            if dataset.expectation_details:
+                expectation_type = dataset.expectation_details["expectationType"]
+                logger.info(f"Validation expectation type: {expectation_type}")
+
+                # Apply validations
+                validation_output = ExpectationService.apply_validations(
+                    expectation_details=dataset.expectation_details,
+                    expectation_suite_name=dataset.name,
+                    dataframe=dataset_dataframe,
+                )
+
+                if validation_output:
+                    self._validate_expectation(
+                        expectation_type=expectation_type,
+                        validation_output=validation_output,
+                    )
 
             self.delta_lake_service.save_delta_dataframe(
                 dataset_dataframe,
@@ -357,9 +419,15 @@ class SparkExecutionEngine(Strategy):
                 f"Dataset Materialization Failed with : {type(ex)} with error message: {ex}"
             )
 
+        show_ingestion_summary(
+            entity_id=dataset.id,
+            entity_type=EntityType.DATASET,
+            error_details=error_details,
+        )
+
         output_details = {
             "error_details": error_details,
-            "validation_output": validation_output,
+            "validation_output": str(validation_output),
             "commit_id": "commit_id",
             "feature_statistics": feature_statistics,
         }
