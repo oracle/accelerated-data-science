@@ -18,7 +18,7 @@ Release Notes
         - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
         -
       * - SERVICE_VERSION
-        - 0.1.212.master
+        - 0.1.218.master
         -
       * - Terraform Stack
         - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__
@@ -28,7 +28,9 @@ Release Notes
 Release notes: July 5, 2023
 
 * [FEATURE] Supporting Offline Feature Type COMPLEX
-* [FEATURE] Added k8 default version as v1.26.2
+* [FEATURE] Added k8 default version as v1.25.4
+* [FEATURE] Improvements in logging during materialisation of feature group and dataset and showcasing validation results during materialisation
+* [FIX] Fixed creation of singleton spark session without metastore id
 * [DOCS] Data Type update for Offline Feature Type COMPLEX
 * [DOCS] Updated terraform default version as 1.1.x
 

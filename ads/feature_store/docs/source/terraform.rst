@@ -165,10 +165,10 @@ A complete listing of the Terraform variables used in this stack are referenced 
      - Value
      - Description
    * - `service_version`
-     - `0.1-master.26`
+     - `0.1.218.master`
      - The version of API to be deployed in customer tenancy.
    * - `spec_version`
-     - `0.1-master.26`
+     - `0.1.218.master`
      - The version of API specs to be deployed in customer tenancy.
    * - `deployment_name`
      - `DEFAULT_NAME`
