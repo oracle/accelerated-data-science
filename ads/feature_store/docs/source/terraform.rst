@@ -6,10 +6,6 @@ Oracle feature store is a stack based solution that is deployed in the customer 
 Customer can stand up the service with infrastructure in their own tenancy. The service consists of API in customer
 tenancy using resource manager.
 
-.. note::
-
-    Please contact #oci-feature-store_early-preview for getting your tenancy whitelisted for early access of feature store.
-
 Below is the terraform stack deployment diagram of the feature store resources.
 
 .. figure:: figures/feature_store_deployment.png
