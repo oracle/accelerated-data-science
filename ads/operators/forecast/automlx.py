@@ -4,37 +4,25 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import logging
-import sys
-import traceback
 
 import datapane as dp
 import numpy as np
 import pandas as pd
 from sktime.forecasting.model_selection import temporal_train_test_split
+
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.operators.forecast.utils import load_data_dict, _write_data
+from ads.operators.forecast.utils import logger
 
-logger = logging.getLogger(__name__)
-handler = logging.StreamHandler(sys.stdout)
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
-
-
-def operate(operator):
-    try:
-        import automl
-        from automl import init
-    except Exception as ex:
-        print(
-            "Please run `pip3 install \
+# TODO: ODSC-44785 Fix the following message, before GA.
+error_message = "Please run `pip3 install \
             --extra-index-url=https://artifacthub-phx.oci.oraclecorp.com/artifactory/api/pypi/automlx-pypi/simple \
             automlx==23.2.1` to install the required dependencies for automlx."
-        )
-        logger.debug(ex)
-        logger.debug(traceback.format_exc())
-        exit()
+
+
+@runtime_dependency(module="automl", err_msg=error_message)
+def operate(operator):
+    from automl import init
     operator = load_data_dict(operator)
     full_data_dict = operator.full_data_dict
     models = dict()
@@ -45,7 +33,7 @@ def operate(operator):
     date_column = operator.datetime_column['name']
     horizon = operator.horizon["periods"]
     for i, (target, df) in enumerate(full_data_dict.items()):
-        print("Running automl for {} at position {}".format(target, i))
+        logger.info("Running automl for {} at position {}".format(target, i))
         series_values = df[df[target].notna()]
         # drop NaNs for the time period where data wasn't recorded
         series_values.dropna(inplace=True)
@@ -58,11 +46,11 @@ def operate(operator):
         else:
             y_train = df
             forecast_x = None
-        print("Time Index is", "" if y_train.index.is_monotonic else "NOT", "monotonic.")
+        logger.info("Time Index is", "" if y_train.index.is_monotonic else "NOT", "monotonic.")
         model = automl.Pipeline(task='forecasting', n_algos_tuned=n_algos_tuned)
         model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
-        print('Selected model: {}'.format(model.selected_model_))
-        print('Selected model params: {}'.format(model.selected_model_params_))
+        logger.info('Selected model: {}'.format(model.selected_model_))
+        logger.info('Selected model params: {}'.format(model.selected_model_params_))
         summary_frame = model.forecast(X=forecast_x, periods=horizon,
                                        alpha=1 - (operator.confidence_interval_width / 100))
         # Collect Outputs
@@ -79,7 +67,7 @@ def operate(operator):
         outputs[target] = summary_frame
         outputs_legacy.append(summary_frame)
 
-    print("===========Done===========")
+    logger.info("===========Forecast Generated===========")
     outputs_merged = pd.DataFrame()
 
     # Merge the outputs from each model into 1 df with all outputs by target and category
