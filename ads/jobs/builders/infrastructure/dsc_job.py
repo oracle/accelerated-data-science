@@ -35,7 +35,11 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager, OCIObjectStorage
+from ads.common.dsc_file_system import (
+    OCIFileStorage,
+    DSCFileSystemManager,
+    OCIObjectStorage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1454,11 +1458,14 @@ class DataScienceJob(Infrastructure):
             if value:
                 dsc_job.job_infrastructure_configuration_details[camel_attr] = value
 
-        if (
-            not dsc_job.job_infrastructure_configuration_details.get("shapeName", "").endswith("Flex")
-            and dsc_job.job_infrastructure_configuration_details.get("jobShapeConfigDetails")
+        if not dsc_job.job_infrastructure_configuration_details.get(
+            "shapeName", ""
+        ).endswith("Flex") and dsc_job.job_infrastructure_configuration_details.get(
+            "jobShapeConfigDetails"
         ):
-            raise ValueError("Shape config is not required for non flex shape from user end.")
+            raise ValueError(
+                "Shape config is not required for non flex shape from user end."
+            )
 
         if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
             dsc_job.job_infrastructure_configuration_details[
@@ -1495,7 +1502,10 @@ class DataScienceJob(Infrastructure):
             self.build()
             .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
             .with_project_id(self.project_id or "{Provide a project OCID}")
-            .with_subnet_id(self.subnet_id or "{Provide a subnet OCID or remove this field if you use a default networking}")
+            .with_subnet_id(
+                self.subnet_id
+                or "{Provide a subnet OCID or remove this field if you use a default networking}"
+            )
         )
 
     def create(self, runtime, **kwargs) -> DataScienceJob:
@@ -1552,7 +1562,7 @@ class DataScienceJob(Infrastructure):
         freeform_tags=None,
         defined_tags=None,
         wait=False,
-        **kwargs
+        **kwargs,
     ) -> DataScienceJobRun:
         """Runs a job on OCI Data Science job
 
@@ -1610,8 +1620,11 @@ class DataScienceJob(Infrastructure):
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
             wait=wait,
-            **kwargs
+            **kwargs,
         )
+        # A Runtime class may define customized run() method.
+        # Use the customized method if the run() method is defined by the runtime.
+        # Otherwise, use the default run() method defined in this class.
         if hasattr(self.runtime, "run"):
             return self.runtime.run(self.dsc_job, **kwargs)
         return self.dsc_job.run(**kwargs)
