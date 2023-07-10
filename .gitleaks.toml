@@ -9,11 +9,13 @@ useDefault = true
 # Paths listed in allowlist will not be scanned.
 [allowlist]
     description = "Global allow list"
-    stopwords = ["test_password", "sample_key"]
     regexes = [
         '''example-password''',
         '''this-is-not-the-secret''',
-        '''<redacted>'''
+        '''<redacted>''',
+        # NVIDIA_GPGKEY_SUM from public documentation:
+        # https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/10.1/centos7/base/Dockerfile
+        '''d0664fbbdb8c32356d45de36c5984617217b2d0bef41b93ccecd326ba3b80c87'''
     ]
     paths = [
         '''tests/integration/tests_configs.yaml'''
