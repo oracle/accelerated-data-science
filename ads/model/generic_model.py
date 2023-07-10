@@ -2110,51 +2110,55 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         max_wait_time = kwargs.pop("max_wait_time", DEFAULT_WAIT_TIME)
         poll_interval = kwargs.pop("poll_interval", DEFAULT_POLL_INTERVAL)
 
+        # GenericModel itself has a ModelDeployment instance. When calling deploy(),
+        # if there are parameters passed in they will override this ModelDeployment instance,
+        # otherwise the properties of the ModelDeployment instance will be applied for deployment.
         existing_infrastructure = self.model_deployment.infrastructure
         existing_runtime = self.model_deployment.runtime
-        properties = {
-            "compartment_id": existing_infrastructure.compartment_id
+        property_dict = ModelProperties(
+            compartment_id = existing_infrastructure.compartment_id
             or self.properties.compartment_id
             or _COMPARTMENT_OCID,
-            "project_id": existing_infrastructure.project_id
+            project_id = existing_infrastructure.project_id
             or self.properties.project_id
             or PROJECT_OCID,
-            "deployment_instance_shape": existing_infrastructure.shape_name
+            deployment_instance_shape = existing_infrastructure.shape_name
             or self.properties.deployment_instance_shape
             or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
-            "deployment_instance_count": existing_infrastructure.replica
+            deployment_instance_count = existing_infrastructure.replica
             or self.properties.deployment_instance_count
             or MODEL_DEPLOYMENT_INSTANCE_COUNT,
-            "deployment_bandwidth_mbps": existing_infrastructure.bandwidth_mbps
+            deployment_bandwidth_mbps = existing_infrastructure.bandwidth_mbps
             or self.properties.deployment_bandwidth_mbps
             or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
-            "deployment_ocpus": existing_infrastructure.shape_config_details.get(
+            deployment_ocpus = existing_infrastructure.shape_config_details.get(
                 "ocpus", None
             )
             or self.properties.deployment_ocpus
             or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
-            "deployment_memory_in_gbs": existing_infrastructure.shape_config_details.get(
+            deployment_memory_in_gbs = existing_infrastructure.shape_config_details.get(
                 "memory_in_gbs", None
             )
             or self.properties.deployment_memory_in_gbs
             or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
-            "deployment_log_group_id": existing_infrastructure.log_group_id
+            deployment_log_group_id = existing_infrastructure.log_group_id
             or self.properties.deployment_log_group_id,
-            "deployment_access_log_id": existing_infrastructure.access_log.get(
+            deployment_access_log_id = existing_infrastructure.access_log.get(
                 "log_id", None
             )
             or self.properties.deployment_access_log_id,
-            "deployment_predict_log_id": existing_infrastructure.predict_log.get(
+            deployment_predict_log_id = existing_infrastructure.predict_log.get(
                 "log_id", None
             )
             or self.properties.deployment_predict_log_id,
-            "deployment_image": existing_runtime.image
+            deployment_image = existing_runtime.image
             or self.properties.deployment_image,
-            "deployment_instance_subnet_id": existing_infrastructure.subnet_id
+            deployment_instance_subnet_id = existing_infrastructure.subnet_id
             or self.properties.deployment_instance_subnet_id
-        }
-        properties.update(override_properties)
-        self.properties.with_dict(properties)
+        ).to_dict()
+
+        property_dict.update(override_properties)
+        self.properties.with_dict(property_dict)
 
         if not self.model_id:
             raise ValueError(
