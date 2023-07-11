@@ -1054,33 +1054,6 @@ def open(
     dataset : An instance of ADSDataset
     (or)
     dataset_with_target : An instance of ADSDatasetWithTarget
-
-    Examples
-    --------
-    >>> ds = DatasetFactory.open("/path/to/data.data", format='csv', delimiter=" ",
-    ...          na_values="n/a", skipinitialspace=True)
-
-    >>> ds = DatasetFactory.open("/path/to/data.csv", target="col_1", prefix="col_",
-    ...           skiprows=1, encoding="ISO-8859-1")
-
-    >>> ds = DatasetFactory.open("oci://bucket@namespace/path/to/data.tsv",
-    ...         column_names=["col1", "col2", "col3"], header=0)
-
-    >>> ds = DatasetFactory.open("oci://bucket@namespace/path/to/data.csv",
-    ...         storage_options={"config": "~/.oci/config",
-    ...         "profile": "USER_2"}, delimiter = ';')
-
-    >>> ds = DatasetFactory.open("/path/to/data.parquet", engine='pyarrow',
-    ...         types={"col1": "ordinal",
-    ...                "col2": "categorical",
-    ...                "col3" : "continuous",
-    ...                "col4" : "float64"})
-
-    >>> ds = DatasetFactory.open(df, target="class", sample_max_rows=5000,
-    ...          positive_class="yes")
-
-    >>> ds = DatasetFactory.open("s3://path/to/data.json.gz", format="json",
-    ...         compression="gzip", orient="records")
     """
     if npartitions:
         warnings.warn(
