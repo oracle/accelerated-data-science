@@ -31,6 +31,8 @@ from ads.dataset.helper import (
     DatasetDefaults,
     deprecate_default_value,
     deprecate_variable,
+    get_dataset,
+    infer_target_type,
 )
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.dataset.pipeline import TransformerPipeline
@@ -223,7 +225,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("classfication_data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("classfication_data.csv"))
         >>> ds.head()
         * displays the first 5 rows of the dataset, just as the traditional head() function would *
         """
@@ -298,7 +301,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("classfication_data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("classfication_data.csv"))
         >>> def f1(df):
         ...  return(sum(df), axis=0)
         >>> sum_ds = ds.call(f1)
@@ -340,20 +344,19 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("classfication_data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("classfication_data.csv"))
         >>> ds_with_target= ds.set_target("target_class")
         """
-        from ads.dataset.factory import DatasetFactory
-
         if target_type:
             target_series = self.sampled_df[target].astype(target_type)
         else:
             target_series = self.sampled_df[target]
-        return DatasetFactory._get_dataset(
+        return get_dataset(
             self.df,
             self.sampled_df,
             target,
-            DatasetFactory.infer_target_type(target, target_series, type_discovery),
+            infer_target_type(target, target_series, type_discovery),
             self.shape,
             **self.init_kwargs,
         )
@@ -396,7 +399,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_as_df = ds.to_pandas()
 
         Notes
@@ -462,7 +466,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_dask = ds.to_dask()
 
         Notes
@@ -521,7 +526,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_as_h2o = ds.to_h2o()
 
         Notes
@@ -578,7 +584,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> xgb_dmat = ds.to_xgb()
 
         Notes
@@ -617,7 +624,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_sample = ds.sample()
         """
         df = self.df.sample(frac=frac, random_state=random_state)
@@ -644,7 +652,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_smaller = ds.drop_columns(['col1', 'col2'])
         """
         self._validate_feature(columns)
@@ -671,7 +680,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_same_size = ds.assign_column('target',lambda x:  x>15 if x not None)
         >>> ds_bigger = ds.assign_column('new_col', np.arange(ds.shape[0]))
         """
@@ -746,7 +756,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_renamed = ds.rename_columns({'col1': 'target'})
         """
         if isinstance(columns, list):
@@ -770,7 +781,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data1.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data1.csv"))
         >>> ds_renamed = ds.set_name("dataset1")
         """
         self.name = name
@@ -788,7 +800,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data1.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data1.csv"))
         >>> ds_renamed = ds.set_description("dataset1 is from "data1.csv"")
         """
         self.description = description
@@ -821,7 +834,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_uri = ds.snapshot()
         """
         if snapshot_dir is None:
@@ -873,7 +887,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> [ds_link] = ds.to_csv("my/path.csv")
         """
         if storage_options is None:
@@ -900,7 +915,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds.to_parquet("my/path")
         """
         if storage_options is None:
@@ -927,7 +943,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds.to_json("my/path.json")
         """
         if storage_options is None:
@@ -962,7 +979,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds.to_hdf(path="my/path.h5", key="df")
         """
         if storage_options is None:
@@ -1035,7 +1053,13 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.avro")
+        >>> import pandas
+        >>> import fastavro
+        >>> with open("data.avro", "rb") as fp:
+        >>>     reader = fastavro.reader(fp)
+        >>>     records = [r for r in reader]
+        >>>     df = pandas.DataFrame.from_records(records)
+        >>> ds = ADSDataset.from_dataframe(df)
         >>> ds.to_avro("my/path.avro")
         """
         # Get the row by row formatting
@@ -1101,7 +1125,8 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds = DatasetFactory.open("data.csv")
+        >>> import pandas as pd
+        >>> ds = ADSDataset.from_dataframe(pd.read_csv("data.csv"))
         >>> ds_reformatted = ds.astype({"target": "categorical"})
         """
         return self.__getattr__("astype")(helper.map_types(types))
@@ -1119,8 +1144,10 @@ class ADSDataset(PandasDataset):
 
         Examples
         --------
-        >>> ds1 = DatasetFactory.open("data1.csv")
-        >>> ds2 = DatasetFactory.open("data2.csv")
+        >>> import pandas as pd
+        >>> df1 = pd.read_csv("data1.csv")
+        >>> df2 = pd.read_csv("data2.csv")
+        >>> ds = ADSDataset.from_dataframe(df1.merge(df2))
         >>> ds_12 = ds1.merge(ds2)
         """
         assert isinstance(data, pd.DataFrame) or isinstance(
@@ -1275,9 +1302,8 @@ class ADSDataset(PandasDataset):
             if progress:
                 progress.update("Building new dataset")
             target_type = self.target.type if target_type is None else target_type
-            from ads.dataset.factory import DatasetFactory
 
-            new_ds = DatasetFactory._get_dataset(
+            new_ds = get_dataset(
                 df,
                 sampled_df,
                 target,
