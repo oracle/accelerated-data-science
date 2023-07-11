@@ -250,11 +250,8 @@ class FeatureStoreRegistrar:
             transformation.compartment_id = (
                 transformation.compartment_id or self._root_compartment_id
             )
-            if transformation.source_code_function:
-                # to encode to base64
-                transformation.source_code_function = (
-                    transformation.source_code_function
-                )
+            # to encode to base64
+            transformation.source_code_function = transformation.source_code_function
         return self._transformations.create_models(self._progress)
 
     def _create_feature_groups(self) -> List[FeatureGroup]:

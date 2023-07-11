@@ -9,7 +9,6 @@ import ads
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 import os
-
 from ads.common.oci_client import OCIClientFactory
 
 try:
@@ -32,8 +31,33 @@ except Exception as e:
     raise
 
 
+def get_env_bool(env_var: str, default: bool = False) -> bool:
+    """
+    :param env_var: Environment variable name
+    :param default: Default environment variable value
+    :return: Value of the boolean env variable
+    """
+    env_val = os.getenv(env_var)
+    if env_val is None:
+        env_val = default
+    else:
+        env_val = env_val.lower()
+        if env_val == "true":
+            env_val = True
+        elif env_val == "false":
+            env_val = False
+        else:
+            raise ValueError(
+                "For environment variable: {0} only string values T/true or F/false are allowed but: \
+                {1} was provided.".format(
+                    env_var, env_val
+                )
+            )
+    return env_val
+
+
 def developer_enabled():
-    return os.getenv("DEVELOPER_MODE")
+    return get_env_bool("DEVELOPER_MODE", False)
 
 
 class SingletonMeta(type):
@@ -75,8 +99,9 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
                 "spark.hadoop.oracle.dcat.metastore.id", metastore_id
             ).config(
                 "spark.sql.warehouse.dir", metastore.default_managed_table_location
-            )\
-                .config("spark.driver.memory", "16G")
+            ).config(
+                "spark.driver.memory", "16G"
+            )
 
         if developer_enabled():
             # Configure spark session with delta jars only in developer mode. In other cases,
