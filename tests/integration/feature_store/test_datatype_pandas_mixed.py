@@ -7,16 +7,28 @@ import pytest
 
 
 class TestDataTypePandasMixed(FeatureStoreTestCase):
-    data_mixed = {'MixedColumn': ['John', 25, 'Emma', 30, 'Michael', 35]}
-    data_mixed_nan = {'MixedColumn': ['John', float('nan'), 'Emma', float('nan'), 'Michael', float('nan')]}
+    data_mixed = {"MixedColumn": ["John", 25, "Emma", 30, "Michael", 35]}
+    data_mixed_nan = {
+        "MixedColumn": [
+            "John",
+            float("nan"),
+            "Emma",
+            float("nan"),
+            "Michael",
+            float("nan"),
+        ]
+    }
     pandas_mixed_df = pd.DataFrame(data_mixed)
     pandas_mixed_df_nan = pd.DataFrame(data_mixed_nan)
 
     input_feature_details_mixed = [
-        FeatureDetail("MixedColumn").with_feature_type(FeatureType.STRING).with_order_number(1)]
+        FeatureDetail("MixedColumn")
+        .with_feature_type(FeatureType.STRING)
+        .with_order_number(1)
+    ]
 
     def define_feature_group_resource_with_pandas_mixed_infer_schema(
-            self, entity_id, feature_store_id
+        self, entity_id, feature_store_id
     ):
         feature_group_pandas_mixed = (
             FeatureGroup()
@@ -33,7 +45,7 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
         return feature_group_pandas_mixed
 
     def define_feature_group_resource_with_pandas_mixed_infer_schema_nan(
-            self, entity_id, feature_store_id
+        self, entity_id, feature_store_id
     ):
         feature_group_pandas_mixed_1 = (
             FeatureGroup()
@@ -50,7 +62,7 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
         return feature_group_pandas_mixed_1
 
     def define_feature_group_resource_with_pandas_mixed_with_schema(
-            self, entity_id, feature_store_id
+        self, entity_id, feature_store_id
     ) -> "FeatureGroup":
         feature_group_pandas_mixed_schema = (
             FeatureGroup()
@@ -73,12 +85,17 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
         entity = self.create_entity_resource(fs)
         assert entity.oci_fs_entity.id
         try:
-            feature_group = self.define_feature_group_resource_with_pandas_mixed_infer_schema(
-                entity.oci_fs_entity.id, fs.oci_fs.id
+            feature_group = (
+                self.define_feature_group_resource_with_pandas_mixed_infer_schema(
+                    entity.oci_fs_entity.id, fs.oci_fs.id
+                )
             )
         except TypeError as e:
-            assert e.__str__() == "field MixedColumn: Can not merge type <class 'pyspark.sql.types.StringType'> " \
-                                  "and <class 'pyspark.sql.types.LongType'>"
+            assert (
+                e.__str__()
+                == "field MixedColumn: Can not merge type <class 'pyspark.sql.types.StringType'> "
+                "and <class 'pyspark.sql.types.LongType'>"
+            )
         self.clean_up_entity(entity)
         self.clean_up_feature_store(fs)
 
@@ -89,8 +106,10 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
 
         entity = self.create_entity_resource(fs)
         assert entity.oci_fs_entity.id
-        feature_group = self.define_feature_group_resource_with_pandas_mixed_infer_schema_nan(
-            entity.oci_fs_entity.id, fs.oci_fs.id
+        feature_group = (
+            self.define_feature_group_resource_with_pandas_mixed_infer_schema_nan(
+                entity.oci_fs_entity.id, fs.oci_fs.id
+            )
         )
         feature_group.create()
         feature_group.materialise(self.pandas_mixed_df_nan)
@@ -109,8 +128,10 @@ class TestDataTypePandasMixed(FeatureStoreTestCase):
         entity = self.create_entity_resource(fs)
         assert entity.oci_fs_entity.id
 
-        feature_group = self.define_feature_group_resource_with_pandas_mixed_with_schema(
-            entity.oci_fs_entity.id, fs.oci_fs.id
+        feature_group = (
+            self.define_feature_group_resource_with_pandas_mixed_with_schema(
+                entity.oci_fs_entity.id, fs.oci_fs.id
+            )
         )
 
         feature_group.create()

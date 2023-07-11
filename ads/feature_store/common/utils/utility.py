@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
+import copy
+import os
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -41,6 +43,7 @@ import logging
 from ads.feature_engineering.feature_type import datetime
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def get_execution_engine_type(
@@ -117,6 +120,92 @@ def validate_delta_format_parameters(
             raise Exception(f"version number cannot be negative")
 
 
+def show_ingestion_summary(
+    entity_id: str,
+    entity_type: EntityType = EntityType.FEATURE_GROUP,
+    error_details: str = None,
+):
+    """
+    Displays a ingestion summary table with the given entity type and error details.
+
+    Args:
+        entity_id: str
+        entity_type (EntityType, optional): The type of entity being ingested. Defaults to EntityType.FEATURE_GROUP.
+        error_details (str, optional): Details of any errors that occurred during ingestion. Defaults to None.
+    """
+    from tabulate import tabulate
+
+    table_headers = ["entity_id", "entity_type", "ingestion_status", "error_details"]
+    ingestion_status = "Failed" if error_details else "Succeeded"
+
+    table_values = [
+        entity_id,
+        entity_type.value,
+        ingestion_status,
+        error_details if error_details else "None",
+    ]
+
+    logger.info(
+        "Ingestion Summary \n"
+        + tabulate(
+            [table_values],
+            headers=table_headers,
+            tablefmt="fancy_grid",
+            numalign="center",
+            stralign="center",
+        )
+    )
+
+
+def show_validation_summary(ingestion_status: str, validation_output, expectation_type):
+    from tabulate import tabulate
+
+    statistics = validation_output["statistics"]
+
+    table_headers = (
+        ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
+    )
+
+    table_values = [expectation_type] + list(statistics.values()) + [ingestion_status]
+
+    logger.info(
+        "Validation Summary \n"
+        + tabulate(
+            [table_values],
+            headers=table_headers,
+            tablefmt="fancy_grid",
+            numalign="center",
+            stralign="center",
+        )
+    )
+
+    rule_table_headers = ["rule_type", "arguments", "status"]
+
+    rule_table_values = [
+        [
+            rule_output["expectation_config"].get("expectation_type"),
+            {
+                key: value
+                for key, value in rule_output["expectation_config"]["kwargs"].items()
+                if key != "batch_id"
+            },
+            rule_output.get("success"),
+        ]
+        for rule_output in validation_output["results"]
+    ]
+
+    logger.info(
+        "Validations Rules Summary \n"
+        + tabulate(
+            rule_table_values,
+            headers=rule_table_headers,
+            tablefmt="fancy_grid",
+            numalign="center",
+            stralign="center",
+        )
+    )
+
+
 def get_features(
     output_columns: List[dict],
     parent_id: str,
@@ -154,8 +243,10 @@ def get_features(
     return features
 
 
-def get_schema_from_pandas_df(df: pd.DataFrame):
-    spark = SparkSessionSingleton().get_spark_session()
+def get_schema_from_pandas_df(df: pd.DataFrame, feature_store_id: str):
+    spark = SparkSessionSingleton(
+        get_metastore_id(feature_store_id)
+    ).get_spark_session()
     converted_df = spark.createDataFrame(df)
     return get_schema_from_spark_df(converted_df)
 
@@ -174,27 +265,29 @@ def get_schema_from_spark_df(df: DataFrame):
     return schema_details
 
 
-def get_schema_from_df(data_frame: Union[DataFrame, pd.DataFrame]) -> List[dict]:
+def get_schema_from_df(
+    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+) -> List[dict]:
     """
     Given a DataFrame, returns a list of dictionaries that describe its schema.
     If the DataFrame is a pandas DataFrame, it uses pandas methods to get the schema.
     If it's a PySpark DataFrame, it uses PySpark methods to get the schema.
     """
     if isinstance(data_frame, pd.DataFrame):
-        return get_schema_from_pandas_df(data_frame)
+        return get_schema_from_pandas_df(data_frame, feature_store_id)
     else:
         return get_schema_from_spark_df(data_frame)
 
 
 def get_input_features_from_df(
-    data_frame: Union[DataFrame, pd.DataFrame]
+    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[FeatureDetail]:
     """
     Given a DataFrame, returns a list of FeatureDetail objects that represent its input features.
     Each FeatureDetail object contains information about a single input feature, such as its name, data type, and
     whether it's categorical or numerical.
     """
-    schema_details = get_schema_from_df(data_frame)
+    schema_details = get_schema_from_df(data_frame, feature_store_id)
     feature_details = []
 
     for schema_detail in schema_details:
@@ -263,7 +356,7 @@ def largest_matching_subset_of_primary_keys(left_feature_group, right_feature_gr
 
 
 def convert_pandas_datatype_with_schema(
-        raw_feature_details: List[dict], input_df: pd.DataFrame
+    raw_feature_details: List[dict], input_df: pd.DataFrame
 ) -> pd.DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -280,13 +373,15 @@ def convert_pandas_datatype_with_schema(
                 .where(pd.notnull(input_df[column]), None)
             )
         else:
-            logger.warning("column" + column + "doesn't exist in the input feature details")
+            logger.warning(
+                "column" + column + "doesn't exist in the input feature details"
+            )
             columns_to_remove.append(column)
-    return input_df.drop(columns = columns_to_remove)
+    return input_df.drop(columns=columns_to_remove)
 
 
 def convert_spark_dataframe_with_schema(
-        raw_feature_details: List[dict], input_df: DataFrame
+    raw_feature_details: List[dict], input_df: DataFrame
 ) -> DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -294,7 +389,9 @@ def convert_spark_dataframe_with_schema(
         feature_detail_map[feature_details.get("name")] = feature_details
     for column in input_df.columns:
         if column not in feature_detail_map.keys():
-            logger.warning("column" + column + "doesn't exist in the input feature details")
+            logger.warning(
+                "column" + column + "doesn't exist in the input feature details"
+            )
             columns_to_remove.append(column)
 
     return input_df.drop(*columns_to_remove)
