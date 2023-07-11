@@ -1981,7 +1981,7 @@ class Pipeline(Builder):
             return self.data_science_pipeline.lifecycle_state
         return None
 
-    def init(self) -> "Pipeline":
+    def init(self, **kwargs) -> "Pipeline":
         """Initializes a starter specification for the Pipeline.
 
         Returns
@@ -1994,7 +1994,6 @@ class Pipeline(Builder):
             .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
             .with_project_id(self.project_id or "{Provide a project OCID}")
         )
-
 
 
 class DataSciencePipeline(OCIDataScienceMixin, oci.data_science.models.Pipeline):

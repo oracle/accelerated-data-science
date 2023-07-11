@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
-from ads.mloperator.common.utils import _load_yaml_from_uri
-from ads.mloperator.mloperator import MLOperator
+from ads.opctl.mloperator.common.utils import _load_yaml_from_uri
+from ads.opctl.mloperator.mloperator import MLOperator
 
 
 @dataclass(repr=True)
@@ -77,9 +77,8 @@ class ForecastOperatorSpec(DataClassSerializable):
 @dataclass(repr=True)
 class ForecastOperator(MLOperator):
     kind: str = "operator"
-    type: str = "service"
-    name: str = "forecast"
-    version: str = "v1.0"
+    type: str = "forecast"
+    version: str = "v1"
     spec: ForecastOperatorSpec = field(default_factory=ForecastOperatorSpec)
 
     @classmethod

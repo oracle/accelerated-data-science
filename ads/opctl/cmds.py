@@ -247,7 +247,7 @@ def run(config: Dict, backend_config: Dict, **kwargs) -> Dict:
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     elif config.get("kind", "").lower() == "operator":
-        from ads.mloperator import __operators__, OperatorNotFoundError
+        from ads.opctl.mloperator import __operators__, OperatorNotFoundError
 
         mode = (kwargs["backend"] or BACKEND_NAME.LOCAL.value).lower()
 
@@ -275,7 +275,7 @@ def run(config: Dict, backend_config: Dict, **kwargs) -> Dict:
                 [
                     "python",
                     "-m",
-                    f"ads.mloperator.lowcode.{operator_name}",
+                    f"ads.opctl.mloperator.lowcode.{operator_name}",
                     "-s",
                     yaml.dump(config, allow_unicode=True),
                 ]

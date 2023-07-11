@@ -116,7 +116,7 @@ class CondaRuntime(Runtime):
             conda_spec[self.CONST_CONDA_REGION] = region
         return self.set_spec(self.CONST_CONDA, conda_spec)
 
-    def init(self) -> "CondaRuntime":
+    def init(self, **kwargs) -> "CondaRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -124,7 +124,7 @@ class CondaRuntime(Runtime):
         CondaRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
         return self.with_custom_conda(
             "{Path to the custom conda environment. "
             "Example: oci://your_bucket@namespace/object_name"
@@ -246,7 +246,7 @@ class ScriptRuntime(CondaRuntime):
         """
         return self.set_spec(self.CONST_ENTRYPOINT, entrypoint)
 
-    def init(self) -> "ScriptRuntime":
+    def init(self, **kwargs) -> "ScriptRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -254,7 +254,7 @@ class ScriptRuntime(CondaRuntime):
         ScriptRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
         return (
             self.with_entrypoint(
                 "{Entrypoint script. For MLflow, it will be replaced with the CMD}"
@@ -435,7 +435,7 @@ class PythonRuntime(ScriptRuntime, _PythonRuntimeMixin):
     attribute_map.update(ScriptRuntime.attribute_map)
     attribute_map.update(_PythonRuntimeMixin.attribute_map)
 
-    def init(self) -> "PythonRuntime":
+    def init(self, **kwargs) -> "PythonRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -443,7 +443,7 @@ class PythonRuntime(ScriptRuntime, _PythonRuntimeMixin):
         PythonRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
         return (
             self.with_working_dir("{For MLflow the project folder will be used.}")
             .with_entrypoint(
@@ -623,7 +623,7 @@ class NotebookRuntime(CondaRuntime):
         """The path of the notebook relative to the source."""
         return self.get_spec(self.CONST_ENTRYPOINT)
 
-    def init(self) -> "NotebookRuntime":
+    def init(self, **kwargs) -> "NotebookRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -631,7 +631,7 @@ class NotebookRuntime(CondaRuntime):
         NotebookRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
         return self.with_source(
             uri="{Path to the source code directory. For MLflow, it will be replaced with the path to the project}",
             notebook="{Entrypoint notebook. For MLflow, it will be replaced with the CMD}",
@@ -744,7 +744,7 @@ class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
         """The OCID of the OCI Vault secret storing the Git SSH key."""
         return self.get_spec(self.CONST_GIT_SSH_SECRET_ID)
 
-    def init(self) -> "GitPythonRuntime":
+    def init(self, **kwargs) -> "GitPythonRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -752,7 +752,7 @@ class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
         GitPythonRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
         return self.with_source(
             "{Git URI. For MLflow, it will be replaced with the Project URI}"
         ).with_entrypoint(
@@ -967,7 +967,7 @@ class DataFlowRuntime(CondaRuntime):
     def convert(self, **kwargs):
         pass
 
-    def init(self) -> "DataFlowRuntime":
+    def init(self, **kwargs) -> "DataFlowRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -975,7 +975,7 @@ class DataFlowRuntime(CondaRuntime):
         DataFlowRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
         self._spec.pop(self.CONST_ENV_VAR, None)
         return (
             self.with_script_uri(

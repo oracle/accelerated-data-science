@@ -11,14 +11,13 @@ from dataclasses import dataclass
 from typing import Any, Dict
 
 from ads.common.serializer import DataClassSerializable
-from ads.mloperator.common.utils import OperatorValidator
+from .common.utils import OperatorValidator
 
 
 @dataclass(repr=True)
 class MLOperator(DataClassSerializable):
     kind: str = "operator"
     type: str = None
-    name: str = None
     version: str = None
     spec: Any = None
 

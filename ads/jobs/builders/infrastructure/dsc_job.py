@@ -35,7 +35,11 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager, OCIObjectStorage
+from ads.common.dsc_file_system import (
+    OCIFileStorage,
+    DSCFileSystemManager,
+    OCIObjectStorage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -1454,11 +1458,14 @@ class DataScienceJob(Infrastructure):
             if value:
                 dsc_job.job_infrastructure_configuration_details[camel_attr] = value
 
-        if (
-            not dsc_job.job_infrastructure_configuration_details.get("shapeName", "").endswith("Flex")
-            and dsc_job.job_infrastructure_configuration_details.get("jobShapeConfigDetails")
+        if not dsc_job.job_infrastructure_configuration_details.get(
+            "shapeName", ""
+        ).endswith("Flex") and dsc_job.job_infrastructure_configuration_details.get(
+            "jobShapeConfigDetails"
         ):
-            raise ValueError("Shape config is not required for non flex shape from user end.")
+            raise ValueError(
+                "Shape config is not required for non flex shape from user end."
+            )
 
         if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
             dsc_job.job_infrastructure_configuration_details[
@@ -1483,7 +1490,7 @@ class DataScienceJob(Infrastructure):
         self._update_from_dsc_model(self.dsc_job, overwrite=False)
         return self
 
-    def init(self) -> DataScienceJob:
+    def init(self, **kwargs) -> DataScienceJob:
         """Initializes a starter specification for the DataScienceJob.
 
         Returns
@@ -1495,7 +1502,10 @@ class DataScienceJob(Infrastructure):
             self.build()
             .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
             .with_project_id(self.project_id or "{Provide a project OCID}")
-            .with_subnet_id(self.subnet_id or "{Provide a subnet OCID or remove this field if you use a default networking}")
+            .with_subnet_id(
+                self.subnet_id
+                or "{Provide a subnet OCID or remove this field if you use a default networking}"
+            )
         )
 
     def create(self, runtime, **kwargs) -> DataScienceJob:
@@ -1552,7 +1562,7 @@ class DataScienceJob(Infrastructure):
         freeform_tags=None,
         defined_tags=None,
         wait=False,
-        **kwargs
+        **kwargs,
     ) -> DataScienceJobRun:
         """Runs a job on OCI Data Science job
 
@@ -1610,7 +1620,7 @@ class DataScienceJob(Infrastructure):
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
             wait=wait,
-            **kwargs
+            **kwargs,
         )
 
     def delete(self) -> None:

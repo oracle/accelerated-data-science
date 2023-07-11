@@ -29,7 +29,6 @@ from ads.jobs import (
     PythonRuntime,
     ScriptRuntime,
 )
-from ads.mloperator.mloperator import MLOperator
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend, RuntimeFactory
 from ads.opctl.config.resolver import ConfigResolver
@@ -95,6 +94,20 @@ class MLJobBackend(Backend):
             `None` otherwise.
         """
 
+        RUNTIME_KWARGS_MAP = {
+            ContainerRuntime().type: {
+                "image": (
+                    f"{self.config['infrastructure'].get('docker_registry','').rstrip('/')}"
+                    f"/{kwargs.pop('image_name', self.config['execution'].get('image','image:latest'))}"
+                )
+            },
+            ScriptRuntime().type: {},
+            PythonRuntime().type: {},
+            NotebookRuntime().type: {},
+            GitPythonRuntime().type: {},
+        }
+
+        runtime_type = runtime_type or PythonRuntime().type
         with AuthContext(auth=self.auth_type, profile=self.profile):
             # define a job
             job = (
@@ -108,9 +121,9 @@ class MLJobBackend(Backend):
                     ).init()
                 )
                 .with_runtime(
-                    JobRuntimeFactory.get_runtime(
-                        key=runtime_type or PythonRuntime().type
-                    ).init()
+                    JobRuntimeFactory.get_runtime(key=runtime_type).init(
+                        **{**kwargs, **RUNTIME_KWARGS_MAP[runtime_type]}
+                    )
                 )
             )
 
@@ -551,8 +564,11 @@ class MLJobDistributedBackend(MLJobBackend):
 
 
 class MLJobOperatorBackend(MLJobBackend):
+    """Backend class to run mloperator."""
+
     def __init__(self, config: Dict, operator_config: Dict) -> None:
         super().__init__(config=config)
+
         self.job = None
         self.operator_config = operator_config
         self.operator_name = operator_config["name"]
@@ -564,6 +580,7 @@ class MLJobOperatorBackend(MLJobBackend):
         }
 
     def _adjust_common_information(self):
+        """Adjusts common information of the job."""
         if self.job.name.lower().startswith("{job"):
             self.job.with_name(
                 f"job_{self.operator_config.get('name','operator').lower()}"
@@ -574,9 +591,10 @@ class MLJobOperatorBackend(MLJobBackend):
         )
 
     def _adjust_python_runtime(self):
+        """Adjusts python runtime."""
         code = (
             Template(
-                """python -m ads.mloperator.lowcode.$operator_name -s $operator_spec"""
+                """python -m ads.opctl.mloperator.lowcode.$operator_name -s $operator_spec"""
             )
             .substitute(
                 operator_name=self.operator_name,
@@ -609,12 +627,14 @@ class MLJobOperatorBackend(MLJobBackend):
         )
 
     def _adjust_container_runtime(self):
+        """Adjusts container runtime."""
         entrypoint = self.job.runtime.entrypoint
         image = self.job.runtime.image.lower()
         if self.job.runtime.image.lower() == "iad.ocir.io/namespace/image:tag":
             image = (
-                image
-            ) = f"{self.config['infrastructure']['docker_registry'].rstrip('/')}/{self.config['execution']['image']}"
+                f"{self.config['infrastructure']['docker_registry'].rstrip('/')}"
+                f"/{self.config['execution']['image']}"
+            )
         cmd = " ".join(
             [
                 "python",
@@ -628,7 +648,7 @@ class MLJobOperatorBackend(MLJobBackend):
 
     @print_watch_command
     def run(self, **kwargs) -> Union[Dict, None]:
-        # configure job object
+        """Runs the operator on the jobs."""
         if "spec" in self.config and self.config["spec"]:
             self.job = Job.from_dict(self.config).build()
         else:

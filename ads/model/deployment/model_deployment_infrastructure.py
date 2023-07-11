@@ -609,7 +609,7 @@ class ModelDeploymentInfrastructure(Builder):
         """
         return self.get_spec(self.CONST_SUBNET_ID, None)
 
-    def init(self) -> "ModelDeploymentInfrastructure":
+    def init(self, **kwargs) -> "ModelDeploymentInfrastructure":
         """Initializes a starter specification for the ModelDeploymentInfrastructure.
 
         Returns

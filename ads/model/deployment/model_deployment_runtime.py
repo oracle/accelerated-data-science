@@ -103,7 +103,7 @@ class ModelDeploymentRuntime(Builder):
         CONST_REGION: "region",
         CONST_OVERWRITE_EXISTING_ARTIFACT: "overwrite_existing_artifact",
         CONST_REMOVE_EXISTING_ARTIFACT: "remove_existing_artifact",
-        CONST_TIMEOUT: "timeout"
+        CONST_TIMEOUT: "timeout",
     }
 
     ENVIRONMENT_CONFIG_DETAILS_PATH = (
@@ -272,7 +272,7 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_MODEL_URI, model_uri)
-    
+
     @property
     def bucket_uri(self) -> str:
         """The bucket uri of model.
@@ -298,7 +298,7 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_BUCKET_URI, bucket_uri)
-    
+
     @property
     def auth(self) -> Dict:
         """The auth when uploading large-size model.
@@ -309,7 +309,7 @@ class ModelDeploymentRuntime(Builder):
             The auth when uploading large-size model.
         """
         return self.get_spec(self.CONST_AUTH, {})
-    
+
     def with_auth(self, auth: Dict) -> "ModelDeploymentRuntime":
         """Sets the auth when uploading large-size model.
 
@@ -324,7 +324,7 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_AUTH, auth)
-    
+
     @property
     def region(self) -> str:
         """The region when uploading large-size model.
@@ -335,7 +335,7 @@ class ModelDeploymentRuntime(Builder):
             The region when uploading large-size model.
         """
         return self.get_spec(self.CONST_REGION, None)
-    
+
     def with_region(self, region: str) -> "ModelDeploymentRuntime":
         """Sets the region when uploading large-size model.
 
@@ -350,7 +350,7 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_REGION, region)
-    
+
     @property
     def overwrite_existing_artifact(self) -> bool:
         """Overwrite existing artifact when uploading large size model.
@@ -361,10 +361,9 @@ class ModelDeploymentRuntime(Builder):
             Overwrite existing artifact when uploading large size model.
         """
         return self.get_spec(self.CONST_OVERWRITE_EXISTING_ARTIFACT, True)
-    
+
     def with_overwrite_existing_artifact(
-        self, 
-        overwrite_existing_artifact: bool
+        self, overwrite_existing_artifact: bool
     ) -> "ModelDeploymentRuntime":
         """Sets whether to overwrite existing artifact when uploading large size model.
 
@@ -379,10 +378,9 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(
-            self.CONST_OVERWRITE_EXISTING_ARTIFACT,
-            overwrite_existing_artifact
+            self.CONST_OVERWRITE_EXISTING_ARTIFACT, overwrite_existing_artifact
         )
-    
+
     @property
     def remove_existing_artifact(self) -> bool:
         """Remove existing artifact when uploading large size model.
@@ -393,10 +391,9 @@ class ModelDeploymentRuntime(Builder):
             Remove existing artifact when uploading large size model.
         """
         return self.get_spec(self.CONST_REMOVE_EXISTING_ARTIFACT, True)
-    
+
     def with_remove_existing_artifact(
-        self,
-        remove_existing_artifact: bool
+        self, remove_existing_artifact: bool
     ) -> "ModelDeploymentRuntime":
         """Sets whether to remove existing artifact when uploading large size model.
 
@@ -410,8 +407,10 @@ class ModelDeploymentRuntime(Builder):
         ModelDeploymentRuntime
             The ModelDeploymentRuntime instance (self).
         """
-        return self.set_spec(self.CONST_REMOVE_EXISTING_ARTIFACT, remove_existing_artifact)
-    
+        return self.set_spec(
+            self.CONST_REMOVE_EXISTING_ARTIFACT, remove_existing_artifact
+        )
+
     @property
     def timeout(self) -> int:
         """The timeout when uploading large-size model.
@@ -422,7 +421,7 @@ class ModelDeploymentRuntime(Builder):
             The timeout when uploading large-size model.
         """
         return self.get_spec(self.CONST_TIMEOUT, None)
-    
+
     def with_timeout(self, timeout: int) -> "ModelDeploymentRuntime":
         """Sets the timeout when uploading large-size model.
 
@@ -437,8 +436,8 @@ class ModelDeploymentRuntime(Builder):
             The ModelDeploymentRuntime instance (self).
         """
         return self.set_spec(self.CONST_TIMEOUT, timeout)
-    
-    def init(self) -> "ModelDeploymentRuntime":
+
+    def init(self, **kwargs) -> "ModelDeploymentRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -487,7 +486,7 @@ class ModelDeploymentCondaRuntime(ModelDeploymentRuntime):
         """
         return OCIModelDeploymentRuntimeType.CONDA
 
-    def init(self) -> "ModelDeploymentCondaRuntime":
+    def init(self, **kwargs) -> "ModelDeploymentCondaRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -495,7 +494,7 @@ class ModelDeploymentCondaRuntime(ModelDeploymentRuntime):
         CondaRuntime
             The runtime instance.
         """
-        return super().init()
+        return super().init(**kwargs)
 
 
 class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
@@ -816,7 +815,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         """
         return self.set_spec(self.CONST_INFERENCE_SERVER, inference_server.lower())
 
-    def init(self) -> "ModelDeploymentContainerRuntime":
+    def init(self, **kwargs) -> "ModelDeploymentContainerRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -824,7 +823,7 @@ class ModelDeploymentContainerRuntime(ModelDeploymentRuntime):
         CondaRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
         return (
             self.with_image("iad.ocir.io/<namespace>/<image>:<tag>")
             .with_image_digest("<IMAGE_DIGEST>")

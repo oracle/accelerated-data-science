@@ -7,8 +7,6 @@
 import argparse
 import importlib
 import os
-import pathlib
-import pprint
 import re
 from dataclasses import dataclass
 from string import Template
@@ -20,27 +18,31 @@ from cerberus import Validator
 from json2table import convert
 from yaml import SafeLoader
 
+from ads.opctl import logger
 from ads.opctl.utils import run_command
-
-pp = pprint.PrettyPrinter(indent=2)
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
 
 @dataclass
 class OperatorInfo:
+    """Class to represent short information about the operator."""
+
     name: str
-    description: str
     short_description: str
+    description: str
     version: str
+    conda: str
 
     @classmethod
     def from_init(*args, **kwargs) -> "OperatorInfo":
+        """Instantiates class from init config."""
         return OperatorInfo(
             name=kwargs.get("__name__"),
             description=kwargs.get("__description__"),
             short_description=kwargs.get("__short_description__"),
             version=kwargs.get("__version__"),
+            conda=kwargs.get("__conda__"),
         )
 
 
@@ -163,15 +165,17 @@ def _operator_info_list() -> List[OperatorInfo]:
     """
     return (
         OperatorInfo.from_init(
-            **_module_constant_values(f"ads.mloperator.lowcode.{operator_name}")
+            **_module_constant_values(f"ads.opctl.mloperator.lowcode.{operator_name}")
         )
-        for operator_name in _module_constant_values("ads.mloperator").get(
+        for operator_name in _module_constant_values("ads.opctl.mloperator").get(
             "__operators__", []
         )
     )
 
 
 def text_clean(txt: str) -> str:
+    """Cleans the text from the special characters."""
+
     txt = re.sub("httpS+s*", " ", txt)  # remove URLs
     txt = re.sub("RT|cc", " ", txt)  # remove RT and cc
     # txt = re.sub("#S+", "", txt)  # remove hashtags
@@ -212,6 +216,79 @@ def _load_yaml_from_uri(uri: str, **kwargs) -> str:
     """Loads YAML from the URI path. Can be OS path."""
     with fsspec.open(uri) as f:
         return _load_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)
+
+
+def _build_image(
+    dockerfile: str,
+    image_name: str,
+    tag: str = None,
+    target: str = None,
+    **kwargs: Dict[str, Any],
+) -> str:
+    """
+    Build an image for operator.
+
+    Parameters
+    ----------
+    dockerfile: str
+        Path to the docker file.
+    image_name: str
+        The name of the image.
+    tag: (str, optional)
+        The tag of the image.
+    target: (str, optional)
+        The image target.
+
+    Returns
+    -------
+    str
+        The final image name.
+
+    Raises
+    ------
+    ValueError
+        When dockerfile or image name not provided.
+    FileNotFoundError
+        When dockerfile doesn't exist.
+    RuntimeError
+        When docker build operation fails.
+    """
+    if not (dockerfile and image_name):
+        raise ValueError("The `dockerfile` and `image_name` needs to be provided.")
+
+    if not os.path.isfile(dockerfile):
+        raise FileNotFoundError(f"The file `{dockerfile}` does not exist")
+
+    image_name = f"{image_name}:{tag or 'latest'}"
+
+    command = [
+        "docker",
+        "build",
+        "-t",
+        image_name,
+        "-f",
+        dockerfile,
+    ]
+
+    if target:
+        command += ["--target", target]
+    if os.environ.get("no_proxy"):
+        command += ["--build-arg", f"no_proxy={os.environ['no_proxy']}"]
+    if os.environ.get("http_proxy"):
+        command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
+    if os.environ.get("https_proxy"):
+        command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
+    if os.environ.get(CONTAINER_NETWORK):
+        command += ["--network", os.environ[CONTAINER_NETWORK]]
+    command += [os.path.dirname(dockerfile)]
+
+    logger.info(f"Build image: {command}")
+
+    proc = run_command(command)
+    if proc.returncode != 0:
+        raise RuntimeError("Docker build failed.")
+
+    return image_name
 
 
 def _convert_schema_to_html(module_name: str, module_schema: str) -> str:
@@ -315,76 +392,3 @@ def _convert_schema_to_html(module_name: str, module_schema: str) -> str:
             build_direction="LEFT_TO_RIGHT",
         ),
     )
-
-
-def _build_image(
-    dockerfile: str,
-    image_name: str,
-    tag: str = None,
-    target: str = None,
-    **kwargs: Dict[str, Any],
-) -> str:
-    """
-    Build an image for operator.
-
-    Parameters
-    ----------
-    dockerfile: str
-        Path to the docker file.
-    image_name: str
-        The name of the image.
-    tag: (str, optional)
-        The tag of the image.
-    target: (str, optional)
-        The image target.
-
-    Returns
-    -------
-    str
-        The final image name.
-
-    Raises
-    ------
-    ValueError
-        When dockerfile or image name not provided.
-    FileNotFoundError
-        When dockerfile doesn't exist.
-    RuntimeError
-        When docker build operation fails.
-    """
-    if not (dockerfile and image_name):
-        raise ValueError("The `dockerfile` and `image_name` needs to be provided.")
-
-    if not os.path.isfile(dockerfile):
-        raise FileNotFoundError(f"The file `{dockerfile}` does not exist")
-
-    image_name = f"{image_name}:{tag or 'latest'}"
-
-    command = [
-        "docker",
-        "build",
-        "-t",
-        image_name,
-        "-f",
-        dockerfile,
-    ]
-
-    if target:
-        command += ["--target", target]
-    if os.environ.get("no_proxy"):
-        command += ["--build-arg", f"no_proxy={os.environ['no_proxy']}"]
-    if os.environ.get("http_proxy"):
-        command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
-    if os.environ.get("https_proxy"):
-        command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
-    if os.environ.get(CONTAINER_NETWORK):
-        command += ["--network", os.environ[CONTAINER_NETWORK]]
-    command += [os.path.dirname(dockerfile)]
-
-    print(f"Build image: {command}")
-
-    proc = run_command(command)
-    if proc.returncode != 0:
-        raise RuntimeError("Docker build failed.")
-
-    return image_name

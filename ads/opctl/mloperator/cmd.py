@@ -19,6 +19,7 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
+from ads.opctl import logger
 from ads.opctl.cmds import _BackendFactory
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -127,7 +128,9 @@ def init(
         raise OperatorNotFoundError(name)
 
     # generating operator specification
-    operator_cmd_module = importlib.import_module(f"ads.mloperator.lowcode.{name}.cmd")
+    operator_cmd_module = importlib.import_module(
+        f"ads.opctl.mloperator.lowcode.{name}.cmd"
+    )
     importlib.reload(operator_cmd_module)
     operator_specification_template = getattr(operator_cmd_module, "init")(**kwargs)
 
@@ -144,7 +147,7 @@ def init(
 
     operator_path = os.path.join(os.path.dirname(__file__), "lowcode", name)
 
-    with fsspec.open(os.path.join(output, f"{name}.YAML"), mode="w") as f:
+    with fsspec.open(os.path.join(output, f"{name}.yaml"), mode="w") as f:
         f.write(operator_specification_template)
 
     # save operator's schema in HTML format
@@ -162,30 +165,37 @@ def init(
 
     # save supported backend specifications templates
     RUNTIME_TYPE_MAP = {
-        RESOURCE_TYPE.JOB: [RUNTIME_TYPE.PYTHON, RUNTIME_TYPE.CONTAINER],
-        RESOURCE_TYPE.DATAFLOW: [RUNTIME_TYPE.DATAFLOW],
+        RESOURCE_TYPE.JOB: [
+            {RUNTIME_TYPE.PYTHON: {}},
+            {RUNTIME_TYPE.CONTAINER: {"image_name": f"{name}:latest"}},
+        ],
+        RESOURCE_TYPE.DATAFLOW: [{RUNTIME_TYPE.DATAFLOW: {}}],
     }
+
     for resource_type in RUNTIME_TYPE_MAP:
-        for runtime_type in RUNTIME_TYPE_MAP[resource_type]:
-            # get config info form INI files
+        for runtime_type_item in RUNTIME_TYPE_MAP[resource_type]:
+            runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
+
+            # get config info from ini files
             p = ConfigProcessor({"execution": {"backend": resource_type.value}}).step(
                 ConfigMerger,
                 ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
                 **kwargs,
             )
+
             # generate YAML specification template
             _BackendFactory(p.config).backend.init(
                 uri=os.path.join(
                     output,
-                    f"{resource_type.value.lower()}_{runtime_type.value.lower()}_config.YAML",
+                    f"{resource_type.value.lower()}_{runtime_type.value.lower()}_config.yaml",
                 ),
                 overwrite=overwrite,
                 runtime_type=runtime_type.value,
-                **kwargs,
+                **{**kwargs, **runtime_kwargs},
             )
 
     print("#" * 100)
-    print("The auto-generated configs location: ", output)
+    print(f"The auto-generated configs location: {output}")
     print("#" * 100)
 
 
@@ -238,10 +248,12 @@ def build_image(
         if name not in __operators__:
             raise OperatorNotFoundError(name)
         source_folder = os.path.dirname(
-            inspect.getfile(importlib.import_module(f"ads.mloperator.lowcode.{name}"))
+            inspect.getfile(
+                importlib.import_module(f"ads.opctl.mloperator.lowcode.{name}")
+            )
         )
         operator_image_name = operator_image_name or name
-        print(f"Building Docker image for the `{name}` service operator.")
+        logger.info(f"Building Docker image for the `{name}` service operator.")
     elif source_folder:
         source_folder = os.path.abspath(os.path.expanduser(source_folder))
         if not os.path.isdir(source_folder):
@@ -249,7 +261,7 @@ def build_image(
 
         operator_name = os.path.basename(source_folder.rstrip("/"))
         operator_image_name = operator_image_name or operator_name
-        print(
+        logger.info(
             "Building Docker image for custom operator using source folder: "
             f"`{source_folder}`."
         )
@@ -259,7 +271,7 @@ def build_image(
             "Please provide relevant options."
         )
 
-    curr_dir = os.path.dirname(os.path.abspath(__file__))
+    cur_dir = os.path.dirname(os.path.abspath(__file__))
     base_image_name = OPERATOR_BASE_GPU_IMAGE if gpu else OPERATOR_BASE_IMAGE
 
     try:
@@ -268,11 +280,13 @@ def build_image(
         if rebuild_base_image:
             raise docker.errors.ImageNotFound("Rebuilding base image requested.")
     except docker.errors.ImageNotFound:
-        print(f"Building base operator image {base_image_name}")
+        logger.info(f"Building base operator image {base_image_name}")
 
         base_docker_file = os.path.join(
-            curr_dir,
+            cur_dir,
+            "..",
             "docker",
+            "mloperator",
             OPERATOR_BASE_DOCKER_GPU_FILE if gpu else OPERATOR_BASE_DOCKER_FILE,
         )
 
@@ -282,7 +296,7 @@ def build_image(
             target="base",
         )
 
-        print(
+        logger.info(
             f"The base operator image `{result_image_name}` has been successfully built."
         )
 
@@ -308,7 +322,9 @@ def build_image(
             dockerfile=custom_docker_file, image_name=operator_image_name, tag=tag
         )
 
-        print(f"The operator image `{result_image_name}` has been successfully built.")
+        logger.info(
+            f"The operator image `{result_image_name}` has been successfully built."
+        )
 
 
 def publish_image(
@@ -349,6 +365,7 @@ def create(
     name: str,
     overwrite: bool = False,
     ads_config: Union[str, None] = None,
+    output: str = None,
     **kwargs: Dict[str, Any],
 ) -> None:
     """
@@ -362,9 +379,10 @@ def create(
         Whether to overwrite the result specification YAML if exists.
     ads_config: (str, optional)
         The folder where the ads opctl config located.
+    output: (str, optional). Defaults to None.
+        The path to the folder to save the resulting specification templates.
+        The Tmp folder will be created in case when `output` is not provided.
     kwargs: (Dict, optional).
         Any optional kwargs arguments.
     """
-    print("#" * 100)
-    print(f"Creating new operator - {name}")
-    print("#" * 100)
+    raise NotImplementedError()

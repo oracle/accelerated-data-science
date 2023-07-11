@@ -11,11 +11,11 @@ import click
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
-from .cmd import info as cmd_info
-from .cmd import list as cmd_list
-from .cmd import init as cmd_init
-from .cmd import create as cmd_create
 from .cmd import build_image as cmd_build_image
+from .cmd import create as cmd_create
+from .cmd import info as cmd_info
+from .cmd import init as cmd_init
+from .cmd import list as cmd_list
 from .cmd import publish_image as cmd_publish_image
 
 
@@ -57,7 +57,7 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @click.option(
     "--output",
-    help=f"The filename to save the resulting specification template YAML",
+    help=f"The folder name to save the resulting specification templates.",
     required=False,
     default=None,
 )
@@ -101,16 +101,6 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     required=False,
 )
 @click.option(
-    "--source-folder",
-    "-s",
-    help=(
-        "Use this option for custom operators. "
-        "Specify the folder containing the operator source code."
-    ),
-    default=None,
-    required=False,
-)
-@click.option(
     "--image",
     "-i",
     help="The image name. By default the operator name will be used.",
@@ -131,9 +121,9 @@ def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
+@click.argument("image")
 @click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @click.help_option("--help", "-h")
-@click.argument("image")
 @click.option(
     "--registry", "-r", help="Registry to publish to", required=False, default=None
 )
@@ -148,7 +138,8 @@ def publish_image(debug, **kwargs):
     suppress_traceback(debug)(cmd_publish_image)(**kwargs)
 
 
-@commands.command()
+@commands.command(hidden=True)
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @click.option(
     "--name",
     "-n",
@@ -156,7 +147,6 @@ def publish_image(debug, **kwargs):
     help="The name of the operator",
     required=True,
 )
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @click.option(
     "--overwrite",
     "-o",
@@ -167,6 +157,12 @@ def publish_image(debug, **kwargs):
 @click.option(
     "--ads-config",
     help="The folder where the ADS opctl config located",
+    required=False,
+    default=None,
+)
+@click.option(
+    "--output",
+    help=f"The folder to save the resulting specification template YAML",
     required=False,
     default=None,
 )

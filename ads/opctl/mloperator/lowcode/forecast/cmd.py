@@ -8,7 +8,7 @@ from typing import Dict
 
 import click
 
-from ads.mloperator.common.utils import YamlGenerator, _load_yaml_from_uri
+from ads.opctl.mloperator.common.utils import YamlGenerator, _load_yaml_from_uri
 
 SUPPORTED_MODELS = ["arima", "automlx", "neuralprophet", "prophet"]
 

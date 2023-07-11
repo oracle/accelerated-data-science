@@ -11,7 +11,7 @@ import click
 import fsspec
 import yaml
 
-import ads.mloperator.cli
+import ads.opctl.mloperator.cli
 import ads.opctl.conda.cli
 import ads.opctl.distributed.cli
 import ads.opctl.model.cli
@@ -653,4 +653,4 @@ commands.add_command(ads.opctl.conda.cli.commands)
 commands.add_command(ads.opctl.model.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)
-commands.add_command(ads.mloperator.cli.commands)
+commands.add_command(ads.opctl.mloperator.cli.commands)
