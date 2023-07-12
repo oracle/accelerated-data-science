@@ -19,7 +19,7 @@ from ads.feature_store.feature import Feature, DatasetFeature
 from ads.feature_store.feature_group_expectation import Rule, Expectation
 from ads.feature_store.input_feature_detail import FeatureDetail
 from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
-
+import re
 try:
     from pyspark.pandas import DataFrame
 except ModuleNotFoundError:
@@ -401,3 +401,12 @@ def validate_input_feature_details(input_feature_details, data_frame):
     if isinstance(data_frame, pd.DataFrame):
         return convert_pandas_datatype_with_schema(input_feature_details, data_frame)
     return convert_spark_dataframe_with_schema(input_feature_details, data_frame)
+
+
+def validate_model_ocid(model_ocid):
+    pattern = r'^ocid1\.datasciencemodel\.oc(?P<realm>[0-17]+)\.(?P<region>[A-Za-z0-9]+)?\.?(?P<future_use>[A-Za-z0-9]+)?\.(?P<unique_id>[A-Za-z0-9]+)$'
+    match = re.match(pattern, model_ocid)
+    if match:
+        # groups = match.groupdict()
+        return True
+    return False
