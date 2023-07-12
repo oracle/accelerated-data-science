@@ -6,6 +6,7 @@
 
 from ads.common.oci_mixin import OCIModelMixin
 import oci.feature_store
+import os
 
 
 class OCIFeatureStoreMixin(OCIModelMixin):
@@ -13,6 +14,11 @@ class OCIFeatureStoreMixin(OCIModelMixin):
     def init_client(
         cls, **kwargs
     ) -> oci.feature_store.feature_store_client.FeatureStoreClient:
+
+        fs_service_endpoint = os.environ.get("OCI_FS_SERVICE_ENDPOINT")
+        kwargs = {"service_endpoint": fs_service_endpoint}
+
+
         client = cls._init_client(
             client=oci.feature_store.feature_store_client.FeatureStoreClient, **kwargs
         )
