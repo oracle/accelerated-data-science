@@ -168,7 +168,9 @@ The ``.save_expectation()`` method takes the following optional parameter:
 
   feature_group.save_expectation(expectation_suite, expectation_type="STRICT")
 
-For more details on expectation please refer :ref:`Feature Validation`
+.. seealso::
+
+   :ref:`Feature Validation`
 
 
 Statistics Computation
@@ -212,7 +214,9 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 .. image:: figures/stats_1.png
 
-For more details on statistics computation please refer :ref:`Statistics`
+.. seealso::
+
+    :ref:`Statistics`
 
 Get last feature group job
 ==========================

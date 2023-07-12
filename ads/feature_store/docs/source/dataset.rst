@@ -142,7 +142,9 @@ The ``.save_expectation()`` method takes the following optional parameter:
 
   feature_group.save_expectation(expectation_suite, expectation_type="STRICT")
 
-For more details on expectation please refer :ref:`Feature Validation`
+.. seealso::
+
+    :ref:`Feature Validation`
 
 Statistics Computation
 ========================
@@ -177,7 +179,7 @@ You can call the ``get_statistics()`` method of the dataset to fetch metrics for
 
 The ``get_statistics()`` method takes the following optional parameter:
 
-- ``job_id: string``. Id of feature group job
+- ``job_id: string``. Id of dataset job
 
 .. code-block:: python3
 
@@ -186,7 +188,9 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 .. image:: figures/stats_1.png
 
-For more details on statistics computation please refer :ref:`Statistics`
+.. seealso::
+
+    :ref:`Statistics`
 
 
 Get features
