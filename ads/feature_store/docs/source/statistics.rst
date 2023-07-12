@@ -12,32 +12,40 @@ to derive insights about the data quality. These statistical metrics are compute
 
 The statistical metrics that are computed by feature store depend on the feature type.
 
-Metrics for categorical data
-
-- Count
-- TopKFrequentElements
-- TypeMetric
-- DuplicateCount
-- Mode
-- DistinctCount
-
-Metrics for numerical data
-
-- Skewness
-- StandardDeviation
-- Min
-- IsConstantFeature
-- IQR
-- Range
-- ProbabilityDistribution
-- Variance
-- TypeMetric
-- FrequencyDistribution
-- Count
-- Max
-- DistinctCount
-- Sum
-- IsQuasiConstantFeature
-- Quartiles
-- Mean
-- Kurtosis
++------------------------+-----------------------+
+| Numerical Metrics      | Categorical Metrics   |
++========================+=======================+
+| Skewness               | Count                 |
++------------------------+-----------------------+
+| StandardDeviation      | TopKFrequentElements  |
++------------------------+-----------------------+
+| Min                    | TypeMetric            |
++------------------------+-----------------------+
+| IsConstantFeature      | DuplicateCount        |
++------------------------+-----------------------+
+| IQR                    | Mode                  |
++------------------------+-----------------------+
+| Range                  | DistinctCount         |
++------------------------+-----------------------+
+| ProbabilityDistribution|                       |
++------------------------+-----------------------+
+| Variance               |                       |
++------------------------+-----------------------+
+| FrequencyDistribution  |                       |
++------------------------+-----------------------+
+| Count                  |                       |
++------------------------+-----------------------+
+| Max                    |                       |
++------------------------+-----------------------+
+| DistinctCount          |                       |
++------------------------+-----------------------+
+| Sum                    |                       |
++------------------------+-----------------------+
+| IsQuasiConstantFeature |                       |
++------------------------+-----------------------+
+| Quartiles              |                       |
++------------------------+-----------------------+
+| Mean                   |                       |
++------------------------+-----------------------+
+| Kurtosis               |                       |
++------------------------+-----------------------+
