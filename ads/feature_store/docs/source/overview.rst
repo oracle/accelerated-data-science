@@ -17,6 +17,10 @@ Oracle feature store is a stack based solution that is deployed in the customer 
 
 .. important::
 
+      Prerequisite : Please contact #oci-feature-store_early-preview for getting your tenancy whitelisted for early access of feature store.
+
+.. important::
+
   The OCI Feature Store support following versions
 
     .. list-table::
@@ -33,5 +37,3 @@ Oracle feature store is a stack based solution that is deployed in the customer 
         - .. image:: https://img.shields.io/badge/delta-2.0.1-blue?style=for-the-badge&logo=pypi&logoColor=white
       * - pyspark
         - .. image:: https://img.shields.io/badge/pyspark-3.2.1-blue?style=for-the-badge&logo=pypi&logoColor=white
-
-  Please contact #oci-feature-store_early-preview for getting your tenancy whitelisted for early access of feature store.
