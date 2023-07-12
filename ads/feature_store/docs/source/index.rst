@@ -16,6 +16,8 @@ Welcome to oci-feature-store's documentation!
     feature_group_job
     dataset
     dataset_job
+    statistics
+    feature_validation
     demo
     notebook
     release_notes
