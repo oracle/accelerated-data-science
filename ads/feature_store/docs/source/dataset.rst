@@ -124,41 +124,60 @@ With a Dataset instance, we can get the last dataset job details using ``get_las
   df = dataset_job.get_validation_output().to_dataframe()
   df.show()
 
-
 Save expectation entity
 =======================
+Feature store allows you to define expectations on data being materialized into feature group instance. With a ``FeatureGroup`` instance, we can save the expectation entity using ``save_expectation()``
 
-With a Dataset instance, we can save the expectation entity using ``save_expectation()``
-
-.. note::
-
-  Great Expectations is a Python-based open-source library for validating, documenting, and profiling your data. It helps you to maintain data quality and improve communication about data between teams. Software developers have long known that automated testing is essential for managing complex codebases.
 
 .. image:: figures/validation.png
 
-
 The ``.save_expectation()`` method takes the following optional parameter:
 
-- ``expectation_suite: ExpectationSuite``. Expectation suite of great expectation
+- ``expectation: Expectation``. Expectation of great expectation
 - ``expectation_type: ExpectationType``. Type of expectation
         - ``ExpectationType.STRICT``: Fail the job if expectation not met
         - ``ExpectationType.LENIENT``: Pass the job even if expectation not met
 
 .. code-block:: python3
 
-  dataset.save_expectation(expectation_suite, expectation_type="STRICT")
+  feature_group.save_expectation(expectation_suite, expectation_type="STRICT")
+
+.. seealso::
+
+    :ref:`Feature Validation`
+
+Statistics Computation
+========================
+During the materialization feature store performs computation of statistical metrics for all the features  by default. This can be configured using ``StatisticsConfig`` object which can be passed at the creation of
+dataset or it can be updated later as well.
+
+.. code-block:: python3
+
+  # Define statistics configuration for selected features
+  stats_config = StatisticsConfig().with_is_enabled(True).with_columns(["column1", "column2"])
 
 
-Statistics Results
-==================
-You can call the ``get_statistics()`` method of the Dataset instance to fetch feature statistics results of a dataset job.
+This can be used with dataset instance.
 
-.. note::
+.. code-block:: python3
 
-  PyDeequ is a Python API for Deequ, a library built on top of Apache Spark for defining "unit tests for data", which measure data quality in large datasets.
+  from ads.feature_store.dataset import Dataset
 
+  dataset = (
+        Dataset
+        .with_name("<dataset_name>")
+        .with_entity_id(<entity_id>)
+        .with_feature_store_id("<feature_store_id>")
+        .with_description("<dataset_description>")
+        .with_compartment_id("<compartment_id>")
+        .with_dataset_ingestion_mode(DatasetIngestionMode.SQL)
+        .with_query('SELECT col FROM <entity_id>.<feature_group_name>')
+        .with_statistics_config(stats_config)
+  )
 
-The ``.get_statistics()`` method takes the following optional parameter:
+You can call the ``get_statistics()`` method of the dataset to fetch metrics for a specific ingestion job.
+
+The ``get_statistics()`` method takes the following optional parameter:
 
 - ``job_id: string``. Id of dataset job
 
@@ -166,6 +185,12 @@ The ``.get_statistics()`` method takes the following optional parameter:
 
   # Fetch stats results for a dataset job
   df = dataset.get_statistics(job_id).to_pandas()
+
+.. image:: figures/stats_1.png
+
+.. seealso::
+
+    :ref:`Statistics`
 
 
 Get features

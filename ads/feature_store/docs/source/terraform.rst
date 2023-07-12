@@ -95,8 +95,8 @@ Steps
     rm -f feature-store-terraform.zip \
     && wget https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip \
     && oci resource-manager stack create \
-        --compartment-id <compartment-id> \
-        --config-source <path-to-downloaded-zip-file> \
+        --compartment-id <COMPARTMENT_OCID> \
+        --config-source feature-store-terraform.zip \
         --terraform-version 1.1.x \
         --variables '{
             "service_version": "<SERVICE_VERSION>",
