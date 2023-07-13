@@ -15,6 +15,7 @@ import fsspec
 import yaml
 
 from ads.common import logger
+from ads.common.auth import default_signer
 
 try:
     from yaml import CSafeDumper as dumper
@@ -134,6 +135,14 @@ class Serializable(ABC):
         -------
         string: Contents in file specified by URI
         """
+        # Add default signer if the uri is an object storage uri, and
+        # the user does not specify config or signer.
+        if (
+            uri.startswith("oci://")
+            and "config" not in kwargs
+            and "signer" not in kwargs
+        ):
+            kwargs.update(default_signer())
         with fsspec.open(uri, "r", **kwargs) as f:
             return f.read()
 

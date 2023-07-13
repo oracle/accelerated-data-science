@@ -229,7 +229,7 @@ class PyTorchModel(FrameworkSpecificModel):
                 "Check https://pytorch.org/tutorials/beginner/saving_loading_models.html#export-load-model-in-torchscript-format for more details."
                 "Set `use_torch_script` as `False` to save only the model parameters."
                 "The model class instance must be constructed before "
-                "loading parameters in the perdict function of score.py."
+                "loading parameters in the predict function of score.py."
                 "Check https://pytorch.org/tutorials/beginner/saving_loading_models.html#save-load-state-dict-recommended for more details."
             )
             use_torch_script = False
