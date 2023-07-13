@@ -59,6 +59,8 @@ class ConfigMerger(ConfigProcessor):
         # 3. fill in values from default files under ~/.ads_ops
         self._fill_config_with_defaults(ads_config_path)
 
+        self._config_flex_shape_details()
+
         logger.debug(f"Config: {self.config}")
         return self
 
@@ -196,3 +198,47 @@ class ConfigMerger(ConfigProcessor):
                 f"{os.path.join(ads_config_folder, config_file)} does not exist. No config loaded."
             )
         return {}
+
+    def _config_flex_shape_details(self):
+        infrastructure = self.config["infrastructure"]
+        backend = self.config["execution"].get("backend", None)
+        if backend == BACKEND_NAME.JOB.value or backend == BACKEND_NAME.MODEL_DEPLOYMENT.value:
+            shape_name = infrastructure.get("shape_name", "")
+            if shape_name.endswith(".Flex"):
+                if (
+                    "ocpus" not in infrastructure or 
+                    "memory_in_gbs" not in infrastructure
+                ):
+                    raise ValueError(
+                        "Parameters `ocpus` and `memory_in_gbs` must be provided for using flex shape. "
+                        "Call `ads opctl config` to specify."
+                    )
+                infrastructure["shape_config_details"] = {
+                    "ocpus": infrastructure.pop("ocpus"),
+                    "memory_in_gbs": infrastructure.pop("memory_in_gbs")
+                }
+        elif backend == BACKEND_NAME.DATAFLOW.value:
+            executor_shape = infrastructure.get("executor_shape", "")
+            driver_shape = infrastructure.get("driver_shape", "")
+            data_flow_shape_config_details = [
+                "driver_shape_memory_in_gbs",
+                "driver_shape_ocpus",
+                "executor_shape_memory_in_gbs",
+                "executor_shape_ocpus"
+            ]
+            # executor_shape and driver_shape must be the same shape family
+            if executor_shape.endswith(".Flex") or driver_shape.endswith(".Flex"):
+                for parameter in data_flow_shape_config_details:
+                    if parameter not in infrastructure:
+                        raise ValueError(
+                            f"Parameters {parameter} must be provided for using flex shape. "
+                            "Call `ads opctl config` to specify."
+                        )
+                infrastructure["driver_shape_config"] = {
+                    "ocpus": infrastructure.pop("driver_shape_ocpus"),
+                    "memory_in_gbs": infrastructure.pop("driver_shape_memory_in_gbs")
+                }
+                infrastructure["executor_shape_config"] = {
+                    "ocpus": infrastructure.pop("executor_shape_ocpus"),
+                    "memory_in_gbs": infrastructure.pop("executor_shape_memory_in_gbs")
+                }
