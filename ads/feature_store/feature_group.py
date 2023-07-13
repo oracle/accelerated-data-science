@@ -1288,11 +1288,7 @@ class FeatureGroup(Builder):
             output_details.get("validationOutput") if output_details else None
         )
 
-        validation_output_json = (
-            json.loads(validation_output) if validation_output else None
-        )
-
-        return ValidationOutput(validation_output_json)
+        return ValidationOutput(validation_output)
 
     def __getattr__(self, name):
         try:
