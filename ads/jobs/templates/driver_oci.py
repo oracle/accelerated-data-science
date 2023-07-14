@@ -61,7 +61,6 @@ import os
 import random
 import shutil
 import string
-import sys
 import traceback
 import uuid
 from time import sleep, time
