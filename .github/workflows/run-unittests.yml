@@ -41,7 +41,7 @@ jobs:
         test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         include:
           - test-path: "tests/unitary"
-            ignore-path: "tests/unitary/with_extras/model"
+            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/install_required"
             name: "unitary"
           - test-path: "tests/unitary/with_extras/model"
             name: "model"
@@ -115,8 +115,7 @@ jobs:
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
           -n auto --dist loadfile ${{ matrix.cov-reports }} \
-          ${{ matrix.test-path }} \
-          --ignore "${{ matrix.ignore-path }}"
+          ${{ matrix.test-path }} ${{ matrix.ignore-path }}
 
       - name: "Save coverage files"
         uses: actions/upload-artifact@v3

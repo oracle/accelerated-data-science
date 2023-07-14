@@ -17,8 +17,6 @@ from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
-from oci.feature_store import FeatureStoreClient
-
 logger = logging.getLogger(__name__)
 
 
@@ -65,10 +63,15 @@ class OCIClientFactory:
             "ai_language": AIServiceLanguageClient,
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
-            "feature_store": FeatureStoreClient,
             "resource_search": ResourceSearchClient,
             "data_catalog": DataCatalogClient
         }
+        try:
+            from oci.feature_store import FeatureStoreClient
+            client_map["feature_store"] = FeatureStoreClient
+        except ImportError:
+            logger.warning("OCI SDK with feature store support is not installed")
+            pass
 
         assert (
             client in client_map
