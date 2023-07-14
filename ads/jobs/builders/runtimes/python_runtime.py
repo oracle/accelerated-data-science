@@ -149,7 +149,7 @@ class ScriptRuntime(CondaRuntime):
             # Environment variable
             .with_environment_variable(NAME="Welcome to OCI Data Science.")
             # Command line argument
-            .with_argument("100 linux \"hi there\"")
+            .with_argument("100 linux 'hi there'")
             # The entrypoint is applicable only to directory or zip file as source
             # The entrypoint should be a path relative to the working dir.
             # Here my_script.sh is a file in the code_dir/my_package directory
