@@ -19,11 +19,21 @@ from ads.feature_store.input_feature_detail import FeatureDetail
 from ads.feature_store.statistics_config import StatisticsConfig
 
 
-client_kwargs = dict(
-    retry_strategy=oci.retry.NoneRetryStrategy,
-    service_endpoint=os.getenv("service_endpoint"),
-)
-ads.set_auth(client_kwargs=client_kwargs)
+# client_kwargs = dict(
+#     retry_strategy=oci.retry.NoneRetryStrategy,
+#     service_endpoint=os.getenv("service_endpoint"),
+# )
+# ads.set_auth(client_kwargs=client_kwargs)
+
+# validate_model_ocid("ocid1.datasciencemodel.oc1.iad.amaaaaaaqc2qulqa7ribuimhibly3a3l5v5eem7akg7xeycutckdvusok2la")
+os.environ["OCI_FS_SERVICE_ENDPOINT"] = "http://localhost:21000/20230101"
+
+# ads.set_auth(auth="api_key", client_kwargs={"service_endpoint": "http://localhost:21000/20230101"})
+# Set the environment variable
+os.environ['DEVELOPER_MODE'] = "True"
+os.environ['JAVA_HOME'] = "/Library/Java/JavaVirtualMachines/jdk-11.0.14.jdk/Contents/Home"
+os.environ['DEVELOPER_MODE'] = "True"
+
 
 try:
     from ads.feature_store.feature_store import FeatureStore
@@ -38,8 +48,11 @@ class FeatureStoreTestCase:
     # networks compartment in feature store
     TIME_NOW = datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S")
     TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
+    # COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
+    # METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
+    COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaap4gumyssud5udgkbyb2nv5y3vzrkgsnskeqc77dopagutu25sjhq"
+    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaaqc2qulqav5pzijun724nglvsent3634hqrc2ybu5vfi3fu35tkyq"
+
     INPUT_FEATURE_DETAILS = [
         FeatureDetail("flower")
         .with_feature_type(FeatureType.STRING)
