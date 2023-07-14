@@ -116,7 +116,7 @@ extras_require["all-optional"] = reduce(
     [
         extras_require[k]
         for k in extras_require
-        if k not in ["boosted", "opctl", "complete"]
+        if k not in ["boosted", "opctl", "complete", "mlm_insights"]
     ],
 )
 extras_require["all-public"] = reduce(

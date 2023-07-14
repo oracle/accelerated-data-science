@@ -10,6 +10,7 @@ from urllib.parse import urlparse
 
 import fsspec
 import yaml
+from ads.common.auth import default_signer
 
 Self = TypeVar("Self", bound="Serializable")
 """Special type to represent the current enclosed class.
@@ -88,6 +89,14 @@ class Serializable(ABC):
         str
             The content of the file as a string.
         """
+        # Add default signer if the uri is an object storage uri, and
+        # the user does not specify config or signer.
+        if (
+            uri.startswith("oci://")
+            and "config" not in kwargs
+            and "signer" not in kwargs
+        ):
+            kwargs.update(default_signer())
         with fsspec.open(uri, "r", **kwargs) as f:
             return f.read()
 
@@ -127,7 +136,7 @@ class Serializable(ABC):
         json_string: str = None,
         uri: str = None,
         decoder: callable = json.JSONDecoder,
-        **kwargs
+        **kwargs,
     ) -> Self:
         """Creates an object from JSON string provided or from URI location containing JSON string
 
@@ -216,7 +225,7 @@ class Serializable(ABC):
         yaml_string: str = None,
         uri: str = None,
         loader: callable = yaml.SafeLoader,
-        **kwargs
+        **kwargs,
     ) -> Self:
         """Initializes an object from YAML string or URI location containing the YAML
 
@@ -252,7 +261,7 @@ class Serializable(ABC):
         obj_string: str = None,
         uri: str = None,
         loader: callable = yaml.SafeLoader,
-        **kwargs
+        **kwargs,
     ) -> Self:
         """Initializes an object from YAML/JSON string or URI location containing the YAML/JSON
 
