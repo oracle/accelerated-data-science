@@ -19,6 +19,7 @@ from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     validate_delta_format_parameters,
     convert_expectation_suite_to_expectation,
+    validate_model_ocid_format, search_model_ocids
 )
 from ads.feature_store.dataset_job import DatasetJob, IngestionMode
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
@@ -481,12 +482,13 @@ class Dataset(Builder):
     def model_details(self, model_details: ModelDetails):
         self.with_model_details(model_details)
 
-    def with_model_details(self, model_details: ModelDetails) -> "Dataset":
+    def with_model_details(self, model_details: ModelDetails,validate: bool = True) -> "Dataset":
         """Sets the model details for the dataset.
 
         Parameters
         ----------
         model_details: ModelDetails
+        validate: if to validate the model ids
 
         Returns
         -------
@@ -498,6 +500,18 @@ class Dataset(Builder):
                 "The argument `model_details` has to be of type `ModelDetails`"
                 "but is of type: `{}`".format(type(model_details))
             )
+        #TODO: we could eiher use validate_model_ocid_format if thats enough or search_model_ocids
+        #search_model_ocids should be used after set_auth without url
+        # items = model_details["items"]
+        # for item in items:
+        #     if not validate_model_ocid(item):
+        #         raise ValueError(
+        #             f"the model ocid {item} is not valid"
+        #         )
+        if validate:
+            model_ids_list = search_model_ocids(model_details.items)
+            model_details = ModelDetails(model_ids_list)
+
         return self.set_spec(self.CONST_MODEL_DETAILS, model_details.to_dict())
 
     def add_models(self, model_details: ModelDetails) -> "Dataset":

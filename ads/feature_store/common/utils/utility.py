@@ -8,9 +8,11 @@ import os
 
 from typing import Union, List
 
+import oci.regions
 from great_expectations.core import ExpectationSuite
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
+from ads.common.oci_resource import OCIResource, SEARCH_TYPE
 from ads.feature_store.common.utils.feature_schema_mapper import (
     map_spark_type_to_feature_type,
     map_feature_type_to_pandas,
@@ -19,7 +21,7 @@ from ads.feature_store.feature import Feature, DatasetFeature
 from ads.feature_store.feature_group_expectation import Rule, Expectation
 from ads.feature_store.input_feature_detail import FeatureDetail
 from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
-import re
+
 try:
     from pyspark.pandas import DataFrame
 except ModuleNotFoundError:
@@ -47,7 +49,7 @@ logger.setLevel(logging.INFO)
 
 
 def get_execution_engine_type(
-    data_frame: Union[DataFrame, pd.DataFrame]
+        data_frame: Union[DataFrame, pd.DataFrame]
 ) -> ExecutionEngine:
     """
     Determines the execution engine type for a given DataFrame.
@@ -87,7 +89,7 @@ def get_metastore_id(feature_store_id: str):
 
 
 def validate_delta_format_parameters(
-    timestamp: datetime = None, version_number: int = None, is_restore: bool = False
+        timestamp: datetime = None, version_number: int = None, is_restore: bool = False
 ):
     """
     Validate the user input provided as part of preview, restore APIs for ingested data, Ingested data is
@@ -121,9 +123,9 @@ def validate_delta_format_parameters(
 
 
 def show_ingestion_summary(
-    entity_id: str,
-    entity_type: EntityType = EntityType.FEATURE_GROUP,
-    error_details: str = None,
+        entity_id: str,
+        entity_type: EntityType = EntityType.FEATURE_GROUP,
+        error_details: str = None,
 ):
     """
     Displays a ingestion summary table with the given entity type and error details.
@@ -163,7 +165,7 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
     statistics = validation_output["statistics"]
 
     table_headers = (
-        ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
+            ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
     )
 
     table_values = [expectation_type] + list(statistics.values()) + [ingestion_status]
@@ -207,9 +209,9 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
 
 
 def get_features(
-    output_columns: List[dict],
-    parent_id: str,
-    entity_type: EntityType = EntityType.FEATURE_GROUP,
+        output_columns: List[dict],
+        parent_id: str,
+        entity_type: EntityType = EntityType.FEATURE_GROUP,
 ) -> List[Feature]:
     """
     Returns a list of features, given a list of output_columns and a feature_group_id.
@@ -266,7 +268,7 @@ def get_schema_from_spark_df(df: DataFrame):
 
 
 def get_schema_from_df(
-    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[dict]:
     """
     Given a DataFrame, returns a list of dictionaries that describe its schema.
@@ -280,7 +282,7 @@ def get_schema_from_df(
 
 
 def get_input_features_from_df(
-    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[FeatureDetail]:
     """
     Given a DataFrame, returns a list of FeatureDetail objects that represent its input features.
@@ -297,7 +299,7 @@ def get_input_features_from_df(
 
 
 def convert_expectation_suite_to_expectation(
-    expectation_suite: ExpectationSuite, expectation_type: ExpectationType
+        expectation_suite: ExpectationSuite, expectation_type: ExpectationType
 ):
     """
     Convert an ExpectationSuite object to an Expectation object with detailed rule information.
@@ -356,7 +358,7 @@ def largest_matching_subset_of_primary_keys(left_feature_group, right_feature_gr
 
 
 def convert_pandas_datatype_with_schema(
-    raw_feature_details: List[dict], input_df: pd.DataFrame
+        raw_feature_details: List[dict], input_df: pd.DataFrame
 ) -> pd.DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -381,7 +383,7 @@ def convert_pandas_datatype_with_schema(
 
 
 def convert_spark_dataframe_with_schema(
-    raw_feature_details: List[dict], input_df: DataFrame
+        raw_feature_details: List[dict], input_df: DataFrame
 ) -> DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -403,10 +405,35 @@ def validate_input_feature_details(input_feature_details, data_frame):
     return convert_spark_dataframe_with_schema(input_feature_details, data_frame)
 
 
-def validate_model_ocid(model_ocid):
-    pattern = r'^ocid1\.datasciencemodel\.oc(?P<realm>[0-17]+)\.(?P<region>[A-Za-z0-9]+)?\.?(?P<future_use>[A-Za-z0-9]+)?\.(?P<unique_id>[A-Za-z0-9]+)$'
-    match = re.match(pattern, model_ocid)
-    if match:
-        # groups = match.groupdict()
-        return True
-    return False
+def validate_model_ocid_format(model_ocid):
+    split_words = model_ocid.split('.')
+    region = split_words[3]
+    realm = split_words[2]
+    print(split_words)
+    # region = auth.get("signer").region will not work for config
+    # TODO: try to get current region if possible??
+    if region in oci.regions.REGIONS_SHORT_NAMES:
+        region = oci.regions.REGIONS_SHORT_NAMES[region]
+    elif region not in oci.regions.REGIONS:
+        return False
+    if realm not in oci.regions.REGION_REALMS[region]:
+        return False
+    return True
+
+
+def search_model_ocids(model_ids: list) -> list:
+    query = "query datasciencemodel resources where "
+    items = model_ids
+    for item in items:
+        query = query + f"identifier='{item}'||"
+    list_models = OCIResource.search(
+        query[:-2]
+        , type=SEARCH_TYPE.STRUCTURED,
+    )
+    list_models_ids = []
+    for model in list_models:
+        list_models_ids.append(model.identifier)
+    for model_id in model_ids:
+        if model_id not in list_models_ids:
+            logger.warning(model_id + " doesnt exist")
+    return list_models_ids

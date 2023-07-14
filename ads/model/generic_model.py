@@ -34,6 +34,7 @@ from ads.config import (
 from ads.evaluations import EvaluatorMixin
 from ads.feature_engineering import ADSImage
 from ads.feature_engineering.schema import Schema
+from ads.feature_store.model_details import ModelDetails
 from ads.model.artifact import ModelArtifact
 from ads.model.common.utils import (
     _extract_locals,
@@ -99,6 +100,7 @@ MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
 MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
 MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
+
 DEFAULT_MODEL_FOLDER_NAME = "model"
 
 ONNX_DATA_TRANSFORMER = "onnx_data_transformer.json"
@@ -135,7 +137,7 @@ class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):  # pragma: no cover
+class NotActiveDeploymentError(Exception):   # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -144,15 +146,15 @@ class NotActiveDeploymentError(Exception):  # pragma: no cover
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):  # pragma: no cover
+class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):  # pragma: no cover
+class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):  # pragma: no cover
+class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
     pass
 
 
@@ -348,9 +350,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Instance of ads.model.SERDE. Used for serialize/deserialize model input.
         """
         if (
-                artifact_dir
-                and ObjectStorageDetails.is_oci_path(artifact_dir)
-                and not self._PREFIX == "spark"
+            artifact_dir
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
+            and not self._PREFIX == "spark"
         ):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "
@@ -415,9 +417,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self.ignore_conda_error = False
 
     def _init_serde(
-            self,
-            model_input_serde: Union[SERDE, str] = None,
-            model_save_serializer: Union[SERDE, str] = None,
+        self,
+        model_input_serde: Union[SERDE, str] = None,
+        model_save_serializer: Union[SERDE, str] = None,
     ):
         """Initializes serde.
 
@@ -512,8 +514,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         return yaml.safe_dump(self._to_dict())
 
     def set_model_input_serializer(
-            self,
-            model_input_serializer: Union[str, SERDE],
+        self,
+        model_input_serializer: Union[str, SERDE],
     ):
         """Registers serializer used for serializing data passed in verify/predict.
 
@@ -645,12 +647,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             )
 
     def serialize_model(
-            self,
-            as_onnx: bool = False,
-            initial_types: List[Tuple] = None,
-            force_overwrite: bool = False,
-            X_sample: any = None,
-            **kwargs,
+        self,
+        as_onnx: bool = False,
+        initial_types: List[Tuple] = None,
+        force_overwrite: bool = False,
+        X_sample: any = None,
+        **kwargs,
     ):
         """
         Serialize and save model using ONNX or model specific method.
@@ -688,11 +690,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             )
 
     def _serialize_model_helper(
-            self,
-            initial_types: List[Tuple] = None,
-            force_overwrite: bool = False,
-            X_sample: any = None,
-            **kwargs,
+        self,
+        initial_types: List[Tuple] = None,
+        force_overwrite: bool = False,
+        X_sample: any = None,
+        **kwargs,
     ):
         model_path = self._check_model_file(
             self.model_file_name, force_overwrite=force_overwrite
@@ -752,17 +754,17 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             raise e
 
     def _onnx_data_transformer(
-            self,
-            X: Union[pd.DataFrame, pd.Series],
-            impute_values: Dict = None,
-            force_overwrite: bool = False,
+        self,
+        X: Union[pd.DataFrame, pd.Series],
+        impute_values: Dict = None,
+        force_overwrite: bool = False,
     ):
         """Apply onnx data transformer to data."""
         if self.framework in FRAMEWORKS_WITHOUT_ONNX_DATA_TRANSFORM or X is None:
             return X
         try:
             if hasattr(self, "onnx_data_preprocessor") and isinstance(
-                    self.onnx_data_preprocessor, ONNXTransformer
+                self.onnx_data_preprocessor, ONNXTransformer
             ):
                 X = self.onnx_data_preprocessor.transform(X=X)
 
@@ -771,8 +773,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 X=X, impute_values=impute_values
             )
             if (
-                    os.path.exists(os.path.join(self.artifact_dir, ONNX_DATA_TRANSFORMER))
-                    and not force_overwrite
+                os.path.exists(os.path.join(self.artifact_dir, ONNX_DATA_TRANSFORMER))
+                and not force_overwrite
             ):
                 raise ValueError(
                     f"{ONNX_DATA_TRANSFORMER} already exists. "
@@ -794,26 +796,26 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         return X
 
     def prepare(
-            self,
-            inference_conda_env: str = None,
-            inference_python_version: str = None,
-            training_conda_env: str = None,
-            training_python_version: str = None,
-            model_file_name: str = None,
-            as_onnx: bool = False,
-            initial_types: List[Tuple] = None,
-            force_overwrite: bool = False,
-            namespace: str = CONDA_BUCKET_NS,
-            use_case_type: str = None,
-            X_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
-            y_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
-            training_script_path: str = None,
-            training_id: str = _TRAINING_RESOURCE_ID,
-            ignore_pending_changes: bool = True,
-            max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
-            ignore_conda_error: bool = False,
-            score_py_uri: str = None,
-            **kwargs: Dict,
+        self,
+        inference_conda_env: str = None,
+        inference_python_version: str = None,
+        training_conda_env: str = None,
+        training_python_version: str = None,
+        model_file_name: str = None,
+        as_onnx: bool = False,
+        initial_types: List[Tuple] = None,
+        force_overwrite: bool = False,
+        namespace: str = CONDA_BUCKET_NS,
+        use_case_type: str = None,
+        X_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+        y_sample: Union[list, tuple, pd.DataFrame, pd.Series, np.ndarray] = None,
+        training_script_path: str = None,
+        training_id: str = _TRAINING_RESOURCE_ID,
+        ignore_pending_changes: bool = True,
+        max_col_num: int = DATA_SCHEMA_MAX_COL_NUM,
+        ignore_conda_error: bool = False,
+        score_py_uri: str = None,
+        **kwargs: Dict,
     ) -> "GenericModel":
         """Prepare and save the score.py, serialized model and runtime.yaml file.
 
@@ -918,7 +920,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 self.properties.inference_python_version = (
                     manifest["python"]
                     if "python" in manifest
-                       and not self.properties.inference_python_version
+                    and not self.properties.inference_python_version
                     else self.properties.inference_python_version
                 )
             except:
@@ -935,8 +937,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             as_onnx=as_onnx, model_file_name=model_file_name
         )
         if (
-                not isinstance(self.model_file_name, str)
-                or self.model_file_name.strip() == ""
+            not isinstance(self.model_file_name, str)
+            or self.model_file_name.strip() == ""
         ):
             raise ValueError("The `model_file_name` needs to be provided.")
 
@@ -993,8 +995,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 )
             except SerializeModelNotImplementedError as e:
                 if not utils.is_path_exists(
-                        uri=os.path.join(self.artifact_dir, self.model_file_name),
-                        auth=self.auth,
+                    uri=os.path.join(self.artifact_dir, self.model_file_name),
+                    auth=self.auth,
                 ):
                     self._summary_status.update_action(
                         detail="Serialized model",
@@ -1088,7 +1090,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         return self
 
     def _handle_input_data(
-            self, data: Any = None, auto_serialize_data: bool = True, **kwargs
+        self, data: Any = None, auto_serialize_data: bool = True, **kwargs
     ):
         """Handle input data and serialize it as required.
 
@@ -1193,11 +1195,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         return self.model_save_serializer
 
     def verify(
-            self,
-            data: Any = None,
-            reload_artifacts: bool = True,
-            auto_serialize_data: bool = False,
-            **kwargs,
+        self,
+        data: Any = None,
+        reload_artifacts: bool = True,
+        auto_serialize_data: bool = False,
+        **kwargs,
     ) -> Dict[str, Any]:
         """Test if deployment works in local environment.
 
@@ -1279,15 +1281,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     @classmethod
     def from_model_artifact(
-            cls: Type[Self],
-            uri: str,
-            model_file_name: str = None,
-            artifact_dir: Optional[str] = None,
-            auth: Optional[Dict] = None,
-            force_overwrite: Optional[bool] = False,
-            properties: Optional[ModelProperties] = None,
-            ignore_conda_error: Optional[bool] = False,
-            **kwargs: dict,
+        cls: Type[Self],
+        uri: str,
+        model_file_name: str = None,
+        artifact_dir: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        properties: Optional[ModelProperties] = None,
+        ignore_conda_error: Optional[bool] = False,
+        **kwargs: dict,
     ) -> Self:
         """Loads model from a folder, or zip/tar archive.
 
@@ -1326,9 +1328,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             If `model_file_name` not provided.
         """
         if (
-                cls._PREFIX is not "spark"
-                and artifact_dir
-                and ObjectStorageDetails.is_oci_path(artifact_dir)
+            cls._PREFIX is not "spark"
+            and artifact_dir
+            and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
             raise ValueError(
                 f"Unsupported value of `artifact_dir`: {artifact_dir}. "
@@ -1379,17 +1381,17 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     @classmethod
     def from_model_catalog(
-            cls: Type[Self],
-            model_id: str,
-            model_file_name: str = None,
-            artifact_dir: Optional[str] = None,
-            auth: Optional[Dict] = None,
-            force_overwrite: Optional[bool] = False,
-            properties: Optional[Union[ModelProperties, Dict]] = None,
-            bucket_uri: Optional[str] = None,
-            remove_existing_artifact: Optional[bool] = True,
-            ignore_conda_error: Optional[bool] = False,
-            **kwargs,
+        cls: Type[Self],
+        model_id: str,
+        model_file_name: str = None,
+        artifact_dir: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        properties: Optional[Union[ModelProperties, Dict]] = None,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
+        **kwargs,
     ) -> Self:
         """Loads model from model catalog.
 
@@ -1692,17 +1694,17 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     @classmethod
     def from_id(
-            cls: Type[Self],
-            ocid: str,
-            model_file_name: str = None,
-            artifact_dir: Optional[str] = None,
-            auth: Optional[Dict] = None,
-            force_overwrite: Optional[bool] = False,
-            properties: Optional[Union[ModelProperties, Dict]] = None,
-            bucket_uri: Optional[str] = None,
-            remove_existing_artifact: Optional[bool] = True,
-            ignore_conda_error: Optional[bool] = False,
-            **kwargs,
+        cls: Type[Self],
+        ocid: str,
+        model_file_name: str = None,
+        artifact_dir: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        properties: Optional[Union[ModelProperties, Dict]] = None,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
+        ignore_conda_error: Optional[bool] = False,
+        **kwargs,
     ) -> Self:
         """Loads model from model OCID or model deployment OCID.
 
@@ -1889,7 +1891,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # populates properties from args and kwargs. Empty values will be ignored.
         self.properties.with_dict(_extract_locals(locals()))
         self.properties.compartment_id = (
-                self.properties.compartment_id or _COMPARTMENT_OCID
+            self.properties.compartment_id or _COMPARTMENT_OCID
         )
         self.properties.project_id = self.properties.project_id or PROJECT_OCID
 
@@ -1939,7 +1941,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # variables in case of saving model in context of model version set.
         model_version_set_id = _extract_model_version_set_id(model_version_set)
 
-
         # TODO : optional code
         if featurestore_dataset:
             dataset_details = {
@@ -1967,7 +1968,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             **kwargs,
         )
 
-
         self._summary_status.update_status(
             detail="Uploaded artifact to model catalog", status=ModelState.DONE.value
         )
@@ -1982,7 +1982,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # Add the model id to the feature store dataset
         if featurestore_dataset:
             model_details = ModelDetails().with_items([self.model_id])
-            featurestore_dataset.add_models(model_details)
+            featurestore_dataset.with_model_details(model_details, False)
+            featurestore_dataset.update()
 
         return self.model_id
 
@@ -1997,21 +1998,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         return get_files(self.artifact_dir, auth=self.auth)
 
     def deploy(
-            self,
-            wait_for_completion: Optional[bool] = True,
-            display_name: Optional[str] = None,
-            description: Optional[str] = None,
-            deployment_instance_shape: Optional[str] = None,
-            deployment_instance_subnet_id: Optional[str] = None,
-            deployment_instance_count: Optional[int] = None,
-            deployment_bandwidth_mbps: Optional[int] = None,
-            deployment_log_group_id: Optional[str] = None,
-            deployment_access_log_id: Optional[str] = None,
-            deployment_predict_log_id: Optional[str] = None,
-            deployment_memory_in_gbs: Optional[float] = None,
-            deployment_ocpus: Optional[float] = None,
-            deployment_image: Optional[str] = None,
-            **kwargs: Dict,
+        self,
+        wait_for_completion: Optional[bool] = True,
+        display_name: Optional[str] = None,
+        description: Optional[str] = None,
+        deployment_instance_shape: Optional[str] = None,
+        deployment_instance_subnet_id: Optional[str] = None,
+        deployment_instance_count: Optional[int] = None,
+        deployment_bandwidth_mbps: Optional[int] = None,
+        deployment_log_group_id: Optional[str] = None,
+        deployment_access_log_id: Optional[str] = None,
+        deployment_predict_log_id: Optional[str] = None,
+        deployment_memory_in_gbs: Optional[float] = None,
+        deployment_ocpus: Optional[float] = None,
+        deployment_image: Optional[str] = None,
+        **kwargs: Dict,
     ) -> "ModelDeployment":
         """
         Deploys a model. The model needs to be saved to the model catalog at first. You can deploy the model
@@ -2129,17 +2130,17 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         poll_interval = kwargs.pop("poll_interval", DEFAULT_POLL_INTERVAL)
 
         self.properties.compartment_id = (
-                self.properties.compartment_id or _COMPARTMENT_OCID
+            self.properties.compartment_id or _COMPARTMENT_OCID
         )
         self.properties.project_id = self.properties.project_id or PROJECT_OCID
         self.properties.deployment_instance_shape = (
-                self.properties.deployment_instance_shape or MODEL_DEPLOYMENT_INSTANCE_SHAPE
+            self.properties.deployment_instance_shape or MODEL_DEPLOYMENT_INSTANCE_SHAPE
         )
         self.properties.deployment_instance_count = (
-                self.properties.deployment_instance_count or MODEL_DEPLOYMENT_INSTANCE_COUNT
+            self.properties.deployment_instance_count or MODEL_DEPLOYMENT_INSTANCE_COUNT
         )
         self.properties.deployment_bandwidth_mbps = (
-                self.properties.deployment_bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
+            self.properties.deployment_bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
         )
 
         if not self.model_id:
@@ -2149,8 +2150,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             )
 
         if (
-                self.properties.deployment_access_log_id
-                or self.properties.deployment_predict_log_id
+            self.properties.deployment_access_log_id
+            or self.properties.deployment_predict_log_id
         ) and not self.properties.deployment_log_group_id:
             raise ValueError(
                 "`deployment_log_group_id` needs to be specified. "
@@ -2162,11 +2163,11 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         existing_runtime = self.model_deployment.runtime
 
         web_concurrency = (
-                kwargs.pop("web_concurrency", None)
-                or existing_infrastructure.web_concurrency
+            kwargs.pop("web_concurrency", None)
+            or existing_infrastructure.web_concurrency
         )
         if not (
-                self.properties.compartment_id or existing_infrastructure.compartment_id
+            self.properties.compartment_id or existing_infrastructure.compartment_id
         ):
             raise ValueError("`compartment_id` has to be provided.")
         if not (self.properties.project_id or existing_infrastructure.project_id):
