@@ -1,7 +1,7 @@
 .. _Feature Validation:
 
 Feature Validation
-*************
+******************
 
 Feature validation is the process of checking the quality and accuracy of the features used in a machine learning model. This is important because features that are not accurate or reliable can lead to poor model performance.
 Feature store allows you to define expectation on the data which is being materialized into feature group and dataset. This is achieved using open source library Great Expectations.
@@ -43,7 +43,7 @@ An Expectation is a verifiable assertion about your data. You can define expecta
     )
 
 Expectations Suite
-============
+===================
 
 Expectation Suite is a collection of verifiable assertions i.e. expectations about your data. You can define expectation suite as below:
 
