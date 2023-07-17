@@ -23,7 +23,7 @@ Release Notes
         - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__
         - Par link expires Jan 5, 2026
 
-Release notes: July 21, 2023
+Release notes: July 18, 2023
 
 * [FEATURE] Supporting for deployment in ``us-ashburn`` and ``uk-london`` region.
 * [FEATURE] For ``ValidationOutput`` instance, addition of ``to_summary()`` method  for validation summary details.
