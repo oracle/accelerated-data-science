@@ -60,6 +60,11 @@ class TestFeatureGroupValidation(FeatureStoreTestCase):
         assert "success" in df.columns
         assert True in df["success"].values
 
+        df = dataset.get_validation_output().to_summary().T
+        assert df is not None
+        assert "success" in df.columns
+        assert True in df["success"].values
+
         self.clean_up_dataset(dataset)
         self.clean_up_feature_group(fg)
         self.clean_up_entity(entity)
