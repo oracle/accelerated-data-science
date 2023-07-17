@@ -90,6 +90,7 @@ Steps
   Refer :ref:`Release Notes` for getting the latest conda pack and ``SERVICE_VERSION``. Remember to replace the values within angle brackets ("<>" symbols) in the command above with the relevant values for your environment. Also, Refer :ref:`User Policies` to create feature store stack for non admin users. No policies are explicitly required for admin user.
 
 1. Run the shell command.
+
   ..  code-block:: shell
 
     rm -f feature-store-terraform.zip \
@@ -116,7 +117,7 @@ Steps
         --wait-for-state FAILED
 
 Update Feature Store Stack with the Latest using OCI CLI
-==============================
+========================================================
 
 Prerequisites
 #############
@@ -139,6 +140,7 @@ Steps
   Refer :ref:`Release Notes` for getting the latest conda pack and ``SERVICE_VERSION``. Remember to replace the values within angle brackets ("<>" symbols) in the command above with the relevant values for your environment. Also, Refer :ref:`User Policies` to create feature store stack for non admin users. No policies are explicitly required for admin user.
 
 1. Run the shell command.
+
   ..  code-block:: shell
 
     rm -f feature-store-terraform.zip \
