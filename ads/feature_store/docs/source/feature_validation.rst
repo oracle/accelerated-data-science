@@ -7,7 +7,7 @@ Feature validation is the process of checking the quality and accuracy of the fe
 Feature store allows you to define expectation on the data which is being materialized into feature group and dataset. This is achieved using open source library Great Expectations.
 
 .. note::
-  `Great Expectations <https://docs.greatexpectations.io/docs/>`_ is a Python-based open-source library for validating, documenting, and profiling your data. It helps you to maintain data quality and improve communication about data between teams. Software developers have long known that automated testing is essential for managing complex codebases.
+  `Great Expectations <https://docs.greatexpectations.io/docs/0.15.50/>`_ is a Python-based open-source library for validating, documenting, and profiling your data. It helps you to maintain data quality and improve communication about data between teams. Software developers have long known that automated testing is essential for managing complex codebases.
 
 
 Expectations
@@ -50,5 +50,7 @@ Expectation Suite is a collection of verifiable assertions i.e. expectations abo
 .. code-block:: python3
 
     # Create an Expectation Suite
-    suite = context.add_expectation_suite(expectation_suite_name="example_suite")
-    suite.add_expectation(expect_config)
+    expectation_suite = ExpectationSuite(
+        expectation_suite_name=<expectation_suite_name>
+    )
+    expectation_suite.add_expectation(expect_config)
