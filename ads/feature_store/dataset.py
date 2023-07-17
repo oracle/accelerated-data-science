@@ -887,11 +887,7 @@ class Dataset(Builder):
         validation_output = (
             output_details.get("validationOutput") if output_details else None
         )
-        validation_output_json = (
-            json.loads(validation_output) if validation_output else None
-        )
-
-        return ValidationOutput(validation_output_json)
+        return ValidationOutput(validation_output)
 
     @classmethod
     def list_df(cls, compartment_id: str = None, **kwargs) -> "pandas.DataFrame":
