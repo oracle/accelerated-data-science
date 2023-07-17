@@ -19,6 +19,9 @@ import yaml
 from click.testing import CliRunner
 
 ADS_CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
+# When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%" and
+# it has permissions to remove (rmtree) folder in it, which is done by install command below
+WORK_DIR = os.getenv("CHECKOUT_DIR", None)
 
 
 class TestCondaRun:
@@ -37,9 +40,8 @@ class TestCondaRun:
         )
         assert res.exit_code == 0, res.output
 
-    @patch("ads.opctl.conda.cmds.shutil.rmtree")  # TC has permission issue with removal
-    def test_conda_create_publish_setup(self, rmtree):
-        with tempfile.TemporaryDirectory() as td:
+    def test_conda_create_publish_setup(self):
+        with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
@@ -94,7 +96,7 @@ dependencies:
 
     def test_conda_cli(self):
         runner = CliRunner()
-        with tempfile.TemporaryDirectory() as td:
+        with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
