@@ -152,22 +152,55 @@ Feature store provides an API similar to Pandas to join feature groups together 
 
 Save expectation entity
 =======================
-Feature store allows you to define expectations on data being materialized into feature group instance. With a ``FeatureGroup`` instance, we can save the expectation entity using ``save_expectation()``
+With a ``FeatureGroup`` instance, You can save the expectation details using ``with_expectation_suite()`` with parameters
 
-
-.. image:: figures/validation.png
-
-The ``.save_expectation()`` method takes the following optional parameter:
-
-- ``expectation: Expectation``. Expectation of great expectation
+- ``expectation_suite: ExpectationSuite``. ExpectationSuit of great expectation
 - ``expectation_type: ExpectationType``. Type of expectation
         - ``ExpectationType.STRICT``: Fail the job if expectation not met
         - ``ExpectationType.LENIENT``: Pass the job even if expectation not met
 
+.. note::
+
+  Great Expectations is a Python-based open-source library for validating, documenting, and profiling your data. It helps you to maintain data quality and improve communication about data between teams. Software developers have long known that automated testing is essential for managing complex codebases.
+
+.. image:: figures/validation.png
+
 .. code-block:: python3
 
-  feature_group.save_expectation(expectation_suite, expectation_type="STRICT")
+    expectation_suite = ExpectationSuite(
+        expectation_suite_name="expectation_suite_name"
+    )
+    expectation_suite.add_expectation(
+        ExpectationConfiguration(
+            expectation_type="expect_column_values_to_not_be_null",
+            kwargs={"column": "<column>"},
+        )
 
+    feature_group_resource = (
+        FeatureGroup()
+        .with_feature_store_id(feature_store.id)
+        .with_primary_keys(["<key>"])
+        .with_name("<name>")
+        .with_entity_id(entity.id)
+        .with_compartment_id(<compartment_id>)
+        .with_schema_details_from_dataframe(<datframe>)
+        .with_expectation_suite(
+            expectation_suite=expectation_suite,
+            expectation_type=ExpectationType.STRICT,
+         )
+    )
+
+You can call the ``get_validation_output()`` method of the FeatureGroup instance to fetch validation results for a specific ingestion job.
+The ``get_validation_output()`` method takes the following optional parameter:
+
+- ``job_id: string``. Id of feature group job
+``get_validation_output().to_pandas()`` will output  the validation results for each expectation as pandas dataframe
+
+.. image:: figures/validation_results.png
+
+``get_validation_output().to_summary()`` will output the overall summary of validation as pandas dataframe.
+
+.. image:: figures/validation_summary.png
 .. seealso::
 
    :ref:`Feature Validation`
