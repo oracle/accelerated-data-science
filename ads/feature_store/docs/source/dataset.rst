@@ -168,7 +168,11 @@ The ``get_validation_output()`` method takes the following optional parameter:
 
 ``get_validation_output().to_pandas()`` will output  the validation results for each expectation as pandas dataframe
 
+.. image:: figures/dataset_validation_results.png
+
 ``get_validation_output().to_summary()`` will output the overall summary of validation as pandas dataframe.
+
+.. image:: figures/dataset_validation_summary.png
 
 .. seealso::
 
@@ -214,7 +218,7 @@ The ``get_statistics()`` method takes the following optional parameter:
   # Fetch stats results for a dataset job
   df = dataset.get_statistics(job_id).to_pandas()
 
-.. image:: figures/stats_1.png
+.. image:: figures/dataset_statistics.png
 
 .. seealso::
 
