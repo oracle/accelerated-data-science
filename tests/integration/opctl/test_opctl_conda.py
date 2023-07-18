@@ -3,15 +3,13 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
+import os, stat
 from ads.opctl.conda.cmds import create, install, publish
 from ads.opctl.conda.cli import create as cli_create
 from ads.opctl.conda.cli import install as cli_install
 from ads.opctl.conda.cli import publish as cli_publish
 from tests.integration.config import secrets
-import pytest
 import shutil
-from mock import patch
 
 import tempfile
 import yaml
@@ -42,6 +40,8 @@ class TestCondaRun:
 
     def test_conda_create_publish_setup(self):
         with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
+            # TeamCity fails to remove TemporaryDirectory, we adjust permissions here:
+            os.chmod(td, 0o700)
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
@@ -70,8 +70,13 @@ dependencies:
                 conda_pack_folder=os.path.join(td, "conda"),
                 ads_config=ADS_CONFIG_DIR,
             )
-            os.chmod(os.path.join(td, "conda"), 0o777)
-            shutil.rmtree(os.path.join(td, "conda"))
+
+            def del_rw(action, name, exc):
+                os.chmod(name, stat.S_IWRITE)
+                os.remove(name)
+
+            # TeamCity fails to remove files in folder, we force to remove them:
+            shutil.rmtree(os.path.join(td, "conda"), onerror=del_rw)
 
             install(
                 slug="testabc_v1",
@@ -97,6 +102,8 @@ dependencies:
     def test_conda_cli(self):
         runner = CliRunner()
         with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
+            # TeamCity fails to remove TemporaryDirectory, we adjust permissions here:
+            os.chmod(td, 0o700)
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
