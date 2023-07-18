@@ -29,6 +29,11 @@ from ads.jobs.builders.infrastructure.utils import get_value
 from ads.model.common.utils import _is_json_serializable
 from ads.model.deployment.common.utils import send_request
 from ads.model.deployment.model_deployment_infrastructure import (
+    DEFAULT_BANDWIDTH_MBPS,
+    DEFAULT_REPLICA,
+    DEFAULT_SHAPE_NAME,
+    DEFAULT_OCPUS,
+    DEFAULT_MEMORY_IN_GBS,
     MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE,
     ModelDeploymentInfrastructure,
 )
@@ -63,12 +68,6 @@ TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
 MODEL_DEPLOYMENT_INFERENCE_SERVER_TRITON = "TRITON"
-
-MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
-MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
-MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS = 16
-MODEL_DEPLOYMENT_INSTANCE_COUNT = 1
-MODEL_DEPLOYMENT_BANDWIDTH_MBPS = 10
 
 MODEL_DEPLOYMENT_RUNTIMES = {
     ModelDeploymentRuntimeType.CONDA: ModelDeploymentCondaRuntime,
@@ -1601,7 +1600,7 @@ class ModelDeployment(Builder):
 
         instance_configuration = {
             infrastructure.CONST_INSTANCE_SHAPE_NAME: infrastructure.shape_name
-            or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
+            or DEFAULT_SHAPE_NAME,
         }
 
         if instance_configuration[infrastructure.CONST_INSTANCE_SHAPE_NAME].endswith(
@@ -1613,14 +1612,14 @@ class ModelDeployment(Builder):
                 infrastructure.CONST_OCPUS: infrastructure.shape_config_details.get(
                     "ocpus", None
                 )
-                or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+                or DEFAULT_OCPUS,
                 infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
                     "memory_in_gbs", None
                 )
                 or infrastructure.shape_config_details.get(
                     "memoryInGBs", None
                 )
-                or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+                or DEFAULT_MEMORY_IN_GBS,
             }
 
         if infrastructure.subnet_id:
@@ -1629,7 +1628,7 @@ class ModelDeployment(Builder):
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
             infrastructure.CONST_INSTANCE_COUNT: infrastructure.replica
-            or MODEL_DEPLOYMENT_INSTANCE_COUNT,
+            or DEFAULT_REPLICA,
         }
 
         if not runtime.model_uri:
@@ -1660,7 +1659,7 @@ class ModelDeployment(Builder):
 
         model_configuration_details = {
             infrastructure.CONST_BANDWIDTH_MBPS: infrastructure.bandwidth_mbps
-            or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
+            or DEFAULT_BANDWIDTH_MBPS,
             infrastructure.CONST_INSTANCE_CONFIG: instance_configuration,
             runtime.CONST_MODEL_ID: model_id,
             infrastructure.CONST_SCALING_POLICY: scaling_policy,

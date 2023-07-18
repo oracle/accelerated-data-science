@@ -22,7 +22,9 @@ MODEL_DEPLOYMENT_INFRASTRUCTURE_KIND = "infrastructure"
 DEFAULT_BANDWIDTH_MBPS = 10
 DEFAULT_WEB_CONCURRENCY = 10
 DEFAULT_REPLICA = 1
-DEFAULT_SHAPE_NAME = "VM.Standard.E2.4"
+DEFAULT_SHAPE_NAME = "VM.Standard.E4.Flex"
+DEFAULT_OCPUS = 1
+DEFAULT_MEMORY_IN_GBS = 16
 
 logger = logging.getLogger(__name__)
 
@@ -625,4 +627,8 @@ class ModelDeploymentInfrastructure(Builder):
             .with_web_concurrency(self.web_concurrency or DEFAULT_WEB_CONCURRENCY)
             .with_replica(self.replica or DEFAULT_REPLICA)
             .with_shape_name(self.shape_name or DEFAULT_SHAPE_NAME)
+            .with_shape_config_details(
+                ocpus=self.shape_config_details.get(self.CONST_OCPUS, DEFAULT_OCPUS),
+                memory_in_gbs=self.shape_config_details.get(self.CONST_MEMORY_IN_GBS, DEFAULT_MEMORY_IN_GBS)
+            )
         )
