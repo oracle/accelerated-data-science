@@ -3,7 +3,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os, stat
+import os
 from ads.opctl.conda.cmds import create, install, publish
 from ads.opctl.conda.cli import create as cli_create
 from ads.opctl.conda.cli import install as cli_install
@@ -41,7 +41,7 @@ class TestCondaRun:
     def test_conda_create_publish_setup(self):
         with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
             # TeamCity fails to remove TemporaryDirectory, we adjust permissions here:
-            os.chmod(td, 0o700)
+            os.chmod(td, 0o777)
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
@@ -72,7 +72,7 @@ dependencies:
             )
 
             def del_rw(action, name, exc):
-                os.chmod(name, stat.S_IWRITE)
+                os.chmod(name, 0o777)
                 os.remove(name)
 
             # TeamCity fails to remove files in folder, we force to remove them:
@@ -103,7 +103,7 @@ dependencies:
         runner = CliRunner()
         with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
             # TeamCity fails to remove TemporaryDirectory, we adjust permissions here:
-            os.chmod(td, 0o700)
+            os.chmod(td, 0o777)
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
