@@ -36,6 +36,7 @@ from ads.model.deployment.model_deployment_infrastructure import (
 from ads.model.deployment.model_deployment_runtime import (
     ModelDeploymentCondaRuntime,
     ModelDeploymentContainerRuntime,
+    ModelDeploymentMode,
     ModelDeploymentRuntime,
     ModelDeploymentRuntimeType,
     OCIModelDeploymentRuntimeType,
@@ -83,11 +84,6 @@ MODEL_DEPLOYMENT_RUNTIMES = {
 class ModelDeploymentLogType:
     PREDICT = "predict"
     ACCESS = "access"
-
-
-class ModelDeploymentMode:
-    HTTPS = "HTTPS_ONLY"
-    STREAM = "STREAM_ONLY"
 
 
 class LogNotConfiguredError(Exception):  # pragma: no cover
