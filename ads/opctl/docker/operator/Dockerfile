@@ -11,8 +11,8 @@ ENV PATH="/miniconda/bin:$PATH"
 USER root
 
 ARG CONDA_ENV_FILE=environment.yaml
-ARG CONDA_ENV_NAME=mloperator
-ARG OPERATOR_DIR=/etc/mloperator
+ARG CONDA_ENV_NAME=operator
+ARG OPERATOR_DIR=/etc/operator
 ARG RND
 
 COPY ./${CONDA_ENV_FILE} /opt/env.yaml

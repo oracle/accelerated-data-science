@@ -40,6 +40,6 @@ spec:
             value: env_value
           freeformTags:
             tag_name: tag_value
-          url: '{Git URI. For MLflow, it will be replaced with the Project URI}'
+          url: '{Git URI. For MLflow and Operator will be auto generated}'
         type: gitPython
 type: pipeline

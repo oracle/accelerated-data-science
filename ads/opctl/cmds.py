@@ -29,6 +29,7 @@ from ads.opctl.backend.local import (
     LocalBackendDistributed,
     LocalModelDeploymentBackend,
     LocalPipelineBackend,
+    LocalOperatorBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -102,6 +103,7 @@ class _BackendFactory:
         BACKEND_NAME.DATAFLOW.value: DataFlowBackend,
         BACKEND_NAME.PIPELINE.value: PipelineBackend,
         BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
+        BACKEND_NAME.OPERATOR_LOCAL.value: LocalOperatorBackend,
     }
 
     LOCAL_BACKENDS_MAP = {
@@ -247,44 +249,7 @@ def run(config: Dict, backend_config: Dict, **kwargs) -> Dict:
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     elif config.get("kind", "").lower() == "operator":
-        from ads.opctl.mloperator import __operators__, OperatorNotFoundError
-
-        mode = (kwargs["backend"] or BACKEND_NAME.LOCAL.value).lower()
-
-        supported_backends = (
-            BACKEND_NAME.LOCAL.value,
-            BACKEND_NAME.JOB.value,
-            BACKEND_NAME.DATAFLOW.value,
-        )
-
-        if mode not in supported_backends:
-            raise RuntimeError(
-                f"Not supported backend - {mode}. Supported backends: {supported_backends}"
-            )
-
-        operator_name = config.get("name", "").lower()
-
-        if not (operator_name and operator_name in __operators__):
-            raise OperatorNotFoundError(operator_name)
-
-        # merge backend config with the predefined values
-        p = ConfigProcessor(backend_config).step(ConfigMerger, **kwargs)
-
-        if not mode or mode == BACKEND_NAME.LOCAL.value:
-            subprocess.run(
-                [
-                    "python",
-                    "-m",
-                    f"ads.opctl.mloperator.lowcode.{operator_name}",
-                    "-s",
-                    yaml.dump(config, allow_unicode=True),
-                ]
-            )
-        elif mode == BACKEND_NAME.JOB.value:
-            backend = MLJobOperatorBackend(config=p.config, operator_config=config)
-            backend.run()
-        else:
-            raise RuntimeError("Not implemented backend.")
+        apply(config=config, backend_config=backend_config, **kwargs)
     else:
         if (
             "kind" in p.config
@@ -891,3 +856,62 @@ def init(
         print(spec_yaml)
     else:
         print(output)
+
+
+def apply(config: Dict, backend_config: Dict = None, **kwargs) -> None:
+    """
+    Runs the operator with the given specification on the targeted backend.
+
+    Parameters
+    ----------
+    config: dict
+        dictionary of configurations
+    kwargs: dict
+        keyword arguments, stores configuration from command line args
+    """
+    backend_config = backend_config or {}
+    p_backend = ConfigProcessor(backend_config).step(ConfigMerger, **kwargs)
+    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    p.config["runtime"] = backend_config
+    p.config["infrastructure"] = p_backend.config["infrastructure"]
+    p.config["execution"] = p_backend.config["execution"]
+
+    if p.config.get("kind", "").lower() == "operator":
+        from ads.opctl.operator import __operators__, OperatorNotFoundError
+
+        supported_backends = (
+            BACKEND_NAME.JOB.value,
+            BACKEND_NAME.DATAFLOW.value,
+            BACKEND_NAME.OPERATOR_LOCAL.value,
+        )
+
+        operator_type = p.config.get("type", "").lower()
+
+        if not (operator_type and operator_type in __operators__):
+            raise OperatorNotFoundError(operator_type or "unknown")
+
+        if not (p.config["runtime"] and p.config["runtime"].get("kind")):
+            raise ValueError(
+                "To run an operator the backend config needs to be provided."
+            )
+
+        backend_kind = p.config["runtime"].get("kind").lower()
+
+        if backend_kind not in supported_backends:
+            raise RuntimeError(
+                f"Not supported backend - {backend_kind}. Supported backends: {supported_backends}"
+            )
+
+        if backend_kind == BACKEND_NAME.OPERATOR_LOCAL.value:
+            if kwargs.get("dry_run"):
+                print(
+                    "The dry run option is not supported for "
+                    "the local backend and will be ignored."
+                )
+            LocalOperatorBackend(config=p.config).run()
+        elif backend_kind == BACKEND_NAME.JOB.value:
+            MLJobOperatorBackend(config=p.config).run()
+        elif backend_kind == BACKEND_NAME.DATAFLOW.value:
+            raise NotImplementedError("The Data Flow backend is not supported yet.")
+    else:
+        raise RuntimeError("Not supported operator.")

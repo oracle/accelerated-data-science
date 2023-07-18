@@ -8,13 +8,15 @@ __version__ = "v1"
 
 __name__ = "forecast"
 
-__conda__ = "forecast_p38_cpu_v1"
+# __conda__ = "forecast_p38_cpu_v1"
+
+__conda__ = "cpu/Forecasting Operator/1.0/forecast_p38_cpu_v1"
 
 __keywords__ = ["Prophet", "AutoML", "SARIMA", "ARIMA", "RNN", "LSTM"]
 
 __short_description__ = """
 Forecasting operator, that leverages historical time series data to generate accurate
-forecasts for future trends. Use `ads opctl mloperator info forecast`
+forecasts for future trends. Use `ads opctl operator info forecast`
 to get more details about the forecasting operator.
 """
 
@@ -23,4 +25,6 @@ Forecasting operator, that leverages historical time series data to generate acc
 forecasts for future trends. This operator aims to simplify and expedite the data science process by
 automating the selection of appropriate models and hyperparameters, as well as identifying relevant
 features for a given prediction task.
+
+The detained information, explaining how to deal with the forecasting operator will be placed here.
 """

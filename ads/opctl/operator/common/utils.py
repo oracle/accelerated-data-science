@@ -6,6 +6,7 @@
 
 import argparse
 import importlib
+import inspect
 import os
 import re
 from dataclasses import dataclass
@@ -19,6 +20,8 @@ from json2table import convert
 from yaml import SafeLoader
 
 from ads.opctl import logger
+from ads.opctl.constants import OPERATOR_MODULE_PATH
+from ads.opctl.operator import __operators__
 from ads.opctl.utils import run_command
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
@@ -74,45 +77,6 @@ class YamlGenerator:
         example = self._generate_example(self.schema, values)
         return yaml.dump(example)
 
-    def _generate_example(
-        self, schema: Dict[str, Any], values: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        example = {}
-        for key, value in schema.items():
-            if values and key in values:
-                example[key] = values[key]
-            elif "default" in value:
-                example[key] = value["default"]
-            elif value.get("required", False):
-                if "condition" in value:
-                    if self._check_condition(value["condition"], example):
-                        example[key] = self._generate_example_for_type(value)
-                else:
-                    example[key] = self._generate_example_for_type(value)
-
-        return example
-
-    def _generate_example_for_type(self, value: Dict[str, Any]) -> Any:
-        data_type = value.get("type")
-
-        if "default" in value:
-            return value["default"]
-        elif data_type == "string":
-            return "string_value"
-        elif data_type == "number":
-            return 1
-        elif data_type == "boolean":
-            return True
-        elif data_type == "array":
-            return ["item1", "item2", "item3"]
-        elif data_type in ["object", "dict"]:
-            obj_spec = {}
-            for obj_key, obj_value in value.get("schema", {}).items():
-                obj_spec[obj_key] = self._generate_example_for_type(obj_value)
-            return obj_spec
-        else:
-            return None
-
     def _check_condition(
         self, condition: Dict[str, Any], example: Dict[str, Any]
     ) -> bool:
@@ -120,6 +84,36 @@ class YamlGenerator:
             if key not in example or example[key] != value:
                 return False
         return True
+
+    def _generate_example(
+        self, schema: Dict[str, Any], values: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        example = {}
+        for key, value in schema.items():
+            # only generate values fro required fields
+            if value.get("required", False) or value.get("dependencies", False):
+                if not "dependencies" in value or self._check_condition(
+                    value["dependencies"], example
+                ):
+                    data_type = value.get("type")
+
+                    if key in values:
+                        example[key] = values[key]
+                    elif "default" in value:
+                        example[key] = value["default"]
+                    elif data_type == "string":
+                        example[key] = "value"
+                    elif data_type == "number":
+                        example[key] = 1
+                    elif data_type == "boolean":
+                        example[key] = True
+                    elif data_type == "array":
+                        example[key] = ["item1", "item2"]
+                    elif data_type == "dict":
+                        example[key] = self._generate_example(
+                            schema=value.get("schema", {}), values=values
+                        )
+        return example
 
 
 class OperatorValidator(Validator):
@@ -137,26 +131,60 @@ def _extant_file(x: str):
 def _parse_input_args(raw_args) -> Tuple:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-f", "--file", type=_extant_file, required=False, help="Yaml spec file"
+        "-f",
+        "--file",
+        type=_extant_file,
+        required=False,
+        help="Path to the operator specification YAML file",
     )
-    parser.add_argument("-s", "--spec", type=str, required=False, help="Yaml spec")
+    parser.add_argument(
+        "-s", "--spec", type=str, required=False, help="Operator Yaml specification"
+    )
+    parser.add_argument(
+        "-v",
+        "--verify",
+        type=bool,
+        default=False,
+        required=False,
+        help="Verify operator schema",
+    )
     return parser.parse_known_args(raw_args)
 
 
-def _module_constant_values(module_name: str) -> Dict[str, Any]:
+def _module_constant_values(module_name: str, module_path: str) -> Dict[str, Any]:
     """Returns the list of constant variables from a given module.
 
+    module_name: str
+        The name of the module to be imported.
+    module_path: str
+        The physical path of the module.
     Returns
     -------
     Dict[str, Any]
         Map of variable names and their values.
     """
-    module = importlib.import_module(module_name)
+    spec = importlib.util.spec_from_file_location(module_name, module_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
     return {name: value for name, value in vars(module).items()}
 
 
+def _operator_info(path: str) -> OperatorInfo:
+    """Extracts operator's details by given path.
+    The expectation is that operator has init file where the all details placed.
+
+    Returns
+    -------
+    OperatorInfo
+        The operator details.
+    """
+    module_name = os.path.basename(path.rstrip("/"))
+    module_path = f"{path.rstrip('/')}/__init__.py"
+    return OperatorInfo.from_init(**_module_constant_values(module_name, module_path))
+
+
 def _operator_info_list() -> List[OperatorInfo]:
-    """Returns the list of registered ML operators.
+    """Returns the list of registered operators.
 
     Returns
     -------
@@ -164,12 +192,14 @@ def _operator_info_list() -> List[OperatorInfo]:
         The list of registered operators.
     """
     return (
-        OperatorInfo.from_init(
-            **_module_constant_values(f"ads.opctl.mloperator.lowcode.{operator_name}")
+        _operator_info(
+            os.path.dirname(
+                inspect.getfile(
+                    importlib.import_module(f"{OPERATOR_MODULE_PATH}.{operator_name}")
+                )
+            )
         )
-        for operator_name in _module_constant_values("ads.opctl.mloperator").get(
-            "__operators__", []
-        )
+        for operator_name in __operators__
     )
 
 
@@ -388,7 +418,7 @@ def _convert_schema_to_html(module_name: str, module_schema: str) -> str:
     return t.substitute(
         module_name=module_name,
         table=convert(
-            OperatorValidator(module_schema).schema.schema,
+            OperatorValidator(module_schema, allow_unknown=True).schema.schema,
             build_direction="LEFT_TO_RIGHT",
         ),
     )

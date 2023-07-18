@@ -18,7 +18,7 @@ spec:
       shapeName: VM.Standard2.1
       subnetId: ocid1.subnet.oc1.iad.<unique_id>
     type: dataScienceJob
-  name: '{Job name. For MLflow, it will be replaced with the Project name}'
+  name: '{Job name. For MLflow and Operator will be auto generated}'
   runtime:
     kind: runtime
     spec:

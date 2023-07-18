@@ -126,8 +126,10 @@ class CondaRuntime(Runtime):
         """
         super().init(**kwargs)
         return self.with_custom_conda(
-            "{Path to the custom conda environment. "
-            "Example: oci://your_bucket@namespace/object_name"
+            kwargs.get(
+                "conda_slug",
+                "{Path to the custom conda environment. Example: oci://bucket@namespace/prefix",
+            )
         )
 
 
@@ -256,11 +258,9 @@ class ScriptRuntime(CondaRuntime):
         """
         super().init(**kwargs)
         return (
-            self.with_entrypoint(
-                "{Entrypoint script. For MLflow, it will be replaced with the CMD}"
-            )
+            self.with_entrypoint("{For MLflow and Operator will be auto generated}")
             .with_script(
-                "{Path to the script. For MLflow, it will be replaced with the path to the project}"
+                "{Path to the script. For MLflow and Operator will be auto generated}"
             )
             .with_argument(key1="val1")
         )
@@ -445,12 +445,10 @@ class PythonRuntime(ScriptRuntime, _PythonRuntimeMixin):
         """
         super().init(**kwargs)
         return (
-            self.with_working_dir("{For MLflow the project folder will be used.}")
-            .with_entrypoint(
-                "{Entrypoint script. For MLflow, it will be replaced with the CMD}"
-            )
+            self.with_working_dir("{For MLflow and Operator will be auto generated}")
+            .with_entrypoint("{For MLflow and Operator will be auto generated}")
             .with_script(
-                "{Path to the script. For MLflow, it will be replaced with the path to the project}"
+                "{Path to the script. For MLflow and Operator will be auto generated}"
             )
         )
 
@@ -754,10 +752,8 @@ class GitPythonRuntime(CondaRuntime, _PythonRuntimeMixin):
         """
         super().init(**kwargs)
         return self.with_source(
-            "{Git URI. For MLflow, it will be replaced with the Project URI}"
-        ).with_entrypoint(
-            "{Entrypoint script. For MLflow, it will be replaced with the CMD}"
-        )
+            "{Git URI. For MLflow and Operator will be auto generated}"
+        ).with_entrypoint("{For MLflow and Operator will be auto generated}")
 
 
 class DataFlowRuntime(CondaRuntime):
@@ -979,7 +975,7 @@ class DataFlowRuntime(CondaRuntime):
         self._spec.pop(self.CONST_ENV_VAR, None)
         return (
             self.with_script_uri(
-                "{Path to the executable script. For MLflow, it will be replaced with the CMD}"
+                "{Path to the executable script. For MLflow and Operator will auto generated}"
             )
             .with_script_bucket(
                 "{The object storage bucket to save a script. "

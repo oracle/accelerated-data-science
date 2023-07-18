@@ -44,6 +44,6 @@ spec:
             tag_name: tag_value
           scriptPathURI: '{Path to the script. For MLflow, it will be replaced with
             the path to the project}'
-          workingDir: '{For MLflow the project folder will be used.}'
+          workingDir: '{For MLflow and Operator will be auto generated}'
         type: python
 type: pipeline

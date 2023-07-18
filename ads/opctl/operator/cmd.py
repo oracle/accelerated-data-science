@@ -23,7 +23,14 @@ from ads.opctl import logger
 from ads.opctl.cmds import _BackendFactory
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
-from ads.opctl.constants import DEFAULT_ADS_CONFIG_FOLDER, RESOURCE_TYPE, RUNTIME_TYPE
+from ads.opctl.constants import (
+    DEFAULT_ADS_CONFIG_FOLDER,
+    OPERATOR_MODULE_PATH,
+    RESOURCE_TYPE,
+    RUNTIME_TYPE,
+    BACKEND_NAME,
+)
+from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
 from ads.opctl.utils import publish_image as publish_image_cmd
 
 from .__init__ import __operators__
@@ -44,7 +51,7 @@ class OperatorNotFoundError(Exception):
     def __init__(self, operator: str):
         super().__init__(
             f"Operator with name: `{operator}` is not found."
-            "Use `ads opctl mloperator list` to get the list of registered operators."
+            "Use `ads opctl operator list` to get the list of registered operators."
         )
 
 
@@ -121,16 +128,14 @@ def init(
     # validation
     if not name:
         raise ValueError(
-            f"The `operator` attribute must be specified. Supported values: {__operators__}"
+            f"The `name` attribute must be specified. Supported values: {__operators__}"
         )
 
     if name not in __operators__:
         raise OperatorNotFoundError(name)
 
     # generating operator specification
-    operator_cmd_module = importlib.import_module(
-        f"ads.opctl.mloperator.lowcode.{name}.cmd"
-    )
+    operator_cmd_module = importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}.cmd")
     importlib.reload(operator_cmd_module)
     operator_specification_template = getattr(operator_cmd_module, "init")(**kwargs)
 
@@ -145,12 +150,17 @@ def init(
         overwrite = True
         output = os.path.join(tempfile.TemporaryDirectory().name, "")
 
+    # get operator physical location
     operator_path = os.path.join(os.path.dirname(__file__), "lowcode", name)
 
+    # load operator info
+    operator_info: OperatorInfo = _operator_info(operator_path)
+
+    # save operator spec YAML
     with fsspec.open(os.path.join(output, f"{name}.yaml"), mode="w") as f:
         f.write(operator_specification_template)
 
-    # save operator's schema in HTML format
+    # save operator schema in HTML format
     module_schema = _load_yaml_from_uri(os.path.join(operator_path, "schema.yaml"))
     with fsspec.open(os.path.join(output, "schema.html"), mode="w") as f:
         f.write(_convert_schema_to_html(name, module_schema))
@@ -163,13 +173,26 @@ def init(
             force_overwrite=overwrite,
         )
 
-    # save supported backend specifications templates
+    # generate supported backend specifications templates YAML
     RUNTIME_TYPE_MAP = {
         RESOURCE_TYPE.JOB: [
-            {RUNTIME_TYPE.PYTHON: {}},
-            {RUNTIME_TYPE.CONTAINER: {"image_name": f"{name}:latest"}},
+            {RUNTIME_TYPE.PYTHON: {"conda_slug": operator_info.conda}},
+            {
+                RUNTIME_TYPE.CONTAINER: {
+                    "image_name": f"{operator_info.name}:{operator_info.version}"
+                }
+            },
         ],
         RESOURCE_TYPE.DATAFLOW: [{RUNTIME_TYPE.DATAFLOW: {}}],
+        BACKEND_NAME.OPERATOR_LOCAL: [
+            {
+                RUNTIME_TYPE.CONTAINER: {
+                    "kind": "operator",
+                    "type": operator_info.name,
+                    "version": operator_info.version,
+                }
+            }
+        ],
     }
 
     for resource_type in RUNTIME_TYPE_MAP:
@@ -177,7 +200,9 @@ def init(
             runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
 
             # get config info from ini files
-            p = ConfigProcessor({"execution": {"backend": resource_type.value}}).step(
+            p = ConfigProcessor(
+                {**runtime_kwargs, **{"execution": {"backend": resource_type.value}}}
+            ).step(
                 ConfigMerger,
                 ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
                 **kwargs,
@@ -187,7 +212,8 @@ def init(
             _BackendFactory(p.config).backend.init(
                 uri=os.path.join(
                     output,
-                    f"{resource_type.value.lower()}_{runtime_type.value.lower()}_config.yaml",
+                    f"backend_{resource_type.value.lower().replace('.','_') }"
+                    f"_{runtime_type.value.lower()}_config.yaml",
                 ),
                 overwrite=overwrite,
                 runtime_type=runtime_type.value,
@@ -248,9 +274,7 @@ def build_image(
         if name not in __operators__:
             raise OperatorNotFoundError(name)
         source_folder = os.path.dirname(
-            inspect.getfile(
-                importlib.import_module(f"ads.opctl.mloperator.lowcode.{name}")
-            )
+            inspect.getfile(importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}"))
         )
         operator_image_name = operator_image_name or name
         logger.info(f"Building Docker image for the `{name}` service operator.")
@@ -271,6 +295,10 @@ def build_image(
             "Please provide relevant options."
         )
 
+    # get operator details stored in operator's init file.
+    operator_info: OperatorInfo = _operator_info(source_folder)
+    tag = operator_info.version
+
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     base_image_name = OPERATOR_BASE_GPU_IMAGE if gpu else OPERATOR_BASE_IMAGE
 
@@ -286,7 +314,7 @@ def build_image(
             cur_dir,
             "..",
             "docker",
-            "mloperator",
+            "operator",
             OPERATOR_BASE_DOCKER_GPU_FILE if gpu else OPERATOR_BASE_DOCKER_FILE,
         )
 
@@ -348,7 +376,7 @@ def publish_image(
         Any optional kwargs arguments.
     """
     if not image:
-        raise ValueError("The image name needs to be provided.")
+        raise ValueError("To publish image, the image name needs to be provided.")
 
     if not registry:
         p = ConfigProcessor().step(
@@ -359,6 +387,34 @@ def publish_image(
         registry = p.config.get("infrastructure", {}).get("docker_registry", None)
 
     publish_image_cmd(image=image, registry=registry)
+
+
+def verify(
+    config: Dict,
+    **kwargs: Dict[str, Any],
+) -> None:
+    """
+    Verifies operator config.
+
+    Parameters
+    ----------
+    config: Dict
+        The operator config.
+    kwargs: (Dict, optional).
+        Any optional kwargs arguments.
+    """
+
+    # get access to the operator module
+    # call verify command fro the operator.py
+    operator_type = config.get("type", "unknown")
+
+    if operator_type not in __operators__:
+        raise OperatorNotFoundError(operator_type)
+
+    operator_module = importlib.import_module(
+        f"{OPERATOR_MODULE_PATH}.{operator_type}.operator"
+    )
+    operator_module.verify(config)
 
 
 def create(

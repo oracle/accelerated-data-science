@@ -563,8 +563,8 @@ class APIKey(AuthSignerGenerator):
                 user=configuration["user"],
                 fingerprint=configuration["fingerprint"],
                 private_key_file_location=configuration.get("key_file"),
-                pass_phrase= configuration.get("pass_phrase"),
-                private_key_content=configuration.get("key_content")
+                pass_phrase=configuration.get("pass_phrase"),
+                private_key_content=configuration.get("key_content"),
             ),
             "client_kwargs": self.client_kwargs,
         }
@@ -857,6 +857,7 @@ class AuthContext:
         """
         self.previous_state = copy.deepcopy(AuthState())
         set_auth(**self.kwargs)
+        return default_signer(client_kwargs=self.kwargs.get("client_kwargs"))
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """

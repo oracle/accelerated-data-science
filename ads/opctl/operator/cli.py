@@ -7,7 +7,12 @@
 from typing import Any, Dict
 
 import click
+import fsspec
+import yaml
 
+from ads.common.auth import AuthContext, AuthType
+from ads.opctl.config.base import ConfigProcessor
+from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
@@ -17,9 +22,10 @@ from .cmd import info as cmd_info
 from .cmd import init as cmd_init
 from .cmd import list as cmd_list
 from .cmd import publish_image as cmd_publish_image
+from .cmd import verify as cmd_verify
 
 
-@click.group("mloperator")
+@click.group("operator")
 @click.help_option("--help", "-h")
 def commands():
     pass
@@ -169,3 +175,50 @@ def publish_image(debug, **kwargs):
 def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Creates new operator."""
     suppress_traceback(debug)(cmd_create)(**kwargs)
+
+
+@commands.command()
+@click.help_option("--help", "-h")
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option(
+    "--file", "-f", help="The path to resource YAML file.", required=True, default=None
+)
+@click.option(
+    "--ads-config",
+    "-c",
+    help="The folder where the ADS opctl config.ini located. Default value: `~/.ads_ops`.",
+    required=False,
+    default=None,
+)
+@click.option(
+    "--auth",
+    "-a",
+    help=(
+        "The authentication method to leverage OCI resources. "
+        "The default value will be taken form the ADS `config.ini` file."
+    ),
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
+    """
+    Verifies the operator config.
+    """
+
+    p = ConfigProcessor().step(ConfigMerger, **kwargs)
+
+    with AuthContext(
+        **{
+            key: value
+            for key, value in {
+                "auth": kwargs["auth"],
+                "oci_config_location": p.config["execution"]["oci_config"],
+                "profile": p.config["execution"]["oci_profile"],
+            }.items()
+            if value
+        }
+    ) as auth:
+        with fsspec.open(kwargs["file"], "r", **auth) as f:
+            operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
+
+    suppress_traceback(debug)(cmd_verify)(operator_spec, **kwargs)

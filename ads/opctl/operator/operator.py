@@ -15,7 +15,7 @@ from .common.utils import OperatorValidator
 
 
 @dataclass(repr=True)
-class MLOperator(DataClassSerializable):
+class Operator(DataClassSerializable):
     kind: str = "operator"
     type: str = None
     version: str = None

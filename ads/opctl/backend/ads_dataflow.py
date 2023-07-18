@@ -88,9 +88,7 @@ class DataFlowBackend(Backend):
             # define an job
             job = (
                 Job()
-                .with_name(
-                    "{Job name. For MLflow, it will be replaced with the Project name}"
-                )
+                .with_name("{Job name. For MLflow and Operator will be auto generated}")
                 .with_infrastructure(
                     DataFlow(**(self.config.get("infrastructure", {}) or {})).init()
                 )

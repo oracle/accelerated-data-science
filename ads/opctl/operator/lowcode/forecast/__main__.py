@@ -4,19 +4,19 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import os
 import sys
+
 import yaml
-import json
 
 from ads.opctl import logger
-from ads.opctl.mloperator.common.utils import _parse_input_args
+from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
+from ads.opctl.operator.common.utils import _parse_input_args
 
-from .__init__ import __short_description__ as DESCRIPTION
 from .__init__ import __name__ as MODULE
-from .main import ForecastOperator, run
-
-ENV_OPERATOR_ARGS = "ENV_OPERATOR_ARGS"
+from .__init__ import __short_description__ as DESCRIPTION
+from .operator import ForecastOperator, operate, verify
 
 
 def main(raw_args):
@@ -29,8 +29,7 @@ def main(raw_args):
         return
 
     logger.info("-" * 100)
-    logger.info(f"Running operator: {MODULE}")
-    logger.info(DESCRIPTION)
+    logger.info(f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}")
 
     # if spec provided as input string, then convert the string into YAML
     yaml_string = ""
@@ -50,7 +49,11 @@ def main(raw_args):
 
     logger.info(operator.to_yaml())
 
-    run(operator)
+    # run operator
+    if args.verify:
+        verify(operator)
+    else:
+        operate(operator)
 
 
 if __name__ == "__main__":

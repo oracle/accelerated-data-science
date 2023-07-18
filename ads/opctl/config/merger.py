@@ -43,6 +43,10 @@ class ConfigMerger(ConfigProcessor):
     def process(self, **kwargs) -> None:
         config_string = Template(json.dumps(self.config)).safe_substitute(os.environ)
         self.config = json.loads(config_string)
+
+        if "runtime" not in self.config:
+            self.config["runtime"] = {}
+
         # 1. merge and overwrite values from command line args
         self._merge_config_with_cmd_args(kwargs)
         # 1.5 merge environment variables

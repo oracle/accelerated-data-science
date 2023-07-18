@@ -31,6 +31,10 @@ DEFAULT_NOTEBOOK_SESSION_CONDA_DIR = "/home/datascience/conda"
 DEFAULT_SPECIFICATION_FILE_NAME = "oci-datascience-template.yaml"
 DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 
+# OPERATOR
+OPERATOR_MODULE_PATH = "ads.opctl.operator.lowcode"
+OPERATOR_IMAGE_WORK_DIR = "/etc/operator"
+
 
 class RUNTIME_TYPE(ExtendedEnum):
     PYTHON = "python"
@@ -49,6 +53,7 @@ class RESOURCE_TYPE(ExtendedEnum):
     DATAFLOW = "dataflow"
     PIPELINE = "pipeline"
     MODEL_DEPLOYMENT = "deployment"
+    OPERATOR = "operator"
 
 
 class BACKEND_NAME(ExtendedEnum):
@@ -57,3 +62,4 @@ class BACKEND_NAME(ExtendedEnum):
     PIPELINE = "pipeline"
     MODEL_DEPLOYMENT = "deployment"
     LOCAL = "local"
+    OPERATOR_LOCAL = "operator.local"

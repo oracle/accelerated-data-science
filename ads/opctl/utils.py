@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -122,7 +122,7 @@ def publish_image(image: str, registry: str = None) -> None:  # pragma: no cover
         print(f"pushed {image}")
         return image
     else:
-        registry = registry.rstrip('/')
+        registry = registry.rstrip("/")
         run_command(
             ["docker", "tag", f"{image}", f"{registry}/{os.path.basename(image)}"]
         )
@@ -291,6 +291,8 @@ def suppress_traceback(debug: bool = True) -> None:
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def get_docker_client() -> "docker.client.DockerClient":
+    import docker
+
     process = subprocess.Popen(
         ["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
     )
@@ -308,7 +310,7 @@ def run_container(
     command: str = None,
     entrypoint: str = None,
     verbose: bool = False,
-):
+) -> int:
     import docker
 
     if env_vars is None:
@@ -377,3 +379,6 @@ def run_container(
     finally:
         # Remove the container
         container.remove()
+
+
+# docker run --rm -e env_var1='env_val1' -e ENV_OPERATOR_ARGS='{"kind": "operator", "type": "forecast", "version": "v1", "spec": {"historical_data": {"url": "data/primary.csv"}, "output_directory": {"url": "result/"}, "test_data": {"url": "data/test.csv"}, "model": "prophet", "target_columns": ["Sales"], "target_category_column": "PPG_Code", "datetime_column": {"name": "last_day_of_week"}, "horizon": {"periods": 4, "interval": 1, "interval_unit": "W"}, "report_file_name": "report.html"}}' -v '/Users/dmcherka/TMP/forecast/test_data:/etc/operator/data' -v '/Users/dmcherka/TMP/forecast/result:/etc/operator/result' -v '/Users/dmcherka/.oci:/etc/operator/.oci' forecast:v1 "python3 -m forecast"

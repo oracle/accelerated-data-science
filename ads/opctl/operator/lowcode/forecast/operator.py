@@ -9,8 +9,8 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
-from ads.opctl.mloperator.common.utils import _load_yaml_from_uri
-from ads.opctl.mloperator.mloperator import MLOperator
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
+from ads.opctl.operator.operator import Operator
 
 
 @dataclass(repr=True)
@@ -75,7 +75,7 @@ class ForecastOperatorSpec(DataClassSerializable):
 
 
 @dataclass(repr=True)
-class ForecastOperator(MLOperator):
+class ForecastOperator(Operator):
     kind: str = "operator"
     type: str = "forecast"
     version: str = "v1"
@@ -89,7 +89,16 @@ class ForecastOperator(MLOperator):
         )
 
 
-def run(operator_spec: ForecastOperator) -> None:
+def operate(operator_spec: ForecastOperator) -> None:
+    """Runs the operator."""
     print("#" * 100)
     print(operator_spec.to_yaml())
-    print("#" * 100)
+
+
+def verify(spec: Dict) -> bool:
+    """Verifies operator specification."""
+    operator = ForecastOperator.from_dict(spec)
+    print("*" * 100)
+    print("The operator config has been successfully verified.")
+    print(operator.to_yaml())
+    print("*" * 100)

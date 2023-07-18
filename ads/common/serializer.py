@@ -379,7 +379,8 @@ class DataClassSerializable(Serializable):
         cls,
         obj_dict: dict,
         side_effect: Optional[SideEffect] = SideEffect.CONVERT_KEYS_TO_LOWER.value,
-        **kwargs
+        ignore_unknown: Optional[bool] = False,
+        **kwargs,
     ) -> "DataClassSerializable":
         """Returns an instance of the class instantiated by the dictionary provided.
 
@@ -391,6 +392,8 @@ class DataClassSerializable(Serializable):
             side effect to take on the dictionary. The side effect can be either
             convert the dictionary keys to "lower" (SideEffect.CONVERT_KEYS_TO_LOWER.value)
             or "upper"(SideEffect.CONVERT_KEYS_TO_UPPER.value) cases.
+        ignore_unknown: (bool, optional). Defaults to `False`.
+            Whether to ignore unknown fields or not.
 
         Returns
         -------
@@ -407,7 +410,7 @@ class DataClassSerializable(Serializable):
 
         allowed_fields = set([f.name for f in dataclasses.fields(cls)])
         wrong_fields = set(obj_dict.keys()) - allowed_fields
-        if wrong_fields:
+        if wrong_fields and not ignore_unknown:
             logger.warning(
                 f"The class {cls.__name__} doesn't contain attributes: `{list(wrong_fields)}`. "
                 "These fields will be ignored."
@@ -416,17 +419,21 @@ class DataClassSerializable(Serializable):
         obj = cls(**{key: obj_dict.get(key) for key in allowed_fields})
 
         for key, value in obj_dict.items():
-            if isinstance(value, dict) and hasattr(
-                getattr(cls(), key).__class__, "from_dict"
+            if (
+                key in allowed_fields
+                and isinstance(value, dict)
+                and hasattr(getattr(cls(), key).__class__, "from_dict")
             ):
-                attribute = getattr(cls(), key).__class__.from_dict(value)
+                attribute = getattr(cls(), key).__class__.from_dict(
+                    value, ignore_unknown=ignore_unknown
+                )
                 setattr(obj, key, attribute)
+
         return obj
 
     @staticmethod
     def _normalize_dict(
-        obj_dict: Dict,
-        case: str = SideEffect.CONVERT_KEYS_TO_LOWER.value
+        obj_dict: Dict, case: str = SideEffect.CONVERT_KEYS_TO_LOWER.value
     ) -> Dict:
         """lower all the keys.
 
@@ -446,9 +453,7 @@ class DataClassSerializable(Serializable):
         normalized_obj_dict = {}
         for key, value in obj_dict.items():
             if isinstance(value, dict):
-                value = DataClassSerializable._normalize_dict(
-                    value, case=case
-                )
+                value = DataClassSerializable._normalize_dict(value, case=case)
             normalized_obj_dict = DataClassSerializable._normalize_key(
                 normalized_obj_dict=normalized_obj_dict, key=key, value=value, case=case
             )

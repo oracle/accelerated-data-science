@@ -8,7 +8,7 @@ from typing import Dict
 
 import click
 
-from ads.opctl.mloperator.common.utils import YamlGenerator, _load_yaml_from_uri
+from ads.opctl.operator.common.utils import YamlGenerator, _load_yaml_from_uri
 
 SUPPORTED_MODELS = ["arima", "automlx", "neuralprophet", "prophet"]
 
@@ -26,5 +26,8 @@ def init(**kwargs: Dict) -> str:
     model_type = click.prompt(
         "Provide a model type:", type=click.Choice(SUPPORTED_MODELS), default="prophet"
     )
+
+    values = {"model": model_type}
+
     schema = _load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    return YamlGenerator(schema=schema).generate_example()
+    return YamlGenerator(schema=schema).generate_example(values=values)
