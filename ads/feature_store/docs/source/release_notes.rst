@@ -3,6 +3,35 @@
 =============
 Release Notes
 =============
+1.2
+---
+.. note::
+
+    .. list-table::
+      :header-rows: 1
+
+      * - Package Name
+        - Latest Version
+        - Notes
+      * - Conda pack
+        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
+        -
+      * - SERVICE_VERSION
+        - 0.1.225.master
+        -
+      * - Terraform Stack
+        - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__
+        - Par link expires Jan 5, 2026
+
+Release notes: July 18, 2023
+
+* [FEATURE] Supporting for deployment in ``us-ashburn`` and ``uk-london`` region.
+* [FEATURE] For ``ValidationOutput`` instance, addition of ``to_summary()`` method  for validation summary details.
+* [FEATURE] For ``ValidationOutput`` instance, addition of ``to_pandas()`` method  for validation detailed report.
+* [FIX] Fixed unit test integration to support the merging of ADS into the main branch.
+* [DOCS] For ``ValidationOutput`` instance, addition of ``to_summary()`` method  for validation summary details.
+* [DOCS] For ``ValidationOutput`` instance, addition of ``to_pandas()`` method  for validation detailed report.
+
 1.1
 ---
 
