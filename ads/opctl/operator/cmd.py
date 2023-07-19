@@ -403,9 +403,6 @@ def verify(
     kwargs: (Dict, optional).
         Any optional kwargs arguments.
     """
-
-    # get access to the operator module
-    # call verify command fro the operator.py
     operator_type = config.get("type", "unknown")
 
     if operator_type not in __operators__:

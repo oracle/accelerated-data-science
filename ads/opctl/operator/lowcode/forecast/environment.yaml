@@ -12,3 +12,4 @@ dependencies:
       - datapane
       - cerberus
       - json2table
+      - ./oracle_ads-2.8.7b0-py3-none-any.whl

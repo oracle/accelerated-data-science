@@ -26,3 +26,4 @@ include ads/ads
 include ads/model/common/*.*
 include ads/operator/**/*.md
 include ads/operator/**/*.yaml
+include ads/operator/**/*.whl
