@@ -69,6 +69,8 @@ dependencies:
             ads_config=ADS_CONFIG_DIR,
         )
 
+        td = tempfile.TemporaryDirectory(dir=WORK_DIR)
+        td_name = td.name
         install(
             slug="testabc_v1",
             conda_pack_folder=os.path.join(td_name, "conda"),
