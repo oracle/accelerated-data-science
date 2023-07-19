@@ -38,7 +38,7 @@ class TestCondaRun:
         assert res.exit_code == 0, res.output
 
     def test_conda_create_publish_setup(self):
-        td = tempfile.TemporaryDirectory(dir=WORK_DIR)
+        td = tempfile.TemporaryDirectory(dir=WORK_DIR).name
         with open(os.path.join(td, "env.yaml"), "w") as f:
             f.write(
                 """
@@ -91,7 +91,7 @@ dependencies:
 
     def test_conda_cli(self):
         runner = CliRunner()
-        td = tempfile.TemporaryDirectory(dir=WORK_DIR)
+        td = tempfile.TemporaryDirectory(dir=WORK_DIR).name
         with open(os.path.join(td, "env.yaml"), "w") as f:
             f.write(
                 """
