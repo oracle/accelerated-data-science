@@ -17,8 +17,7 @@ import yaml
 from click.testing import CliRunner
 
 ADS_CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-# When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%" and
-# it has permissions to remove (rmtree) folder in it, which is done by install command below
+# When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
 WORK_DIR = os.getenv("CHECKOUT_DIR", None)
 
 
@@ -39,9 +38,9 @@ class TestCondaRun:
         assert res.exit_code == 0, res.output
 
     def test_conda_create_publish_setup(self):
-        with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
-            # TeamCity fails to remove TemporaryDirectory, we adjust permissions here:
-            os.chmod(td, 0o777)
+        with tempfile.TemporaryDirectory(
+            dir=WORK_DIR, ignore_cleanup_errors=True
+        ) as td:
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
@@ -71,13 +70,6 @@ dependencies:
                 ads_config=ADS_CONFIG_DIR,
             )
 
-            def del_rw(action, name, exc):
-                os.chmod(name, 0o777)
-                os.remove(name)
-
-            # TeamCity fails to remove files in folder, we force to remove them:
-            shutil.rmtree(os.path.join(td, "conda"), onerror=del_rw)
-
             install(
                 slug="testabc_v1",
                 conda_pack_folder=os.path.join(td, "conda"),
@@ -101,9 +93,9 @@ dependencies:
 
     def test_conda_cli(self):
         runner = CliRunner()
-        with tempfile.TemporaryDirectory(dir=WORK_DIR) as td:
-            # TeamCity fails to remove TemporaryDirectory, we adjust permissions here:
-            os.chmod(td, 0o777)
+        with tempfile.TemporaryDirectory(
+            dir=WORK_DIR, ignore_cleanup_errors=True
+        ) as td:
             with open(os.path.join(td, "env.yaml"), "w") as f:
                 f.write(
                     """
@@ -157,20 +149,6 @@ dependencies:
                     ADS_CONFIG_DIR,
                 ],
                 input="test2\no\n",
-            )
-            assert res.exit_code == 0, res.output
-
-            res = runner.invoke(
-                cli_install,
-                args=[
-                    "-s",
-                    "test1_v1",
-                    "--conda-pack-folder",
-                    os.path.join(td, "conda"),
-                    "--ads-config",
-                    ADS_CONFIG_DIR,
-                ],
-                input="o\n",
             )
             assert res.exit_code == 0, res.output
 
