@@ -24,7 +24,6 @@ def key_encoding():
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_encode(mock_client, mock_signer, key_encoding):
-
     apisecretkeeper = AuthTokenSecretKeeper(
         key_encoding[0],
         vault_id="ocid.vault",
@@ -51,7 +50,6 @@ def test_decode(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_api_context(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -67,7 +65,6 @@ def test_api_context(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_api_context_namespace(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -83,7 +80,6 @@ def test_api_context_namespace(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_api_context_noexport(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -141,7 +137,7 @@ def test_export_vault_details(mock_client, mock_signer, key_encoding, tmpdir):
             os.path.join(tmpdir, "test.yaml"), format="yaml"
         )
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf) == {
+            assert yaml.load(tf, Loader=yaml.FullLoader) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -191,5 +187,4 @@ def test_load_from_invalid_file(mock_client, mock_signer, key_encoding, tmpdir):
         with AuthTokenSecretKeeper.load_secret(
             source=os.path.join(tmpdir, "test.yaml"), format="yaml"
         ) as apisecretkeeper:
-
             assert apisecretkeeper == key_encoding[1]

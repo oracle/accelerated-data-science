@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import ads
@@ -273,7 +273,7 @@ class SecretKeeper(Vault, ContextDecorator):
                 if format.lower() == "json":
                     vault_info = json.load(vf)
                 elif format.lower() in ["yaml", "yml"]:
-                    vault_info = yaml.load(vf)
+                    vault_info = yaml.load(vf, Loader=yaml.FullLoader)
                 if not cls._validate_required_vault_attributes(vault_info):
                     logger.error(
                         f"Missing required Attributes in file {uri}: {cls.required_keys}"
