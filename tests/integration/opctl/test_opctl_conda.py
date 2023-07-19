@@ -117,6 +117,7 @@ dependencies:
                 os.path.join(td_name, "env.yaml"),
                 "--conda-pack-folder",
                 os.path.join(td_name, "conda"),
+                "-o",
             ],
         )
         assert res.exit_code == 0, res.output
