@@ -38,8 +38,9 @@ class TestCondaRun:
         assert res.exit_code == 0, res.output
 
     def test_conda_create_publish_setup(self):
-        td = tempfile.TemporaryDirectory(dir=WORK_DIR).name
-        with open(os.path.join(td, "env.yaml"), "w") as f:
+        td = tempfile.TemporaryDirectory(dir=WORK_DIR)
+        td_name = td.name
+        with open(os.path.join(td_name, "env.yaml"), "w") as f:
             f.write(
                 """
 channels:
@@ -54,33 +55,33 @@ dependencies:
         create(
             name="test Abc",
             version="1",
-            environment_file=os.path.join(td, "env.yaml"),
-            conda_pack_folder=os.path.join(td, "conda"),
+            environment_file=os.path.join(td_name, "env.yaml"),
+            conda_pack_folder=os.path.join(td_name, "conda"),
         )
         assert os.path.exists(
-            os.path.join(td, "conda", "testabc_v1", "testabc_v1_manifest.yaml")
+            os.path.join(td_name, "conda", "testabc_v1", "testabc_v1_manifest.yaml")
         )
 
         publish(
             slug="testabc_v1",
             overwrite=True,
-            conda_pack_folder=os.path.join(td, "conda"),
+            conda_pack_folder=os.path.join(td_name, "conda"),
             ads_config=ADS_CONFIG_DIR,
         )
 
         install(
             slug="testabc_v1",
-            conda_pack_folder=os.path.join(td, "conda"),
+            conda_pack_folder=os.path.join(td_name, "conda"),
             ads_config=ADS_CONFIG_DIR,
             overwrite=True,
         )
 
         assert os.path.exists(
-            os.path.join(td, "conda", "testabc_v1", "testabc_v1_manifest.yaml")
+            os.path.join(td_name, "conda", "testabc_v1", "testabc_v1_manifest.yaml")
         )
 
         with open(
-            os.path.join(td, "conda", "testabc_v1", "testabc_v1_manifest.yaml")
+            os.path.join(td_name, "conda", "testabc_v1", "testabc_v1_manifest.yaml")
         ) as f:
             env = yaml.safe_load(f.read())
         assert "manifest" in env
@@ -91,8 +92,9 @@ dependencies:
 
     def test_conda_cli(self):
         runner = CliRunner()
-        td = tempfile.TemporaryDirectory(dir=WORK_DIR).name
-        with open(os.path.join(td, "env.yaml"), "w") as f:
+        td = tempfile.TemporaryDirectory(dir=WORK_DIR)
+        td_name = td.name
+        with open(os.path.join(td_name, "env.yaml"), "w") as f:
             f.write(
                 """
 channels:
@@ -103,16 +105,16 @@ dependencies:
   - click
                 """
             )
-        os.makedirs(os.path.join(td, "conda", "test1_v1"))
+        os.makedirs(os.path.join(td_name, "conda", "test1_v1"))
         res = runner.invoke(
             cli_create,
             args=[
                 "-n",
                 "test1",
                 "-f",
-                os.path.join(td, "env.yaml"),
+                os.path.join(td_name, "env.yaml"),
                 "--conda-pack-folder",
-                os.path.join(td, "conda"),
+                os.path.join(td_name, "conda"),
                 "-o",
             ],
         )
@@ -125,7 +127,7 @@ dependencies:
                 "test1_v1",
                 "-o",
                 "--conda-pack-folder",
-                os.path.join(td, "conda"),
+                os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
             ],
@@ -140,7 +142,7 @@ dependencies:
                 "-p",
                 f"oci://{secrets.opctl.BUCKET}@{secrets.common.NAMESPACE}/test-int-opctl-conda/",
                 "--conda-pack-folder",
-                os.path.join(td, "conda"),
+                os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
             ],
@@ -154,10 +156,10 @@ dependencies:
                 "-u",
                 f"oci://{secrets.opctl.BUCKET}@{secrets.common.NAMESPACE}/test-int-opctl-conda/test2",
                 "--conda-pack-folder",
-                os.path.join(td, "conda"),
+                os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
             ],
         )
         assert res.exit_code == 0, res.output
-        assert os.path.exists(os.path.join(td, "conda", "test2"))
+        assert os.path.exists(os.path.join(td_name, "conda", "test2"))
