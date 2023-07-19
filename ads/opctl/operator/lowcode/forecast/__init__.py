@@ -8,7 +8,7 @@ __version__ = "v1"
 
 __name__ = "forecast"
 
-# __conda__ = "forecast_p38_cpu_v1"
+# __conda__ = "forecast_p38_cpu_v1" # use this when service conda env will be available
 
 __conda__ = "cpu/Forecasting Operator/1.0/forecast_p38_cpu_v1"
 
