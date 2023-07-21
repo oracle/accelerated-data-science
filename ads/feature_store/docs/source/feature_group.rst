@@ -191,10 +191,54 @@ With a ``FeatureGroup`` instance, You can save the expectation details using ``w
     )
 
 You can call the ``get_validation_output()`` method of the FeatureGroup instance to fetch validation results for a specific ingestion job.
+The ``get_validation_output()`` method takes the following optional parameter:
 
-Statistics Results
-==================
-You can call the ``get_statistics()`` method of the FeatureGroup instance to fetch statistics for a specific ingestion job.
+- ``job_id: string``. Id of feature group job
+``get_validation_output().to_pandas()`` will output  the validation results for each expectation as pandas dataframe
+
+.. image:: figures/validation_results.png
+
+``get_validation_output().to_summary()`` will output the overall summary of validation as pandas dataframe.
+
+.. image:: figures/validation_summary.png
+.. seealso::
+
+   :ref:`Feature Validation`
+
+
+Statistics Computation
+========================
+During the materialization feature store performs computation of statistical metrics for all the features  by default. This can be configured using ``StatisticsConfig`` object which can be passed at the creation of
+feature group or it can be updated later as well.
+
+.. code-block:: python3
+
+  # Define statistics configuration for selected features
+  stats_config = StatisticsConfig().with_is_enabled(True).with_columns(["column1", "column2"])
+
+
+This can be used with feature group instance.
+
+.. code-block:: python3
+
+  # Fetch stats results for a feature group job
+  from ads.feature_store.feature_group import FeatureGroup
+
+  feature_group_resource = (
+    FeatureGroup()
+    .with_feature_store_id(feature_store.id)
+    .with_primary_keys(["<key>"])
+    .with_name("<name>")
+    .with_entity_id(entity.id)
+    .with_compartment_id(<compartment_id>)
+    .with_schema_details_from_dataframe(<dataframe>)
+    .with_statistics_config(stats_config)
+
+You can call the ``get_statistics()`` method of the feature group to fetch metrics for a specific ingestion job.
+
+The ``get_statistics()`` method takes the following optional parameter:
+
+- ``job_id: string``. Id of feature group job
 
 .. code-block:: python3
 
@@ -202,6 +246,10 @@ You can call the ``get_statistics()`` method of the FeatureGroup instance to fet
   df = feature_group.get_statistics(job_id).to_pandas()
 
 .. image:: figures/stats_1.png
+
+.. seealso::
+
+    :ref:`Statistics`
 
 Get last feature group job
 ==========================

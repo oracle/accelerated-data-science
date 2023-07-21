@@ -68,10 +68,17 @@ class TestFeatureGroupValidation(FeatureStoreTestCase):
 
         assert fg.oci_feature_group.id
         fg.materialise(self.data)
+
         df = fg.get_validation_output().to_pandas().T
         assert df is not None
         assert "success" in df.columns
         assert True in df["success"].values
+
+        df = fg.get_validation_output().to_summary().T
+        assert df is not None
+        assert "success" in df.columns
+        assert True in df["success"].values
+
         self.clean_up_feature_group(fg)
         self.clean_up_entity(entity)
         self.clean_up_feature_store(fs)

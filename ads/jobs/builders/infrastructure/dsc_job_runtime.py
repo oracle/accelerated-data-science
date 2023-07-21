@@ -29,13 +29,19 @@ from ads.jobs.builders.runtimes.python_runtime import (
     GitPythonRuntime,
 )
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
+from ads.jobs.builders.runtimes.pytorch_runtime import (
+    PyTorchDistributedRuntime,
+    PyTorchDistributedArtifact,
+)
 from ads.jobs.builders.runtimes.artifact import (
     ScriptArtifact,
     NotebookArtifact,
     PythonArtifact,
     GitPythonArtifact,
 )
+from ads.opctl.distributed.common import cluster_config_helper
 from ads.jobs.builders.infrastructure.utils import get_value
+from ads.jobs.templates import driver_utils
 
 
 class IncompatibleRuntime(Exception):  # pragma: no cover
@@ -184,7 +190,7 @@ class RuntimeHandler:
         if runtime.args:
             # shlex.join() is not available until python 3.8
             job_configuration_details["command_line_arguments"] = " ".join(
-                shlex.quote(arg) for arg in runtime.get_spec(runtime.CONST_ARGS)
+                shlex.quote(str(arg)) for arg in runtime.get_spec(runtime.CONST_ARGS)
             )
         return job_configuration_details
 
@@ -653,7 +659,7 @@ class PythonRuntimeHandler(CondaRuntimeHandler):
 
         if runtime.entrypoint:
             envs[self.CONST_CODE_ENTRYPOINT] = runtime.entrypoint
-        else:
+        elif runtime.script_uri:
             envs[self.CONST_CODE_ENTRYPOINT] = os.path.basename(runtime.script_uri)
 
         envs[self.CONST_JOB_ENTRYPOINT] = PythonArtifact.CONST_DRIVER_SCRIPT
@@ -674,9 +680,13 @@ class PythonRuntimeHandler(CondaRuntimeHandler):
         """
         spec = super()._extract_envs(dsc_job)
         envs = spec.pop(PythonRuntime.CONST_ENV_VAR, {})
-        if self.CONST_CODE_ENTRYPOINT not in envs:
+        if (
+            self.__class__ == PythonRuntimeHandler
+            and self.CONST_CODE_ENTRYPOINT not in envs
+        ):
             raise IncompatibleRuntime()
-        envs.pop(PythonRuntimeHandler.CONST_JOB_ENTRYPOINT)
+        # PyTorchDistributedRuntime does not require entrypoint.
+        envs.pop(PythonRuntimeHandler.CONST_JOB_ENTRYPOINT, None)
         spec.update(self._extract_specs(envs, self.SPEC_MAPPINGS))
         if PythonRuntime.CONST_PYTHON_PATH in spec:
             spec[PythonRuntime.CONST_PYTHON_PATH] = spec[
@@ -1035,6 +1045,98 @@ class ContainerRuntimeHandler(RuntimeHandler):
         return spec
 
 
+class PyTorchDistributedRuntimeHandler(PythonRuntimeHandler):
+    RUNTIME_CLASS = PyTorchDistributedRuntime
+    CONST_WORKER_COUNT = "OCI__WORKER_COUNT"
+    CONST_COMMAND = "OCI__LAUNCH_CMD"
+    CONST_DEEPSPEED = "OCI__DEEPSPEED"
+
+    GIT_SPEC_MAPPINGS = {
+        cluster_config_helper.OCI__RUNTIME_URI: GitPythonRuntime.CONST_GIT_URL,
+        cluster_config_helper.OCI__RUNTIME_GIT_BRANCH: GitPythonRuntime.CONST_BRANCH,
+        cluster_config_helper.OCI__RUNTIME_GIT_COMMIT: GitPythonRuntime.CONST_COMMIT,
+        cluster_config_helper.OCI__RUNTIME_GIT_SECRET_ID: GitPythonRuntime.CONST_GIT_SSH_SECRET_ID,
+    }
+
+    SPEC_MAPPINGS = PythonRuntimeHandler.SPEC_MAPPINGS
+    SPEC_MAPPINGS.update(
+        {
+            PyTorchDistributedRuntime.CONST_COMMAND: CONST_COMMAND,
+        }
+    )
+
+    def _translate_artifact(self, runtime: PyTorchDistributedRuntime):
+        return PyTorchDistributedArtifact(runtime.source_uri, runtime)
+
+    def _translate_env(self, runtime: PyTorchDistributedRuntime) -> dict:
+        envs = super()._translate_env(runtime)
+        replica = runtime.replica if runtime.replica else 1
+        # WORKER_COUNT = REPLICA - 1 so that it will be same as distributed training
+        envs[self.CONST_WORKER_COUNT] = str(replica - 1)
+        envs[self.CONST_JOB_ENTRYPOINT] = PyTorchDistributedArtifact.CONST_DRIVER_SCRIPT
+        if runtime.inputs:
+            envs[driver_utils.CONST_ENV_INPUT_MAPPINGS] = json.dumps(runtime.inputs)
+        if runtime.git:
+            for env_key, spec_key in self.GIT_SPEC_MAPPINGS.items():
+                if not runtime.git.get(spec_key):
+                    continue
+                envs[env_key] = runtime.git[spec_key]
+        if runtime.dependencies:
+            if PyTorchDistributedRuntime.CONST_PIP_PKG in runtime.dependencies:
+                envs[driver_utils.CONST_ENV_PIP_PKG] = runtime.dependencies[
+                    PyTorchDistributedRuntime.CONST_PIP_PKG
+                ]
+            if PyTorchDistributedRuntime.CONST_PIP_REQ in runtime.dependencies:
+                envs[driver_utils.CONST_ENV_PIP_REQ] = runtime.dependencies[
+                    PyTorchDistributedRuntime.CONST_PIP_REQ
+                ]
+        if runtime.use_deepspeed:
+            envs[self.CONST_DEEPSPEED] = "1"
+        return envs
+
+    def _extract_envs(self, dsc_job) -> dict:
+        spec = super()._extract_envs(dsc_job)
+        envs = spec.pop(PythonRuntime.CONST_ENV_VAR, {})
+        if self.CONST_WORKER_COUNT not in envs:
+            raise IncompatibleRuntime()
+        # Replicas
+        spec[PyTorchDistributedRuntime.CONST_REPLICA] = (
+            int(envs.pop(self.CONST_WORKER_COUNT)) + 1
+        )
+        # Git
+        if cluster_config_helper.OCI__RUNTIME_URI in envs:
+            git_spec = {}
+            for env_key, spec_key in self.GIT_SPEC_MAPPINGS.items():
+                if env_key in envs:
+                    git_spec[spec_key] = envs.pop(env_key)
+            spec[PyTorchDistributedRuntime.CONST_GIT] = git_spec
+        # Inputs
+        input_mappings = envs.pop(driver_utils.CONST_ENV_INPUT_MAPPINGS, None)
+        if input_mappings:
+            try:
+                spec[PyTorchDistributedRuntime.CONST_INPUT] = json.loads(input_mappings)
+            except ValueError:
+                spec[PyTorchDistributedRuntime.CONST_INPUT] = input_mappings
+        # Dependencies
+        dep = {}
+        if driver_utils.CONST_ENV_PIP_PKG in envs:
+            dep[PyTorchDistributedRuntime.CONST_PIP_PKG] = envs.pop(
+                driver_utils.CONST_ENV_PIP_PKG
+            )
+        if driver_utils.CONST_ENV_PIP_REQ in envs:
+            dep[PyTorchDistributedRuntime.CONST_PIP_REQ] = envs.pop(
+                driver_utils.CONST_ENV_PIP_REQ
+            )
+        if dep:
+            spec[PyTorchDistributedRuntime.CONST_DEP] = dep
+        if envs.pop(self.CONST_DEEPSPEED, None):
+            spec[PyTorchDistributedRuntime.CONST_DEEPSPEED] = True
+        # Envs
+        if envs:
+            spec[PythonRuntime.CONST_ENV_VAR] = envs
+        return spec
+
+
 class DataScienceJobRuntimeManager(RuntimeHandler):
     """This class is used by the DataScienceJob infrastructure to handle the runtime conversion.
     The translate() method determines the actual runtime handler by matching the RUNTIME_CLASS.
@@ -1046,6 +1148,7 @@ class DataScienceJobRuntimeManager(RuntimeHandler):
 
     runtime_handlers = [
         ContainerRuntimeHandler,
+        PyTorchDistributedRuntimeHandler,
         GitPythonRuntimeHandler,
         NotebookRuntimeHandler,
         PythonRuntimeHandler,

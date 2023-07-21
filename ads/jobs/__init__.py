@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -17,6 +17,7 @@ try:
         DataFlowRuntime,
         DataFlowNotebookRuntime,
     )
+    from ads.jobs.builders.runtimes.pytorch_runtime import PyTorchDistributedRuntime
     from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
     from ads.jobs.ads_job import Job
     from ads.jobs.builders import infrastructure
@@ -44,6 +45,7 @@ __all__ = [
     "NotebookRuntime",
     "ScriptRuntime",
     "ContainerRuntime",
+    "PyTorchDistributedRuntime",
     "DataFlow",
     "DataFlowRun",
     "DataFlowRuntime",
