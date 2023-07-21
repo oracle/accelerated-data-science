@@ -1941,11 +1941,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # variables in case of saving model in context of model version set.
         model_version_set_id = _extract_model_version_set_id(model_version_set)
 
-        # TODO : optional code
         if featurestore_dataset:
             dataset_details = {
-                "feature-dataset-id": featurestore_dataset.id,
-                "feature-dataset-name-": featurestore_dataset.name
+                "dataset-id": featurestore_dataset.id,
+                "dataset-name": featurestore_dataset.name
             }
             self.metadata_custom.add("featurestore.dataset", value=str(dataset_details),
                                      category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
@@ -1982,8 +1981,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # Add the model id to the feature store dataset
         if featurestore_dataset:
             model_details = ModelDetails().with_items([self.model_id])
-            featurestore_dataset.with_model_details(model_details, False)
-            featurestore_dataset.update()
+            featurestore_dataset.add_models(model_details)
 
         return self.model_id
 
