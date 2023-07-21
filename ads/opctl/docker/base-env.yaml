@@ -1,0 +1,13 @@
+channels:
+  - nodefaults
+  - conda-forge
+dependencies:
+  - main::pip
+  - main::python==3.8.16
+  - main::PyYAML=5.4.1
+  - main::cffi>=1.15.1
+  - pip:
+    - PyYAML==5.4.1
+    - oci
+    - oci-cli
+    - conda-pack
