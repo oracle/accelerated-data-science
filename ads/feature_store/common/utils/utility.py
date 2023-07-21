@@ -403,37 +403,3 @@ def validate_input_feature_details(input_feature_details, data_frame):
     if isinstance(data_frame, pd.DataFrame):
         return convert_pandas_datatype_with_schema(input_feature_details, data_frame)
     return convert_spark_dataframe_with_schema(input_feature_details, data_frame)
-
-
-def validate_model_ocid_format(model_ocid):
-    split_words = model_ocid.split('.')
-    region = split_words[3]
-    realm = split_words[2]
-    print(split_words)
-    # region = auth.get("signer").region will not work for config
-    # TODO: try to get current region if possible??
-    if region in oci.regions.REGIONS_SHORT_NAMES:
-        region = oci.regions.REGIONS_SHORT_NAMES[region]
-    elif region not in oci.regions.REGIONS:
-        return False
-    if realm not in oci.regions.REGION_REALMS[region]:
-        return False
-    return True
-
-
-def search_model_ocids(model_ids: list) -> list:
-    query = "query datasciencemodel resources where "
-    items = model_ids
-    for item in items:
-        query = query + f"identifier='{item}'||"
-    list_models = OCIResource.search(
-        query[:-2]
-        , type=SEARCH_TYPE.STRUCTURED,
-    )
-    list_models_ids = []
-    for model in list_models:
-        list_models_ids.append(model.identifier)
-    for model_id in model_ids:
-        if model_id not in list_models_ids:
-            logger.warning(model_id + " doesnt exist")
-    return list_models_ids
