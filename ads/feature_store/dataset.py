@@ -18,8 +18,7 @@ from ads.feature_store.common.enums import (
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     validate_delta_format_parameters,
-    convert_expectation_suite_to_expectation,
-    validate_model_ocid_format, search_model_ocids
+    convert_expectation_suite_to_expectation
 )
 from ads.feature_store.dataset_job import DatasetJob, IngestionMode
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
@@ -375,7 +374,7 @@ class Dataset(Builder):
         return self.get_spec(self.CONST_EXPECTATION_DETAILS)
 
     def with_expectation_suite(
-        self, expectation_suite: ExpectationSuite, expectation_type: ExpectationType
+            self, expectation_suite: ExpectationSuite, expectation_type: ExpectationType
     ) -> "Dataset":
         """Sets the expectation details for the feature group.
 
@@ -446,7 +445,7 @@ class Dataset(Builder):
         self.with_statistics_config(statistics_config)
 
     def with_statistics_config(
-        self, statistics_config: Union[StatisticsConfig, bool]
+            self, statistics_config: Union[StatisticsConfig, bool]
     ) -> "Dataset":
         """Sets the statistics details for the dataset.
 
@@ -482,7 +481,7 @@ class Dataset(Builder):
     def model_details(self, model_details: ModelDetails):
         self.with_model_details(model_details)
 
-    def with_model_details(self, model_details: ModelDetails,validate: bool = True) -> "Dataset":
+    def with_model_details(self, model_details: ModelDetails) -> "Dataset":
         """Sets the model details for the dataset.
 
         Parameters
@@ -500,17 +499,6 @@ class Dataset(Builder):
                 "The argument `model_details` has to be of type `ModelDetails`"
                 "but is of type: `{}`".format(type(model_details))
             )
-        #TODO: we could eiher use validate_model_ocid_format if thats enough or search_model_ocids
-        #search_model_ocids should be used after set_auth without url
-        # items = model_details["items"]
-        # for item in items:
-        #     if not validate_model_ocid(item):
-        #         raise ValueError(
-        #             f"the model ocid {item} is not valid"
-        #         )
-        if validate:
-            model_ids_list = search_model_ocids(model_details.items)
-            model_details = ModelDetails(model_ids_list)
 
         return self.set_spec(self.CONST_MODEL_DETAILS, model_details.to_dict())
 
@@ -532,7 +520,14 @@ class Dataset(Builder):
             for item in items:
                 model_details.items.append(item)
         self.with_model_details(model_details)
-        return self.update()
+        self.update()
+
+        self._update_from_oci_dataset_model(self.oci_dataset)
+        updated_model_details = self.model_details
+        if updated_model_details and updated_model_details.items and model_details:
+            for model_id in model_details.items:
+                if model_id not in updated_model_details["items"]:
+                    logger.warning("Model Id" + model_id + " doesnt exist or you do not have the permission")
 
     def remove_models(self, model_details: ModelDetails) -> "Dataset":
         """remove model details from the dataset, remove from the existing dataset model id list
