@@ -97,6 +97,7 @@ Oracle Accelerated Data Science (ADS)
    `https://github.com/oracle/accelerated-data-science <https://github.com/oracle/accelerated-data-science>`_
 
 .. code-block:: python3
+
    >>> import ads
    >>> ads.hello()
 

@@ -1904,7 +1904,7 @@ class Pipeline(Builder):
     #     ) as ml_step_schema_file:
     #         ml_step_schema = json.load(ml_step_schema_file)
 
-    #     yaml_dict = yaml.load(Pipeline._read_from_file(uri=uri))
+    #     yaml_dict = yaml.load(Pipeline._read_from_file(uri=uri), Loader=yaml.FullLoader)
 
     #     pipeline_validator = Validator(pipeline_schema)
     #     if not pipeline_validator.validate(yaml_dict):

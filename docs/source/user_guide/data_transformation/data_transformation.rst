@@ -20,11 +20,26 @@ You can load a ``pandas`` dataframe into an ``ADSDataset`` by calling.
 Automated Transformations
 *************************
 
-ADS has built in automatic transform tools for datasets. When the ``get_recommendations()`` tool is applied to an ``ADSDataset`` object, it shows the user detected issues with the data and recommends changes to apply to the dataset.  You can accept the changes is as easy as clicking a button in the drop down menu.  After all the changes are applied, the transformed dataset can be retrieved by calling ``get_transformed_dataset()``.
+ADS provides built-in automatic transformation tools for datasets. These tools help detect issues with the data and recommend changes to improve the dataset. The recommended changes can be accepted by clicking a button in the drop-down menu. Once the changes are applied, the transformed dataset can be retrieved using the ``get_transformed_dataset()`` method.
+
+To access the recommendations, you can use the ``get_recommendations()`` method on the ``ADSDataset`` object:
 
 .. code-block:: python3
 
+  wine_ds = DatasetFactory.from_dataframe(data, target='Price') # Specify the target variable
   wine_ds.get_recommendations()
+
+However, please note that ``get_recommendations()`` is not a direct method of the ``ADSDataset`` class. If you created the dataset using ``ADSDataset.from_dataframe(data)``, calling ``get_recommendations()`` directly on the ``ADSDataset`` object will result in an error. Instead, you can retrieve the recommendations by following these steps:
+
+.. code-block:: python3
+
+  from ads.dataset.factory import DatasetFactory
+
+  wine_ds = DatasetFactory.from_dataframe(data, target='Price')
+  # Get the recommendations
+  recommendations = wine_ds.get_recommendations()
+
+The ``recommendations`` variable will contain the detected issues with the dataset and the recommended changes. You can then review and accept the recommended changes as needed.
 
 Alternatively, you can use ``auto_transform()`` to apply all the recommended transformations at once. ``auto_transform()`` returns a transformed dataset with several optimizations applied automatically. The optimizations include:
 
@@ -242,7 +257,7 @@ You can apply functions to update column values in existing column. This example
 Change Data Type
 ================
 
-You can change the data type columns with the ``astype()`` method. ADS uses the Pandas method, ``astype()``, on dataframe objects. For specifics, see `astype for a Pandas Dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.astype.html>`_, `using numpy.dtype <https://docs.scipy.org/doc/numpy/reference/generated/numpy.dtype.html#numpy.dtype>`_, or `Pandas dtypes <https://pandas.pydata.org/pandas-docs/stable/getting_started/basics.html#dtypes>`_.
+You can change the data type columns with the ``astype()`` method. ADS uses the Pandas method, ``astype()``, on dataframe objects. For specifics, see `astype for a Pandas Dataframe <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.astype.html>`_, `using numpy.dtype <https://docs.scipy.org/doc/numpy/reference/generated/numpy.dtype.html#numpy.dtype>`_, or `Pandas dtypes <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.dtypes.html>`_.
 
 When you change the type of a column, ADS updates its semantic type to categorical, continuous, datetime, or ordinal. For example, if you update a column type to integer, its semantic type updates to ordinal.  For data type details, see ref:`loading-data-specify-dtype`.
 

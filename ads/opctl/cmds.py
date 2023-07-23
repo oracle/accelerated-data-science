@@ -601,6 +601,8 @@ def configure() -> None:
             ("log_id", ""),
             ("docker_registry", ""),
             ("conda_pack_os_prefix", "in the format oci://<bucket>@<namespace>/<path>"),
+            ("memory_in_gbs", ""),
+            ("ocpus", ""),
         ]
         _set_service_configurations(
             ADS_JOBS_CONFIG_FILE_NAME,
@@ -627,6 +629,10 @@ def configure() -> None:
             ("num_executors", ""),
             ("spark_version", ""),
             ("archive_bucket", "in the format oci://<bucket>@<namespace>/<path>"),
+            ("driver_shape_memory_in_gbs", ""),
+            ("driver_shape_ocpus", ""),
+            ("executor_shape_memory_in_gbs", ""),
+            ("executor_shape_ocpus", ""),
         ]
         _set_service_configurations(
             ADS_DATAFLOW_CONFIG_FILE_NAME,
@@ -676,6 +682,8 @@ def configure() -> None:
             ("bandwidth_mbps", ""),
             ("replica", ""),
             ("web_concurrency", ""),
+            ("memory_in_gbs", ""),
+            ("ocpus", ""),
         ]
 
         _set_service_configurations(

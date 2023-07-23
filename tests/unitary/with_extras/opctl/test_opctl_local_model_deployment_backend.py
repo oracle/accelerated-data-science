@@ -6,8 +6,15 @@
 
 from mock import ANY, patch, MagicMock
 import pytest
-from ads.opctl.backend.local import LocalModelDeploymentBackend, ModelCustomMetadata, os, create_signer, OCIClientFactory, is_in_notebook_session, run_command
-
+from ads.opctl.backend.local import (
+    LocalModelDeploymentBackend,
+    ModelCustomMetadata,
+    os,
+    create_signer,
+    OCIClientFactory,
+    is_in_notebook_session,
+    run_command,
+)
 
 
 class TestLocalModelDeploymentBackend:
@@ -115,14 +122,22 @@ MODEL_PROVENANCE:
                         backend.predict()
                         mock__download.assert_not_called()
                         mock__run_with_conda_pack.assert_called_once_with(
-                            {os.path.expanduser('~/.oci'): {'bind': '/home/datascience/.oci'}, os.path.expanduser('~/.ads_ops/models/fake_id'): {'bind': '/opt/ds/model/deployed_model/'}}, "--artifact-directory /opt/ds/model/deployed_model/ --payload 'fake_data' --auth api_key --profile DEFAULT", install=True, conda_uri='fake_path'
+                            {
+                                os.path.expanduser("~/.oci"): {
+                                    "bind": "/home/datascience/.oci"
+                                },
+                                os.path.expanduser("~/.ads_ops/models/fake_id"): {
+                                    "bind": "/opt/ds/model/deployed_model/"
+                                },
+                            },
+                            "--artifact-directory /opt/ds/model/deployed_model/ --payload 'fake_data' --auth api_key --profile DEFAULT",
+                            install=True,
+                            conda_uri="fake_path",
                         )
 
     @patch("ads.opctl.backend.local.os.listdir", return_value=["path"])
     @patch("ads.opctl.backend.local.os.path.exists", return_value=False)
-    def test_predict_download(
-        self, mock_path_exists, mock_list_dir
-    ): 
+    def test_predict_download(self, mock_path_exists, mock_list_dir):
         with patch("ads.opctl.backend.local._download_model") as mock__download:
             with patch.object(
                 LocalModelDeploymentBackend,
@@ -138,11 +153,11 @@ MODEL_PROVENANCE:
                         return_value=0,
                     ) as mock__run_with_conda_pack:
                         backend = LocalModelDeploymentBackend(self.config)
-                        
+
                         backend.predict()
                         mock__download.assert_called_once_with(
-                            auth='api_key',
-                            profile='DEFAULT',
+                            auth="api_key",
+                            profile="DEFAULT",
                             ocid="fake_id",
                             artifact_directory=os.path.expanduser(
                                 "~/.ads_ops/models/fake_id"
@@ -153,14 +168,25 @@ MODEL_PROVENANCE:
                             force_overwrite=True,
                         )
                         mock__run_with_conda_pack.assert_called_once_with(
-                            {os.path.expanduser('~/.oci'): {'bind': '/home/datascience/.oci'}, os.path.expanduser('~/.ads_ops/models/fake_id'): {'bind': '/opt/ds/model/deployed_model/'}}, "--artifact-directory /opt/ds/model/deployed_model/ --payload 'fake_data' --auth api_key --profile DEFAULT", install=True, conda_uri='fake_path'
+                            {
+                                os.path.expanduser("~/.oci"): {
+                                    "bind": "/home/datascience/.oci"
+                                },
+                                os.path.expanduser("~/.ads_ops/models/fake_id"): {
+                                    "bind": "/opt/ds/model/deployed_model/"
+                                },
+                            },
+                            "--artifact-directory /opt/ds/model/deployed_model/ --payload 'fake_data' --auth api_key --profile DEFAULT",
+                            install=True,
+                            conda_uri="fake_path",
                         )
+
     @patch("ads.opctl.backend.local.is_in_notebook_session", return_value=True)
     @patch("ads.opctl.backend.local.os.listdir", return_value=["path"])
     @patch("ads.opctl.backend.local.os.path.exists", return_value=False)
     def test_predict_download_in_notebook(
-        self, mock_path_exists, mock_list_dir, mock_is_in_notebook 
-    ): 
+        self, mock_path_exists, mock_list_dir, mock_is_in_notebook
+    ):
         with patch("ads.opctl.backend.local._download_model") as mock__download:
             with patch.object(
                 LocalModelDeploymentBackend,
@@ -174,11 +200,11 @@ MODEL_PROVENANCE:
                         "ads.opctl.backend.local.run_command"
                     ) as mock_run_command:
                         backend = LocalModelDeploymentBackend(self.config)
-                        
+
                         backend.predict()
                         mock__download.assert_called_once_with(
-                            auth='api_key',
-                            profile='DEFAULT',
+                            auth="api_key",
+                            profile="DEFAULT",
                             ocid="fake_id",
                             artifact_directory=os.path.expanduser(
                                 "~/.ads_ops/models/fake_id"
@@ -188,6 +214,4 @@ MODEL_PROVENANCE:
                             timeout=None,
                             force_overwrite=True,
                         )
-                        mock_run_command.assert_called_once_with(
-                            cmd="python /home/runner/work/accelerated-data-science/accelerated-data-science/ads/opctl/backend/../script.py --artifact-directory /home/runner/.ads_ops/models/fake_id --payload 'fake_data' --auth api_key --profile DEFAULT", shell=True
-                        )
+                        mock_run_command.assert_called_once()

@@ -45,11 +45,12 @@ key_file = ~/.oci/oci_api_key.pem
                 ]
                 + ["abc"] * 8
                 + ["oci://bucket@namespace/path"]
+                + ["abc"] * 2
                 + ["abc"] * 4
                 + ["oci://bucket@namespace/path"]
-                + ["abc"] * 3
+                + ["abc"] * 7
                 + ["abc"] * 4
-                + ["abc"] * 8
+                + ["abc"] * 10
                 + ["1"]
                 + ["3"]
             )
@@ -115,11 +116,12 @@ key_file = ~/.oci/oci_api_key.pem
                     ]
                     + ["abc"] * 8
                     + ["oci://bucket@namespace/path"]
+                    + ["abc"] * 2
                     + ["abc"] * 4
                     + ["oci://bucket@namespace/path"]
-                    + ["abc"] * 3
+                    + ["abc"] * 7
                     + ["abc"] * 4
-                    + ["abc"] * 8
+                    + ["abc"] * 10
                     + ["1"]
                     + ["3"]
                 )
