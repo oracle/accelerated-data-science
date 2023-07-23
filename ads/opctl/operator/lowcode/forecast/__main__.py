@@ -13,47 +13,51 @@ import yaml
 from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
+from ads.common.auth import AuthContext
 
 from .__init__ import __name__ as MODULE
-from .__init__ import __short_description__ as DESCRIPTION
-from .operator import ForecastOperator, operate, verify
+from .operator import ForecastOperatorConfig, operate, verify
 
 
 def main(raw_args):
-    args, _ = _parse_input_args(raw_args)
-    if not args.file and not args.spec and not os.environ.get(ENV_OPERATOR_ARGS):
+    """The entry point method for the operator."""
+    with AuthContext():
+        args, _ = _parse_input_args(raw_args)
+        if not args.file and not args.spec and not os.environ.get(ENV_OPERATOR_ARGS):
+            logger.info(
+                "Please specify -f[--file] or -s[--spec] or "
+                f"pass operator's arguments via {ENV_OPERATOR_ARGS} environment variable."
+            )
+            return
+
+        logger.info("-" * 100)
         logger.info(
-            "Please specify -f[--file] or -s[--spec] or "
-            f"pass operator's arguments via {ENV_OPERATOR_ARGS} environment variable."
+            f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}"
         )
-        return
 
-    logger.info("-" * 100)
-    logger.info(f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}")
+        # if spec provided as input string, then convert the string into YAML
+        yaml_string = ""
+        if args.spec or os.environ.get(ENV_OPERATOR_ARGS):
+            operator_spec_str = args.spec or os.environ.get(ENV_OPERATOR_ARGS)
+            try:
+                yaml_string = yaml.safe_dump(json.loads(operator_spec_str))
+            except json.JSONDecodeError:
+                yaml_string = yaml.safe_dump(yaml.safe_load(operator_spec_str))
+            except:
+                yaml_string = operator_spec_str
 
-    # if spec provided as input string, then convert the string into YAML
-    yaml_string = ""
-    if args.spec or os.environ.get(ENV_OPERATOR_ARGS):
-        operator_spec_str = args.spec or os.environ.get(ENV_OPERATOR_ARGS)
-        try:
-            yaml_string = yaml.safe_dump(json.loads(operator_spec_str))
-        except json.JSONDecodeError:
-            yaml_string = yaml.safe_dump(yaml.safe_load(operator_spec_str))
-        except:
-            yaml_string = operator_spec_str
+        operator_config = ForecastOperatorConfig.from_yaml(
+            uri=args.file,
+            yaml_string=yaml_string,
+        )
 
-    operator = ForecastOperator.from_yaml(
-        uri=args.file,
-        yaml_string=yaml_string,
-    )
+        logger.info(operator_config.to_yaml())
 
-    logger.info(operator.to_yaml())
-
-    # run operator
-    if args.verify:
-        verify(operator)
-    else:
-        operate(operator)
+        # run operator
+        if args.verify:
+            verify(operator_config)
+        else:
+            operate(operator_config)
 
 
 if __name__ == "__main__":

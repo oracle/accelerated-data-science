@@ -188,11 +188,9 @@ spec:
         description: "Placed into output_directory location. Defaults to report.csv"
 
     target_columns:
-      type: list
+      type: string
       required: true
-      default: ["Sales"]
-      schema:
-        type: string
+      default: "Sales"
 
     datetime_column:
       type: dict
@@ -206,9 +204,11 @@ spec:
           type: string
           required: false
 
-    target_category_column:
-      type: string
+    target_category_columns:
+      type: list
       required: false
+      schema:
+        type: string
 
     horizon:
       required: false
@@ -251,6 +251,16 @@ spec:
     confidence_interval_width:
       type: float
       required: false
+      default: 0.80
+
+    tuning:
+      type: dict
+      required: false
+      schema:
+        n_trials:
+          type: integer
+          required: false
+          default: 10
 
     metric:
       type: string

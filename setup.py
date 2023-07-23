@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import sys
@@ -107,13 +107,18 @@ extras_require["onnx"] = extras_require["viz"] + [
     "lightgbm==3.3.1",
 ]
 extras_require["optuna"] = extras_require["viz"] + ["optuna==2.9.0"]
-extras_require["forecast"] = extras_require["opctl"] + [
-    "prophet",
-    "neuralprophet",
-    "pmdarima",
-    "statsmodels",
-    "datapane",
-]
+extras_require["forecast"] = (
+    extras_require["optuna"]
+    + extras_require["opctl"]
+    + [
+        "prophet",
+        "neuralprophet",
+        "pmdarima",
+        "statsmodels",
+        "datapane",
+        "sktime",
+    ]
+)
 
 extras_require["complete"] = sorted({v for req in extras_require.values() for v in req})
 extras_require["all-optional"] = reduce(
@@ -178,9 +183,5 @@ setup(
         "Github": "https://github.com/oracle/accelerated-data-science",
         "Documentation": "https://accelerated-data-science.readthedocs.io/en/latest/index.html",
     },
-    entry_points={
-        'console_scripts': [
-            'ads=ads.cli:cli'
-        ]
-    },
+    entry_points={"console_scripts": ["ads=ads.cli:cli"]},
 )

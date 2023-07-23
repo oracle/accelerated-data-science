@@ -12,6 +12,9 @@ from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.operator import Operator
 
+from .const import SupportedMetrics
+from .model.factory import ForecastOperatorModelFactory
+
 
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
@@ -54,28 +57,45 @@ class Horizon(DataClassSerializable):
 
 
 @dataclass(repr=True)
+class Tuning(DataClassSerializable):
+    n_trials: int = None
+
+
+@dataclass(repr=True)
 class ForecastOperatorSpec(DataClassSerializable):
+    """The dataclass representing forecasting operator specification."""
+
     name: str = None
     historical_data: InputData = field(default_factory=InputData)
     additional_data: InputData = field(default_factory=InputData)
-    test_data: TestData = None
+    test_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
     report_file_name: str = None
     report_title: str = None
     report_theme: str = None
     report_metrics_name: str = None
-    target_columns: List[str] = None
+    target_column: str = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
-    target_category_column: str = None
-    horizon: Horizon = None
+    target_category_columns: List[str] = field(default_factory=list)
+    horizon: Horizon = field(default_factory=Horizon)
     model: str = None
-    model_kwargs: Dict = None
+    model_kwargs: Dict = field(default_factory=dict)
     confidence_interval_width: float = None
     metric: str = None
+    tuning: Tuning = field(default_factory=Tuning)
+
+    def __post_init__(self):
+        # setup default values
+        self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE
+        # self.confidence_interval_width = self.confidence_interval_width or 0.80
+        self.report_file_name = self.report_file_name or "report.html"
+        self.report_theme = self.report_theme or "light"
+        self.report_metrics_name = self.report_metrics_name or "report.csv"
+        self.target_column = self.target_column or "Sales"
 
 
 @dataclass(repr=True)
-class ForecastOperator(Operator):
+class ForecastOperatorConfig(Operator):
     kind: str = "operator"
     type: str = "forecast"
     version: str = "v1"
@@ -89,16 +109,16 @@ class ForecastOperator(Operator):
         )
 
 
-def operate(operator_spec: ForecastOperator) -> None:
-    """Runs the operator."""
-    print("#" * 100)
-    print(operator_spec.to_yaml())
+def operate(operator_config: ForecastOperatorConfig) -> None:
+    """Runs the forecasting operator."""
+    ForecastOperatorModelFactory.get_model(operator_config).generate_report()
 
 
 def verify(spec: Dict) -> bool:
     """Verifies operator specification."""
-    operator = ForecastOperator.from_dict(spec)
-    print("*" * 100)
-    print("The operator config has been successfully verified.")
+    operator = ForecastOperatorConfig.from_dict(spec)
+    msg_header = (
+        f"{'*' * 50} The operator config has been successfully verified {'*' * 50}"
+    )
     print(operator.to_yaml())
-    print("*" * 100)
+    print("*" * len(msg_header))
