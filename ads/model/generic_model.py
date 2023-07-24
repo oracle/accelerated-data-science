@@ -2137,7 +2137,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             or self.properties.deployment_ocpus
             or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
             deployment_memory_in_gbs = existing_infrastructure.shape_config_details.get(
-                "memory_in_gbs", None
+                "memoryInGBs", None
             )
             or self.properties.deployment_memory_in_gbs
             or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
