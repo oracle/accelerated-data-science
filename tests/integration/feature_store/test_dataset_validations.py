@@ -91,9 +91,8 @@ class TestFeatureGroupValidation(FeatureStoreTestCase):
         assert dataset.oci_dataset.id
 
         dataset.materialise()
-        updated_dataset = dataset.add_models(ModelDetails().with_items(["model_ocid"]))
-        updated_dataset.show()
-        assert updated_dataset.model_details is not None
+        updated_dataset = dataset.add_models(ModelDetails().with_items(["model_ocid_invalid"]))
+        assert len(updated_dataset.model_details.get("items")) == 0
         self.clean_up_dataset(dataset)
         self.clean_up_feature_group(fg)
         self.clean_up_entity(entity)
