@@ -260,6 +260,7 @@ class SparkExecutionEngine(Strategy):
                 featured_data,
                 target_table,
                 feature_group.primary_keys,
+                feature_group.partition_keys,
                 feature_group_job.ingestion_mode,
                 featured_data.schema,
                 feature_group_job.feature_option_details,
