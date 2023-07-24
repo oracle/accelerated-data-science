@@ -118,6 +118,11 @@ spec:
             - excel
             - hdf
             - sql
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
         url:
           required: true
           type: string

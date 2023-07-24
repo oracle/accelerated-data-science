@@ -164,6 +164,3 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             ds_forecast_col,
             ci_col_names,
         )
-
-    def _preprocess(self, data, ds_column, datetime_format):
-        super()._preprocess(data, ds_column, datetime_format)

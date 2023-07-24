@@ -137,8 +137,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         sec5_text = dp.Text(f"## ARIMA Model Parameters")
         sec5 = dp.Select(
             blocks=[
-                # dp.HTML(m.summary().as_html(), label=self.target_columns[i])
-                # for i, m in enumerate(self.models)
+                dp.HTML(m.summary().as_html(), label=self.target_columns[i])
+                for i, m in enumerate(self.models)
             ]
         )
         all_sections = [sec5_text, sec5]
@@ -165,6 +165,3 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             ds_forecast_col,
             ci_col_names,
         )
-
-    def _preprocess(self, data, ds_column, datetime_format):
-        super()._preprocess(data, ds_column, datetime_format)

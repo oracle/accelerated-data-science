@@ -212,13 +212,15 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "These plots show your forecast in the context of historical data."
         )
         sec1 = utils._select_plot_list(
-            lambda idx: self.models[idx].plot(self.outputs[idx], include_legend=True),
+            lambda idx, *args: self.models[idx].plot(
+                self.outputs[idx], include_legend=True
+            ),
             target_columns=self.target_columns,
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
         sec2 = utils._select_plot_list(
-            lambda idx: self.models[idx].plot_components(self.outputs[idx]),
+            lambda idx, *args: self.models[idx].plot_components(self.outputs[idx]),
             target_columns=self.target_columns,
         )
 
@@ -234,7 +236,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             for idx in range(len(self.target_columns))
         ]
         sec3 = utils._select_plot_list(
-            lambda idx: sec3_figs[idx], target_columns=self.target_columns
+            lambda idx, *args: sec3_figs[idx], target_columns=self.target_columns
         )
 
         all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
@@ -278,11 +280,3 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             ds_forecast_col,
             ci_col_names,
         )
-
-    def _preprocess(self, data, ds_column, datetime_format):
-        super()._preprocess(data, ds_column, datetime_format)
-
-        data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
-        if ds_column != "ds":
-            data.drop([ds_column], axis=1, inplace=True)
-        return data

@@ -28,6 +28,7 @@ class InputData(DataClassSerializable):
 class TestData(DataClassSerializable):
     connect_args: Dict = None
     format: str = None
+    columns: List[str] = None
     url: str = None
     name: str = None
     options: Dict = None

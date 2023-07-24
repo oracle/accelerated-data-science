@@ -110,7 +110,7 @@ class ForecastOperatorBaseModel(ABC):
                             blocks=[
                                 dp.DataTable(
                                     df.head(10).rename(
-                                        {col: self.target_column}, axis=1
+                                        {col: self.spec.target_column}, axis=1
                                     ),
                                     caption="Start",
                                     label=col,
@@ -124,7 +124,7 @@ class ForecastOperatorBaseModel(ABC):
                             blocks=[
                                 dp.DataTable(
                                     df.tail(10).rename(
-                                        {col: self.target_column}, axis=1
+                                        {col: self.spec.target_column}, axis=1
                                     ),
                                     caption="End",
                                     label=col,
@@ -137,7 +137,7 @@ class ForecastOperatorBaseModel(ABC):
                             blocks=[
                                 dp.DataTable(
                                     df.rename(
-                                        {col: self.target_column}, axis=1
+                                        {col: self.spec.target_column}, axis=1
                                     ).describe(),
                                     caption="Summary Statistics",
                                     label=col,
@@ -170,16 +170,17 @@ class ForecastOperatorBaseModel(ABC):
 
         test_eval_metrics = []
         test_data = None
-        if self.test_filename:
+        if self.spec.test_data.url:
             (
                 self.test_eval_metrics,
                 summary_metrics,
                 test_data,
             ) = self._test_evaluate_metrics(
-                self.target_columns,
-                self.test_filename,
-                self.outputs,
+                target_columns=self.target_columns,
+                test_filename=self.spec.test_data.url,
+                outputs=self.outputs,
                 target_col=forecast_col_name,
+                elapsed_time=elapsed_time,
             )
             sec7_text = dp.Text(f"## Holdout Data Evaluation Metrics")
             sec7 = dp.DataTable(self.test_eval_metrics)
@@ -199,12 +200,12 @@ class ForecastOperatorBaseModel(ABC):
             ds_col=ds_column_series,
             ds_forecast_col=ds_forecast_col,
             ci_col_names=ci_col_names,
-            ci_interval_width=self.confidence_interval_width,
+            ci_interval_width=self.spec.confidence_interval_width,
         )
         forecast_plots = [forecast_text, forecast_sec]
 
         yaml_appendix_title = dp.Text(f"## Reference: YAML File")
-        yaml_appendix = dp.Code(code=yaml.dump(self.args), language="yaml")
+        yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
         report_sections = (
             [title_text, summary]
             + forecast_plots
@@ -251,7 +252,7 @@ class ForecastOperatorBaseModel(ABC):
         )
 
     def _test_evaluate_metrics(
-        self, target_columns, test_filename, outputs, target_col="yhat"
+        self, target_columns, test_filename, outputs, target_col="yhat", elapsed_time=0
     ):
         total_metrics = pd.DataFrame()
 
@@ -297,7 +298,7 @@ class ForecastOperatorBaseModel(ABC):
                 "Median Explained Variance": np.median(
                     total_metrics.loc["Explained Variance"]
                 ),
-                "Elapsed Time": self.elapsed_time,
+                "Elapsed Time": elapsed_time,
             },
             index=["All Targets"],
         )
@@ -309,28 +310,38 @@ class ForecastOperatorBaseModel(ABC):
         # datapane html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
-            report_dst_path = os.path.join(
-                self.spec.output_directory, self.spec.report_file_name
-            )
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
-                with fsspec.open(report_dst_path, "w", **self.storage_options) as f2:
+                with fsspec.open(
+                    os.path.join(
+                        self.spec.output_directory.url, self.spec.report_file_name
+                    ),
+                    "w",
+                    **default_signer(),
+                ) as f2:
                     f2.write(f1.read())
-
-            logger.info(f"Generated Report: {report_dst_path}.")
 
         # metrics csv report
         utils._write_data(
             data=result_df,
-            report_dst_path=os.path.join(
-                self.spec.output_directory, self.spec.report_metrics_name
+            filename=os.path.join(
+                self.spec.output_directory.url, self.spec.report_metrics_name
             ),
             format="csv",
             storage_options=default_signer(),
         )
 
+        logger.info(
+            f"The report has been successfully "
+            "generated and placed to the: {self.spec.output_directory.url}."
+        )
+
     def _preprocess(self, data, ds_column, datetime_format):
         """The method that needs to be implemented on the particular model level."""
+        data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
+        if ds_column != "ds":
+            data.drop([ds_column], axis=1, inplace=True)
+        return data
 
     @abstractmethod
     def _generate_report(self):

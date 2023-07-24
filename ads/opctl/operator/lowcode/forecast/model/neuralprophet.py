@@ -8,7 +8,6 @@
 import datapane as dp
 import numpy as np
 import optuna
-from neuralprophet import NeuralProphet
 import pandas as pd
 from torch import Tensor
 from torchmetrics.regression import (
@@ -19,6 +18,10 @@ from torchmetrics.regression import (
     SymmetricMeanAbsolutePercentageError,
 )
 
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.opctl import logger
 
 from .. import utils
@@ -41,7 +44,14 @@ def _get_np_metrics_dict(selected_metric):
     return {selected_metric: metric_translation[selected_metric]()}
 
 
+@runtime_dependency(
+    module="neuralprophet",
+    object="NeuralProphet",
+    install_from=OptionalDependency.FORECAST,
+)
 def _fit_model(data, params, additional_regressors, select_metric):
+    from neuralprophet import NeuralProphet
+
     m = NeuralProphet(**params)
     m.metrics = _get_np_metrics_dict(select_metric)
     for add_reg in additional_regressors:
@@ -230,16 +240,21 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             "forecast in the context of historical data."
         )  # TODO add confidence intervals
         sec1 = utils._select_plot_list(
-            lambda idx: self.models[idx].plot(self.outputs[idx])
+            lambda idx, *args: self.models[idx].plot(self.outputs[idx]),
+            target_columns=self.target_columns,
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
         sec2 = utils._select_plot_list(
-            lambda idx: self.models[idx].plot_components(self.outputs[idx])
+            lambda idx, *args: self.models[idx].plot_components(self.outputs[idx]),
+            target_columns=self.target_columns,
         )
 
         sec3_text = dp.Text(f"## Forecast Parameter Plots")
-        sec3 = utils._select_plot_list(lambda idx: self.models[idx].plot_parameters())
+        sec3 = utils._select_plot_list(
+            lambda idx, *args: self.models[idx].plot_parameters(),
+            target_columns=self.target_columns,
+        )
 
         sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
         model_states = []
@@ -288,11 +303,3 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             ds_forecast_col,
             ci_col_names,
         )
-
-    def _preprocess(self, data, ds_column, datetime_format):
-        super()._preprocess(data, ds_column, datetime_format)
-
-        data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
-        if ds_column != "ds":
-            data.drop([ds_column], axis=1, inplace=True)
-        return data
