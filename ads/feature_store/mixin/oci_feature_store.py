@@ -14,7 +14,6 @@ class OCIFeatureStoreMixin(OCIModelMixin):
     def init_client(
         cls, **kwargs
     ) -> oci.feature_store.feature_store_client.FeatureStoreClient:
-
         # TODO: Getting the endpoint from authorizer
         fs_service_endpoint = os.environ.get("OCI_FS_SERVICE_ENDPOINT")
         if fs_service_endpoint:
