@@ -487,7 +487,6 @@ class Dataset(Builder):
         Parameters
         ----------
         model_details: ModelDetails
-        validate: if to validate the model ids
 
         Returns
         -------

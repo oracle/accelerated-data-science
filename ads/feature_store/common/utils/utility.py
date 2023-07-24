@@ -12,7 +12,6 @@ import oci.regions
 from great_expectations.core import ExpectationSuite
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
-from ads.common.oci_resource import OCIResource, SEARCH_TYPE
 from ads.feature_store.common.utils.feature_schema_mapper import (
     map_spark_type_to_feature_type,
     map_feature_type_to_pandas,
