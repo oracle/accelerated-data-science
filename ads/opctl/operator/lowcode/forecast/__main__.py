@@ -10,13 +10,14 @@ import sys
 
 import yaml
 
+from ads.common.auth import AuthContext
 from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
-from ads.common.auth import AuthContext
 
 from .__init__ import __name__ as MODULE
-from .operator import ForecastOperatorConfig, operate, verify
+from .operator import operate, verify
+from .operator_config import ForecastOperatorConfig
 
 
 def main(raw_args):

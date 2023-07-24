@@ -187,7 +187,7 @@ spec:
       meta:
         description: "Placed into output_directory location. Defaults to report.csv"
 
-    target_columns:
+    target_column:
       type: string
       required: true
       default: "Sales"

@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ..const import SupportedModels
-from ..operator import ForecastOperatorConfig
+from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
 from .automlx import AutoMLXOperatorModel
 from .base_model import ForecastOperatorBaseModel
@@ -58,4 +58,4 @@ class ForecastOperatorModelFactory:
         model_type = operator_config.spec.model
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
-        return cls._MAP[model_type](operator_config=operator_config)
+        return cls._MAP[model_type](config=operator_config)

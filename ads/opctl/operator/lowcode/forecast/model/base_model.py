@@ -21,7 +21,7 @@ from ads.opctl import logger
 
 from .. import utils
 from ..const import SupportedModels
-from ..operator import ForecastOperatorConfig, ForecastOperatorSpec
+from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 
 
 class ForecastOperatorBaseModel(ABC):
@@ -49,7 +49,7 @@ class ForecastOperatorBaseModel(ABC):
             None  # This will become [target__category1__category2 ...]
         )
 
-        self.perform_tuning = self.spec.tuning.n_trials != None
+        self.perform_tuning = self.spec.tuning != None
 
     def generate_report(self):
         # load data and build models
@@ -77,11 +77,11 @@ class ForecastOperatorBaseModel(ABC):
             dp.Select(
                 blocks=[
                     dp.Group(
-                        dp.Text(f"You selected the **`{self.model}`** model."),
+                        dp.Text(f"You selected the **`{self.spec.model}`** model."),
                         model_description,
                         dp.Text(
                             "Based on your dataset, you could have also selected "
-                            f"any of the models: `{'`, `'.join(SupportedModels.keys)}`."
+                            f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
                         ),
                         dp.Group(
                             dp.BigNumber(
@@ -228,7 +228,7 @@ class ForecastOperatorBaseModel(ABC):
         self.original_total_data = data
 
         additional_data = None
-        if self.spec.additional_data.url is not None:
+        if self.spec.additional_data is not None:
             additional_data = utils._load_data(
                 filename=self.spec.additional_data.url,
                 format=self.spec.additional_data.format,
@@ -245,7 +245,7 @@ class ForecastOperatorBaseModel(ABC):
         ) = utils._build_indexed_datasets(
             data=data,
             target_column=self.spec.target_column,
-            datetime_column=self.spec.datetime_column,
+            datetime_column=self.spec.datetime_column.name,
             target_category_columns=self.spec.target_category_columns,
             additional_data=additional_data,
         )

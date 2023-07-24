@@ -9,9 +9,3 @@ class TestOperator:
     """Tests common methods of the forecast operator module."""
 
     pass
-
-
-class TestForecastOperatorConfig:
-    """Tests forecast operator config class"""
-
-    pass
