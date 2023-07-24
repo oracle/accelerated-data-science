@@ -8,7 +8,6 @@ import os
 
 from typing import Union, List
 
-import oci.regions
 from great_expectations.core import ExpectationSuite
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
