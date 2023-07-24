@@ -18,7 +18,7 @@ from ads.feature_store.common.enums import (
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     validate_delta_format_parameters,
-    convert_expectation_suite_to_expectation
+    convert_expectation_suite_to_expectation,
 )
 from ads.feature_store.dataset_job import DatasetJob, IngestionMode
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
@@ -374,7 +374,7 @@ class Dataset(Builder):
         return self.get_spec(self.CONST_EXPECTATION_DETAILS)
 
     def with_expectation_suite(
-            self, expectation_suite: ExpectationSuite, expectation_type: ExpectationType
+        self, expectation_suite: ExpectationSuite, expectation_type: ExpectationType
     ) -> "Dataset":
         """Sets the expectation details for the feature group.
 
@@ -445,7 +445,7 @@ class Dataset(Builder):
         self.with_statistics_config(statistics_config)
 
     def with_statistics_config(
-            self, statistics_config: Union[StatisticsConfig, bool]
+        self, statistics_config: Union[StatisticsConfig, bool]
     ) -> "Dataset":
         """Sets the statistics details for the dataset.
 
@@ -527,7 +527,9 @@ class Dataset(Builder):
         if updated_model_details and updated_model_details.items and model_details:
             for model_id in model_details.items:
                 if model_id not in updated_model_details["items"]:
-                    logger.warning(f"Either model with Id '{model_id}' doesnt exist or unable to validate")
+                    logger.warning(
+                        f"Either model with Id '{model_id}' doesnt exist or unable to validate"
+                    )
 
         return self
 
