@@ -127,6 +127,7 @@ class FeatureGroup(Builder):
     CONST_ITEMS = "items"
     CONST_PRIMARY_KEY_NAME = "name"
     CONST_PRIMARY_KEYS = "primaryKeys"
+    CONST_PARTITION_KEYS = "partitionKeys"
     CONST_EXPECTATION_DETAILS = "expectationDetails"
     CONST_INPUT_FEATURE_DETAILS = "inputFeatureDetails"
     CONST_OUTPUT_FEATURE_DETAILS = "outputFeatureDetails"
@@ -156,6 +157,7 @@ class FeatureGroup(Builder):
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_STATISTICS_CONFIG: "statistics_config",
         CONST_INFER_SCHEMA: "is_infer_schema",
+        CONST_PARTITION_KEYS: "partition_keys"
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -321,6 +323,37 @@ class FeatureGroup(Builder):
                 self.CONST_ITEMS: [
                     {self.CONST_PRIMARY_KEY_NAME: primary_key}
                     for primary_key in primary_keys
+                ]
+            },
+        )
+
+    @property
+    def partition_keys(self) -> List[str]:
+        return self.get_spec(self.CONST_PARTITION_KEYS)
+
+    @partition_keys.setter
+    def partition_keys(self, value: List[str]):
+        self.with_partition_keys(value)
+
+    def with_partition_keys(self, partition_keys: List[str]) -> "FeatureGroup":
+        """Sets the partition keys of the feature group.
+
+        Parameters
+        ----------
+        partition_keys: List[str]
+            The List of partition keys for the feature group.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_PARTITION_KEYS,
+            {
+                self.CONST_ITEMS: [
+                    {self.CONST_PRIMARY_KEY_NAME: partition_key}
+                    for partition_key in partition_keys or []
                 ]
             },
         )
