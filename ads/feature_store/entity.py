@@ -292,6 +292,7 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+        transformation_kwargs: Dict = None,
     ):
         feature_group_resource = (
             FeatureGroup()
@@ -304,6 +305,7 @@ class Entity(Builder):
             .with_entity_id(self.id)
             .with_transformation_id(transformation_id)
             .with_partition_keys(partition_keys)
+            .with_transformation_kwargs(transformation_kwargs)
             .with_primary_keys(primary_keys)
             .with_input_feature_details(input_feature_details)
             .with_statistics_config(statistics_config)
@@ -328,6 +330,7 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+        transformation_kwargs: Dict = None,
     ) -> "FeatureGroup":
         """Creates FeatureGroup  resource.
 
@@ -355,6 +358,8 @@ class Entity(Builder):
             Description about the Resource.
         compartment_id: str = None
             compartment_id
+        transformation_kwargs: Dict
+            Arguments for the transformation.
 
 
         Returns
@@ -391,6 +396,7 @@ class Entity(Builder):
             name,
             description,
             compartment_id,
+            transformation_kwargs,
         )
 
         return self.oci_feature_group.create()

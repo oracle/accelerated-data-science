@@ -20,6 +20,7 @@ from ads.feature_store.common.enums import ExpectationType, EntityType
 from ads.feature_store.common.exceptions import (
     NotMaterializedError,
 )
+from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     get_execution_engine_type,
@@ -137,6 +138,7 @@ class FeatureGroup(Builder):
     CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_LAST_JOB_ID = "jobId"
     CONST_INFER_SCHEMA = "isInferSchema"
+    CONST_TRANSFORMATION_KWARGS = "transformationParameters"
 
     attribute_map = {
         CONST_ID: "id",
@@ -157,6 +159,7 @@ class FeatureGroup(Builder):
         CONST_STATISTICS_CONFIG: "statistics_config",
         CONST_INFER_SCHEMA: "is_infer_schema",
         CONST_PARTITION_KEYS: "partition_keys",
+        CONST_TRANSFORMATION_KWARGS: "transformation_parameters",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -323,6 +326,34 @@ class FeatureGroup(Builder):
                     {self.CONST_NAME: primary_key} for primary_key in primary_keys
                 ]
             },
+        )
+
+    @property
+    def transformation_kwargs(self) -> str:
+        return self.get_spec(self.CONST_TRANSFORMATION_KWARGS)
+
+    @transformation_kwargs.setter
+    def transformation_kwargs(self, value: Dict):
+        self.with_transformation_kwargs(value)
+
+    def with_transformation_kwargs(
+        self, transformation_kwargs: Dict = {}
+    ) -> "FeatureGroup":
+        """Sets the primary keys of the feature group.
+
+        Parameters
+        ----------
+        transformation_kwargs: Dict
+            Dictionary containing the transformation arguments.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_TRANSFORMATION_KWARGS,
+            Base64EncoderDecoder.encode(json.dumps(transformation_kwargs)),
         )
 
     @property
