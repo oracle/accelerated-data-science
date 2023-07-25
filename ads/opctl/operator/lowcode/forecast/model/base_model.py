@@ -356,8 +356,14 @@ class ForecastOperatorBaseModel(ABC):
 
     @abstractmethod
     def _generate_report(self):
-        """The method that needs to be implemented on the particular model level."""
+        """
+        Generates the report for the particular model.
+        The method that needs to be implemented on the particular model level.
+        """
 
     @abstractmethod
     def _build_model(self) -> pd.DataFrame:
-        """The method that needs to be implemented on the particular model level."""
+        """
+        Build the model.
+        The method that needs to be implemented on the particular model level.
+        """
