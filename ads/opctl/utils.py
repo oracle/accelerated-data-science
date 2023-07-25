@@ -379,6 +379,3 @@ def run_container(
     finally:
         # Remove the container
         container.remove()
-
-
-# docker run --rm -e env_var1='env_val1' -e ENV_OPERATOR_ARGS='{"kind": "operator", "type": "forecast", "version": "v1", "spec": {"historical_data": {"url": "data/primary.csv"}, "output_directory": {"url": "result/"}, "test_data": {"url": "data/test.csv"}, "model": "prophet", "target_columns": ["Sales"], "target_category_column": "PPG_Code", "datetime_column": {"name": "last_day_of_week"}, "horizon": {"periods": 4, "interval": 1, "interval_unit": "W"}, "report_file_name": "report.html"}}' -v '/Users/dmcherka/TMP/forecast/test_data:/etc/operator/data' -v '/Users/dmcherka/TMP/forecast/result:/etc/operator/result' -v '/Users/dmcherka/.oci:/etc/operator/.oci' forecast:v1 "python3 -m forecast"

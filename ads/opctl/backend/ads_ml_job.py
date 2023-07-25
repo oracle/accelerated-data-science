@@ -18,7 +18,7 @@ from typing import Dict, Tuple, Union
 
 from jinja2 import Environment, PackageLoader
 
-from ads.common.auth import AuthContext, create_signer
+from ads.common.auth import AuthContext, AuthType, create_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.jobs import (
     ContainerRuntime,
@@ -603,7 +603,7 @@ class MLJobOperatorBackend(MLJobBackend):
 
         if self.job.name.lower().startswith("{job"):
             self.job.with_name(
-                f"job_{self.operator_type.lower()}" f"_v{self.operator_version.lower()}"
+                f"job_{self.operator_type.lower()}" f"_{self.operator_version.lower()}"
             )
         self.job.runtime.with_maximum_runtime_in_minutes(
             self.config["execution"].get("max_wait_time", 1200)
@@ -621,7 +621,12 @@ class MLJobOperatorBackend(MLJobBackend):
             ]
         )
         self.job.runtime.with_environment_variable(
-            ENV_OPERATOR_ARGS=json.dumps(self.operator_config)
+            **{
+                "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                "OCIFS_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                ENV_OPERATOR_ARGS: json.dumps(self.operator_config),
+                **(self.job.runtime.envs or {}),
+            }
         )
         self.job.runtime.with_image(image=image, entrypoint=entrypoint, cmd=cmd)
 
@@ -656,7 +661,12 @@ class MLJobOperatorBackend(MLJobBackend):
         ).with_working_dir(
             os.path.basename(temp_dir.rstrip("/"))
         ).with_environment_variable(
-            ENV_OPERATOR_ARGS=json.dumps(self.operator_config)
+            **{
+                "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                "OCIFS_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+                ENV_OPERATOR_ARGS: json.dumps(self.operator_config),
+                **(self.job.runtime.envs or {}),
+            }
         )
 
     @print_watch_command

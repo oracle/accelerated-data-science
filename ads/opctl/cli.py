@@ -477,6 +477,7 @@ def cancel(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @click.option(
     "--log-type",
     help="the type of logging. Allowed value: `custom_log` and `service_log` for pipeline, `access` and `predict` for model deployment.",
@@ -513,6 +514,7 @@ def watch(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @add_options(_model_deployment_options)
 def activate(**kwargs):
     """
@@ -523,6 +525,7 @@ def activate(**kwargs):
 
 @commands.command()
 @click.argument("ocid", nargs=1)
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @add_options(_model_deployment_options)
 def deactivate(**kwargs):
     """

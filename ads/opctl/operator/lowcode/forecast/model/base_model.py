@@ -344,7 +344,7 @@ class ForecastOperatorBaseModel(ABC):
 
         logger.info(
             f"The report has been successfully "
-            "generated and placed to the: {self.spec.output_directory.url}."
+            f"generated and placed to the: {self.spec.output_directory.url}."
         )
 
     def _preprocess(self, data, ds_column, datetime_format):

@@ -23,43 +23,40 @@ from .operator_config import ForecastOperatorConfig
 
 def main(raw_args: List[str]):
     """The entry point of the forecasting the operator."""
-    with AuthContext():
-        args, _ = _parse_input_args(raw_args)
-        if not args.file and not args.spec and not os.environ.get(ENV_OPERATOR_ARGS):
-            logger.info(
-                "Please specify -f[--file] or -s[--spec] or "
-                f"pass operator's arguments via {ENV_OPERATOR_ARGS} environment variable."
-            )
-            return
-
-        logger.info("-" * 100)
+    args, _ = _parse_input_args(raw_args)
+    if not args.file and not args.spec and not os.environ.get(ENV_OPERATOR_ARGS):
         logger.info(
-            f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}"
+            "Please specify -f[--file] or -s[--spec] or "
+            f"pass operator's arguments via {ENV_OPERATOR_ARGS} environment variable."
         )
+        return
 
-        # if spec provided as input string, then convert the string into YAML
-        yaml_string = ""
-        if args.spec or os.environ.get(ENV_OPERATOR_ARGS):
-            operator_spec_str = args.spec or os.environ.get(ENV_OPERATOR_ARGS)
-            try:
-                yaml_string = yaml.safe_dump(json.loads(operator_spec_str))
-            except json.JSONDecodeError:
-                yaml_string = yaml.safe_dump(yaml.safe_load(operator_spec_str))
-            except:
-                yaml_string = operator_spec_str
+    logger.info("-" * 100)
+    logger.info(f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}")
 
-        operator_config = ForecastOperatorConfig.from_yaml(
-            uri=args.file,
-            yaml_string=yaml_string,
-        )
+    # if spec provided as input string, then convert the string into YAML
+    yaml_string = ""
+    if args.spec or os.environ.get(ENV_OPERATOR_ARGS):
+        operator_spec_str = args.spec or os.environ.get(ENV_OPERATOR_ARGS)
+        try:
+            yaml_string = yaml.safe_dump(json.loads(operator_spec_str))
+        except json.JSONDecodeError:
+            yaml_string = yaml.safe_dump(yaml.safe_load(operator_spec_str))
+        except:
+            yaml_string = operator_spec_str
 
-        logger.info(operator_config.to_yaml())
+    operator_config = ForecastOperatorConfig.from_yaml(
+        uri=args.file,
+        yaml_string=yaml_string,
+    )
 
-        # run operator
-        if args.verify:
-            verify(operator_config)
-        else:
-            operate(operator_config)
+    logger.info(operator_config.to_yaml())
+
+    # run operator
+    if args.verify:
+        verify(operator_config)
+    else:
+        operate(operator_config)
 
 
 if __name__ == "__main__":
