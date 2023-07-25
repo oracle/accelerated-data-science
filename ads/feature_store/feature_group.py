@@ -125,7 +125,6 @@ class FeatureGroup(Builder):
     CONST_FEATURE_STORE_ID = "featureStoreId"
     CONST_ENTITY_ID = "entityId"
     CONST_ITEMS = "items"
-    CONST_PRIMARY_KEY_NAME = "name"
     CONST_PRIMARY_KEYS = "primaryKeys"
     CONST_PARTITION_KEYS = "partitionKeys"
     CONST_EXPECTATION_DETAILS = "expectationDetails"
@@ -157,7 +156,7 @@ class FeatureGroup(Builder):
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_STATISTICS_CONFIG: "statistics_config",
         CONST_INFER_SCHEMA: "is_infer_schema",
-        CONST_PARTITION_KEYS: "partition_keys"
+        CONST_PARTITION_KEYS: "partition_keys",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -321,8 +320,7 @@ class FeatureGroup(Builder):
             self.CONST_PRIMARY_KEYS,
             {
                 self.CONST_ITEMS: [
-                    {self.CONST_PRIMARY_KEY_NAME: primary_key}
-                    for primary_key in primary_keys
+                    {self.CONST_NAME: primary_key} for primary_key in primary_keys
                 ]
             },
         )
@@ -352,7 +350,7 @@ class FeatureGroup(Builder):
             self.CONST_PARTITION_KEYS,
             {
                 self.CONST_ITEMS: [
-                    {self.CONST_PRIMARY_KEY_NAME: partition_key}
+                    {self.CONST_NAME: partition_key}
                     for partition_key in partition_keys or []
                 ]
             },

@@ -398,6 +398,7 @@ class SparkExecutionEngine(Strategy):
                 dataset_job.ingestion_mode,
                 target_table,
                 dataset_job.feature_option_details,
+                dataset.partition_keys,
             )
 
             # Get the output features
