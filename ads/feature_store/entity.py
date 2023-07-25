@@ -281,17 +281,17 @@ class Entity(Builder):
         return self
 
     def _build_feature_group(
-            self,
-            primary_keys,
-            partition_keys,
-            input_feature_details,
-            expectation_suite: ExpectationSuite = None,
-            expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
-            statistics_config: Union[StatisticsConfig, bool] = True,
-            transformation_id: str = None,
-            name: str = None,
-            description: str = None,
-            compartment_id: str = None,
+        self,
+        primary_keys,
+        partition_keys,
+        input_feature_details,
+        expectation_suite: ExpectationSuite = None,
+        expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
+        statistics_config: Union[StatisticsConfig, bool] = True,
+        transformation_id: str = None,
+        name: str = None,
+        description: str = None,
+        compartment_id: str = None,
     ):
         feature_group_resource = (
             FeatureGroup()
@@ -316,18 +316,18 @@ class Entity(Builder):
         return feature_group_resource
 
     def create_feature_group(
-            self,
-            primary_keys: List[str],
-            partition_keys: List[str] = None,
-            input_feature_details: List[FeatureDetail] = None,
-            schema_details_dataframe: Union[DataFrame, pd.DataFrame] = None,
-            expectation_suite: ExpectationSuite = None,
-            expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
-            statistics_config: Union[StatisticsConfig, bool] = True,
-            transformation_id: str = None,
-            name: str = None,
-            description: str = None,
-            compartment_id: str = None,
+        self,
+        primary_keys: List[str],
+        partition_keys: List[str] = None,
+        input_feature_details: List[FeatureDetail] = None,
+        schema_details_dataframe: Union[DataFrame, pd.DataFrame] = None,
+        expectation_suite: ExpectationSuite = None,
+        expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
+        statistics_config: Union[StatisticsConfig, bool] = True,
+        transformation_id: str = None,
+        name: str = None,
+        description: str = None,
+        compartment_id: str = None,
     ) -> "FeatureGroup":
         """Creates FeatureGroup  resource.
 
@@ -411,7 +411,7 @@ class Entity(Builder):
 
     @classmethod
     def list_feature_group(
-            cls, compartment_id: str = None, **kwargs
+        cls, compartment_id: str = None, **kwargs
     ) -> List["FeatureGroup"]:
         """Lists FeatureGroup resources in a given compartment.
 
@@ -432,7 +432,7 @@ class Entity(Builder):
 
     @classmethod
     def list_feature_group_df(
-            cls, compartment_id: str = None, **kwargs
+        cls, compartment_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
         """Lists FeatureGroup resources in a given compartment as pandas dataframe.
 
@@ -452,14 +452,15 @@ class Entity(Builder):
         return FeatureGroup.list_df(compartment_id, **kwargs)
 
     def _build_dataset(
-            self,
-            query: str,
-            name: str = None,
-            description: str = None,
-            compartment_id: str = None,
-            expectation_suite: ExpectationSuite = None,
-            expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
-            statistics_config: Union[StatisticsConfig, bool] = True,
+        self,
+        query: str,
+        name: str = None,
+        description: str = None,
+        compartment_id: str = None,
+        expectation_suite: ExpectationSuite = None,
+        expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
+        statistics_config: Union[StatisticsConfig, bool] = True,
+        partition_keys: List[str] = None,
     ):
         dataset_resource = (
             Dataset()
@@ -472,6 +473,7 @@ class Entity(Builder):
                 compartment_id if compartment_id else self.compartment_id
             )
             .with_statistics_config(statistics_config)
+            .with_partition_keys(partition_keys)
         )
 
         if expectation_suite:
@@ -483,14 +485,15 @@ class Entity(Builder):
         return dataset_resource
 
     def create_dataset(
-            self,
-            query: str,
-            name: str = None,
-            description: str = None,
-            compartment_id: str = None,
-            expectation_suite: ExpectationSuite = None,
-            expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
-            statistics_config: Union[StatisticsConfig, bool] = True,
+        self,
+        query: str,
+        name: str = None,
+        description: str = None,
+        compartment_id: str = None,
+        expectation_suite: ExpectationSuite = None,
+        expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
+        statistics_config: Union[StatisticsConfig, bool] = True,
+        partition_keys: List[str] = None,
     ) -> "Dataset":
         """Creates Dataset resource.
 
@@ -510,6 +513,8 @@ class Entity(Builder):
             Type of the expectation.
         statistics_config: StatisticsConfig = None
             Config details for the Statistics.
+        partition_keys: List[str]
+            Partition keys for the datset.
 
         Returns
         -------
@@ -529,6 +534,7 @@ class Entity(Builder):
             expectation_suite,
             expectation_type,
             statistics_config,
+            partition_keys,
         )
 
         return self.oci_fs_dataset.create()
@@ -566,7 +572,7 @@ class Entity(Builder):
 
     @classmethod
     def list_dataset_df(
-            cls, compartment_id: str = None, **kwargs
+        cls, compartment_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
         """Lists Dataset resources in a given compartment as pandas dataframe.
 

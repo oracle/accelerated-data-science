@@ -56,9 +56,6 @@ class DeltaLakeService:
         Returns:
             None.
         """
-
-        print(delta_table_primary_key, partition_keys, "Aaaya Kya")
-
         logger.info(f"target table name {target_table_name}")
         if (
             self.spark_engine.is_delta_table_exists(target_table_name)
@@ -113,7 +110,11 @@ class DeltaLakeService:
             logger.info(f"Upsert ops for target table {target_table_name} ended")
         else:
             self.save_delta_dataframe(
-                dataflow_output, ingestion_mode, target_table_name, feature_options, partition_keys
+                dataflow_output,
+                ingestion_mode,
+                target_table_name,
+                feature_options,
+                partition_keys,
             )
 
     def __execute_delta_merge_insert_update(
@@ -197,7 +198,12 @@ class DeltaLakeService:
         )
 
     def save_delta_dataframe(
-        self, dataframe, dataframe_ingestion_mode, table_name, feature_options=None, partition_keys=None
+        self,
+        dataframe,
+        dataframe_ingestion_mode,
+        table_name,
+        feature_options=None,
+        partition_keys=None,
     ):
         """
         Saves a DataFrame to a Delta table with the specified options.
@@ -211,9 +217,12 @@ class DeltaLakeService:
         """
         delta_partition_keys = []
 
-        partition_keys_items = partition_keys["items"]
-        if partition_keys_items:
-            delta_partition_keys = [partition_key.get("name") for partition_key in partition_keys_items]
+        if partition_keys:
+            partition_keys_items = partition_keys["items"]
+            if partition_keys_items:
+                delta_partition_keys = [
+                    partition_key.get("name") for partition_key in partition_keys_items
+                ]
 
         if feature_options and feature_options.get("featureOptionWriteConfigDetails"):
             feature_delta_write_option_config = feature_options.get(
@@ -226,11 +235,15 @@ class DeltaLakeService:
 
             dataframe.write.format("delta").options(
                 **self.get_delta_write_config(feature_delta_write_option_config)
-            ).mode(dataframe_ingestion_mode).partitionBy(delta_partition_keys).saveAsTable(table_name)
-        else:
-            dataframe.write.format("delta").mode(dataframe_ingestion_mode).partitionBy(delta_partition_keys).saveAsTable(
+            ).mode(dataframe_ingestion_mode).partitionBy(
+                delta_partition_keys
+            ).saveAsTable(
                 table_name
             )
+        else:
+            dataframe.write.format("delta").mode(dataframe_ingestion_mode).partitionBy(
+                delta_partition_keys
+            ).saveAsTable(table_name)
 
     def get_delta_write_config(self, feature_delta_write_option_config):
         """Returns a dictionary containing delta schema configuration options based on a given dictionary of feature

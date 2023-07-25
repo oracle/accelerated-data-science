@@ -105,6 +105,7 @@ class Dataset(Builder):
     CONST_DESCRIPTION = "description"
     CONST_FREEFORM_TAG = "freeformTags"
     CONST_DEFINED_TAG = "definedTags"
+    CONST_PARTITION_KEYS = "partitionKeys"
     CONST_OUTPUT_FEATURE_DETAILS = "outputFeatureDetails"
     CONST_EXPECTATION_DETAILS = "expectationDetails"
     CONST_STATISTICS_CONFIG = "statisticsConfig"
@@ -128,6 +129,7 @@ class Dataset(Builder):
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_MODEL_DETAILS: "model_details",
+        CONST_PARTITION_KEYS: "partition_keys",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -499,6 +501,37 @@ class Dataset(Builder):
                 "but is of type: `{}`".format(type(model_details))
             )
         return self.set_spec(self.CONST_MODEL_DETAILS, model_details.to_dict())
+
+    @property
+    def partition_keys(self) -> List[str]:
+        return self.get_spec(self.CONST_PARTITION_KEYS)
+
+    @partition_keys.setter
+    def partition_keys(self, value: List[str]):
+        self.with_partition_keys(value)
+
+    def with_partition_keys(self, partition_keys: List[str]) -> "Dataset":
+        """Sets the partition keys of the dataset.
+
+        Parameters
+        ----------
+        partition_keys: List[str]
+            The List of partition keys for the feature group.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_PARTITION_KEYS,
+            {
+                self.CONST_ITEMS: [
+                    {self.CONST_NAME: partition_key}
+                    for partition_key in partition_keys or []
+                ]
+            },
+        )
 
     def add_models(self, model_details: ModelDetails) -> "Dataset":
         """Add model details to the dataset, Append to the existing model id list
