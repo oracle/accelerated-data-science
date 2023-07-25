@@ -16,7 +16,7 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
 
 
 def verify(spec: Dict) -> bool:
-    """Verifies operator specification."""
+    """Verifies the forecasting operator config."""
     operator = ForecastOperatorConfig.from_dict(spec)
     msg_header = (
         f"{'*' * 50} The operator config has been successfully verified {'*' * 50}"

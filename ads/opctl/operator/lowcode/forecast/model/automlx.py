@@ -18,6 +18,8 @@ from .base_model import ForecastOperatorBaseModel
 
 # TODO: ODSC-44785 Fix the error message, before GA.
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
+    """Class representing AutoMLX operator model."""
+
     @runtime_dependency(
         module="automl",
         err_msg=(

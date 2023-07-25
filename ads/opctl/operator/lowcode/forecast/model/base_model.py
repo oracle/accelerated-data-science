@@ -14,7 +14,6 @@ import datapane as dp
 import fsspec
 import numpy as np
 import pandas as pd
-import yaml
 
 from ads.common.auth import default_signer
 from ads.opctl import logger
@@ -25,9 +24,17 @@ from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 
 
 class ForecastOperatorBaseModel(ABC):
-    """The base class for the forecasting models."""
+    """The base class for the forecast operator models."""
 
     def __init__(self, config: ForecastOperatorConfig):
+        """Instantiates the ForecastOperatorBaseModel instance.
+
+        Properties
+        ----------
+        config: ForecastOperatorConfig
+            The forecast operator configuration.
+        """
+
         self.config: ForecastOperatorConfig = config
         self.spec: ForecastOperatorSpec = config.spec
 
@@ -52,6 +59,8 @@ class ForecastOperatorBaseModel(ABC):
         self.perform_tuning = self.spec.tuning != None
 
     def generate_report(self):
+        """Generates the forecasting report."""
+
         # load data and build models
         start_time = time.time()
         self._load_data()
@@ -219,6 +228,8 @@ class ForecastOperatorBaseModel(ABC):
         self._save_report(report_sections=report_sections, result_df=result_df)
 
     def _load_data(self):
+        """Loads forecasting input data."""
+
         data = utils._load_data(
             filename=self.spec.historical_data.url,
             format=self.spec.historical_data.format,

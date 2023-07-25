@@ -62,6 +62,8 @@ def _fit_model(data, params, additional_regressors, select_metric):
 
 
 class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
+    """Class representing NeuralProphet operator model."""
+
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.full_data_dict
         models = []

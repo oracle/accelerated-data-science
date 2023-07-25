@@ -11,11 +11,26 @@ from dataclasses import dataclass
 from typing import Any, Dict
 
 from ads.common.serializer import DataClassSerializable
+
 from .common.utils import OperatorValidator
 
 
 @dataclass(repr=True)
-class Operator(DataClassSerializable):
+class OperatorConfig(DataClassSerializable):
+    """Base class representing operator config.
+
+    Attributes
+    ----------
+    kind: str
+        The kind of the resource. For operators it is always - `operator`.
+    type: str
+        The type of the operator.
+    version: str
+        The version of the operator.
+    spec: object
+        The operator specification details.
+    """
+
     kind: str = "operator"
     type: str = None
     version: str = None
@@ -34,6 +49,11 @@ class Operator(DataClassSerializable):
         -------
         bool
             True if the validation passed, else False.
+
+        Raises
+        ------
+        ValueError
+            In case of wrong specification format.
         """
         schema = cls._load_schema()
         validator = OperatorValidator(schema)
@@ -50,5 +70,9 @@ class Operator(DataClassSerializable):
     @classmethod
     @abstractmethod
     def _load_schema(cls) -> str:
-        """Loads operator's schema."""
+        """
+        The abstract method to load operator schema.
+        This method needs to be implemented on the child level.
+        Every operator will have their own YAML schema.
+        """
         raise NotImplementedError()

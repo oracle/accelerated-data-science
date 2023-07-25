@@ -24,16 +24,17 @@ from ads.opctl.cmds import _BackendFactory
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import (
+    BACKEND_NAME,
     DEFAULT_ADS_CONFIG_FOLDER,
     OPERATOR_MODULE_PATH,
     RESOURCE_TYPE,
     RUNTIME_TYPE,
-    BACKEND_NAME,
 )
 from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
 from ads.opctl.utils import publish_image as publish_image_cmd
 
 from .__init__ import __operators__
+from .common.errors import OperatorNotFoundError
 from .common.utils import (
     _build_image,
     _convert_schema_to_html,
@@ -47,18 +48,8 @@ OPERATOR_BASE_DOCKER_FILE = "Dockerfile"
 OPERATOR_BASE_DOCKER_GPU_FILE = "Dockerfile.gpu"
 
 
-class OperatorNotFoundError(Exception):
-    def __init__(self, operator: str):
-        super().__init__(
-            f"Operator with name: `{operator}` is not found."
-            "Use `ads opctl operator list` to get the list of registered operators."
-        )
-
-
 def list() -> None:
-    """
-    Prints the list of the registered operators.
-    """
+    """Prints the list of the registered service operators."""
     print(
         tabulate(
             (
@@ -85,6 +76,8 @@ def info(
     ----------
     operator: str
         The name of the operator to generate the specification YAML.
+    kwargs: (Dict, optional).
+        Additional key value arguments.
     """
     operator_info = {item.name: item for item in _operator_info_list()}.get(name)
     if operator_info:
@@ -101,7 +94,7 @@ def init(
     **kwargs: Dict[str, Any],
 ) -> None:
     """
-    Generates a starter specification template YAML for the operator.
+    Generates a starter YAML configurations for the operator.
 
     Parameters
     ----------
@@ -115,7 +108,7 @@ def init(
     ads_config: (str, optional)
         The folder where the ads opctl config located.
     kwargs: (Dict, optional).
-        Any optional kwargs arguments.
+        Additional key value arguments.
 
     Raises
     ------
@@ -236,8 +229,8 @@ def build_image(
     **kwargs: Dict[str, Any],
 ) -> None:
     """
-    Builds image for the operator.
-    For the built-in operators, the name needs to be provided.
+    Builds the image for the particular operator.
+    For the service operators, the name needs to be provided.
     For the custom operators, the path (source_folder) to the operator needs to be provided.
 
     Parameters
@@ -256,6 +249,9 @@ def build_image(
        The tag of the image. The `latest` will be used if not provided.
     rebuild_base_image: (optional, bool)
         If rebuilding both base and operator's images required.
+    kwargs: (Dict, optional).
+        Additional key value arguments.
+
     Raises
     ------
     ValueError
@@ -362,7 +358,7 @@ def publish_image(
     **kwargs: Dict[str, Any],
 ) -> None:
     """
-    Published image to the container registry.
+    Publishes image to the container registry.
 
     Parameters
     ----------
@@ -373,11 +369,17 @@ def publish_image(
     ads_config: (str, optional)
         The folder where the ads opctl config located.
     kwargs: (Dict, optional).
-        Any optional kwargs arguments.
+        Additional key value arguments.
+
+    Raises
+    ------
+    ValueError
+        When image name is not provided.
     """
     if not image:
         raise ValueError("To publish image, the image name needs to be provided.")
 
+    # extract registry from the config.
     if not registry:
         p = ConfigProcessor().step(
             ConfigMerger,
@@ -401,7 +403,7 @@ def verify(
     config: Dict
         The operator config.
     kwargs: (Dict, optional).
-        Any optional kwargs arguments.
+        Additional key value arguments.
     """
     operator_type = config.get("type", "unknown")
 
@@ -436,6 +438,6 @@ def create(
         The path to the folder to save the resulting specification templates.
         The Tmp folder will be created in case when `output` is not provided.
     kwargs: (Dict, optional).
-        Any optional kwargs arguments.
+        Additional key value arguments.
     """
     raise NotImplementedError()

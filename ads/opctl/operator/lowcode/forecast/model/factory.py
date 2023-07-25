@@ -23,7 +23,7 @@ class UnSupportedModelError(Exception):
 
 class ForecastOperatorModelFactory:
     """
-    The factory class which contains a list of registered forecasting operator models.
+    The factory class helps to instantiate proper model operator based on the model type.
     """
 
     _MAP = {

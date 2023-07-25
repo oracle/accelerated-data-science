@@ -10,13 +10,15 @@ from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.operator import Operator
+from ads.opctl.operator.operator_config import OperatorConfig
 
 from .const import SupportedMetrics
 
 
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
+    """Class representing operator specification input data details."""
+
     format: str = None
     columns: List[str] = None
     url: str = None
@@ -26,6 +28,8 @@ class InputData(DataClassSerializable):
 
 @dataclass(repr=True)
 class TestData(DataClassSerializable):
+    """Class representing operator specification test data details."""
+
     connect_args: Dict = None
     format: str = None
     columns: List[str] = None
@@ -36,6 +40,8 @@ class TestData(DataClassSerializable):
 
 @dataclass(repr=True)
 class OutputDirectory(DataClassSerializable):
+    """Class representing operator specification output directory details."""
+
     connect_args: Dict = None
     format: str = None
     url: str = None
@@ -45,12 +51,16 @@ class OutputDirectory(DataClassSerializable):
 
 @dataclass(repr=True)
 class DateTimeColumn(DataClassSerializable):
+    """Class representing operator specification date time column details."""
+
     name: str = None
     format: str = None
 
 
 @dataclass(repr=True)
 class Horizon(DataClassSerializable):
+    """Class representing operator specification horizon details."""
+
     periods: int = None
     interval: int = None
     interval_unit: str = None
@@ -58,12 +68,14 @@ class Horizon(DataClassSerializable):
 
 @dataclass(repr=True)
 class Tuning(DataClassSerializable):
+    """Class representing operator specification tuning details."""
+
     n_trials: int = None
 
 
 @dataclass(repr=True)
 class ForecastOperatorSpec(DataClassSerializable):
-    """The dataclass representing forecasting operator specification."""
+    """Class representing forecast operator specification."""
 
     name: str = None
     historical_data: InputData = field(default_factory=InputData)
@@ -85,7 +97,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     tuning: Tuning = field(default_factory=Tuning)
 
     def __post_init__(self):
-        # setup default values
+        """Adjusts the specification details."""
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE
         # self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_file_name = self.report_file_name or "report.html"
@@ -96,7 +108,21 @@ class ForecastOperatorSpec(DataClassSerializable):
 
 
 @dataclass(repr=True)
-class ForecastOperatorConfig(Operator):
+class ForecastOperatorConfig(OperatorConfig):
+    """Class representing forecast operator config.
+
+    Attributes
+    ----------
+    kind: str
+        The kind of the resource. For operators it is always - `operator`.
+    type: str
+        The type of the operator. For forecast operator it is always - `forecast`
+    version: str
+        The version of the operator.
+    spec: ForecastOperatorSpec
+        The forecast operator specification.
+    """
+
     kind: str = "operator"
     type: str = "forecast"
     version: str = "v1"
@@ -104,7 +130,7 @@ class ForecastOperatorConfig(Operator):
 
     @classmethod
     def _load_schema(cls) -> str:
-        """Loads operator's schema."""
+        """Loads operator schema."""
         return _load_yaml_from_uri(
             os.path.join(os.path.dirname(os.path.abspath(__file__)), "schema.yaml")
         )

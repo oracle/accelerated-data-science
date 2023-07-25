@@ -32,6 +32,8 @@ def _fit_model(data, params, additional_regressors):
 
 
 class ProphetOperatorModel(ForecastOperatorBaseModel):
+    """Class representing Prophet operator model."""
+
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.full_data_dict
         models = []

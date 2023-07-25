@@ -8,26 +8,34 @@ from typing import Dict
 
 import click
 
+from ads.opctl import logger
 from ads.opctl.operator.common.utils import YamlGenerator, _load_yaml_from_uri
 
-SUPPORTED_MODELS = ["arima", "automlx", "neuralprophet", "prophet"]
+from .const import SupportedModels
 
 
 def init(**kwargs: Dict) -> str:
     """
-    Generates a starter specification template YAML for the operator.
+    Generates operator config by the schema.
+
+    Properties
+    ----------
+    kwargs: (Dict, optional).
+        Additional key value arguments.
 
     Returns
     -------
     str
         The YAML specification generated based on the schema.
     """
-    print("==== Forecasting related options ====")
+    logger.info("==== Forecasting related options ====")
+
     model_type = click.prompt(
-        "Provide a model type:", type=click.Choice(SUPPORTED_MODELS), default="prophet"
+        "Provide a model type:",
+        type=click.Choice(SupportedModels.values()),
+        default=SupportedModels.Prophet,
     )
 
-    values = {"model": model_type}
-
-    schema = _load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    return YamlGenerator(schema=schema).generate_example(values=values)
+    return YamlGenerator(
+        schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
+    ).generate_example(values={"model": model_type})

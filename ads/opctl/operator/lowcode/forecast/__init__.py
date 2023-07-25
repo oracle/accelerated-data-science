@@ -8,11 +8,11 @@ __version__ = "v1"
 
 __name__ = "forecast"
 
-# __conda__ = "forecast_p38_cpu_v1" # use this when service conda env will be available
+# __conda__ = "forecast_p38_cpu_v1" # switch to slug when service conda env will be available
 
 __conda__ = "cpu/Forecasting Operator/1.0/forecast_p38_cpu_v1"
 
-__keywords__ = ["Prophet", "AutoML", "SARIMA", "ARIMA", "RNN", "LSTM"]
+__keywords__ = ["Prophet", "AutoML", "ARIMA", "RNN", "LSTM"]
 
 __short_description__ = """
 Forecasting operator, that leverages historical time series data to generate accurate

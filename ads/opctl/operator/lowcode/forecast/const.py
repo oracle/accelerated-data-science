@@ -8,7 +8,7 @@ from ads.common.extended_enum import ExtendedEnumMeta
 
 
 class SupportedModels(str, metaclass=ExtendedEnumMeta):
-    """The list of the supported forecasting models."""
+    """Supported forecast models."""
 
     Prophet = "prophet"
     Arima = "arima"
@@ -17,6 +17,8 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
 
 
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
+    """Supported forecast metrics."""
+
     MAPE = "mape"
     RMSE = "rmse"
     MSE = "mse"

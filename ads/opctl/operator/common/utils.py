@@ -27,9 +27,29 @@ from ads.opctl.utils import run_command
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
 
+class OperatorValidator(Validator):
+    """The custom validator class."""
+
+    pass
+
+
 @dataclass
 class OperatorInfo:
-    """Class to represent short information about the operator."""
+    """Class representing short information about the operator.
+
+    Attributes
+    ----------
+    name: str
+        The name of the operator.
+    short_description: str
+        The short description of the operator.
+    description: str
+        The detailed description of the operator.
+    version: str
+        The version of the operator.
+    conda: str
+        The conda environment that have to be used to run the operator.
+    """
 
     name: str
     short_description: str
@@ -38,8 +58,8 @@ class OperatorInfo:
     conda: str
 
     @classmethod
-    def from_init(*args, **kwargs) -> "OperatorInfo":
-        """Instantiates class from init config."""
+    def from_init(*args: List, **kwargs: Dict) -> "OperatorInfo":
+        """Instantiates the class from the initial operator details config."""
         return OperatorInfo(
             name=kwargs.get("__name__"),
             description=kwargs.get("__description__"),
@@ -52,7 +72,7 @@ class OperatorInfo:
 @dataclass
 class YamlGenerator:
     """
-    Class for generating example YAML based on a schema.
+    Class for generating the YAML config based on the given YAML schema.
 
     Attributes
     ----------
@@ -64,15 +84,16 @@ class YamlGenerator:
 
     def generate_example(self, values: Optional[Dict[str, Any]] = None) -> str:
         """
-        Generate an example YAML based on the schema.
+        Generate the YAML config based on the YAML schema.
 
         Properties
         ----------
-        values: Optional dictionary containing specific values for attributes.
+        values: Optional dictionary containing specific values for the attributes.
 
         Returns
         -------
-        The generated example YAML as a string.
+        str
+            The generated YAML config.
         """
         example = self._generate_example(self.schema, values)
         return yaml.dump(example)
@@ -80,6 +101,27 @@ class YamlGenerator:
     def _check_condition(
         self, condition: Dict[str, Any], example: Dict[str, Any]
     ) -> bool:
+        """
+        Checks if the YAML schema condition fulfils.
+        This method is used to include conditional fields into the final config.
+
+        Properties
+        ----------
+        condition: Dict[str, Any]
+            The schema condition.
+            Example:
+            In the example below the `owner_name` field has dependency on the `model` field.
+            The `owner_name` will be included to the final config if only `model` is `prophet`.
+                owner_name:
+                    type: string
+                    dependencies: {"model":"prophet"}
+        example: Dict[str, Any]
+            The config to check if the dependable value presented there.
+        Returns
+        -------
+        bool
+            True if the condition fulfils, false otherwise.
+        """
         for key, value in condition.items():
             if key not in example or example[key] != value:
                 return False
@@ -88,6 +130,22 @@ class YamlGenerator:
     def _generate_example(
         self, schema: Dict[str, Any], values: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
+        """
+        Generates the final YAML config.
+        This is a recursive method, which iterates through the entire schema.
+
+        Properties
+        ----------
+        schema: Dict[str, Any]
+            The schema to generate the config.
+        values: Optional[Dict[str, Any]]
+            The optional values that would be used instead of default values provided in the schama.
+
+        Returns
+        -------
+        Dict
+            The result config.
+        """
         example = {}
         for key, value in schema.items():
             # only generate values fro required fields
@@ -116,39 +174,79 @@ class YamlGenerator:
         return example
 
 
-class OperatorValidator(Validator):
-    pass
+def _build_image(
+    dockerfile: str,
+    image_name: str,
+    tag: str = None,
+    target: str = None,
+    **kwargs: Dict[str, Any],
+) -> str:
+    """
+    Builds the operator image.
 
+    Parameters
+    ----------
+    dockerfile: str
+        Path to the docker file.
+    image_name: str
+        The name of the image.
+    tag: (str, optional)
+        The tag of the image.
+    target: (str, optional)
+        The image target.
+    kwargs: (Dict, optional).
+        Additional key value arguments.
 
-def _extant_file(x: str):
-    if not (x.endswith(".yml") or x.endswith(".yaml")):
-        raise argparse.ArgumentTypeError(
-            f"{x} exists, but must be a yaml file (.yaml/.yml)"
-        )
-    return x
+    Returns
+    -------
+    str
+        The final image name.
 
+    Raises
+    ------
+    ValueError
+        When dockerfile or image name not provided.
+    FileNotFoundError
+        When dockerfile doesn't exist.
+    RuntimeError
+        When docker build operation fails.
+    """
+    if not (dockerfile and image_name):
+        raise ValueError("The `dockerfile` and `image_name` needs to be provided.")
 
-def _parse_input_args(raw_args) -> Tuple:
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
+    if not os.path.isfile(dockerfile):
+        raise FileNotFoundError(f"The file `{dockerfile}` does not exist")
+
+    image_name = f"{image_name}:{tag or 'latest'}"
+
+    command = [
+        "docker",
+        "build",
+        "-t",
+        image_name,
         "-f",
-        "--file",
-        type=_extant_file,
-        required=False,
-        help="Path to the operator specification YAML file",
-    )
-    parser.add_argument(
-        "-s", "--spec", type=str, required=False, help="Operator Yaml specification"
-    )
-    parser.add_argument(
-        "-v",
-        "--verify",
-        type=bool,
-        default=False,
-        required=False,
-        help="Verify operator schema",
-    )
-    return parser.parse_known_args(raw_args)
+        dockerfile,
+    ]
+
+    if target:
+        command += ["--target", target]
+    if os.environ.get("no_proxy"):
+        command += ["--build-arg", f"no_proxy={os.environ['no_proxy']}"]
+    if os.environ.get("http_proxy"):
+        command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
+    if os.environ.get("https_proxy"):
+        command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
+    if os.environ.get(CONTAINER_NETWORK):
+        command += ["--network", os.environ[CONTAINER_NETWORK]]
+    command += [os.path.dirname(dockerfile)]
+
+    logger.info(f"Build image: {command}")
+
+    proc = run_command(command)
+    if proc.returncode != 0:
+        raise RuntimeError("Docker build failed.")
+
+    return image_name
 
 
 def _module_constant_values(module_name: str, module_path: str) -> Dict[str, Any]:
@@ -203,22 +301,41 @@ def _operator_info_list() -> List[OperatorInfo]:
     )
 
 
-def text_clean(txt: str) -> str:
-    """Cleans the text from the special characters."""
+def _extant_file(x: str):
+    """Checks the extension of the file to yaml."""
+    if not (x.lower().endswith(".yml") or x.lower().endswith(".yaml")):
+        raise argparse.ArgumentTypeError(
+            f"{x} exists, but must be a yaml file (.yaml/.yml)"
+        )
+    return x
 
-    txt = re.sub("httpS+s*", " ", txt)  # remove URLs
-    txt = re.sub("RT|cc", " ", txt)  # remove RT and cc
-    # txt = re.sub("#S+", "", txt)  # remove hashtags
-    txt = re.sub("@S+", "  ", txt)  # remove mentions
-    txt = re.sub(
-        "[%s]" % re.escape("""!"#$%&'()*+,-./:;<=>?@[]^_`{|}~"""), " ", txt
-    )  # remove punctuations
-    txt = re.sub(r"[^x00-x7f]", r" ", txt)
-    txt = re.sub("s+", " ", txt)  # remove extra whitespace
-    return txt
+
+def _parse_input_args(raw_args) -> Tuple:
+    """Parses operator inout arguments."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-f",
+        "--file",
+        type=_extant_file,
+        required=False,
+        help="Path to the operator specification YAML file",
+    )
+    parser.add_argument(
+        "-s", "--spec", type=str, required=False, help="Operator Yaml specification"
+    )
+    parser.add_argument(
+        "-v",
+        "--verify",
+        type=bool,
+        default=False,
+        required=False,
+        help="Verify operator schema",
+    )
+    return parser.parse_known_args(raw_args)
 
 
 def _load_yaml_from_string(doc: str, **kwargs) -> Dict:
+    """Loads YAML from string and merge it with env variables and kwargs."""
     template_dict = {**os.environ, **kwargs}
     return yaml.safe_load(
         Template(doc).safe_substitute(
@@ -228,6 +345,7 @@ def _load_yaml_from_string(doc: str, **kwargs) -> Dict:
 
 
 def _load_multi_document_yaml_from_string(doc: str, **kwargs) -> Dict:
+    """Loads multiline YAML from string and merge it with env variables and kwargs."""
     template_dict = {**os.environ, **kwargs}
     return yaml.load_all(
         Template(doc).substitute(
@@ -238,6 +356,7 @@ def _load_multi_document_yaml_from_string(doc: str, **kwargs) -> Dict:
 
 
 def _load_multi_document_yaml_from_uri(uri: str, **kwargs) -> Dict:
+    """Loads multiline YAML from file and merge it with env variables and kwargs."""
     with fsspec.open(uri) as f:
         return _load_multi_document_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)
 
@@ -248,80 +367,8 @@ def _load_yaml_from_uri(uri: str, **kwargs) -> str:
         return _load_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)
 
 
-def _build_image(
-    dockerfile: str,
-    image_name: str,
-    tag: str = None,
-    target: str = None,
-    **kwargs: Dict[str, Any],
-) -> str:
-    """
-    Build an image for operator.
-
-    Parameters
-    ----------
-    dockerfile: str
-        Path to the docker file.
-    image_name: str
-        The name of the image.
-    tag: (str, optional)
-        The tag of the image.
-    target: (str, optional)
-        The image target.
-
-    Returns
-    -------
-    str
-        The final image name.
-
-    Raises
-    ------
-    ValueError
-        When dockerfile or image name not provided.
-    FileNotFoundError
-        When dockerfile doesn't exist.
-    RuntimeError
-        When docker build operation fails.
-    """
-    if not (dockerfile and image_name):
-        raise ValueError("The `dockerfile` and `image_name` needs to be provided.")
-
-    if not os.path.isfile(dockerfile):
-        raise FileNotFoundError(f"The file `{dockerfile}` does not exist")
-
-    image_name = f"{image_name}:{tag or 'latest'}"
-
-    command = [
-        "docker",
-        "build",
-        "-t",
-        image_name,
-        "-f",
-        dockerfile,
-    ]
-
-    if target:
-        command += ["--target", target]
-    if os.environ.get("no_proxy"):
-        command += ["--build-arg", f"no_proxy={os.environ['no_proxy']}"]
-    if os.environ.get("http_proxy"):
-        command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
-    if os.environ.get("https_proxy"):
-        command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
-    if os.environ.get(CONTAINER_NETWORK):
-        command += ["--network", os.environ[CONTAINER_NETWORK]]
-    command += [os.path.dirname(dockerfile)]
-
-    logger.info(f"Build image: {command}")
-
-    proc = run_command(command)
-    if proc.returncode != 0:
-        raise RuntimeError("Docker build failed.")
-
-    return image_name
-
-
 def _convert_schema_to_html(module_name: str, module_schema: str) -> str:
+    """Converts operator YAML schema to HTML."""
     t = Template(
         """
         <style type="text/css">

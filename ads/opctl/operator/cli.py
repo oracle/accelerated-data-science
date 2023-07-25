@@ -81,7 +81,7 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     default=None,
 )
 def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Generates a starter specification template YAML for the operator."""
+    """Generates starter YAML configs for the operator."""
     suppress_traceback(debug)(cmd_init)(**kwargs)
 
 
@@ -122,7 +122,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     default=False,
 )
 def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Builds a new image for the given operator."""
+    """Builds a new image for the particular operator."""
     suppress_traceback(debug)(cmd_build_image)(**kwargs)
 
 
@@ -201,9 +201,7 @@ def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
     default=None,
 )
 def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """
-    Verifies the operator config.
-    """
+    """Verifies the operator config."""
 
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
 

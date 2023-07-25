@@ -7,6 +7,7 @@
 import json
 import os
 import sys
+from typing import List
 
 import yaml
 
@@ -20,8 +21,8 @@ from .operator import operate, verify
 from .operator_config import ForecastOperatorConfig
 
 
-def main(raw_args):
-    """The entry point method for the operator."""
+def main(raw_args: List[str]):
+    """The entry point of the forecasting the operator."""
     with AuthContext():
         args, _ = _parse_input_args(raw_args)
         if not args.file and not args.spec and not os.environ.get(ENV_OPERATOR_ARGS):
