@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-
+import json
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -28,6 +28,7 @@ class TransformationUtils:
         spark: SparkSession,
         dataframe: Union[DataFrame, pd.DataFrame],
         transformation: Transformation,
+        transformation_kwargs: str,
     ):
         """
         Perform data transformation using either SQL or Pandas, depending on the specified transformation mode.
@@ -36,6 +37,7 @@ class TransformationUtils:
             spark: A SparkSession object.
             transformation (Transformation): A transformation object containing details of transformation to be performed.
             dataframe (DataFrame): The input dataframe to be transformed.
+            transformation_kwargs(str): The transformation parameters as json string.
 
         Returns:
             DataFrame: The resulting transformed data.
@@ -54,15 +56,17 @@ class TransformationUtils:
         )
         transformed_data = None
 
+        transformation_kwargs_dict = json.loads(transformation_kwargs)
+
         if transformation.transformation_mode == TransformationMode.SQL.value:
             # Register the temporary table
             temporary_table_view = "df_view"
             dataframe.createOrReplaceTempView(temporary_table_view)
 
             transformed_data = spark.sql(
-                transformation_function_caller(temporary_table_view)
+                transformation_function_caller(temporary_table_view, **transformation_kwargs_dict)
             )
         elif transformation.transformation_mode == TransformationMode.PANDAS.value:
-            transformed_data = transformation_function_caller(dataframe)
+            transformed_data = transformation_function_caller(dataframe, **transformation_kwargs_dict)
 
         return transformed_data

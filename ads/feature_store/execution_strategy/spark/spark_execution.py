@@ -9,6 +9,7 @@ import logging
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
+from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
 from ads.feature_store.common.utils.utility import (
     get_features,
     show_ingestion_summary,
@@ -238,11 +239,20 @@ class SparkExecutionEngine(Strategy):
             # Apply the transformation
             if feature_group.transformation_id:
                 logger.info("Dataframe is transformation enabled.")
+
+                # Get the Transformation Arguments if exists and pass to the transformation function.
+                transformation_kwargs = Base64EncoderDecoder.decode(
+                    feature_group.transformation_kwargs
+                )
+
                 # Loads the transformation resource
                 transformation = Transformation.from_id(feature_group.transformation_id)
 
                 featured_data = TransformationUtils.apply_transformation(
-                    self._spark_session, data_frame, transformation
+                    self._spark_session,
+                    data_frame,
+                    transformation,
+                    transformation_kwargs,
                 )
             else:
                 logger.info("Transformation not defined.")
