@@ -942,7 +942,7 @@ class LocalOperatorBackend(Backend):
                         os.path.dirname(self.config["execution"]["oci_config"])
                     )
                     + ":"
-                    + "/etc/operator"
+                    + "/root/.oci"
                 ],
                 "env": [{"name": "test_env_key", "value": "test_env_val"}],
             }
