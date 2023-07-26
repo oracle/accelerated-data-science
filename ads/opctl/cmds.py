@@ -178,7 +178,7 @@ def run(config: Dict, **kwargs) -> Dict:
     else:
         # If no yaml is provided and config is empty, we assume there's cmdline args to define a job.
         config = {"kind": "job"}
-        p.config["kind"] = config["kind"]
+        p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
         print(
             "......................... Initializing the process ..................................."
