@@ -21,7 +21,7 @@ from ads.feature_store.feature_store import FeatureStore
 from ads.feature_store.input_feature_detail import FeatureDetail, FeatureType
 from ads.feature_store.service.oci_feature_group import OCIFeatureGroup
 from ads.feature_store.service.oci_feature_store import OCIFeatureStore
-from tests.unitary.install_required.feature_store.test_feature_group_job import (
+from tests.unitary.with_extras.feature_store.test_feature_group_job import (
     FEATURE_GROUP_JOB_PAYLOAD,
 )
 
@@ -32,6 +32,8 @@ FEATURE_GROUP_PAYLOAD = {
     "entityId": "ocid1.entity.oc1.iad.xxx",
     "description": "feature group description",
     "primaryKeys": {"items": []},
+    "partitionKeys": {"items": []},
+    "transformationParameters": "e30=",
     "featureStoreId": "ocid1.featurestore.oc1.iad.xxx",
     "compartmentId": "ocid1.compartment.oc1.iad.xxx",
     "inputFeatureDetails": [
@@ -133,6 +135,8 @@ class TestFeatureGroup:
             .with_entity_id(self.payload["entityId"])
             .with_feature_store_id(self.payload["featureStoreId"])
             .with_primary_keys([])
+            .with_partition_keys([])
+            .with_transformation_kwargs({})
             .with_input_feature_details(input_feature_details)
         )
         assert self.prepare_dict(
@@ -154,6 +158,8 @@ class TestFeatureGroup:
             .with_entity_id(self.payload["entityId"])
             .with_feature_store_id(self.payload["featureStoreId"])
             .with_primary_keys([])
+            .with_partition_keys([])
+            .with_transformation_kwargs({})
             .with_input_feature_details(input_feature_details)
         )
         assert self.prepare_dict(
@@ -205,8 +211,8 @@ class TestFeatureGroup:
 
     @patch.object(OCIFeatureGroup, "create")
     def test_create_success(
-        self,
-        mock_oci_dsc_model_create,
+            self,
+            mock_oci_dsc_model_create,
     ):
         """Tests creating datascience feature_group."""
         oci_dsc_model = OCIFeatureGroup(**FEATURE_GROUP_PAYLOAD)
@@ -275,7 +281,7 @@ class TestFeatureGroup:
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
     def test_materialise(
-        self, spark_session, get_spark_session, mocke_update, dataframe_fixture_basic
+            self, spark_session, get_spark_session, mocke_update, dataframe_fixture_basic
     ):
         with patch.object(FeatureGroupJob, "create") as mock_feature_group_job:
             with patch.object(FeatureStore, "from_id"):
@@ -318,7 +324,7 @@ class TestFeatureGroup:
     @patch.object(SparkSessionSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_restore(
-        self, feature_store, spark_session, get_spark_session, mock_update
+            self, feature_store, spark_session, get_spark_session, mock_update
     ):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
             mock_execution_strategy.return_value = None

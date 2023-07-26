@@ -21,7 +21,7 @@ from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 from ads.feature_store.service.oci_dataset import OCIDataset
 from ads.feature_store.service.oci_feature_store import OCIFeatureStore
 from ads.feature_store.feature_store import FeatureStore
-from tests.unitary.install_required.feature_store.test_feature_store import (
+from tests.unitary.with_extras.feature_store.test_feature_store import (
     FEATURE_STORE_PAYLOAD,
 )
 
