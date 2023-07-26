@@ -2,6 +2,17 @@
 Release Notes
 =============
 
+2.8.8
+-----
+Release date: July 26, 2023
+
+* Added ``PyTorchDistributed`` Runtime for Data Science Jobs to support training large language models with PyTorch.
+* Added options to configure flexible shape in OPCTL.
+* Refactored code in ``deploy()`` in ``GenericModel`` to prioritize the parameters.
+* Fixed opctl commands delete/cancel/watch/activate/deactivate to add missing parameter options.
+* Fixed opctl command to call run to start ml job if no YAML is passed in.
+* Deprecated ``DatasetFactory`` class and refactored code.
+
 2.8.7
 -----
 Release date: June 22, 2023
