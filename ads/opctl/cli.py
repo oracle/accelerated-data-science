@@ -388,6 +388,7 @@ def run(file, **kwargs):
     Jobs
     """
     debug = kwargs["debug"]
+    config = {}
     if file:
         if os.path.exists(file):
             auth = {}
@@ -400,9 +401,7 @@ def run(file, **kwargs):
                 config = suppress_traceback(debug)(yaml.safe_load)(f.read())
         else:
             raise FileNotFoundError(f"{file} is not found")
-    else:
-        # If no yaml is provided, we assume there's cmdline args to define a job.
-        config = {"kind": "job"}
+
     suppress_traceback(debug)(run_cmd)(config, **kwargs)
 
 
