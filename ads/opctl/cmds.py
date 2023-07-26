@@ -120,7 +120,7 @@ class _BackendFactory:
     @property
     def backend(self):
         if self._backend == BACKEND_NAME.LOCAL.value:
-            kind = self.config.get("kind")
+            kind = self.config.get("kind") or self.config["execution"].get("kind")
             if kind not in self.LOCAL_BACKENDS_MAP:
                 options = [backend for backend in self.LOCAL_BACKENDS_MAP.keys()]
                 # Special case local backend option not supported by this factory.
