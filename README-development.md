@@ -119,7 +119,7 @@ To run all but opctl integration tests, you can run:
 
 ### Running opctl integration tests
 
-ADS opctl integration tests utilize cpu, gpu jobs images and two conda packs.
+ADS opctl integration tests utilize cpu, gpu jobs images and need dataexpl_p37_cpu_v2 and pyspark30_p37_cpu_v3 Data Science Environments be installed, see the [About Conda Environments](https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm).
 To build development container, see the [Build Development Container Image](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/opctl/localdev/jobs_container_image.html).
 
 ```bash
