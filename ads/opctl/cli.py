@@ -17,7 +17,6 @@ import ads.opctl.model.cli
 import ads.opctl.spark.cli
 from ads.common import auth as authutil
 from ads.common.auth import AuthType
-from ads.opctl.cmds import apply as apply_cmd
 from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import configure as configure_cmd
@@ -389,6 +388,7 @@ def run(file, **kwargs):
     Jobs
     """
     debug = kwargs["debug"]
+    config = {}
     if file:
         if os.path.exists(file):
             auth = {}
@@ -402,14 +402,6 @@ def run(file, **kwargs):
         else:
             raise FileNotFoundError(f"{file} is not found")
 
-        if (
-            "kind" in config
-            and config["execution"].get("backend", None) != BACKEND_NAME.LOCAL.value
-        ):
-            return suppress_traceback(debug)(apply_cmd)(config, **kwargs)
-    else:
-        # If no yaml is provided, we assume there's cmdline args to define a job.
-        config = {"kind": "job"}
     suppress_traceback(debug)(run_cmd)(config, **kwargs)
 
 

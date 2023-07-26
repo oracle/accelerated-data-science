@@ -154,26 +154,6 @@ def _save_yaml(yaml_content, **kwargs):
             f.write(yaml_content)
         print(f"Job run info saved to {yaml_path}")
 
-
-def apply(config: Dict, **kwargs) -> Dict:
-    """Creates a Job, DataFlow, Pipeline or Model Deployment from YAML.
-
-    Parameters
-    ----------
-    config: dict
-        dictionary of configurations
-    kwargs: dict
-        keyword arguments, stores configuration from command line args
-
-    Returns
-    -------
-    Dict
-        dictionary of service id and service run id if not running locally, else empty.
-    """
-    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
-    p.config["execution"]["backend"] = p.config["kind"]
-    return _BackendFactory(p.config).backend.apply()
-
 def run(config: Dict, **kwargs) -> Dict:
     """
     Run a job given configuration and command line args passed in (kwargs).
@@ -191,6 +171,14 @@ def run(config: Dict, **kwargs) -> Dict:
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    if config:
+        if p.config["kind"] != BACKEND_NAME.LOCAL.value and p.config["kind"] != "distributed":
+            p.config["execution"]["backend"] = p.config["kind"]
+            return _BackendFactory(p.config).backend.apply()
+    else:
+        # If no yaml is provided and config is empty, we assume there's cmdline args to define a job.
+        config = {"kind": "job"}
+        p.config["kind"] = config["kind"]
     if config.get("kind") == "distributed":  # TODO: add kind factory
         print(
             "......................... Initializing the process ..................................."
