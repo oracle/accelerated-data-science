@@ -170,8 +170,8 @@ def run(config: Dict, **kwargs) -> Dict:
     Dict
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
-    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config:
+        p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
         if p.config["kind"] != BACKEND_NAME.LOCAL.value and p.config["kind"] != "distributed":
             p.config["execution"]["backend"] = p.config["kind"]
             return _BackendFactory(p.config).backend.apply()
