@@ -4,7 +4,7 @@ Release Notes
 
 2.8.8
 -----
-Release date: July 26, 2023
+Release date: July 27, 2023
 
 * Added ``PyTorchDistributed`` Runtime for Data Science Jobs to support training large language models with PyTorch.
 * Added options to configure flexible shape in OPCTL.
