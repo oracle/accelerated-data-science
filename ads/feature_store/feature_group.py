@@ -353,7 +353,7 @@ class FeatureGroup(Builder):
         """
         return self.set_spec(
             self.CONST_TRANSFORMATION_KWARGS,
-            Base64EncoderDecoder.encode(json.dumps(transformation_kwargs)),
+            Base64EncoderDecoder.encode(json.dumps(transformation_kwargs or {})),
         )
 
     @property
@@ -1085,6 +1085,7 @@ class FeatureGroup(Builder):
         """Checks whether the target Delta table for this resource has been materialized in Spark.
         If the target Delta table doesn't exist, raises a NotMaterializedError with the type and name of this resource.
         """
+        print(self.target_delta_table())
         if not self.spark_engine.is_delta_table_exists(self.target_delta_table()):
             raise NotMaterializedError(self.type, self.name)
 
