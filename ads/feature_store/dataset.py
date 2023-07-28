@@ -517,20 +517,31 @@ class Dataset(Builder):
         if existing_model_details and existing_model_details.items:
             items = existing_model_details["items"]
             for item in items:
-                model_details.items.append(item)
+                if item not in model_details.items:
+                    model_details.items.append(item)
         self.with_model_details(model_details)
-        self.update()
+        try:
+            return self.update()
+        except Exception as ex:
+            logger.error(
+                f"Dataset update Failed with : {type(ex)} with error message: {ex}"
+            )
+            if existing_model_details:
+                self.with_model_details(ModelDetails().with_items(existing_model_details["items"]))
+            else:
+                self.with_model_details(ModelDetails().with_items([]))
 
-        self._update_from_oci_dataset_model(self.oci_dataset)
-        updated_model_details = self.model_details
-        if updated_model_details and updated_model_details.items and model_details:
-            for model_id in model_details.items:
-                if model_id not in updated_model_details["items"]:
-                    logger.warning(
-                        f"Either model with Id '{model_id}' doesnt exist or unable to validate"
-                    )
-
-        return self
+        # self._update_from_oci_dataset_model(self.oci_dataset)
+        # updated_model_details = self.model_details
+        # if updated_model_details and updated_model_details.items and model_details:
+        #     for model_id in model_details.items:
+        #         if model_id not in updated_model_details["items"]:
+        #             logger.warning(
+        #                 f"Either model with Id '{model_id}' doesnt exist or unable to validate"
+        #             )
+        #             )
+        #
+        # return self
 
     def remove_models(self, model_details: ModelDetails) -> "Dataset":
         """remove model details from the dataset, remove from the existing dataset model id list
