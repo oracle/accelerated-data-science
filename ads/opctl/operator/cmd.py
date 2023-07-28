@@ -330,6 +330,7 @@ def build_image(
         run_command = [
             f"FROM {base_image_name}",
             f"COPY ./operator/ $OPERATOR_DIR/{operator_name}/",
+            "RUN yum install -y libX11"
         ]
         if os.path.exists(os.path.join(td, "operator", "environment.yaml")):
             run_command.append(
