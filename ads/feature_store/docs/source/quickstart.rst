@@ -55,8 +55,9 @@ Background reading to understand the concepts of Feature Store and OCI Data Scie
     compartment_id = "ocid1.compartment.<unique_id>"
     metastore_id = "ocid1.datacatalogmetastore.oc1.iad.<unique_id>"
     api_gateway_endpoint = "https://**.{region}.oci.customer-oci.com/20230101"
+    os.environ["OCI_FS_SERVICE_ENDPOINT"] = api_gateway_endpoint
 
-    ads.set_auth(auth="user_principal", client_kwargs={"service_endpoint": api_gateway_endpoint})
+    ads.set_auth(auth="api_key")
 
     # step1: Create feature store
     feature_store_resource = (

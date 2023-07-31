@@ -20,11 +20,8 @@ from ads.feature_store.input_feature_detail import FeatureDetail
 from ads.feature_store.statistics_config import StatisticsConfig
 
 
-client_kwargs = dict(
-    retry_strategy=oci.retry.NoneRetryStrategy,
-    service_endpoint=os.getenv("service_endpoint"),
-)
-ads.set_auth(client_kwargs=client_kwargs)
+ads.set_auth()
+os.environ["OCI_FS_SERVICE_ENDPOINT"] = os.getenv("service_endpoint")
 
 try:
     from ads.feature_store.feature_store import FeatureStore
@@ -37,7 +34,9 @@ SLEEP_INTERVAL = 60
 
 class FeatureStoreTestCase:
     # networks compartment in feature store
-    TIME_NOW = str.format("{}_{}",datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"),int(random()*1000))
+    TIME_NOW = str.format(
+        "{}_{}", datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"), int(random() * 1000)
+    )
     TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
