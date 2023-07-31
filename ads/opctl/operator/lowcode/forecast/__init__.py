@@ -6,7 +6,7 @@
 
 __version__ = "v1"
 
-__name__ = "forecast"
+# __name__ = "forecast"
 
 # __conda__ = "forecast_p38_cpu_v1" # switch to slug when service conda env will be available
 

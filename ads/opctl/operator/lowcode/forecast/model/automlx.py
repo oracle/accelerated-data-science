@@ -7,7 +7,7 @@
 
 import datapane as dp
 import pandas as pd
-
+import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from sktime.forecasting.model_selection import temporal_train_test_split
 from ads.opctl import logger
