@@ -532,18 +532,6 @@ class Dataset(Builder):
                 self.with_model_details(ModelDetails().with_items([]))
                 return self
 
-        # self._update_from_oci_dataset_model(self.oci_dataset)
-        # updated_model_details = self.model_details
-        # if updated_model_details and updated_model_details.items and model_details:
-        #     for model_id in model_details.items:
-        #         if model_id not in updated_model_details["items"]:
-        #             logger.warning(
-        #                 f"Either model with Id '{model_id}' doesnt exist or unable to validate"
-        #             )
-        #             )
-        #
-        # return self
-
     def remove_models(self, model_details: ModelDetails) -> "Dataset":
         """remove model details from the dataset, remove from the existing dataset model id list
 
