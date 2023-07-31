@@ -530,6 +530,7 @@ class Dataset(Builder):
                 self.with_model_details(ModelDetails().with_items(existing_model_details["items"]))
             else:
                 self.with_model_details(ModelDetails().with_items([]))
+                return self
 
         # self._update_from_oci_dataset_model(self.oci_dataset)
         # updated_model_details = self.model_details

@@ -317,3 +317,16 @@ Below is an example of the output.
 
 .. figure:: figures/dataset_lineage.png
   :width: 400
+
+
+Add Model Details
+=================
+
+You can call the ``add_models()`` method of the Dataset instance to add model ids to dataset.
+The ``.add_models()`` method takes the following parameter:
+``ModelDetails()``  with which we can associate model ids.
+
+
+.. code-block:: python3
+
+  dataset.add_models(ModelDetails().with_items([<ocid1.datasciencemodel..<unique_id>]))
