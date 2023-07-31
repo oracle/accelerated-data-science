@@ -30,6 +30,7 @@ except ModuleNotFoundError:
 except Exception as e:
     raise
 import pandas as pd
+import matplotlib.pyplot as plt
 
 from ads.feature_store.common.enums import (
     ExecutionEngine,
@@ -47,7 +48,7 @@ logger.setLevel(logging.INFO)
 
 
 def get_execution_engine_type(
-    data_frame: Union[DataFrame, pd.DataFrame]
+        data_frame: Union[DataFrame, pd.DataFrame]
 ) -> ExecutionEngine:
     """
     Determines the execution engine type for a given DataFrame.
@@ -87,7 +88,7 @@ def get_metastore_id(feature_store_id: str):
 
 
 def validate_delta_format_parameters(
-    timestamp: datetime = None, version_number: int = None, is_restore: bool = False
+        timestamp: datetime = None, version_number: int = None, is_restore: bool = False
 ):
     """
     Validate the user input provided as part of preview, restore APIs for ingested data, Ingested data is
@@ -121,9 +122,9 @@ def validate_delta_format_parameters(
 
 
 def show_ingestion_summary(
-    entity_id: str,
-    entity_type: EntityType = EntityType.FEATURE_GROUP,
-    error_details: str = None,
+        entity_id: str,
+        entity_type: EntityType = EntityType.FEATURE_GROUP,
+        error_details: str = None,
 ):
     """
     Displays a ingestion summary table with the given entity type and error details.
@@ -163,7 +164,7 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
     statistics = validation_output["statistics"]
 
     table_headers = (
-        ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
+            ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
     )
 
     table_values = [expectation_type] + list(statistics.values()) + [ingestion_status]
@@ -207,9 +208,9 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
 
 
 def get_features(
-    output_columns: List[dict],
-    parent_id: str,
-    entity_type: EntityType = EntityType.FEATURE_GROUP,
+        output_columns: List[dict],
+        parent_id: str,
+        entity_type: EntityType = EntityType.FEATURE_GROUP,
 ) -> List[Feature]:
     """
     Returns a list of features, given a list of output_columns and a feature_group_id.
@@ -266,7 +267,7 @@ def get_schema_from_spark_df(df: DataFrame):
 
 
 def get_schema_from_df(
-    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[dict]:
     """
     Given a DataFrame, returns a list of dictionaries that describe its schema.
@@ -280,7 +281,7 @@ def get_schema_from_df(
 
 
 def get_input_features_from_df(
-    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[FeatureDetail]:
     """
     Given a DataFrame, returns a list of FeatureDetail objects that represent its input features.
@@ -297,7 +298,7 @@ def get_input_features_from_df(
 
 
 def convert_expectation_suite_to_expectation(
-    expectation_suite: ExpectationSuite, expectation_type: ExpectationType
+        expectation_suite: ExpectationSuite, expectation_type: ExpectationType
 ):
     """
     Convert an ExpectationSuite object to an Expectation object with detailed rule information.
@@ -356,7 +357,7 @@ def largest_matching_subset_of_primary_keys(left_feature_group, right_feature_gr
 
 
 def convert_pandas_datatype_with_schema(
-    raw_feature_details: List[dict], input_df: pd.DataFrame
+        raw_feature_details: List[dict], input_df: pd.DataFrame
 ) -> pd.DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -381,7 +382,7 @@ def convert_pandas_datatype_with_schema(
 
 
 def convert_spark_dataframe_with_schema(
-    raw_feature_details: List[dict], input_df: DataFrame
+        raw_feature_details: List[dict], input_df: DataFrame
 ) -> DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -401,3 +402,34 @@ def validate_input_feature_details(input_feature_details, data_frame):
     if isinstance(data_frame, pd.DataFrame):
         return convert_pandas_datatype_with_schema(input_feature_details, data_frame)
     return convert_spark_dataframe_with_schema(input_feature_details, data_frame)
+
+
+def plot_histogram(data, x_label, y_label, title):
+    bins = data.get('bins')
+    plt.bar(bins, data.get(y_label), width=(bins[1] - bins[0]), edgecolor='black')
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.title(title)
+    plt.figure(figsize=(3, 2))
+    # Display the plot
+    plt.show()
+
+
+def plot_table(feature, data):
+    if data is None:
+        return
+    column_headers = ["Metric", "Value"]
+    fig, ax = plt.subplots()
+
+    # hide axes
+    fig.patch.set_visible(False)
+    ax.axis('off')
+    ax.axis('tight')
+
+    ax.table(cellText=data, colLabels=column_headers, loc='center')
+
+    fig.tight_layout()
+
+    # Add title
+    plt.suptitle(f"{feature} Descriptive Statistics")
+    plt.draw()
