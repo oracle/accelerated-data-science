@@ -306,7 +306,7 @@ Use the ``show()`` method on the ``Dataset`` instance to visualize the lineage o
 
 The ``show()`` method takes the following optional parameter:
 
-  - ``rankdir: (str, optional)``. Defaults to ``LR``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
+- ``rankdir: (str, optional)``. Defaults to ``LR``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
 
 
 .. code-block:: python3
@@ -324,8 +324,8 @@ Add Model Details
 
 You can call the ``add_models()`` method of the Dataset instance to add model ids to dataset.
 The ``.add_models()`` method takes the following parameter:
-``ModelDetails()``  with which we can associate model ids.
 
+- ``model_details: ModelDetails``.  ModelDetails takes ``items: List[str]`` as parameter and model ids to be passed as items.
 
 .. code-block:: python3
 
