@@ -34,6 +34,7 @@ from ads.config import (
 from ads.evaluations import EvaluatorMixin
 from ads.feature_engineering import ADSImage
 from ads.feature_engineering.schema import Schema
+from ads.feature_store.model_details import ModelDetails
 from ads.model.artifact import ModelArtifact
 from ads.model.common.utils import (
     _extract_locals,
@@ -65,7 +66,7 @@ from ads.model.model_metadata import (
     Framework,
     ModelCustomMetadata,
     ModelProvenanceMetadata,
-    ModelTaxonomyMetadata,
+    ModelTaxonomyMetadata, MetadataCustomCategory,
 )
 from ads.model.model_metadata_mixin import MetadataMixin
 from ads.model.model_properties import ModelProperties
@@ -1825,6 +1826,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         remove_existing_artifact: Optional[bool] = True,
         model_version_set: Optional[Union[str, ModelVersionSet]] = None,
         version_label: Optional[str] = None,
+        featurestore_dataset=None,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -1856,6 +1858,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The model version set OCID, or model version set name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
             The model version lebel.
+        featurestore_dataset: (Dataset, optional).
+            The feature store dataset
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1937,6 +1941,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         # variables in case of saving model in context of model version set.
         model_version_set_id = _extract_model_version_set_id(model_version_set)
 
+        if featurestore_dataset:
+            dataset_details = {
+                "dataset-id": featurestore_dataset.id,
+                "dataset-name": featurestore_dataset.name
+            }
+            self.metadata_custom.add("featurestore.dataset", value=str(dataset_details),
+                                     category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
+                                     description="feature store dataset", replace=True)
+
         self.dsc_model = (
             self.dsc_model.with_compartment_id(self.properties.compartment_id)
             .with_project_id(self.properties.project_id)
@@ -1965,6 +1978,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_infrastructure(ModelDeploymentInfrastructure())
             .with_runtime(ModelDeploymentContainerRuntime())
         )
+        # Add the model id to the feature store dataset
+        if featurestore_dataset:
+            model_details = ModelDetails().with_items([self.model_id])
+            featurestore_dataset.add_models(model_details)
 
         return self.model_id
 
