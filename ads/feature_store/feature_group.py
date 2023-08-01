@@ -20,6 +20,7 @@ from ads.feature_store.common.enums import ExpectationType, EntityType
 from ads.feature_store.common.exceptions import (
     NotMaterializedError,
 )
+from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     get_execution_engine_type,
@@ -125,8 +126,8 @@ class FeatureGroup(Builder):
     CONST_FEATURE_STORE_ID = "featureStoreId"
     CONST_ENTITY_ID = "entityId"
     CONST_ITEMS = "items"
-    CONST_PRIMARY_KEY_NAME = "name"
     CONST_PRIMARY_KEYS = "primaryKeys"
+    CONST_PARTITION_KEYS = "partitionKeys"
     CONST_EXPECTATION_DETAILS = "expectationDetails"
     CONST_INPUT_FEATURE_DETAILS = "inputFeatureDetails"
     CONST_OUTPUT_FEATURE_DETAILS = "outputFeatureDetails"
@@ -137,6 +138,7 @@ class FeatureGroup(Builder):
     CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_LAST_JOB_ID = "jobId"
     CONST_INFER_SCHEMA = "isInferSchema"
+    CONST_TRANSFORMATION_KWARGS = "transformationParameters"
 
     attribute_map = {
         CONST_ID: "id",
@@ -156,6 +158,8 @@ class FeatureGroup(Builder):
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_STATISTICS_CONFIG: "statistics_config",
         CONST_INFER_SCHEMA: "is_infer_schema",
+        CONST_PARTITION_KEYS: "partition_keys",
+        CONST_TRANSFORMATION_KWARGS: "transformation_parameters",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -319,8 +323,66 @@ class FeatureGroup(Builder):
             self.CONST_PRIMARY_KEYS,
             {
                 self.CONST_ITEMS: [
-                    {self.CONST_PRIMARY_KEY_NAME: primary_key}
-                    for primary_key in primary_keys
+                    {self.CONST_NAME: primary_key} for primary_key in primary_keys or []
+                ]
+            },
+        )
+
+    @property
+    def transformation_kwargs(self) -> str:
+        return self.get_spec(self.CONST_TRANSFORMATION_KWARGS)
+
+    @transformation_kwargs.setter
+    def transformation_kwargs(self, value: Dict):
+        self.with_transformation_kwargs(value)
+
+    def with_transformation_kwargs(
+        self, transformation_kwargs: Dict = {}
+    ) -> "FeatureGroup":
+        """Sets the primary keys of the feature group.
+
+        Parameters
+        ----------
+        transformation_kwargs: Dict
+            Dictionary containing the transformation arguments.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_TRANSFORMATION_KWARGS,
+            Base64EncoderDecoder.encode(json.dumps(transformation_kwargs or {})),
+        )
+
+    @property
+    def partition_keys(self) -> List[str]:
+        return self.get_spec(self.CONST_PARTITION_KEYS)
+
+    @partition_keys.setter
+    def partition_keys(self, value: List[str]):
+        self.with_partition_keys(value)
+
+    def with_partition_keys(self, partition_keys: List[str]) -> "FeatureGroup":
+        """Sets the partition keys of the feature group.
+
+        Parameters
+        ----------
+        partition_keys: List[str]
+            The List of partition keys for the feature group.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_PARTITION_KEYS,
+            {
+                self.CONST_ITEMS: [
+                    {self.CONST_NAME: partition_key}
+                    for partition_key in partition_keys or []
                 ]
             },
         )
@@ -1023,6 +1085,7 @@ class FeatureGroup(Builder):
         """Checks whether the target Delta table for this resource has been materialized in Spark.
         If the target Delta table doesn't exist, raises a NotMaterializedError with the type and name of this resource.
         """
+        print(self.target_delta_table())
         if not self.spark_engine.is_delta_table_exists(self.target_delta_table()):
             raise NotMaterializedError(self.type, self.name)
 

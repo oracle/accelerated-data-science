@@ -270,6 +270,7 @@ class Runner(driver_utils.JobRunner):
                 ip = snics[0].address
                 if ipaddress.ip_address(ip) in ipaddress.ip_network(cidr):
                     logger.info("Node IP address: %s", ip)
+                    # Specify the network interface for NCCL/GLOO
                     os.environ["GLOO_SOCKET_IFNAME"] = interface
                     os.environ["NCCL_SOCKET_IFNAME"] = interface
                     return ip
@@ -579,6 +580,10 @@ class DeepSpeedRunner(Runner):
                 # as the .deepspeed_env file is parsed line by line.
                 if not v or "\n" in v:
                     continue
+                # Ignore variables that are node specific
+                # The network interface name for each job run is a unique string, e.g. ens300f0v1604
+                if k in ["NCCL_SOCKET_IFNAME", "GLOO_SOCKET_IFNAME", "JOB_RUN_OCID"]:
+                    continue
                 # Quote the value if it contains space
                 # Environment variable containing space may not be exported correctly when using pdsh
                 # https://github.com/microsoft/DeepSpeed/blob/v0.9.2/deepspeed/launcher/multinode_runner.py#L79
@@ -586,6 +591,11 @@ class DeepSpeedRunner(Runner):
                     v = shlex.quote(v)
 
                 f.write(f"{k}={v}\n")
+            # The following are required for specifying the network interface to be used by NCCL/GLOO
+            # The value should be the prefix of the expected network interface name
+            # https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/env.html#nccl-socket-ifname
+            f.write("NCCL_SOCKET_IFNAME=ens\n")
+            f.write("GLOO_SOCKET_IFNAME=ens\n")
         logger.debug("Environment variables saved to %s", self.ENV_FILE)
         self.run_command(f"cat {self.ENV_FILE}")
 

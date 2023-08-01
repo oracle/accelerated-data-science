@@ -1,12 +1,6 @@
 ads.jobs package
 ================
 
-.. toctree::
-   :maxdepth: 3
-
-   ads.jobs
-
-
 Subpackages
 -----------
 
