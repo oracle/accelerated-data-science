@@ -59,6 +59,17 @@ default_storage_options = None
 mindate = datetime.date(datetime.MINYEAR, 1, 1)
 
 
+warnings.warn(
+    (
+        "The `ads.dataset.factory` is deprecated in `oracle-ads 2.8.8` and will be removed in `oracle-ads 3.0`."
+        "Use Pandas to read from local files or object storage directly. "
+        "Check https://accelerated-data-science.readthedocs.io/en/latest/user_guide/loading_data/connect.html."
+    ),
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+
 class DatasetFactory:
     @staticmethod
     @deprecated(

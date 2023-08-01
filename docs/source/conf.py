@@ -173,3 +173,11 @@ intersphinx_mapping = {"https://docs.python.org/": None}
 todo_include_todos = True
 
 mathjax_path = "math_jax_3_2_0.js"
+
+# This css will be included in htlm pages to process where we add .. raw:: html for nb cell nice outputs with
+# <div class="nboutput nblast docutils container"> and
+# <div class="output_area rendered_html docutils container">
+# See ads_tuner.rst dataframe output in .. raw:: html sections
+html_css_files = [
+    "nbsphinx-code-cells.css"
+]
