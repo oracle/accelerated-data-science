@@ -14,6 +14,7 @@ repos:
         args: ['--allow-multiple-documents']
     -   id: detect-private-key
     -   id: end-of-file-fixer
+        exclude: '\.ipynb?$'
     -   id: pretty-format-json
         args: ['--autofix']
     -   id: trailing-whitespace

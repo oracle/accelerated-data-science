@@ -121,7 +121,6 @@ def key_encoding_with_wallet(tmpdir):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_encode(mock_client, mock_signer, key_encoding):
-
     adwsecretkeeper = ADBSecretKeeper(
         *key_encoding[0],
         vault_id="ocid.vault",
@@ -135,7 +134,6 @@ def test_encode(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_adw_save(mock_client, mock_signer, key_encoding, tmpdir):
-
     adwsecretkeeper = ADBSecretKeeper(
         *key_encoding[0],
         vault_id="ocid.vault",
@@ -158,7 +156,7 @@ def test_adw_save(mock_client, mock_signer, key_encoding, tmpdir):
             }
         adwsecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf) == {
+            assert yaml.load(tf, Loader=yaml.FullLoader) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -170,7 +168,6 @@ def test_adw_save(mock_client, mock_signer, key_encoding, tmpdir):
 def test_adw_save_without_explicit_encoding(
     mock_client, mock_signer, key_encoding, tmpdir
 ):
-
     adwsecretkeeper = ADBSecretKeeper(
         *key_encoding[0],
         vault_id="ocid.vault",
@@ -193,7 +190,7 @@ def test_adw_save_without_explicit_encoding(
             }
         adwsecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf) == {
+            assert yaml.load(tf, Loader=yaml.FullLoader) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -203,7 +200,6 @@ def test_adw_save_without_explicit_encoding(
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_adw_context(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -235,7 +231,6 @@ def test_adw_context(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_adw_keeper_no_wallet(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -263,7 +258,6 @@ def test_adw_keeper_with_repository(mock_client, mock_signer, key_encoding, tmpd
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_adw_context_namespace(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -296,7 +290,6 @@ def test_adw_context_namespace(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_adw_context_noexport(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -399,7 +392,6 @@ def test_adw_with_wallet_storage_decode(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         adwsecretkeeper = ADBSecretKeeper(
             vault_id="ocid.vault",
             key_id="ocid.key",
@@ -449,7 +441,6 @@ def test_adw_with_wallet_storage_context_manager(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         with ADBSecretKeeper.load_secret(
             wallet_dir=wallet_dir, source="meta.secret.id", export_env=True
         ) as adwsecretkeeper:
@@ -506,7 +497,6 @@ def test_adw_with_wallet_storage_context_manager_namespace(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         with ADBSecretKeeper.load_secret(
             wallet_dir=wallet_dir,
             source="meta.secret.id",
@@ -566,7 +556,6 @@ def test_adw_with_wallet_storage_context_manager_noexport(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         with ADBSecretKeeper.load_secret(
             wallet_dir=wallet_dir,
             source="meta.secret.id",
@@ -617,7 +606,6 @@ def test_adw_with_wallet_storage_save(
     with mock.patch(
         "ads.vault.Vault.create_secret", side_effect=mock_create_secret
     ) as mocked_getsecret:
-
         adwsecretkeeper = ADBSecretKeeper(
             vault_id="ocid.vault",
             key_id="ocid.key",
@@ -641,7 +629,7 @@ def test_adw_with_wallet_storage_save(
             os.path.join(tmpdir, "info.yaml"), format="yml"
         )
         with open(os.path.join(tmpdir, "info.yaml")) as tf:
-            assert yaml.load(tf) == {
+            assert yaml.load(tf, Loader=yaml.FullLoader) == {
                 "vault_id": "ocid.vault",
                 "key_id": "ocid.key",
                 "secret_id": "meta.secret.id",
@@ -675,7 +663,6 @@ def test_adw_with_wallet_storage_save_without_explicit_encode(
     with mock.patch(
         "ads.vault.Vault.create_secret", side_effect=mock_create_secret
     ) as mocked_getsecret:
-
         adwsecretkeeper = ADBSecretKeeper(
             vault_id="ocid.vault",
             key_id="ocid.key",
@@ -699,7 +686,7 @@ def test_adw_with_wallet_storage_save_without_explicit_encode(
             os.path.join(tmpdir, "info.yaml"), format="yaml"
         )
         with open(os.path.join(tmpdir, "info.yaml")) as tf:
-            assert yaml.load(tf) == {
+            assert yaml.load(tf, Loader=yaml.FullLoader) == {
                 "vault_id": "ocid.vault",
                 "key_id": "ocid.key",
                 "secret_id": "meta.secret.id",
@@ -732,7 +719,6 @@ def test_adw_with_wallet_storage_load_from_file(
         return content_map[id]
 
     with mock.patch("ads.vault.Vault.get_secret", side_effect=mock_get_secret_id) as _:
-
         with ADBSecretKeeper.load_secret(
             source=os.path.join(os.path.join(tmpdir, "info.json")),
             format="json",
@@ -789,7 +775,6 @@ def test_adw_with_wallet_storage_load_from_file(
         return content_map[id]
 
     with mock.patch("ads.vault.Vault.get_secret", side_effect=mock_get_secret_id) as _:
-
         with ADBSecretKeeper.load_secret(
             source=os.path.join(os.path.join(tmpdir, "info.yaml")),
             format="yaml",

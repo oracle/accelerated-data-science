@@ -56,7 +56,6 @@ def key_encoding():
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_encode(mock_client, mock_signer, key_encoding):
-
     bdssecretkeeper = BDSSecretKeeper(
         *key_encoding[0],
         vault_id="ocid.vault",
@@ -176,7 +175,6 @@ def key_encoding_with_keytab_kerb5(tmpdir):
 def test_encode_with_keytab_kerb5(
     mock_client, mock_signer, key_encoding_with_keytab_kerb5
 ):
-
     bdssecretkeeper = BDSSecretKeeper(
         *key_encoding_with_keytab_kerb5.credentials,
         vault_id="ocid.vault",
@@ -194,7 +192,6 @@ def test_encode_with_keytab_kerb5(
 def test_bds_save_without_explicit_encoding(
     mock_client, mock_signer, key_encoding, tmpdir
 ):
-
     bdssecretkeeper = BDSSecretKeeper(
         *key_encoding[0],
         vault_id="ocid.vault",
@@ -219,7 +216,7 @@ def test_bds_save_without_explicit_encoding(
             }
         bdssecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf) == {
+            assert yaml.load(tf, Loader=yaml.FullLoader) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -229,7 +226,6 @@ def test_bds_save_without_explicit_encoding(
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_bds_save(mock_client, mock_signer, key_encoding_with_keytab_kerb5, tmpdir):
-
     bdssecretkeeper = BDSSecretKeeper(
         *key_encoding_with_keytab_kerb5.credentials,
         vault_id="ocid.vault",
@@ -253,7 +249,7 @@ def test_bds_save(mock_client, mock_signer, key_encoding_with_keytab_kerb5, tmpd
             }
         bdssecretkeeper.export_vault_details(os.path.join(tmpdir, "test.yaml"))
         with open(os.path.join(tmpdir, "test.yaml")) as tf:
-            assert yaml.load(tf) == {
+            assert yaml.load(tf, Loader=yaml.FullLoader) == {
                 "key_id": "ocid.key",
                 "secret_id": "ocid.secret.id",
                 "vault_id": "ocid.vault",
@@ -263,7 +259,6 @@ def test_bds_save(mock_client, mock_signer, key_encoding_with_keytab_kerb5, tmpd
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_bds_context(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -300,7 +295,6 @@ def test_bds_context(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_bds_keeper_no_file(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -315,7 +309,6 @@ def test_bds_keeper_no_file(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_bds_context_namespace(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -356,7 +349,6 @@ def test_bds_context_namespace(mock_client, mock_signer, key_encoding):
 @patch("ads.common.auth.default_signer")
 @patch("ads.common.oci_client.OCIClientFactory")
 def test_bds_context_noexport(mock_client, mock_signer, key_encoding):
-
     with mock.patch(
         "ads.vault.Vault.get_secret", return_value=key_encoding[2]
     ) as mocked_getsecret:
@@ -463,7 +455,6 @@ def test_bds_with_keytab_kerb5_decode(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         bdssecretkeeper = BDSSecretKeeper(
             vault_id="ocid.vault",
             key_id="ocid.key",
@@ -546,7 +537,6 @@ def test_bds_with_keytab_krb5_context_manager(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         with BDSSecretKeeper.load_secret(
             source="meta.secret.id", export_env=True
         ) as bdssecretkeeper:
@@ -604,7 +594,6 @@ def test_bds_with_keytab_kerb5_context_manager_namespace(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         with BDSSecretKeeper.load_secret(
             source="meta.secret.id",
             export_prefix="myapp",
@@ -682,7 +671,6 @@ def test_bds_with_keytab_kerb5_context_manager_noexport(
     with mock.patch(
         "ads.vault.Vault.get_secret", side_effect=mock_get_secret_id
     ) as mocked_getsecret:
-
         with BDSSecretKeeper.load_secret(
             source="meta.secret.id",
         ) as bdssecretkeeper:
@@ -726,7 +714,6 @@ def test_bds_with_keytab_kerb5_context_manager_noexport(
 def test_bds_with_keytab_kerb5_load_from_file(
     mock_client, mock_signer, key_encoding_with_keytab_kerb5, tmpdir
 ):
-
     content_map = key_encoding_with_keytab_kerb5[3]
     content_map["meta.secret.id"] = key_encoding_with_keytab_kerb5.encoded
 
@@ -746,7 +733,6 @@ def test_bds_with_keytab_kerb5_load_from_file(
         return content_map[id]
 
     with mock.patch("ads.vault.Vault.get_secret", side_effect=mock_get_secret_id) as _:
-
         with BDSSecretKeeper.load_secret(
             source=os.path.join(os.path.join(tmpdir, "info.json")),
             format="json",
@@ -802,7 +788,6 @@ def test_bds_with_keytab_kerb5_load_from_file(
         return content_map[id]
 
     with mock.patch("ads.vault.Vault.get_secret", side_effect=mock_get_secret_id) as _:
-
         with BDSSecretKeeper.load_secret(
             source=os.path.join(os.path.join(tmpdir, "info.yaml")),
             format="yaml",
