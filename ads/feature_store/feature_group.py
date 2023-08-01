@@ -323,7 +323,7 @@ class FeatureGroup(Builder):
             self.CONST_PRIMARY_KEYS,
             {
                 self.CONST_ITEMS: [
-                    {self.CONST_NAME: primary_key} for primary_key in primary_keys
+                    {self.CONST_NAME: primary_key} for primary_key in primary_keys or []
                 ]
             },
         )

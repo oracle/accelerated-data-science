@@ -500,6 +500,7 @@ class Dataset(Builder):
                 "The argument `model_details` has to be of type `ModelDetails`"
                 "but is of type: `{}`".format(type(model_details))
             )
+
         return self.set_spec(self.CONST_MODEL_DETAILS, model_details.to_dict())
 
     @property
@@ -549,9 +550,20 @@ class Dataset(Builder):
         if existing_model_details and existing_model_details.items:
             items = existing_model_details["items"]
             for item in items:
-                model_details.items.append(item)
+                if item not in model_details.items:
+                    model_details.items.append(item)
         self.with_model_details(model_details)
-        return self.update()
+        try:
+            return self.update()
+        except Exception as ex:
+            logger.error(
+                f"Dataset update Failed with : {type(ex)} with error message: {ex}"
+            )
+            if existing_model_details:
+                self.with_model_details(ModelDetails().with_items(existing_model_details["items"]))
+            else:
+                self.with_model_details(ModelDetails().with_items([]))
+                return self
 
     def remove_models(self, model_details: ModelDetails) -> "Dataset":
         """remove model details from the dataset, remove from the existing dataset model id list
