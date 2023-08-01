@@ -19,6 +19,7 @@ from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.input_feature_detail import FeatureDetail
 from ads.feature_store.statistics_config import StatisticsConfig
 
+
 client_kwargs = dict(
     retry_strategy=oci.retry.NoneRetryStrategy,
     service_endpoint=os.getenv("service_endpoint"),
@@ -48,7 +49,7 @@ def transformation_with_kwargs(data_frame, **kwargs):
 
 class FeatureStoreTestCase:
     # networks compartment in feature store
-    TIME_NOW = str.format("{}_{}", datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"), int(random() * 1000))
+    TIME_NOW = str.format("{}_{}",datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"),int(random()*1000))
     TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
@@ -378,11 +379,10 @@ class FeatureStoreTestCase:
         transformation = feature_store.create_transformation(source_code_func=transformation_with_kwargs,
                                                              display_name="transformation_with_kwargs",
                                                              transformation_mode=TransformationMode.PANDAS)
-
         return transformation
 
     def define_feature_group_resource(
-            self, entity_id, feature_store_id
+        self, entity_id, feature_store_id
     ) -> "FeatureGroup":
         feature_group_resource = (
             FeatureGroup()
@@ -400,7 +400,7 @@ class FeatureStoreTestCase:
         return feature_group_resource
 
     def define_dataset_resource(
-            self, entity_id, feature_store_id, feature_group_name
+        self, entity_id, feature_store_id, feature_group_name
     ) -> "Dataset":
         name = self.get_name("petals_ds")
         dataset_resource = (
@@ -470,6 +470,7 @@ class FeatureStoreTestCase:
         except Exception as ex:
             print("Failed to delete feature group: ", str(ex))
             exit(1)
+
     @staticmethod
     def clean_up_transformation(transformation):
         try:
