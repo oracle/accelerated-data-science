@@ -71,7 +71,7 @@ Upload
 ------
 
 The `.put() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.spec.AbstractFileSystem.put>`_ method is used to upload files from local storage to HDFS. The first parameter is the local path of the files to upload. The second parameter is the HDFS path where the files are to be stored. 
-`.upload() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.spec.AbstractFileSystem.upload>`_ is an alias of `.put()`.
+`.upload() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.spec.AbstractFileSystem.upload>`_ is an alias of ``.put()``.
 .. code-block:: python3
 
     fs.put(
@@ -82,7 +82,7 @@ The `.put() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspec.sp
 Ibis
 ====
 
-`Ibis <https://github.com/ibis-project/ibis>`_ is an open-source library by `Cloudera <https://www.cloudera.com/>`_ that provides a Python framework to access data and perform analytical computations from different sources. Ibis allows access to the data ising HDFS. You use the ``ibis.impala.hdfs_connect()`` method to make a connection to HDFS, and it returns a handler. This handler has methods such as ``.ls()`` to list, ``.get()`` to download, ``.put()`` to upload, and ``.rm()`` to delete files. These operations support globbing. Ibis' HDFS connector supports a variety of `additional operations <https://ibis-project.org/docs/dev/backends/Impala/#hdfs-interaction>`_.
+`Ibis <https://github.com/ibis-project/ibis>`_ is an open-source library by `Cloudera <https://www.cloudera.com/>`_ that provides a Python framework to access data and perform analytical computations from different sources. Ibis allows access to the data ising HDFS. You use the ``ibis.impala.hdfs_connect()`` method to make a connection to HDFS, and it returns a handler. This handler has methods such as ``.ls()`` to list, ``.get()`` to download, ``.put()`` to upload, and ``.rm()`` to delete files. These operations support globbing. Ibis' HDFS connector supports a variety of `additional operations <https://ibis-project.org/backends/impala/#hdfs-interaction>`_.
 
 Connect
 -------
@@ -159,7 +159,7 @@ Use the `.put() <https://filesystem-spec.readthedocs.io/en/latest/api.html#fsspe
 Pandas
 ======
 
-Pandas allows access to BDS' HDFS system through :ref: `FSSpec`. This section demonstrates some common operations.
+Pandas allows access to BDS' HDFS system through :ref:`FSSpec`. This section demonstrates some common operations.
 
 Connect
 -------
@@ -259,4 +259,3 @@ The following sample code shows several different PyArrow methods for working wi
     table = pa.Table.from_pandas(df)
     pq.write_to_dataset(table, root_path="/path/on/BDS/HDFS", partition_cols=["dt"], 
                         flavor="spark", filesystem=fs)
-

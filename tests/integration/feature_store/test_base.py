@@ -13,15 +13,18 @@ import pandas as pd
 from great_expectations.core import ExpectationSuite, ExpectationConfiguration
 import ads
 import os
-from ads.feature_store.common.enums import FeatureType
+from ads.feature_store.common.enums import FeatureType, TransformationMode
 from ads.feature_store.dataset import Dataset
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.input_feature_detail import FeatureDetail
 from ads.feature_store.statistics_config import StatisticsConfig
 
 
-ads.set_auth()
-os.environ["OCI_FS_SERVICE_ENDPOINT"] = os.getenv("service_endpoint")
+client_kwargs = dict(
+    retry_strategy=oci.retry.NoneRetryStrategy,
+    service_endpoint=os.getenv("service_endpoint"),
+)
+ads.set_auth(client_kwargs=client_kwargs)
 
 try:
     from ads.feature_store.feature_store import FeatureStore
@@ -32,11 +35,21 @@ MAXIMUM_TIMEOUT = 43
 SLEEP_INTERVAL = 60
 
 
+def transformation_with_kwargs(data_frame, **kwargs):
+    is_area_enabled = kwargs.get('is_area_enabled')
+
+    if is_area_enabled:
+        # Calculate petal area and sepal area
+        data_frame["petal_area"] = data_frame["petal_length"] * data_frame["petal_width"]
+        data_frame["sepal_area"] = data_frame["sepal_length"] * data_frame["sepal_width"]
+
+    # Return the updated DataFrame
+    return data_frame
+
+
 class FeatureStoreTestCase:
     # networks compartment in feature store
-    TIME_NOW = str.format(
-        "{}_{}", datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"), int(random() * 1000)
-    )
+    TIME_NOW = str.format("{}_{}",datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"),int(random()*1000))
     TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
@@ -362,6 +375,12 @@ class FeatureStoreTestCase:
         entity = feature_store.create_entity(display_name=self.get_name("entity"))
         return entity
 
+    def create_transformation_resource(self, feature_store) -> "Transformation":
+        transformation = feature_store.create_transformation(source_code_func=transformation_with_kwargs,
+                                                             display_name="transformation_with_kwargs",
+                                                             transformation_mode=TransformationMode.PANDAS)
+        return transformation
+
     def define_feature_group_resource(
         self, entity_id, feature_store_id
     ) -> "FeatureGroup":
@@ -450,6 +469,14 @@ class FeatureStoreTestCase:
             feature_group.delete()
         except Exception as ex:
             print("Failed to delete feature group: ", str(ex))
+            exit(1)
+
+    @staticmethod
+    def clean_up_transformation(transformation):
+        try:
+            transformation.delete()
+        except Exception as ex:
+            print("Failed to delete transformation: ", str(ex))
             exit(1)
 
     @staticmethod

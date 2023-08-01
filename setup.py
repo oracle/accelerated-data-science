@@ -27,7 +27,7 @@ install_requires = [
     "ocifs>=1.1.3",
     "pandas>1.2.1,<1.6",
     "python_jsonschema_objects>=0.3.13",
-    "PyYAML>=5.4,<6",
+    "PyYAML>=6",  # pyyaml 5.4 is broken with cython 3
     "requests",
     "scikit-learn>=0.23.2,<1.2",
     "tabulate>=0.8.9",

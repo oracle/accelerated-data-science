@@ -283,6 +283,7 @@ class Entity(Builder):
     def _build_feature_group(
         self,
         primary_keys,
+        partition_keys,
         input_feature_details,
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
@@ -291,6 +292,7 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+        transformation_kwargs: Dict = None,
     ):
         feature_group_resource = (
             FeatureGroup()
@@ -302,6 +304,8 @@ class Entity(Builder):
             )
             .with_entity_id(self.id)
             .with_transformation_id(transformation_id)
+            .with_partition_keys(partition_keys)
+            .with_transformation_kwargs(transformation_kwargs)
             .with_primary_keys(primary_keys)
             .with_input_feature_details(input_feature_details)
             .with_statistics_config(statistics_config)
@@ -316,6 +320,7 @@ class Entity(Builder):
     def create_feature_group(
         self,
         primary_keys: List[str],
+        partition_keys: List[str] = None,
         input_feature_details: List[FeatureDetail] = None,
         schema_details_dataframe: Union[DataFrame, pd.DataFrame] = None,
         expectation_suite: ExpectationSuite = None,
@@ -325,6 +330,7 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+        transformation_kwargs: Dict = None,
     ) -> "FeatureGroup":
         """Creates FeatureGroup  resource.
 
@@ -332,6 +338,8 @@ class Entity(Builder):
         ----------
         primary_keys: List[str]
             List of primary keys.
+        partition_keys: List[str]
+            List of partition_keys to partition the materialized data.
         input_feature_details: List[FeatureDetail]
             Raw feature schema for the input features.
         schema_details_dataframe: Union[DataFrame, pd.DataFrame]
@@ -350,6 +358,8 @@ class Entity(Builder):
             Description about the Resource.
         compartment_id: str = None
             compartment_id
+        transformation_kwargs: Dict
+            Arguments for the transformation.
 
 
         Returns
@@ -377,6 +387,7 @@ class Entity(Builder):
 
         self.oci_feature_group = self._build_feature_group(
             primary_keys,
+            partition_keys,
             raw_feature_details,
             expectation_suite,
             expectation_type,
@@ -385,6 +396,7 @@ class Entity(Builder):
             name,
             description,
             compartment_id,
+            transformation_kwargs,
         )
 
         return self.oci_feature_group.create()
@@ -454,6 +466,7 @@ class Entity(Builder):
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
+        partition_keys: List[str] = None,
     ):
         dataset_resource = (
             Dataset()
@@ -466,6 +479,7 @@ class Entity(Builder):
                 compartment_id if compartment_id else self.compartment_id
             )
             .with_statistics_config(statistics_config)
+            .with_partition_keys(partition_keys)
         )
 
         if expectation_suite:
@@ -485,6 +499,7 @@ class Entity(Builder):
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
+        partition_keys: List[str] = None,
     ) -> "Dataset":
         """Creates Dataset resource.
 
@@ -504,6 +519,8 @@ class Entity(Builder):
             Type of the expectation.
         statistics_config: StatisticsConfig = None
             Config details for the Statistics.
+        partition_keys: List[str]
+            Partition keys for the datset.
 
         Returns
         -------
@@ -523,6 +540,7 @@ class Entity(Builder):
             expectation_suite,
             expectation_type,
             statistics_config,
+            partition_keys,
         )
 
         return self.oci_fs_dataset.create()

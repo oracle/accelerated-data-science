@@ -22,7 +22,9 @@ MODEL_DEPLOYMENT_INFRASTRUCTURE_KIND = "infrastructure"
 DEFAULT_BANDWIDTH_MBPS = 10
 DEFAULT_WEB_CONCURRENCY = 10
 DEFAULT_REPLICA = 1
-DEFAULT_SHAPE_NAME = "VM.Standard.E2.4"
+DEFAULT_SHAPE_NAME = "VM.Standard.E4.Flex"
+DEFAULT_OCPUS = 1
+DEFAULT_MEMORY_IN_GBS = 16
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +225,18 @@ class ModelDeploymentInfrastructure(Builder):
         if NB_SESSION_OCID:
             try:
                 nb_session = DSCNotebookSession.from_ocid(NB_SESSION_OCID)
-                nb_config = nb_session.notebook_session_configuration_details
+            except Exception as e:
+                logger.warning(
+                    f"Error fetching details about Notebook "
+                    f"session: {NB_SESSION_OCID}. {e}"
+                )
+                logger.debug(traceback.format_exc())
+
+            nb_config = (
+                getattr(nb_session, "notebook_session_config_details", None)
+                or getattr(nb_session, "notebook_session_configuration_details", None)
+            )
+            if nb_config:
                 defaults[self.CONST_SHAPE_NAME] = nb_config.shape
 
                 if nb_config.notebook_session_shape_config_details:
@@ -233,13 +246,6 @@ class ModelDeploymentInfrastructure(Builder):
                     defaults[self.CONST_SHAPE_CONFIG_DETAILS] = copy.deepcopy(
                         notebook_shape_config_details
                     )
-
-            except Exception as e:
-                logger.warning(
-                    f"Error fetching details about Notebook "
-                    f"session: {NB_SESSION_OCID}. {e}"
-                )
-                logger.debug(traceback.format_exc())
 
         return defaults
 
@@ -625,4 +631,8 @@ class ModelDeploymentInfrastructure(Builder):
             .with_web_concurrency(self.web_concurrency or DEFAULT_WEB_CONCURRENCY)
             .with_replica(self.replica or DEFAULT_REPLICA)
             .with_shape_name(self.shape_name or DEFAULT_SHAPE_NAME)
+            .with_shape_config_details(
+                ocpus=self.shape_config_details.get(self.CONST_OCPUS, DEFAULT_OCPUS),
+                memory_in_gbs=self.shape_config_details.get(self.CONST_MEMORY_IN_GBS, DEFAULT_MEMORY_IN_GBS)
+            )
         )

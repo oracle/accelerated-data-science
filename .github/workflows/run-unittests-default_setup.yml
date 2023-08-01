@@ -1,6 +1,7 @@
 name: tests/unitary/default_setup/**
 
 on:
+  workflow_dispatch:
   pull_request:
     branches:
       - main

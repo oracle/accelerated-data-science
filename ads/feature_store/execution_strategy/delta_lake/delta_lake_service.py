@@ -37,6 +37,7 @@ class DeltaLakeService:
         dataflow_output,
         target_table_name,
         delta_table_primary_key,
+        partition_keys,
         ingestion_mode,
         raw_schema,
         feature_options=None,
@@ -47,6 +48,7 @@ class DeltaLakeService:
             dataflow_output (DataFrame): The data frame that needs to be written to the Delta table.
             target_table_name (str): The name of the target Delta table.
             delta_table_primary_key (List[dict]): The list of primary keys for the target Delta table.
+            partition_keys(List[dict]): The List of partition Keys.
             ingestion_mode (str): The ingestion mode for the data load.
             raw_schema (StructType): The schema of the raw data being ingested.
             feature_options (Dict[str, Union[str, int, float, bool]]): Optional. The dictionary containing feature options.
@@ -54,7 +56,6 @@ class DeltaLakeService:
         Returns:
             None.
         """
-
         logger.info(f"target table name {target_table_name}")
         if (
             self.spark_engine.is_delta_table_exists(target_table_name)
@@ -109,7 +110,11 @@ class DeltaLakeService:
             logger.info(f"Upsert ops for target table {target_table_name} ended")
         else:
             self.save_delta_dataframe(
-                dataflow_output, ingestion_mode, target_table_name, feature_options
+                dataflow_output,
+                ingestion_mode,
+                target_table_name,
+                feature_options,
+                partition_keys,
             )
 
     def __execute_delta_merge_insert_update(
@@ -193,7 +198,12 @@ class DeltaLakeService:
         )
 
     def save_delta_dataframe(
-        self, dataframe, dataframe_ingestion_mode, table_name, feature_options=None
+        self,
+        dataframe,
+        dataframe_ingestion_mode,
+        table_name,
+        feature_options=None,
+        partition_keys=None,
     ):
         """
         Saves a DataFrame to a Delta table with the specified options.
@@ -205,6 +215,15 @@ class DeltaLakeService:
             feature_options (dict): Optional feature options to use when saving the DataFrame.
 
         """
+        delta_partition_keys = []
+
+        if partition_keys:
+            partition_keys_items = partition_keys["items"]
+            if partition_keys_items:
+                delta_partition_keys = [
+                    partition_key.get("name") for partition_key in partition_keys_items
+                ]
+
         if feature_options and feature_options.get("featureOptionWriteConfigDetails"):
             feature_delta_write_option_config = feature_options.get(
                 "featureOptionWriteConfigDetails"
@@ -216,11 +235,15 @@ class DeltaLakeService:
 
             dataframe.write.format("delta").options(
                 **self.get_delta_write_config(feature_delta_write_option_config)
-            ).mode(dataframe_ingestion_mode).saveAsTable(table_name)
-        else:
-            dataframe.write.format("delta").mode(dataframe_ingestion_mode).saveAsTable(
+            ).mode(dataframe_ingestion_mode).partitionBy(
+                delta_partition_keys
+            ).saveAsTable(
                 table_name
             )
+        else:
+            dataframe.write.format("delta").mode(dataframe_ingestion_mode).partitionBy(
+                delta_partition_keys
+            ).saveAsTable(table_name)
 
     def get_delta_write_config(self, feature_delta_write_option_config):
         """Returns a dictionary containing delta schema configuration options based on a given dictionary of feature
