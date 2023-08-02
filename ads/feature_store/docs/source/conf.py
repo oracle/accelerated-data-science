@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../../"))
 
-version = "1.2"
+version = "1.0.2"
 release = version
 
 
@@ -57,7 +57,7 @@ templates_path = ["_templates"]
 
 # Get version
 
-version = "1.2"
+version = "1.0.2"
 release = version
 
 # Unless we want to expose real buckets and namespaces
