@@ -3,8 +3,8 @@
 =============
 Release Notes
 =============
-1.2
----
+1.0.2
+-----
 .. note::
 
     .. list-table::
@@ -32,8 +32,8 @@ Release notes: July 18, 2023
 * [DOCS] For ``ValidationOutput`` instance, addition of ``to_summary()`` method  for validation summary details.
 * [DOCS] For ``ValidationOutput`` instance, addition of ``to_pandas()`` method  for validation detailed report.
 
-1.1
----
+1.0.1
+-----
 
 .. note::
 
@@ -63,8 +63,8 @@ Release notes: July 5, 2023
 * [DOCS] Data Type update for Offline Feature Type COMPLEX
 * [DOCS] Updated terraform default version as 1.1.x
 
-1.0
----
+1.0.0
+----
 
 .. note::
 
