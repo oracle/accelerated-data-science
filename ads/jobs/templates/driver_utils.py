@@ -276,7 +276,7 @@ class OCIHelper:
             return
 
         for src, dest in mappings.items():
-            logger.debug("Copying %s to %s", src, dest)
+            logger.debug("Copying %s to %s", src, os.path.abspath(dest))
             # Create the dest dir if one does not exist.
             if str(dest).endswith("/"):
                 dest_dir = dest
