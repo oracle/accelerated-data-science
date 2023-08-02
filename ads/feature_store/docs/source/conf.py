@@ -80,6 +80,9 @@ language = "en"
 html_theme_options = {
     "light_logo": "logo-light-mode.png",
     "dark_logo": "logo-dark-mode.png",
+    "collapse_navigation": True,
+    "sticky_navigation": True,
+    "navigation_depth": 4,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
