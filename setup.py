@@ -175,3 +175,4 @@ setup(
     },
     entry_points={"console_scripts": ["ads=ads.cli:cli"]},
 )
+
