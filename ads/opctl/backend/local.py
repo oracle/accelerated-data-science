@@ -7,6 +7,8 @@
 import copy
 import json
 import os
+import runpy
+import sys
 import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
@@ -965,3 +967,23 @@ class LocalOperatorBackend(Backend):
                     **kwargs,
                 )
             )
+
+
+class LocalPythonBackend(LocalBackend):
+    def __init__(self, config: Dict) -> None:
+        """
+        Initialize a backend object with given config.
+
+        Parameters
+        ----------
+        config: dict
+            dictionary of configurations
+        """
+        self.config = config
+        self.operator_name = config.get("type")
+
+    def run(self, **kwargs):
+        operator_module = f"ads.opctl.operator.lowcode.{self.operator_name}"
+        operator_spec = json.dumps(self.config)
+        sys.argv = [operator_module, "--spec", operator_spec]
+        runpy.run_module(operator_module, run_name="__main__")
