@@ -415,6 +415,9 @@ def run(file, **kwargs):
         with fsspec.open(backend_config_file, "r", **auth) as f:
             backend_config = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
+    if kwargs.get("backend"):
+        backend_config = {"kind": kwargs.get("backend")}
+
     suppress_traceback(debug)(run_cmd)(config, backend_config, **kwargs)
 
 

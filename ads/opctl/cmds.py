@@ -30,6 +30,7 @@ from ads.opctl.backend.local import (
     LocalModelDeploymentBackend,
     LocalPipelineBackend,
     LocalOperatorBackend,
+    LocalPythonBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -878,6 +879,8 @@ def apply(config: Dict, backend_config: Dict = None, **kwargs) -> None:
         keyword arguments, stores configuration from command line args
     """
     backend_config = backend_config or {}
+    if not backend_config and kwargs.get("backend"):
+        backend_config = {"kind": BACKEND_NAME.OPERATOR_PYTHON.value}
     p_backend = ConfigProcessor(backend_config).step(ConfigMerger, **kwargs)
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     p.config["runtime"] = backend_config
@@ -891,6 +894,7 @@ def apply(config: Dict, backend_config: Dict = None, **kwargs) -> None:
             BACKEND_NAME.JOB.value,
             BACKEND_NAME.DATAFLOW.value,
             BACKEND_NAME.OPERATOR_LOCAL.value,
+            BACKEND_NAME.LOCAL.value,
         )
 
         operator_type = p.config.get("type", "").lower()
@@ -921,5 +925,12 @@ def apply(config: Dict, backend_config: Dict = None, **kwargs) -> None:
             MLJobOperatorBackend(config=p.config).run()
         elif backend_kind == BACKEND_NAME.DATAFLOW.value:
             raise NotImplementedError("The Data Flow backend is not supported yet.")
+        elif backend_kind == BACKEND_NAME.LOCAL.value:
+            if kwargs.get("dry_run"):
+                print(
+                    "The dry run option is not supported for "
+                    "the local backend and will be ignored."
+                )
+            LocalPythonBackend(config=p.config).run()
     else:
         raise RuntimeError("Not supported operator.")
