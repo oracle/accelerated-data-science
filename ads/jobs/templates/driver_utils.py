@@ -439,6 +439,10 @@ class JobRunner:
             packages = os.environ.get(CONST_ENV_PIP_PKG)
         if not packages:
             return self
+        # The package requirement may contain special character like '>'.
+        # Here we wrap each package requirement with single quote to make sure they can be installed correctly
+        package_list = shlex.split(packages)
+        packages = " ".join([f"'{package}'" for package in package_list])
         self.run_command(
             f"pip install {packages}", conda_prefix=self.conda_prefix, check=True
         )
