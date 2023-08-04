@@ -48,7 +48,7 @@ logger.setLevel(logging.INFO)
 
 
 def get_execution_engine_type(
-        data_frame: Union[DataFrame, pd.DataFrame]
+    data_frame: Union[DataFrame, pd.DataFrame]
 ) -> ExecutionEngine:
     """
     Determines the execution engine type for a given DataFrame.
@@ -88,7 +88,7 @@ def get_metastore_id(feature_store_id: str):
 
 
 def validate_delta_format_parameters(
-        timestamp: datetime = None, version_number: int = None, is_restore: bool = False
+    timestamp: datetime = None, version_number: int = None, is_restore: bool = False
 ):
     """
     Validate the user input provided as part of preview, restore APIs for ingested data, Ingested data is
@@ -122,9 +122,9 @@ def validate_delta_format_parameters(
 
 
 def show_ingestion_summary(
-        entity_id: str,
-        entity_type: EntityType = EntityType.FEATURE_GROUP,
-        error_details: str = None,
+    entity_id: str,
+    entity_type: EntityType = EntityType.FEATURE_GROUP,
+    error_details: str = None,
 ):
     """
     Displays a ingestion summary table with the given entity type and error details.
@@ -164,7 +164,7 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
     statistics = validation_output["statistics"]
 
     table_headers = (
-            ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
+        ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
     )
 
     table_values = [expectation_type] + list(statistics.values()) + [ingestion_status]
@@ -208,9 +208,9 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
 
 
 def get_features(
-        output_columns: List[dict],
-        parent_id: str,
-        entity_type: EntityType = EntityType.FEATURE_GROUP,
+    output_columns: List[dict],
+    parent_id: str,
+    entity_type: EntityType = EntityType.FEATURE_GROUP,
 ) -> List[Feature]:
     """
     Returns a list of features, given a list of output_columns and a feature_group_id.
@@ -267,7 +267,7 @@ def get_schema_from_spark_df(df: DataFrame):
 
 
 def get_schema_from_df(
-        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[dict]:
     """
     Given a DataFrame, returns a list of dictionaries that describe its schema.
@@ -281,7 +281,7 @@ def get_schema_from_df(
 
 
 def get_input_features_from_df(
-        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[FeatureDetail]:
     """
     Given a DataFrame, returns a list of FeatureDetail objects that represent its input features.
@@ -298,7 +298,7 @@ def get_input_features_from_df(
 
 
 def convert_expectation_suite_to_expectation(
-        expectation_suite: ExpectationSuite, expectation_type: ExpectationType
+    expectation_suite: ExpectationSuite, expectation_type: ExpectationType
 ):
     """
     Convert an ExpectationSuite object to an Expectation object with detailed rule information.
@@ -357,7 +357,7 @@ def largest_matching_subset_of_primary_keys(left_feature_group, right_feature_gr
 
 
 def convert_pandas_datatype_with_schema(
-        raw_feature_details: List[dict], input_df: pd.DataFrame
+    raw_feature_details: List[dict], input_df: pd.DataFrame
 ) -> pd.DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -382,7 +382,7 @@ def convert_pandas_datatype_with_schema(
 
 
 def convert_spark_dataframe_with_schema(
-        raw_feature_details: List[dict], input_df: DataFrame
+    raw_feature_details: List[dict], input_df: DataFrame
 ) -> DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -405,8 +405,8 @@ def validate_input_feature_details(input_feature_details, data_frame):
 
 
 def plot_histogram(data, x_label, y_label, title):
-    bins = data.get('bins')
-    plt.bar(bins, data.get(y_label), width=(bins[1] - bins[0]), edgecolor='black')
+    bins = data.get("bins")
+    plt.bar(bins, data.get(y_label), width=(bins[1] - bins[0]), edgecolor="black")
     plt.xlabel(x_label)
     plt.ylabel(y_label)
     plt.title(title)
@@ -415,21 +415,129 @@ def plot_histogram(data, x_label, y_label, title):
     plt.show()
 
 
-def plot_table(feature, data):
-    if data is None:
+def plot_table(data):
+    if data is None or not isinstance(data, dict) or len(data) < 2:
         return
-    column_headers = ["Metric", "Value"]
+
+    # Convert the data dictionary to a pandas DataFrame for easier manipulation
+    df = pd.DataFrame(data)
+
     fig, ax = plt.subplots()
 
     # hide axes
     fig.patch.set_visible(False)
-    ax.axis('off')
-    ax.axis('tight')
+    ax.axis("off")
+    ax.axis("tight")
 
-    ax.table(cellText=data, colLabels=column_headers, loc='center')
+    # Plot the table without grid lines and with the specified formatting
+    table = ax.table(
+        cellText=df.values,
+        colLabels=df.columns,
+        loc="center",
+        cellLoc="center",
+        colLoc="center",
+        cellColours=[["#dedede"] * len(df.columns)] * len(df.values),
+        edges="closed",
+    )
+
+    # Format the table cells
+    for i in range(len(df.columns)):
+        table[0, i].set_facecolor("white")
 
     fig.tight_layout()
 
     # Add title
-    plt.suptitle(f"{feature} Descriptive Statistics")
-    plt.draw()
+    plt.suptitle("Descriptive Statistics")
+    plt.show()
+
+
+def extract_scaler_metrics(stats_payload, features=None):
+    """
+    Extract scaler metrics from the provided statistics payload and categorize them as
+    numerical features or categorical features.
+
+    Args:
+        stats_payload (dict): A dictionary containing statistics payload for various features.
+            The keys are feature names, and the values are dictionaries containing metrics for each feature.
+            The metrics can be numerical or categorical.
+        features (list, optional): A list of specific features to extract metrics for. If None,
+            metrics for all features in the stats_payload will be extracted.
+
+    Example:
+        stats_payload = {
+            "feature1": {
+                "Metric1": 123,
+                "Metric2": "category",
+                ...
+            },
+            "feature2": {
+                "Metric1": 456,
+                "Metric2": "category",
+                ...
+            },
+            ...
+        }
+        categorical_features, numerical_features = extract_scaler_metrics(stats_payload)
+    """
+
+    def is_numerical_feature(feature):
+        numerical_feature_supported_keys = [
+            "StandardDeviation",
+            "Min",
+            "Max",
+            "DistinctCount",
+            "Sum",
+            "Mean",
+            "Kurtosis",
+            "Variance",
+        ]
+        return all(key in feature for key in numerical_feature_supported_keys)
+
+    def add_metric(metric_dict, key, value):
+        """
+        Add a value as a list to the specified key in the dictionary.
+        If the key is already present, append the new value to the existing list.
+        If the key is not present, create a new list with the new value.
+
+        Args:
+            dictionary (dict): The dictionary to update.
+            key: The key to which the value needs to be added.
+            value: The value to add or append.
+
+        Returns:
+            None
+        """
+        if key in metric_dict:
+            metric_dict[key].append(value)
+        else:
+            metric_dict[key] = [value]
+
+    def process_feature_metrics(feature_dictionary, feature_payload):
+        for metric_name, metric_value in feature_payload.items():
+            value = metric_value.get("value")
+            if isinstance(value, (float, int, bool)):
+                add_metric(feature_dictionary, metric_name, value)
+
+    categorical_features = {}  # A dictionary to store categorical features
+    numerical_features = {}  # A dictionary to store numerical features
+
+    _working_dict = None
+
+    if not features:
+        features = list(stats_payload.keys())
+
+    for feature in features:
+        if feature in stats_payload:
+            feature_payload = stats_payload.get(feature)
+
+            _working_dict = (
+                numerical_features
+                if is_numerical_feature(feature_payload)
+                else categorical_features
+            )
+
+            # Add the metrics to the corresponding dictionary.
+            add_metric(_working_dict, "Feature", feature)
+            process_feature_metrics(_working_dict, feature_payload)
+
+    return categorical_features, numerical_features

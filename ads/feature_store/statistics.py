@@ -22,25 +22,22 @@ class Statistics(ResponseBuilder):
         """
         return "statistics"
 
-    def to_viz(self, feature=None):
+    def to_viz(self, features=None):
         """
-           Converts the content to a matplotlib plot.
+         Converts the content to a matplotlib plot.
 
-           Returns
-           -------
-          None
+         Returns
+         -------
+        None
         """
         if self.content:
-            feature_metrics = json.loads(self.content)
-            if feature is not None:
-                fs_utils.plot_table(feature, self.extract_scaler_metrics(feature_metrics.get(feature)))
-            else:
-                for feature, metrics in feature_metrics.items():
-                    fs_utils.plot_table(feature, self.extract_scaler_metrics(metrics))
+            statistics_payload = json.loads(self.content)
+            categorical_features, numerical_features = fs_utils.extract_scaler_metrics(
+                statistics_payload, features
+            )
 
-    def extract_scaler_metrics(self, metrics):
-        scaler_metrics = []
-        for metric_name, data in metrics.items():
-            if 'value' in data and isinstance(data.get('value', 0), (float, int, bool)):
-                scaler_metrics.append((metric_name, data.get('value')))
-        return scaler_metrics
+            if categorical_features:
+                fs_utils.plot_table(categorical_features)
+
+            if numerical_features:
+                fs_utils.plot_table(numerical_features)
