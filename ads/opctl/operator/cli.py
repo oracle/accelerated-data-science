@@ -100,7 +100,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "--name",
     "-n",
     help=(
-        "Name of the service operator to build the image. "
+        "Name of the operator to build the image. "
         "Only relevant for built-in service operators."
     ),
     default=None,
@@ -220,3 +220,44 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
             operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(cmd_verify)(operator_spec, **kwargs)
+
+
+@commands.command()
+@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.help_option("--help", "-h")
+@click.option(
+    "--name",
+    "-n",
+    help=(
+        "Name of the operator to build the conda environment for. "
+        "Only relevant for built-in service operators."
+    ),
+    default=None,
+    required=False,
+)
+@click.option(
+    "--conda-pack-folder",
+    help=(
+        "The destination folder to save the conda environment. "
+        "By default will be used the path specified in the config file generated "
+        "with `ads opctl configure` command"
+    ),
+    required=False,
+    default=None,
+)
+@click.option(
+    "--overwrite",
+    "-o",
+    help="Overwrite conda environment if it already exists",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--ads-config",
+    help="The folder where the ADS opctl config located",
+    required=False,
+    default=None,
+)
+def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
+    """Builds a new conda environment for the particular operator."""
+    suppress_traceback(debug)(cmd_build_image)(**kwargs)

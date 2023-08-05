@@ -330,7 +330,7 @@ def build_image(
         run_command = [
             f"FROM {base_image_name}",
             f"COPY ./operator/ $OPERATOR_DIR/{operator_name}/",
-            "RUN yum install -y libX11"
+            "RUN yum install -y libX11",
         ]
         if os.path.exists(os.path.join(td, "operator", "environment.yaml")):
             run_command.append(
@@ -415,6 +415,36 @@ def verify(
         f"{OPERATOR_MODULE_PATH}.{operator_type}.operator"
     )
     operator_module.verify(config)
+
+
+def build_conda(
+    name: str = None,
+    conda_pack_folder: str = None,
+    overwrite: bool = False,
+    ads_config: Union[str, None] = None,
+    **kwargs: Dict[str, Any],
+) -> None:
+    """
+    Builds the conda environment for the particular operator.
+    For the service operators, the name needs to be provided.
+    For the custom operators, the path (source_folder) to the operator needs to be provided.
+
+    Parameters
+    ----------
+    name: str
+        The name of the operator to generate the specification YAML.
+    conda_pack_folder: str
+        The destination folder to save the conda environment.
+        By default will be used the path specified in the config file generated
+        with `ads opctl configure` command
+    overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite the result specification YAML if exists.
+    ads_config: (str, optional)
+        The folder where the ads opctl config located.
+    kwargs: (Dict, optional).
+        Additional key value arguments.
+    """
+    raise NotImplementedError()
 
 
 def create(
