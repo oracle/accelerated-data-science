@@ -393,29 +393,25 @@ def add_options(options):
 )
 def run(file, **kwargs):
     """
-    Runs the workload on the targeted backend. When run `distributed` yaml spec,
-    the backend is always OCI Data Science Jobs.
+    Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science
+    Jobs
     """
     debug = kwargs["debug"]
-    config = {"kind": "job"}
-    backend_config = {"kind": "job"}
-
-    auth = {}
-    if kwargs["auth"]:
-        auth = authutil.create_signer(kwargs["auth"])
-    else:
-        auth = authutil.default_signer()
-
+    config = {}
     if file:
-        with fsspec.open(file, "r", **auth) as f:
-            config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+        if os.path.exists(file):
+            auth = {}
+            if kwargs["auth"]:
+                auth = authutil.create_signer(kwargs["auth"])
+            else:
+                auth = authutil.default_signer()
 
-    backend_config_file = kwargs.pop("backend_config")
-    if backend_config_file:
-        with fsspec.open(backend_config_file, "r", **auth) as f:
-            backend_config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+            with fsspec.open(file, "r", **auth) as f:
+                config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+        else:
+            raise FileNotFoundError(f"{file} is not found")
 
-    suppress_traceback(debug)(run_cmd)(config, backend_config, **kwargs)
+    suppress_traceback(debug)(run_cmd)(config, **kwargs)
 
 
 @commands.command()
@@ -464,6 +460,25 @@ def init_operator(**kwargs):
 @commands.command()
 @click.argument("ocid", nargs=1)
 @add_options(_model_deployment_options)
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def delete(**kwargs):
     suppress_traceback(kwargs["debug"])(delete_cmd)(**kwargs)
 
@@ -471,6 +486,25 @@ def delete(**kwargs):
 @commands.command()
 @click.argument("ocid", nargs=1)
 @add_options(_model_deployment_options)
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def cancel(**kwargs):
     suppress_traceback(kwargs["debug"])(cancel_cmd)(**kwargs)
 
@@ -504,6 +538,25 @@ def cancel(**kwargs):
     required=False,
     default=90,
 )
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def watch(**kwargs):
     """
     ``tail`` logs form a job run, dataflow run or pipeline run.
@@ -516,6 +569,25 @@ def watch(**kwargs):
 @click.argument("ocid", nargs=1)
 @click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @add_options(_model_deployment_options)
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def activate(**kwargs):
     """
     Activates a data science service.
@@ -527,6 +599,25 @@ def activate(**kwargs):
 @click.argument("ocid", nargs=1)
 @click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
 @add_options(_model_deployment_options)
+@click.option(
+    "--conda-pack-folder",
+    required=False,
+    default=None,
+    help="folder where conda packs are saved",
+)
+@click.option(
+    "--auth",
+    "-a",
+    help="authentication method",
+    type=click.Choice(AuthType.values()),
+    default=None,
+)
+@click.option(
+    "--oci-profile",
+    help="oci profile",
+    default=None,
+)
+@click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def deactivate(**kwargs):
     """
     Deactivates a data science service.

@@ -137,13 +137,13 @@ class PyTorchRuntimeHandlerTest(unittest.TestCase):
             [
                 {
                     "display_name": "None-0",
-                    "environment_variables": {"RANK": "0", "WORLD_SIZE": 2},
+                    "environment_variables": {"RANK": "0", "WORLD_SIZE": "2"},
                 },
                 {
                     "display_name": "None-1",
                     "environment_variables": {
                         "RANK": "1",
-                        "WORLD_SIZE": 2,
+                        "WORLD_SIZE": "2",
                         "MAIN_JOB_RUN_OCID": test_ocid,
                     },
                 },
