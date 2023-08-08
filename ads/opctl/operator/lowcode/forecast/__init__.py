@@ -10,9 +10,9 @@ __type__ = "forecast"
 
 # __conda__ = "forecast_p38_cpu_v1" # switch to slug when service conda env will be available
 
-__conda__ = "cpu/Forecasting Operator/1.0/forecast_p38_cpu_v1"
+__conda__ = "cpu/forecast/1/forecast_v1"
 
-__GPU__ = "yes"
+__gpu__ = "no"  # yes/no
 
 __keywords__ = ["Prophet", "AutoML", "ARIMA", "RNN", "LSTM"]
 

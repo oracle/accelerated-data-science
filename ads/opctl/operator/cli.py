@@ -16,6 +16,7 @@ from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
+from .cmd import build_conda as cmd_build_conda
 from .cmd import build_image as cmd_build_image
 from .cmd import create as cmd_create
 from .cmd import info as cmd_info
@@ -260,4 +261,4 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
 )
 def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Builds a new conda environment for the particular operator."""
-    suppress_traceback(debug)(cmd_build_image)(**kwargs)
+    suppress_traceback(debug)(cmd_build_conda)(**kwargs)

@@ -10,6 +10,7 @@ import os
 import shutil
 import tempfile
 from typing import Any, Dict, Union
+import re
 
 import fsspec
 from tabulate import tabulate
@@ -32,6 +33,7 @@ from ads.opctl.constants import (
 )
 from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
 from ads.opctl.utils import publish_image as publish_image_cmd
+from ads.opctl.conda.cmds import create as conda_create
 
 from .__init__ import __operators__
 from .common.errors import OperatorNotFoundError
@@ -419,6 +421,7 @@ def verify(
 
 def build_conda(
     name: str = None,
+    source_folder: str = None,
     conda_pack_folder: str = None,
     overwrite: bool = False,
     ads_config: Union[str, None] = None,
@@ -433,6 +436,9 @@ def build_conda(
     ----------
     name: str
         The name of the operator to generate the specification YAML.
+    source_folder: (str, optional)
+        The folder containing the operator source code.
+        Only relevant for custom operators.
     conda_pack_folder: str
         The destination folder to save the conda environment.
         By default will be used the path specified in the config file generated
@@ -444,7 +450,47 @@ def build_conda(
     kwargs: (Dict, optional).
         Additional key value arguments.
     """
-    raise NotImplementedError()
+    operator_conda_name = name
+    operator_name = name
+
+    if name:
+        if name not in __operators__:
+            raise OperatorNotFoundError(name)
+        source_folder = os.path.dirname(
+            inspect.getfile(importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}"))
+        )
+        operator_conda_name = operator_conda_name or name
+        logger.info(f"Building conda environment for the `{name}` service operator.")
+    elif source_folder:
+        source_folder = os.path.abspath(os.path.expanduser(source_folder))
+        if not os.path.isdir(source_folder):
+            raise FileNotFoundError(f"The path {source_folder} does not exist")
+
+        operator_name = os.path.basename(source_folder.rstrip("/"))
+        operator_conda_name = operator_conda_name or operator_name
+        logger.info(
+            "Building conda environment for custom operator using source folder: "
+            f"`{source_folder}`."
+        )
+    else:
+        raise ValueError(
+            "No operator name or source folder specified."
+            "Please provide relevant options."
+        )
+
+    # get operator details stored in operator's init file.
+    operator_info: OperatorInfo = _operator_info(source_folder)
+    version = re.sub("[^0-9.]", "", operator_info.version)
+
+    # invoke the conda create command
+    conda_create(
+        name=name,
+        version=version,
+        environment_file=os.path.join(source_folder, "environment.yaml"),
+        conda_pack_folder=conda_pack_folder,
+        gpu=operator_info.gpu,
+        overwrite=overwrite,
+    )
 
 
 def create(

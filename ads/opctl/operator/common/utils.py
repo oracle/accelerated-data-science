@@ -52,6 +52,7 @@ class OperatorInfo:
     """
 
     name: str
+    gpu: bool
     short_description: str
     description: str
     version: str
@@ -61,7 +62,8 @@ class OperatorInfo:
     def from_init(*args: List, **kwargs: Dict) -> "OperatorInfo":
         """Instantiates the class from the initial operator details config."""
         return OperatorInfo(
-            name=kwargs.get("__name__"),
+            name=kwargs.get("__type__"),
+            gpu=kwargs.get("__gpu__", "").lower() == "yes",
             description=kwargs.get("__description__"),
             short_description=kwargs.get("__short_description__"),
             version=kwargs.get("__version__"),
