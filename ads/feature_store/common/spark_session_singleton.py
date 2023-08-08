@@ -84,6 +84,7 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
             )
             .enableHiveSupport()
         )
+        _managed_table_location = None
 
         if not developer_enabled() and metastore_id:
             # Get the authentication credentials for the OCI data catalog service
@@ -94,12 +95,11 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
 
             data_catalog_client = OCIClientFactory(**auth).data_catalog
             metastore = data_catalog_client.get_metastore(metastore_id).data
+            _managed_table_location = metastore.default_managed_table_location
             # Configure the Spark session builder object to use the specified metastore
             spark_builder.config(
                 "spark.hadoop.oracle.dcat.metastore.id", metastore_id
-            ).config(
-                "spark.sql.warehouse.dir", metastore.default_managed_table_location
-            ).config(
+            ).config("spark.sql.warehouse.dir", _managed_table_location).config(
                 "spark.driver.memory", "16G"
             )
 
@@ -114,7 +114,12 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
 
         self.spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
         self.spark_session.sparkContext.setLogLevel("OFF")
+        self.managed_table_location = _managed_table_location
 
     def get_spark_session(self):
         """Access method to get the spark session."""
         return self.spark_session
+
+    def get_managed_table_location(self):
+        """Returns the managed table location for the spark"""
+        return self.managed_table_location
