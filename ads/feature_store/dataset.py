@@ -25,7 +25,6 @@ from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 from ads.feature_store.execution_strategy.execution_strategy_provider import (
     OciExecutionStrategyProvider,
 )
-from ads.feature_store.feature import Feature
 from ads.feature_store.feature import DatasetFeature
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
@@ -244,7 +243,7 @@ class Dataset(Builder):
         return self.get_spec(self.CONST_ID)
 
     @property
-    def features(self) -> List[Feature]:
+    def features(self) -> List[DatasetFeature]:
         return [
             DatasetFeature(**feature_dict)
             for feature_dict in self.get_spec(self.CONST_OUTPUT_FEATURE_DETAILS)[
@@ -255,7 +254,6 @@ class Dataset(Builder):
 
     def with_id(self, id: str) -> "Dataset":
         return self.set_spec(self.CONST_ID, id)
-
 
     def with_job_id(self, dataset_job_id: str) -> "Dataset":
         """Sets the job_id for the last running job.
@@ -572,7 +570,9 @@ class Dataset(Builder):
                 f"Dataset update Failed with : {type(ex)} with error message: {ex}"
             )
             if existing_model_details:
-                self.with_model_details(ModelDetails().with_items(existing_model_details["items"]))
+                self.with_model_details(
+                    ModelDetails().with_items(existing_model_details["items"])
+                )
             else:
                 self.with_model_details(ModelDetails().with_items([]))
                 return self
@@ -702,12 +702,12 @@ class Dataset(Builder):
 
         dataset_execution_strategy.delete_dataset(self, dataset_job)
 
-    def get_features(self) -> List[Feature]:
+    def get_features(self) -> List[DatasetFeature]:
         """
         Returns all the features in the dataset.
 
         Returns:
-            List[Feature]
+            List[DatasetFeature]
         """
 
         return self.features
@@ -721,13 +721,9 @@ class Dataset(Builder):
         """
         records = []
         for feature in self.features:
-            records.append(
-                {
-                    "name": feature.feature_name,
-                    "type": feature.feature_type
-                }
-            )
+            records.append({"name": feature.feature_name, "type": feature.feature_type})
         return pandas.DataFrame.from_records(records)
+
     def update(self, **kwargs) -> "Dataset":
         """Updates Dataset in the feature store.
 
@@ -775,9 +771,7 @@ class Dataset(Builder):
                     # May not need if we fix the backend and add feature_group_id to the output_feature
                     features_list = []
                     for output_feature in dataset_details[infra_attr]["items"]:
-                        output_feature["datasetId"] = dataset_details[
-                            self.CONST_ID
-                        ]
+                        output_feature["datasetId"] = dataset_details[self.CONST_ID]
                         features_list.append(output_feature)
 
                     value = {self.CONST_ITEMS: features_list}
