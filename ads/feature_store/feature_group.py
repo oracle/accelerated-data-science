@@ -432,6 +432,11 @@ class FeatureGroup(Builder):
         FeatureGroup
             The FeatureGroup instance (self)
         """
+
+        # Initialize the empty dictionary as transformation arguemnts if not specified
+        if not self.transformation_kwargs:
+            self.with_transformation_kwargs()
+
         return self.set_spec(self.CONST_TRANSFORMATION_ID, transformation_id)
 
     def _with_lifecycle_state(self, lifecycle_state: str) -> "FeatureGroup":
@@ -1050,7 +1055,7 @@ class FeatureGroup(Builder):
         """
         self.check_resource_materialization()
 
-        #validate_delta_format_parameters(timestamp, version_number)
+        # validate_delta_format_parameters(timestamp, version_number)
         target_table = self.target_delta_table()
 
         return self.spark_engine.get_time_version_data(

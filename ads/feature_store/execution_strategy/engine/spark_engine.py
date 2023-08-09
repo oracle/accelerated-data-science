@@ -47,7 +47,7 @@ class SparkEngine:
         version_number: int = None,
         timestamp: datetime = None,
     ):
-        split_db_name = delta_table_name.split('.')
+        split_db_name = delta_table_name.split(".")
 
         # Get the Delta table path
         delta_table_path = (
