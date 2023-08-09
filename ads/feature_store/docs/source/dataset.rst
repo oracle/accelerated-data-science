@@ -252,8 +252,8 @@ You can call the ``as_of()`` method of the Dataset instance to get specified poi
 
 The ``.as_of()`` method takes the following optional parameter:
 
-- ``commit_timestamp: date-time``. Commit timestamp for feature group
-- ``version_number: int``. Version number for feature group
+- ``commit_timestamp: date-time``. Commit timestamp for dataset
+- ``version_number: int``. Version number for dataset
 
 .. code-block:: python3
 
