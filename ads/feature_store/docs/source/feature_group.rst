@@ -283,21 +283,20 @@ Feature store provides an API similar to Pandas to join feature groups together 
   # Filter feature group
   feature_group.filter(feature_group.col1 > 10).show()
 
-Preview
+as_of
 =======
 
-You can call the ``preview()`` method of the FeatureGroup instance to preview the feature group.
+You can call the ``as_of()`` method of the FeatureGroup instance to get specified point in time and time traveled data.
 
-The ``.preview()`` method takes the following optional parameter:
+The ``.as_of()`` method takes the following optional parameter:
 
-- ``timestamp: date-time``. Commit timestamp for feature group
+- ``commit_timestamp: date-time``. Commit timestamp for feature group
 - ``version_number: int``. Version number for feature group
-- ``row_count: int``. Defaults to 10. Total number of row to return
 
 .. code-block:: python3
 
-  # Preview feature group
-  df = feature_group.preview(row_count=50)
+  # as_of feature group
+  df = feature_group.as_of(version_number=1)
 
 Restore
 =======

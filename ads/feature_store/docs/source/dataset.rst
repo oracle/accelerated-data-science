@@ -245,21 +245,20 @@ You can call the ``get_input_schema_dataframe()`` method of the Dataset instance
   df = dataset.get_input_schema_dataframe()
   df.show()
 
-Preview
-========
+as_of
+=======
 
-You can call the ``preview()`` method of the Dataset instance to preview the dataset.
+You can call the ``as_of()`` method of the Dataset instance to get specified point in time and time traveled data.
 
-The ``.preview()`` method takes the following optional parameter:
-- ``timestamp: date-time``. Commit timestamp for dataset
-- ``version_number: int``. Version number for dataset
-- ``row_count: int``. Defaults to 10. Total number of row to return
+The ``.as_of()`` method takes the following optional parameter:
+
+- ``commit_timestamp: date-time``. Commit timestamp for feature group
+- ``version_number: int``. Version number for feature group
 
 .. code-block:: python3
 
-  # Preview dataset
-  df = dataset.preview(row_count=50)
-  df.show()
+  # as_of feature group
+  df = dataset.as_of(version_number=1)
 
 
 Restore
