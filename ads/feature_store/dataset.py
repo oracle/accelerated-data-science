@@ -10,6 +10,11 @@ import pandas
 from great_expectations.core import ExpectationSuite
 
 from ads import deprecated
+from oci.feature_store.models import (
+    DatasetFeatureGroupCollection,
+    DatasetFeatureGroupSummary,
+)
+
 from ads.common import utils
 from ads.common.oci_mixin import OCIModelMixin
 from ads.feature_store.common.enums import (
@@ -29,6 +34,7 @@ from ads.feature_store.execution_strategy.execution_strategy_provider import (
     OciExecutionStrategyProvider,
 )
 from ads.feature_store.feature import DatasetFeature
+from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.service.oci_dataset import OCIDataset
@@ -116,6 +122,7 @@ class Dataset(Builder):
     CONST_ITEMS = "items"
     CONST_LAST_JOB_ID = "jobId"
     CONST_MODEL_DETAILS = "modelDetails"
+    CONST_FEATURE_GROUP = "datasetFeatureGroups"
 
     attribute_map = {
         CONST_ID: "id",
@@ -133,6 +140,7 @@ class Dataset(Builder):
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_MODEL_DETAILS: "model_details",
         CONST_PARTITION_KEYS: "partition_keys",
+        CONST_FEATURE_GROUP: "dataset_feature_groups",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -529,6 +537,44 @@ class Dataset(Builder):
             )
 
         return self.set_spec(self.CONST_MODEL_DETAILS, model_details.to_dict())
+
+    @property
+    def feature_groups(self) -> List["FeatureGroup"]:
+        collection: "DatasetFeatureGroupCollection" = self.get_spec(
+            self.CONST_FEATURE_GROUP
+        )
+        feature_groups: List["FeatureGroup"] = []
+        if collection:
+            for datasetFGSummary in collection.items:
+                feature_groups.append(
+                    FeatureGroup.from_id(datasetFGSummary.feature_group_id)
+                )
+
+        return feature_groups
+
+    @feature_groups.setter
+    def feature_groups(self, feature_groups: List["FeatureGroup"]):
+        self.with_feature_groups(feature_groups)
+
+    def with_feature_groups(self, feature_groups: List["FeatureGroup"]) -> "Dataset":
+        """Sets the model details for the dataset.
+
+        Parameters
+        ----------
+        feature_groups: List of feature groups
+        Returns
+        -------
+        Dataset
+            The Dataset instance (self).
+
+        """
+        collection: List["DatasetFeatureGroupSummary"] = []
+        for group in feature_groups:
+            collection.append(DatasetFeatureGroupSummary(feature_group_id=group.id))
+
+        return self.set_spec(
+            self.CONST_FEATURE_GROUP, DatasetFeatureGroupCollection(items=collection)
+        )
 
     @property
     def partition_keys(self) -> List[str]:

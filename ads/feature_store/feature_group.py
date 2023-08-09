@@ -750,8 +750,12 @@ class FeatureGroup(Builder):
         """
         records = []
         for feature in self.features:
-            records.append({"name": feature.feature_name, "type": feature.feature_type})
-
+            records.append(
+                {
+                    "name": feature.feature_name,
+                    "type": feature.feature_type,
+                }
+            )
         return pd.DataFrame.from_records(records)
 
     def get_input_features_df(self) -> "pd.DataFrame":
