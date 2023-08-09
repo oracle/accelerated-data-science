@@ -1035,13 +1035,13 @@ class FeatureGroup(Builder):
     def as_of(
         self,
         version_number: int = None,
-        timestamp: datetime = None,
+        commit_timestamp: datetime = None,
     ):
         """preview the feature definition and return the response in dataframe.
 
         Parameters
         ----------
-        timestamp: datetime
+        commit_timestamp: datetime
             commit date time to preview in format yyyy-MM-dd or yyyy-MM-dd HH:mm:ss
             commit date time is maintained for every ingestion commit using delta lake
         version_number: int
@@ -1055,11 +1055,11 @@ class FeatureGroup(Builder):
         """
         self.check_resource_materialization()
 
-        # validate_delta_format_parameters(timestamp, version_number)
+        validate_delta_format_parameters(commit_timestamp, version_number)
         target_table = self.target_delta_table()
 
         return self.spark_engine.get_time_version_data(
-            target_table, version_number, timestamp
+            target_table, version_number, commit_timestamp
         )
 
     def profile(self):
