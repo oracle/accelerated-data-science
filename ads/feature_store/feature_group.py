@@ -753,8 +753,7 @@ class FeatureGroup(Builder):
             records.append(
                 {
                     "name": feature.feature_name,
-                    "type": feature.feature_type,
-                    "feature_group_id": feature.feature_group_id,
+                    "type": feature.feature_type
                 }
             )
         return pd.DataFrame.from_records(records)

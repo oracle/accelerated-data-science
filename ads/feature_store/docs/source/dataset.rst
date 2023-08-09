@@ -227,23 +227,14 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 Get features
 ============
-You can call the ``get_features_dataframe()`` method of the Dataset instance to fetch features in a dataset.
+You can call the ``get_features_df()`` method of the Dataset instance to fetch features in a dataset.
 
 .. code-block:: python3
 
   # Fetch features for a dataset
-  df = dataset.get_features_dataframe()
+  df = dataset.get_features_df()
   df.show()
 
-Get input schema details
-========================
-You can call the ``get_input_schema_dataframe()`` method of the Dataset instance to fetch input schema details of a dataset.
-
-.. code-block:: python3
-
-  # Fetch input schema details for a dataset
-  df = dataset.get_input_schema_dataframe()
-  df.show()
 
 Preview
 ========
