@@ -100,7 +100,7 @@ spec:
           type: integer
 
     test_data:
-      required: true
+      required: false
       meta:
         description: "Optional, only if evaluation is needed."
       schema:
