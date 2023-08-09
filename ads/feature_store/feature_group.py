@@ -1050,7 +1050,7 @@ class FeatureGroup(Builder):
         """
         self.check_resource_materialization()
 
-        validate_delta_format_parameters(timestamp, version_number)
+        #validate_delta_format_parameters(timestamp, version_number)
         target_table = self.target_delta_table()
 
         return self.spark_engine.get_time_version_data(
