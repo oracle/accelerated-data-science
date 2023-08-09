@@ -249,7 +249,7 @@ class Dataset(Builder):
     @property
     def features(self) -> List[Feature]:
         return [
-            Feature(**feature_dict)
+            DatasetFeature(**feature_dict)
             for feature_dict in self.get_spec(self.CONST_OUTPUT_FEATURE_DETAILS)[
                 self.CONST_ITEMS
             ]
@@ -743,8 +743,7 @@ class Dataset(Builder):
             records.append(
                 {
                     "name": feature.feature_name,
-                    "type": feature.feature_type,
-                    "feature_group_id": feature.feature_group_id,
+                    "type": feature.feature_type
                 }
             )
         return pandas.DataFrame.from_records(records)
@@ -791,7 +790,20 @@ class Dataset(Builder):
 
         for infra_attr, dsc_attr in self.attribute_map.items():
             if infra_attr in dataset_details:
-                self.set_spec(infra_attr, dataset_details[infra_attr])
+                if infra_attr == self.CONST_OUTPUT_FEATURE_DETAILS:
+                    # May not need if we fix the backend and add feature_group_id to the output_feature
+                    features_list = []
+                    for output_feature in dataset_details[infra_attr]["items"]:
+                        output_feature["datasetId"] = dataset_details[
+                            self.CONST_ID
+                        ]
+                        features_list.append(output_feature)
+
+                    value = {self.CONST_ITEMS: features_list}
+                else:
+                    value = dataset_details[infra_attr]
+
+                self.set_spec(infra_attr, value)
 
         return self
 
