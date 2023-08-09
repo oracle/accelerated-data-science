@@ -16,6 +16,7 @@ from ads.feature_store.common.utils.utility import (
     show_validation_summary,
 )
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
+import traceback
 
 try:
     from pyspark.sql import DataFrame
@@ -291,8 +292,9 @@ class SparkExecutionEngine(Strategy):
 
         except Exception as ex:
             error_details = str(ex)
+            tb = traceback.format_exc()
             logger.error(
-                f"FeatureGroup Materialization Failed with : {type(ex)} with error message: {ex}"
+                f"FeatureGroup Materialization Failed with : {type(ex)} with error message: {ex} and stacktrace {tb}",
             )
 
         show_ingestion_summary(
@@ -427,8 +429,9 @@ class SparkExecutionEngine(Strategy):
 
         except Exception as ex:
             error_details = str(ex)
+            tb = traceback.format_exc()
             logger.error(
-                f"Dataset Materialization Failed with : {type(ex)} with error message: {ex}"
+                f"Dataset Materialization Failed with : {type(ex)} with error message: {ex} and stacktrace {tb}"
             )
 
         show_ingestion_summary(
