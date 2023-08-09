@@ -28,6 +28,7 @@ from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 from ads.feature_store.execution_strategy.execution_strategy_provider import (
     OciExecutionStrategyProvider,
 )
+from ads.feature_store.feature import Feature
 from ads.feature_store.feature import DatasetFeature
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
@@ -245,8 +246,19 @@ class Dataset(Builder):
         """
         return self.get_spec(self.CONST_ID)
 
+    @property
+    def features(self) -> List[Feature]:
+        return [
+            Feature(**feature_dict)
+            for feature_dict in self.get_spec(self.CONST_OUTPUT_FEATURE_DETAILS)[
+                self.CONST_ITEMS
+            ]
+            or []
+        ]
+
     def with_id(self, id: str) -> "Dataset":
         return self.set_spec(self.CONST_ID, id)
+
 
     def with_job_id(self, dataset_job_id: str) -> "Dataset":
         """Sets the job_id for the last running job.
@@ -709,6 +721,33 @@ class Dataset(Builder):
 
         dataset_execution_strategy.delete_dataset(self, dataset_job)
 
+    def get_features(self) -> List[Feature]:
+        """
+        Returns all the features in the dataset.
+
+        Returns:
+            List[Feature]
+        """
+
+        return self.features
+
+    def get_features_df(self) -> "pandas.DataFrame":
+        """
+        Returns all the features as pandas dataframe.
+
+        Returns:
+            pandas.DataFrame
+        """
+        records = []
+        for feature in self.features:
+            records.append(
+                {
+                    "name": feature.feature_name,
+                    "type": feature.feature_type,
+                    "feature_group_id": feature.feature_group_id,
+                }
+            )
+        return pandas.DataFrame.from_records(records)
     def update(self, **kwargs) -> "Dataset":
         """Updates Dataset in the feature store.
 
