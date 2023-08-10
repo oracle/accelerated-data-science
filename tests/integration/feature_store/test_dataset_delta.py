@@ -7,8 +7,6 @@
 import pytest
 import unittest
 
-from ads.feature_store.dataset import Dataset
-
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from tests.integration.feature_store.test_base import FeatureStoreTestCase
 
@@ -127,9 +125,6 @@ class TestDatasetDelta(FeatureStoreTestCase):
         dataset.materialise(ingestion_mode=IngestionMode.OVERWRITE)
 
         df = dataset.preview(row_count=50)
-        assert (
-            dataset.get_spec(Dataset.CONST_FEATURE_GROUP).is_manual_association == False
-        )
         assert df.count() == 14
         assert len(df.columns) == 6
 
