@@ -744,12 +744,8 @@ class FeatureGroup(Builder):
         """
         records = []
         for feature in self.features:
-            records.append(
-                {
-                    "name": feature.feature_name,
-                    "type": feature.feature_type
-                }
-            )
+            records.append({"name": feature.feature_name, "type": feature.feature_type})
+
         return pd.DataFrame.from_records(records)
 
     def get_input_features_df(self) -> "pd.DataFrame":
@@ -920,10 +916,18 @@ class FeatureGroup(Builder):
             )
 
         if not self.job_id:
-            raise ValueError(
-                "Associated jobs cannot be retrieved before calling 'materialise' or 'delete'."
+            fg_job = FeatureGroupJob.list(
+                feature_group_id=self.id,
+                compartment_id=self.compartment_id,
+                sort_by="timeCreated",
+                limit="1",
             )
-
+            if not fg_job:
+                raise ValueError(
+                    "Associated jobs cannot be retrieved before calling 'materialise' or 'delete'."
+                )
+            self.with_job_id(fg_job[0].id)
+            return fg_job[0]
         return FeatureGroupJob.from_id(self.job_id)
 
     def select(self, features: Optional[List[str]] = []) -> Query:
