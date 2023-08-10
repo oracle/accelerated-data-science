@@ -517,7 +517,7 @@ class Dataset(Builder):
             self.CONST_FEATURE_GROUP
         )
         feature_groups: List["FeatureGroup"] = []
-        if collection:
+        if collection and collection.items:
             for datasetFGSummary in collection.items:
                 feature_groups.append(
                     FeatureGroup.from_id(datasetFGSummary.feature_group_id)
@@ -700,6 +700,7 @@ class Dataset(Builder):
         # Create dataset
         logger.info("Saving dataset.")
         self.oci_dataset = self._to_oci_dataset(**kwargs).create()
+        self._update_from_oci_dataset_model(self.oci_dataset)
         self.with_id(self.oci_dataset.id)
         return self
 
@@ -777,11 +778,10 @@ class Dataset(Builder):
 
         # Update the main properties
         self.oci_dataset = oci_dataset
-        dataset_details = oci_dataset.to_dict()
 
         for infra_attr, dsc_attr in self.attribute_map.items():
-            if infra_attr in dataset_details:
-                self.set_spec(infra_attr, dataset_details[infra_attr])
+            if dsc_attr in self.oci_dataset.attribute_map:
+                self.set_spec(infra_attr, getattr(self.oci_dataset, dsc_attr))
 
         return self
 
@@ -1061,6 +1061,10 @@ class Dataset(Builder):
         for key, value in spec.items():
             if hasattr(value, "to_dict"):
                 value = value.to_dict()
+            if hasattr(value, "attribute_map"):
+                value = self.oci_dataset.client.base_client.sanitize_for_serialization(
+                    value
+                )
             spec[key] = value
 
         return {
