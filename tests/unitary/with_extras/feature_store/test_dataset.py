@@ -259,12 +259,12 @@ class TestDataset:
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
     def test_materialise(self, spark, get_spark_session, mock_update):
-        with patch.object(DatasetJob, "create") as mock_dataset_job:
-            with patch.object(FeatureStore, "from_id"):
-                with patch.object(DatasetJob, "_mark_job_complete"):
-                    mock_dataset_job.return_value = self.mock_dsc_dataset_job
-                    self.mock_dsc_dataset.with_id(DATASET_OCID)
-                    self.mock_dsc_dataset.materialise()
+            with patch.object(DatasetJob, "create") as mock_dataset_job:
+                with patch.object(FeatureStore, "from_id"):
+                    with patch.object(DatasetJob, "_mark_job_complete"):
+                        mock_dataset_job.return_value = self.mock_dsc_dataset_job
+                        self.mock_dsc_dataset.with_id(DATASET_OCID)
+                        self.mock_dsc_dataset.materialise()
 
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
