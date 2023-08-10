@@ -18,15 +18,19 @@ A ``FeatureGroup`` instance will be created.
     :caption: Python
 
     from ads.feature_store.feature_group import FeatureGroup
+    # Dictionary containing arguments for the feature group for the transformation function.
+    transformation_kwargs = {}
 
     feature_group_flights = (
         FeatureGroup()
         .with_feature_store_id(feature_store.id)
         .with_primary_keys(["col1"])
+        .with_partition_keys(["col1", "col2"])
         .with_name("flights_feature_group")
         .with_entity_id("<entity_id>")
         .with_compartment_id("ocid1.compartment..<unique_id>")
         .with_schema_details_from_dataframe(dataframe)
+        .with_transformation_kwargs(transformation_kwargs)
     )
 
   .. code-tab:: Python3
@@ -50,6 +54,9 @@ A ``FeatureGroup`` instance will be created.
         orderNumber: 2
       name: <feature_group_name>
       primaryKeys:
+        items:
+        - name: col1
+      partitionKeys:
         items:
         - name: col1
       statisticsConfig:

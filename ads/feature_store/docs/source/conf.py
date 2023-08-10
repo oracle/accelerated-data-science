@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../../"))
 
-version = "1.2"
+version = "1.0.2"
 release = version
 
 
@@ -28,10 +28,13 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.autodoc",
     "sphinx.ext.doctest",
+    "sphinx.ext.mathjax",
     "sphinx.ext.ifconfig",
+    "sphinx.ext.autodoc",
     "sphinx.ext.todo",
     "sphinx.ext.extlinks",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.graphviz",
     "nbsphinx",
     "sphinx_code_tabs",
     "sphinx_copybutton",
@@ -54,7 +57,7 @@ templates_path = ["_templates"]
 
 # Get version
 
-version = "1.2"
+version = "1.0.2"
 release = version
 
 # Unless we want to expose real buckets and namespaces
@@ -77,6 +80,9 @@ language = "en"
 html_theme_options = {
     "light_logo": "logo-light-mode.png",
     "dark_logo": "logo-dark-mode.png",
+    "collapse_navigation": True,
+    "sticky_navigation": True,
+    "navigation_depth": 4,
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
