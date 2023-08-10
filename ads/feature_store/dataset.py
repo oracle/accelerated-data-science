@@ -8,6 +8,11 @@ from typing import Dict, List, Union
 
 import pandas
 from great_expectations.core import ExpectationSuite
+from oci.feature_store.models import (
+    DatasetFeatureGroupCollection,
+    DatasetFeatureGroupSummary,
+)
+
 from ads.common import utils
 from ads.common.oci_mixin import OCIModelMixin
 from ads.feature_store.common.enums import (
@@ -26,6 +31,7 @@ from ads.feature_store.execution_strategy.execution_strategy_provider import (
     OciExecutionStrategyProvider,
 )
 from ads.feature_store.feature import DatasetFeature
+from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.service.oci_dataset import OCIDataset
@@ -113,6 +119,7 @@ class Dataset(Builder):
     CONST_ITEMS = "items"
     CONST_LAST_JOB_ID = "jobId"
     CONST_MODEL_DETAILS = "modelDetails"
+    CONST_FEATURE_GROUP = "datasetFeatureGroups"
 
     attribute_map = {
         CONST_ID: "id",
@@ -130,6 +137,7 @@ class Dataset(Builder):
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_MODEL_DETAILS: "model_details",
         CONST_PARTITION_KEYS: "partition_keys",
+        CONST_FEATURE_GROUP: "dataset_feature_groups",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -504,6 +512,44 @@ class Dataset(Builder):
         return self.set_spec(self.CONST_MODEL_DETAILS, model_details.to_dict())
 
     @property
+    def feature_groups(self) -> List["FeatureGroup"]:
+        collection: "DatasetFeatureGroupCollection" = self.get_spec(
+            self.CONST_FEATURE_GROUP
+        )
+        feature_groups: List["FeatureGroup"] = []
+        if collection and collection.items:
+            for datasetFGSummary in collection.items:
+                feature_groups.append(
+                    FeatureGroup.from_id(datasetFGSummary.feature_group_id)
+                )
+
+        return feature_groups
+
+    @feature_groups.setter
+    def feature_groups(self, feature_groups: List["FeatureGroup"]):
+        self.with_feature_groups(feature_groups)
+
+    def with_feature_groups(self, feature_groups: List["FeatureGroup"]) -> "Dataset":
+        """Sets the model details for the dataset.
+
+        Parameters
+        ----------
+        feature_groups: List of feature groups
+        Returns
+        -------
+        Dataset
+            The Dataset instance (self).
+
+        """
+        collection: List["DatasetFeatureGroupSummary"] = []
+        for group in feature_groups:
+            collection.append(DatasetFeatureGroupSummary(feature_group_id=group.id))
+
+        return self.set_spec(
+            self.CONST_FEATURE_GROUP, DatasetFeatureGroupCollection(items=collection)
+        )
+
+    @property
     def partition_keys(self) -> List[str]:
         return self.get_spec(self.CONST_PARTITION_KEYS)
 
@@ -560,7 +606,9 @@ class Dataset(Builder):
                 f"Dataset update Failed with : {type(ex)} with error message: {ex}"
             )
             if existing_model_details:
-                self.with_model_details(ModelDetails().with_items(existing_model_details["items"]))
+                self.with_model_details(
+                    ModelDetails().with_items(existing_model_details["items"])
+                )
             else:
                 self.with_model_details(ModelDetails().with_items([]))
                 return self
@@ -652,6 +700,7 @@ class Dataset(Builder):
         # Create dataset
         logger.info("Saving dataset.")
         self.oci_dataset = self._to_oci_dataset(**kwargs).create()
+        self._update_from_oci_dataset_model(self.oci_dataset)
         self.with_id(self.oci_dataset.id)
         return self
 
@@ -729,11 +778,10 @@ class Dataset(Builder):
 
         # Update the main properties
         self.oci_dataset = oci_dataset
-        dataset_details = oci_dataset.to_dict()
 
         for infra_attr, dsc_attr in self.attribute_map.items():
-            if infra_attr in dataset_details:
-                self.set_spec(infra_attr, dataset_details[infra_attr])
+            if dsc_attr in self.oci_dataset.attribute_map:
+                self.set_spec(infra_attr, getattr(self.oci_dataset, dsc_attr))
 
         return self
 
@@ -1013,6 +1061,10 @@ class Dataset(Builder):
         for key, value in spec.items():
             if hasattr(value, "to_dict"):
                 value = value.to_dict()
+            if hasattr(value, "attribute_map"):
+                value = self.oci_dataset.client.base_client.sanitize_for_serialization(
+                    value
+                )
             spec[key] = value
 
         return {
