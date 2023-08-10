@@ -58,6 +58,10 @@ class OCIFeatureStoreMixin(OCIModelMixin):
                     "Support for reading service endpoint from config file is disabled",
                 )
             except FileNotFoundError:
+                logger.info(
+                    "%s",
+                    "ODSC cli config for feature store was not found",
+                )
                 pass
             if cls.__template:
                 fs_service_endpoint = cls.__template.service_endpoint
