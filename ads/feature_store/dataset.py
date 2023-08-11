@@ -785,7 +785,7 @@ class Dataset(Builder):
         for infra_attr, dsc_attr in self.attribute_map.items():
             if infra_attr in dataset_details:
                 if infra_attr == self.CONST_OUTPUT_FEATURE_DETAILS:
-                    # May not need if we fix the backend and add feature_group_id to the output_feature
+                    # May not need if we fix the backend and add dataset_id to the output_feature
                     features_list = []
                     for output_feature in dataset_details[infra_attr]["items"]:
                         output_feature["datasetId"] = dataset_details[self.CONST_ID]
