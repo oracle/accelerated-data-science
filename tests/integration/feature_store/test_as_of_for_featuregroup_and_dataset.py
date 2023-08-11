@@ -1,4 +1,5 @@
 import ast
+import copy
 import json
 import random
 import string
@@ -6,8 +7,10 @@ import string
 import pandas as pd
 import pytest
 
+from ads.feature_store.common.enums import IngestionMode
 from ads.feature_store.common.exceptions import NotMaterializedError
 from ads.feature_store.dataset import Dataset
+from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.statistics_config import StatisticsConfig
 from tests.integration.feature_store.test_base import FeatureStoreTestCase
 from ads.feature_store.feature_group import FeatureGroup
@@ -77,6 +80,132 @@ class TestAsOfForFeatureGroupAndDataset(FeatureStoreTestCase):
         with pytest.raises(NotMaterializedError):
             fg.as_of()
 
+        self.clean_up_feature_group(fg)
+        self.clean_up_entity(entity)
+        self.clean_up_feature_store(fs)
+
+    def test_as_of_for_non_materialized_dataset(self):
+        fs = self.define_feature_store_resource().create()
+        assert fs.oci_fs.id
+
+        entity = self.create_entity_resource(fs)
+        assert entity.oci_fs_entity.id
+
+        fg = self.define_feature_group_resource(
+            entity.oci_fs_entity.id, fs.oci_fs.id
+        ).create()
+        assert fg.oci_feature_group.id
+
+        fg.materialise(self.as_of_data_frame)
+
+        dataset = self.define_dataset_resource(
+            entity.oci_fs_entity.id, fs.oci_fs.id, fg.name
+        ).create()
+        assert fg.oci_feature_group.id
+
+        with pytest.raises(NotMaterializedError):
+            dataset.as_of()
+
+        self.clean_up_dataset(dataset)
+        self.clean_up_feature_group(fg)
+        self.clean_up_entity(entity)
+        self.clean_up_feature_store(fs)
+
+    def test_as_of_for_materialized_feature_group_for_only_one_version(self):
+        fs = self.define_feature_store_resource().create()
+        assert fs.oci_fs.id
+
+        entity = self.create_entity_resource(fs)
+        assert entity.oci_fs_entity.id
+
+        fg = self.define_feature_group_resource(
+            entity.oci_fs_entity.id, fs.oci_fs.id
+        ).create()
+        assert fg.oci_feature_group.id
+
+        fg.materialise(self.as_of_data_frame)
+        df = fg.as_of(version_number=0)
+
+        assert df
+        assert len(df.columns) == len(self.test_as_of_data)
+
+        self.clean_up_feature_group(fg)
+        self.clean_up_entity(entity)
+        self.clean_up_feature_store(fs)
+
+    def test_as_of_for_materialized_feature_group_for_multiple_version(self):
+        fs = self.define_feature_store_resource().create()
+        assert fs.oci_fs.id
+
+        entity = self.create_entity_resource(fs)
+        assert entity.oci_fs_entity.id
+
+        fg = self.define_feature_group_resource(
+            entity.oci_fs_entity.id, fs.oci_fs.id
+        ).create()
+        assert fg.oci_feature_group.id
+
+        fg.materialise(self.as_of_data_frame)
+
+        # Now Update the Payload and materialize again
+        new_data = copy.deepcopy(self.test_as_of_data)
+        new_data.pop("Score")
+        df = pd.DataFrame(new_data)
+
+        fg.with_schema_details_from_dataframe(df)
+        fg.update()
+
+        feature_option_write_config_details = (
+            FeatureOptionDetails().with_feature_option_write_config_details(
+                overwrite_schema=True
+            )
+        )
+        fg.materialise(
+            input_dataframe=df,
+            feature_option_details=feature_option_write_config_details,
+            ingestion_mode=IngestionMode.OVERWRITE,
+        )
+        df = fg.as_of(version_number=0)
+
+        assert df
+        assert len(df.columns) == len(self.test_as_of_data)
+
+        df = fg.as_of(version_number=1)
+
+        assert df
+        assert len(df.columns) == len(new_data)
+
+        self.clean_up_feature_group(fg)
+        self.clean_up_entity(entity)
+        self.clean_up_feature_store(fs)
+
+    def test_as_of_for_materialized_dataset(self):
+        fs = self.define_feature_store_resource().create()
+        assert fs.oci_fs.id
+
+        entity = self.create_entity_resource(fs)
+        assert entity.oci_fs_entity.id
+
+        fg = self.define_feature_group_resource(
+            entity.oci_fs_entity.id, fs.oci_fs.id
+        ).create()
+        assert fg.oci_feature_group.id
+
+        fg.materialise(self.as_of_data_frame)
+
+        dataset = self.define_dataset_resource(
+            entity.oci_fs_entity.id, fs.oci_fs.id, fg.name
+        ).create()
+        assert fg.oci_feature_group.id
+
+        dataset.materialise()
+
+        df = dataset.as_of(version_number=0)
+
+        assert df
+        assert len(df.columns) == len(self.test_as_of_data)
+
+        self.clean_up_dataset(dataset)
         self.clean_up_feature_group(fg)
         self.clean_up_entity(entity)
         self.clean_up_feature_store(fs)
