@@ -8,6 +8,8 @@ from typing import Dict, List, Union
 
 import pandas
 from great_expectations.core import ExpectationSuite
+
+from ads import deprecated
 from ads.common import utils
 from ads.common.oci_mixin import OCIModelMixin
 from ads.feature_store.common.enums import (
@@ -15,6 +17,7 @@ from ads.feature_store.common.enums import (
     ExpectationType,
     EntityType,
 )
+from ads.feature_store.common.exceptions import NotMaterializedError
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     validate_delta_format_parameters,
@@ -475,6 +478,20 @@ class Dataset(Builder):
             self.CONST_STATISTICS_CONFIG, statistics_config_in.to_dict()
         )
 
+    def target_delta_table(self):
+        """
+        Returns the fully-qualified name of the target table for storing delta data.
+
+        The name of the target table is constructed by concatenating the entity ID
+        and the name of the table, separated by a dot. The resulting string has the
+        format 'entity_id.table_name'.
+
+        Returns:
+            str: The fully-qualified name of the target delta table.
+        """
+        target_table = f"{self.entity_id}.{self.name}"
+        return target_table
+
     @property
     def model_details(self) -> "ModelDetails":
         return self.get_spec(self.CONST_MODEL_DETAILS)
@@ -560,7 +577,9 @@ class Dataset(Builder):
                 f"Dataset update Failed with : {type(ex)} with error message: {ex}"
             )
             if existing_model_details:
-                self.with_model_details(ModelDetails().with_items(existing_model_details["items"]))
+                self.with_model_details(
+                    ModelDetails().with_items(existing_model_details["items"])
+                )
             else:
                 self.with_model_details(ModelDetails().with_items([]))
                 return self
@@ -773,6 +792,7 @@ class Dataset(Builder):
 
         dataset_execution_strategy.ingest_dataset(self, dataset_job)
 
+    @deprecated(details="preview functionality is deprecated. Please use as_of.")
     def preview(
         self,
         row_count: int = 10,
@@ -797,6 +817,8 @@ class Dataset(Builder):
         spark dataframe
             The preview result in spark dataframe
         """
+        self.check_resource_materialization()
+
         validate_delta_format_parameters(timestamp, version_number)
         target_table = f"{self.entity_id}.{self.name}"
 
@@ -806,6 +828,43 @@ class Dataset(Builder):
 
         return self.spark_engine.sql(sql_query)
 
+    def check_resource_materialization(self):
+        """Checks whether the target Delta table for this resource has been materialized in Spark.
+        If the target Delta table doesn't exist, raises a NotMaterializedError with the type and name of this resource.
+        """
+        if not self.spark_engine.is_delta_table_exists(self.target_delta_table()):
+            raise NotMaterializedError(self.type, self.name)
+
+    def as_of(
+        self,
+        version_number: int = None,
+        commit_timestamp: datetime = None,
+    ):
+        """preview the feature definition and return the response in dataframe.
+
+        Parameters
+        ----------
+        commit_timestamp: datetime
+            commit date time to preview in format yyyy-MM-dd or yyyy-MM-dd HH:mm:ss
+            commit date time is maintained for every ingestion commit using delta lake
+        version_number: int
+            commit version number for the preview. Version numbers are automatically versioned for every ingestion
+            commit using delta lake
+
+        Returns
+        -------
+        spark dataframe
+            The preview result in spark dataframe
+        """
+        self.check_resource_materialization()
+
+        validate_delta_format_parameters(commit_timestamp, version_number)
+        target_table = self.target_delta_table()
+
+        return self.spark_engine.get_time_version_data(
+            target_table, version_number, commit_timestamp
+        )
+
     def profile(self):
         """Get the dataset profile information and return the response in dataframe.
 
@@ -814,6 +873,8 @@ class Dataset(Builder):
         spark dataframe
             The profile result in spark dataframe
         """
+        self.check_resource_materialization()
+
         target_table = f"{self.entity_id}.{self.name}"
         sql_query = f"DESCRIBE DETAIL {target_table}"
 
@@ -835,6 +896,8 @@ class Dataset(Builder):
         spark dataframe
             The restore output as spark dataframe
         """
+        self.check_resource_materialization()
+
         validate_delta_format_parameters(timestamp, version_number, True)
         target_table = f"{self.entity_id}.{self.name}"
         if version_number is not None:
