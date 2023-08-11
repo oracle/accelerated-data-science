@@ -248,6 +248,9 @@ You can call the ``get_input_schema_dataframe()`` method of the Dataset instance
 Preview
 ========
 
+.. deprecated:: 1.0.3
+   Use :func:`as_of` instead.
+
 You can call the ``preview()`` method of the Dataset instance to preview the dataset.
 
 The ``.preview()`` method takes the following optional parameter:
@@ -260,6 +263,21 @@ The ``.preview()`` method takes the following optional parameter:
   # Preview dataset
   df = dataset.preview(row_count=50)
   df.show()
+
+as_of
+=======
+
+You can call the ``as_of()`` method of the Dataset instance to get specified point in time and time traveled data.
+
+The ``.as_of()`` method takes the following optional parameter:
+
+- ``commit_timestamp: date-time``. Commit timestamp for dataset
+- ``version_number: int``. Version number for dataset
+
+.. code-block:: python3
+
+  # as_of feature group
+  df = dataset.as_of(version_number=1)
 
 
 Restore

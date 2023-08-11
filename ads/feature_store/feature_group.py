@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 from great_expectations.core import ExpectationSuite
 
+from ads import deprecated
 from ads.common import utils
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.common.oci_mixin import OCIModelMixin
@@ -431,6 +432,11 @@ class FeatureGroup(Builder):
         FeatureGroup
             The FeatureGroup instance (self)
         """
+
+        # Initialize the empty dictionary as transformation arguemnts if not specified
+        if not self.transformation_kwargs:
+            self.with_transformation_kwargs()
+
         return self.set_spec(self.CONST_TRANSFORMATION_ID, transformation_id)
 
     def _with_lifecycle_state(self, lifecycle_state: str) -> "FeatureGroup":
@@ -989,6 +995,7 @@ class FeatureGroup(Builder):
         """
         return self.select().filter(f)
 
+    @deprecated(details="preview functionality is deprecated. Please use as_of.")
     def preview(
         self,
         row_count: int = 10,
@@ -1020,9 +1027,40 @@ class FeatureGroup(Builder):
 
         if version_number is not None:
             logger.warning("Time travel queries are not supported in current version")
+
         sql_query = f"select * from {target_table} LIMIT {row_count}"
 
         return self.spark_engine.sql(sql_query)
+
+    def as_of(
+        self,
+        version_number: int = None,
+        commit_timestamp: datetime = None,
+    ):
+        """preview the feature definition and return the response in dataframe.
+
+        Parameters
+        ----------
+        commit_timestamp: datetime
+            commit date time to preview in format yyyy-MM-dd or yyyy-MM-dd HH:mm:ss
+            commit date time is maintained for every ingestion commit using delta lake
+        version_number: int
+            commit version number for the preview. Version numbers are automatically versioned for every ingestion
+            commit using delta lake
+
+        Returns
+        -------
+        spark dataframe
+            The preview result in spark dataframe
+        """
+        self.check_resource_materialization()
+
+        validate_delta_format_parameters(commit_timestamp, version_number)
+        target_table = self.target_delta_table()
+
+        return self.spark_engine.get_time_version_data(
+            target_table, version_number, commit_timestamp
+        )
 
     def profile(self):
         """get the profile information for feature definition and return the response in dataframe.
@@ -1085,7 +1123,6 @@ class FeatureGroup(Builder):
         """Checks whether the target Delta table for this resource has been materialized in Spark.
         If the target Delta table doesn't exist, raises a NotMaterializedError with the type and name of this resource.
         """
-        print(self.target_delta_table())
         if not self.spark_engine.is_delta_table_exists(self.target_delta_table()):
             raise NotMaterializedError(self.type, self.name)
 
