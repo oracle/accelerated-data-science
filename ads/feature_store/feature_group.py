@@ -930,7 +930,7 @@ class FeatureGroup(Builder):
             )
             if not fg_job:
                 raise ValueError(
-                    "Associated jobs cannot be retrieved before calling 'materialise' or 'delete'."
+                    "Unable to retrieve the associated last job. Please make sure you materialized the data."
                 )
             self.with_job_id(fg_job[0].id)
             return fg_job[0]
@@ -1353,7 +1353,7 @@ class FeatureGroup(Builder):
                 "FeatureGroup needs to be saved to the feature store before retrieving the statistics"
             )
 
-        stat_job_id = self._get_job_id(job_id)
+        stat_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # TODO: take the one in memory or will list down job ids and find the latest
         fg_job = FeatureGroupJob.from_id(stat_job_id)
@@ -1382,7 +1382,7 @@ class FeatureGroup(Builder):
                 "FeatureGroup needs to be saved to the feature store before retrieving the validation report"
             )
 
-        validation_job_id = self._get_job_id(job_id)
+        validation_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # Retrieve the validation output JSON from data_flow_batch_execution_output.
         fg_job = FeatureGroupJob.from_id(validation_job_id)
