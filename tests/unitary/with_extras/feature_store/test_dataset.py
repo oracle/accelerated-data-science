@@ -43,6 +43,14 @@ DATASET_JOB_PAYLOAD = {
     "ingestionMode": "OVERWRITE",
 }
 
+DATASET_JOB_RESPONSE_PAYLOAD = {
+    "compartmentId": "ocid1.compartment.oc1.iad.xxx",
+    "datasetId": "861AA4E9C8E811A79D74C464A01CDF42",
+    "id": "d40265b7-d66e-49a3-ae26-699012e0df5d",
+    "ingestionMode": "OVERWRITE",
+    "lifecycleState": "SUCCEEDED",
+}
+
 
 @pytest.fixture
 def dataframe_fixture_basic():
@@ -259,12 +267,12 @@ class TestDataset:
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
     def test_materialise(self, spark, get_spark_session, mock_update):
-            with patch.object(DatasetJob, "create") as mock_dataset_job:
-                with patch.object(FeatureStore, "from_id"):
-                    with patch.object(DatasetJob, "_mark_job_complete"):
-                        mock_dataset_job.return_value = self.mock_dsc_dataset_job
-                        self.mock_dsc_dataset.with_id(DATASET_OCID)
-                        self.mock_dsc_dataset.materialise()
+        with patch.object(DatasetJob, "create") as mock_dataset_job:
+            with patch.object(FeatureStore, "from_id"):
+                with patch.object(DatasetJob, "_mark_job_complete"):
+                    mock_dataset_job.return_value = self.mock_dsc_dataset_job
+                    self.mock_dsc_dataset.with_id(DATASET_OCID)
+                    self.mock_dsc_dataset.materialise()
 
     @patch.object(SparkSessionSingleton, "__init__", return_value=None)
     @patch.object(SparkSessionSingleton, "get_spark_session")
@@ -306,3 +314,13 @@ class TestDataset:
             self.mock_dsc_dataset.with_id(DATASET_OCID)
             self.mock_dsc_dataset.restore(1)
             mock_execution_strategy.assert_called_once()
+
+    def test_get_last_job(self):
+        """Tests getting most recent dataset job for a dataset."""
+        with patch.object(DatasetJob, "list") as mock_dataset_job:
+            self.mock_dsc_dataset.with_id(DATASET_OCID)
+            mock_dataset_job.return_value = [
+                DatasetJob.from_dict({"spec": DATASET_JOB_RESPONSE_PAYLOAD})
+            ]
+            ds_job = self.mock_dsc_dataset.get_last_job()
+            assert ds_job is not None

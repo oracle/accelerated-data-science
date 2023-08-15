@@ -835,7 +835,33 @@ class Dataset(Builder):
 
         dataset_execution_strategy.ingest_dataset(self, dataset_job)
 
-    @deprecated(details="preview functionality is deprecated. Please use as_of.")
+    def get_last_job(self) -> "DatasetJob":
+        """Gets the Job details for the last running Dataset job.
+
+        Returns:
+            DatasetJob
+        """
+
+        if not self.id:
+            raise ValueError(
+                "Dataset needs to be saved to the feature store before getting associated jobs."
+            )
+
+        if not self.job_id:
+            ds_job = DatasetJob.list(
+                dataset_id=self.id,
+                compartment_id=self.compartment_id,
+                sort_by="timeCreated",
+                limit="1",
+            )
+            if not ds_job:
+                raise ValueError(
+                    "Unable to retrieve the associated last job. Please make sure you materialized the data."
+                )
+            self.with_job_id(ds_job[0].id)
+            return ds_job[0]
+        return DatasetJob.from_id(self.job_id)
+
     def preview(
         self,
         row_count: int = 10,
@@ -990,14 +1016,8 @@ class Dataset(Builder):
             raise ValueError(
                 "Dataset needs to be saved to the feature store before retrieving the statistics"
             )
-        stat_job_id = job_id
-        if job_id is None:
-            if self.job_id is None:
-                raise ValueError(
-                    "Unable to retrieve the last job,please provide the job id,make sure you materialised the data'"
-                )
-            else:
-                stat_job_id = self.job_id
+
+        stat_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # TODO: take the one in memory or will list down job ids and find the latest
         dataset_job = DatasetJob.from_id(stat_job_id)
@@ -1023,14 +1043,8 @@ class Dataset(Builder):
             raise ValueError(
                 "Dataset needs to be saved to the feature store before retrieving the validation report"
             )
-        validation_job_id = job_id
-        if job_id is None:
-            if self.job_id is None:
-                raise ValueError(
-                    "Unable to retrieve the last job,please provide the job id,make sure you materialised the data'"
-                )
-            else:
-                validation_job_id = self.job_id
+
+        validation_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # retrieve the validation output JSON from data_flow_batch_execution_output
         dataset_job = DatasetJob.from_id(validation_job_id)
