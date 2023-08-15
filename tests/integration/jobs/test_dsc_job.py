@@ -74,7 +74,11 @@ class DSCJobTestCase(unittest.TestCase):
     @property
     def default_datascience_job(self):
         random.seed(self.random_seed)
-        return DataScienceJob().with_project_id(self.PROJECT_ID)
+        return (
+            DataScienceJob()
+            .with_project_id(self.PROJECT_ID)
+            .with_subnet_id(self.SUBNET_ID)
+        )
 
     @classmethod
     def setUpClass(cls) -> None:

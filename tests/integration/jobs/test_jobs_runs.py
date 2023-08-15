@@ -45,11 +45,11 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
     ZIP_JOB_ENTRYPOINT = "job_archive/main.py"
 
     TEST_OUTPUT_DIR = "output"
-    TEST_OUTPUT_URI = f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/ads_int_test"
-    SHAPE_NAME = "VM.Standard2.1"
-    CUSTOM_CONDA = (
-        f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/conda_environments/cpu/flaml/1.0/automl_flaml"
+    TEST_OUTPUT_URI = (
+        f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/ads_int_test"
     )
+    SHAPE_NAME = "VM.Standard2.1"
+    CUSTOM_CONDA = f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/conda_environments/cpu/flaml/1.0/automl_flaml"
 
     TEST_LOGS_FUNCTION = [
         "This is a function in a package.",
@@ -77,6 +77,7 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
             block_storage_size=50,
             log_id=self.LOG_ID,
             job_infrastructure_type="ME_STANDALONE",
+            subnet_id=self.SUBNET_ID,
         )
 
     @staticmethod
@@ -214,7 +215,9 @@ class ScriptRuntimeJobRunTest(DSCJobRunTestCase):
     def test_run_script_with_many_logs(self):
         """Tests running a Python script generating many logs using ScriptRuntime."""
         runtime = ScriptRuntime().with_source(
-            os.path.join(os.path.dirname(__file__), "../fixtures/script_with_many_logs.py")
+            os.path.join(
+                os.path.dirname(__file__), "../fixtures/script_with_many_logs.py"
+            )
         )
         logs = [f"LOG: {i}" for i in range(2000)]
         self.create_and_assert_job_run(runtime, logs)
@@ -245,7 +248,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
             )
             .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -258,7 +260,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 "Job completed.",
                 "Saving metadata to job run...",
             ],
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -274,7 +275,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
             .with_service_conda("dbexp_p38_cpu_v1")
             .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -284,7 +284,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 # The following log will only show up if OCI_LOG_LEVEL is set to DEBUG
                 "Job completed.",
             ],
-            infra=infra,
         )
         objects = self.list_objects(output_uri)
         self.remove_objects(output_uri)
@@ -306,7 +305,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
             .with_argument("0.5", "+", 0.2, equals="0.7")
             .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -314,7 +312,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 "# packages in environment at /home/datascience/conda/dbexp_p38_cpu_v1:",
                 "Job completed.",
             ],
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -355,11 +352,9 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
             .with_custom_conda(self.CUSTOM_CONDA)
             .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             self.TEST_LOGS_SCRIPT,
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -482,7 +477,6 @@ class PythonRuntimeJobRunTest(DSCJobRunTestCase):
             .with_output("outputs", output_uri)
             .with_service_conda("dbexp_p38_cpu_v1")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -491,7 +485,6 @@ class PythonRuntimeJobRunTest(DSCJobRunTestCase):
                 "This is a function in a module.",
                 "This is a function in a package.",
             ],
-            infra=infra,
         )
         objects = self.list_objects(output_uri)
         self.remove_objects(output_uri)
@@ -499,7 +492,9 @@ class PythonRuntimeJobRunTest(DSCJobRunTestCase):
 
 
 class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
-    NOTEBOOK_PATH = os.path.join(os.path.dirname(__file__), "../fixtures/ads_check.ipynb")
+    NOTEBOOK_PATH = os.path.join(
+        os.path.dirname(__file__), "../fixtures/ads_check.ipynb"
+    )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
     def test_run_notebook(self):
@@ -509,11 +504,9 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
             .with_notebook(self.NOTEBOOK_PATH)
             .with_service_conda("dbexp_p38_cpu_v1")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             ["2.6.8"],
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -526,7 +519,6 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
             .with_service_conda("dbexp_p38_cpu_v1")
             .with_output(output_uri)
         )
-        infra = self.job_run_test_infra
         self.remove_objects(output_uri)
         self.create_and_assert_job_run(
             runtime,
@@ -536,7 +528,6 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
                 "This is a function in a module.",
                 "This is a function in a package.",
             ],
-            infra=infra,
         )
         objects = self.list_objects(output_uri)
         self.remove_objects(output_uri)
@@ -558,10 +549,8 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
             .with_source(self.NOTEBOOK_PATH, notebook="test_notebook.ipynb")
             .with_service_conda("dbexp_p38_cpu_v1")
         )
-        infra = self.job_run_test_infra
         with self.assertRaises(ValueError):
             self.create_and_assert_job_run(
                 runtime,
                 [],
-                infra=infra,
             )

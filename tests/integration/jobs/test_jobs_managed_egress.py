@@ -30,6 +30,7 @@ class DSCJobManagedEgressTestCase(DSCJobTestCaseWithCleanUp):
             "shapeConfigDetails": {"memoryInGBs": 16, "ocpus": 1},
             "blockStorageSize": 100,
             "projectId": self.PROJECT_ID,
+            "subnetId": self.SUBNET_ID,
         }
 
         expected_runtime_spec = copy.deepcopy(self.DEFAULT_RUNTIME_SPEC)
@@ -56,6 +57,7 @@ class DSCJobManagedEgressTestCase(DSCJobTestCaseWithCleanUp):
             "shapeConfigDetails": {"memoryInGBs": 16, "ocpus": 1},
             "blockStorageSize": 100,
             "projectId": self.PROJECT_ID,
+            "subnetId": self.SUBNET_ID,
         }
 
         expected_runtime_spec = copy.deepcopy(self.DEFAULT_RUNTIME_SPEC)
@@ -122,9 +124,7 @@ class DSCJobManagedEgressTestCase(DSCJobTestCaseWithCleanUp):
         job = (
             Job()
             .with_infrastructure(
-                self.default_datascience_job.with_subnet_id(
-                    secrets.jobs.SUBNET_ID_DIFF
-                )
+                self.default_datascience_job.with_subnet_id(secrets.jobs.SUBNET_ID_DIFF)
             )
             .with_runtime(ScriptRuntime().with_script(self.SCRIPT_URI))
             .create()
