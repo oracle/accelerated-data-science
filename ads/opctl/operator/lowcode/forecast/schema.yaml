@@ -100,7 +100,7 @@ spec:
           type: integer
 
     test_data:
-      required: true
+      required: false
       meta:
         description: "Optional, only if evaluation is needed."
       schema:
@@ -139,7 +139,7 @@ spec:
       type: dict
 
     output_directory:
-      required: true
+      required: false
       schema:
         connect_args:
           nullable: true
@@ -169,6 +169,7 @@ spec:
           required: false
           type: dict
       type: dict
+
     report_file_name:
       required: true
       type: string
