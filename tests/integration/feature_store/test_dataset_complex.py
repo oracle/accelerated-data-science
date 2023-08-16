@@ -26,13 +26,13 @@ class TestDatasetComplex(FeatureStoreTestCase):
     def feature_store(self) -> FeatureStore:
         feature_store = self.define_feature_store_resource().create()
         yield feature_store
-        # self.clean_up_feature_store(feature_store)
+        self.clean_up_feature_store(feature_store)
 
     @pytest.fixture()
     def entity(self, feature_store: FeatureStore):
         entity = self.create_entity_resource(feature_store)
         yield entity
-        # self.clean_up_entity(entity)
+        self.clean_up_entity(entity)
 
     @pytest.fixture()
     def feature_group(self, entity, feature_store) -> "FeatureGroup":
@@ -40,7 +40,7 @@ class TestDatasetComplex(FeatureStoreTestCase):
             entity.oci_fs_entity.id, feature_store.oci_fs.id
         ).create()
         yield feature_group
-        # self.clean_up_feature_group(feature_group)
+        self.clean_up_feature_group(feature_group)
 
     def test_manual_dataset(
         self,
