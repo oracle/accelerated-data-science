@@ -52,7 +52,7 @@ OPERATOR_BASE_DOCKER_GPU_FILE = "Dockerfile.gpu"
 
 def list() -> None:
     """Prints the list of the registered service operators."""
-    print(
+    logger.info(
         tabulate(
             (
                 {
@@ -83,7 +83,7 @@ def info(
     """
     operator_info = {item.name: item for item in _operator_info_list()}.get(name)
     if operator_info:
-        print(operator_info.description)
+        logger.info(operator_info.description)
     else:
         raise OperatorNotFoundError(name)
 
@@ -215,9 +215,9 @@ def init(
                 **{**kwargs, **runtime_kwargs},
             )
 
-    print("#" * 100)
-    print(f"The auto-generated configs location: {output}")
-    print("#" * 100)
+    logger.info("#" * 100)
+    logger.info(f"The auto-generated configs location: {output}")
+    logger.info("#" * 100)
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
