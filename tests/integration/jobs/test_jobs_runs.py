@@ -234,6 +234,8 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
     def test_run_git_with_entry_function_and_arguments(self):
         """Tests running a Python function from Git repo and passing in the arguments."""
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime()
             .with_source(secrets.jobs.GITHUB_SOURCE)
@@ -246,7 +248,7 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 # Keyword argument as a string
                 key='{"key": ["val1", "val2"]}',
             )
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
         self.create_and_assert_job_run(
             runtime,
@@ -267,13 +269,15 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
         """Tests running a notebook from Git repo and saving the outputs to object storage"""
         output_uri = os.path.join(self.TEST_OUTPUT_URI, "git_notebook")
         self.remove_objects(output_uri)
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime(skip_metadata_update=True)
             .with_source(secrets.jobs.GITHUB_SOURCE)
             .with_entrypoint(path="src/test_notebook.ipynb")
             .with_output("src", output_uri)
             .with_service_conda("dbexp_p38_cpu_v1")
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
         self.create_and_assert_job_run(
             runtime,
@@ -297,13 +301,15 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
         """Tests running a notebook from Git repo and saving the outputs to object storage"""
         output_uri = os.path.join(self.TEST_OUTPUT_URI, "git_notebook")
         self.remove_objects(output_uri)
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime(skip_metadata_update=True)
             .with_source(secrets.jobs.GITHUB_SOURCE)
             .with_entrypoint(path="src/conda_list.sh")
             .with_service_conda("dbexp_p38_cpu_v1")
             .with_argument("0.5", "+", 0.2, equals="0.7")
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
         self.create_and_assert_job_run(
             runtime,
@@ -341,6 +347,8 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
     def test_run_git_with_ssh_key(self):
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime(skip_metadata_update=True)
             .with_source(
@@ -350,7 +358,7 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
             .with_entrypoint(path="src/main.py")
             .with_python_path("src")
             .with_custom_conda(self.CUSTOM_CONDA)
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
         self.create_and_assert_job_run(
             runtime,
