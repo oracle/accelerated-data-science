@@ -294,6 +294,6 @@ def human_time_friendly(seconds):
     return ", ".join(accumulator)
 
 def select_auto_model(columns):
-    if len(columns) > 15:
+    if columns!=None and len(columns) > 15:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX
