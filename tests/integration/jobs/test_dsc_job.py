@@ -51,6 +51,9 @@ class DSCJobTestCase(unittest.TestCase):
     LOG_GROUP_ID = secrets.jobs.LOG_GROUP_ID
     LOG_ID = secrets.jobs.LOG_ID
     SUBNET_ID = secrets.jobs.SUBNET_ID
+    # With shortage of ip addresses in SUBNET_ID,
+    # added SUBNET_ID_1 with extra 8 ip addresses to run tests in parallel (used in test_jobs_run.py):
+    SUBNET_ID_1 = secrets.jobs.SUBNET_ID_1
 
     DEFAULT_INFRA_SPEC = {
         "compartmentId": COMPARTMENT_ID,

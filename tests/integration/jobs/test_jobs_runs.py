@@ -76,8 +76,8 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
             shape_name=self.SHAPE_NAME,
             block_storage_size=50,
             log_id=self.LOG_ID,
-            job_infrastructure_type="ME_STANDALONE",
-            subnet_id=self.SUBNET_ID,
+            job_infrastructure_type="STANDALONE",
+            subnet_id=self.SUBNET_ID_1,
         )
 
     @staticmethod
