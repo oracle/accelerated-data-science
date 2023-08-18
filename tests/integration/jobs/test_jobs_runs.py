@@ -11,6 +11,7 @@ import pytest
 
 from tests.integration.config import secrets
 from tests.integration.jobs.test_dsc_job import DSCJobTestCaseWithCleanUp
+from ads.common.auth import default_signer
 from ads.jobs import (
     Job,
     DataScienceJob,
@@ -63,6 +64,14 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
         "This is a function in a package.",
     ]
 
+    # With shortage of ip addresses in self.SUBNET_ID,
+    # added pool of subnets with extra 8+8 ip addresses to run tests in parallel:
+    SUBNET_POOL = {
+        secrets.jobs.SUBNET_ID_1: 8,  # max 8 ip addresses available in SUBNET_ID_1
+        secrets.jobs.SUBNET_ID_2: 8,
+        secrets.jobs.SUBNET_ID: 32,
+    }
+
     def setUp(self) -> None:
         self.maxDiff = None
         return super().setUp()
@@ -70,6 +79,28 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
     @property
     def job_run_test_infra(self):
         """Data Science Job infrastructure with logging and managed egress for testing job runs"""
+
+        # Pick subnet one of SUBNET_ID_1, SUBNET_ID_2, SUBNET_ID from self.SUBNET_POOL with available ip addresses.
+        # Wait for 7 minutes if no ip addresses in any of 3 subnets, do 5 retries
+        max_retry_count = 5
+        subnet_id = None
+        interval = 7 * 60
+        core_client = oci.core.VirtualNetworkClient(**default_signer())
+        while max_retry_count > 0:
+            for subnet, ips_limit in self.SUBNET_POOL.items():
+                allocated_ips = core_client.list_private_ips(subnet_id=subnet_id).data
+                if len(allocated_ips) < ips_limit:
+                    subnet_id = subnet
+                    break
+            if subnet_id:
+                break
+            else:
+                max_retry_count -= 1
+                time.sleep(interval)
+        # After all retries and no subnet_id with available ip addresses - using SUBNET_ID_1, subnet_id can't be None
+        if not subnet_id:
+            subnet_id = secrets.jobs.SUBNET_ID_1
+
         return DataScienceJob(
             compartment_id=self.COMPARTMENT_ID,
             project_id=self.PROJECT_ID,
@@ -77,7 +108,7 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
             block_storage_size=50,
             log_id=self.LOG_ID,
             job_infrastructure_type="STANDALONE",
-            subnet_id=self.SUBNET_ID_1,
+            subnet_id=subnet_id,
         )
 
     @staticmethod
