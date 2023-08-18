@@ -23,7 +23,7 @@ from ads.feature_store.statistics_config import StatisticsConfig
 
 client_kwargs = dict(
     retry_strategy=oci.retry.NoneRetryStrategy,
-    service_endpoint="http://127.0.0.1:21000/20230101",
+    service_endpoint=os.getenv("service_endpoint"),
 )
 ads.set_auth(client_kwargs=client_kwargs)
 
