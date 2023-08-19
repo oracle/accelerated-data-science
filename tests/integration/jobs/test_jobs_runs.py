@@ -88,7 +88,7 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
         core_client = oci.core.VirtualNetworkClient(**default_signer())
         while max_retry_count > 0:
             for subnet, ips_limit in self.SUBNET_POOL.items():
-                allocated_ips = core_client.list_private_ips(subnet_id=subnet_id).data
+                allocated_ips = core_client.list_private_ips(subnet_id=subnet).data
                 if len(allocated_ips) < ips_limit:
                     subnet_id = subnet
                     break
