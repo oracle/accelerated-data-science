@@ -249,6 +249,7 @@ spec:
         - arima
         - neuralprophet
         - automlx
+        - auto
 
     model_kwargs:
       type: dict
