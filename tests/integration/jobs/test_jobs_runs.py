@@ -89,8 +89,8 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
         while max_retry_count > 0:
             for subnet, ips_limit in self.SUBNET_POOL.items():
                 allocated_ips = core_client.list_private_ips(subnet_id=subnet).data
-                # leave 1 extra ip address for later use by jobrun
-                if len(allocated_ips) < ips_limit - 1:
+                # leave 2 extra ip address for later use by jobrun
+                if len(allocated_ips) < ips_limit - 2:
                     subnet_id = subnet
                     break
             if subnet_id:
