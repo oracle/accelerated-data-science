@@ -8,6 +8,7 @@ import time
 import fsspec
 import oci
 import pytest
+import random
 
 from tests.integration.config import secrets
 from tests.integration.jobs.test_dsc_job import DSCJobTestCaseWithCleanUp
@@ -81,15 +82,16 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
         """Data Science Job infrastructure with logging and managed egress for testing job runs"""
 
         # Pick subnet one of SUBNET_ID_1, SUBNET_ID_2, SUBNET_ID from self.SUBNET_POOL with available ip addresses.
-        # Wait for 3 minutes if no ip addresses in any of 3 subnets, do 5 retries
+        # Wait for 4 minutes if no ip addresses in any of 3 subnets, do 5 retries.
         max_retry_count = 5
         subnet_id = None
-        interval = 3 * 60
+        interval = 4 * 60
         core_client = oci.core.VirtualNetworkClient(**default_signer())
         while max_retry_count > 0:
-            for subnet, ips_limit in self.SUBNET_POOL.items():
+            for subnet, ips_limit in random.sample(list(self.SUBNET_POOL.items()), 2):
                 allocated_ips = core_client.list_private_ips(subnet_id=subnet).data
-                # leave 3 extra ip address for later use by jobrun
+                # Leave 3 extra ip address for later use by jobrun. Leave more extra ips in case tests will fail with
+                # "All the available IP addresses in the subnet have been allocated."
                 if len(allocated_ips) < ips_limit - 3:
                     subnet_id = subnet
                     break
