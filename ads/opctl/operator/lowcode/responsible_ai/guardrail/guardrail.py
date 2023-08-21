@@ -5,6 +5,10 @@ import logging
 from ads.common import auth as authutil
 import os
 import importlib
+import nltk
+import importlib.util
+import os
+import sys
 
 
 class HuggingFaceHonestHurtfulSentence:
@@ -34,6 +38,7 @@ class HuggingFaceToxicity:
     )
         return score
 
+
 class HuggingFaceRegardPolarity:
 
     def load(self, load_args: dict):
@@ -49,20 +54,30 @@ class HuggingFaceRegardPolarity:
 
 metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicity": HuggingFaceToxicity}
 
+
 class MetricLoader:
     @staticmethod
-    def load(metric_type: str, load_args: dict):
-        
+    def load(metric_type: str, metric_config: dict):
+        load_args = metric_config.get("load_args", {})
         if metric_type == "huggingface":
             path = load_args.get("path")
             return metric_mapping.get(path)
         elif metric_type == "custom":
-            path = load_args.pop("path")
-            module = importlib.import_module(f"ads.opctl.operator.lowcode.responsible_ai.guardrail.{os.path.basename(path).split('.')[0]}")
-            # sys.path.append(os.path.abspath(path))
-            # module = eval(os.path.basename(path).split(".")[0])
-            # from module import CustomGuardRail
-            return module.CustomGuardRail
+            module_path = load_args.pop("path", None)
+            class_name = metric_config.get("class_name") or "CustomGuardRail"
+
+            module_name = os.path.splitext(os.path.basename(module_path))[0]
+            spec = importlib.util.spec_from_file_location(
+                module_name,
+                module_path,
+            )
+            user_module = importlib.util.module_from_spec(spec)
+            sys.modules[module_name] = user_module
+            spec.loader.exec_module(user_module)
+
+            custom_guardrail_class = getattr(user_module, class_name)
+
+            return custom_guardrail_class
         else:
             NotImplemented("Not supported type.")
 
@@ -73,39 +88,47 @@ class GuardRail:
         self.config = config
         self.data = None
         self.auth = auth or authutil.default_signer()
+        self.sentence_level = False
 
     def load_data(self):
-        test_data_spec = self.config.get("spec", {}).get("test_data")
-        if test_data_spec.get("url", None):
-            data_path = test_data_spec.get("url")
+        spec = self.config.get("spec", {})
+        if spec.get("test_data").get("url", None):
+            data_path = spec.get("test_data").get("url")
             if data_path.startswith("oci://"):
                 self.data = pd.read_csv(data_path, storage_options=self.auth)
             else:
                 self.data = pd.read_csv(data_path)
+            if spec.get("sentence_level"):
+                df_list = self.data['predictions'].apply(nltk.sent_tokenize).apply(lambda x: pd.DataFrame(x, columns=['predictions'])).tolist()
+                for idx, item in enumerate(df_list):
+                    item['index'] = idx
+                self.sentence_level_data = pd.concat(df_list)
+                self.sentence_level = True
+
 
     def evaluate(self):
         spec = self.config.get("spec", {})
-        metrics = spec.get("Metrics", [{}])
+        metrics_spec = spec.get("metrics", [{}])
         output_directory = spec.get("output_directory", {}).get("url", None)
 
         scores = {}
-        for metric in metrics:
-            logging.debug(f"Metric: {metric}")
-            print(f"Metric: {metric}")
-            name = metric.pop("name", "Unknown Metric")
-            metric_type = metric.pop("type", "Unknown Type")
-            load_args = metric.pop("load_args", {})
-            compute_args = metric.pop("compute_args", {})
+        for metric_config in metrics_spec:
+            logging.debug(f"Metric: {metric_config}")
+            print(f"Metric: {metric_config}")
+            name = metric_config.get("name", "Unknown Metric")
+            metric_type = metric_config.get("type", "Unknown Type")
+            load_args = metric_config.get("load_args", {})
+            compute_args = metric_config.get("compute_args", {})
             logging.debug(name)
             logging.debug(load_args)
+
             self.predictions = self.data[compute_args.pop("predictions", "predictions")] if self.data is not None else compute_args.pop("predictions")
             reference_col = compute_args.pop("references", "references")
             if self.data is not None and reference_col in self.data.columns:
                 self.references = self.data[reference_col]
             else:
                 self.references = compute_args.pop("references", None)
-                
-            guardrail = MetricLoader.load(metric_type, load_args)()
+            guardrail = MetricLoader.load(metric_type, metric_config)()
 
             score = guardrail.compute(evaluator=guardrail.load(load_args), predictions=self.predictions, references=self.references, **compute_args)
 
@@ -122,4 +145,10 @@ class GuardRail:
 
     def generate_report(self):
         self.load_data()
-        return self.evaluate()
+        scores = self.evaluate()
+        data = []
+        for name, score in scores.items():
+            for metric, df in score.items():
+                data.append({"metric": name, "data": df})
+        
+        return data

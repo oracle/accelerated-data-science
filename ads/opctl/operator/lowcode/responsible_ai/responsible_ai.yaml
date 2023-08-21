@@ -5,8 +5,8 @@ spec:
   report_file_name: report.html
   test_data:
     url: ~/Downloads/test.csv
-  Metrics:
-    - name: toxicity_ratio
+  metrics:
+    - name: toxicity
       load_args:
         path: toxicity
       compute_args:
@@ -38,9 +38,10 @@ spec:
         path: regard
         module_type: measurement
       type: huggingface
-    - name: hullucination
+    - name: CustomMetric
       load_args:
-        path: ./custom_guardrail.py
+        path: /Users/ziye/Documents/conda_project/accelerated-data-science/ads/opctl/operator/lowcode/responsible_ai/guardrail/custom_guardrail.py
       type: custom
+      class_name: CustomGuardRail
 type: responsible_ai
 version: v1

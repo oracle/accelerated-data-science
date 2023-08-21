@@ -14,6 +14,7 @@ import yaml
 from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
+from .operator import operate, verify
 
 from .__init__ import __name__ as MODULE
 
@@ -42,7 +43,8 @@ def main(raw_args: List[str]):
         print(operator_config)
     else:
         # TODO: Add run operator logic here
-        print(operator_config)
+        
+        print(operate(operator_config))
 
 
 if __name__ == "__main__":
