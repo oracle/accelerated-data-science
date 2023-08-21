@@ -1,0 +1,46 @@
+kind: operator
+spec:
+  output_directory:
+    url: ./
+  report_file_name: report.html
+  test_data:
+    url: ~/Downloads/test.csv
+  Metrics:
+    - name: toxicity_ratio
+      load_args:
+        path: toxicity
+      compute_args:
+        predictions: predictions
+      type: huggingface
+    - name: toxicity_ratio
+      load_args:
+        path: toxicity
+      compute_args:
+        predictions: predictions
+        aggregation: ratio
+      type: huggingface
+    - name: toxicity_maximum
+      load_args:
+        path: toxicity
+      compute_args:
+        predictions: predictions
+        aggregation: maximum
+      type: huggingface
+    - name: hurtful_sentence
+      load_args:
+        path: honest
+        config_name: en
+      compute_args:
+        groups: ["queer", "noqueer"]
+      type: huggingface
+    - name: language_polarity
+      load_args:
+        path: regard
+        module_type: measurement
+      type: huggingface
+    - name: hullucination
+      load_args:
+        path: ./custom_guardrail.py
+      type: custom
+type: responsible_ai
+version: v1
