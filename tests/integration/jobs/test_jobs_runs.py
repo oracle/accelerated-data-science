@@ -81,15 +81,16 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
         """Data Science Job infrastructure with logging and managed egress for testing job runs"""
 
         # Pick subnet one of SUBNET_ID_1, SUBNET_ID_2, SUBNET_ID from self.SUBNET_POOL with available ip addresses.
-        # Wait for 7 minutes if no ip addresses in any of 3 subnets, do 5 retries
+        # Wait for 3 minutes if no ip addresses in any of 3 subnets, do 5 retries
         max_retry_count = 5
         subnet_id = None
-        interval = 7 * 60
+        interval = 3 * 60
         core_client = oci.core.VirtualNetworkClient(**default_signer())
         while max_retry_count > 0:
             for subnet, ips_limit in self.SUBNET_POOL.items():
                 allocated_ips = core_client.list_private_ips(subnet_id=subnet).data
-                if len(allocated_ips) < ips_limit:
+                # leave 1 extra ip address for later use by jobrun
+                if len(allocated_ips) < ips_limit - 1:
                     subnet_id = subnet
                     break
             if subnet_id:
