@@ -84,6 +84,7 @@ class TestDataTypePandasBasic(FeatureStoreTestCase):
             .with_primary_keys([])
             .with_schema_details_from_dataframe(self.df_pandas)
             .with_statistics_config(False)
+            .with_is_online_enabled(True)
         )
         return feature_group_resource
 

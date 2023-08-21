@@ -124,6 +124,8 @@ class DatasetFeature(Builder):
     CONST_FEATURE_TYPE = "featureType"
     CONST_DATASET_ID = "datasetId"
 
+    COMPLEX_TYPES = ["MAP", "ARRAY", "COMPLEX"]
+
     def __init__(self, name, featureType, datasetId):
         super().__init__()
 
@@ -178,6 +180,9 @@ class DatasetFeature(Builder):
            Feature: This instance of the Feature class.
         """
         return self.set_spec(self.CONST_DATASET_ID, dataset_id)
+
+    def is_complex(self):
+        return any(map(self.feature_type.upper().startswith, self.COMPLEX_TYPES))
 
     def to_dict(self) -> Dict:
         """Serializes feature   to a dictionary.

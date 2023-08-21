@@ -10,6 +10,9 @@ import os
 
 
 class OCIFeatureStoreMixin(OCIModelMixin):
+
+    FS_SERVICE_ENDPOINT = "fs_service_endpoint"
+    SERVICE_ENDPOINT = "service_endpoint"
     @classmethod
     def init_client(
         cls, **kwargs

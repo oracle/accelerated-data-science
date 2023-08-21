@@ -467,6 +467,7 @@ class Entity(Builder):
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
         partition_keys: List[str] = None,
+        primary_keys: List[str] = None
     ):
         dataset_resource = (
             Dataset()
@@ -488,6 +489,9 @@ class Entity(Builder):
         if statistics_config is not None:
             dataset_resource.with_statistics_config(statistics_config)
 
+        if primary_keys:
+            dataset_resource.with_primary_keys(primary_keys)
+
         return dataset_resource
 
     def create_dataset(
@@ -500,11 +504,13 @@ class Entity(Builder):
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
         partition_keys: List[str] = None,
+        primary_keys: List[str] = None
     ) -> "Dataset":
         """Creates Dataset resource.
 
         Parameters
         ----------
+        primary_keys
         query: str
             SQL Query that will be used to create the dataset by joining FeatureGroups.
         name: str = None

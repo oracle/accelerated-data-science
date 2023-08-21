@@ -74,6 +74,8 @@ class FeatureStore(Builder):
     CONST_DEFINED_TAG = "definedTags"
     CONST_OFFLINE_CONFIG = "offlineConfig"
     CONST_METASTORE_ID = "metastoreId"
+    CONST_ONLINE_CONFIG = "onlineConfig"
+    CONST_REDIS_ID = "redis_id"
 
     attribute_map = {
         CONST_ID: "id",
@@ -83,6 +85,7 @@ class FeatureStore(Builder):
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
         CONST_OFFLINE_CONFIG: "offline_config",
+        # CONST_ONLINE_CONFIG: "onlineConfig"
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -248,6 +251,39 @@ class FeatureStore(Builder):
             },
         )
 
+    @property
+    def online_config(self) -> dict:
+        return self.get_spec(self.CONST_ONLINE_CONFIG)
+
+    @online_config.setter
+    def online_config(self, redis_id: str, **kwargs: Dict[str, Any]):
+        self.with_online_config(redis_id, **kwargs)
+
+    #stream pool id,,tream name
+    def with_online_config(
+            self, redis_id: str, **kwargs: Dict[str, Any]
+    ) -> "FeatureStore":
+        """Sets the offline config.
+
+        Parameters
+        ----------
+        redis_id: str
+            The metastore id for offline store
+        kwargs: Dict[str, Any]
+            Additional key value arguments
+
+        Returns
+        -------
+        FeatureStore
+            The FeatureStore instance (self)
+        """
+        return self.set_spec(
+            self.CONST_ONLINE_CONFIG,
+            {
+                self.CONST_REDIS_ID: redis_id,
+                **kwargs,
+            },
+        )
     @classmethod
     def from_id(cls, id: str) -> "FeatureStore":
         """Gets an existing feature store resource by Id.

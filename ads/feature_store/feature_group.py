@@ -8,7 +8,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, OrderedDict, Any
 
 import pandas as pd
 from great_expectations.core import ExpectationSuite
@@ -126,6 +126,7 @@ class FeatureGroup(Builder):
     CONST_FEATURE_STORE_ID = "featureStoreId"
     CONST_ENTITY_ID = "entityId"
     CONST_ITEMS = "items"
+    CONST_PRIMARY_KEY_NAME = "name"
     CONST_PRIMARY_KEYS = "primaryKeys"
     CONST_PARTITION_KEYS = "partitionKeys"
     CONST_EXPECTATION_DETAILS = "expectationDetails"

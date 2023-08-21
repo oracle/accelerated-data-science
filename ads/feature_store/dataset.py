@@ -39,6 +39,7 @@ from ads.feature_store.feature_lineage.graphviz_service import (
     GraphOrientation,
 )
 from ads.feature_store.validation_output import ValidationOutput
+import fastavro
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -113,6 +114,9 @@ class Dataset(Builder):
     CONST_ITEMS = "items"
     CONST_LAST_JOB_ID = "jobId"
     CONST_MODEL_DETAILS = "modelDetails"
+    CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
+    CONST_PRIMARY_KEYS = "primaryKeys"
+    CONST_AVRO_SCHEMA = "avroSchema"
 
     attribute_map = {
         CONST_ID: "id",
@@ -129,6 +133,8 @@ class Dataset(Builder):
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_MODEL_DETAILS: "model_details",
+        # CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
+        # CONST_PRIMARY_KEYS: "primary_keys",
         CONST_PARTITION_KEYS: "partition_keys",
     }
 
@@ -209,6 +215,29 @@ class Dataset(Builder):
         return self.set_spec(self.CONST_COMPARTMENT_ID, compartment_id)
 
     @property
+    def is_online_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
+
+    def with_is_online_enabled(self, is_online_enabled: bool) -> "Dataset":
+        """Sets the compartment_id.
+
+        Parameters
+        ----------
+        is_online_enabled: bool
+            The compartment_id.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        if not self.feature_store_id:
+            raise ValueError(
+                "FeatureStore id must be set before calling `with_schema_details_from_dataframe`"
+            )
+        # self.redis_client = get_redis_client(self.feature_store_id)
+        return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
+    @property
     def name(self) -> str:
         return self.get_spec(self.CONST_NAME)
 
@@ -244,6 +273,17 @@ class Dataset(Builder):
 
     def with_id(self, id: str) -> "Dataset":
         return self.set_spec(self.CONST_ID, id)
+
+
+    @property
+    def features(self) -> List[DatasetFeature]:
+        return [
+            DatasetFeature(**feature_dict)
+            for feature_dict in self.get_spec(self.CONST_OUTPUT_FEATURE_DETAILS)[
+                self.CONST_ITEMS
+            ]
+            or []
+        ]
 
     def with_job_id(self, dataset_job_id: str) -> "Dataset":
         """Sets the job_id for the last running job.
@@ -437,6 +477,58 @@ class Dataset(Builder):
             The Dataset instance (self)
         """
         return self.set_spec(self.CONST_ENTITY_ID, entity_id)
+
+
+    @property
+    def primary_keys(self) -> List[str]:
+        return self.get_spec(self.CONST_PRIMARY_KEYS)
+
+    @primary_keys.setter
+    def primary_keys(self, value: List[str]):
+        self.with_primary_keys(value)
+
+    def with_primary_keys(self, primary_keys: List[str]) -> "Dataset":
+        """Sets the primary keys of the feature group.
+
+        Parameters
+        ----------
+        primary_keys: str
+            The description of the feature group.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_PRIMARY_KEYS,
+            {
+                self.CONST_ITEMS: [
+                    {self.CONST_NAME: primary_key} for primary_key in primary_keys or []
+                ]
+            },
+        )
+
+    @property
+    def avro_schema(self) -> str:
+        return self.get_spec(self.CONST_AVRO_SCHEMA)
+
+    def with_avro_schema(self, avro_schema: str) -> "Dataset":
+        """Sets the compartment_id.
+
+        Parameters
+        ----------
+        avro_schema
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+
+        return self.set_spec(
+            self.CONST_AVRO_SCHEMA, avro_schema
+        )
 
     @property
     def statistics_config(self) -> "StatisticsConfig":
@@ -934,6 +1026,31 @@ class Dataset(Builder):
         )
         return ValidationOutput(validation_output)
 
+    def get_complex_features(self):
+        """Returns the names of all features with a complex data type in this
+        feature group.
+        """
+        return [f.feature_name for f in self.features if f.is_complex()]
+
+    def get_encoded_avro_schema(self):
+        # complex_features = self.get_complex_features()
+        schema = json.loads(self.avro_schema)
+
+        # for field in schema["fields"]:
+        #     if field["name"] in complex_features:
+        #         field["type"] = ["null", "bytes"]
+
+        schema_s = json.dumps(schema)
+        try:
+            fastavro.parse_schema(schema)
+        except fastavro.schema.SchemaParseException as e:
+            raise ValueError("Failed to construct Avro Schema: {}".format(e))
+        return schema_s
+
+    def get_feature_avro_schema(self, feature_name):
+        for field in json.loads(self.avro_schema)["fields"]:
+            if field["name"] == feature_name:
+                return json.dumps(field["type"])
     @classmethod
     def list_df(cls, compartment_id: str = None, **kwargs) -> "pandas.DataFrame":
         """Lists dataset resources in a given compartment.

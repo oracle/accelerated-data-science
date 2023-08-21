@@ -18,7 +18,8 @@ from ads.feature_store.common.utils.feature_schema_mapper import (
 from ads.feature_store.feature import Feature, DatasetFeature
 from ads.feature_store.feature_group_expectation import Rule, Expectation
 from ads.feature_store.input_feature_detail import FeatureDetail
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton, developer_enabled
+import redis
 
 try:
     from pyspark.pandas import DataFrame
@@ -45,9 +46,34 @@ from ads.feature_engineering.feature_type import datetime
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+def get_env_bool(env_var: str, default: bool = False) -> bool:
+    """
+    :param env_var: Environment variable name
+    :param default: Default environment variable value
+    :return: Value of the boolean env variable
+    """
+    env_val = os.getenv(env_var)
+    if env_val is None:
+        env_val = default
+    else:
+        env_val = env_val.lower()
+        if env_val == "true":
+            env_val = True
+        elif env_val == "false":
+            env_val = False
+        else:
+            raise ValueError(
+                "For environment variable: {0} only string values T/true or F/false are allowed but: \
+                {1} was provided.".format(
+                    env_var, env_val
+                )
+            )
+    return env_val
+
+
 
 def get_execution_engine_type(
-    data_frame: Union[DataFrame, pd.DataFrame]
+        data_frame: Union[DataFrame, pd.DataFrame]
 ) -> ExecutionEngine:
     """
     Determines the execution engine type for a given DataFrame.
@@ -86,8 +112,46 @@ def get_metastore_id(feature_store_id: str):
     )
 
 
+def get_redis_endpoint(feature_store_id: str):
+    """
+    Retrieves the metastore ID for a given feature store ID.
+
+    Args:
+        feature_store_id (str): The ID of the feature store.
+
+    Returns:
+        str: The metastore ID for the feature store, if available. Otherwise, returns None.
+    """
+    from ads.feature_store.feature_store import FeatureStore
+
+    feature_store = FeatureStore.from_id(feature_store_id)
+
+    return (
+        feature_store.online_config.get(feature_store.CONST_REDIS_ID)
+        if feature_store.online_config
+        else None
+    )
+
+
+def get_redis_client(feature_store_id: str):
+
+    if developer_enabled():
+        return redis.StrictRedis(
+            host="localhost", encoding="utf-8", decode_responses=True, port=6379
+        )
+    else:
+        redis_host = get_redis_endpoint(feature_store_id)
+        return redis.StrictRedis(
+            host=redis_host,
+            encoding="utf-8",
+            ssl=True,
+            decode_responses=True,
+            port=6379,
+        )
+
+
 def validate_delta_format_parameters(
-    timestamp: datetime = None, version_number: int = None, is_restore: bool = False
+        timestamp: datetime = None, version_number: int = None, is_restore: bool = False
 ):
     """
     Validate the user input provided as part of preview, restore APIs for ingested data, Ingested data is
@@ -121,9 +185,9 @@ def validate_delta_format_parameters(
 
 
 def show_ingestion_summary(
-    entity_id: str,
-    entity_type: EntityType = EntityType.FEATURE_GROUP,
-    error_details: str = None,
+        entity_id: str,
+        entity_type: EntityType = EntityType.FEATURE_GROUP,
+        error_details: str = None,
 ):
     """
     Displays a ingestion summary table with the given entity type and error details.
@@ -163,7 +227,7 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
     statistics = validation_output["statistics"]
 
     table_headers = (
-        ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
+            ["expectation_type"] + list(statistics.keys()) + ["ingestion_status"]
     )
 
     table_values = [expectation_type] + list(statistics.values()) + [ingestion_status]
@@ -207,9 +271,9 @@ def show_validation_summary(ingestion_status: str, validation_output, expectatio
 
 
 def get_features(
-    output_columns: List[dict],
-    parent_id: str,
-    entity_type: EntityType = EntityType.FEATURE_GROUP,
+        output_columns: List[dict],
+        parent_id: str,
+        entity_type: EntityType = EntityType.FEATURE_GROUP,
 ) -> List[Feature]:
     """
     Returns a list of features, given a list of output_columns and a feature_group_id.
@@ -266,7 +330,7 @@ def get_schema_from_spark_df(df: DataFrame):
 
 
 def get_schema_from_df(
-    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[dict]:
     """
     Given a DataFrame, returns a list of dictionaries that describe its schema.
@@ -280,7 +344,7 @@ def get_schema_from_df(
 
 
 def get_input_features_from_df(
-    data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
+        data_frame: Union[DataFrame, pd.DataFrame], feature_store_id: str
 ) -> List[FeatureDetail]:
     """
     Given a DataFrame, returns a list of FeatureDetail objects that represent its input features.
@@ -297,7 +361,7 @@ def get_input_features_from_df(
 
 
 def convert_expectation_suite_to_expectation(
-    expectation_suite: ExpectationSuite, expectation_type: ExpectationType
+        expectation_suite: ExpectationSuite, expectation_type: ExpectationType
 ):
     """
     Convert an ExpectationSuite object to an Expectation object with detailed rule information.
@@ -356,7 +420,7 @@ def largest_matching_subset_of_primary_keys(left_feature_group, right_feature_gr
 
 
 def convert_pandas_datatype_with_schema(
-    raw_feature_details: List[dict], input_df: pd.DataFrame
+        raw_feature_details: List[dict], input_df: pd.DataFrame
 ) -> pd.DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
@@ -381,7 +445,7 @@ def convert_pandas_datatype_with_schema(
 
 
 def convert_spark_dataframe_with_schema(
-    raw_feature_details: List[dict], input_df: DataFrame
+        raw_feature_details: List[dict], input_df: DataFrame
 ) -> DataFrame:
     feature_detail_map = {}
     columns_to_remove = []
