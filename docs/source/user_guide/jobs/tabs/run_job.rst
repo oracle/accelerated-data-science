@@ -15,4 +15,5 @@ To create and start running the job:
   .. code-tab:: bash
     :caption: YAML
 
+    # Use the following command to start the job run
     ads opctl run -f your_job.yaml
