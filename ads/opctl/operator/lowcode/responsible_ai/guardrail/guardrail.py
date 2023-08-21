@@ -10,6 +10,7 @@ import importlib.util
 import os
 import sys
 from ..reports.datapane import make_view
+import datapane as dp
 
 
 class HuggingFaceHonestHurtfulSentence:
@@ -90,6 +91,7 @@ class GuardRail:
         self.data = None
         self.auth = auth or authutil.default_signer()
         self.sentence_level = False
+        self.output_directory = None
 
     def load_data(self):
         spec = self.config.get("spec", {})
@@ -110,7 +112,7 @@ class GuardRail:
     def evaluate(self):
         spec = self.config.get("spec", {})
         metrics_spec = spec.get("metrics", [{}])
-        output_directory = spec.get("output_directory", {}).get("url", None)
+        self.output_directory = spec.get("output_directory", {}).get("url", None)
 
         scores = {}
         for metric_config in metrics_spec:
@@ -137,11 +139,11 @@ class GuardRail:
         res = {}
         for name, score in scores.items():
             res[name] = to_dataframe(score)
-            if output_directory:
+            if self.output_directory:
                 for metric, df in res[name].items():
                     if len(df) == len(self.predictions):
                         df['predictions'] = self.predictions
-                    df.to_csv(f'{os.path.join(output_directory, "_".join([name, metric]))}.csv', index=False)
+                    df.to_csv(f'{os.path.join(self.output_directory, "_".join([name, metric]))}.csv', index=False)
         return res
 
     def generate_report(self):
@@ -151,4 +153,8 @@ class GuardRail:
         for name, score in scores.items():
             for metric, df in score.items():
                 data.append({"metric": name, "data": df})
-        return make_view(data)
+        dp.enable_logging()
+        view = make_view(data)
+        
+        dp.save_report(view, os.path.join(self.output_directory, "report.html"))
+        return view

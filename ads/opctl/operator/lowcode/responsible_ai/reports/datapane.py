@@ -7,7 +7,7 @@ import pandas as pd
 
 
 with open(
-    os.path.join(os.path.dirname(__file__), "metric_descriptions.json"),
+    os.path.join(os.path.dirname(__file__), "..", "metric_descriptions.json"),
     "r",
     encoding="utf-8",
 ) as f:
@@ -18,7 +18,7 @@ def make_page(metric: str, df: pd.DataFrame):
     title = metric.title()
     groups = []
     for column in df.columns:
-        if column == "text":
+        if column in ["predictions", "references"]:
             continue
         fig = (
             alt.Chart(df)
@@ -58,7 +58,6 @@ def make_page(metric: str, df: pd.DataFrame):
             dp.DataTable(df),
         ],
     )
-
 
 def make_view(data_list: list):
     return dp.Blocks(*[make_page(item["metric"], item["data"]) for item in data_list])
