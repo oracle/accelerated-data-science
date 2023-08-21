@@ -25,12 +25,15 @@ def main(raw_args: List[str]):
     if not args.file and not args.spec and not os.environ.get(ENV_OPERATOR_ARGS):
         logger.info(
             "Please specify -f[--file] or -s[--spec] or "
-            f"pass operator's arguments via {ENV_OPERATOR_ARGS} environment variable."
+            "pass operator's arguments via %s environment variable.",
+            ENV_OPERATOR_ARGS,
         )
         return
 
     logger.info("-" * 100)
-    logger.info(f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}")
+    logger.info(
+        "%s operator: %s", "Running" if not args.verify else "Verifying", MODULE
+    )
 
     # if spec provided as input string, then convert the string into YAML
     operator_spec_str = args.spec or os.environ.get(ENV_OPERATOR_ARGS)

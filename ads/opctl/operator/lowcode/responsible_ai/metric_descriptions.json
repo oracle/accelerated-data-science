@@ -1,0 +1,16 @@
+{
+    "toxicity": {
+        "description": "The toxicity measurement aims to quantify the toxicity of the input texts using the roberta-hate-speech-dynabench-r4 hate speech classification model. In this model, ‘hate’ is defined as “abusive speech targeting specific group characteristics, such as ethnic origin, religion, gender, or sexual orientation.”",
+        "references": [
+            "https://huggingface.co/spaces/evaluate-measurement/toxicity",
+            "https://huggingface.co/facebook/roberta-hate-speech-dynabench-r4-target"
+        ]
+    },
+    "polarity": {
+        "description": "The regard measurement returns the estimated language polarity towards and social perceptions of a demographic (e.g. gender, race, sexual orientation). It uses a model trained on labelled data from the paper “The Woman Worked as a Babysitter: On Biases in Language Generation” (EMNLP 2019)",
+        "references": [
+            "https://huggingface.co/spaces/evaluate-measurement/regard",
+            "https://arxiv.org/abs/1909.01326"
+        ]
+    }
+}

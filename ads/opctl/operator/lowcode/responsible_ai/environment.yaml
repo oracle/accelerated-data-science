@@ -1,0 +1,5 @@
+name: responsible_ai
+dependencies:
+  - pip:
+      - oracle_ads-2.8.9
+      - datapane
