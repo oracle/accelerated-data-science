@@ -92,7 +92,9 @@ class TestFeatureGroupDatasetListing(FeatureStoreTestCase):
         fg1.materialise(self.data)
         fg1.materialise(self.data2)
 
-        fg1_job_list = FeatureGroupJob.list(compartment_id=self.COMPARTMENT_ID)
+        fg1_job_list = FeatureGroupJob.list(
+            compartment_id=self.COMPARTMENT_ID, feature_group_id=fg1.id
+        )
         assert fg1_job_list is not None
         assert len(fg1_job_list) == 2
 
@@ -102,7 +104,9 @@ class TestFeatureGroupDatasetListing(FeatureStoreTestCase):
         assert fg2.oci_feature_group.id
         fg2.materialise(self.data3)
 
-        fg_list = FeatureGroup.list(compartment_id=self.COMPARTMENT_ID)
+        fg_list = FeatureGroup.list(
+            compartment_id=self.COMPARTMENT_ID, feature_store_id=fs.id
+        )
         assert fg_list is not None
         assert len(fg_list) == 2
 
@@ -175,7 +179,9 @@ class TestFeatureGroupDatasetListing(FeatureStoreTestCase):
         assert dataset.oci_dataset.id
 
         dataset.materialise()
-        ds_list = Dataset.list(compartment_id=self.COMPARTMENT_ID)
+        ds_list = Dataset.list(
+            compartment_id=self.COMPARTMENT_ID, feature_store_id=fs.id
+        )
         assert ds_list is not None
         assert len(ds_list) == 1
 

@@ -862,6 +862,7 @@ class Dataset(Builder):
             return ds_job[0]
         return DatasetJob.from_id(self.job_id)
 
+    @deprecated(details="preview functionality is deprecated. Please use as_of.")
     def preview(
         self,
         row_count: int = 10,
