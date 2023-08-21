@@ -179,7 +179,7 @@ class ForecastOperatorBaseModel(ABC):
 
         test_eval_metrics = []
         test_data = None
-        if self.spec.test_data.url:
+        if self.spec.test_data:
             (
                 self.test_eval_metrics,
                 summary_metrics,
@@ -317,34 +317,36 @@ class ForecastOperatorBaseModel(ABC):
 
     def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame):
         """Saves resulting reports to the given folder."""
-
+        if self.spec.output_directory:
+            output_dir = self.spec.output_directory.url
+        else:
+            output_dir = "tmp_fc_operator_result"
+            logger.warn(
+                "Since the output directory was not specified, the output will be saved to {} directory.".format(
+                    output_dir))
         # datapane html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                    os.path.join(
-                        self.spec.output_directory.url, self.spec.report_file_name
-                    ),
-                    "w",
-                    **default_signer(),
+                        os.path.join(output_dir, self.spec.report_file_name),
+                        "w",
+                        **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
 
         # metrics csv report
         utils._write_data(
             data=result_df,
-            filename=os.path.join(
-                self.spec.output_directory.url, self.spec.report_metrics_name
-            ),
+            filename=os.path.join(output_dir, self.spec.report_metrics_name),
             format="csv",
             storage_options=default_signer(),
         )
 
-        logger.info(
+        logger.warn(
             f"The report has been successfully "
-            f"generated and placed to the: {self.spec.output_directory.url}."
+            f"generated and placed to the: {output_dir}."
         )
 
     def _preprocess(self, data, ds_column, datetime_format):
