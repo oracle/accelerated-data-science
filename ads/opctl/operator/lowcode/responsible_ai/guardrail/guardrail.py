@@ -9,6 +9,7 @@ import nltk
 import importlib.util
 import os
 import sys
+from ..reports.datapane import make_view
 
 
 class HuggingFaceHonestHurtfulSentence:
@@ -140,7 +141,7 @@ class GuardRail:
                 for metric, df in res[name].items():
                     if len(df) == len(self.predictions):
                         df['predictions'] = self.predictions
-                    df.to_csv(f'{os.path.join(output_directory, "_".join([name, metric]))}.csv')
+                    df.to_csv(f'{os.path.join(output_directory, "_".join([name, metric]))}.csv', index=False)
         return res
 
     def generate_report(self):
@@ -150,5 +151,4 @@ class GuardRail:
         for name, score in scores.items():
             for metric, df in score.items():
                 data.append({"metric": name, "data": df})
-        
-        return data
+        return make_view(data)
