@@ -21,7 +21,7 @@ from ads.opctl import logger
 from .. import utils
 from ..const import SupportedModels
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
-
+from .transformations import Transformations
 
 class ForecastOperatorBaseModel(ABC):
     """The base class for the forecast operator models."""
@@ -230,15 +230,15 @@ class ForecastOperatorBaseModel(ABC):
     def _load_data(self):
         """Loads forecasting input data."""
 
-        data = utils._load_data(
+        raw_data = utils._load_data(
             filename=self.spec.historical_data.url,
             format=self.spec.historical_data.format,
             storage_options=default_signer(),
             columns=self.spec.historical_data.columns,
         )
-        self.original_user_data = data.copy()
+        self.original_user_data = raw_data.copy()
+        data = Transformations(raw_data, self.spec).run()
         self.original_total_data = data
-
         additional_data = None
         if self.spec.additional_data is not None:
             additional_data = utils._load_data(
