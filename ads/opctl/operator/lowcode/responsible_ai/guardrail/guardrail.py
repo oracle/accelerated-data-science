@@ -15,38 +15,41 @@ from typing import Union
 
 
 class HuggingFaceHonestHurtfulSentence:
-
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
-    
-    def compute(self, evaluator, predictions: Union[pd.Series, list], references: Union[pd.Series, list]=None,  **kwargs: dict):
+
+    def compute(
+        self,
+        evaluator,
+        predictions: Union[pd.Series, list],
+        references: Union[pd.Series, list] = None,
+        **kwargs: dict,
+    ):
         preds = [sentence.split() for sentence in predictions]
-                    
-        refs = [sentence.split() for sentence in references] if references else None
-        score = evaluator.compute(
-        predictions=preds, references=refs, **kwargs
-    )
-        return score
-    
 
-class HuggingFaceGeneric:
+        refs = [sentence.split() for sentence in references] if references else None
+        score = evaluator.compute(predictions=preds, references=refs, **kwargs)
+        return score
+
+
+class HuggingFaceToxicity:
 
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
     
-    def compute(self, evaluator, predictions: Union[pd.Series, list], references: Union[pd.Series, list]=None, **kwargs: dict):
+    def compute(self, evaluator, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
+
         score = evaluator.compute(
-        predictions=predictions, references=references, **kwargs
-    )
+            predictions=predictions, references=references, **kwargs
+        )
         return score
 
 
 class HuggingFaceRegardPolarity:
-
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
     
-    def compute(self, evaluator, predictions: Union[pd.Series, list], references: Union[pd.Series, list]=None, **kwargs: dict):
+    def compute(self, evaluator, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
 
         score = evaluator.compute(
         data=predictions, references=references, **kwargs
@@ -54,7 +57,7 @@ class HuggingFaceRegardPolarity:
         return score
 
 
-metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicity": HuggingFaceGeneric}
+metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicity": HuggingFaceToxicity}
 
 
 class MetricLoader:
@@ -86,7 +89,8 @@ class MetricLoader:
 
 class GuardRail:
     """Guard Rails."""
-    def __init__(self, config: dict, auth: dict=None):
+
+    def __init__(self, config: dict, auth: dict = None):
         self.config = config
         self.data = None
         self.auth = auth or authutil.default_signer()
@@ -102,12 +106,16 @@ class GuardRail:
             else:
                 self.data = pd.read_csv(data_path)
             if spec.get("sentence_level"):
-                df_list = self.data['predictions'].apply(nltk.sent_tokenize).apply(lambda x: pd.DataFrame(x, columns=['predictions'])).tolist()
+                df_list = (
+                    self.data["predictions"]
+                    .apply(nltk.sent_tokenize)
+                    .apply(lambda x: pd.DataFrame(x, columns=["predictions"]))
+                    .tolist()
+                )
                 for idx, item in enumerate(df_list):
-                    item['index'] = idx
+                    item["index"] = idx
                 self.sentence_level_data = pd.concat(df_list)
                 self.sentence_level = True
-
 
     def evaluate(self):
         spec = self.config.get("spec", {})
@@ -138,7 +146,12 @@ class GuardRail:
 
             guardrail = MetricLoader.load(metric_type, metric_config)()
 
-            score = guardrail.compute(evaluator=guardrail.load(load_args), predictions=self.predictions, references=self.references, **compute_args)
+            score = guardrail.compute(
+                evaluator=guardrail.load(load_args),
+                predictions=self.predictions,
+                references=self.references,
+                **compute_args,
+            )
 
             scores[name] = score
         # post process score 
@@ -168,6 +181,6 @@ class GuardRail:
                 data.append({"metric": name, "data": df})
         dp.enable_logging()
         view = make_view(data)
-        
+
         dp.save_report(view, os.path.join(self.output_directory, "report.html"))
         return view

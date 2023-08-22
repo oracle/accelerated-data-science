@@ -35,13 +35,18 @@ def make_page(metric: str, df: pd.DataFrame):
             dp.BigNumber("Mean", round(df[column].mean(), 4)),
             columns=2,
         )
-        box_plot = (
-            alt.Chart(df).mark_boxplot().encode(alt.X(column), tooltip=["text", column])
-        )
-        plots = dp.Group(fig, box_plot)
+        if "predictions" in df.columns:
+            box_plot = (
+                alt.Chart(df)
+                .mark_boxplot()
+                .encode(alt.X(column), tooltip=["predictions", column])
+            )
+            plots = dp.Group(fig, box_plot)
+        else:
+            plots = dp.Group(fig)
         groups.append(dp.Group(stats, plots, columns=2, label=column))
     visual = dp.Select(*groups) if len(groups) > 1 else groups[0]
-    description = ""
+    description = "N/A"
     if metric in METRICS:
         metric_info = METRICS.get(metric)
         description = (
@@ -58,6 +63,7 @@ def make_page(metric: str, df: pd.DataFrame):
             dp.DataTable(df),
         ],
     )
+
 
 def make_view(data_list: list):
     return dp.Blocks(*[make_page(item["metric"], item["data"]) for item in data_list])

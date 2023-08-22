@@ -40,7 +40,7 @@ spec:
       type: huggingface
     - name: CustomMetric
       load_args:
-        path: /Users/ziye/Documents/conda_project/accelerated-data-science/ads/opctl/operator/lowcode/responsible_ai/guardrail/custom_guardrail.py
+        path: ads/opctl/operator/lowcode/responsible_ai/guardrail/custom_guardrail.py
       type: custom
       class_name: CustomGuardRail
 type: responsible_ai
