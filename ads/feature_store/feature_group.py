@@ -750,13 +750,8 @@ class FeatureGroup(Builder):
         """
         records = []
         for feature in self.features:
-            records.append(
-                {
-                    "name": feature.feature_name,
-                    "type": feature.feature_type,
-                    "feature_group_id": feature.feature_group_id,
-                }
-            )
+            records.append({"name": feature.feature_name, "type": feature.feature_type})
+
         return pd.DataFrame.from_records(records)
 
     def get_input_features_df(self) -> "pd.DataFrame":
@@ -927,10 +922,18 @@ class FeatureGroup(Builder):
             )
 
         if not self.job_id:
-            raise ValueError(
-                "Associated jobs cannot be retrieved before calling 'materialise' or 'delete'."
+            fg_job = FeatureGroupJob.list(
+                feature_group_id=self.id,
+                compartment_id=self.compartment_id,
+                sort_by="timeCreated",
+                limit="1",
             )
-
+            if not fg_job:
+                raise ValueError(
+                    "Unable to retrieve the associated last job. Please make sure you materialized the data."
+                )
+            self.with_job_id(fg_job[0].id)
+            return fg_job[0]
         return FeatureGroupJob.from_id(self.job_id)
 
     def select(self, features: Optional[List[str]] = []) -> Query:
@@ -1350,7 +1353,7 @@ class FeatureGroup(Builder):
                 "FeatureGroup needs to be saved to the feature store before retrieving the statistics"
             )
 
-        stat_job_id = self._get_job_id(job_id)
+        stat_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # TODO: take the one in memory or will list down job ids and find the latest
         fg_job = FeatureGroupJob.from_id(stat_job_id)
@@ -1379,7 +1382,7 @@ class FeatureGroup(Builder):
                 "FeatureGroup needs to be saved to the feature store before retrieving the validation report"
             )
 
-        validation_job_id = self._get_job_id(job_id)
+        validation_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # Retrieve the validation output JSON from data_flow_batch_execution_output.
         fg_job = FeatureGroupJob.from_id(validation_job_id)

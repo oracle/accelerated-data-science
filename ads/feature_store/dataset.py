@@ -245,6 +245,16 @@ class Dataset(Builder):
         """
         return self.get_spec(self.CONST_ID)
 
+    @property
+    def features(self) -> List[DatasetFeature]:
+        return [
+            DatasetFeature(**feature_dict)
+            for feature_dict in self.get_spec(self.CONST_OUTPUT_FEATURE_DETAILS)[
+                self.CONST_ITEMS
+            ]
+            or []
+        ]
+
     def with_id(self, id: str) -> "Dataset":
         return self.set_spec(self.CONST_ID, id)
 
@@ -709,6 +719,28 @@ class Dataset(Builder):
 
         dataset_execution_strategy.delete_dataset(self, dataset_job)
 
+    def get_features(self) -> List[DatasetFeature]:
+        """
+        Returns all the features in the dataset.
+
+        Returns:
+            List[DatasetFeature]
+        """
+
+        return self.features
+
+    def get_features_df(self) -> "pandas.DataFrame":
+        """
+        Returns all the features as pandas dataframe.
+
+        Returns:
+            pandas.DataFrame
+        """
+        records = []
+        for feature in self.features:
+            records.append({"name": feature.feature_name, "type": feature.feature_type})
+        return pandas.DataFrame.from_records(records)
+
     def update(self, **kwargs) -> "Dataset":
         """Updates Dataset in the feature store.
 
@@ -752,7 +784,18 @@ class Dataset(Builder):
 
         for infra_attr, dsc_attr in self.attribute_map.items():
             if infra_attr in dataset_details:
-                self.set_spec(infra_attr, dataset_details[infra_attr])
+                if infra_attr == self.CONST_OUTPUT_FEATURE_DETAILS:
+                    # May not need if we fix the backend and add dataset_id to the output_feature
+                    features_list = []
+                    for output_feature in dataset_details[infra_attr]["items"]:
+                        output_feature["datasetId"] = dataset_details[self.CONST_ID]
+                        features_list.append(output_feature)
+
+                    value = {self.CONST_ITEMS: features_list}
+                else:
+                    value = dataset_details[infra_attr]
+
+                self.set_spec(infra_attr, value)
 
         return self
 
@@ -791,6 +834,33 @@ class Dataset(Builder):
         )
 
         dataset_execution_strategy.ingest_dataset(self, dataset_job)
+
+    def get_last_job(self) -> "DatasetJob":
+        """Gets the Job details for the last running Dataset job.
+
+        Returns:
+            DatasetJob
+        """
+
+        if not self.id:
+            raise ValueError(
+                "Dataset needs to be saved to the feature store before getting associated jobs."
+            )
+
+        if not self.job_id:
+            ds_job = DatasetJob.list(
+                dataset_id=self.id,
+                compartment_id=self.compartment_id,
+                sort_by="timeCreated",
+                limit="1",
+            )
+            if not ds_job:
+                raise ValueError(
+                    "Unable to retrieve the associated last job. Please make sure you materialized the data."
+                )
+            self.with_job_id(ds_job[0].id)
+            return ds_job[0]
+        return DatasetJob.from_id(self.job_id)
 
     @deprecated(details="preview functionality is deprecated. Please use as_of.")
     def preview(
@@ -947,14 +1017,8 @@ class Dataset(Builder):
             raise ValueError(
                 "Dataset needs to be saved to the feature store before retrieving the statistics"
             )
-        stat_job_id = job_id
-        if job_id is None:
-            if self.job_id is None:
-                raise ValueError(
-                    "Unable to retrieve the last job,please provide the job id,make sure you materialised the data'"
-                )
-            else:
-                stat_job_id = self.job_id
+
+        stat_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # TODO: take the one in memory or will list down job ids and find the latest
         dataset_job = DatasetJob.from_id(stat_job_id)
@@ -980,14 +1044,8 @@ class Dataset(Builder):
             raise ValueError(
                 "Dataset needs to be saved to the feature store before retrieving the validation report"
             )
-        validation_job_id = job_id
-        if job_id is None:
-            if self.job_id is None:
-                raise ValueError(
-                    "Unable to retrieve the last job,please provide the job id,make sure you materialised the data'"
-                )
-            else:
-                validation_job_id = self.job_id
+
+        validation_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # retrieve the validation output JSON from data_flow_batch_execution_output
         dataset_job = DatasetJob.from_id(validation_job_id)
