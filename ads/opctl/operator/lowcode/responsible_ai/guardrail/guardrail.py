@@ -14,6 +14,7 @@ import datapane as dp
 from typing import Union
 
 
+
 class HuggingFaceHonestHurtfulSentence:
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
@@ -32,7 +33,9 @@ class HuggingFaceHonestHurtfulSentence:
         return score
 
 
-class HuggingFaceToxicity:
+
+
+class HuggingFaceGeneric:
 
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
@@ -57,16 +60,19 @@ class HuggingFaceRegardPolarity:
         return score
 
 
-metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicity": HuggingFaceToxicity}
+metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicty": HuggingFaceGeneric}
 
 
 class MetricLoader:
-    @staticmethod
-    def load(metric_type: str, metric_config: dict):
+
+    def __init__(self):
+        self.evaluator = None
+
+    def load(self, metric_type: str, metric_config: dict):
         load_args = metric_config.get("load_args", {})
         if metric_type == "huggingface":
             path = load_args.get("path")
-            return metric_mapping.get(path)
+            return metric_mapping.get(path, HuggingFaceGeneric)
         elif metric_type == "custom":
             module_path = load_args.pop("path", None)
             class_name = metric_config.get("class_name") or "CustomGuardRail"
@@ -85,6 +91,9 @@ class MetricLoader:
             return custom_guardrail_class
         else:
             NotImplemented("Not supported type.")
+
+    def compute(self, predictions, **kwargs):
+        return self.evaluator.compute(predictions, **kwargs)
 
 
 class GuardRail:
@@ -128,6 +137,9 @@ class GuardRail:
             print(f"Metric: {metric_config}")
             name = metric_config.get("name", "Unknown Metric")
             metric_type = metric_config.get("type", "Unknown Type")
+            guardrail = MetricLoader().load(metric_type, metric_config)()
+
+
             load_args = metric_config.get("load_args", {})
             compute_args = metric_config.get("compute_args", {})
             logging.debug(name)
@@ -144,22 +156,23 @@ class GuardRail:
             else:
                 self.predictions = self.data[compute_args.pop("predictions", "predictions")] if self.data is not None else compute_args.pop("predictions")
 
-            guardrail = MetricLoader.load(metric_type, metric_config)()
-
+            
+            evaluator = guardrail.load(load_args)
             score = guardrail.compute(
-                evaluator=guardrail.load(load_args),
+                evaluator=evaluator,
                 predictions=self.predictions,
                 references=self.references,
                 **compute_args,
             )
-
-            scores[name] = score
+            description = evaluator.description if evaluator is not None and hasattr(evaluator, "description") else ""
+            homepage = evaluator.homepage if evaluator is not None and hasattr(evaluator, "homepage") else ""
+            scores[name] = (score, description, homepage)
         # post process score 
         # - converting to dataframe
         # - save dataframe
         # - adding prediction column
         res = {}
-        for name, score in scores.items():
+        for name, (score, description, homepage) in scores.items():
             score_dict = to_dataframe(score)
             
             for metric, df in score_dict.items():
@@ -168,7 +181,7 @@ class GuardRail:
                     if self.sentence_level:
                         df['index'] = self.sentence_level_data['index'].tolist()
                         df = postprocess_sentence_level_dataframe(df)
-                    res[" ".join([name, metric])] = df
+                    res[" ".join([name, metric])] = (df, description, homepage)
                 if self.output_directory:
                     df.to_csv(f'{os.path.join(self.output_directory, "_".join([name, metric]))}.csv', index=False)
         return res
@@ -178,9 +191,8 @@ class GuardRail:
         scores = self.evaluate()
         data = []
 
-        for name, df in scores.items():
-            data.append({"metric": name, "data": df})
-
+        for name, (df, description, homepage) in scores.items():
+            data.append({"metric": name, "data": df, "description": description, "homepage": homepage})
         dp.enable_logging()
         view = make_view(data)
 

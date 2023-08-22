@@ -14,7 +14,7 @@ with open(
     METRICS = json.load(f)
 
 
-def make_page(metric: str, df: pd.DataFrame):
+def make_page(metric: str, df: pd.DataFrame, descp: str, homepage: str):
     title = metric.title()
     groups = []
     for column in df.columns:
@@ -47,12 +47,9 @@ def make_page(metric: str, df: pd.DataFrame):
         groups.append(dp.Group(stats, plots, columns=2, label=column))
     visual = dp.Select(*groups) if len(groups) > 1 else groups[0]
     description = "N/A"
-    if metric in METRICS:
-        metric_info = METRICS.get(metric)
+    if descp:
         description = (
-            metric_info.get("description", "")
-            + "\n\nSee also:\n"
-            + "\n".join([f"* {ref}" for ref in metric_info.get("references")])
+            descp if not homepage else descp + "\n\nSee also:\n" + homepage
         )
     return dp.Page(
         title=title,
@@ -66,7 +63,7 @@ def make_page(metric: str, df: pd.DataFrame):
 
 
 def make_view(data_list: list):
-    return dp.Blocks(*[make_page(item["metric"], item["data"]) for item in data_list])
+    return dp.Blocks(*[make_page(item["metric"], item["data"], item['description'], item['homepage']) for item in data_list])
 
 
 def main():
