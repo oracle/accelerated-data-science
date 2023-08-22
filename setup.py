@@ -29,7 +29,7 @@ install_requires = [
     "python_jsonschema_objects>=0.3.13",
     "PyYAML>=6",  # pyyaml 5.4 is broken with cython 3
     "requests",
-    "scikit-learn>=0.23.2",
+    "scikit-learn>=0.23.2, <=1.2",
     "tabulate>=0.8.9",
     "tqdm>=4.59.0",
     "psutil>=5.7.2",
