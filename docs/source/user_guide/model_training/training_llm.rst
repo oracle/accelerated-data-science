@@ -55,5 +55,7 @@ The same training script also support Parameter-Efficient Fine-Tuning (PEFT). Yo
 
 .. code-block:: bash
 
-    torchrun llama_finetuning.py --enable_fsdp --use_peft --peft_method lora --pure_bf16 --batch_size_training 1 --micro_batch_size 1 --model_name /home/datascience/llama --output_dir /home/datascience/outputs
+    torchrun llama_finetuning.py --enable_fsdp --use_peft --peft_method lora \
+    --pure_bf16 --batch_size_training 1 --micro_batch_size 1 \
+    --model_name /home/datascience/llama --output_dir /home/datascience/outputs
 

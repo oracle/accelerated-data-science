@@ -3,9 +3,9 @@ Train PyTorch Models
 
 .. versionadded:: 2.8.8
 
-The :py:class:`~ads.jobs.PyTorchDistributedRuntime` is designed for training PyTorch models, including large language models (LLMs) with multiple GPUs from multiple nodes. If you develop you training code that is compatible with `torchrun <https://pytorch.org/docs/stable/elastic/run.html>`_, `DeepSpeed <https://www.deepspeed.ai/>`_, or `Accelerate<https://huggingface.co/docs/accelerate/index>`_, you can run them using OCI Data Science Jobs with zero code change. For multi-node training, ADS will launch multiple job runs, each corresponding to one node.
+The :py:class:`~ads.jobs.PyTorchDistributedRuntime` is designed for training PyTorch models, including large language models (LLMs) with multiple GPUs from multiple nodes. If you develop you training code that is compatible with `torchrun <https://pytorch.org/docs/stable/elastic/run.html>`_, `DeepSpeed <https://www.deepspeed.ai/>`_, or `Accelerate <https://huggingface.co/docs/accelerate/index>`_, you can run them using OCI Data Science Jobs with zero code change. For multi-node training, ADS will launch multiple job runs, each corresponding to one node.
 
-See `Distributed Data Parallel in PyTorch<https://pytorch.org/tutorials/beginner/ddp_series_intro.html>`_ for a series of tutorials on PyTorch distributed training.
+See `Distributed Data Parallel in PyTorch <https://pytorch.org/tutorials/beginner/ddp_series_intro.html>`_ for a series of tutorials on PyTorch distributed training.
 
 .. admonition:: Prerequisite
   :class: note
@@ -22,7 +22,7 @@ See `Distributed Data Parallel in PyTorch<https://pytorch.org/tutorials/beginner
 Torchrun Example
 ================
 
-Here is an example to train a GPT model using the source code directly from the official PyTorch Examples Github repository. See `Training "Real-World" models with DDP<https://pytorch.org/tutorials/intermediate/ddp_series_minGPT.html>`_ tutorial for a walkthrough of the source code.
+Here is an example to train a GPT model using the source code directly from the official PyTorch Examples Github repository. See `Training "Real-World" models with DDP <https://pytorch.org/tutorials/intermediate/ddp_series_minGPT.html>`_ tutorial for a walkthrough of the source code.
 
 .. include:: ../jobs/tabs/pytorch_ddp_torchrun.rst
 
