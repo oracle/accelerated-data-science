@@ -168,6 +168,7 @@ class GuardRail:
                     if self.sentence_level:
                         df['index'] = self.sentence_level_data['index'].tolist()
                         df = postprocess_sentence_level_dataframe(df)
+                    res[" ".join([name, metric])] = df
                 if self.output_directory:
                     df.to_csv(f'{os.path.join(self.output_directory, "_".join([name, metric]))}.csv', index=False)
         return res
@@ -176,9 +177,10 @@ class GuardRail:
         self.load_data()
         scores = self.evaluate()
         data = []
-        for name, score in scores.items():
-            for metric, df in score.items():
-                data.append({"metric": name, "data": df})
+
+        for name, df in scores.items():
+            data.append({"metric": name, "data": df})
+
         dp.enable_logging()
         view = make_view(data)
 
