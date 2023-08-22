@@ -1,6 +1,6 @@
 import evaluate
 import pandas as pd
-from ..utils import to_dataframe
+from ..utils import to_dataframe, postprocess_sentence_level_dataframe
 import logging
 from ads.common import auth as authutil
 import os
@@ -11,6 +11,7 @@ import os
 import sys
 from ..reports.datapane import make_view
 import datapane as dp
+from typing import Union
 
 
 class HuggingFaceHonestHurtfulSentence:
@@ -18,7 +19,7 @@ class HuggingFaceHonestHurtfulSentence:
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
     
-    def compute(self, evaluator, predictions: pd.Series, references: pd.Series=None,  **kwargs: dict):
+    def compute(self, evaluator, predictions: Union[pd.Series, list], references: Union[pd.Series, list]=None,  **kwargs: dict):
         preds = [sentence.split() for sentence in predictions]
                     
         refs = [sentence.split() for sentence in references] if references else None
@@ -28,13 +29,12 @@ class HuggingFaceHonestHurtfulSentence:
         return score
     
 
-class HuggingFaceToxicity:
+class HuggingFaceGeneric:
 
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
     
-    def compute(self, evaluator, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
-
+    def compute(self, evaluator, predictions: Union[pd.Series, list], references: Union[pd.Series, list]=None, **kwargs: dict):
         score = evaluator.compute(
         predictions=predictions, references=references, **kwargs
     )
@@ -46,7 +46,7 @@ class HuggingFaceRegardPolarity:
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
     
-    def compute(self, evaluator, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
+    def compute(self, evaluator, predictions: Union[pd.Series, list], references: Union[pd.Series, list]=None, **kwargs: dict):
 
         score = evaluator.compute(
         data=predictions, references=references, **kwargs
@@ -54,7 +54,7 @@ class HuggingFaceRegardPolarity:
         return score
 
 
-metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicity": HuggingFaceToxicity}
+metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicity": HuggingFaceGeneric}
 
 
 class MetricLoader:
@@ -125,24 +125,37 @@ class GuardRail:
             logging.debug(name)
             logging.debug(load_args)
 
-            self.predictions = self.data[compute_args.pop("predictions", "predictions")] if self.data is not None else compute_args.pop("predictions")
+            
             reference_col = compute_args.pop("references", "references")
             if self.data is not None and reference_col in self.data.columns:
                 self.references = self.data[reference_col]
             else:
                 self.references = compute_args.pop("references", None)
+            if self.sentence_level and not self.references:
+                self.predictions = self.sentence_level_data[compute_args.pop("predictions", "predictions")].tolist() if self.sentence_level_data is not None else compute_args.pop("predictions")
+            else:
+                self.predictions = self.data[compute_args.pop("predictions", "predictions")] if self.data is not None else compute_args.pop("predictions")
+
             guardrail = MetricLoader.load(metric_type, metric_config)()
 
             score = guardrail.compute(evaluator=guardrail.load(load_args), predictions=self.predictions, references=self.references, **compute_args)
 
             scores[name] = score
+        # post process score 
+        # - converting to dataframe
+        # - save dataframe
+        # - adding prediction column
         res = {}
         for name, score in scores.items():
-            res[name] = to_dataframe(score)
-            if self.output_directory:
-                for metric, df in res[name].items():
-                    if len(df) == len(self.predictions):
-                        df['predictions'] = self.predictions
+            score_dict = to_dataframe(score)
+            
+            for metric, df in score_dict.items():
+                if len(df) == len(self.predictions):
+                    df['predictions'] = self.predictions
+                    if self.sentence_level:
+                        df['index'] = self.sentence_level_data['index'].tolist()
+                        df = postprocess_sentence_level_dataframe(df)
+                if self.output_directory:
                     df.to_csv(f'{os.path.join(self.output_directory, "_".join([name, metric]))}.csv', index=False)
         return res
 
