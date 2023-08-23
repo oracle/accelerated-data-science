@@ -12,16 +12,37 @@ import sys
 from ..reports.datapane import make_view
 import datapane as dp
 from typing import Union
+from abc import ABC, abstractmethod, abstractproperty
 
 
+class BaseGuardRail(ABC):
+    def __init__(self, config: dict):
+        self.evaluator = self.load(config)
 
-class HuggingFaceHonestHurtfulSentence:
+    def load(self):
+        pass
+
+    @abstractmethod
+    def compute(self, predictions: Union[pd.Series, list], references: Union[pd.Series, list] = None,
+        **kwargs: dict,):
+        pass
+
+    @property
+    def description(self):
+        return self.evaluator.description if self.evaluator is not None and hasattr(self.evaluator, "description") else ""
+    
+    @property
+    def homepage(self):
+        return self.evaluator.homepage if self.evaluator is not None and hasattr(self.evaluator, "homepage") else ""
+    
+
+class HuggingFaceHonestHurtfulSentence(BaseGuardRail):
+
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
 
     def compute(
         self,
-        evaluator,
         predictions: Union[pd.Series, list],
         references: Union[pd.Series, list] = None,
         **kwargs: dict,
@@ -29,32 +50,30 @@ class HuggingFaceHonestHurtfulSentence:
         preds = [sentence.split() for sentence in predictions]
 
         refs = [sentence.split() for sentence in references] if references else None
-        score = evaluator.compute(predictions=preds, references=refs, **kwargs)
+        score = self.evaluator.compute(predictions=preds, references=refs, **kwargs)
         return score
 
 
-
-
-class HuggingFaceGeneric:
+class HuggingFaceGeneric(BaseGuardRail):
 
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
     
-    def compute(self, evaluator, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
+    def compute(self, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
 
-        score = evaluator.compute(
+        score = self.evaluator.compute(
             predictions=predictions, references=references, **kwargs
         )
         return score
 
 
-class HuggingFaceRegardPolarity:
+class HuggingFaceRegardPolarity(BaseGuardRail):
     def load(self, load_args: dict):
         return evaluate.load(**load_args)
     
-    def compute(self, evaluator, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
+    def compute(self, predictions: pd.Series, references: pd.Series=None, **kwargs: dict):
 
-        score = evaluator.compute(
+        score = self.evaluator.compute(
         data=predictions, references=references, **kwargs
     )
         return score
@@ -101,20 +120,29 @@ class GuardRail:
 
     def __init__(self, config: dict, auth: dict = None):
         self.config = config
+        self.spec = self.config.get("spec", {})
         self.data = None
         self.auth = auth or authutil.default_signer()
         self.sentence_level = False
-        self.output_directory = None
+        self.output_directory = self.spec.get("output_directory", {}).get("url", None)
+        self.report_file_name = self.spec.get("report_file_name")
+        self.metrics_spec = self.spec.get("metrics", [{}])
+        self.predictions = None
+        self.references = None
 
     def load_data(self):
-        spec = self.config.get("spec", {})
-        if spec.get("test_data").get("url", None):
-            data_path = spec.get("test_data").get("url")
+
+        if self.spec.get("test_data").get("url", None):
+
+            data_path = self.spec.get("test_data").get("url")
+            pred_col = self.spec.get("test_data").get("predictions", "predictions")
+            reference_col = self.spec.get("test_data").get("predictions", "references")
+
             if data_path.startswith("oci://"):
                 self.data = pd.read_csv(data_path, storage_options=self.auth)
             else:
                 self.data = pd.read_csv(data_path)
-            if spec.get("sentence_level"):
+            if self.spec.get("sentence_level"):
                 df_list = (
                     self.data["predictions"]
                     .apply(nltk.sent_tokenize)
@@ -125,48 +153,39 @@ class GuardRail:
                     item["index"] = idx
                 self.sentence_level_data = pd.concat(df_list)
                 self.sentence_level = True
+   
+            if reference_col in self.data.columns:
+                self.references = self.data[reference_col]
+
+            if self.sentence_level and not self.references:
+                self.predictions = self.sentence_level_data[pred_col].tolist()
+            else:
+                self.predictions = self.data[pred_col]
+        else:
+            self.predictions =  self.spec.get("test_data").get("predictions")
+            self.references =  self.spec.get("test_data").get("references", None)
 
     def evaluate(self):
-        spec = self.config.get("spec", {})
-        metrics_spec = spec.get("metrics", [{}])
-        self.output_directory = spec.get("output_directory", {}).get("url", None)
-
         scores = {}
-        for metric_config in metrics_spec:
+        for metric_config in self.metrics_spec:
             logging.debug(f"Metric: {metric_config}")
             print(f"Metric: {metric_config}")
             name = metric_config.get("name", "Unknown Metric")
             metric_type = metric_config.get("type", "Unknown Type")
-            guardrail = MetricLoader().load(metric_type, metric_config)()
-
 
             load_args = metric_config.get("load_args", {})
             compute_args = metric_config.get("compute_args", {})
             logging.debug(name)
             logging.debug(load_args)
 
+            guardrail = MetricLoader().load(metric_type, metric_config)(load_args)
             
-            reference_col = compute_args.pop("references", "references")
-            if self.data is not None and reference_col in self.data.columns:
-                self.references = self.data[reference_col]
-            else:
-                self.references = compute_args.pop("references", None)
-            if self.sentence_level and not self.references:
-                self.predictions = self.sentence_level_data[compute_args.pop("predictions", "predictions")].tolist() if self.sentence_level_data is not None else compute_args.pop("predictions")
-            else:
-                self.predictions = self.data[compute_args.pop("predictions", "predictions")] if self.data is not None else compute_args.pop("predictions")
-
-            
-            evaluator = guardrail.load(load_args)
             score = guardrail.compute(
-                evaluator=evaluator,
                 predictions=self.predictions,
                 references=self.references,
                 **compute_args,
             )
-            description = evaluator.description if evaluator is not None and hasattr(evaluator, "description") else ""
-            homepage = evaluator.homepage if evaluator is not None and hasattr(evaluator, "homepage") else ""
-            scores[name] = (score, description, homepage)
+            scores[name] = (score, guardrail.description, guardrail.homepage)
         # post process score 
         # - converting to dataframe
         # - save dataframe
@@ -196,5 +215,5 @@ class GuardRail:
         dp.enable_logging()
         view = make_view(data)
 
-        dp.save_report(view, os.path.join(self.output_directory, "report.html"))
+        dp.save_report(view, os.path.join(self.output_directory, self.report_file_name))
         return view
