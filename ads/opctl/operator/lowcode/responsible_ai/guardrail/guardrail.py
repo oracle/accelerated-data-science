@@ -47,10 +47,10 @@ class HuggingFaceHonestHurtfulSentence(BaseGuardRail):
         references: Union[pd.Series, list] = None,
         **kwargs: dict,
     ):
-        preds = [sentence.split() for sentence in predictions]
-
-        refs = [sentence.split() for sentence in references] if references else None
-        score = self.evaluator.compute(predictions=preds, references=refs, **kwargs)
+        if not (isinstance(predictions, list) and isinstance(predictions[0], list)):
+            predictions = [sentence.split() for sentence in predictions]
+            references = [sentence.split() for sentence in references] if references else None
+        score = self.evaluator.compute(predictions=predictions, references=references, **kwargs)
         return score
 
 
@@ -136,7 +136,7 @@ class GuardRail:
 
             data_path = self.spec.get("test_data").get("url")
             pred_col = self.spec.get("test_data").get("predictions", "predictions")
-            reference_col = self.spec.get("test_data").get("predictions", "references")
+            reference_col = self.spec.get("test_data").get("references", "references")
 
             if data_path.startswith("oci://"):
                 self.data = pd.read_csv(data_path, storage_options=self.auth)
@@ -202,6 +202,7 @@ class GuardRail:
                         df = postprocess_sentence_level_dataframe(df)
                     res[" ".join([name, metric])] = (df, description, homepage)
                 if self.output_directory:
+                    os.makedirs(self.output_directory, exist_ok=True)
                     df.to_csv(f'{os.path.join(self.output_directory, "_".join([name, metric]))}.csv', index=False)
         return res
 
@@ -213,7 +214,10 @@ class GuardRail:
         for name, (df, description, homepage) in scores.items():
             data.append({"metric": name, "data": df, "description": description, "homepage": homepage})
         dp.enable_logging()
-        view = make_view(data)
+        if not self.sentence_level:
+            view = make_view(data)
+            dp.save_report(view, os.path.join(self.output_directory, self.report_file_name))
+            return view
 
-        dp.save_report(view, os.path.join(self.output_directory, self.report_file_name))
-        return view
+        else:
+            return data
