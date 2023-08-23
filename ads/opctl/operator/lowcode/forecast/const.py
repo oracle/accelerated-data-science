@@ -23,3 +23,13 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     RMSE = "rmse"
     MSE = "mse"
     SMAPE = "smape"
+
+
+automlx_metric_dict = {
+    "smape": "neg_sym_mean_abs_percent_error",
+    "mape": "neg_sym_mean_abs_percent_error",
+    "mase": "neg_mean_abs_scaled_error",
+    "mae": "neg_mean_absolute_error",
+    "mse": "neg_mean_squared_error",
+    "rmse": "neg_root_mean_squared_error",
+}

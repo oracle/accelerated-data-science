@@ -9,6 +9,7 @@ import datapane as dp
 import pandas as pd
 import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.opctl.operator.lowcode.forecast.const import automlx_metric_dict
 from sktime.forecasting.model_selection import temporal_train_test_split
 from ads.opctl import logger
 
@@ -29,7 +30,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        import automl
+        from  automl import init
+        init(engine="local", check_deprecation_warnings=False)
 
         full_data_dict = self.full_data_dict
 
@@ -59,7 +61,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 "" if y_train.index.is_monotonic else "NOT",
                 "monotonic.",
             )
-            model = automl.Pipeline(task="forecasting", n_algos_tuned=n_algos_tuned)
+            model = automl.Pipeline(task="forecasting",
+                                    n_algos_tuned=n_algos_tuned,
+                                    score_metric=automlx_metric_dict[self.spec.metric])
             model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
             logger.info("Selected model: {}".format(model.selected_model_))
             logger.info(
