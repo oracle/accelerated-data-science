@@ -216,7 +216,7 @@ class GuardRail:
         dp.enable_logging()
         if not self.sentence_level:
             view = make_view(data)
-            dp.save_report(view, os.path.join(self.output_directory, self.report_file_name))
+            dp.save_report(view, os.path.join(os.path.expanduser(self.output_directory), self.report_file_name))
             return view
 
         else:
