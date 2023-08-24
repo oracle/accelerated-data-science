@@ -6,8 +6,7 @@ Quick start
 
   ..  code-block:: shell
 
-    odsc conda install --uri https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda
-
+     odsc conda install -s fspyspark32_p38_cpu_v1
 3. Download the notebooks from the example notebook section.
 
 .. seealso::
