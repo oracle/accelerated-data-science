@@ -121,7 +121,7 @@ class SGDClassifierSearchSpace(ModelSearchSpace):
     def suggest_space(self, **kwargs):
         space = {
             "alpha": LogUniformDistribution(10**-4, 10**-1),
-            "penalty": CategoricalDistribution(["l1", "l2", "none"]),
+            "penalty": CategoricalDistribution(["l1", "l2", None]),
         }
         if self.strategy != "perfunctory":
             space.update(
