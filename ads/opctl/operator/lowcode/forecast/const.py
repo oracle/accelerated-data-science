@@ -25,7 +25,7 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     SMAPE = "smape"
 
 
-automlx_metric_dict = {
+AUTOMLX_METRIC_MAP = {
     "smape": "neg_sym_mean_abs_percent_error",
     "mape": "neg_sym_mean_abs_percent_error",
     "mase": "neg_mean_abs_scaled_error",
