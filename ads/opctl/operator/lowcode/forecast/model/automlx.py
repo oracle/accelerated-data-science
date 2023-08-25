@@ -63,7 +63,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             )
             model = automl.Pipeline(task="forecasting",
                                     n_algos_tuned=n_algos_tuned,
-                                    score_metric=AUTOMLX_METRIC_MAP.get(self.spec.metric, "smape"))
+                                    score_metric=AUTOMLX_METRIC_MAP.get(self.spec.metric,
+                                                                        "neg_sym_mean_abs_percent_error"))
             model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
             logger.info("Selected model: {}".format(model.selected_model_))
             logger.info(
