@@ -127,11 +127,11 @@ class GuardRail:
         self.output_directory = self.spec.get("output_directory", {}).get("url", None)
         self.report_file_name = self.spec.get("report_file_name")
         self.metrics_spec = self.spec.get("metrics", [{}])
-        self.predictions = None
-        self.references = None
+        self.registered_gardrails = {}
 
     def load_data(self):
-
+        references = None
+        predictions = None
         if self.spec.get("test_data").get("url", None):
 
             data_path = self.spec.get("test_data").get("url")
@@ -155,18 +155,20 @@ class GuardRail:
                 self.sentence_level = True
    
             if reference_col in self.data.columns:
-                self.references = self.data[reference_col]
+                references = self.data[reference_col]
 
-            if self.sentence_level and not self.references:
-                self.predictions = self.sentence_level_data[pred_col].tolist()
+            if self.sentence_level and not references:
+                predictions = self.sentence_level_data[pred_col].tolist()
             else:
-                self.predictions = self.data[pred_col]
-        else:
-            self.predictions =  self.spec.get("test_data").get("predictions")
-            self.references =  self.spec.get("test_data").get("references", None)
+                predictions = self.data[pred_col]
 
-    def evaluate(self):
-        scores = {}
+        else:
+            predictions =  self.spec.get("test_data").get("predictions")
+            references =  self.spec.get("test_data").get("references", None)
+        return predictions, references
+
+    def load(self,):
+
         for metric_config in self.metrics_spec:
             logging.debug(f"Metric: {metric_config}")
             print(f"Metric: {metric_config}")
@@ -177,12 +179,15 @@ class GuardRail:
             compute_args = metric_config.get("compute_args", {})
             logging.debug(name)
             logging.debug(load_args)
-
-            guardrail = MetricLoader().load(metric_type, metric_config)(load_args)
+            self.registered_gardrails[name] = (MetricLoader().load(metric_type, metric_config)(load_args), compute_args)
+        
+    def evaluate(self, predictions, references=None):
+        scores = {}
+        for name, (guardrail, compute_args) in self.registered_gardrails.items():
             
             score = guardrail.compute(
-                predictions=self.predictions,
-                references=self.references,
+                predictions=predictions,
+                references=references,
                 **compute_args,
             )
             scores[name] = (score, guardrail.description, guardrail.homepage)
@@ -195,8 +200,8 @@ class GuardRail:
             score_dict = to_dataframe(score)
             
             for metric, df in score_dict.items():
-                if len(df) == len(self.predictions):
-                    df['predictions'] = self.predictions
+                if len(df) == len(predictions):
+                    df['predictions'] = predictions
                     if self.sentence_level:
                         df['index'] = self.sentence_level_data['index'].tolist()
                         df = postprocess_sentence_level_dataframe(df)
@@ -207,8 +212,9 @@ class GuardRail:
         return res
 
     def generate_report(self):
-        self.load_data()
-        scores = self.evaluate()
+        predictions, references = self.load_data()
+        self.load()
+        scores = self.evaluate(predictions, references)
         data = []
 
         for name, (df, description, homepage) in scores.items():

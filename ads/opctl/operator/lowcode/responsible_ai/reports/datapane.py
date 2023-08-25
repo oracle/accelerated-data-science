@@ -6,13 +6,6 @@ import datapane as dp
 import pandas as pd
 
 
-with open(
-    os.path.join(os.path.dirname(__file__), "..", "metric_descriptions.json"),
-    "r",
-    encoding="utf-8",
-) as f:
-    METRICS = json.load(f)
-
 
 def make_page(metric: str, df: pd.DataFrame, descp: str, homepage: str):
     title = metric.title()
