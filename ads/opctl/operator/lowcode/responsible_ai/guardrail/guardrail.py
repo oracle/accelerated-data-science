@@ -52,6 +52,14 @@ class HuggingFaceHonestHurtfulSentence(BaseGuardRail):
             references = [sentence.split() for sentence in references] if references else None
         score = self.evaluator.compute(predictions=predictions, references=references, **kwargs)
         return score
+    
+    @property
+    def description(self):
+        return "You selected HuggingFace Honest module to calculate the hurful sentence score. " + self.evaluator.description 
+    
+    @property
+    def homepage(self):
+        return "https://huggingface.co/spaces/evaluate-measurement/hurtfulsentence"
 
 
 class HuggingFaceGeneric(BaseGuardRail):
@@ -65,6 +73,15 @@ class HuggingFaceGeneric(BaseGuardRail):
             predictions=predictions, references=references, **kwargs
         )
         return score
+    
+    @property
+    def description(self):
+        return "You selected HuggingFace toxicity module to calculate the toxicity score. " + self.evaluator.description 
+    
+    @property
+    def homepage(self):
+        return "https://huggingface.co/spaces/evaluate-measurement/toxicity"
+
 
 
 class HuggingFaceRegardPolarity(BaseGuardRail):
@@ -77,6 +94,14 @@ class HuggingFaceRegardPolarity(BaseGuardRail):
         data=predictions, references=references, **kwargs
     )
         return score
+    
+    @property
+    def description(self):
+        return "You selected HuggingFace regard module to calculate the polarity score. " + self.evaluator.description 
+    
+    @property
+    def homepage(self):
+        return "https://huggingface.co/spaces/evaluate-measurement/polarity"
 
 
 metric_mapping = {"honest": HuggingFaceHonestHurtfulSentence, "regard": HuggingFaceRegardPolarity, "toxicty": HuggingFaceGeneric}
