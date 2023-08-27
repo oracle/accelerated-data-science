@@ -73,4 +73,5 @@ class TestDatasetComplex(FeatureStoreTestCase):
         assert dataset_resource.get_spec(
             Dataset.CONST_FEATURE_GROUP
         ).is_manual_association
+        dataset_resource.delete()
         return dataset_resource

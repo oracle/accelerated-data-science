@@ -708,7 +708,7 @@ class Dataset(Builder):
                 f"Can't get lineage information for Feature group id {self.id}"
             )
 
-    def create(self, validate_sql=True, **kwargs) -> "Dataset":
+    def create(self, validate_sql=False, **kwargs) -> "Dataset":
         """Creates dataset  resource.
 
         !!! note "Lazy"
