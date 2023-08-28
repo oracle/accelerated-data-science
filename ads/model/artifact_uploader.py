@@ -132,8 +132,8 @@ class LargeArtifactUploader(ArtifactUploader):
         The data scince model instance.
     overwrite_existing_artifact: bool
         Overwrite target bucket artifact if exists.
-    progress:
-
+    progress: TqdmProgressBar
+        An instance of the TqdmProgressBar.
     region: str
         The destination Object Storage bucket region.
         By default the value will be extracted from the `OCI_REGION_METADATA` environment variables.
@@ -215,13 +215,20 @@ class LargeArtifactUploader(ArtifactUploader):
 
         bucket_name, namespace_name, object_name = utils.parse_os_uri(bucket_uri)
         logger.debug(f"{bucket_name=}, {namespace_name=}, {object_name=}")
-        response = self.upload_manager.upload_file(
-            namespace_name=namespace_name,
-            bucket_name=bucket_name,
-            object_name=object_name,
-            file_path=self.artifact_zip_path,
-        )
-        logger.debug(response)
+        try:
+            response = self.upload_manager.upload_file(
+                namespace_name=namespace_name,
+                bucket_name=bucket_name,
+                object_name=object_name,
+                file_path=self.artifact_zip_path,
+            )
+            logger.debug(response)
+            assert response.status == 200
+        except Exception as e:
+            raise RuntimeError(
+                f"Failed to upload model artifact to the given Object Storage path `{self.bucket_uri}`."
+                f"Exception: {e}"
+            )
 
         self.progress.update("Exporting model artifact to the model catalog")
         self.dsc_model.export_model_artifact(bucket_uri=bucket_uri, region=self.region)
