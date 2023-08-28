@@ -498,3 +498,15 @@ class TestCommonUtils:
             return_value={"config": {"region": "default_signer_region"}},
         ):
             assert extract_region(input_params["auth"]) == expected_result
+
+    def test_parse_os_uri(self):
+        bucket, namespace, path = utils.parse_os_uri(
+            "oci://my-bucket@my-namespace/my-artifact-path"
+        )
+        assert bucket == "my-bucket"
+        assert namespace == "my-namespace"
+        assert path == "my-artifact-path"
+
+    def test_parse_os_uri_with_invalid_scheme(self):
+        with pytest.raises(ValueError):
+            utils.parse_os_uri("s3://my-bucket/my-artifact-path")

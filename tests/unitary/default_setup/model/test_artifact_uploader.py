@@ -13,6 +13,8 @@ from zipfile import ZipFile
 import pytest
 from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
 from ads.model.common.utils import zip_artifact
+from ads.common.auth import default_signer
+from oci import object_storage
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.xxx"
 
@@ -60,7 +62,6 @@ class TestArtifactUploader:
 
         # Ensures the LargeArtifactUploader can be successfully initialized
         with patch("os.path.exists", return_value=True):
-
             with pytest.raises(ValueError, match="The `bucket_uri` must be provided."):
                 lg_artifact_uploader = LargeArtifactUploader(
                     dsc_model=self.mock_dsc_model,
@@ -71,11 +72,11 @@ class TestArtifactUploader:
                     overwrite_existing_artifact=False,
                     remove_existing_artifact=False,
                 )
-
+            auth = default_signer()
             lg_artifact_uploader = LargeArtifactUploader(
                 dsc_model=self.mock_dsc_model,
                 artifact_path="existing_path",
-                auth=self.mock_auth,
+                auth=auth,
                 region=self.mock_region,
                 bucket_uri="test_bucket_uri",
                 overwrite_existing_artifact=False,
@@ -85,14 +86,16 @@ class TestArtifactUploader:
             assert lg_artifact_uploader.artifact_path == "existing_path"
             assert lg_artifact_uploader.artifact_zip_path == None
             assert lg_artifact_uploader.progress == None
-            assert lg_artifact_uploader.auth == self.mock_auth
+            assert lg_artifact_uploader.auth == auth
             assert lg_artifact_uploader.region == self.mock_region
             assert lg_artifact_uploader.bucket_uri == "test_bucket_uri"
             assert lg_artifact_uploader.overwrite_existing_artifact == False
             assert lg_artifact_uploader.remove_existing_artifact == False
+            assert isinstance(
+                lg_artifact_uploader.upload_manager, object_storage.UploadManager
+            )
 
     def test_prepare_artiact_tmp_zip(self):
-
         # Tests case when a folder provided as artifacts location
         with patch("ads.model.common.utils.zip_artifact") as mock_zip_artifact:
             mock_zip_artifact.return_value = "test_artifact.zip"
@@ -167,50 +170,50 @@ class TestArtifactUploader:
                     mock_remove_artiact_tmp_zip.assert_called()
                     self.mock_dsc_model.create_model_artifact.assert_called()
 
-    def test_upload_large_artifact(self):
-        with tempfile.TemporaryDirectory() as tmp_artifact_dir:
-            test_bucket_file_name = os.path.join(tmp_artifact_dir, f"{MODEL_OCID}.zip")
-            # Case when artifact will be created and left in the TMP folder
+    @patch("ads.common.utils.is_path_exists")
+    @patch.object(object_storage.UploadManager, "upload_file")
+    def test_upload_large_artifact(self, mock_upload_file, mock_is_path_exists):
+        class MockResponse:
+            def __init__(self, status_code):
+                self.status = status_code
+
+        # Case when artifact already exists and overwrite_existing_artifact==True
+        dest_path = "oci://my-bucket@my-namespace/my-artifact-path"
+        test_bucket_file_name = os.path.join(dest_path, f"{MODEL_OCID}.zip")
+        mock_upload_file.return_value = MockResponse(200)
+        mock_is_path_exists.return_value = True
+        artifact_uploader = LargeArtifactUploader(
+            dsc_model=self.mock_dsc_model,
+            artifact_path=self.mock_artifact_zip_path,
+            bucket_uri=dest_path + "/",
+            auth=default_signer(),
+            region=self.mock_region,
+            overwrite_existing_artifact=True,
+            remove_existing_artifact=False,
+        )
+        artifact_uploader.upload()
+        mock_upload_file.assert_called_with(
+            namespace_name="my-namespace",
+            bucket_name="my-bucket",
+            object_name=f"my-artifact-path/{MODEL_OCID}.zip",
+            file_path=self.mock_artifact_zip_path,
+        )
+        self.mock_dsc_model.export_model_artifact.assert_called_with(
+            bucket_uri=test_bucket_file_name, region=self.mock_region
+        )
+
+        # Case when artifact already exists and overwrite_existing_artifact==False
+        with pytest.raises(FileExistsError):
             artifact_uploader = LargeArtifactUploader(
                 dsc_model=self.mock_dsc_model,
-                artifact_path=self.mock_artifact_path,
-                bucket_uri=tmp_artifact_dir + "/",
-                auth=self.mock_auth,
+                artifact_path=self.mock_artifact_zip_path,
+                bucket_uri=dest_path + "/",
+                auth=default_signer(),
                 region=self.mock_region,
                 overwrite_existing_artifact=False,
                 remove_existing_artifact=False,
             )
             artifact_uploader.upload()
-            self.mock_dsc_model.export_model_artifact.assert_called_with(
-                bucket_uri=test_bucket_file_name, region=self.mock_region
-            )
-            assert os.path.exists(test_bucket_file_name)
-
-            # Case when artifact already exists and overwrite_existing_artifact==False
-            with pytest.raises(FileExistsError):
-                artifact_uploader = LargeArtifactUploader(
-                    dsc_model=self.mock_dsc_model,
-                    artifact_path=self.mock_artifact_path,
-                    bucket_uri=tmp_artifact_dir + "/",
-                    auth=self.mock_auth,
-                    region=self.mock_region,
-                    overwrite_existing_artifact=False,
-                    remove_existing_artifact=False,
-                )
-                artifact_uploader.upload()
-
-            # Case when artifact already exists and overwrite_existing_artifact==True
-            artifact_uploader = LargeArtifactUploader(
-                dsc_model=self.mock_dsc_model,
-                artifact_path=self.mock_artifact_path,
-                bucket_uri=tmp_artifact_dir + "/",
-                auth=self.mock_auth,
-                region=self.mock_region,
-                overwrite_existing_artifact=True,
-                remove_existing_artifact=True,
-            )
-            artifact_uploader.upload()
-            assert not os.path.exists(test_bucket_file_name)
 
     def test_zip_artifact_fail(self):
         with pytest.raises(ValueError, match="The `artifact_dir` must be provided."):

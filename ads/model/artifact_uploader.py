@@ -224,10 +224,10 @@ class LargeArtifactUploader(ArtifactUploader):
             )
             logger.debug(response)
             assert response.status == 200
-        except Exception as e:
+        except Exception as ex:
             raise RuntimeError(
                 f"Failed to upload model artifact to the given Object Storage path `{self.bucket_uri}`."
-                f"Exception: {e}"
+                f"Exception: {ex}"
             )
 
         self.progress.update("Exporting model artifact to the model catalog")

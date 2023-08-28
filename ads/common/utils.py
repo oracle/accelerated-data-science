@@ -1621,12 +1621,12 @@ def parse_os_uri(uri: str):
 
     Raise
     -----
-    Exception
+    ValueError
         If provided URI is not an OCI OS bucket URI.
     """
     parsed = urlparse(uri)
     if parsed.scheme.lower() != OCI_SCHEME:
-        raise Exception("Not an OCI object storage URI: %s" % uri)
+        raise ValueError("Not an OCI object storage URI: %s" % uri)
     path = parsed.path
 
     if path.startswith("/"):
