@@ -100,6 +100,10 @@ DIMENSION = 2
 
 # declare custom exception class
 
+# OCI path schema
+OCI_SCHEME = "oci"
+OCI_PREFIX = f"{OCI_SCHEME}://"
+
 
 class FileOverwriteError(Exception):  # pragma: no cover
     pass
@@ -1599,3 +1603,35 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     if fsspec.filesystem(path_scheme, **storage_options).exists(uri):
         return True
     return False
+
+
+def parse_os_uri(uri: str):
+    """
+    Parse an OCI object storage URI, returning tuple (bucket, namespace, path).
+
+    Parameters
+    ----------
+    uri: str
+        The OCI Object Storage URI.
+
+    Returns
+    -------
+    Tuple
+        The (bucket, ns, type)
+
+    Raise
+    -----
+    Exception
+        If provided URI is not an OCI OS bucket URI.
+    """
+    parsed = urlparse(uri)
+    if parsed.scheme.lower() != OCI_SCHEME:
+        raise Exception("Not an OCI object storage URI: %s" % uri)
+    path = parsed.path
+
+    if path.startswith("/"):
+        path = path[1:]
+
+    bucket, ns = parsed.netloc.split("@")
+
+    return bucket, ns, path
