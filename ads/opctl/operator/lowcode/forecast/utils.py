@@ -21,7 +21,7 @@ from sklearn.metrics import (
 )
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
-from ads.opctl.operator.lowcode.forecast.const import SupportedModels
+from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -294,6 +294,6 @@ def human_time_friendly(seconds):
     return ", ".join(accumulator)
 
 def select_auto_model(columns):
-    if columns!=None and len(columns) > 15:
+    if columns!=None and len(columns) > MAX_COLUMNS_AUTOMLX:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX

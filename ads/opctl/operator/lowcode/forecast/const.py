@@ -23,3 +23,6 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     RMSE = "rmse"
     MSE = "mse"
     SMAPE = "smape"
+
+
+MAX_COLUMNS_AUTOMLX = 15
