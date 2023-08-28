@@ -293,7 +293,23 @@ def human_time_friendly(seconds):
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
 
-def select_auto_model(columns):
+def select_auto_model(columns:List)->str:
+    """
+    Selects AutoMLX or Arima model based on column count.
+
+    If the number of columns is less than or equal to the maximum allowed for AutoMLX,
+    returns 'AutoMLX'. Otherwise, returns 'Arima'.
+    
+    Parameters
+    ------------
+    columns:  List
+            The list of columns.
+    
+    Returns
+    --------
+    str
+        The type of the model.
+    """
     if columns!=None and len(columns) > MAX_COLUMNS_AUTOMLX:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX
