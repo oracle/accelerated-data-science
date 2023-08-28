@@ -43,6 +43,23 @@ def smape(actual, predicted) -> float:
         2,
     )
 
+def wmape(data, outputs, target_columns, target_col):
+
+    actuals_df = data[target_columns]
+
+    # Calculates sum of values for each cateory
+    totals = actuals_df.sum()
+
+    # Calculates weights of each category based on sums
+    weights_wmape = totals / totals.sum()
+    
+    forecasts_df = pd.concat([df[target_col] for df in outputs], axis=1)
+    mapes_df = np.abs((actuals_df.values-forecasts_df.values)/actuals_df.values)
+    wmapes_df = mapes_df * weights_wmape.values
+    wmapes_per_ds = wmapes_df.sum(axis=1)
+    
+    return wmapes_per_ds
+
 
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":

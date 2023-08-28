@@ -293,8 +293,11 @@ class ForecastOperatorBaseModel(ABC):
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
+        wmapes = utils.wmape(data=data, outputs=outputs, target_columns=target_columns, target_col=target_col)
+
         summary_metrics = pd.DataFrame(
             {
+                "Mean wMAPE": np.mean(wmapes),
                 "Mean sMAPE": np.mean(total_metrics.loc["sMAPE"]),
                 "Median sMAPE": np.median(total_metrics.loc["sMAPE"]),
                 "Mean MAPE": np.mean(total_metrics.loc["MAPE"]),
@@ -312,6 +315,12 @@ class ForecastOperatorBaseModel(ABC):
                 "Elapsed Time": elapsed_time,
             },
             index=["All Targets"],
+        )
+        
+        summary_metrics = summary_metrics.append(
+            pd.DataFrame(
+                wmapes, columns=['wMAPE']
+            ).set_index(pd.Index(data['ds']))
         )
         return total_metrics, summary_metrics, data
 
