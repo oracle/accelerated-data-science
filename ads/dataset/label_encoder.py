@@ -33,6 +33,7 @@ class DataFrameLabelEncoder(TransformerMixin):
     """
 
     def __init__(self):
+        """Initialize an instance of DataFrameLabelEncoder."""
         self.label_encoders = defaultdict(LabelEncoder)
 
     def fit(self, X: "pandas.DataFrame"):
