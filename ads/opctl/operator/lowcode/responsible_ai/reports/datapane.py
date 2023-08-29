@@ -6,12 +6,11 @@ import datapane as dp
 import pandas as pd
 
 
-
 def make_page(metric: str, df: pd.DataFrame, descp: str, homepage: str):
     title = metric.title()
     groups = []
     for column in df.columns:
-        if column in ["predictions", "references"]:
+        if column in ["text", "references"]:
             continue
         fig = (
             alt.Chart(df)
@@ -28,11 +27,11 @@ def make_page(metric: str, df: pd.DataFrame, descp: str, homepage: str):
             dp.BigNumber("Mean", round(df[column].mean(), 4)),
             columns=2,
         )
-        if "predictions" in df.columns:
+        if "text" in df.columns:
             box_plot = (
                 alt.Chart(df)
                 .mark_boxplot()
-                .encode(alt.X(column), tooltip=["predictions", column])
+                .encode(alt.X(column), tooltip=["text", column])
             )
             plots = dp.Group(fig, box_plot)
         else:
@@ -41,9 +40,7 @@ def make_page(metric: str, df: pd.DataFrame, descp: str, homepage: str):
     visual = dp.Select(*groups) if len(groups) > 1 else groups[0]
     description = "N/A"
     if descp:
-        description = (
-            descp if not homepage else descp + "\n\nSee also:\n" + homepage
-        )
+        description = descp if not homepage else descp + "\n\nSee also:\n" + homepage
     return dp.Page(
         title=title,
         blocks=[
@@ -56,7 +53,14 @@ def make_page(metric: str, df: pd.DataFrame, descp: str, homepage: str):
 
 
 def make_view(data_list: list):
-    return dp.Blocks(*[make_page(item["metric"], item["data"], item['description'], item['homepage']) for item in data_list])
+    return dp.Blocks(
+        *[
+            make_page(
+                item["metric"], item["data"], item["description"], item["homepage"]
+            )
+            for item in data_list
+        ]
+    )
 
 
 def main():
