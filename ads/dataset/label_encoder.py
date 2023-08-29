@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import bisect
@@ -15,6 +15,21 @@ from sklearn.preprocessing import LabelEncoder
 class DataFrameLabelEncoder(TransformerMixin):
     """
     Label encoder for `pandas.DataFrame` and `dask.dataframe.core.DataFrame`.
+
+    Attributes
+    ----------
+    label_encoders : defaultdict
+        Holds the label encoder for each column.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> from ads.dataset.label_encoder import DataFrameLabelEncoder
+
+    >>> df = pd.DataFrame(data={'col1': [1, 2], 'col2': [3, 4]})
+    >>> le = DataFrameLabelEncoder()
+    >>> le.fit_transform(X=df)
+
     """
 
     def __init__(self):
