@@ -6,6 +6,7 @@
 [build-system]
 # These are the assumed default build requirements from pip:
 # https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
+# PEP 517 – A build-system independent format for source trees - https://peps.python.org/pep-0517/
 requires = ["flit-core >= 3.8"]
 build-backend = "flit_core.buildapi"
 
