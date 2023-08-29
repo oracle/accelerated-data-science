@@ -49,6 +49,7 @@ class DataFrameLabelEncoder(TransformerMixin):
         -------
         self : returns an instance of self.
             Fitted label encoder.
+
         """
         for column in X.columns:
             if X[column].dtype.name in ["object", "category"]:
