@@ -131,7 +131,6 @@ class RecommendationTransformer(TransformerMixin):
         self.feature_metadata_[self.target_] = self.target_type_
 
         for column in df.columns.values[df.isnull().any()]:
-
             # filter out columns that were discovered as constant or primary key columns in the previous step,
             # as they would get dropped before imputation
             if (
@@ -246,10 +245,10 @@ class RecommendationTransformer(TransformerMixin):
             if not self.is_balanced and self.fix_imbalance:
                 target_value_counts = df[self.target_].value_counts()
                 minority_class_len = min(
-                    target_value_counts.iteritems(), key=lambda k: k[1]
+                    target_value_counts.items(), key=lambda k: k[1]
                 )[1]
                 majority_class_len = max(
-                    target_value_counts.iteritems(), key=lambda k: k[1]
+                    target_value_counts.items(), key=lambda k: k[1]
                 )[1]
                 minor_majority_ratio = minority_class_len / majority_class_len
 

@@ -68,7 +68,7 @@ def _list_to_dataframe(
     correlation_matrix = correlation_matrix.loc[:, correlation_matrix.index]
     if normal_form:
         data = []
-        for (col1, col2), corr in correlation_matrix.stack().iteritems():
+        for (col1, col2), corr in correlation_matrix.stack().items():
             data.append([col1, col2, round(corr, 4)])
         return pd.DataFrame(data, columns=["Column 1", "Column 2", "Value"])
     else:
@@ -161,6 +161,6 @@ def cont_vs_cont(df: pd.DataFrame, normal_form: bool = True) -> pd.DataFrame:
     if not normal_form:
         return df.corr(method="pearson")
     data = []
-    for (col1, col2), corr in df.corr(method="pearson").stack().iteritems():
+    for (col1, col2), corr in df.corr(method="pearson").stack().items():
         data.append([col1, col2, round(corr, 4)])
     return pd.DataFrame(data, columns=["Column 1", "Column 2", "Value"])
