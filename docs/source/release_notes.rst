@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+2.8.9
+-----
+Release date: August 30, 2023
+
+* Upgraded the ``scikit-learn`` dependency to ``>=1.0``.
+* Upgraded the ``pandas`` dependency to ``>1.2.1,<2.1``. This will allow users to use ADS with pandas 2.0.
+* Fixed "Attribute not found" error, when ``deploy()`` called twice in ``GenericModel``.
+* Fixed fetch of the security token, when relative path for the ``security_token_file`` provided (used in session token-bases authentication).
+
 2.8.8
 -----
 Release date: July 27, 2023
