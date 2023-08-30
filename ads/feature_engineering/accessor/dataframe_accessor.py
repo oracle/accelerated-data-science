@@ -58,7 +58,7 @@ class ADSDataFrameAccessor(
     EDAMixin,
     DBAccessMixin,
     DataLabelingAccessMixin,
-    ADSDatasetAccessMixin
+    ADSDatasetAccessMixin,
 ):
     """ADS accessor for the Pandas DataFrame.
 
@@ -218,7 +218,7 @@ class ADSDataFrameAccessor(
         for col in self._obj:
             series_feature_type_df = self._obj[col].ads.feature_type_description
             series_feature_type_df.insert(0, "Column", col)
-            result_df = result_df.append(series_feature_type_df)
+            result_df = pd.concat([result_df, series_feature_type_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 

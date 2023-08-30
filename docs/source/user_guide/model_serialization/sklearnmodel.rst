@@ -31,7 +31,7 @@ The following steps take your trained ``scikit-learn`` model and deploy it into 
     X = df.drop(columns=["Attrition", "name"])
 
     # Data Preprocessing
-    for i, col in X.iteritems():
+    for i, col in X.items():
         col.replace("unknown", "", inplace=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
 
@@ -43,7 +43,7 @@ The following steps take your trained ``scikit-learn`` model and deploy it into 
     # Extract numerical columns and categorical columns
     categorical_cols = []
     numerical_cols = []
-    for i, col in X.iteritems():
+    for i, col in X.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:
@@ -199,7 +199,7 @@ Examples
     X = df.drop(columns=["Attrition", "name"])
 
     # Data Preprocessing
-    for i, col in X.iteritems():
+    for i, col in X.items():
         col.replace("unknown", "", inplace=True)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.1, random_state=42)
 
@@ -211,7 +211,7 @@ Examples
     # Extract numerical columns and categorical columns
     categorical_cols = []
     numerical_cols = []
-    for i, col in X.iteritems():
+    for i, col in X.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:
@@ -251,4 +251,3 @@ Examples
     sklearn_model.predict(X_test.head(2))
     sklearn_model.delete_deployment(wait_for_completion=True)
     sklearn_model.delete()
-

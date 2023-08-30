@@ -14,7 +14,7 @@ The following steps take your trained ``LightGBM`` model and deploy it into prod
 
 The ``LightGBMModel`` module in ADS supports serialization for models generated from both the  `Training API <https://lightgbm.readthedocs.io/en/latest/Python-API.html#training-api>`_ using ``lightgbm.train()`` and the `Scikit-Learn API <https://lightgbm.readthedocs.io/en/latest/Python-API.html#scikit-learn-api>`_ using ``lightgbm.LGBMClassifier()``. Both of these interfaces are defined by `LightGBM <https://lightgbm.readthedocs.io/en/latest/>`_.
 
-The Training API in ``LightGBM`` contains training and cross-validation routines. The ``Dataset`` class is an internal data structure that is used by LightGBM when using the ``lightgbm.train()`` method. You can also create LightGBM models using the Scikit-Learn Wrapper interface. The `LightGBMModel` class handles the differences between the LightGBM Training and SciKit-Learn APIs seamlessly.
+The Training API in ``LightGBM`` contains training and cross-validation routines. The ``Dataset`` class is an internal data structure that is used by LightGBM when using the ``lightgbm.train()`` method. You can also create LightGBM models using the Scikit-Learn Wrapper interface. The ``LightGBMModel`` class handles the differences between the LightGBM Training and SciKit-Learn APIs seamlessly.
 
 **Create Training API and Scikit-Learn Wrapper LightGBM Models**
 
@@ -46,7 +46,7 @@ In the following several code snippets you will prepare the data and train Light
     # Extract numerical columns and categorical columns
     categorical_cols = []
     numerical_cols = []
-    for i, col in X.iteritems():
+    for i, col in X.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:
@@ -119,7 +119,7 @@ Prepare
 The prepare step is performed by the ``.prepare()`` method. It creates several customized files used to run the model after it is deployed. These files include:
 
 * ``input_schema.json``: A JSON file that defines the nature of the features of the ``X_sample`` data. It includes metadata such as the data type, name, constraints, summary statistics, feature type, and more.
-* ``model.joblib``: This is the default filename of the serialized model for Training API. For sklearn API, the default file name is ``model.joblib``. You can change it with the `model_file_name` attribute. By default, the model is stored in a joblib.txt file. You can use the ``as_onnx`` parameter to save in the file in ONNX format, and the model name defaults to ``model.onnx``.
+* ``model.joblib``: This is the default filename of the serialized model for Training API. For sklearn API, the default file name is ``model.joblib``. You can change it with the ``model_file_name`` attribute. By default, the model is stored in a joblib.txt file. You can use the ``as_onnx`` parameter to save in the file in ONNX format, and the model name defaults to ``model.onnx``.
 * ``output_schema.json``: A JSON file that defines the nature of the dependent variable in the ``y_sample`` data. It includes metadata such as the data type, name, constraints, summary statistics, feature type, and more.
 * ``runtime.yaml``: This file contains information that is needed to set up the runtime environment on the deployment server. It has information about what conda environment was used to train the model and what environment to use to deploy the model. The file also specifies what version of Python should be used.
 * ``score.py``: This script contains the ``load_model()`` and ``predict()`` functions. The ``load_model()`` function understands the format the model file was saved in and loads it into memory. The ``.predict()`` method is used to make inferences in a deployed model. There are also hooks that allow you to perform operations before and after inference. You can modify this script to fit your specific needs.
@@ -157,7 +157,7 @@ Predict
 
 * ``data: Any``: Data used for making inferences.
 
-The ``.predict()`` and ``.verify()`` methods take the same data format. 
+The ``.predict()`` and ``.verify()`` methods take the same data format.
 
 Load
 ====
@@ -235,7 +235,7 @@ Example
     # Extract numerical columns and categorical columns
     categorical_cols = []
     numerical_cols = []
-    for i, col in X.iteritems():
+    for i, col in X.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:
@@ -284,4 +284,3 @@ Example
     lightgbm_model.predict(X_test_transformed[:10])['prediction']
     lightgbm_model.delete_deployment(wait_for_completion=True)
     lightgbm_model.delete()
-
