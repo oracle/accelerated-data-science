@@ -32,7 +32,7 @@ jobs:
   test:
     name: python ${{ matrix.python-version }}, ${{ matrix.name }}
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 120
 
     strategy:
       fail-fast: false
@@ -96,7 +96,7 @@ jobs:
           pip install -r dev-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 60
+        timeout-minutes: 90
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniconda
