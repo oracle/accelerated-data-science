@@ -198,6 +198,7 @@ class CreditCard(String):
         df_stat = _count_unique_missing(x)
         card_types = x.apply(assign_issuer)
         value_counts = card_types.value_counts()
+        value_counts.rename("creditcard", inplace=True)
         value_counts.index = [
             "count_" + cardtype for cardtype in list(value_counts.index)
         ]
