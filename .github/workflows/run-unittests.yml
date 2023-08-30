@@ -9,8 +9,7 @@ on:
       - develop
     paths:
       - "ads/**"
-      - "!ads/ads_version.json"
-      - setup.py
+      - pyproject.toml
       - "**requirements.txt"
       - .github/workflows/run-unittests.yml
       - .github/workflows/run-unittests-default_setup.yml
@@ -148,15 +147,15 @@ jobs:
         run: |
           set -x # print commands that are executed
 
-          # Prepare default cov body text 
+          # Prepare default cov body text
           COV_BODY_INTRO="📌 Overall coverage:\n\n"
           echo COV_BODY="$COV_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
 
           # Prepare file paths to .coverage files
           # Filenames taken from job.test last step with name - "Save coverage files"
-          FILE_UNITARY="cov-reports-unitary/.coverage"; [[ ! -f $FILE_UNITARY ]] && FILE_UNITARY="" 
+          FILE_UNITARY="cov-reports-unitary/.coverage"; [[ ! -f $FILE_UNITARY ]] && FILE_UNITARY=""
           FILE_MODEL="cov-reports-model/.coverage"; [[ ! -f $FILE_MODEL ]] && FILE_MODEL=""
-          
+
           # Combine coverage files
           pip install coverage
           coverage combine $FILE_UNITARY $FILE_MODEL
@@ -166,7 +165,7 @@ jobs:
 
           # Calculate overall coverage and update body message
           COV=$(grep -E 'pc_cov' htmlcov/index.html | cut -d'>' -f 2 | cut -d'%' -f 1)
-          if [[ ! -z $COV ]]; then 
+          if [[ ! -z $COV ]]; then
             if [[ $COV -lt 50 ]]; then COLOR=red; elif [[ $COV -lt 80 ]]; then COLOR=yellow; else COLOR=green; fi
             echo COV_BODY="$COV_BODY_INTRO ![Coverage-$COV%](https://img.shields.io/badge/coverage-$COV%25-$COLOR)" >> $GITHUB_ENV
           fi
@@ -176,23 +175,23 @@ jobs:
         run: |
           set -x # print commands that are executed
 
-          # Prepare default diff body text 
+          # Prepare default diff body text
           DIFF_BODY_INTRO="📌 Cov diff with **${{ env.COMPARE_BRANCH }}**:\n\n"
           echo DIFF_BODY="$DIFF_BODY_INTRO No success to gather report. 😿" >> $GITHUB_ENV
 
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
-          FILE1="cov-reports-unitary/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1="" 
+          FILE1="cov-reports-unitary/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1=""
           FILE2="cov-reports-model/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           echo "FILE1=$FILE1" >> $GITHUB_ENV
           echo "FILE2=$FILE2" >> $GITHUB_ENV
 
           # Calculate coverage diff and update body message
           pip install diff_cover
-          diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }} 
+          diff-cover $FILE1 $FILE2 --compare-branch=origin/${{ env.COMPARE_BRANCH }}
           DIFF=$(diff-cover $FILE1 $FILE2 \
             --compare-branch=origin/${{ env.COMPARE_BRANCH }} | grep Coverage: | cut -d' ' -f 2 | cut -d'%' -f 1)
-          if [[ -z $DIFF ]]; then 
+          if [[ -z $DIFF ]]; then
             DIFF_INFO=$(diff-cover $FILE1 $FILE2 \
               --compare-branch=origin/${{ env.COMPARE_BRANCH }}  | grep "No lines");
             echo DIFF_BODY="$DIFF_BODY_INTRO $DIFF_INFO">> $GITHUB_ENV
