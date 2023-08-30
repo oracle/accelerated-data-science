@@ -64,7 +64,7 @@ Working Directory
 
 The default working directory depends on how the source code is specified.
 * When the source code is specified as Git repository URL, the default working directory is the root of the Git repository.
-* When the source code is a single file (script), the default working directory directory containing the file.
+* When the source code is a single file (script), the default working directory containing the file.
 * When the source code is specified as a local or remote directory, the default working directory is the directory containing the source code directory.
 
 The working directory of your workload can be configured by :py:meth:`~ads.jobs.PyTorchDistributedRuntime.with_working_dir`. See :ref:`Python Runtime Working Directory <runtime_working_dir>` for more details.
