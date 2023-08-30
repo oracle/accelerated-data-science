@@ -280,7 +280,7 @@ class FeatureWarning:
                         f"Details: '{name}' should return a DataFrame "
                         f"with columns: {expected_columns}."
                     )
-                result_df = result_df.append(handler_result)
+                result_df = pd.concat([result_df, handler_result])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 
