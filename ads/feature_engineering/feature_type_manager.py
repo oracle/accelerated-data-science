@@ -371,7 +371,7 @@ class FeatureTypeManager:
             feature_type_df = feature_type.warning.registered()
             feature_type_df.insert(0, "Feature Type", feature_type.name)
             feature_type_df = feature_type_df.rename(columns={"Name": "Warning"})
-            result_df = result_df.append(feature_type_df)
+            result_df = pd.concat([result_df, feature_type_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 
@@ -401,6 +401,6 @@ class FeatureTypeManager:
             feature_type_df = feature_type.validator.registered()
             feature_type_df.insert(0, "Feature Type", feature_type.name)
             feature_type_df = feature_type_df.rename(columns={"Name": "Validator"})
-            result_df = result_df.append(feature_type_df)
+            result_df = pd.concat([result_df, feature_type_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df

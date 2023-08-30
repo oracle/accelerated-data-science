@@ -115,14 +115,14 @@ class ADSFeatureTypesMixin:
             for col in self._obj.columns:
                 feature_type_df = self._obj[col].ads.warning_registered()
                 feature_type_df.insert(0, "Column", col)
-                result_df = result_df.append(feature_type_df)
+                result_df = pd.concat([result_df, feature_type_df])
         else:
             result_df = pd.DataFrame((), columns=common_columns)
             for feature_type in self._feature_type:
                 feature_type_df = feature_type.warning.registered()
                 feature_type_df.insert(0, "Feature Type", feature_type.name)
                 feature_type_df = feature_type_df.rename(columns={"Name": "Warning"})
-                result_df = result_df.append(feature_type_df)
+                result_df = pd.concat([result_df, feature_type_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 
@@ -155,14 +155,14 @@ class ADSFeatureTypesMixin:
             for col in self._obj.columns:
                 feature_type_df = self._obj[col].ads.validator_registered()
                 feature_type_df.insert(0, "Column", col)
-                result_df = result_df.append(feature_type_df)
+                result_df = pd.concat([result_df, feature_type_df])
         else:
             result_df = pd.DataFrame((), columns=common_columns)
             for feature_type in self._feature_type:
                 feature_type_df = feature_type.validator.registered()
                 feature_type_df.insert(0, "Feature Type", feature_type.name)
                 feature_type_df = feature_type_df.rename(columns={"Name": "Validator"})
-                result_df = result_df.append(feature_type_df)
+                result_df = pd.concat([result_df, feature_type_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 

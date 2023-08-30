@@ -261,7 +261,7 @@ class FeatureValidator:
         for key, feature_validator in self._validators.items():
             feature_validators_df = feature_validator.registered()
             feature_validators_df.insert(0, "Validator", key)
-            result_df = result_df.append(feature_validators_df)
+            result_df = pd.concat([result_df, feature_validators_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 

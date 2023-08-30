@@ -80,6 +80,6 @@ class EDAMixinSeries:
                 warning_df = feature_type.warning(self._obj)
                 if warning_df is not None:
                     warning_df.insert(0, "Feature Type", feature_type.name)
-                    result_df = result_df.append(warning_df)
+                    result_df = pd.concat([result_df, warning_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df

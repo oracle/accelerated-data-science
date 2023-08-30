@@ -262,5 +262,5 @@ class EDAMixin:
             warning_df = self._obj[col].ads.warning()
             if warning_df is not None:
                 warning_df.insert(0, "Column", col)
-                result_df = result_df.append(warning_df)
+                result_df = pd.concat([result_df, warning_df])
         return result_df.reset_index(drop=True)
