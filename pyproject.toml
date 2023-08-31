@@ -125,7 +125,7 @@ opctl = [
   "oci-cli",
 ]
 optuna = [
-  "optuna==2.9.0",
+  "optuna",
   "oracle_ads[viz]",
 ]
 spark = [
