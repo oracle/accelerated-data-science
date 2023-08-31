@@ -777,8 +777,8 @@ class ADSTuner(BaseEstimator):
 
         for trial in self._study.trials:
             if trial.state == TrialState.RUNNING:
-                self._study._storage.set_trial_state(
-                    trial._trial_id, optuna.structs.TrialState.FAIL
+                self._study._storage.set_trial_state_values(
+                    trial._trial_id, optuna.trial.TrialState.FAIL
                 )
 
     @property

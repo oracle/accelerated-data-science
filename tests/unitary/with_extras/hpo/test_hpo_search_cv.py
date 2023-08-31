@@ -133,6 +133,9 @@ class ADSTunerTest(unittest.TestCase):
             ads_search.plot_param_importance() is None
         ), "<code>plot_param_importance</code> does not work."
 
+    @pytest.mark.skip(
+        reason="pytest get stuck due to visualization window does not close automatically."
+    )
     def test_hpo_visualization_async(self):
         model = LogisticRegression()
         ads_search = self.get_adstuner(
@@ -198,6 +201,9 @@ class ADSTunerTest(unittest.TestCase):
             ads_search.plot_param_importance() is None
         ), "<code>plot_param_importance</code> does not work."
 
+    @pytest.mark.skip(
+        reason="pytest get stuck due to visualization window does not close automatically."
+    )
     def test_hpo_visualization_exception(self):
         model = SGDClassifier()
         ads_search = self.get_adstuner(
