@@ -67,7 +67,7 @@ class State(Enum):
     COMPLETED = auto()
 
 
-class InvalidStateTransition(Exception):   # pragma: no cover
+class InvalidStateTransition(Exception):  # pragma: no cover
     """
     `Invalid State Transition` is raised when an invalid transition request is made, such as calling
     halt without a running process.
@@ -76,7 +76,7 @@ class InvalidStateTransition(Exception):   # pragma: no cover
     pass
 
 
-class ExitCriterionError(Exception):   # pragma: no cover
+class ExitCriterionError(Exception):  # pragma: no cover
     """
     `ExitCriterionError` is raised when an attempt is made to check exit status for a different exit
     type than the tuner was initialized with. For example, if an HPO study has an exit criteria based
@@ -87,14 +87,14 @@ class ExitCriterionError(Exception):   # pragma: no cover
     pass
 
 
-class DuplicatedStudyError(Exception):   # pragma: no cover
+class DuplicatedStudyError(Exception):  # pragma: no cover
     """
     `DuplicatedStudyError` is raised when a new tuner process is created with a study name that
     already exists in storage.
     """
 
 
-class NoRestartError(Exception):   # pragma: no cover
+class NoRestartError(Exception):  # pragma: no cover
     """
     `NoRestartError` is raised when an attempt is made to check how many seconds have transpired since
     the HPO process was last resumed from a halt. This can happen if the process has been terminated
@@ -497,7 +497,6 @@ class ADSTuner(BaseEstimator):
         return param_distributions
 
     def _check_search_space(self, param_distributions):
-
         validate_search_space(self.model.get_params().keys(), param_distributions)
 
     def _check_is_fitted(self):
@@ -1044,7 +1043,7 @@ class ADSTuner(BaseEstimator):
     def _extract_scoring_name(self):
         if isinstance(self.scoring, str):
             return self.scoring
-        if self._scorer.__class__.__name__ != "function":
+        if not callable(self._scorer):
             return (
                 self._scorer
                 if isinstance(self._scorer, str)

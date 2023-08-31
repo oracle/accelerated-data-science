@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import warnings
 
@@ -261,7 +261,7 @@ def prepare_generic_model(
 
         progress.update("Updating requirements.txt")
         if fn_artifact_files_included:
-            # fdk removed from dependency list in setup.py (fn deployments deprecated)
+            # fdk removed from dependency list in pyproject.toml (fn deployments deprecated)
             # before we request versions we want to check if fdk installed by user
             # and provide support in error message, if not installed
             try:
@@ -449,7 +449,6 @@ def _sklearn_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
 
 
 def _automl_to_pkl(model=None, target_dir=None, **kwargs):
-
     with open(os.path.join(target_dir, "model.pkl"), "wb") as outfile:
         cloudpickle.dump(model, outfile)
 
@@ -484,7 +483,6 @@ def _lightgbm_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
             options={"nocl": [True, False], "zipmap": [True, False]},
         )
     elif lightgbm.sklearn.LGBMRegressor in model_est_types:
-
         from onnxmltools.convert.lightgbm.operator_converters.LightGbm import (
             convert_lightgbm,
         )
@@ -527,7 +525,6 @@ def _xgboost_to_onnx(model=None, target_dir=None, X=None, y=None, **kwargs):
     else:
         model_est_types = [type(model.est)]
     if xgboost.sklearn.XGBClassifier in model_est_types:
-
         from onnxmltools.convert.xgboost.operator_converters.XGBoost import (
             convert_xgboost,
         )

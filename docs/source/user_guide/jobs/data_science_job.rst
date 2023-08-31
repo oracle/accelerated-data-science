@@ -35,6 +35,7 @@ is available on `Data Science AI Sample GitHub Repository <https://github.com/or
 For more details, see :doc:`infra_and_runtime` configurations.
 You can also :doc:`run_notebook`, :doc:`run_script` and :doc:`run_git`.
 
+.. _yaml:
 
 YAML
 ====
