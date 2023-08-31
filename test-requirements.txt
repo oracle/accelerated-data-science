@@ -1,4 +1,5 @@
 -e .
+anyio<4.0  # version 4.0.0 makes pytests hangs, when running in parallel in GH
 click
 coverage
 faker

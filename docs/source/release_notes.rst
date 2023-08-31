@@ -4,7 +4,7 @@ Release Notes
 
 2.8.9
 -----
-Release date: August 30, 2023
+Release date: August 31, 2023
 
 * Upgraded the ``scikit-learn`` dependency to ``>=1.0``.
 * Upgraded the ``pandas`` dependency to ``>1.2.1,<2.1`` to allow you to use ADS with pandas 2.0.
