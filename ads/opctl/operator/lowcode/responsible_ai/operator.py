@@ -6,12 +6,15 @@
 
 from typing import Dict
 
-from .guardrail.guardrail import GuardRail
+from .guardrail.guardrail import OfflineGuardRail, OnlineGuardRail
 
 
 def operate(operator_config: dict) -> None:
     """Runs the forecasting operator."""
-    return GuardRail(operator_config).generate_report()
+    if operator_config.get("spec", {}).get("online", False):
+        return OnlineGuardRail(operator_config).predict()
+    else:
+        return OfflineGuardRail(operator_config).generate_report()
 
 
 def verify(spec: Dict) -> bool:

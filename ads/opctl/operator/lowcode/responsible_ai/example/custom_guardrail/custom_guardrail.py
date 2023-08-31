@@ -31,7 +31,7 @@ class CustomGuardRail(evaluate.Measurement):
             ],
         )
 
-    def _compute(self, predictions: pd.Series):
+    def _compute(self, predictions: pd.Series, **kwargs):
         return {
             "custom_metric": pd.DataFrame(
                 [[len(pred), pred] for pred in predictions], columns=["length", "text"]

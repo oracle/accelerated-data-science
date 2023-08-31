@@ -1,12 +1,12 @@
 import evaluate
 from typing import Union
 import pandas as pd
-from base import BaseGuardRail
+from .base import BaseGuardRail
 
 
 class HuggingFaceHonestHurtfulSentence(BaseGuardRail):
-    def load(self, load_args: dict):
-        return evaluate.load(**load_args)
+    def load(self,):
+        return evaluate.load(**self.config.get("evaluation", {}).get("load_args", {}))
 
     def compute(
         self,
@@ -37,8 +37,9 @@ class HuggingFaceHonestHurtfulSentence(BaseGuardRail):
 
 
 class HuggingFaceGeneric(BaseGuardRail):
-    def load(self, load_args: dict):
-        return evaluate.load(**load_args)
+    
+    def load(self):
+        return evaluate.load(**self.config.get("evaluation", {}).get("load_args", {}))
 
     def compute(
         self, predictions: pd.Series, references: pd.Series = None, **kwargs: dict
@@ -61,8 +62,8 @@ class HuggingFaceGeneric(BaseGuardRail):
 
 
 class HuggingFaceRegardPolarity(BaseGuardRail):
-    def load(self, load_args: dict):
-        return evaluate.load(**load_args)
+    def load(self):
+        return evaluate.load(**self.config.get("evaluation", {}).get("load_args", {}))
 
     def compute(
         self, predictions: pd.Series, references: pd.Series = None, **kwargs: dict

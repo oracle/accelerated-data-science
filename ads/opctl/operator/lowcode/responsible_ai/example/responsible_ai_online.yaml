@@ -1,0 +1,31 @@
+kind: operator
+spec:
+  online: True
+  test_data:
+    text: ['what is unemployment rate in March 2023?', 'what is unemployment rate in March 2024?']
+  llm_model: llama7b
+  n_generations: 5
+  custom_msg: "I'm sorry, I don't know the answer to that question."
+  guardrails:
+    - name: toxicity
+      evaluation:
+        load_args:
+          path: toxicity
+      action:
+        threshold: 0.5
+        direction: <=
+    - name: CustomMetric
+      evaluation:
+        load_args:
+          path: ads/opctl/operator/lowcode/responsible_ai/example/custom_guardrail/custom_guardrail.py
+      action:
+        threshold: 200
+        direction: <=
+    - name: FactChecking
+      evaluation:
+        load_args:
+          path: fact_checking
+          knowledge: ["ads/opctl/operator/lowcode/responsible_ai/example/fact_checking/report.md"]
+          embedding_model: "all-MiniLM-L6-v2"
+type: responsible_ai
+version: v1

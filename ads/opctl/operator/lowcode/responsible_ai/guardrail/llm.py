@@ -176,6 +176,27 @@ class MDEndpoint(LLMEndpoint):
             data["headers"] = response.headers
             raise NotAuthorizedError(**data)
         return str(data.get("generated_text", data))
+    
+    def batch_generate(
+        self,
+        prompt,
+        model=None,
+        max_tokens=512,
+        temperature=0.1,
+        p=0.9,
+        k=0, 
+        num_generations=1,
+        **kwargs):
+        res = []
+        for i in range(num_generations):
+            res.append(self.generate(prompt,
+            model=model,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            p=p,
+            k=k, 
+            **kwargs))
+        return res
 
 
 class LLMManager:

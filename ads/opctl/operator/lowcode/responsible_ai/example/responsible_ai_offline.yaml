@@ -1,0 +1,27 @@
+kind: operator
+spec:
+  online: False
+  output_directory:
+    url: ./
+  report_file_name: report.html
+  test_data:
+    url: ~/Downloads/test.csv
+  guardrails:
+    - name: toxicity
+      evaluation:
+        load_args:
+          path: toxicity
+    - name: CustomMetric
+      evaluation:
+        load_args:
+          path: ads/opctl/operator/lowcode/responsible_ai/example/custom_guardrail/custom_guardrail.py
+    - name: factChecking
+      evaluation:
+        load_args:
+          path: fact_checking
+          knowledge: ["ads/opctl/operator/lowcode/responsible_ai/example/fact_checking/report.md"]
+          embedding_model: "all-MiniLM-L6-v2"
+        compute_args:
+          llm_model: "cohere"
+type: responsible_ai
+version: v1
