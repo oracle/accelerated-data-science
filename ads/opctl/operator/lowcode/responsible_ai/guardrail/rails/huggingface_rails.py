@@ -5,7 +5,9 @@ from .base import BaseGuardRail
 
 
 class HuggingFaceHonestHurtfulSentence(BaseGuardRail):
-    def load(self,):
+    def load(
+        self,
+    ):
         return evaluate.load(**self.config.get("evaluation", {}).get("load_args", {}))
 
     def compute(
@@ -37,7 +39,6 @@ class HuggingFaceHonestHurtfulSentence(BaseGuardRail):
 
 
 class HuggingFaceGeneric(BaseGuardRail):
-    
     def load(self):
         return evaluate.load(**self.config.get("evaluation", {}).get("load_args", {}))
 

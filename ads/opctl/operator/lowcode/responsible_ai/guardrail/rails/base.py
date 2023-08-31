@@ -39,12 +39,21 @@ class BaseGuardRail(ABC):
             else ""
         )
 
-    def apply_filter(self, score: pd.DataFrame, direction: str="<="):
-        return apply_filter(score=score,
-                            threshold=self.config.get("action", {}).get("threshold", 1),
-                            direction=direction)
+    def apply_filter(self, score: pd.DataFrame, direction: str = "<="):
+        return apply_filter(
+            score=score,
+            threshold=self.config.get("action", {}).get("threshold", 1),
+            direction=direction,
+        )
 
-    def postprocessing(self, score: pd.DataFrame, predictions: Union[pd.Series, List], sentence_level: bool, sentence_level_index: List, output_directory=None):
+    def postprocessing(
+        self,
+        score: pd.DataFrame,
+        predictions: Union[pd.Series, List],
+        sentence_level: bool,
+        sentence_level_index: List,
+        output_directory=None,
+    ):
         # post process score
         # - converting to dataframe
         # - save dataframe
@@ -57,7 +66,5 @@ class BaseGuardRail(ABC):
                 df = postprocess_sentence_level_dataframe(df)
         if output_directory:
             os.makedirs(output_directory, exist_ok=True)
-            df.to_csv(
-                f"{os.path.join(output_directory, self.name)}.csv", index=False
-            )
+            df.to_csv(f"{os.path.join(output_directory, self.name)}.csv", index=False)
         return df

@@ -86,6 +86,7 @@ def authenticate_with_security_token(profile):
         shell=True,
     )
 
+
 def get_oci_auth(profile):
     oci_config = oci.config.from_file(profile_name=profile)
     if "security_token_file" in oci_config and "key_file" in oci_config:
@@ -99,20 +100,22 @@ def get_oci_auth(profile):
     else:
         oci_auth = {"config": oci_config}
         return oci_auth
-    
 
-model_endpoint_mapping = {"cohere": {
-                "profile": "DEFAULT",
-                "endpoint": "https://generativeai-dev.aiservice.us-chicago-1.oci.oraclecloud.com"},
-                "llama7b": {
-                "profile": "custboat",
-                "endpoint": "https://modeldeployment.us-ashburn-1.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.iad.amaaaaaay75uckqay7so6w2bpwreqxisognml72kdqi4qcjdtnpfykh4xtsq/predict"
-            },
-            "llama13b": {
-                "profile": "custboat",
-                "endpoint": "https://modeldeployment.us-ashburn-1.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.iad.amaaaaaay75uckqaj5a53ebpi2zutlf733n22us2lgycd4xesvsn6pzecisa/predict"
-            }
-            }
+
+model_endpoint_mapping = {
+    "cohere": {
+        "profile": "DEFAULT",
+        "endpoint": "https://generativeai-dev.aiservice.us-chicago-1.oci.oraclecloud.com",
+    },
+    "llama7b": {
+        "profile": "custboat",
+        "endpoint": "https://modeldeployment.us-ashburn-1.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.iad.amaaaaaay75uckqay7so6w2bpwreqxisognml72kdqi4qcjdtnpfykh4xtsq/predict",
+    },
+    "llama13b": {
+        "profile": "custboat",
+        "endpoint": "https://modeldeployment.us-ashburn-1.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.iad.amaaaaaay75uckqaj5a53ebpi2zutlf733n22us2lgycd4xesvsn6pzecisa/predict",
+    },
+}
 
 import subprocess
 
@@ -123,9 +126,10 @@ def authenticate_with_security_token(profile):
         shell=True,
     )
 
+
 def init_endpoint(name: str):
-    profile = model_endpoint_mapping[name]['profile']
-    endpoint = model_endpoint_mapping[name]['endpoint']
+    profile = model_endpoint_mapping[name]["profile"]
+    endpoint = model_endpoint_mapping[name]["endpoint"]
     if name == "cohere":
         oci_config = oci.config.from_file(profile_name=profile)
         return OCIEndpoint(
@@ -139,14 +143,14 @@ def init_endpoint(name: str):
         return MDEndpoint(endpoint=endpoint, **oci_auth)
     else:
         raise NotImplementedError(f"Model {name} not implemented.")
-    
 
-def apply_filter(score: pd.DataFrame, threshold: float, direction: str="<="):
-        filters = []
-        for col in score.columns:
-            if col != "text":
-                if direction == "<=":
-                    filters.append((score[col] <= threshold).values)
-                else:
-                    filters.append((score[col] >= threshold).values)
-        return np.logical_and(*filters) if len(filters) > 1 else filters[0]
+
+def apply_filter(score: pd.DataFrame, threshold: float, direction: str = "<="):
+    filters = []
+    for col in score.columns:
+        if col != "text":
+            if direction == "<=":
+                filters.append((score[col] <= threshold).values)
+            else:
+                filters.append((score[col] >= threshold).values)
+    return np.logical_and(*filters) if len(filters) > 1 else filters[0]

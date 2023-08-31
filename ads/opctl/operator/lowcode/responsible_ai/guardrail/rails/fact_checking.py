@@ -13,15 +13,27 @@ class FactChecking(BaseGuardRail):
         super().__init__(name, config)
         # endpoint used to check fact, which is usually the llm used to get response from prompt
 
-    def load(self,):
-        self.knowledge = self.config.get("evaluation", {}).get("load_args", {}).get("knowledge", [])
-        self.embedding_model = self.config.get("evaluation", {}).get("load_args", {}).get("embedding_model", "all-MiniLM-L6-v2")
-        self.custom_msg = self.config.get("action", {}).get("custom_msg", "I'm sorry, I don't know the answer to that question.")
+    def load(
+        self,
+    ):
+        self.knowledge = (
+            self.config.get("evaluation", {}).get("load_args", {}).get("knowledge", [])
+        )
+        self.embedding_model = (
+            self.config.get("evaluation", {})
+            .get("load_args", {})
+            .get("embedding_model", "all-MiniLM-L6-v2")
+        )
+        self.custom_msg = self.config.get("action", {}).get(
+            "custom_msg", "I'm sorry, I don't know the answer to that question."
+        )
         documents = []
         for path in self.knowledge:
             with open(path, "r") as f:
                 documents.append(f.read())
-        self.kb = KnowledgeBase(documents=documents, embedding_model=self.embedding_model)
+        self.kb = KnowledgeBase(
+            documents=documents, embedding_model=self.embedding_model
+        )
         self.kb.init()
         self.kb.build()
         return self
@@ -35,24 +47,35 @@ class FactChecking(BaseGuardRail):
         You will only use the contents of the evidence and not rely on external knowledge.
         Answer with yes/no. "evidence": { evidence } "hypothesis": { response } "entails":"""
 
-        endpoint = kwargs.get("endpoint") or init_endpoint(name=self.config.get("evaluation", {}).get("compute_args", {}).get("llm_model"))
+        endpoint = kwargs.get("endpoint") or init_endpoint(
+            name=self.config.get("evaluation", {})
+            .get("compute_args", {})
+            .get("llm_model")
+        )
         return 1 if "yes" in endpoint.generate(prompt=instruction) else 0
-    
+
     async def _batch_compute(self, prompt: str, responses: List, **kwargs):
         loop = asyncio.get_event_loop()
         tasks = []
         for response in responses:
-            task = loop.create_task(self._compute(prompt=prompt, response=response, **kwargs))
+            task = loop.create_task(
+                self._compute(prompt=prompt, response=response, **kwargs)
+            )
             tasks.append(task)
         return await asyncio.gather(*tasks)
-    
+
     def compute(self, predictions: str, prompt: str, **kwargs):
-        return {"fact_checking": pd.DataFrame(asyncio.run(self._batch_compute(prompt=prompt, responses=predictions, **kwargs)), columns=['fact_checking'])}
-    
-    def apply_filter(self, score: pd.DataFrame, direction: str=">="):
-        return apply_filter(score=score,
-                            threshold=1,
-                            direction=direction)
+        return {
+            "fact_checking": pd.DataFrame(
+                asyncio.run(
+                    self._batch_compute(prompt=prompt, responses=predictions, **kwargs)
+                ),
+                columns=["fact_checking"],
+            )
+        }
+
+    def apply_filter(self, score: pd.DataFrame, direction: str = ">="):
+        return apply_filter(score=score, threshold=1, direction=direction)
 
     @property
     def description(self):
@@ -71,12 +94,15 @@ def main():
     import oci
     from ...utils import authenticate_with_security_token, get_oci_auth
     from ..llm import LLMEndpoint, MDEndpoint, OCIEndpoint
-    authenticate_with_security_token(
-                "custboat")
+
+    authenticate_with_security_token("custboat")
     oci_config = get_oci_auth("custboat")
-    
+
     print(oci_config)
-    endpoint = MDEndpoint(config=oci_config, endpoint="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.iad.amaaaaaay75uckqay7so6w2bpwreqxisognml72kdqi4qcjdtnpfykh4xtsq/predict")
+    endpoint = MDEndpoint(
+        config=oci_config,
+        endpoint="https://modeldeployment.us-ashburn-1.oci.customer-oci.com/ocid1.datasciencemodeldeployment.oc1.iad.amaaaaaay75uckqay7so6w2bpwreqxisognml72kdqi4qcjdtnpfykh4xtsq/predict",
+    )
 
     # code to use cohere endpoint
     # oci_config = oci.config.from_file()
@@ -87,7 +113,18 @@ def main():
     #     service_endpoint="https://generativeai-dev.aiservice.us-chicago-1.oci.oraclecloud.com",
     # )
 
-    config = {'name': 'FactChecking', 'evaluation': {'load_args': {'knowledge': ['knowledge1.txt'], 'embedding_model': 'all-MiniLM-L6-v2'}}, 'action': {'custom_msg': "I'm sorry, I don't know the answer to that question."}}
+    config = {
+        "name": "FactChecking",
+        "evaluation": {
+            "load_args": {
+                "knowledge": ["knowledge1.txt"],
+                "embedding_model": "all-MiniLM-L6-v2",
+            }
+        },
+        "action": {
+            "custom_msg": "I'm sorry, I don't know the answer to that question."
+        },
+    }
 
     prompt = "what is the unemployment rate in March 2023?"
     response = """The unemployment rate in March 2023 is 3.7%, which is the lowest rate since May 2000.
@@ -102,7 +139,7 @@ def main():
     Older adults (ages 55-64): 3.1%
     Persons with a disability: 6.1%
     Overall, the labor market in March 2023 is strong, with low unemployment and continued job gains across a wide range of industries. However, there are still concerns about the impact of automation and artificial intelligence on jobs, as well as the ongoing COVID-19 pandemic."""
-    fact = FactChecking(name="fact_checking", config=config) 
+    fact = FactChecking(name="fact_checking", config=config)
     print(fact.compute(prompt, response, endpoint=endpoint))
 
 

@@ -46,7 +46,7 @@ def main(raw_args: List[str]):
         print(operator_config)
     else:
         # TODO: Add run operator logic here
-        
+
         print(operate(operator_config))
 
 
