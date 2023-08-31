@@ -27,7 +27,7 @@ class ADSTunerStoppingCriterionTest(unittest.TestCase):
         """Initializes an ADSTuner instance"""
         X, y = dataset
         X_train, X_valid, y_train, y_valid = train_test_split(X, y)
-        clf = XGBClassifier(n_jobs=1)
+        clf = XGBClassifier()
         ads_search = ADSTuner(clf, random_state=42, scoring="f1_weighted")
         ads_search.tune(
             X_train, y_train, exit_criterion=exit_criterion, synchronous=synchronous
