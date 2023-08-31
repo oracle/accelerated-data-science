@@ -91,19 +91,3 @@ class TestVault:
         )
         secret_content = self.vault.get_secret(self.secret_ocid)
         assert isinstance(secret_content, dict)
-
-    @pytest.mark.skip(
-        reason="test if this is freezing."
-    )
-    def test_update_secret(self):
-        """Test vault.update_secret()."""
-        wrapper = namedtuple("wrapper", ["data"])
-        secret_response = wrapper(data=Secret(id=self.secret_ocid))
-        self.vault.vaults_client_composite.update_secret_and_wait_for_state = MagicMock(
-            return_value=secret_response
-        )
-        update_secret_ocid = self.vault.update_secret(
-            self.secret_ocid, self.updated_credential
-        )
-        assert isinstance(update_secret_ocid, str)
-        assert update_secret_ocid == self.secret_ocid
