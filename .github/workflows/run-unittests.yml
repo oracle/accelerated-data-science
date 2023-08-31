@@ -114,7 +114,7 @@ jobs:
 
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto --dist loadfile ${{ matrix.cov-reports }} \
+          ${{ matrix.cov-reports }} \
           ${{ matrix.test-path }} ${{ matrix.ignore-path }}
 
       - name: "Save coverage files"
