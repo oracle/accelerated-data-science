@@ -180,7 +180,7 @@ class FeatureGroup(Builder):
         # Specify oci FeatureGroup instance
         self.feature_group_job = None
         self._spark_engine = None
-        self.oci_feature_group = self._to_oci_feature_group(**kwargs)
+        self.oci_feature_group: OCIFeatureGroup = self._to_oci_feature_group(**kwargs)
         self.dsc_job = OCIFeatureGroupJob()
         self.lineage = OCILineage(**kwargs)
 
@@ -750,8 +750,12 @@ class FeatureGroup(Builder):
         """
         records = []
         for feature in self.features:
-            records.append({"name": feature.feature_name, "type": feature.feature_type})
-
+            records.append(
+                {
+                    "name": feature.feature_name,
+                    "type": feature.feature_type,
+                }
+            )
         return pd.DataFrame.from_records(records)
 
     def get_input_features_df(self) -> "pd.DataFrame":
@@ -936,7 +940,7 @@ class FeatureGroup(Builder):
             return fg_job[0]
         return FeatureGroupJob.from_id(self.job_id)
 
-    def select(self, features: Optional[List[str]] = []) -> Query:
+    def select(self, features: Optional[List[str]] = ()) -> Query:
         """
         Selects a subset of features from the feature group and returns a Query object that can be used to view the
         resulting dataframe.
@@ -1161,28 +1165,9 @@ class FeatureGroup(Builder):
         for oci_feature_group in OCIFeatureGroup.list_resource(
             compartment_id, **kwargs
         ):
-            records.append(
-                {
-                    "id": oci_feature_group.id,
-                    "name": oci_feature_group.name,
-                    "description": oci_feature_group.description,
-                    "time_created": oci_feature_group.time_created.strftime(
-                        utils.date_format
-                    ),
-                    "time_updated": oci_feature_group.time_updated.strftime(
-                        utils.date_format
-                    ),
-                    "lifecycle_state": oci_feature_group.lifecycle_state,
-                    "created_by": f"...{oci_feature_group.created_by[-6:]}",
-                    "compartment_id": f"...{oci_feature_group.compartment_id[-6:]}",
-                    "primary_keys": oci_feature_group.primary_keys,
-                    "feature_store_id": oci_feature_group.feature_store_id,
-                    "entity_id": oci_feature_group.entity_id,
-                    "input_feature_details": oci_feature_group.input_feature_details,
-                    "expectation_details": oci_feature_group.expectation_details,
-                    "statistics_config": oci_feature_group.statistics_config,
-                }
-            )
+            oci_feature_group: OCIFeatureGroup = oci_feature_group
+            records.append(oci_feature_group.to_df_record())
+
         return pd.DataFrame.from_records(records)
 
     @classmethod

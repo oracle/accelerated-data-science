@@ -1,15 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-import json
 import logging
 from copy import deepcopy
 from datetime import datetime
 from typing import Dict, List, Union
 
 import pandas
+import pandas as pd
 from great_expectations.core import ExpectationSuite
 
 from ads import deprecated
+from oci.feature_store.models import (
+    DatasetFeatureGroupCollection,
+    DatasetFeatureGroupSummary,
+)
+
 from ads.common import utils
 from ads.common.oci_mixin import OCIModelMixin
 from ads.feature_store.common.enums import (
@@ -29,6 +34,7 @@ from ads.feature_store.execution_strategy.execution_strategy_provider import (
     OciExecutionStrategyProvider,
 )
 from ads.feature_store.feature import DatasetFeature
+from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.service.oci_dataset import OCIDataset
@@ -116,6 +122,7 @@ class Dataset(Builder):
     CONST_ITEMS = "items"
     CONST_LAST_JOB_ID = "jobId"
     CONST_MODEL_DETAILS = "modelDetails"
+    CONST_FEATURE_GROUP = "datasetFeatureGroups"
 
     attribute_map = {
         CONST_ID: "id",
@@ -133,6 +140,7 @@ class Dataset(Builder):
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_MODEL_DETAILS: "model_details",
         CONST_PARTITION_KEYS: "partition_keys",
+        CONST_FEATURE_GROUP: "dataset_feature_groups",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -151,6 +159,7 @@ class Dataset(Builder):
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci Dataset instance
         self.dataset_job = None
+        self._is_manual_association: bool = False
         self._spark_engine = None
         self.oci_dataset = self._to_oci_dataset(**kwargs)
         self.lineage = OCILineage(**kwargs)
@@ -182,6 +191,16 @@ class Dataset(Builder):
         if not self._spark_engine:
             self._spark_engine = SparkEngine(get_metastore_id(self.feature_store_id))
         return self._spark_engine
+
+    @property
+    def is_manual_association(self):
+        collection: DatasetFeatureGroupCollection = self.get_spec(
+            self.CONST_FEATURE_GROUP
+        )
+        if collection and collection.is_manual_association is not None:
+            return collection.is_manual_association
+        else:
+            return self._is_manual_association
 
     @property
     def kind(self) -> str:
@@ -531,6 +550,54 @@ class Dataset(Builder):
         return self.set_spec(self.CONST_MODEL_DETAILS, model_details.to_dict())
 
     @property
+    def feature_groups(self) -> List["FeatureGroup"]:
+        collection: "DatasetFeatureGroupCollection" = self.get_spec(
+            self.CONST_FEATURE_GROUP
+        )
+        feature_groups: List["FeatureGroup"] = []
+        if collection and collection.items:
+            for datasetFGSummary in collection.items:
+                feature_groups.append(
+                    FeatureGroup.from_id(datasetFGSummary.feature_group_id)
+                )
+
+        return feature_groups
+
+    @feature_groups.setter
+    def feature_groups(self, feature_groups: List["FeatureGroup"]):
+        self.with_feature_groups(feature_groups)
+
+    def with_feature_groups(self, feature_groups: List["FeatureGroup"]) -> "Dataset":
+        """Sets the model details for the dataset.
+
+        Parameters
+        ----------
+        feature_groups: List of feature groups
+        Returns
+        -------
+        Dataset
+            The Dataset instance (self).
+
+        """
+        collection: List["DatasetFeatureGroupSummary"] = []
+        for group in feature_groups:
+            collection.append(DatasetFeatureGroupSummary(feature_group_id=group.id))
+
+        self._is_manual_association = True
+        return self.set_spec(
+            self.CONST_FEATURE_GROUP,
+            DatasetFeatureGroupCollection(items=collection, is_manual_association=True),
+        )
+
+    def feature_groups_to_df(self):
+        return pd.DataFrame.from_records(
+            [
+                feature_group.oci_feature_group.to_df_record()
+                for feature_group in self.feature_groups
+            ]
+        )
+
+    @property
     def partition_keys(self) -> List[str]:
         return self.get_spec(self.CONST_PARTITION_KEYS)
 
@@ -641,7 +708,7 @@ class Dataset(Builder):
                 f"Can't get lineage information for Feature group id {self.id}"
             )
 
-    def create(self, **kwargs) -> "Dataset":
+    def create(self, validate_sql=False, **kwargs) -> "Dataset":
         """Creates dataset  resource.
 
         !!! note "Lazy"
@@ -654,6 +721,8 @@ class Dataset(Builder):
         kwargs
             Additional kwargs arguments.
             Can be any attribute that `oci.feature_store.models.Dataset` accepts.
+        validate_sql:
+            Boolean value indicating whether to validate sql before creating dataset
 
         Returns
         -------
@@ -674,6 +743,9 @@ class Dataset(Builder):
         if self.statistics_config is None:
             self.statistics_config = StatisticsConfig()
 
+        if validate_sql is True:
+            self.spark_engine.sql(self.get_spec(self.CONST_QUERY))
+
         payload = deepcopy(self._spec)
         payload.pop("id", None)
         logger.debug(f"Creating a dataset resource with payload {payload}")
@@ -681,6 +753,7 @@ class Dataset(Builder):
         # Create dataset
         logger.info("Saving dataset.")
         self.oci_dataset = self._to_oci_dataset(**kwargs).create()
+        self._update_from_oci_dataset_model(self.oci_dataset)
         self.with_id(self.oci_dataset.id)
         return self
 
@@ -793,8 +866,7 @@ class Dataset(Builder):
 
                     value = {self.CONST_ITEMS: features_list}
                 else:
-                    value = dataset_details[infra_attr]
-
+                    value = getattr(self.oci_dataset, dsc_attr)
                 self.set_spec(infra_attr, value)
 
         return self
@@ -1134,6 +1206,10 @@ class Dataset(Builder):
         for key, value in spec.items():
             if hasattr(value, "to_dict"):
                 value = value.to_dict()
+            if hasattr(value, "attribute_map"):
+                value = self.oci_dataset.client.base_client.sanitize_for_serialization(
+                    value
+                )
             spec[key] = value
 
         return {
