@@ -2,9 +2,27 @@ import pandas as pd
 import evaluate
 import datasets
 
-_DESCRIPTION = "custom metric: calculate sentence length."
-_CITATION = ""
-_KWARGS_DESCRIPTION = ""
+_DESCRIPTION = "custom metric: calculate text length."
+_CITATION = """\
+@InProceedings{huggingface:module,
+title = {A great new module},
+authors={huggingface, Inc.},
+year={2020}
+}
+"""
+_KWARGS_DESCRIPTION = """
+Args:
+    `prediction`: a list of `str` for which the text length is calculated.
+
+Returns:
+    `text length` (`int`) : the length of the text.
+Examples:
+    >>> data = ["hello world"]
+    >>> wordlength = evaluate.load("ads/opctl/operator/lowcode/responsible_ai/example/custom_guardrail/custom_guardrail.py", module_type="measurement")
+    >>> results = wordlength.compute(predictions=data)
+    >>> print(results)
+    {'average_word_length': pd.DataFrame([[11, "hello world"]], columns["length", "text"])}
+"""
 
 
 class CustomGuardRail(evaluate.Measurement):
@@ -25,9 +43,9 @@ class CustomGuardRail(evaluate.Measurement):
                     }
                 ),
             ],
-            codebase_urls=[""],
+            codebase_urls=["https://huggingface.co/spaces/evaluate-measurement/word_length"],
             reference_urls=[
-                "",
+                "https://www.nltk.org/api/nltk.tokenize.html",
             ],
         )
 
