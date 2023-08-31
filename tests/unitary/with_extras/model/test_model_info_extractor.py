@@ -100,7 +100,7 @@ class TestModelInfoExtractor(unittest.TestCase):
         X_digits, y_digits = datasets.load_digits(return_X_y=True)
         Cs = np.logspace(-6, -1, 10)
         svc = svm.SVC(kernel="linear")
-        clf = GridSearchCV(estimator=svc, param_grid=dict(C=Cs), n_jobs=-1)
+        clf = GridSearchCV(estimator=svc, param_grid=dict(C=Cs))
         clf.fit(X_digits[:1000], y_digits[:1000])
         original_dict = clf.get_params()
         original_dict_copy = copy.copy(clf.get_params())
@@ -164,7 +164,6 @@ class TestModelInfoExtractor(unittest.TestCase):
         reason="wait for proper testing pipeline for tensorflow related tests"
     )
     def test_generic_keras_model(self):
-
         import tensorflow
 
         mnist = tensorflow.keras.datasets.mnist
@@ -239,7 +238,6 @@ class TestModelInfoExtractor(unittest.TestCase):
     def test_huggingface_extractors(
         self,
     ):
-
         fake_pipeline = FakePipeline("fake", Model())
         metadata_taxonomy = ModelInfoExtractorFactory.extract_info(fake_pipeline)
         assert isinstance(metadata_taxonomy, dict)
