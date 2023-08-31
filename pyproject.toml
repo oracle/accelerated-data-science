@@ -114,7 +114,7 @@ onnx = [
   "protobuf<=3.20",
   "skl2onnx>=1.10.4",
   "tf2onnx",
-  "xgboost<=1.7",
+  "xgboost==1.5.1",
 ]
 opctl = [
   "conda-pack",
