@@ -311,7 +311,6 @@ class LGBMClassifierSearchSpace(ModelSearchSpace):
         if self.strategy != "perfunctory":
             space.update(
                 {
-                    "boosting_type": CategoricalDistribution(["dart"]),
                     "learning_rate": LogUniformDistribution(0.001, 0.6),
                     "max_depth": IntUniformDistribution(1, 10),
                     "min_child_weight": IntUniformDistribution(0, 20),
