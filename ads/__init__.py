@@ -33,6 +33,8 @@ from ads.common.config import Config
 
 os.environ["GIT_PYTHON_REFRESH"] = "quiet"
 
+# https://scikit-learn.org/stable/faq.html#why-do-i-sometime-get-a-crash-freeze-with-n-jobs-1-under-osx-or-linux
+os.environ["JOBLIB_START_METHOD"] = "forkserver"
 
 debug_mode = os.environ.get("DEBUG_MODE", False)
 documentation_mode = os.environ.get("DOCUMENTATION_MODE", "False") == "True"
