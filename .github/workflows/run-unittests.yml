@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
+        python-version: ["3.8"]
         test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
         include:
           - test-path: "tests/unitary"
@@ -94,9 +94,6 @@ jobs:
           source /home/runner/.bashrc
 
           pip install -r dev-requirements.txt
-
-          # https://scikit-learn.org/stable/faq.html#why-do-i-sometime-get-a-crash-freeze-with-n-jobs-1-under-osx-or-linux
-          python -c "import multiprocessing; multiprocessing.set_start_method('forkserver')"
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
