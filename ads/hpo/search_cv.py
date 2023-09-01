@@ -256,7 +256,7 @@ class ADSTuner(BaseEstimator):
         load_if_exists=True,  # type: Optional[bool]
         random_state=None,  # type: Optional[int]
         loglevel=logging.INFO,  # type: Optional[int]
-        n_jobs=1,  # type: Optional[int]
+        n_jobs=None,  # type: Optional[int]
         X=None,  # type: Union[List[List[float]], np.ndarray, pd.DataFrame, spmatrix, ADSData]
         y=None,  # type: Optional[Union[OneDimArrayLikeType, TwoDimArrayLikeType]]
     ):
