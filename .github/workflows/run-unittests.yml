@@ -95,13 +95,14 @@ jobs:
 
           pip install -r dev-requirements.txt
 
+          # https://scikit-learn.org/stable/faq.html#why-do-i-sometime-get-a-crash-freeze-with-n-jobs-1-under-osx-or-linux
+          python -c "import multiprocessing; multiprocessing.set_start_method('forkserver')"
+
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniconda
-          # https://scikit-learn.org/stable/faq.html#why-do-i-sometime-get-a-crash-freeze-with-n-jobs-1-under-osx-or-linux
-          JOBLIB_START_METHOD: forkserver
         run: |
           set -x # print commands that are executed
 
