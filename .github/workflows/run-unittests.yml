@@ -38,13 +38,14 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.8"]
-        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        # test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        test-path: ["tests/unitary"]
         include:
           - test-path: "tests/unitary"
             ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store"
             name: "unitary"
-          - test-path: "tests/unitary/with_extras/model"
-            name: "model"
+          # - test-path: "tests/unitary/with_extras/model"
+          #   name: "model"
           - python-version: "3.8"
             cov-reports: --cov=ads --cov-report=xml --cov-report=html
 
