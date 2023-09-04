@@ -294,7 +294,7 @@ def human_time_friendly(seconds):
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
 
-def select_auto_model(columns:List)->str:
+def select_auto_model(columns: List[str]) -> str:
     """
     Selects AutoMLX or Arima model based on column count.
 
