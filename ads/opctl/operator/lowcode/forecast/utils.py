@@ -43,22 +43,61 @@ def smape(actual, predicted) -> float:
         2,
     )
 
-def wmape(data, outputs, target_columns, target_col):
 
+def _build_metrics_per_horizon(data, outputs, target_columns, target_col):
+    """
+    Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
+    
+    Parameters
+    ------------
+    data:  Pandas Dataframe
+            Dataframe that has the actual data
+    outputs: Pandas Dataframe
+            Dataframe that has the forecasted data
+    target_columns: List
+            List of target category columns
+    target_col: str
+            Target column name (yhat)
+
+    Returns
+    --------
+    Pandas Dataframe
+        Dataframe with Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
+    """
     actuals_df = data[target_columns]
-
-    # Calculates sum of values for each cateory
-    totals = actuals_df.sum()
-
-    # Calculates weights of each category based on sums
-    weights_wmape = totals / totals.sum()
-    
     forecasts_df = pd.concat([df[target_col] for df in outputs], axis=1)
-    mapes_df = np.abs((actuals_df.values-forecasts_df.values)/actuals_df.values)
-    wmapes_df = mapes_df * weights_wmape.values
-    wmapes_per_ds = wmapes_df.sum(axis=1)
+
+    totals = actuals_df.sum()
+    wmape_weights = np.array((totals / totals.sum()).values)
+
+    metrics_df = pd.DataFrame(columns=[
+        "Mean sMAPE", "Median sMAPE",
+        "Mean MAPE", "Median MAPE",
+        "Mean wMAPE", "Median wMAPE"
+    ])
+
+    for y_true, y_pred in zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)):
+
+        y_true, y_pred = np.array(y_true), np.array(y_pred)
+
+        smapes = np.array([smape(actual=y_t, predicted=y_p) for y_t, y_p in zip(y_true, y_pred)])
+        mapes = np.array([mean_absolute_percentage_error(y_true=[y_t], y_pred=[y_p])  for y_t, y_p in zip(y_true, y_pred)])
+        wmapes = np.array([mape * weight for mape, weight in zip(mapes, wmape_weights)])
+        
+        metrics_row = {
+            "Mean sMAPE": np.mean(smapes),
+            "Median sMAPE": np.median(smapes),
+            "Mean MAPE": np.mean(mapes),
+            "Median MAPE": np.median(mapes),
+            "Mean wMAPE": np.mean(wmapes),
+            "Median wMAPE": np.median(wmapes)
+        }
+        
+        metrics_df = metrics_df.append(metrics_row, ignore_index=True)
+
+    metrics_df.set_index(data['ds'], inplace=True)
     
-    return wmapes_per_ds
+    return metrics_df
 
 
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):

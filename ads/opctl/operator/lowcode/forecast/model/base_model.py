@@ -293,11 +293,10 @@ class ForecastOperatorBaseModel(ABC):
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
-        wmapes = utils.wmape(data=data, outputs=outputs, target_columns=target_columns, target_col=target_col)
-
+        # wmapes = utils.wmape(data=data, outputs=outputs, target_columns=target_columns, target_col=target_col)
+       
         summary_metrics = pd.DataFrame(
             {
-                "Mean wMAPE": np.mean(wmapes),
                 "Mean sMAPE": np.mean(total_metrics.loc["sMAPE"]),
                 "Median sMAPE": np.median(total_metrics.loc["sMAPE"]),
                 "Mean MAPE": np.mean(total_metrics.loc["MAPE"]),
@@ -316,12 +315,20 @@ class ForecastOperatorBaseModel(ABC):
             },
             index=["All Targets"],
         )
-        
-        summary_metrics = summary_metrics.append(
-            pd.DataFrame(
-                wmapes, columns=['wMAPE']
-            ).set_index(pd.Index(data['ds']))
-        )
+
+        """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon if horizon <= 10."""
+        if len(data['ds'])<=10:
+
+            metrics_per_horizon = utils._build_metrics_per_horizon(data=data, outputs=outputs, target_columns=target_columns, target_col=target_col)
+
+            summary_metrics = summary_metrics.append(
+                metrics_per_horizon
+            )
+
+            new_column_order = ['Mean sMAPE', 'Median sMAPE', 'Mean MAPE', 'Median MAPE', 'Mean wMAPE', 'Median wMAPE',
+                'Mean RMSE', 'Median RMSE', 'Mean r2', 'Median r2', 'Mean Explained Variance', 'Median Explained Variance', 'Elapsed Time']
+            summary_metrics = summary_metrics[new_column_order]
+
         return total_metrics, summary_metrics, data
 
     def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame):
