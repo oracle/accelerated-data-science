@@ -78,6 +78,8 @@ class ForecastOperatorBaseModel(ABC):
             ci_col_names,
         ) = self._generate_report()
 
+        # if self.spec.model == "automlx":
+        #     self.explain_model()
         report_sections = []
         title_text = dp.Text("# Forecast Report")
 
@@ -367,3 +369,10 @@ class ForecastOperatorBaseModel(ABC):
         Build the model.
         The method that needs to be implemented on the particular model level.
         """
+
+    @abstractmethod
+    def explain_model(self) -> dict:
+        """
+        explain model using global & local explanations
+        """
+        return NotImplemented

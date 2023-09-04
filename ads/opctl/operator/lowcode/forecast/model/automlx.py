@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
+import traceback
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -9,16 +10,24 @@ import datapane as dp
 import pandas as pd
 import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.opctl.operator.lowcode.forecast.const import automlx_metric_dict
 from sktime.forecasting.model_selection import temporal_train_test_split
 from ads.opctl import logger
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
+
+# breakpoint()
 
 
 # TODO: ODSC-44785 Fix the error message, before GA.
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     """Class representing AutoMLX operator model."""
+
+    def __init__(self, config: ForecastOperatorConfig):
+        super().__init__(config)
+        self.global_explanation = {}
 
     @runtime_dependency(
         module="automl",
@@ -29,7 +38,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        import automl
+        from automl import init
+
+        init(engine="local", check_deprecation_warnings=False)
 
         full_data_dict = self.full_data_dict
 
@@ -58,8 +69,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 "Time Index is",
                 "" if y_train.index.is_monotonic else "NOT",
                 "monotonic.",
+                vikas,
             )
-            model = automl.Pipeline(task="forecasting", n_algos_tuned=n_algos_tuned)
+
+            model = automl.Pipeline(
+                task="forecasting",
+                n_algos_tuned=n_algos_tuned,
+                score_metric=automlx_metric_dict[self.spec.metric],
+            )
+
             model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
             logger.info("Selected model: {}".format(model.selected_model_))
             logger.info(
@@ -166,3 +184,66 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             ds_forecast_col,
             ci_col_names,
         )
+
+    def _custom_predict_automlx(self, data):
+        temp = 0
+        data_temp = pd.DataFrame(
+            data,  # [:, :len(self.dataset_cols)],
+            columns=[col for col in self.dataset_cols],
+        )
+        # if data.shape[0] == 1:
+        #     orig_data_index = self.full_data_dict.get(self.series_id)[:-4].set_index(
+        #         list(self.dataset_cols)).index
+        #     new_data_index = data_temp.set_index(list(self.dataset_cols)).index
+        #     prediction_index = self.full_data_dict.get(self.series_id)[:-4][
+        #         orig_data_index.isin(new_data_index)].index.values
+
+        return self.models.get(self.series_id).forecast(
+            X=data_temp.drop(self.series_id, axis=1), periods=data_temp.shape[0]
+        )[self.series_id]
+
+    def explain_model(self) -> dict:
+        """
+        explain the automlx model using local and global explanations
+        """
+        try:
+            from shap import KernelExplainer
+        except Exception as ex:
+            print(
+                "Please run `pip install shap to install "
+                "the required dependencies for ADS CLI."
+            )
+            logger.debug(ex)
+            logger.debug(traceback.format_exc())
+            exit()
+        for series_id in self.target_columns:
+            self.series_id = series_id
+            self.dataset_cols = (
+                self.full_data_dict.get(self.series_id)
+                .set_index(self.spec.datetime_column.name)
+                .columns
+            )
+
+            # if not self.models.get(self.series_id).selected_model_params_.get("use_X", False):
+            #     self.dataset_cols = {self.series_id}
+
+            kernel_explnr = KernelExplainer(
+                model=self._custom_predict_automlx,
+                data=self.full_data_dict.get(self.series_id).set_index(
+                    self.spec.datetime_column.name
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+            )
+
+            kernel_explnr_vals = kernel_explnr.shap_values(
+                self.full_data_dict.get(self.series_id).set_index(
+                    self.spec.datetime_column.name
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                nsamples=50,
+            )
+            print(kernel_explnr)
+            self.global_explanation[self.series_id] = dict(
+                zip(
+                    self.dataset_cols,
+                    np.average(np.absolute(kernel_explnr_vals), axis=0),
+                )
+            )
