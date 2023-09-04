@@ -19,6 +19,7 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from typing import List
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
