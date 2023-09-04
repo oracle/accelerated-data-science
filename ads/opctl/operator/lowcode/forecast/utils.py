@@ -107,20 +107,25 @@ def _clean_data(data, target_column, datetime_column, target_category_columns=No
     )
 
 
-def _validate_and_clean_data(cat, horizon, primary, additional):
+def _validate_and_clean_data(cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame):
     """
-    Functions checks compatibility between primary and additional dataframe for a category.
+    Checks compatibility between primary and additional dataframe for a category.
 
     Parameters
     ----------
-        cat : Category for which data is being validated.
-        horizon : horizon value for the forecast.
-        primary : primary dataframe.
-        additional : additional dataframe.
+        cat: (str)
+         Category for which data is being validated.
+        horizon: (int)
+         horizon value for the forecast.
+        primary: (pd.DataFrame)
+         primary dataframe.
+        additional: (pd.DataFrame)
+         additional dataframe.
 
     Returns
     -------
-        Updated primary and additional dataframe or None values if the validation criteria does not satisfy.
+        (pd.DataFrame, pd.DataFrame) or (None, None)
+         Updated primary and additional dataframe or None values if the validation criteria does not satisfy.
     """
     # Additional data should have future values for horizon
     data_row_count = primary.shape[0]
@@ -196,12 +201,11 @@ def _build_indexed_datasets(
             valid_primary, valid_add = _validate_and_clean_data(cat, horizon, data_by_cat_clean, data_add_by_cat_clean)
             if valid_primary is None:
                 invalid_categories.append(cat)
-                continue
-
-            data_by_cat_clean = pd.concat(
-                [valid_add, valid_primary], axis=1
-            )
-        df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
+                data_by_cat_clean = None
+            else:
+                data_by_cat_clean = pd.concat([valid_add, valid_primary], axis=1)
+        if data_by_cat_clean is not None:
+            df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
 
     new_target_columns = list(df_by_target.keys())
     remaining_categories = set(unique_categories) - set(invalid_categories)
