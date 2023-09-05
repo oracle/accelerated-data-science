@@ -19,9 +19,10 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from typing import List
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
-from ads.opctl.operator.lowcode.forecast.const import SupportedModels
+from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -64,14 +65,14 @@ def _load_data(filename, format, storage_options, columns, **kwargs):
     raise ValueError(f"Unrecognized format: {format}")
 
 
-def _write_data(data, filename, format, storage_options, **kwargs):
+def _write_data(data, filename, format, storage_options, index=False, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         write_fn = getattr(data, f"to_{format}")
         return _call_pandas_fsspec(
-            write_fn, filename, index=False, storage_options=storage_options
+            write_fn, filename, index=index, storage_options=storage_options
         )
     raise ValueError(f"Unrecognized format: {format}")
 
@@ -293,7 +294,23 @@ def human_time_friendly(seconds):
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
 
-def select_auto_model(columns):
-    if columns!=None and len(columns) > 15:
+def select_auto_model(columns: List[str]) -> str:
+    """
+    Selects AutoMLX or Arima model based on column count.
+
+    If the number of columns is less than or equal to the maximum allowed for AutoMLX,
+    returns 'AutoMLX'. Otherwise, returns 'Arima'.
+    
+    Parameters
+    ------------
+    columns:  List
+            The list of columns.
+    
+    Returns
+    --------
+    str
+        The type of the model.
+    """
+    if columns!=None and len(columns) > MAX_COLUMNS_AUTOMLX:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX

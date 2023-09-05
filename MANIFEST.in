@@ -1,6 +1,5 @@
 include LICENSE.txt
 include THIRD_PARTY_LICENSES.txt
-include ads/ads_version.json
 include ads/common/*.json
 include ads/feature_engineering/*.json
 include ads/templates/*.jinja2
@@ -15,6 +14,7 @@ include ads/opctl/conda/manifest_template.yaml
 include ads/opctl/conda/config.yaml
 include ads/opctl/config/diagnostics/**/*.yaml
 include ads/opctl/templates/*.jinja2
+include pyproject.toml
 global-exclude tests/**
 global-exclude notebooks/**
 exclude tests/**

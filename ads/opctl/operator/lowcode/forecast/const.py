@@ -33,3 +33,5 @@ AUTOMLX_METRIC_MAP = {
     "mse": "neg_mean_squared_error",
     "rmse": "neg_root_mean_squared_error",
 }
+
+MAX_COLUMNS_AUTOMLX = 15

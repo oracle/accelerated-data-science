@@ -136,7 +136,7 @@ class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):   # pragma: no cover
+class NotActiveDeploymentError(Exception):  # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -145,15 +145,15 @@ class NotActiveDeploymentError(Exception):   # pragma: no cover
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
+class SerializeModelNotImplementedError(NotImplementedError):  # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
+class SerializeInputNotImplementedError(NotImplementedError):  # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
+class RuntimeInfoInconsistencyError(Exception):  # pragma: no cover
     pass
 
 
@@ -1327,7 +1327,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             If `model_file_name` not provided.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1434,7 +1434,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             An instance of GenericModel class.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1556,7 +1556,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             An instance of GenericModel class.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1653,7 +1653,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 Model deployment freeform tags
             defined_tags: (dict)
                 Model deployment defined tags
-            
+
             Additional kwargs arguments.
             Can be any attribute that `ads.model.deployment.ModelDeploymentCondaRuntime`, `ads.model.deployment.ModelDeploymentContainerRuntime`
             and `ads.model.deployment.ModelDeploymentInfrastructure` accepts.
@@ -2116,42 +2116,42 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         existing_infrastructure = self.model_deployment.infrastructure
         existing_runtime = self.model_deployment.runtime
         property_dict = ModelProperties(
-            compartment_id = existing_infrastructure.compartment_id
+            compartment_id=existing_infrastructure.compartment_id
             or self.properties.compartment_id
             or _COMPARTMENT_OCID,
-            project_id = existing_infrastructure.project_id
+            project_id=existing_infrastructure.project_id
             or self.properties.project_id
             or PROJECT_OCID,
-            deployment_instance_shape = existing_infrastructure.shape_name
+            deployment_instance_shape=existing_infrastructure.shape_name
             or self.properties.deployment_instance_shape
             or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
-            deployment_instance_count = existing_infrastructure.replica
+            deployment_instance_count=existing_infrastructure.replica
             or self.properties.deployment_instance_count
             or MODEL_DEPLOYMENT_INSTANCE_COUNT,
-            deployment_bandwidth_mbps = existing_infrastructure.bandwidth_mbps
+            deployment_bandwidth_mbps=existing_infrastructure.bandwidth_mbps
             or self.properties.deployment_bandwidth_mbps
             or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
-            deployment_ocpus = existing_infrastructure.shape_config_details.get(
+            deployment_ocpus=existing_infrastructure.shape_config_details.get(
                 "ocpus", None
             )
             or self.properties.deployment_ocpus
             or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
-            deployment_memory_in_gbs = existing_infrastructure.shape_config_details.get(
+            deployment_memory_in_gbs=existing_infrastructure.shape_config_details.get(
                 "memoryInGBs", None
             )
             or self.properties.deployment_memory_in_gbs
             or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
-            deployment_log_group_id = existing_infrastructure.log_group_id
+            deployment_log_group_id=existing_infrastructure.log_group_id
             or self.properties.deployment_log_group_id,
-            deployment_access_log_id = existing_infrastructure.access_log.get(
+            deployment_access_log_id=existing_infrastructure.access_log.get(
                 "log_id", None
             )
             or self.properties.deployment_access_log_id,
-            deployment_predict_log_id = existing_infrastructure.predict_log.get(
+            deployment_predict_log_id=existing_infrastructure.predict_log.get(
                 "log_id", None
             )
             or self.properties.deployment_predict_log_id,
-            deployment_image = existing_runtime.image
+            deployment_image = getattr(existing_runtime, "image", None)
             or self.properties.deployment_image,
             deployment_instance_subnet_id = existing_infrastructure.subnet_id
             or self.properties.deployment_instance_subnet_id
@@ -2229,16 +2229,24 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         runtime = None
         if self.properties.deployment_image:
             image_digest = (
-                kwargs.pop("image_digest", None) or existing_runtime.image_digest
+                kwargs.pop("image_digest", None) 
+                or getattr(existing_runtime, "image_digest", None)
             )
-            cmd = kwargs.pop("cmd", []) or existing_runtime.cmd
-            entrypoint = kwargs.pop("entrypoint", []) or existing_runtime.entrypoint
+            cmd = (
+                kwargs.pop("cmd", []) 
+                or getattr(existing_runtime, "cmd", [])
+            )
+            entrypoint = (
+                kwargs.pop("entrypoint", [])
+                or getattr(existing_runtime, "entrypoint", [])
+            )
             server_port = (
-                kwargs.pop("server_port", None) or existing_runtime.server_port
+                kwargs.pop("server_port", None) 
+                or getattr(existing_runtime, "server_port", None)
             )
             health_check_port = (
                 kwargs.pop("health_check_port", None)
-                or existing_runtime.health_check_port
+                or getattr(existing_runtime, "health_check_port", None)
             )
             runtime = (
                 ModelDeploymentContainerRuntime()

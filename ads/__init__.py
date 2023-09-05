@@ -6,15 +6,18 @@
 
 from __future__ import print_function, division, absolute_import
 import os
+import sys
 import logging
 import json
 from typing import Callable, Dict, Optional, Union
 
-__version__ = ""
-with open(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads_version.json")
-) as version_file:
-    __version__ = json.load(version_file)["version"]
+# https://packaging.python.org/en/latest/guides/single-sourcing-package-version/#single-sourcing-the-package-version
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
+
+__version__ = metadata.version("oracle_ads")
 import oci
 
 import matplotlib.font_manager  # causes matplotlib to regenerate its fonts
@@ -138,7 +141,8 @@ ads v{__version__}
 oci v{oci.__version__}
 ocifs v{ocifs.__version__}
 
-""")
+"""
+    )
 
 
 configure_plotting()
