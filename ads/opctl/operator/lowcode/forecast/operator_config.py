@@ -86,6 +86,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     report_title: str = None
     report_theme: str = None
     report_metrics_name: str = None
+    report_results_name: str = None
     target_column: str = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
@@ -102,7 +103,8 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_file_name = self.report_file_name or "report.html"
         self.report_theme = self.report_theme or "light"
-        self.report_metrics_name = self.report_metrics_name or "report.csv"
+        self.report_metrics_name = self.report_metrics_name or "metrics.csv"
+        self.report_results_name = self.report_results_name or "forecast.csv"
         self.target_column = self.target_column or "Sales"
         self.model_kwargs = self.model_kwargs or dict()
 
