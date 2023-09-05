@@ -350,6 +350,7 @@ class ForecastOperatorBaseModel(ABC):
             filename=os.path.join(output_dir, self.spec.report_metrics_name),
             format="csv",
             storage_options=default_signer(),
+            index = True
         )
 
         logger.warn(
