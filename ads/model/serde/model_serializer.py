@@ -532,7 +532,7 @@ class SklearnOnnxModelSerializer(OnnxModelSerializer):
             # the input types of all the columns one by one.
             auto_generated_initial_types = []
 
-            for i, col in X_sample.iteritems():
+            for i, col in X_sample.items():
                 if is_numeric_dtype(col.dtypes):
                     auto_generated_initial_types.append(
                         (
@@ -586,7 +586,7 @@ class SklearnOnnxModelSerializer(OnnxModelSerializer):
         return isinstance(data, pd.DataFrame) and all(
             [
                 is_numeric_dtype(col.dtypes) or is_string_dtype(col.dtypes)
-                for _, col in data.iteritems()
+                for _, col in data.items()
             ]
         )
 

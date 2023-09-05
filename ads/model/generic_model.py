@@ -1327,7 +1327,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             If `model_file_name` not provided.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1434,7 +1434,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             An instance of GenericModel class.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1556,7 +1556,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             An instance of GenericModel class.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -2167,7 +2167,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 "log_id", None
             )
             or self.properties.deployment_predict_log_id,
-            deployment_image=existing_runtime.image or self.properties.deployment_image,
+            deployment_image=getattr(existing_runtime, "image", None)
+            or self.properties.deployment_image,
             deployment_instance_subnet_id=existing_infrastructure.subnet_id
             or self.properties.deployment_instance_subnet_id,
         ).to_dict()
@@ -2243,17 +2244,18 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         runtime = None
         if self.properties.deployment_image:
-            image_digest = (
-                kwargs.pop("image_digest", None) or existing_runtime.image_digest
+            image_digest = kwargs.pop("image_digest", None) or getattr(
+                existing_runtime, "image_digest", None
             )
-            cmd = kwargs.pop("cmd", []) or existing_runtime.cmd
-            entrypoint = kwargs.pop("entrypoint", []) or existing_runtime.entrypoint
-            server_port = (
-                kwargs.pop("server_port", None) or existing_runtime.server_port
+            cmd = kwargs.pop("cmd", []) or getattr(existing_runtime, "cmd", [])
+            entrypoint = kwargs.pop("entrypoint", []) or getattr(
+                existing_runtime, "entrypoint", []
             )
-            health_check_port = (
-                kwargs.pop("health_check_port", None)
-                or existing_runtime.health_check_port
+            server_port = kwargs.pop("server_port", None) or getattr(
+                existing_runtime, "server_port", None
+            )
+            health_check_port = kwargs.pop("health_check_port", None) or getattr(
+                existing_runtime, "health_check_port", None
             )
             runtime = (
                 ModelDeploymentContainerRuntime()

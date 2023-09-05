@@ -90,9 +90,9 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
         while max_retry_count > 0:
             for subnet, ips_limit in random.sample(list(self.SUBNET_POOL.items()), 2):
                 allocated_ips = core_client.list_private_ips(subnet_id=subnet).data
-                # Leave 3 extra ip address for later use by jobrun. Leave more extra ips in case tests will fail with
+                # Leave 4 extra ip address for later use by jobrun. Leave more extra ips in case tests will fail with
                 # "All the available IP addresses in the subnet have been allocated."
-                if len(allocated_ips) < ips_limit - 3:
+                if len(allocated_ips) < ips_limit - 4:
                     subnet_id = subnet
                     break
             if subnet_id:

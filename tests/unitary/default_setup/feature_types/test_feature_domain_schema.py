@@ -344,7 +344,7 @@ class TestFeatureDomainSchema:
     def test_categorical_bool_ordinal(self, feature_type):
         self.boolean.ads.feature_type = [feature_type]
         domain = self.boolean.ads.feature_domain()
-        assert domain.constraints[0].expression == f"$x in [True, False]"
+        assert domain.constraints[0].expression == "$x in [True, False]"
         assert domain.constraints[0].evaluate(x=True)
         assert domain.constraints[0].evaluate(x=False)
 
