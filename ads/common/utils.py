@@ -1613,6 +1613,7 @@ def upload_to_os(
     auth: dict = None,
     parallel_process_count: int = DEFAULT_PARALLEL_PROCESS_COUNT,
     progressbar_description: str = "Uploading `{src_uri}` to `{dst_uri}`.",
+    force_overwrite: bool = False,
 ):
     """Utilizes `oci.object_storage.Uploadmanager` to upload file to Object Storage.
 
@@ -1629,6 +1630,8 @@ def upload_to_os(
         parts of a multipart upload.
     progressbar_description: (str, optional) Defaults to `"Uploading `{src_uri}` to `{dst_uri}`"`.
         Prefix for the progressbar.
+    force_overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite existing files or not.
 
     Returns
     -------
@@ -1655,6 +1658,12 @@ def upload_to_os(
         )
 
     auth = auth or authutil.default_signer()
+
+    if not force_overwrite and is_path_exists(dst_uri):
+        raise FileExistsError(
+            f"The `{dst_uri}` exists. Please use a new file name or "
+            "set force_overwrite to True if you wish to overwrite."
+        )
 
     upload_manager = object_storage.UploadManager(
         object_storage_client=OCIClientFactory(**auth).object_storage,

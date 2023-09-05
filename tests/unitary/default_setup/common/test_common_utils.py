@@ -10,7 +10,7 @@ import shutil
 import sys
 import tempfile
 from datetime import datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, ANY
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,9 @@ from ads.common.utils import (
     folder_size,
     human_size,
     remove_file,
+    upload_to_os,
 )
+from oci import object_storage
 
 DEFAULT_SIGNER_CONF = {"config": {}}
 
@@ -499,14 +501,83 @@ class TestCommonUtils:
         ):
             assert extract_region(input_params["auth"]) == expected_result
 
-    def test_parse_os_uri(self):
-        bucket, namespace, path = utils.parse_os_uri(
-            "oci://my-bucket@my-namespace/my-artifact-path"
-        )
-        assert bucket == "my-bucket"
-        assert namespace == "my-namespace"
-        assert path == "my-artifact-path"
+    @patch("ads.common.auth.default_signer")
+    @patch("os.path.exists")
+    def test_upload_to_os_with_invalid_src_uri(
+        self, mock_file_exists, mock_default_signer
+    ):
+        """Ensures upload_to_os fails when the given `src_uri` does not exist."""
+        mock_default_signer.return_value = DEFAULT_SIGNER_CONF
+        mock_file_exists.return_value = False
+        with pytest.raises(FileNotFoundError):
+            upload_to_os(src_uri="fake_uri", dst_uri="fake_uri")
 
-    def test_parse_os_uri_with_invalid_scheme(self):
+    @patch("ads.common.auth.default_signer")
+    @patch("os.path.exists")
+    @patch("ads.common.utils.is_path_exists")
+    def test_upload_to_os_with_invalid_dst_uri(
+        self, mock_is_path_exists, mock_file_exists, mock_default_signer
+    ):
+        """
+        Ensures upload_to_os fails when the given `dst_uri` is invalid.
+        Ensures upload_to_os fails in case of destination file already exists and
+        `force_overwrite` flag is not set to True.
+        """
+        mock_default_signer.return_value = DEFAULT_SIGNER_CONF
+        mock_file_exists.return_value = True
+        mock_is_path_exists = True
         with pytest.raises(ValueError):
-            utils.parse_os_uri("s3://my-bucket/my-artifact-path")
+            upload_to_os(src_uri="fake_uri", dst_uri="This is an invalid oci path.")
+
+        with pytest.raises(FileExistsError):
+            upload_to_os(
+                src_uri="fake_uri",
+                dst_uri="oci://my-bucket@my-tenancy/prefix",
+                force_overwrite=False,
+            )
+
+    @patch("ads.common.oci_client.OCIClientFactory.object_storage")
+    @patch("ads.common.utils.is_path_exists")
+    @patch.object(object_storage.UploadManager, "upload_stream")
+    @patch.object(object_storage.UploadManager, "__init__", return_value=None)
+    def test_upload_to_os(
+        self,
+        mock_init,
+        mock_upload,
+        mock_is_path_exists,
+        mock_client,
+    ):
+        """Tests upload_to_os successfully."""
+
+        class MockResponse:
+            def __init__(self, status_code):
+                self.status = status_code
+
+        mock_upload.return_value = MockResponse(200)
+        dst_namespace = "my-tenancy"
+        dst_bucket = "my-bucket"
+        dst_prefix = "prefix"
+        parallel_process_count = 3
+        uri_src = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "./test_files/archive/1.txt"
+        )
+        response = upload_to_os(
+            src_uri=uri_src,
+            dst_uri=f"oci://{dst_bucket}@{dst_namespace}/{dst_prefix}",
+            force_overwrite=True,
+            parallel_process_count=parallel_process_count,
+        )
+        mock_init.assert_called_with(
+            object_storage_client=mock_client,
+            parallel_process_count=parallel_process_count,
+            allow_multipart_uploads=True,
+            allow_parallel_uploads=True,
+        )
+        mock_upload.assert_called_with(
+            namespace_name=dst_namespace,
+            bucket_name=dst_bucket,
+            object_name=dst_prefix,
+            stream_ref=ANY,
+            progress_callback=ANY,
+        )
+        assert response.status == 200

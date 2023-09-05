@@ -14,6 +14,7 @@ import pytest
 from ads.model.artifact_uploader import LargeArtifactUploader, SmallArtifactUploader
 from ads.model.common.utils import zip_artifact
 from ads.common.auth import default_signer
+from ads.common.utils import DEFAULT_PARALLEL_PROCESS_COUNT
 from oci import object_storage
 
 MODEL_OCID = "ocid1.datasciencemodel.oc1.xxx"
@@ -91,8 +92,9 @@ class TestArtifactUploader:
             assert lg_artifact_uploader.bucket_uri == "test_bucket_uri"
             assert lg_artifact_uploader.overwrite_existing_artifact == False
             assert lg_artifact_uploader.remove_existing_artifact == False
-            assert isinstance(
-                lg_artifact_uploader.upload_manager, object_storage.UploadManager
+            assert (
+                lg_artifact_uploader._parallel_process_count
+                == DEFAULT_PARALLEL_PROCESS_COUNT
             )
 
     def test_prepare_artiact_tmp_zip(self):
@@ -171,32 +173,30 @@ class TestArtifactUploader:
                     self.mock_dsc_model.create_model_artifact.assert_called()
 
     @patch("ads.common.utils.is_path_exists")
-    @patch.object(object_storage.UploadManager, "upload_file")
-    def test_upload_large_artifact(self, mock_upload_file, mock_is_path_exists):
-        class MockResponse:
-            def __init__(self, status_code):
-                self.status = status_code
-
+    @patch("ads.common.utils.upload_to_os")
+    def test_upload_large_artifact(self, mock_upload, mock_is_path_exists):
         # Case when artifact already exists and overwrite_existing_artifact==True
         dest_path = "oci://my-bucket@my-namespace/my-artifact-path"
         test_bucket_file_name = os.path.join(dest_path, f"{MODEL_OCID}.zip")
-        mock_upload_file.return_value = MockResponse(200)
         mock_is_path_exists.return_value = True
+        auth = default_signer()
         artifact_uploader = LargeArtifactUploader(
             dsc_model=self.mock_dsc_model,
             artifact_path=self.mock_artifact_zip_path,
             bucket_uri=dest_path + "/",
-            auth=default_signer(),
+            auth=auth,
             region=self.mock_region,
             overwrite_existing_artifact=True,
             remove_existing_artifact=False,
         )
         artifact_uploader.upload()
-        mock_upload_file.assert_called_with(
-            namespace_name="my-namespace",
-            bucket_name="my-bucket",
-            object_name=f"my-artifact-path/{MODEL_OCID}.zip",
-            file_path=self.mock_artifact_zip_path,
+        mock_upload.assert_called_with(
+            src_uri=self.mock_artifact_zip_path,
+            dst_uri=test_bucket_file_name,
+            auth=auth,
+            parallel_process_count=DEFAULT_PARALLEL_PROCESS_COUNT,
+            force_overwrite=True,
+            progressbar_description="Copying model artifact to the Object Storage bucket.",
         )
         self.mock_dsc_model.export_model_artifact.assert_called_with(
             bucket_uri=test_bucket_file_name, region=self.mock_region

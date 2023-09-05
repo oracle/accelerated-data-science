@@ -218,6 +218,7 @@ class LargeArtifactUploader(ArtifactUploader):
                 dst_uri=bucket_uri,
                 auth=self.auth,
                 parallel_process_count=self._parallel_process_count,
+                force_overwrite=self.overwrite_existing_artifact,
                 progressbar_description="Copying model artifact to the Object Storage bucket.",
             )
         except Exception as ex:
