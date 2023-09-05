@@ -5,6 +5,9 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from .runtime import ContainerRuntime
+from .runtime import ContainerRuntime, PythonRuntime
 
-RUNTIME_TYPE_MAP = {ContainerRuntime.type: ContainerRuntime}
+RUNTIME_TYPE_MAP = {
+    ContainerRuntime.type: ContainerRuntime,
+    PythonRuntime.type: PythonRuntime,
+}

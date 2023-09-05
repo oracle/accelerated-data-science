@@ -23,8 +23,10 @@ ads opctl operator init -n forecast --overwrite --output /dst/configs/
 The most important files expected to be generated are:
 
 - `forecast.yaml`: Contains forecast-related configuration.
+- `backend_operator_local_python_config.yaml`: Contains a local backend configuration to run forecasting in a local conda environment.
 - `backend_operator_local_container_config.yaml`: Contains a local backend configuration to run forecasting in a local container.
-- `backend_job_container_config.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job.
+- `backend_job_container_config.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a container runtime.
+- `backend_job_python_config.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a conda runtime.
 
 ## 3. Running forecasting on the local conda environment
 
@@ -44,7 +46,7 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - oracle_ads-2.8.7b0-py3-none-any.whl
 ```
 
-Check the previously generated `forecast.yaml` and adjust the input and output file locations.
+Check the previously generated within `init` command the `forecast.yaml` and adjust the input and output file locations.
 
 Use the command below to verify the forecasting config.
 
@@ -55,8 +57,15 @@ ads opctl operator verify -f /dst/configs/forecast.yaml
 Use the following command to run the forecasting within the `ads-forecasting` conda environment.
 
 ```bash
-python -m ads.opctl.operator.lowcode.forecast -f /dst/configs/forecast.yaml
+ads opctl apply -f /dst/configs/forecast.yaml -b local.operator
 ```
+
+Alternatively the `backend_operator_local_python_config.yaml` config can be used.
+```bash
+ads opctl apply -f /dst/configs/forecast.yaml -b /dst/configs/backend_operator_local_python_config.yaml
+```
+
+The operator will be used in your local environment without any additional adjustments.
 
 ## 4. Running forecasting on the local container
 
@@ -93,7 +102,7 @@ Run the forecasting within a container using the command below:
 ads opctl apply -f /dst/configs/forecast.yaml --backend-config /dst/configs/backend_operator_local_container_config.yaml
 ```
 
-## 5. Running forecasting in the Data Science job
+## 5. Running forecasting in the Data Science job within container runtime
 
 To run the forecasting operator within a Data Science job, follow these steps:
 
@@ -130,3 +139,7 @@ ads opctl apply -f /dst/configs/forecast.yaml --backend-config /dst/configs/back
 ```
 
 The logs can be monitored using the `ads opctl watch` command.
+
+```bash
+ads opctl watch <OCID>
+```

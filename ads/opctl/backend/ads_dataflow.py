@@ -5,28 +5,27 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import os
 import json
+import os
 import shlex
+import tempfile
+import time
 from typing import Dict, Union
 
-from ads.opctl.backend.base import Backend
-from ads.opctl.decorator.common import print_watch_command
-from ads.common.auth import create_signer, AuthContext
+from ads.common.auth import AuthContext, create_signer, AuthType
 from ads.common.oci_client import OCIClientFactory
-
-from ads.opctl.backend.base import (
-    Backend,
-    RuntimeFactory,
-)
-
 from ads.jobs import (
-    Job,
     DataFlow,
-    DataFlowRuntime,
     DataFlowNotebookRuntime,
     DataFlowRun,
+    DataFlowRuntime,
+    Job,
 )
+from ads.opctl import logger
+from ads.opctl.backend.base import Backend, RuntimeFactory
+from ads.opctl.constants import OPERATOR_MODULE_PATH
+from ads.opctl.decorator.common import print_watch_command
+from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 
 REQUIRED_FIELDS = [
     "compartment_id",
@@ -83,6 +82,15 @@ class DataFlowBackend(Backend):
             The YAML specification for the given resource if `uri` was not provided.
             `None` otherwise.
         """
+        RUNTIME_KWARGS_MAP = {
+            DataFlowRuntime().type: {
+                "conda_slug": (
+                    f"{self.config['execution'].get('conda_pack_os_prefix','oci://bucket@namespace/conda_environments').rstrip('/')}"
+                    f"/{kwargs.get('conda_slug', 'conda_slug') }"
+                ),
+                "script_bucket": f"{self.config['infrastructure'].get('script_bucket','').rstrip('/')}",
+            },
+        }
 
         with AuthContext(auth=self.auth_type, profile=self.profile):
             # define an job
@@ -95,7 +103,7 @@ class DataFlowBackend(Backend):
                 .with_runtime(
                     DataFlowRuntimeFactory.get_runtime(
                         key=runtime_type or DataFlowRuntime().type
-                    ).init()
+                    ).init(**{**kwargs, **RUNTIME_KWARGS_MAP[runtime_type]})
                 )
             )
 
@@ -109,7 +117,7 @@ class DataFlowBackend(Backend):
                 uri=uri,
                 overwrite=overwrite,
                 note=note,
-                filter_by_attribute_map=True,
+                filter_by_attribute_map=False,
                 **kwargs,
             )
 
@@ -191,6 +199,103 @@ class DataFlowBackend(Backend):
         with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataFlowRun.from_ocid(run_id)
             run.watch(interval=interval)
+
+
+class DataFlowOperatorBackend(DataFlowBackend):
+    """Backend class to run operator on Data Flow Applications."""
+
+    def __init__(self, config: Dict) -> None:
+        super().__init__(config=config)
+
+        self.job = None
+
+        self.runtime_config = self.config.get("runtime", {})
+        self.operator_config = {
+            **{
+                key: value
+                for key, value in self.config.items()
+                if key not in ("runtime", "infrastructure", "execution")
+            }
+        }
+        self.operator_type = self.operator_config.get("type", "unknown")
+        self.operator_version = self.operator_config.get("version", "unknown")
+
+    def _adjust_common_information(self):
+        """Adjusts common information of the application."""
+
+        if self.job.name.lower().startswith("{job"):
+            self.job.with_name(
+                f"job_{self.operator_type.lower()}" f"_{self.operator_version.lower()}"
+            )
+        self.job.runtime.with_maximum_runtime_in_minutes(
+            self.config["execution"].get("max_wait_time", 1200)
+        )
+
+        temp_dir = tempfile.mkdtemp()
+
+        # prepare run.py file to run the operator
+        script_file = os.path.join(
+            temp_dir, f"{self.operator_type}_{int(time.time())}_run.py"
+        )
+
+        operator_module = f"{OPERATOR_MODULE_PATH}.{self.operator_type}"
+        with open(script_file, "w") as fp:
+            fp.writelines(
+                [
+                    "import runpy",
+                    f"runpy.run_module('{operator_module}', run_name='__main__')",
+                ]
+            )
+        self.job.runtime.with_script_uri(script_file)
+
+        # propagate environment variables to the runtime config
+        env_vars = {
+            "OCI_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+            "OCIFS_IAM_TYPE": AuthType.RESOURCE_PRINCIPAL,
+            ENV_OPERATOR_ARGS: json.dumps(self.operator_config),
+            **(self.job.runtime.envs or {}),
+        }
+
+        runtime_config = self.job.runtime.configuration or dict()
+
+        existing_env_keys = {
+            key.upper()
+            .replace("SPARK.EXECUTORENV.", "")
+            .replace("SPARK.DRIVERENV.", "")
+            for key in runtime_config
+            if "SPARK.EXECUTORENV" in key.upper() or "SPARK.DRIVERENV" in key.upper()
+        }
+
+        for env_key, env_value in (env_vars or {}).items():
+            if env_key.upper() not in existing_env_keys:
+                runtime_config[f"spark.driverEnv.{env_key}"] = env_value
+
+        self.job.runtime.with_configuration(runtime_config)
+
+    @print_watch_command
+    def run(self, **kwargs: Dict) -> Union[Dict, None]:
+        """
+        Runs the operator on the Data Flow service.
+        """
+        self.job = Job.from_dict(self.runtime_config).build()
+
+        # adjust job's common information
+        self._adjust_common_information()
+
+        # run the job if only it is not a dry run mode
+        if not self.config["execution"].get("dry_run"):
+            job = self.job.create()
+            logger.info(f"{'*' * 50} DataFlow Application {'*' * 50}")
+            logger.info(job)
+
+            job_run = job.run()
+            logger.info(f"{'*' * 50} DataFlow Application Run {'*' * 50}")
+            logger.info(job_run)
+
+            return {"job_id": job.id, "run_id": job_run.id}
+        else:
+            logger.info(f"{'*' * 50} DataFlow Application (Dry Run Mode) {'*' * 50}")
+            logger.info(self.job)
 
 
 class DataFlowRuntimeFactory(RuntimeFactory):
