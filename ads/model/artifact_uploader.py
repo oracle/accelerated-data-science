@@ -9,9 +9,7 @@ import shutil
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
-from ads import logger
 from ads.common import utils
-from ads.common.oci_client import OCIClientFactory
 from ads.model.common import utils as model_utils
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
