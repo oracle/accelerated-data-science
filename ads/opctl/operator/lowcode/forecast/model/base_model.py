@@ -336,10 +336,10 @@ class ForecastOperatorBaseModel(ABC):
                 ) as f2:
                     f2.write(f1.read())
 
-        # results csv report
+        # forecast csv report
         utils._write_data(
             data=result_df,
-            filename=os.path.join(output_dir, self.spec.report_results_name),
+            filename=os.path.join(output_dir, self.spec.forecast_filename),
             format="csv",
             storage_options=default_signer(),
         )
@@ -347,7 +347,7 @@ class ForecastOperatorBaseModel(ABC):
         # metrics csv report
         utils._write_data(
             data=metrics_df,
-            filename=os.path.join(output_dir, self.spec.report_metrics_name),
+            filename=os.path.join(output_dir, self.spec.metrics_filename),
             format="csv",
             storage_options=default_signer(),
             index = True
