@@ -19,6 +19,7 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from typing import List
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
@@ -293,7 +294,7 @@ def human_time_friendly(seconds):
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
 
-def select_auto_model(columns:List)->str:
+def select_auto_model(columns: List[str]) -> str:
     """
     Selects AutoMLX or Arima model based on column count.
 
