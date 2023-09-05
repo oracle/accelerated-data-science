@@ -100,7 +100,7 @@ class TestModelInfoExtractor(unittest.TestCase):
         X_digits, y_digits = datasets.load_digits(return_X_y=True)
         Cs = np.logspace(-6, -1, 10)
         svc = svm.SVC(kernel="linear")
-        clf = GridSearchCV(estimator=svc, param_grid=dict(C=Cs))
+        clf = GridSearchCV(estimator=svc, param_grid=dict(C=Cs), n_jobs=-1)
         clf.fit(X_digits[:1000], y_digits[:1000])
         original_dict = clf.get_params()
         original_dict_copy = copy.copy(clf.get_params())

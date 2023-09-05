@@ -271,7 +271,7 @@ class ADSTunerTest(unittest.TestCase):
         steps = [
             ("preprocessor", preprocessor),
             ("feature_selection", SelectKBest(f_classif, k=int(0.9 * num_features))),
-            ("classifier", XGBClassifier(n_estimators=250)),
+            ("classifier", XGBClassifier(n_estimators=250, n_jobs=1)),
         ]
 
         pipe = Pipeline(steps=steps)

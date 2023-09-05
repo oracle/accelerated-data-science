@@ -53,7 +53,7 @@ class TestADSTunerTunerArtifact:
         sklearn.tree._classes.DecisionTreeRegressor(),
         sklearn.ensemble._forest.RandomForestRegressor(),
         sklearn.ensemble._gb.GradientBoostingRegressor(),
-        xgboost.sklearn.XGBRegressor(),
+        xgboost.sklearn.XGBRegressor(n_jobs=1),
         sklearn.ensemble._forest.ExtraTreesRegressor(),
         lightgbm.sklearn.LGBMRegressor(n_jobs=1),
         sklearn.linear_model._stochastic_gradient.SGDRegressor(),
@@ -67,7 +67,7 @@ class TestADSTunerTunerArtifact:
         sklearn.tree._classes.DecisionTreeClassifier(),
         sklearn.ensemble._forest.RandomForestClassifier(),
         sklearn.ensemble._gb.GradientBoostingClassifier(),
-        xgboost.sklearn.XGBClassifier(),
+        xgboost.sklearn.XGBClassifier(n_jobs=1),
         sklearn.ensemble._forest.ExtraTreesClassifier(),
         lightgbm.sklearn.LGBMClassifier(n_jobs=1),
         sklearn.linear_model._stochastic_gradient.SGDClassifier(),
@@ -224,5 +224,5 @@ class TestADSTunerTunerArtifact:
     def test_hpo_with_optuna_uninstalled(self):
         with mock.patch.dict(sys.modules, {"optuna": None}):
             with pytest.raises(ModuleNotFoundError):
-                clf = XGBClassifier()
+                clf = XGBClassifier(n_jobs=1)
                 ads_search = ADSTuner(clf, scoring="f1_weighted")
