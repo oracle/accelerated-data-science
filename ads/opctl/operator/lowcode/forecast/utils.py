@@ -65,14 +65,14 @@ def _load_data(filename, format, storage_options, columns, **kwargs):
     raise ValueError(f"Unrecognized format: {format}")
 
 
-def _write_data(data, filename, format, storage_options, **kwargs):
+def _write_data(data, filename, format, storage_options, index=False, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         write_fn = getattr(data, f"to_{format}")
         return _call_pandas_fsspec(
-            write_fn, filename, index=False, storage_options=storage_options
+            write_fn, filename, index=index, storage_options=storage_options
         )
     raise ValueError(f"Unrecognized format: {format}")
 

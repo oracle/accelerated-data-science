@@ -225,7 +225,7 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         # save the report and result CSV
-        self._save_report(report_sections=report_sections, result_df=result_df)
+        self._save_report(report_sections=report_sections, result_df=result_df, metrics_df=self.test_eval_metrics)
 
     def _load_data(self):
         """Loads forecasting input data."""
@@ -315,7 +315,7 @@ class ForecastOperatorBaseModel(ABC):
         )
         return total_metrics, summary_metrics, data
 
-    def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame):
+    def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame, metrics_df: pd.DataFrame):
         """Saves resulting reports to the given folder."""
         if self.spec.output_directory:
             output_dir = self.spec.output_directory.url
@@ -336,12 +336,21 @@ class ForecastOperatorBaseModel(ABC):
                 ) as f2:
                     f2.write(f1.read())
 
-        # metrics csv report
+        # forecast csv report
         utils._write_data(
             data=result_df,
-            filename=os.path.join(output_dir, self.spec.report_metrics_name),
+            filename=os.path.join(output_dir, self.spec.forecast_filename),
             format="csv",
             storage_options=default_signer(),
+        )
+
+        # metrics csv report
+        utils._write_data(
+            data=metrics_df,
+            filename=os.path.join(output_dir, self.spec.metrics_filename),
+            format="csv",
+            storage_options=default_signer(),
+            index = True
         )
 
         logger.warn(
