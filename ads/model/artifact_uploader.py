@@ -15,8 +15,6 @@ from ads.common.oci_client import OCIClientFactory
 from ads.model.common import utils as model_utils
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
-from oci import object_storage
-
 
 class ArtifactUploader(ABC):
     """The abstract class to upload model artifacts."""
@@ -154,6 +152,7 @@ class LargeArtifactUploader(ArtifactUploader):
         region: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
     ):
         """Initializes `LargeArtifactUploader` instance.
 
@@ -178,7 +177,9 @@ class LargeArtifactUploader(ArtifactUploader):
         overwrite_existing_artifact: (bool, optional). Defaults to `True`.
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Wether artifacts uploaded to object storage bucket need to be removed or not.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
+        parallel_process_count: (int, optional).
+            The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         """
         if not bucket_uri:
             raise ValueError("The `bucket_uri` must be provided.")
@@ -189,9 +190,7 @@ class LargeArtifactUploader(ArtifactUploader):
         self.bucket_uri = bucket_uri
         self.overwrite_existing_artifact = overwrite_existing_artifact
         self.remove_existing_artifact = remove_existing_artifact
-        self.upload_manager = object_storage.UploadManager(
-            OCIClientFactory(**self.auth).object_storage
-        )
+        self._parallel_process_count = parallel_process_count
 
     def _upload(self):
         """Uploads model artifacts to the model catalog."""
@@ -213,21 +212,18 @@ class LargeArtifactUploader(ArtifactUploader):
                 "set `overwrite_existing_artifact` to `True` if you wish to overwrite."
             )
 
-        bucket_name, namespace_name, object_name = utils.parse_os_uri(bucket_uri)
-        logger.debug(f"{bucket_name=}, {namespace_name=}, {object_name=}")
         try:
-            response = self.upload_manager.upload_file(
-                namespace_name=namespace_name,
-                bucket_name=bucket_name,
-                object_name=object_name,
-                file_path=self.artifact_zip_path,
+            utils.upload_to_os(
+                src_uri=self.artifact_zip_path,
+                dst_uri=bucket_uri,
+                auth=self.auth,
+                parallel_process_count=self._parallel_process_count,
+                progressbar_description="Copying model artifact to the Object Storage bucket.",
             )
-            logger.debug(response)
-            assert response.status == 200
         except Exception as ex:
             raise RuntimeError(
                 f"Failed to upload model artifact to the given Object Storage path `{self.bucket_uri}`."
-                f"Exception: {ex}"
+                f"See Exception: {ex}"
             )
 
         self.progress.update("Exporting model artifact to the model catalog")
