@@ -138,9 +138,14 @@ def init_endpoint(name: str):
             config=oci_config,
         )
     elif name in ["llama7b", "llama13b"]:
-        authenticate_with_security_token(profile)
-        oci_auth = get_oci_auth(profile)
-        return MDEndpoint(endpoint=endpoint, **oci_auth)
+        
+        try:
+            oci_auth = get_oci_auth(profile)
+            return MDEndpoint(endpoint=endpoint, **oci_auth)
+        except:
+            authenticate_with_security_token(profile)
+            oci_auth = get_oci_auth(profile)
+            return MDEndpoint(endpoint=endpoint, **oci_auth)
     else:
         raise NotImplementedError(f"Model {name} not implemented.")
 
