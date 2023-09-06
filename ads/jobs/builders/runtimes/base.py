@@ -11,10 +11,6 @@ from ads.jobs import env_var_parser
 
 
 Self = TypeVar("Self", bound="Runtime")
-"""Special type to represent the current enclosed class.
-
-This type is used by factory class method or when a method returns ``self``.
-"""
 
 
 class Runtime(Builder):
@@ -31,6 +27,7 @@ class Runtime(Builder):
         CONST_FREEFORM_TAGS: "freeform_tags",
         CONST_DEFINED_TAGS: "defined_tags",
         CONST_ENV_VAR: CONST_ENV_VAR,
+        CONST_ARGS: CONST_ARGS,
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -248,7 +245,11 @@ class Runtime(Builder):
             This method returns self to support chaining methods.
         """
         return (
-            self.with_environment_variable(env_name="env_value")
-            .with_freeform_tag(tag_name="tag_value")
-            .with_argument(key1="val1")
+            self.with_environment_variable(
+                **kwargs.get(self.attribute_map[self.CONST_ENV_VAR], {})
+            )
+            .with_freeform_tag(
+                **kwargs.get(self.attribute_map[self.CONST_FREEFORM_TAGS], {})
+            )
+            .with_argument(**kwargs.get(self.attribute_map[self.CONST_ARGS], {}))
         )

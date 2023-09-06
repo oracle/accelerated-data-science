@@ -123,6 +123,7 @@ opctl = [
   "nbconvert",
   "nbformat",
   "oci-cli",
+  "rich"
 ]
 optuna = [
   "optuna==2.9.0",

@@ -1282,6 +1282,7 @@ def copy_file(
     auth: Optional[Dict] = None,
     chunk_size: Optional[int] = DEFAULT_BUFFER_SIZE,
     progressbar_description: Optional[str] = "Copying `{uri_src}` to `{uri_dst}`",
+    ignore_if_src_not_exists: Optional[bool] = False,
 ) -> str:
     """
     Copies file from `uri_src` to `uri_dst`.
@@ -1301,9 +1302,9 @@ def copy_file(
         The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
-    chunk_size: (int, optinal). Defaults to `DEFAULT_BUFFER_SIZE`
+    chunk_size: (int, optional). Defaults to `DEFAULT_BUFFER_SIZE`
         How much data can be copied in one iteration.
-    progressbar_description: (str, optinal). Defaults to `"Copying `{uri_src}` to `{uri_dst}`"`.
+    progressbar_description: (str, optional). Defaults to `"Copying `{uri_src}` to `{uri_dst}`"`.
         Prefix for the progressbar.
 
     Returns
@@ -1323,8 +1324,13 @@ def copy_file(
         uri_dst = os.path.join(uri_dst, os.path.basename(uri_src))
     src_path_scheme = urlparse(uri_src).scheme or "file"
     src_file_system = fsspec.filesystem(src_path_scheme, **auth)
-    file_size = src_file_system.info(uri_src)["size"]
 
+    if not fsspec.filesystem(src_path_scheme, **auth).exists(uri_src):
+        if ignore_if_src_not_exists:
+            return uri_dst
+        raise FileNotFoundError(f"The `{uri_src}` not exists.")
+
+    file_size = src_file_system.info(uri_src)["size"]
     if not force_overwrite:
         dst_path_scheme = urlparse(uri_dst).scheme or "file"
         if fsspec.filesystem(dst_path_scheme, **auth).exists(uri_dst):

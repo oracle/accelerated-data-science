@@ -685,17 +685,17 @@ class MLJobOperatorBackend(MLJobBackend):
         # run the job if only it is not a dry run mode
         if not self.config["execution"].get("dry_run"):
             job = self.job.create()
-            print(f"{'*' * 50}Job{'*' * 50}")
-            print(job)
+            logger.info(f"{'*' * 50}Job{'*' * 50}")
+            logger.info(job)
 
             job_run = job.run()
-            print(f"{'*' * 50}JobRun{'*' * 50}")
-            print(job_run)
+            logger.info(f"{'*' * 50}JobRun{'*' * 50}")
+            logger.info(job_run)
 
             return {"job_id": job.id, "run_id": job_run.id}
         else:
-            print(f"{'*' * 50} Job (Dry Run Mode) {'*' * 50}")
-            print(self.job)
+            logger.info(f"{'*' * 50} Job (Dry Run Mode) {'*' * 50}")
+            logger.info(self.job)
 
 
 class JobRuntimeFactory(RuntimeFactory):
