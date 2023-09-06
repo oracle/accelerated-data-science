@@ -41,3 +41,6 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     MEDIAN_R2 = "Median r2"
     MEDIAN_EXPLAINED_VARIANCE = "Median Explained Variance"
     ELAPSED_TIME = "Elapsed Time"
+
+
+MAX_COLUMNS_AUTOMLX = 15
