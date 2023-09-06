@@ -38,9 +38,9 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.8", "3.9", "3.10"]
-        test-path: ["tests/unitary", "tests/unitary/with_extras/model"]
+        test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
         include:
-          - test-path: "tests/unitary"
+          - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
             ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store"
             name: "unitary"
           - test-path: "tests/unitary/with_extras/model"
