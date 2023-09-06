@@ -241,10 +241,12 @@ class DataFlowOperatorBackend(DataFlowBackend):
         operator_module = f"{OPERATOR_MODULE_PATH}.{self.operator_type}"
         with open(script_file, "w") as fp:
             fp.writelines(
-                [
-                    "import runpy",
-                    f"runpy.run_module('{operator_module}', run_name='__main__')",
-                ]
+                "\n".join(
+                    [
+                        "import runpy",
+                        f"runpy.run_module('{operator_module}', run_name='__main__')",
+                    ]
+                )
             )
         self.job.runtime.with_script_uri(script_file)
 
@@ -285,7 +287,7 @@ class DataFlowOperatorBackend(DataFlowBackend):
         # run the job if only it is not a dry run mode
         if not self.config["execution"].get("dry_run"):
             job = self.job.create()
-            logger.info(f"{'*' * 50} DataFlow Application {'*' * 50}")
+            logger.info(f"{'*' * 50} Data Flow Application {'*' * 50}")
             logger.info(job)
 
             job_run = job.run()
