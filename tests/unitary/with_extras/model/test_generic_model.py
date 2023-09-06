@@ -368,6 +368,7 @@ class TestGenericModel:
             bucket_uri=None,
             overwrite_existing_artifact=True,
             remove_existing_artifact=True,
+            parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
         )
 
     def test_save_not_implemented_error(self):
@@ -606,7 +607,10 @@ class TestGenericModel:
             "ocpus": input_dict["deployment_ocpus"],
             "memory_in_gbs": input_dict["deployment_memory_in_gbs"],
         }
-        assert result.infrastructure.subnet_id == input_dict["deployment_instance_subnet_id"]
+        assert (
+            result.infrastructure.subnet_id
+            == input_dict["deployment_instance_subnet_id"]
+        )
         assert result.runtime.image == input_dict["deployment_image"]
         assert result.runtime.entrypoint == input_dict["entrypoint"]
         assert result.runtime.server_port == input_dict["server_port"]
@@ -994,9 +998,7 @@ class TestGenericModel:
             compartment_id="test_compartment_id",
         )
 
-        mock_from_id.assert_called_with(
-            test_model_deployment_id
-        )
+        mock_from_id.assert_called_with(test_model_deployment_id)
         mock_from_model_catalog.assert_called_with(
             model_id=test_model_id,
             model_file_name="test.pkl",
@@ -1049,9 +1051,7 @@ class TestGenericModel:
                 remove_existing_artifact=True,
                 compartment_id="test_compartment_id",
             )
-            mock_from_id.assert_called_with(
-                test_model_deployment_id
-            )
+            mock_from_id.assert_called_with(test_model_deployment_id)
 
     @patch.object(ModelDeployment, "update")
     @patch.object(ModelDeployment, "from_id")
@@ -1086,9 +1086,7 @@ class TestGenericModel:
             poll_interval=200,
         )
 
-        mock_from_id.assert_called_with(
-            test_model_deployment_id
-        )
+        mock_from_id.assert_called_with(test_model_deployment_id)
 
         mock_update.assert_called_with(
             properties=None,

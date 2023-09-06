@@ -164,7 +164,6 @@ class TestModelInfoExtractor(unittest.TestCase):
         reason="wait for proper testing pipeline for tensorflow related tests"
     )
     def test_generic_keras_model(self):
-
         import tensorflow
 
         mnist = tensorflow.keras.datasets.mnist
@@ -239,7 +238,6 @@ class TestModelInfoExtractor(unittest.TestCase):
     def test_huggingface_extractors(
         self,
     ):
-
         fake_pipeline = FakePipeline("fake", Model())
         metadata_taxonomy = ModelInfoExtractorFactory.extract_info(fake_pipeline)
         assert isinstance(metadata_taxonomy, dict)

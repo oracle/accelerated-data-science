@@ -53,6 +53,9 @@ from ads import config
 from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
 
 from . import auth as authutil
+from oci import object_storage
+from ads.common.oci_client import OCIClientFactory
+from ads.common.object_storage_details import ObjectStorageDetails
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
@@ -99,6 +102,9 @@ DATA_SCHEMA_MAX_COL_NUM = 2000
 DIMENSION = 2
 
 # declare custom exception class
+
+# The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+DEFAULT_PARALLEL_PROCESS_COUNT = 9
 
 
 class FileOverwriteError(Exception):  # pragma: no cover
@@ -1605,3 +1611,103 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     if fsspec.filesystem(path_scheme, **storage_options).exists(uri):
         return True
     return False
+
+
+def upload_to_os(
+    src_uri: str,
+    dst_uri: str,
+    auth: dict = None,
+    parallel_process_count: int = DEFAULT_PARALLEL_PROCESS_COUNT,
+    progressbar_description: str = "Uploading `{src_uri}` to `{dst_uri}`.",
+    force_overwrite: bool = False,
+):
+    """Utilizes `oci.object_storage.Uploadmanager` to upload file to Object Storage.
+
+    Parameters
+    ----------
+    src_uri: str
+        The path to the file to upload. This should be local path.
+    dst_uri: str
+        Object Storage path, eg. `oci://my-bucket@my-tenancy/prefix``.
+    auth: (Dict, optional) Defaults to None.
+        default_signer()
+    parallel_process_count: (int, optional) Defaults to 3.
+        The number of worker processes to use in parallel for uploading individual
+        parts of a multipart upload.
+    progressbar_description: (str, optional) Defaults to `"Uploading `{src_uri}` to `{dst_uri}`"`.
+        Prefix for the progressbar.
+    force_overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite existing files or not.
+
+    Returns
+    -------
+    Response: oci.response.Response
+        The response from multipart commit operation or the put operation.
+
+    Raise
+    -----
+    ValueError
+        When the given `dst_uri` is not a valid Object Storage path.
+    FileNotFoundError
+        When the given `src_uri` does not exist.
+    RuntimeError
+        When upload operation fails.
+    """
+    if not os.path.exists(src_uri):
+        raise FileNotFoundError(f"The give src_uri: {src_uri} does not exist.")
+
+    if not ObjectStorageDetails.is_oci_path(
+        dst_uri
+    ) or not ObjectStorageDetails.is_valid_uri(dst_uri):
+        raise ValueError(
+            f"The given dst_uri:{dst_uri} is not a valid Object Storage path."
+        )
+
+    auth = auth or authutil.default_signer()
+
+    if not force_overwrite and is_path_exists(dst_uri):
+        raise FileExistsError(
+            f"The `{dst_uri}` exists. Please use a new file name or "
+            "set force_overwrite to True if you wish to overwrite."
+        )
+
+    upload_manager = object_storage.UploadManager(
+        object_storage_client=OCIClientFactory(**auth).object_storage,
+        parallel_process_count=parallel_process_count,
+        allow_multipart_uploads=True,
+        allow_parallel_uploads=True,
+    )
+
+    file_size = os.path.getsize(src_uri)
+    with open(src_uri, "rb") as fs:
+        with tqdm(
+            total=file_size,
+            unit="B",
+            unit_scale=True,
+            unit_divisor=1024,
+            position=0,
+            leave=False,
+            file=sys.stdout,
+            desc=progressbar_description,
+        ) as pbar:
+
+            def progress_callback(progress):
+                pbar.update(progress)
+
+            bucket_details = ObjectStorageDetails.from_path(dst_uri)
+            response = upload_manager.upload_stream(
+                namespace_name=bucket_details.namespace,
+                bucket_name=bucket_details.bucket,
+                object_name=bucket_details.filepath,
+                stream_ref=fs,
+                progress_callback=progress_callback,
+            )
+
+    if response.status == 200:
+        print(f"{src_uri} has been successfully uploaded to {dst_uri}.")
+    else:
+        raise RuntimeError(
+            f"Failed to upload {src_uri}. Response code is {response.status}"
+        )
+
+    return response

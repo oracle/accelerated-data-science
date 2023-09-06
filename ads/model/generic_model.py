@@ -1825,6 +1825,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         remove_existing_artifact: Optional[bool] = True,
         model_version_set: Optional[Union[str, ModelVersionSet]] = None,
         version_label: Optional[str] = None,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -1856,6 +1857,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The model version set OCID, or model version set name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
             The model version lebel.
+        parallel_process_count: (int, optional)
+            The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1880,6 +1883,18 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         -------
         str
             The model id.
+
+        Examples
+        --------
+        Example for saving large model artifacts (>2GB):
+        >>> model.save(
+        ...     bucket_uri="oci://my-bucket@my-tenancy/",
+        ...     overwrite_existing_artifact=True,
+        ...     remove_existing_artifact=True,
+        ...     remove_existing_artifact=True,
+        ...     parallel_process_count=9,
+        ... )
+
         """
         # Set default display_name if not specified - randomly generated easy to remember name generated
         if not display_name:
@@ -1951,6 +1966,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             bucket_uri=bucket_uri,
             overwrite_existing_artifact=overwrite_existing_artifact,
             remove_existing_artifact=remove_existing_artifact,
+            parallel_process_count=parallel_process_count,
             **kwargs,
         )
 
@@ -2151,10 +2167,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 "log_id", None
             )
             or self.properties.deployment_predict_log_id,
-            deployment_image = getattr(existing_runtime, "image", None)
+            deployment_image=getattr(existing_runtime, "image", None)
             or self.properties.deployment_image,
-            deployment_instance_subnet_id = existing_infrastructure.subnet_id
-            or self.properties.deployment_instance_subnet_id
+            deployment_instance_subnet_id=existing_infrastructure.subnet_id
+            or self.properties.deployment_instance_subnet_id,
         ).to_dict()
 
         property_dict.update(override_properties)
@@ -2228,25 +2244,18 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         runtime = None
         if self.properties.deployment_image:
-            image_digest = (
-                kwargs.pop("image_digest", None) 
-                or getattr(existing_runtime, "image_digest", None)
+            image_digest = kwargs.pop("image_digest", None) or getattr(
+                existing_runtime, "image_digest", None
             )
-            cmd = (
-                kwargs.pop("cmd", []) 
-                or getattr(existing_runtime, "cmd", [])
+            cmd = kwargs.pop("cmd", []) or getattr(existing_runtime, "cmd", [])
+            entrypoint = kwargs.pop("entrypoint", []) or getattr(
+                existing_runtime, "entrypoint", []
             )
-            entrypoint = (
-                kwargs.pop("entrypoint", [])
-                or getattr(existing_runtime, "entrypoint", [])
+            server_port = kwargs.pop("server_port", None) or getattr(
+                existing_runtime, "server_port", None
             )
-            server_port = (
-                kwargs.pop("server_port", None) 
-                or getattr(existing_runtime, "server_port", None)
-            )
-            health_check_port = (
-                kwargs.pop("health_check_port", None)
-                or getattr(existing_runtime, "health_check_port", None)
+            health_check_port = kwargs.pop("health_check_port", None) or getattr(
+                existing_runtime, "health_check_port", None
             )
             runtime = (
                 ModelDeploymentContainerRuntime()
@@ -2854,6 +2863,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         uri: str,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
     ) -> None:
         """Uploads model artifacts to the provided `uri`.
         The artifacts will be zipped before uploading.
@@ -2873,6 +2883,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             authentication signer and kwargs required to instantiate IdentityClient object.
         force_overwrite: bool
             Overwrite target_dir if exists.
+        parallel_process_count: (int, optional)
+            The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         """
         if not uri:
             raise ValueError("The `uri` must be provided.")
@@ -2887,19 +2899,34 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             uri = os.path.join(uri, f"{self.model_id}.zip")
 
         tmp_artifact_zip_path = None
+        progressbar_description = f"Uploading an artifact ZIP archive to {uri}."
         try:
             # Zip artifacts
             tmp_artifact_zip_path = zip_artifact(self.artifact_dir)
             # Upload artifacts to the provided destination
-            utils.copy_file(
-                uri_src=tmp_artifact_zip_path,
-                uri_dst=uri,
-                auth=auth,
-                force_overwrite=force_overwrite,
-                progressbar_description=f"Uploading an artifact ZIP archive to the {uri}",
+            if ObjectStorageDetails.is_oci_path(
+                uri
+            ) and ObjectStorageDetails.is_valid_uri(uri):
+                utils.upload_to_os(
+                    src_uri=tmp_artifact_zip_path,
+                    dst_uri=uri,
+                    auth=auth,
+                    parallel_process_count=parallel_process_count,
+                    progressbar_description=progressbar_description,
+                )
+            else:
+                utils.copy_file(
+                    uri_src=tmp_artifact_zip_path,
+                    uri_dst=uri,
+                    auth=auth,
+                    force_overwrite=force_overwrite,
+                    progressbar_description=progressbar_description,
+                )
+        except Exception as ex:
+            raise RuntimeError(
+                f"Failed to upload model artifact to the given Object Storage path `{uri}`."
+                f"See Exception: {ex}"
             )
-        except Exception:
-            raise
         finally:
             if tmp_artifact_zip_path:
                 os.remove(tmp_artifact_zip_path)
