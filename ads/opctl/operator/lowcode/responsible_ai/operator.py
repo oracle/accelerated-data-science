@@ -9,12 +9,15 @@ from typing import Dict
 from .guardrail.guardrail import OfflineGuardRail, OnlineGuardRail
 
 
+
 def operate(operator_config: dict) -> None:
     """Runs the forecasting operator."""
-    if operator_config.get("spec", {}).get("online", False):
+    if operator_config.get("spec", {}).get("type") == "deployment":
         return OnlineGuardRail(operator_config).predict()
-    else:
+    elif operator_config.get("spec", {}).get("type") == "job":
         return OfflineGuardRail(operator_config).generate_report()
+    else:
+        raise NotImplemented("`type` can be only `deployment` or `job`.")
 
 
 def verify(spec: Dict) -> bool:

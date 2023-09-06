@@ -1,6 +1,6 @@
 kind: operator
 spec:
-  online: False
+  type: job
   output_directory:
     url: ./
   report_file_name: report.html

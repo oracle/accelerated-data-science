@@ -1,6 +1,6 @@
 kind: operator
 spec:
-  online: True
+  type: deployment
   test_data:
     text: ['what is unemployment rate in March 2023?', 'what is unemployment rate in March 2024?']
   llm_model: llama7b

@@ -47,7 +47,7 @@ def to_dataframe(scores: Union[dict, pd.DataFrame]):
 
 def postprocess_sentence_level_dataframe(df):
     columns = [
-        col for col in df.columns if col not in ["index", "predictions", "references"]
+        col for col in df.columns if col not in ["index", "text", "references"]
     ]
     scores = []
     for col in columns:
@@ -66,17 +66,17 @@ def postprocess_sentence_level_dataframe(df):
                 label = []
                 starting_pos = 0
 
-            l = len(row["predictions"])
+            l = len(row["text"])
             label.append((starting_pos, l, row[col]))
             starting_pos += l + 1
-            sents.append(row["predictions"])
+            sents.append(row["text"])
 
         if row["index"] == prev_idx:
             pred_level_sents.append(" ".join(sents))
             labels.append(label)
         scores.append(labels)
     df_final = pd.DataFrame(scores + [pred_level_sents]).T
-    df_final.columns = columns + ["predictions"]
+    df_final.columns = columns + ["text"]
     return df_final
 
 

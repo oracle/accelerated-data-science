@@ -5,7 +5,7 @@ from typing import List, Union
 from ...utils import init_endpoint, apply_filter
 import asyncio
 import pandas as pd
-import oci
+import nest_asyncio
 
 
 class FactChecking(BaseGuardRail):
@@ -65,6 +65,8 @@ class FactChecking(BaseGuardRail):
         return await asyncio.gather(*tasks)
 
     def compute(self, predictions: str, prompt: str, **kwargs):
+        
+        nest_asyncio.apply()
         return {
             "fact_checking": pd.DataFrame(
                 asyncio.run(

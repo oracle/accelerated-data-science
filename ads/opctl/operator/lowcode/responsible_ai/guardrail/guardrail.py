@@ -68,13 +68,19 @@ class BaseGuardRail(ABC):
         predictions = None
         if self.spec.get("test_data").get("url", None):
             data_path = self.spec.get("test_data").get("url")
-            pred_col = self.spec.get("test_data").get("text", "text")
-            reference_col = self.spec.get("test_data").get("references", "references")
+            pred_col = self.spec.get("test_data").get("text_col", "text")
+            reference_col = self.spec.get("test_data").get("ref_col", "references")
+            if data_path.endswith(".csv"):
+                if data_path.startswith("oci://"):
+                    self.data = pd.read_csv(data_path, storage_options=self.auth)
+                else:
+                    self.data = pd.read_csv(data_path)
+            elif data_path.endswith(".jsonl"):
+                if data_path.startswith("oci://"):
+                    self.data = pd.read_json(data_path, storage_options=self.auth, lines=True)
+                else:
+                    self.data = pd.read_json(data_path, lines=True)
 
-            if data_path.startswith("oci://"):
-                self.data = pd.read_csv(data_path, storage_options=self.auth)
-            else:
-                self.data = pd.read_csv(data_path)
             if self.spec.get("sentence_level"):
                 df_list = (
                     self.data["text"]

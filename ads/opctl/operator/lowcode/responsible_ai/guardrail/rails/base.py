@@ -61,7 +61,7 @@ class BaseGuardRail(ABC):
         df = to_dataframe(score)
         if len(df) == len(predictions):
             df["text"] = predictions
-            if sentence_level and sentence_level_index:
+            if sentence_level and sentence_level_index is not None:
                 df["index"] = sentence_level_index["index"].tolist()
                 df = postprocess_sentence_level_dataframe(df)
         if output_directory:

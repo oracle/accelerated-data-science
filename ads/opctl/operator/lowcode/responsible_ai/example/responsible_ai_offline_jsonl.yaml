@@ -1,11 +1,13 @@
 kind: operator
 spec:
-  online: False
+  type: job
   output_directory:
     url: ./
   report_file_name: report.html
   test_data:
     url: ads/opctl/operator/lowcode/responsible_ai/example/data/test.jsonl
+    text_col: prompt
+    ref_col: completion
   guardrails:
     - name: toxicity
       evaluation:
