@@ -20,6 +20,7 @@ from sklearn.metrics import (
     r2_score,
 )
 from typing import List
+from .const import SupportedMetrics
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.opctl.operator.lowcode.forecast.const import SupportedModels
@@ -72,9 +73,9 @@ def _build_metrics_per_horizon(data: pd.DataFrame, outputs: pd.DataFrame, target
     wmape_weights = np.array((totals / totals.sum()).values)
 
     metrics_df = pd.DataFrame(columns=[
-        "Mean sMAPE", "Median sMAPE",
-        "Mean MAPE", "Median MAPE",
-        "Mean wMAPE", "Median wMAPE"
+        SupportedMetrics.MEAN_SMAPE, SupportedMetrics.MEDIAN_SMAPE,
+        SupportedMetrics.MEAN_MAPE, SupportedMetrics.MEDIAN_MAPE,
+        SupportedMetrics.MEAN_WMAPE, SupportedMetrics.MEDIAN_WMAPE
     ])
 
     for y_true, y_pred in zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)):
@@ -86,12 +87,12 @@ def _build_metrics_per_horizon(data: pd.DataFrame, outputs: pd.DataFrame, target
         wmapes = np.array([mape * weight for mape, weight in zip(mapes, wmape_weights)])
         
         metrics_row = {
-            "Mean sMAPE": np.mean(smapes),
-            "Median sMAPE": np.median(smapes),
-            "Mean MAPE": np.mean(mapes),
-            "Median MAPE": np.median(mapes),
-            "Mean wMAPE": np.mean(wmapes),
-            "Median wMAPE": np.median(wmapes)
+            SupportedMetrics.MEAN_SMAPE: np.mean(smapes),
+            SupportedMetrics.MEDIAN_SMAPE: np.median(smapes),
+            SupportedMetrics.MEAN_MAPE: np.mean(mapes),
+            SupportedMetrics.MEDIAN_MAPE: np.median(mapes),
+            SupportedMetrics.MEAN_WMAPE: np.mean(wmapes),
+            SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes)
         }
         
         metrics_df = metrics_df.append(metrics_row, ignore_index=True)
