@@ -19,6 +19,7 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from typing import List
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.opctl.operator.lowcode.forecast.const import SupportedModels
@@ -44,7 +45,7 @@ def smape(actual, predicted) -> float:
     )
 
 
-def _build_metrics_per_horizon(data, outputs, target_columns, target_col):
+def _build_metrics_per_horizon(data: pd.DataFrame, outputs: pd.DataFrame, target_columns: List[str], target_col: str) -> pd.DataFrame:
     """
     Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
     
