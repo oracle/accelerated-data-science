@@ -40,7 +40,7 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - json2table
 - sktime
 - optuna==2.9.0
-- automlx-23.2.1-py38-none-any.whl
+- automlx-23.2.2-py38-none-any.whl
 - oracle_ads-2.8.7b0-py3-none-any.whl
 ```
 
