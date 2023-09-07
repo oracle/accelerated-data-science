@@ -24,7 +24,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         module="automl",
         err_msg=(
             "Please run `pip3 install "
-            "--extra-index-url=https://artifacthub-phx.oci.oraclecorp.com/artifactory/api/pypi/automlx-pypi/simple/automlx==23.2.1` "
+            "--extra-index-url=https://artifacthub-phx.oci.oraclecorp.com/artifactory/api/pypi/automlx-pypi/simple/automlx==23.2.2` "
             "to install the required dependencies for automlx."
         ),
     )
