@@ -29,6 +29,7 @@ from ads.config import (
     JOB_RUN_OCID,
     NB_SESSION_COMPARTMENT_OCID,
     NB_SESSION_OCID,
+    PIPELINE_RUN_COMPARTMENT_OCID,
     PROJECT_OCID,
 )
 from ads.evaluations import EvaluatorMixin
@@ -91,7 +92,11 @@ from ads.model.serde.model_serializer import (
 from ads.model.transformer.onnx_transformer import ONNXTransformer
 
 _TRAINING_RESOURCE_ID = JOB_RUN_OCID or NB_SESSION_OCID
-_COMPARTMENT_OCID = NB_SESSION_COMPARTMENT_OCID or JOB_RUN_COMPARTMENT_OCID
+_COMPARTMENT_OCID = (
+    NB_SESSION_COMPARTMENT_OCID
+    or JOB_RUN_COMPARTMENT_OCID
+    or PIPELINE_RUN_COMPARTMENT_OCID
+)
 
 MODEL_DEPLOYMENT_INSTANCE_SHAPE = "VM.Standard.E4.Flex"
 MODEL_DEPLOYMENT_INSTANCE_OCPUS = 1
