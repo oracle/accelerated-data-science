@@ -48,7 +48,7 @@ In the following several code snippets you will prepare the data and train XGBoo
     # Extract numerical columns and categorical columns
     categorical_cols = []
     numerical_cols = []
-    for i, col in X.iteritems():
+    for i, col in X.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:
@@ -242,7 +242,7 @@ Example
     # Extract numerical columns and categorical columns
     categorical_cols = []
     numerical_cols = []
-    for i, col in X.iteritems():
+    for i, col in X.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:

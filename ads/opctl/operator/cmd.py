@@ -7,12 +7,13 @@
 import importlib
 import inspect
 import os
+import re
 import shutil
 import tempfile
 from typing import Any, Dict, Union
-import re
 
 import fsspec
+import yaml
 from tabulate import tabulate
 
 from ads.common import utils as ads_common_utils
@@ -22,6 +23,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.opctl import logger
 from ads.opctl.cmds import _BackendFactory
+from ads.opctl.conda.cmds import create as conda_create
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import (
@@ -33,7 +35,6 @@ from ads.opctl.constants import (
 )
 from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
 from ads.opctl.utils import publish_image as publish_image_cmd
-from ads.opctl.conda.cmds import create as conda_create
 
 from .__init__ import __operators__
 from .common.errors import OperatorNotFoundError
@@ -67,6 +68,7 @@ def list() -> None:
     )
 
 
+@runtime_dependency(module="rich", install_from=OptionalDependency.OPCTL)
 def info(
     name: str,
     **kwargs: Dict[str, Any],
@@ -81,11 +83,136 @@ def info(
     kwargs: (Dict, optional).
         Additional key value arguments.
     """
+    from rich.console import Console
+    from rich.markdown import Markdown
+
+    console = Console()
+
     operator_info = {item.name: item for item in _operator_info_list()}.get(name)
-    if operator_info:
-        logger.info(operator_info.description)
-    else:
+
+    if not operator_info:
         raise OperatorNotFoundError(name)
+
+    console.print(
+        Markdown(
+            operator_info.description
+            or "The description for this operator has not been specified."
+        )
+    )
+
+
+def _init_backend_config(
+    operator_info: OperatorInfo,
+    ads_config: Union[str, None] = None,
+    output: Union[str, None] = None,
+    overwrite: bool = False,
+    **kwargs: Dict,
+):
+    """
+    Generates the operator's backend configs.
+
+    Parameters
+    ----------
+    output: (str, optional). Defaults to None.
+        The path to the folder to save the resulting specification templates.
+        The Tmp folder will be created in case when `output` is not provided.
+    overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite the result specification YAML if exists.
+    ads_config: (str, optional)
+        The folder where the ads opctl config located.
+    kwargs: (Dict, optional).
+        Additional key value arguments.
+
+    Returns
+    -------
+    Dict[Tuple, Dict]
+        The dictionary where the key will be a tuple containing runtime kind and type.
+        Example:
+        >>> {("local","python"): {}, ("job", "container"): {}}
+    """
+    result = {}
+
+    freeform_tags = {
+        "operator": f"{operator_info.name}:{operator_info.version}",
+    }
+
+    # generate supported backend specifications templates YAML
+    RUNTIME_TYPE_MAP = {
+        RESOURCE_TYPE.JOB: [
+            {
+                RUNTIME_TYPE.PYTHON: {
+                    "conda_slug": operator_info.conda,
+                    "freeform_tags": freeform_tags,
+                }
+            },
+            {
+                RUNTIME_TYPE.CONTAINER: {
+                    "image_name": f"{operator_info.name}:{operator_info.version}",
+                    "freeform_tags": freeform_tags,
+                }
+            },
+        ],
+        RESOURCE_TYPE.DATAFLOW: [
+            {
+                RUNTIME_TYPE.DATAFLOW: {
+                    "conda_slug": operator_info.conda,
+                    "freeform_tags": freeform_tags,
+                }
+            }
+        ],
+        BACKEND_NAME.OPERATOR_LOCAL: [
+            {
+                RUNTIME_TYPE.CONTAINER: {
+                    "kind": "operator",
+                    "type": operator_info.name,
+                    "version": operator_info.version,
+                }
+            },
+            {
+                RUNTIME_TYPE.PYTHON: {
+                    "kind": "operator",
+                    "type": operator_info.name,
+                    "version": operator_info.version,
+                }
+            },
+        ],
+    }
+
+    for resource_type in RUNTIME_TYPE_MAP:
+        for runtime_type_item in RUNTIME_TYPE_MAP[resource_type]:
+            runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
+
+            # get config info from ini files
+            p = ConfigProcessor(
+                {**runtime_kwargs, **{"execution": {"backend": resource_type.value}}}
+            ).step(
+                ConfigMerger,
+                ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
+                **kwargs,
+            )
+
+            uri = None
+            if output:
+                uri = os.path.join(
+                    output,
+                    f"backend_{resource_type.value.lower().replace('.','_') }"
+                    f"_{runtime_type.value.lower()}_config.yaml",
+                )
+
+            # generate YAML specification template
+            yaml_str = _BackendFactory(p.config).backend.init(
+                uri=uri,
+                overwrite=overwrite,
+                runtime_type=runtime_type.value,
+                **{**kwargs, **runtime_kwargs},
+            )
+
+            if yaml_str:
+                result[
+                    (resource_type.value.lower(), runtime_type.value.lower())
+                ] = yaml.load(yaml_str, Loader=yaml.FullLoader)
+
+    return result
 
 
 def init(
@@ -161,7 +288,7 @@ def init(
         f.write(_convert_schema_to_html(name, module_schema))
 
     # copy README and original schema files into a destination folder
-    for src_file in ("README.md", "schema.yaml"):
+    for src_file in ("README.md", "schema.yaml", "environment.yaml"):
         ads_common_utils.copy_file(
             uri_src=os.path.join(operator_path, src_file),
             uri_dst=output,
@@ -169,54 +296,16 @@ def init(
         )
 
     # generate supported backend specifications templates YAML
-    RUNTIME_TYPE_MAP = {
-        RESOURCE_TYPE.JOB: [
-            {RUNTIME_TYPE.PYTHON: {"conda_slug": operator_info.conda}},
-            {
-                RUNTIME_TYPE.CONTAINER: {
-                    "image_name": f"{operator_info.name}:{operator_info.version}"
-                }
-            },
-        ],
-        RESOURCE_TYPE.DATAFLOW: [{RUNTIME_TYPE.DATAFLOW: {}}],
-        BACKEND_NAME.OPERATOR_LOCAL: [
-            {
-                RUNTIME_TYPE.CONTAINER: {
-                    "kind": "operator",
-                    "type": operator_info.name,
-                    "version": operator_info.version,
-                }
-            }
-        ],
-    }
-
-    for resource_type in RUNTIME_TYPE_MAP:
-        for runtime_type_item in RUNTIME_TYPE_MAP[resource_type]:
-            runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
-
-            # get config info from ini files
-            p = ConfigProcessor(
-                {**runtime_kwargs, **{"execution": {"backend": resource_type.value}}}
-            ).step(
-                ConfigMerger,
-                ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
-                **kwargs,
-            )
-
-            # generate YAML specification template
-            _BackendFactory(p.config).backend.init(
-                uri=os.path.join(
-                    output,
-                    f"backend_{resource_type.value.lower().replace('.','_') }"
-                    f"_{runtime_type.value.lower()}_config.yaml",
-                ),
-                overwrite=overwrite,
-                runtime_type=runtime_type.value,
-                **{**kwargs, **runtime_kwargs},
-            )
+    _init_backend_config(
+        operator_info=operator_info,
+        ads_config=ads_config,
+        output=output,
+        overwrite=overwrite,
+        **kwargs,
+    )
 
     logger.info("#" * 100)
-    logger.info(f"The auto-generated configs location: {output}")
+    logger.info(f"The auto-generated configs have been placed in: {output}")
     logger.info("#" * 100)
 
 

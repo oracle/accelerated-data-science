@@ -891,11 +891,12 @@ class SecurityToken(AuthSignerGenerator):
         str:
             Security token string.
         """
-        if not os.path.isfile(security_token_file):
+        expanded_path = os.path.expanduser(security_token_file)
+        if not os.path.isfile(expanded_path):
             raise ValueError("Invalid `security_token_file`. Specify a valid path.")
         try:
             token = None
-            with open(security_token_file, "r") as f:
+            with open(expanded_path, "r") as f:
                 token = f.read()
             return token
         except:
@@ -904,7 +905,7 @@ class SecurityToken(AuthSignerGenerator):
 
 class AuthFactory:
     """
-    AuthFactory class which contains list of registered signers and alllows to register new signers.
+    AuthFactory class which contains list of registered signers and allows to register new signers.
     Check documentation for more signers: https://docs.oracle.com/en-us/iaas/tools/python/latest/api/signing.html.
 
     Current signers:

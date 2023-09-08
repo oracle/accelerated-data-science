@@ -349,7 +349,7 @@ class DocumentTypedFeature(TypedFeature):
         unigrams = {
             k: int(v)
             for k, v in dict(
-                zip(v1.get_feature_names(), np.asarray(X1.sum(axis=0)).ravel())
+                zip(v1.get_feature_names_out(), np.asarray(X1.sum(axis=0)).ravel())
             ).items()
         }
 
@@ -366,7 +366,7 @@ class DocumentTypedFeature(TypedFeature):
         bigrams = {
             k: int(v)
             for k, v in dict(
-                zip(v2.get_feature_names(), np.asarray(X2.sum(axis=0)).ravel())
+                zip(v2.get_feature_names_out(), np.asarray(X2.sum(axis=0)).ravel())
             ).items()
         }
 
@@ -404,7 +404,6 @@ class DocumentTypedFeature(TypedFeature):
 
     @staticmethod
     def build(name, series, is_cjk, is_html):
-
         internal = {"cjk": is_cjk, "html": is_html}
 
         if is_cjk:

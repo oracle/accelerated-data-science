@@ -8,7 +8,6 @@ import argparse
 import importlib
 import inspect
 import os
-import re
 from dataclasses import dataclass
 from string import Template
 from typing import Any, Dict, List, Optional, Tuple
@@ -49,6 +48,8 @@ class OperatorInfo:
         The version of the operator.
     conda: str
         The conda environment that have to be used to run the operator.
+    path: str
+        The operator location.
     """
 
     name: str
@@ -57,17 +58,27 @@ class OperatorInfo:
     description: str
     version: str
     conda: str
+    path: str
 
     @classmethod
     def from_init(*args: List, **kwargs: Dict) -> "OperatorInfo":
         """Instantiates the class from the initial operator details config."""
+
+        path = kwargs.get("__operator_path__")
+        if path:
+            readme_file_path = os.path.join(path, "readme.md")
+            if os.path.exists(readme_file_path):
+                with open(readme_file_path, "r") as readme_file:
+                    operator_readme = readme_file.read()
+
         return OperatorInfo(
             name=kwargs.get("__type__"),
             gpu=kwargs.get("__gpu__", "").lower() == "yes",
-            description=kwargs.get("__description__"),
+            description=operator_readme or kwargs.get("__short_description__"),
             short_description=kwargs.get("__short_description__"),
             version=kwargs.get("__version__"),
             conda=kwargs.get("__conda__"),
+            path=path,
         )
 
 

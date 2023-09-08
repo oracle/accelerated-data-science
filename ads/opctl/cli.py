@@ -195,10 +195,13 @@ _options = [
         "--oci-config",
         help="oci config file",
         required=False,
-        default=None,
+        default=authutil.DEFAULT_LOCATION,
     ),
     click.option(
-        "--oci-profile", help="oci config profile", required=False, default=None
+        "--oci-profile",
+        help="oci config profile",
+        required=False,
+        default=authutil.DEFAULT_PROFILE,
     ),
     click.option(
         "--conf-file",
@@ -402,7 +405,11 @@ def run(file, **kwargs):
         if os.path.exists(file):
             auth = {}
             if kwargs["auth"]:
-                auth = authutil.create_signer(kwargs["auth"])
+                auth = authutil.create_signer(
+                    auth_type=kwargs["auth"],
+                    oci_config_location=kwargs["oci_config"],
+                    profile=kwargs["oci_profile"],
+                )
             else:
                 auth = authutil.default_signer()
 
@@ -764,9 +771,16 @@ def predict(**kwargs):
     "--file", "-f", help="The path to resource YAML file.", required=True, default=None
 )
 @click.option(
-    "--backend-config",
+    "--backend",
     "-b",
-    help="The path to the backend config YAML file.",
+    help=(
+        "Backend name or the path to the operator's backend config YAML file. "
+        f"Example 1: `ads opctl apply -f operator.yaml -b {BACKEND_NAME.OPERATOR_LOCAL.value}` "
+        "Supported backends: "
+        f"{[BACKEND_NAME.JOB.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.OPERATOR_LOCAL.value,]} "
+        "Example 2: `ads opctl apply -f operator.yaml -b backend.yaml` "
+        "Use the `ads opctl operator init` command to generate operator's configs. "
+    ),
     required=False,
     default=None,
 )
@@ -799,7 +813,7 @@ def apply(debug: bool, **kwargs: Dict[str, Any]) -> None:
     Runs the operator with the given specification on the targeted backend.
     """
     operator_spec = {}
-    backend_config = {}
+    backend = kwargs.pop("backend")
 
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
 
@@ -817,12 +831,11 @@ def apply(debug: bool, **kwargs: Dict[str, Any]) -> None:
         with fsspec.open(kwargs["file"], "r", **auth) as f:
             operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-        backend_config_file = kwargs.pop("backend_config")
-        if backend_config_file:
-            with fsspec.open(backend_config_file, "r", **auth) as f:
-                backend_config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+        if backend and backend.lower().endswith((".yaml", ".yml")):
+            with fsspec.open(backend, "r", **auth) as f:
+                backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-    suppress_traceback(debug)(apply_cmd)(operator_spec, backend_config, **kwargs)
+    suppress_traceback(debug)(apply_cmd)(operator_spec, backend, **kwargs)
 
 
 commands.add_command(ads.opctl.conda.cli.commands)

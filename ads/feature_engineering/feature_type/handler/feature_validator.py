@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -261,7 +261,7 @@ class FeatureValidator:
         for key, feature_validator in self._validators.items():
             feature_validators_df = feature_validator.registered()
             feature_validators_df.insert(0, "Validator", key)
-            result_df = result_df.append(feature_validators_df)
+            result_df = pd.concat([result_df, feature_validators_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 

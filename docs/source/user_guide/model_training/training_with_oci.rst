@@ -12,6 +12,8 @@ using the source code directly from GitHub.
 
 .. include:: ../jobs/tabs/training_job.rst
 
+.. include:: ../jobs/tabs/run_job.rst
+
 The job run will:
 
 * Setup the PyTorch conda environment
