@@ -152,6 +152,18 @@ viz = [
   "scipy>=1.5.4",
   "seaborn>=0.11.0",
 ]
+forecast = [
+  "oracle_ads[optuna]",
+  "prophet",
+  "neuralprophet",
+  "pmdarima",
+  "statsmodels",
+  "datapane",
+  "json2table",
+  "sktime",
+  "oracle-automlx==23.2.3",
+  "autots"
+]
 
 [project.urls]
 "Github" = "https://github.com/oracle/accelerated-data-science"
