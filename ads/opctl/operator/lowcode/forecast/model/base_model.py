@@ -258,6 +258,7 @@ class ForecastOperatorBaseModel(ABC):
             data=data,
             target_column=self.spec.target_column,
             datetime_column=self.spec.datetime_column.name,
+            horizon=self.spec.horizon.periods,
             target_category_columns=self.spec.target_category_columns,
             additional_data=additional_data,
         )
