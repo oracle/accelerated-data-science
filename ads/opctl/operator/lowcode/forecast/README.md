@@ -59,7 +59,7 @@ ads opctl operator verify -f ~/forecast/forecast.yaml
 Use the following command to run the forecasting within the `ads-forecasting` conda environment.
 
 ```bash
-ads opctl apply -f ~/forecast/forecast.yaml -b local.operator
+ads opctl apply -f ~/forecast/forecast.yaml -b local
 ```
 
 The operator will run in your local environment without requiring any additional modifications.

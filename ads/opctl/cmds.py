@@ -967,10 +967,10 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
         p.config["infrastructure"] = p_backend.config["infrastructure"]
         p.config["execution"] = p_backend.config["execution"]
 
-        if (
-            p_backend.config["execution"]["backend"]
-            == BACKEND_NAME.OPERATOR_LOCAL.value
-        ):
+        if p_backend.config["execution"]["backend"].lower() in [
+            BACKEND_NAME.OPERATOR_LOCAL.value,
+            BACKEND_NAME.LOCAL.value,
+        ]:
             if kwargs.get("dry_run"):
                 logger.info(
                     "The dry run option is not supported for "

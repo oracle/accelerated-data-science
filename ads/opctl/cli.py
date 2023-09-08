@@ -775,9 +775,9 @@ def predict(**kwargs):
     "-b",
     help=(
         "Backend name or the path to the operator's backend config YAML file. "
-        f"Example 1: `ads opctl apply -f operator.yaml -b {BACKEND_NAME.OPERATOR_LOCAL.value}` "
+        f"Example 1: `ads opctl apply -f operator.yaml -b {BACKEND_NAME.LOCAL.value}` "
         "Supported backends: "
-        f"{[BACKEND_NAME.JOB.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.OPERATOR_LOCAL.value,]} "
+        f"{[BACKEND_NAME.JOB.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.LOCAL.value,]} "
         "Example 2: `ads opctl apply -f operator.yaml -b backend.yaml` "
         "Use the `ads opctl operator init` command to generate operator's configs. "
     ),
