@@ -11,6 +11,7 @@ from .operator_config import ForecastOperatorConfig
 
 from ads.opctl import logger
 
+
 def operate(operator_config: ForecastOperatorConfig) -> None:
     """Runs the forecasting operator."""
     ForecastOperatorModelFactory.get_model(operator_config).generate_report()
@@ -22,5 +23,6 @@ def verify(spec: Dict) -> bool:
     msg_header = (
         f"{'*' * 50} The operator config has been successfully verified {'*' * 50}"
     )
-    logger.info(operator.to_yaml())
-    logger.info("*" * len(msg_header))
+    print(msg_header)
+    print(operator.to_yaml())
+    print("*" * len(msg_header))

@@ -53,7 +53,7 @@ OPERATOR_BASE_DOCKER_GPU_FILE = "Dockerfile.gpu"
 
 def list() -> None:
     """Prints the list of the registered service operators."""
-    logger.info(
+    print(
         tabulate(
             (
                 {

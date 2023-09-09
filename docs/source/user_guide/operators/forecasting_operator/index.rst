@@ -18,6 +18,7 @@ Overview
   :maxdepth: 1
 
   ./getting_started
+  ./yaml_schema
   ./examples
   ./advanced_use_cases
   ./faq
