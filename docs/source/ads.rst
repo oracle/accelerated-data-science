@@ -12,7 +12,6 @@ Subpackages
    ads.common
    ads.data_labeling
    ads.database
-   ads.dataflow
    ads.dataset
    ads.dbmixin
    ads.environment
