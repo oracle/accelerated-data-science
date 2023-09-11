@@ -9,15 +9,13 @@ from typing import Dict
 from .model.factory import ForecastOperatorModelFactory
 from .operator_config import ForecastOperatorConfig
 
-from ads.opctl import logger
-
 
 def operate(operator_config: ForecastOperatorConfig) -> None:
     """Runs the forecasting operator."""
     ForecastOperatorModelFactory.get_model(operator_config).generate_report()
 
 
-def verify(spec: Dict) -> bool:
+def verify(spec: Dict, **kwargs) -> bool:
     """Verifies the forecasting operator config."""
     operator = ForecastOperatorConfig.from_dict(spec)
     msg_header = (

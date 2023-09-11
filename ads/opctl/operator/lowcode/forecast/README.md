@@ -44,8 +44,8 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - json2table
 - sktime
 - optuna==2.9.0
-- automlx-23.2.2-py38-none-any.whl
-- oracle_ads-2.8.7b0-py3-none-any.whl
+- oracle-automlx==23.2.3
+- "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"
 ```
 
 Please review the previously generated `forecast.yaml` file using the `init` command, and make any necessary adjustments to the input and output file locations. By default, it assumes that the files should be located in the same folder from which the `init` command was executed.

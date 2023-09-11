@@ -82,12 +82,24 @@ class DataFlowBackend(Backend):
             The YAML specification for the given resource if `uri` was not provided.
             `None` otherwise.
         """
+
+        conda_slug = kwargs.get(
+            "conda_slug", self.config["execution"].get("conda_slug", "conda_slug")
+        ).lower()
+
+        # if conda slug contains '/' then the assumption is that it is a custom conda pack
+        # the conda prefix needs to be added
+        if "/" in conda_slug:
+            conda_slug = os.path.join(
+                self.config["execution"].get(
+                    "conda_pack_os_prefix", "oci://bucket@namespace/conda_environments"
+                ),
+                conda_slug,
+            )
+
         RUNTIME_KWARGS_MAP = {
             DataFlowRuntime().type: {
-                "conda_slug": (
-                    f"{self.config['execution'].get('conda_pack_os_prefix','oci://bucket@namespace/conda_environments').rstrip('/')}"
-                    f"/{kwargs.get('conda_slug', 'conda_slug') }"
-                ),
+                "conda_slug": conda_slug,
                 "script_bucket": f"{self.config['infrastructure'].get('script_bucket','').rstrip('/')}",
             },
         }
