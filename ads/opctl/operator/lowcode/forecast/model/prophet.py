@@ -15,6 +15,7 @@ from prophet.plot import add_changepoints_to_plot
 
 from ads.opctl import logger
 
+from ...forecast.const import DEFAULT_TRIALS
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 
@@ -144,7 +145,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 )
                 study.optimize(
                     objective,
-                    n_trials=self.spec.tuning.n_trials if self.spec.tunning else 10,
+                    n_trials=self.spec.tuning.n_trials if self.spec.tuning else DEFAULT_TRIALS,
                     n_jobs=-1,
                 )
 
