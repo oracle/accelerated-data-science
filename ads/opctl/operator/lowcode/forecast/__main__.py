@@ -11,7 +11,6 @@ from typing import List
 
 import yaml
 
-from ads.common.auth import AuthContext
 from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args

@@ -21,7 +21,7 @@ from ads.opctl import logger
 from .. import utils
 from ..const import SupportedModels
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
-
+from .transformations import Transformations
 
 class ForecastOperatorBaseModel(ABC):
     """The base class for the forecast operator models."""
@@ -179,7 +179,7 @@ class ForecastOperatorBaseModel(ABC):
 
         test_eval_metrics = []
         test_data = None
-        if self.spec.test_data.url:
+        if self.spec.test_data:
             (
                 self.test_eval_metrics,
                 summary_metrics,
@@ -225,20 +225,20 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         # save the report and result CSV
-        self._save_report(report_sections=report_sections, result_df=result_df)
+        self._save_report(report_sections=report_sections, result_df=result_df, metrics_df=self.test_eval_metrics)
 
     def _load_data(self):
         """Loads forecasting input data."""
 
-        data = utils._load_data(
+        raw_data = utils._load_data(
             filename=self.spec.historical_data.url,
             format=self.spec.historical_data.format,
             storage_options=default_signer(),
             columns=self.spec.historical_data.columns,
         )
-        self.original_user_data = data.copy()
+        self.original_user_data = raw_data.copy()
+        data = Transformations(raw_data, self.spec).run()
         self.original_total_data = data
-
         additional_data = None
         if self.spec.additional_data is not None:
             additional_data = utils._load_data(
@@ -258,6 +258,7 @@ class ForecastOperatorBaseModel(ABC):
             data=data,
             target_column=self.spec.target_column,
             datetime_column=self.spec.datetime_column.name,
+            horizon=self.spec.horizon.periods,
             target_category_columns=self.spec.target_category_columns,
             additional_data=additional_data,
         )
@@ -315,36 +316,47 @@ class ForecastOperatorBaseModel(ABC):
         )
         return total_metrics, summary_metrics, data
 
-    def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame):
+    def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame, metrics_df: pd.DataFrame):
         """Saves resulting reports to the given folder."""
-
+        if self.spec.output_directory:
+            output_dir = self.spec.output_directory.url
+        else:
+            output_dir = "tmp_fc_operator_result"
+            logger.warn(
+                "Since the output directory was not specified, the output will be saved to {} directory.".format(
+                    output_dir))
         # datapane html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                    os.path.join(
-                        self.spec.output_directory.url, self.spec.report_file_name
-                    ),
-                    "w",
-                    **default_signer(),
+                        os.path.join(output_dir, self.spec.report_file_name),
+                        "w",
+                        **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
 
-        # metrics csv report
+        # forecast csv report
         utils._write_data(
             data=result_df,
-            filename=os.path.join(
-                self.spec.output_directory.url, self.spec.report_metrics_name
-            ),
+            filename=os.path.join(output_dir, self.spec.forecast_filename),
             format="csv",
             storage_options=default_signer(),
         )
 
-        logger.info(
+        # metrics csv report
+        utils._write_data(
+            data=metrics_df,
+            filename=os.path.join(output_dir, self.spec.metrics_filename),
+            format="csv",
+            storage_options=default_signer(),
+            index = True
+        )
+
+        logger.warn(
             f"The report has been successfully "
-            f"generated and placed to the: {self.spec.output_directory.url}."
+            f"generated and placed to the: {output_dir}."
         )
 
     def _preprocess(self, data, ds_column, datetime_format):

@@ -38,6 +38,15 @@ Oracle Accelerated Data Science (ADS)
 .. toctree::
    :hidden:
    :maxdepth: 5
+   :caption: Operators:
+
+   user_guide/operators/index
+   user_guide/operators/common/index
+   user_guide/operators/forecasting_operator/index
+
+.. toctree::
+   :hidden:
+   :maxdepth: 5
    :caption: Tasks:
 
    user_guide/loading_data/connect

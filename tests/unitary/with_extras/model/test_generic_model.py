@@ -368,6 +368,7 @@ class TestGenericModel:
             bucket_uri=None,
             overwrite_existing_artifact=True,
             remove_existing_artifact=True,
+            parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
         )
 
     def test_save_not_implemented_error(self):
@@ -606,7 +607,10 @@ class TestGenericModel:
             "ocpus": input_dict["deployment_ocpus"],
             "memory_in_gbs": input_dict["deployment_memory_in_gbs"],
         }
-        assert result.infrastructure.subnet_id == input_dict["deployment_instance_subnet_id"]
+        assert (
+            result.infrastructure.subnet_id
+            == input_dict["deployment_instance_subnet_id"]
+        )
         assert result.runtime.image == input_dict["deployment_image"]
         assert result.runtime.entrypoint == input_dict["entrypoint"]
         assert result.runtime.server_port == input_dict["server_port"]
@@ -994,9 +998,7 @@ class TestGenericModel:
             compartment_id="test_compartment_id",
         )
 
-        mock_from_id.assert_called_with(
-            test_model_deployment_id
-        )
+        mock_from_id.assert_called_with(test_model_deployment_id)
         mock_from_model_catalog.assert_called_with(
             model_id=test_model_id,
             model_file_name="test.pkl",
@@ -1049,9 +1051,7 @@ class TestGenericModel:
                 remove_existing_artifact=True,
                 compartment_id="test_compartment_id",
             )
-            mock_from_id.assert_called_with(
-                test_model_deployment_id
-            )
+            mock_from_id.assert_called_with(test_model_deployment_id)
 
     @patch.object(ModelDeployment, "update")
     @patch.object(ModelDeployment, "from_id")
@@ -1086,9 +1086,7 @@ class TestGenericModel:
             poll_interval=200,
         )
 
-        mock_from_id.assert_called_with(
-            test_model_deployment_id
-        )
+        mock_from_id.assert_called_with(test_model_deployment_id)
 
         mock_update.assert_called_with(
             properties=None,
@@ -1916,6 +1914,132 @@ class TestGenericModel:
         self.generic_model.dsc_model.schema_input == self.mock_dsc_model.input_schema
         self.generic_model.dsc_model.schema_output == self.mock_dsc_model.output_schema
         self.generic_model.dsc_model.metadata_provenance == self.mock_dsc_model.provenance_metadata
+
+    @patch.object(ModelDeployment, "deploy")
+    def test_deploy_combined_initialization(self, mock_deploy):
+        self.generic_model.properties = ModelProperties(
+            deployment_image="default_test_docker_image",
+            compartment_id="default_test_compartment_id",
+            project_id="default_test_project_id",
+        )
+        test_model_id = "ocid.test_model_id"
+        self.generic_model.dsc_model = MagicMock(id=test_model_id)
+        self.generic_model.ignore_conda_error = True
+        infrastructure = ModelDeploymentInfrastructure(
+            **{
+                "shape_name": "test_deployment_instance_shape",
+                "replica": 10,
+                "bandwidth_mbps": 100,
+                "shape_config_details": {"memory_in_gbs": 10, "ocpus": 1},
+                "access_log": {
+                    "log_group_id": "test_deployment_log_group_id",
+                    "log_id": "test_deployment_access_log_id",
+                },
+                "predict_log": {
+                    "log_group_id": "test_deployment_log_group_id",
+                    "log_id": "test_deployment_predict_log_id",
+                },
+                "project_id": "project_id_passed_using_with",
+                "compartment_id": "compartment_id_passed_using_with",
+            }
+        )
+        runtime = ModelDeploymentContainerRuntime(
+            **{
+                "image": "image_passed_using_with",
+                "image_digest": "test_image_digest",
+                "cmd": ["test_cmd"],
+                "entrypoint": ["test_entrypoint"],
+                "server_port": 8080,
+                "health_check_port": 8080,
+                "env": {"test_key": "test_value"},
+                "deployment_mode": "HTTPS_ONLY",
+            }
+        )
+        mock_deploy.return_value = ModelDeployment(
+            display_name="test_display_name",
+            description="test_description",
+            infrastructure=infrastructure,
+            runtime=runtime,
+            model_deployment_url="test_model_deployment_url",
+            model_deployment_id="test_model_deployment_id",
+        )
+        input_dict = {
+            "wait_for_completion": True,
+            "display_name": "test_display_name",
+            "description": "test_description",
+            "deployment_instance_shape": "test_deployment_instance_shape",
+            "deployment_instance_count": 10,
+            "deployment_bandwidth_mbps": 100,
+            "deployment_memory_in_gbs": 10,
+            "deployment_ocpus": 1,
+            "deployment_log_group_id": "test_deployment_log_group_id",
+            "deployment_access_log_id": "test_deployment_access_log_id",
+            "deployment_predict_log_id": "test_deployment_predict_log_id",
+            "cmd": ["test_cmd"],
+            "entrypoint": ["test_entrypoint"],
+            "server_port": 8080,
+            "health_check_port": 8080,
+            "environment_variables": {"test_key": "test_value"},
+            "max_wait_time": 100,
+            "poll_interval": 200,
+        }
+
+        self.generic_model.model_deployment.infrastructure.with_compartment_id(
+            "compartment_id_passed_using_with"
+        ).with_project_id("project_id_passed_using_with")
+        self.generic_model.model_deployment.runtime.with_image(
+            "image_passed_using_with"
+        )
+
+        result = self.generic_model.deploy(
+            **input_dict,
+        )
+        assert result == mock_deploy.return_value
+        assert result.infrastructure.access_log == {
+            "log_id": input_dict["deployment_access_log_id"],
+            "log_group_id": input_dict["deployment_log_group_id"],
+        }
+        assert result.infrastructure.predict_log == {
+            "log_id": input_dict["deployment_predict_log_id"],
+            "log_group_id": input_dict["deployment_log_group_id"],
+        }
+        assert (
+            result.infrastructure.bandwidth_mbps
+            == input_dict["deployment_bandwidth_mbps"]
+        )
+        assert (
+            result.infrastructure.compartment_id == "compartment_id_passed_using_with"
+        )
+        assert result.infrastructure.project_id == "project_id_passed_using_with"
+        assert (
+            result.infrastructure.shape_name == input_dict["deployment_instance_shape"]
+        )
+        assert result.infrastructure.shape_config_details == {
+            "ocpus": input_dict["deployment_ocpus"],
+            "memory_in_gbs": input_dict["deployment_memory_in_gbs"],
+        }
+        assert result.runtime.image == "image_passed_using_with"
+        assert result.runtime.entrypoint == input_dict["entrypoint"]
+        assert result.runtime.server_port == input_dict["server_port"]
+        assert result.runtime.health_check_port == input_dict["health_check_port"]
+        assert result.runtime.env == {"test_key": "test_value"}
+        assert result.runtime.deployment_mode == "HTTPS_ONLY"
+        mock_deploy.assert_called_with(
+            wait_for_completion=input_dict["wait_for_completion"],
+            max_wait_time=input_dict["max_wait_time"],
+            poll_interval=input_dict["poll_interval"],
+        )
+
+        assert (
+            self.generic_model.properties.compartment_id
+            == "compartment_id_passed_using_with"
+        )
+        assert (
+            self.generic_model.properties.project_id == "project_id_passed_using_with"
+        )
+        assert (
+            self.generic_model.properties.deployment_image == "image_passed_using_with"
+        )
 
 
 class TestCommonMethods:

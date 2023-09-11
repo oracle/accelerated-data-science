@@ -94,6 +94,8 @@ class ArtifactUploader(ABC):
 
 
 class SmallArtifactUploader(ArtifactUploader):
+    """The class helper to upload small model artifacts."""
+
     PROGRESS_STEPS_COUNT = 1
 
     def _upload(self):
@@ -104,6 +106,39 @@ class SmallArtifactUploader(ArtifactUploader):
 
 
 class LargeArtifactUploader(ArtifactUploader):
+    """
+    The class helper to upload large model artifacts.
+
+    Attributes
+    ----------
+    artifact_path: str
+        The model artifact location.
+    artifact_zip_path: str
+        The uri of the zip of model artifact.
+    auth: dict
+        The default authetication is set using `ads.set_auth` API.
+        If you need to override the default, use the `ads.common.auth.api_keys` or
+        `ads.common.auth.resource_principal` to create appropriate authentication signer
+        and kwargs required to instantiate IdentityClient object.
+    bucket_uri: str
+        The OCI Object Storage URI where model artifacts will be copied to.
+        The `bucket_uri` is only necessary for uploading large artifacts which
+        size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+    dsc_model: OCIDataScienceModel
+        The data scince model instance.
+    overwrite_existing_artifact: bool
+        Overwrite target bucket artifact if exists.
+    progress: TqdmProgressBar
+        An instance of the TqdmProgressBar.
+    region: str
+        The destination Object Storage bucket region.
+        By default the value will be extracted from the `OCI_REGION_METADATA` environment variables.
+    remove_existing_artifact: bool
+        Wether artifacts uploaded to object storage bucket need to be removed or not.
+    upload_manager: UploadManager
+        The uploadManager simplifies interaction with the Object Storage service.
+    """
+
     PROGRESS_STEPS_COUNT = 4
 
     def __init__(
@@ -115,6 +150,7 @@ class LargeArtifactUploader(ArtifactUploader):
         region: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
     ):
         """Initializes `LargeArtifactUploader` instance.
 
@@ -139,7 +175,9 @@ class LargeArtifactUploader(ArtifactUploader):
         overwrite_existing_artifact: (bool, optional). Defaults to `True`.
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Wether artifacts uploaded to object storage bucket need to be removed or not.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
+        parallel_process_count: (int, optional).
+            The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         """
         if not bucket_uri:
             raise ValueError("The `bucket_uri` must be provided.")
@@ -150,36 +188,45 @@ class LargeArtifactUploader(ArtifactUploader):
         self.bucket_uri = bucket_uri
         self.overwrite_existing_artifact = overwrite_existing_artifact
         self.remove_existing_artifact = remove_existing_artifact
+        self._parallel_process_count = parallel_process_count
 
     def _upload(self):
         """Uploads model artifacts to the model catalog."""
         self.progress.update("Copying model artifact to the Object Storage bucket")
 
-        try:
-            bucket_uri = self.bucket_uri
-            bucket_uri_file_name = os.path.basename(bucket_uri)
+        bucket_uri = self.bucket_uri
+        bucket_uri_file_name = os.path.basename(bucket_uri)
 
-            if not bucket_uri_file_name:
-                bucket_uri = os.path.join(bucket_uri, f"{self.dsc_model.id}.zip")
-            elif not bucket_uri.lower().endswith(".zip"):
-                bucket_uri = f"{bucket_uri}.zip"
+        if not bucket_uri_file_name:
+            bucket_uri = os.path.join(bucket_uri, f"{self.dsc_model.id}.zip")
+        elif not bucket_uri.lower().endswith(".zip"):
+            bucket_uri = f"{bucket_uri}.zip"
 
-            bucket_file_name = utils.copy_file(
-                self.artifact_zip_path,
-                bucket_uri,
-                force_overwrite=self.overwrite_existing_artifact,
-                auth=self.auth,
-                progressbar_description="Copying model artifact to the Object Storage bucket",
-            )
-        except FileExistsError:
+        if not self.overwrite_existing_artifact and utils.is_path_exists(
+            uri=bucket_uri, auth=self.auth
+        ):
             raise FileExistsError(
-                f"The `{self.bucket_uri}` exists. Please use a new file name or "
+                f"The bucket_uri=`{self.bucket_uri}` exists. Please use a new file name or "
                 "set `overwrite_existing_artifact` to `True` if you wish to overwrite."
             )
+
+        try:
+            utils.upload_to_os(
+                src_uri=self.artifact_zip_path,
+                dst_uri=bucket_uri,
+                auth=self.auth,
+                parallel_process_count=self._parallel_process_count,
+                force_overwrite=self.overwrite_existing_artifact,
+                progressbar_description="Copying model artifact to the Object Storage bucket.",
+            )
+        except Exception as ex:
+            raise RuntimeError(
+                f"Failed to upload model artifact to the given Object Storage path `{self.bucket_uri}`."
+                f"See Exception: {ex}"
+            )
+
         self.progress.update("Exporting model artifact to the model catalog")
-        self.dsc_model.export_model_artifact(
-            bucket_uri=bucket_file_name, region=self.region
-        )
+        self.dsc_model.export_model_artifact(bucket_uri=bucket_uri, region=self.region)
 
         if self.remove_existing_artifact:
             self.progress.update(

@@ -6,7 +6,7 @@
 
 
 import os
-
+from ads.opctl import logger
 import datapane as dp
 import fsspec
 import numpy as np
@@ -19,8 +19,10 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from typing import List
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
+from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -62,15 +64,14 @@ def _load_data(filename, format, storage_options, columns, **kwargs):
         return data
     raise ValueError(f"Unrecognized format: {format}")
 
-
-def _write_data(data, filename, format, storage_options, **kwargs):
+def _write_data(data, filename, format, storage_options, index=False, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         write_fn = getattr(data, f"to_{format}")
         return _call_pandas_fsspec(
-            write_fn, filename, index=False, storage_options=storage_options
+            write_fn, filename, index=index, storage_options=storage_options
         )
     raise ValueError(f"Unrecognized format: {format}")
 
@@ -107,18 +108,58 @@ def _clean_data(data, target_column, datetime_column, target_category_columns=No
     )
 
 
+def _validate_and_clean_data(cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame):
+    """
+    Checks compatibility between primary and additional dataframe for a category.
+
+    Parameters
+    ----------
+        cat: (str)
+         Category for which data is being validated.
+        horizon: (int)
+         horizon value for the forecast.
+        primary: (pd.DataFrame)
+         primary dataframe.
+        additional: (pd.DataFrame)
+         additional dataframe.
+
+    Returns
+    -------
+        (pd.DataFrame, pd.DataFrame) or (None, None)
+         Updated primary and additional dataframe or None values if the validation criteria does not satisfy.
+    """
+    # Additional data should have future values for horizon
+    data_row_count = primary.shape[0]
+    data_add_row_count = additional.shape[0]
+    additional_surplus = data_add_row_count - horizon - data_row_count
+    if additional_surplus < 0:
+        logger.warn("Forecast for {} will not be generated since additional data has less values({}) than"
+                    " horizon({}) + primary data({})".format(cat, data_add_row_count, horizon, data_row_count))
+        return None, None
+    elif additional_surplus > 0:
+        # Removing surplus future data in additional
+        additional.drop(additional.tail(additional_surplus).index, inplace=True)
+
+    # Dates in primary data should be subset of additional data
+    dates_in_data = primary.index.tolist()
+    dates_in_additional = additional.index.tolist()
+    if not set(dates_in_data).issubset(set(dates_in_additional)):
+        logger.warn("Forecast for {} will not be generated since the dates in primary and additional do not"
+                    " match".format(cat))
+        return None, None
+    return primary, additional
+
 def _build_indexed_datasets(
     data,
     target_column,
     datetime_column,
+    horizon,
     target_category_columns=None,
     additional_data=None,
-    metadata_data=None,
+    metadata_data=None
 ):
     df_by_target = dict()
     categories = []
-    data_long = None
-    data_wide = None
 
     if target_category_columns is None:
         if additional_data is None:
@@ -135,7 +176,7 @@ def _build_indexed_datasets(
 
     data["__Series__"] = _merge_category_columns(data, target_category_columns)
     unique_categories = data["__Series__"].unique()
-
+    invalid_categories = []
     for cat in unique_categories:
         data_by_cat = data[data["__Series__"] == cat].rename(
             {target_column: f"{target_column}_{cat}"}, axis=1
@@ -157,14 +198,21 @@ def _build_indexed_datasets(
                 .set_index(datetime_column)
                 .fillna(0)
             )
-            data_by_cat_clean = pd.concat(
-                [data_add_by_cat_clean, data_by_cat_clean], axis=1
-            )
-        df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
+
+            valid_primary, valid_add = _validate_and_clean_data(cat, horizon, data_by_cat_clean, data_add_by_cat_clean)
+            if valid_primary is None:
+                invalid_categories.append(cat)
+                data_by_cat_clean = None
+            else:
+                data_by_cat_clean = pd.concat([valid_add, valid_primary], axis=1)
+        if data_by_cat_clean is not None:
+            df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
 
     new_target_columns = list(df_by_target.keys())
-    return df_by_target, new_target_columns, unique_categories
-
+    remaining_categories = set(unique_categories) - set(invalid_categories)
+    if not len(remaining_categories):
+        raise ValueError("Stopping forecast operator as there is no data that meets the validation criteria.")
+    return df_by_target, new_target_columns, remaining_categories
 
 def _build_metrics_df(y_true, y_pred, column_name):
     metrics = dict()
@@ -291,3 +339,24 @@ def human_time_friendly(seconds):
             )
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
+
+def select_auto_model(columns: List[str]) -> str:
+    """
+    Selects AutoMLX or Arima model based on column count.
+
+    If the number of columns is less than or equal to the maximum allowed for AutoMLX,
+    returns 'AutoMLX'. Otherwise, returns 'Arima'.
+    
+    Parameters
+    ------------
+    columns:  List
+            The list of columns.
+    
+    Returns
+    --------
+    str
+        The type of the model.
+    """
+    if columns!=None and len(columns) > MAX_COLUMNS_AUTOMLX:
+        return SupportedModels.Arima
+    return SupportedModels.AutoMLX

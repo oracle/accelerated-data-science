@@ -16,6 +16,7 @@ from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
+from .cmd import build_conda as cmd_build_conda
 from .cmd import build_image as cmd_build_image
 from .cmd import create as cmd_create
 from .cmd import info as cmd_info
@@ -39,12 +40,12 @@ def list(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
 @click.option(
     "--name",
     "-n",
     type=click.Choice(__operators__),
-    help="The name of the operator",
+    help="The name of the operator.",
     required=True,
 )
 def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
@@ -57,10 +58,10 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "--name",
     "-n",
     type=click.Choice(__operators__),
-    help="The name of the operator",
+    help="The name of the operator.",
     required=True,
 )
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
 @click.option(
     "--output",
     help=f"The folder name to save the resulting specification templates.",
@@ -70,13 +71,13 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @click.option(
     "--overwrite",
     "-o",
-    help="Overwrite result file if it already exists",
+    help="Overwrite result file if it already exists.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--ads-config",
-    help="The folder where the ADS opctl config located",
+    help="The folder where the ADS opctl config located.",
     required=False,
     default=None,
 )
@@ -86,7 +87,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
 @click.help_option("--help", "-h")
 @click.option(
     "--gpu",
@@ -100,7 +101,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "--name",
     "-n",
     help=(
-        "Name of the service operator to build the image. "
+        "Name of the operator to build the image. "
         "Only relevant for built-in service operators."
     ),
     default=None,
@@ -109,11 +110,17 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @click.option(
     "--image",
     "-i",
-    help="The image name. By default the operator name will be used.",
+    help="The image name. By default the operator's name will be used.",
     default=None,
     required=False,
 )
-@click.option("--tag", "-t", help="The image tag.", required=False, default=None)
+@click.option(
+    "--tag",
+    "-t",
+    help="The image tag. " "By default the operator's version will be used.",
+    required=False,
+    default=None,
+)
 @click.option(
     "--rebuild-base-image",
     "-r",
@@ -128,14 +135,14 @@ def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click.argument("image")
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
 @click.help_option("--help", "-h")
 @click.option(
-    "--registry", "-r", help="Registry to publish to", required=False, default=None
+    "--registry", "-r", help="Registry to publish to.", required=False, default=None
 )
 @click.option(
     "--ads-config",
-    help="The folder where the ADS opctl config located",
+    help="The folder where the ADS opctl config located.",
     required=False,
     default=None,
 )
@@ -145,30 +152,30 @@ def publish_image(debug, **kwargs):
 
 
 @commands.command(hidden=True)
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
 @click.option(
     "--name",
     "-n",
     type=click.Choice(__operators__),
-    help="The name of the operator",
+    help="The name of the operator.",
     required=True,
 )
 @click.option(
     "--overwrite",
     "-o",
-    help="Overwrite result file if it already exists",
+    help="Overwrite result file if it already exists.",
     is_flag=True,
     default=False,
 )
 @click.option(
     "--ads-config",
-    help="The folder where the ADS opctl config located",
+    help="The folder where the ADS opctl config located.",
     required=False,
     default=None,
 )
 @click.option(
     "--output",
-    help=f"The folder to save the resulting specification template YAML",
+    help=f"The folder to save the resulting specification template YAML.",
     required=False,
     default=None,
 )
@@ -179,7 +186,7 @@ def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click.help_option("--help", "-h")
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
 @click.option(
     "--file", "-f", help="The path to resource YAML file.", required=True, default=None
 )
@@ -220,3 +227,44 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
             operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(cmd_verify)(operator_spec, **kwargs)
+
+
+@commands.command()
+@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
+@click.help_option("--help", "-h")
+@click.option(
+    "--name",
+    "-n",
+    help=(
+        "Name of the operator to build the conda environment for. "
+        "Only relevant for built-in service operators."
+    ),
+    default=None,
+    required=False,
+)
+@click.option(
+    "--conda-pack-folder",
+    help=(
+        "The destination folder to save the conda environment. "
+        "By default will be used the path specified in the config file generated "
+        "with `ads opctl configure` command"
+    ),
+    required=False,
+    default=None,
+)
+@click.option(
+    "--overwrite",
+    "-o",
+    help="Overwrite conda environment if it already exists.",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--ads-config",
+    help="The folder where the ADS opctl config located.",
+    required=False,
+    default=None,
+)
+def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
+    """Builds a new conda environment for the particular operator."""
+    suppress_traceback(debug)(cmd_build_conda)(**kwargs)

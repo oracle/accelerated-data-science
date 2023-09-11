@@ -8,9 +8,11 @@ import time
 import fsspec
 import oci
 import pytest
+import random
 
 from tests.integration.config import secrets
 from tests.integration.jobs.test_dsc_job import DSCJobTestCaseWithCleanUp
+from ads.common.auth import default_signer
 from ads.jobs import (
     Job,
     DataScienceJob,
@@ -45,11 +47,11 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
     ZIP_JOB_ENTRYPOINT = "job_archive/main.py"
 
     TEST_OUTPUT_DIR = "output"
-    TEST_OUTPUT_URI = f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/ads_int_test"
-    SHAPE_NAME = "VM.Standard2.1"
-    CUSTOM_CONDA = (
-        f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/conda_environments/cpu/flaml/1.0/automl_flaml"
+    TEST_OUTPUT_URI = (
+        f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/ads_int_test"
     )
+    SHAPE_NAME = "VM.Standard2.1"
+    CUSTOM_CONDA = f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/conda_environments/cpu/flaml/1.0/automl_flaml"
 
     TEST_LOGS_FUNCTION = [
         "This is a function in a package.",
@@ -63,6 +65,14 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
         "This is a function in a package.",
     ]
 
+    # With shortage of ip addresses in self.SUBNET_ID,
+    # added pool of subnets with extra 8+8 ip addresses to run tests in parallel:
+    SUBNET_POOL = {
+        secrets.jobs.SUBNET_ID_1: 8,  # max 8 ip addresses available in SUBNET_ID_1
+        secrets.jobs.SUBNET_ID_2: 8,
+        secrets.jobs.SUBNET_ID: 32,
+    }
+
     def setUp(self) -> None:
         self.maxDiff = None
         return super().setUp()
@@ -70,13 +80,38 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
     @property
     def job_run_test_infra(self):
         """Data Science Job infrastructure with logging and managed egress for testing job runs"""
+
+        # Pick subnet one of SUBNET_ID_1, SUBNET_ID_2, SUBNET_ID from self.SUBNET_POOL with available ip addresses.
+        # Wait for 4 minutes if no ip addresses in any of 3 subnets, do 5 retries.
+        max_retry_count = 5
+        subnet_id = None
+        interval = 4 * 60
+        core_client = oci.core.VirtualNetworkClient(**default_signer())
+        while max_retry_count > 0:
+            for subnet, ips_limit in random.sample(list(self.SUBNET_POOL.items()), 2):
+                allocated_ips = core_client.list_private_ips(subnet_id=subnet).data
+                # Leave 4 extra ip address for later use by jobrun. Leave more extra ips in case tests will fail with
+                # "All the available IP addresses in the subnet have been allocated."
+                if len(allocated_ips) < ips_limit - 4:
+                    subnet_id = subnet
+                    break
+            if subnet_id:
+                break
+            else:
+                max_retry_count -= 1
+                time.sleep(interval)
+        # After all retries and no subnet_id with available ip addresses - using SUBNET_ID_1, subnet_id can't be None
+        if not subnet_id:
+            subnet_id = secrets.jobs.SUBNET_ID_1
+
         return DataScienceJob(
             compartment_id=self.COMPARTMENT_ID,
             project_id=self.PROJECT_ID,
             shape_name=self.SHAPE_NAME,
             block_storage_size=50,
             log_id=self.LOG_ID,
-            job_infrastructure_type="ME_STANDALONE",
+            job_infrastructure_type="STANDALONE",
+            subnet_id=subnet_id,
         )
 
     @staticmethod
@@ -214,7 +249,9 @@ class ScriptRuntimeJobRunTest(DSCJobRunTestCase):
     def test_run_script_with_many_logs(self):
         """Tests running a Python script generating many logs using ScriptRuntime."""
         runtime = ScriptRuntime().with_source(
-            os.path.join(os.path.dirname(__file__), "../fixtures/script_with_many_logs.py")
+            os.path.join(
+                os.path.dirname(__file__), "../fixtures/script_with_many_logs.py"
+            )
         )
         logs = [f"LOG: {i}" for i in range(2000)]
         self.create_and_assert_job_run(runtime, logs)
@@ -231,6 +268,8 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
     def test_run_git_with_entry_function_and_arguments(self):
         """Tests running a Python function from Git repo and passing in the arguments."""
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime()
             .with_source(secrets.jobs.GITHUB_SOURCE)
@@ -243,9 +282,8 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 # Keyword argument as a string
                 key='{"key": ["val1", "val2"]}',
             )
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -258,7 +296,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 "Job completed.",
                 "Saving metadata to job run...",
             ],
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -266,15 +303,16 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
         """Tests running a notebook from Git repo and saving the outputs to object storage"""
         output_uri = os.path.join(self.TEST_OUTPUT_URI, "git_notebook")
         self.remove_objects(output_uri)
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime(skip_metadata_update=True)
             .with_source(secrets.jobs.GITHUB_SOURCE)
             .with_entrypoint(path="src/test_notebook.ipynb")
             .with_output("src", output_uri)
             .with_service_conda("dbexp_p38_cpu_v1")
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -284,7 +322,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 # The following log will only show up if OCI_LOG_LEVEL is set to DEBUG
                 "Job completed.",
             ],
-            infra=infra,
         )
         objects = self.list_objects(output_uri)
         self.remove_objects(output_uri)
@@ -298,15 +335,16 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
         """Tests running a notebook from Git repo and saving the outputs to object storage"""
         output_uri = os.path.join(self.TEST_OUTPUT_URI, "git_notebook")
         self.remove_objects(output_uri)
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime(skip_metadata_update=True)
             .with_source(secrets.jobs.GITHUB_SOURCE)
             .with_entrypoint(path="src/conda_list.sh")
             .with_service_conda("dbexp_p38_cpu_v1")
             .with_argument("0.5", "+", 0.2, equals="0.7")
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -314,7 +352,6 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
                 "# packages in environment at /home/datascience/conda/dbexp_p38_cpu_v1:",
                 "Job completed.",
             ],
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -344,6 +381,8 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
     def test_run_git_with_ssh_key(self):
+        envs = dict(OCI_LOG_LEVEL="DEBUG")
+        envs.update(self.PROXY_ENVS)
         runtime = (
             GitPythonRuntime(skip_metadata_update=True)
             .with_source(
@@ -353,13 +392,11 @@ class GitRuntimeJobRunTest(DSCJobRunTestCase):
             .with_entrypoint(path="src/main.py")
             .with_python_path("src")
             .with_custom_conda(self.CUSTOM_CONDA)
-            .with_environment_variable(OCI_LOG_LEVEL="DEBUG")
+            .with_environment_variable(**envs)
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             self.TEST_LOGS_SCRIPT,
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -482,7 +519,6 @@ class PythonRuntimeJobRunTest(DSCJobRunTestCase):
             .with_output("outputs", output_uri)
             .with_service_conda("dbexp_p38_cpu_v1")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             [
@@ -491,7 +527,6 @@ class PythonRuntimeJobRunTest(DSCJobRunTestCase):
                 "This is a function in a module.",
                 "This is a function in a package.",
             ],
-            infra=infra,
         )
         objects = self.list_objects(output_uri)
         self.remove_objects(output_uri)
@@ -499,7 +534,9 @@ class PythonRuntimeJobRunTest(DSCJobRunTestCase):
 
 
 class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
-    NOTEBOOK_PATH = os.path.join(os.path.dirname(__file__), "../fixtures/ads_check.ipynb")
+    NOTEBOOK_PATH = os.path.join(
+        os.path.dirname(__file__), "../fixtures/ads_check.ipynb"
+    )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
     def test_run_notebook(self):
@@ -509,11 +546,9 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
             .with_notebook(self.NOTEBOOK_PATH)
             .with_service_conda("dbexp_p38_cpu_v1")
         )
-        infra = self.job_run_test_infra
         self.create_and_assert_job_run(
             runtime,
             ["2.6.8"],
-            infra=infra,
         )
 
     @pytest.mark.skipif(SKIP_TEST_FLAG, reason=SKIP_TEST_REASON)
@@ -526,7 +561,6 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
             .with_service_conda("dbexp_p38_cpu_v1")
             .with_output(output_uri)
         )
-        infra = self.job_run_test_infra
         self.remove_objects(output_uri)
         self.create_and_assert_job_run(
             runtime,
@@ -536,7 +570,6 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
                 "This is a function in a module.",
                 "This is a function in a package.",
             ],
-            infra=infra,
         )
         objects = self.list_objects(output_uri)
         self.remove_objects(output_uri)
@@ -558,10 +591,8 @@ class NotebookRuntimeJobRunTest(DSCJobRunTestCase):
             .with_source(self.NOTEBOOK_PATH, notebook="test_notebook.ipynb")
             .with_service_conda("dbexp_p38_cpu_v1")
         )
-        infra = self.job_run_test_infra
         with self.assertRaises(ValueError):
             self.create_and_assert_job_run(
                 runtime,
                 [],
-                infra=infra,
             )

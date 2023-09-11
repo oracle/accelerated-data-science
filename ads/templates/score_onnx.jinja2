@@ -86,7 +86,7 @@ def predict(data, model=load_model()):
         input_data = {}
         model_inputs = model.get_inputs()
         i = 0
-        for _, col in X.iteritems():
+        for _, col in X.items():
             if isinstance(col, pd.Series):
                 col_val = [[item] for item in col.values.tolist()]
             elif isinstance(col, np.array):

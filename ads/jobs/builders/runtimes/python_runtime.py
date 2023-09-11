@@ -262,7 +262,7 @@ class ScriptRuntime(CondaRuntime):
             .with_script(
                 "{Path to the script. For MLflow and Operator will be auto generated}"
             )
-            .with_argument(key1="val1")
+            .with_argument(**kwargs.get("args", {}))
         )
 
 
@@ -978,8 +978,11 @@ class DataFlowRuntime(CondaRuntime):
                 "{Path to the executable script. For MLflow and Operator will auto generated}"
             )
             .with_script_bucket(
-                "{The object storage bucket to save a script. "
-                "Example: oci://<bucket_name>@<tenancy>/<prefix>}"
+                kwargs.get(
+                    "script_bucket",
+                    "{The object storage bucket to save a script. "
+                    "Example: oci://<bucket_name>@<tenancy>/<prefix>}",
+                )
             )
             .with_overwrite(True)
             .with_configuration({"spark.driverEnv.env_key": "env_value"})

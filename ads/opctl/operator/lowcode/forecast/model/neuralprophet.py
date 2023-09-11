@@ -9,6 +9,7 @@ import datapane as dp
 import numpy as np
 import optuna
 import pandas as pd
+from neuralprophet import NeuralProphet
 from torch import Tensor
 from torchmetrics.regression import (
     MeanAbsoluteError,
@@ -24,6 +25,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.opctl import logger
 
+from ...forecast.const import DEFAULT_TRIALS
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 
@@ -166,7 +168,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 )
                 study.optimize(
                     objective,
-                    n_trials=self.spec.tuning.n_trials if self.spec.tunning else 10,
+                    n_trials=self.spec.tuning.n_trials if self.spec.tuning else DEFAULT_TRIALS,
                     n_jobs=-1,
                 )
 

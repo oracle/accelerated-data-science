@@ -1,7 +1,11 @@
 name: "Publish Docs"
 
 # To run this workflow manually from the Actions tab
-on: workflow_dispatch
+on:
+  # Auto-trigger this workflow on tag creation
+  push:
+    tags:
+      - 'v*.*.*'
 
 env:
   RTDS_ADS_PROJECT: https://readthedocs.org/api/v3/projects/accelerated-data-science

@@ -225,7 +225,17 @@ class ModelDeploymentInfrastructure(Builder):
         if NB_SESSION_OCID:
             try:
                 nb_session = DSCNotebookSession.from_ocid(NB_SESSION_OCID)
-                nb_config = nb_session.notebook_session_configuration_details
+            except Exception as e:
+                logger.warning(
+                    f"Error fetching details about Notebook "
+                    f"session: {NB_SESSION_OCID}. {e}"
+                )
+                logger.debug(traceback.format_exc())
+
+            nb_config = getattr(
+                nb_session, "notebook_session_config_details", None
+            ) or getattr(nb_session, "notebook_session_configuration_details", None)
+            if nb_config:
                 defaults[self.CONST_SHAPE_NAME] = nb_config.shape
 
                 if nb_config.notebook_session_shape_config_details:
@@ -235,13 +245,6 @@ class ModelDeploymentInfrastructure(Builder):
                     defaults[self.CONST_SHAPE_CONFIG_DETAILS] = copy.deepcopy(
                         notebook_shape_config_details
                     )
-
-            except Exception as e:
-                logger.warning(
-                    f"Error fetching details about Notebook "
-                    f"session: {NB_SESSION_OCID}. {e}"
-                )
-                logger.debug(traceback.format_exc())
 
         return defaults
 
