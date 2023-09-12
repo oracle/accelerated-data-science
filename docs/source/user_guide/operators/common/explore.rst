@@ -38,6 +38,8 @@ This command provides a concise overview of all available commands.
 
 - ``ads opctl operator build-conda``: Build a new Conda environment tailored to a particular operator using this command.
 
+- ``ads opctl operator publish-conda``: Publish the operator's Conda environment to the Object Storage bucket with this command.
+
 - ``ads opctl operator build-image``: Create a new image customized for the operator using this command.
 
 - ``ads opctl operator publish-image``: Publish the operator's image to the container registry with this command.
@@ -172,7 +174,11 @@ In order to run an operator within a local container or utilize it with the OCI 
 .. figure:: figures/build_operator_image.png
    :align: center
 
-The fundamental attribute you need to provide is ``--name``, which represents the name of the operator. If you do not specify ``--image`` and ``--tag``, the operator's name and version will be automatically used as the image name and tag.
+The fundamental attribute you need to provide is ``--name``, which represents the name of the operator. The operator's name and version will be automatically used as the image name and tag.
+
+.. code-block:: bash
+
+   ads opctl operator build-image --name <operator-name>
 
 An interesting point to note is that the operator's container can be built to accommodate both CPU and GPU architectures, although this capability depends on the specific operator's requirements.
 
@@ -195,7 +201,7 @@ The only mandatory parameter for this command is the image name that you wish to
 
 .. code-block:: bash
 
-   ads opctl operator publish-image <operator-name>:v1
+   ads opctl operator publish-image --name <operator-name>
 
 While the image name is the only required parameter, you also have the option to provide the ``registry`` parameter if needed. By default, the information about the registry where the container should be published is retrieved from the ADS config generated during the :doc:`Configure Defaults<../../cli/opctl/configure>` step.
 
@@ -232,12 +238,15 @@ To make a locally built Conda environment available in the OCI Object Storage bu
 
 .. code-block:: bash
 
-   ads opctl conda publish <operator-name>_<operator-version>
+   ads opctl operator publish-conda --help
 
-For instance, if you have constructed a Conda environment for the "forecast" operator, the command would appear as follows:
+.. figure:: figures/publish_operator_conda.png
+   :align: center
+
+For instance, if you have constructed a Conda environment for the specific operator, the command would appear as follows:
 
 .. code-block:: bash
 
-   ads opctl conda publish forecast_v1
+   ads opctl operator publish-conda --name <operator-name>
 
 Publishing the Conda environment to OCI Object Storage enables the OCI Data Science Jobs and Data Flow services to access and utilize this environment efficiently. This step is essential to ensure that your operators run seamlessly within the OCI ecosystem.
