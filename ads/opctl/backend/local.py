@@ -12,7 +12,7 @@ import sys
 import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
-from typing import Dict, List, Union
+from typing import Dict, List, Optional, Union
 
 from oci.data_science.models import PipelineStepRun
 
@@ -39,15 +39,15 @@ from ads.opctl.constants import (
     DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
     ML_JOB_GPU_IMAGE,
     ML_JOB_IMAGE,
+    OPERATOR_MODULE_PATH,
 )
 from ads.opctl.distributed.cmds import load_ini, local_run
 from ads.opctl.model.cmds import _download_model
 from ads.opctl.operator import __operators__
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.errors import OperatorNotFoundError
-from ads.opctl.operator.runtime import runtime as operator_runtime
 from ads.opctl.operator.runtime import const as operator_runtime_const
-
+from ads.opctl.operator.runtime import runtime as operator_runtime
 from ads.opctl.spark.cmds import (
     generate_core_site_properties,
     generate_core_site_properties_str,
@@ -832,8 +832,8 @@ class LocalModelDeploymentBackend(LocalBackend):
 class LocalOperatorBackend(Backend):
     """Class representing local operator backend."""
 
-    def __init__(self, config: Dict) -> None:
-        super().__init__(config=config)
+    def __init__(self, config: Optional[Dict]) -> None:
+        super().__init__(config=config or {})
 
         self.runtime_config = self.config.get("runtime", {})
         self.operator_config = {
@@ -846,11 +846,47 @@ class LocalOperatorBackend(Backend):
         self.operator_type = self.operator_config.get("type")
 
         self._RUNTIME_RUN_MAP = {
-            operator_runtime.ContainerRuntime.type: self._run_with_container
+            operator_runtime.ContainerRuntime.type: self._run_with_container,
+            operator_runtime.PythonRuntime.type: self._run_with_python,
         }
 
+    def _run_with_python(self) -> int:
+        """Runs the operator within a local python environment.
+
+        Returns
+        -------
+        int
+            The operator's run exit code.
+        """
+
+        # build runtime object
+        runtime = operator_runtime.PythonRuntime.from_dict(
+            self.runtime_config, ignore_unknown=True
+        )
+
+        # run operator
+        operator_module = f"{OPERATOR_MODULE_PATH}.{self.operator_type}"
+        operator_spec = json.dumps(self.operator_config)
+        sys.argv = [operator_module, "--spec", operator_spec]
+
+        print(f"{'*' * 50} Runtime Config {'*' * 50}")
+        print(runtime.to_yaml())
+
+        try:
+            runpy.run_module(operator_module, run_name="__main__")
+        except SystemExit as exception:
+            return exception.code
+        else:
+            return 0
+
     def _run_with_container(self) -> int:
-        """Runs the operator within a container."""
+        """Runs the operator within a container.
+
+        Returns
+        -------
+        int
+            The operator's run exit code.
+        """
 
         # build runtime object
         runtime: operator_runtime.ContainerRuntime = (
@@ -872,6 +908,9 @@ class LocalOperatorBackend(Backend):
                 "bind": container_path.lstrip().rstrip()
             }
 
+        logger.info(f"{'*' * 50} Runtime Config {'*' * 50}")
+        logger.info(runtime.to_yaml())
+
         return run_container(
             image=runtime.spec.image,
             bind_volumes=bind_volumes,
@@ -880,10 +919,12 @@ class LocalOperatorBackend(Backend):
         )
 
     def run(self, **kwargs: Dict) -> Dict:
-        """Runs the operator code."""
+        """Runs the operator."""
 
         # extract runtime
-        runtime_type = self.runtime_config.get("type", "unknown")
+        runtime_type = self.runtime_config.get(
+            "type", operator_runtime.OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON
+        )
         if runtime_type not in self._RUNTIME_RUN_MAP:
             raise RuntimeError(
                 f"Not supported runtime - {runtime_type} for local backend. "
@@ -900,7 +941,7 @@ class LocalOperatorBackend(Backend):
         if exit_code != 0:
             raise RuntimeError(
                 f"Operation did not complete successfully. Exit code: {exit_code}. "
-                f"Run with the --debug argument to view container logs."
+                f"Run with the --debug argument to view logs."
             )
 
     def init(
@@ -946,14 +987,22 @@ class LocalOperatorBackend(Backend):
                     + ":"
                     + "/root/.oci"
                 ],
-                "env": [{"name": "test_env_key", "value": "test_env_val"}],
-            }
+                "env": [
+                    {
+                        "name": "operator",
+                        "value": f"{self.operator_config['type']}:{self.operator_config['version']}",
+                    }
+                ],
+            },
+            operator_runtime.PythonRuntime.type: {},
         }
 
         with AuthContext(auth=self.auth_type, profile=self.profile):
             note = (
-                "# This YAML specification was auto generated by the `ads opctl operator init` command.\n"
-                "# The more details about the jobs YAML specification can be found in the ADS documentation:\n"
+                "# This YAML specification was auto generated by the "
+                "`ads opctl operator init` command.\n"
+                "# The more details about the operator's runtime YAML "
+                "specification can be found in the ADS documentation:\n"
                 "# https://accelerated-data-science.readthedocs.io/en/latest \n\n"
             )
 
@@ -967,23 +1016,3 @@ class LocalOperatorBackend(Backend):
                     **kwargs,
                 )
             )
-
-
-class LocalPythonBackend(LocalBackend):
-    def __init__(self, config: Dict) -> None:
-        """
-        Initialize a backend object with given config.
-
-        Parameters
-        ----------
-        config: dict
-            dictionary of configurations
-        """
-        self.config = config
-        self.operator_name = config.get("type")
-
-    def run(self, **kwargs):
-        operator_module = f"ads.opctl.operator.lowcode.{self.operator_name}"
-        operator_spec = json.dumps(self.config)
-        sys.argv = [operator_module, "--spec", operator_spec]
-        runpy.run_module(operator_module, run_name="__main__")

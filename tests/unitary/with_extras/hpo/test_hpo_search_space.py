@@ -6,12 +6,10 @@
 """Contains tests for ads.hpo.search_space
 """
 
-import unittest
 import lightgbm
 import pytest
 import sklearn
 import xgboost
-import sys, mock
 
 from ads.hpo.stopping_criterion import *
 from ads.hpo.distributions import *

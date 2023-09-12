@@ -19,7 +19,38 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     """Supported forecast metrics."""
 
-    MAPE = "mape"
-    RMSE = "rmse"
-    MSE = "mse"
-    SMAPE = "smape"
+    MAPE = "MAPE"
+    RMSE = "RMSE"
+    MSE = "MSE"
+    SMAPE = "sMAPE"
+    WMAPE = "wMAPE"
+    R2 = "r2"
+    EXPLAINED_VARIANCE = "Explained Variance"
+    MEAN_MAPE = "Mean MAPE" 
+    MEAN_RMSE = "Mean RMSE"
+    MEAN_MSE = "Mean MSE"
+    MEAN_SMAPE = "Mean sMAPE"
+    MEAN_WMAPE = "Mean wMAPE"
+    MEAN_R2 = "Mean r2"
+    MEAN_EXPLAINED_VARIANCE = "Mean Explained Variance"
+    MEDIAN_MAPE = "Median MAPE" 
+    MEDIAN_RMSE = "Median RMSE"
+    MEDIAN_MSE = "Median MSE"
+    MEDIAN_SMAPE = "Median sMAPE"
+    MEDIAN_WMAPE = "Median wMAPE"
+    MEDIAN_R2 = "Median r2"
+    MEDIAN_EXPLAINED_VARIANCE = "Median Explained Variance"
+    ELAPSED_TIME = "Elapsed Time"
+
+
+AUTOMLX_METRIC_MAP = {
+    "smape": "neg_sym_mean_abs_percent_error",
+    "mape": "neg_sym_mean_abs_percent_error",
+    "mase": "neg_mean_abs_scaled_error",
+    "mae": "neg_mean_absolute_error",
+    "mse": "neg_mean_squared_error",
+    "rmse": "neg_root_mean_squared_error",
+}
+
+MAX_COLUMNS_AUTOMLX = 15
+DEFAULT_TRIALS = 10

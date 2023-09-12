@@ -267,10 +267,8 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 nb_session = None
             if nb_session:
                 nb_config = getattr(
-                    nb_session,
-                    "notebook_session_config_details",
-                    getattr(nb_session, "notebook_session_configuration_details", None),
-                )
+                    nb_session, "notebook_session_config_details", None
+                ) or getattr(nb_session, "notebook_session_configuration_details", None)
 
                 if nb_config:
                     self._load_infra_from_notebook(nb_config)

@@ -1,4 +1,4 @@
-name: forecast
+name: Forecast
 channels:
   - conda-forge
 dependencies:
@@ -14,5 +14,5 @@ dependencies:
       - json2table
       - sktime
       - optuna==2.9.0
-      - ./oracle_ads-2.8.7b0-py3-none-any.whl
-      - ./automlx-23.2.1-py38-none-any.whl
+      - oracle-automlx==23.2.3
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"

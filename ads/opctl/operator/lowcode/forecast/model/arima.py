@@ -4,7 +4,6 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import datapane as dp
 import pandas as pd
 import pmdarima as pm
 
@@ -134,6 +133,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
     def _generate_report(self):
         """The method that needs to be implemented on the particular model level."""
+        import datapane as dp
+
         sec5_text = dp.Text(f"## ARIMA Model Parameters")
         sec5 = dp.Select(
             blocks=[

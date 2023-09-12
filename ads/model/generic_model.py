@@ -136,7 +136,7 @@ class DataScienceModelType(str, metaclass=ExtendedEnumMeta):
     MODEL = "datasciencemodel"
 
 
-class NotActiveDeploymentError(Exception):   # pragma: no cover
+class NotActiveDeploymentError(Exception):  # pragma: no cover
     def __init__(self, state: str):
         msg = (
             "To perform a prediction the deployed model needs to be in an active state. "
@@ -145,15 +145,15 @@ class NotActiveDeploymentError(Exception):   # pragma: no cover
         super().__init__(msg)
 
 
-class SerializeModelNotImplementedError(NotImplementedError):   # pragma: no cover
+class SerializeModelNotImplementedError(NotImplementedError):  # pragma: no cover
     pass
 
 
-class SerializeInputNotImplementedError(NotImplementedError):   # pragma: no cover
+class SerializeInputNotImplementedError(NotImplementedError):  # pragma: no cover
     pass
 
 
-class RuntimeInfoInconsistencyError(Exception):   # pragma: no cover
+class RuntimeInfoInconsistencyError(Exception):  # pragma: no cover
     pass
 
 
@@ -1327,7 +1327,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             If `model_file_name` not provided.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1434,7 +1434,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             An instance of GenericModel class.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1556,7 +1556,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             An instance of GenericModel class.
         """
         if (
-            cls._PREFIX is not "spark"
+            cls._PREFIX != "spark"
             and artifact_dir
             and ObjectStorageDetails.is_oci_path(artifact_dir)
         ):
@@ -1653,7 +1653,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 Model deployment freeform tags
             defined_tags: (dict)
                 Model deployment defined tags
-            
+
             Additional kwargs arguments.
             Can be any attribute that `ads.model.deployment.ModelDeploymentCondaRuntime`, `ads.model.deployment.ModelDeploymentContainerRuntime`
             and `ads.model.deployment.ModelDeploymentInfrastructure` accepts.
@@ -1825,6 +1825,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         remove_existing_artifact: Optional[bool] = True,
         model_version_set: Optional[Union[str, ModelVersionSet]] = None,
         version_label: Optional[str] = None,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -1856,6 +1857,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The model version set OCID, or model version set name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
             The model version lebel.
+        parallel_process_count: (int, optional)
+            The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1880,6 +1883,18 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         -------
         str
             The model id.
+
+        Examples
+        --------
+        Example for saving large model artifacts (>2GB):
+        >>> model.save(
+        ...     bucket_uri="oci://my-bucket@my-tenancy/",
+        ...     overwrite_existing_artifact=True,
+        ...     remove_existing_artifact=True,
+        ...     remove_existing_artifact=True,
+        ...     parallel_process_count=9,
+        ... )
+
         """
         # Set default display_name if not specified - randomly generated easy to remember name generated
         if not display_name:
@@ -1951,6 +1966,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             bucket_uri=bucket_uri,
             overwrite_existing_artifact=overwrite_existing_artifact,
             remove_existing_artifact=remove_existing_artifact,
+            parallel_process_count=parallel_process_count,
             **kwargs,
         )
 
@@ -2101,7 +2117,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if not display_name:
             display_name = utils.get_random_name_for_resource()
         # populates properties from args and kwargs. Empty values will be ignored.
-        self.properties.with_dict(_extract_locals(locals()))
+        override_properties = _extract_locals(locals())
         # clears out project_id and compartment_id from kwargs, to prevent passing
         # these params to the deployment via kwargs.
         kwargs.pop("project_id", None)
@@ -2110,19 +2126,55 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         max_wait_time = kwargs.pop("max_wait_time", DEFAULT_WAIT_TIME)
         poll_interval = kwargs.pop("poll_interval", DEFAULT_POLL_INTERVAL)
 
-        self.properties.compartment_id = (
-            self.properties.compartment_id or _COMPARTMENT_OCID
-        )
-        self.properties.project_id = self.properties.project_id or PROJECT_OCID
-        self.properties.deployment_instance_shape = (
-            self.properties.deployment_instance_shape or MODEL_DEPLOYMENT_INSTANCE_SHAPE
-        )
-        self.properties.deployment_instance_count = (
-            self.properties.deployment_instance_count or MODEL_DEPLOYMENT_INSTANCE_COUNT
-        )
-        self.properties.deployment_bandwidth_mbps = (
-            self.properties.deployment_bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
-        )
+        # GenericModel itself has a ModelDeployment instance. When calling deploy(),
+        # if there are parameters passed in they will override this ModelDeployment instance,
+        # otherwise the properties of the ModelDeployment instance will be applied for deployment.
+        existing_infrastructure = self.model_deployment.infrastructure
+        existing_runtime = self.model_deployment.runtime
+        property_dict = ModelProperties(
+            compartment_id=existing_infrastructure.compartment_id
+            or self.properties.compartment_id
+            or _COMPARTMENT_OCID,
+            project_id=existing_infrastructure.project_id
+            or self.properties.project_id
+            or PROJECT_OCID,
+            deployment_instance_shape=existing_infrastructure.shape_name
+            or self.properties.deployment_instance_shape
+            or MODEL_DEPLOYMENT_INSTANCE_SHAPE,
+            deployment_instance_count=existing_infrastructure.replica
+            or self.properties.deployment_instance_count
+            or MODEL_DEPLOYMENT_INSTANCE_COUNT,
+            deployment_bandwidth_mbps=existing_infrastructure.bandwidth_mbps
+            or self.properties.deployment_bandwidth_mbps
+            or MODEL_DEPLOYMENT_BANDWIDTH_MBPS,
+            deployment_ocpus=existing_infrastructure.shape_config_details.get(
+                "ocpus", None
+            )
+            or self.properties.deployment_ocpus
+            or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
+            deployment_memory_in_gbs=existing_infrastructure.shape_config_details.get(
+                "memoryInGBs", None
+            )
+            or self.properties.deployment_memory_in_gbs
+            or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+            deployment_log_group_id=existing_infrastructure.log_group_id
+            or self.properties.deployment_log_group_id,
+            deployment_access_log_id=existing_infrastructure.access_log.get(
+                "log_id", None
+            )
+            or self.properties.deployment_access_log_id,
+            deployment_predict_log_id=existing_infrastructure.predict_log.get(
+                "log_id", None
+            )
+            or self.properties.deployment_predict_log_id,
+            deployment_image=getattr(existing_runtime, "image", None)
+            or self.properties.deployment_image,
+            deployment_instance_subnet_id=existing_infrastructure.subnet_id
+            or self.properties.deployment_instance_subnet_id,
+        ).to_dict()
+
+        property_dict.update(override_properties)
+        self.properties.with_dict(property_dict)
 
         if not self.model_id:
             raise ValueError(
@@ -2140,119 +2192,74 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 "cannot be used without `deployment_log_group_id`."
             )
 
-        existing_infrastructure = self.model_deployment.infrastructure
-        existing_runtime = self.model_deployment.runtime
+        if not self.properties.compartment_id:
+            raise ValueError("`compartment_id` has to be provided.")
+        if not self.properties.project_id:
+            raise ValueError("`project_id` has to be provided.")
+        infrastructure = (
+            ModelDeploymentInfrastructure()
+            .with_compartment_id(self.properties.compartment_id)
+            .with_project_id(self.properties.project_id)
+            .with_bandwidth_mbps(self.properties.deployment_bandwidth_mbps)
+            .with_shape_name(self.properties.deployment_instance_shape)
+            .with_replica(self.properties.deployment_instance_count)
+            .with_subnet_id(self.properties.deployment_instance_subnet_id)
+        )
 
         web_concurrency = (
             kwargs.pop("web_concurrency", None)
             or existing_infrastructure.web_concurrency
         )
-        if not (
-            self.properties.compartment_id or existing_infrastructure.compartment_id
-        ):
-            raise ValueError("`compartment_id` has to be provided.")
-        if not (self.properties.project_id or existing_infrastructure.project_id):
-            raise ValueError("`project_id` has to be provided.")
-        infrastructure = (
-            ModelDeploymentInfrastructure()
-            .with_compartment_id(
-                self.properties.compartment_id or existing_infrastructure.compartment_id
-            )
-            .with_project_id(
-                self.properties.project_id or existing_infrastructure.project_id
-            )
-            .with_bandwidth_mbps(
-                self.properties.deployment_bandwidth_mbps
-                or existing_infrastructure.bandwidth_mbps
-            )
-            .with_shape_name(
-                self.properties.deployment_instance_shape
-                or existing_infrastructure.shape_name
-            )
-            .with_subnet_id(
-                self.properties.deployment_instance_subnet_id
-                or existing_infrastructure.subnet_id
-            )
-            .with_replica(
-                self.properties.deployment_instance_count
-                or existing_infrastructure.replica
-            )
-            .with_web_concurrency(web_concurrency)
-        )
-
-        ocpus = (
-            self.properties.deployment_ocpus
-            or existing_infrastructure.shape_config_details.get("ocpus")
-        )
-        memory_in_gbs = (
-            self.properties.deployment_memory_in_gbs
-            or existing_infrastructure.shape_config_details.get("memory_in_gbs")
-        )
+        if web_concurrency:
+            infrastructure.with_web_concurrency(web_concurrency)
 
         if infrastructure.shape_name.endswith("Flex"):
             infrastructure.with_shape_config_details(
-                ocpus=ocpus or MODEL_DEPLOYMENT_INSTANCE_OCPUS,
-                memory_in_gbs=memory_in_gbs or MODEL_DEPLOYMENT_INSTANCE_MEMORY_IN_GBS,
+                ocpus=self.properties.deployment_ocpus,
+                memory_in_gbs=self.properties.deployment_memory_in_gbs,
             )
-
-        access_log_id = (
-            self.properties.deployment_access_log_id
-            or existing_infrastructure.access_log.get("log_id")
-        )
-        access_log_group_id = (
-            self.properties.deployment_log_group_id
-            or existing_infrastructure.access_log.get("log_group_id")
-        )
 
         # specifies the access log id
-        if access_log_id:
+        if self.properties.deployment_access_log_id:
             infrastructure.with_access_log(
-                log_group_id=access_log_group_id,
-                log_id=access_log_id,
+                log_group_id=self.properties.deployment_log_group_id,
+                log_id=self.properties.deployment_access_log_id,
             )
 
-        predict_log_id = (
-            self.properties.deployment_predict_log_id
-            or existing_infrastructure.predict_log.get("log_id")
-        )
-        predict_log_group_id = (
-            self.properties.deployment_log_group_id
-            or existing_infrastructure.predict_log.get("log_group_id")
-        )
-
         # specifies the predict log id
-        if predict_log_id:
+        if self.properties.deployment_predict_log_id:
             infrastructure.with_predict_log(
-                log_group_id=predict_log_group_id,
-                log_id=predict_log_id,
+                log_group_id=self.properties.deployment_log_group_id,
+                log_id=self.properties.deployment_predict_log_id,
             )
 
         environment_variables = (
             kwargs.pop("environment_variables", {}) or existing_runtime.env
         )
         deployment_mode = (
-            kwargs.pop("deployment_mode", ModelDeploymentMode.HTTPS)
+            kwargs.pop("deployment_mode", None)
             or existing_runtime.deployment_mode
+            or ModelDeploymentMode.HTTPS
         )
 
         runtime = None
-        image = self.properties.deployment_image or existing_runtime.image
-        if image:
-            image_digest = (
-                kwargs.pop("image_digest", None) or existing_runtime.image_digest
+        if self.properties.deployment_image:
+            image_digest = kwargs.pop("image_digest", None) or getattr(
+                existing_runtime, "image_digest", None
             )
-            cmd = kwargs.pop("cmd", []) or existing_runtime.cmd
-            entrypoint = kwargs.pop("entrypoint", []) or existing_runtime.entrypoint
-            server_port = (
-                kwargs.pop("server_port", None) or existing_runtime.server_port
+            cmd = kwargs.pop("cmd", []) or getattr(existing_runtime, "cmd", [])
+            entrypoint = kwargs.pop("entrypoint", []) or getattr(
+                existing_runtime, "entrypoint", []
             )
-            health_check_port = (
-                kwargs.pop("health_check_port", None)
-                or existing_runtime.health_check_port
+            server_port = kwargs.pop("server_port", None) or getattr(
+                existing_runtime, "server_port", None
+            )
+            health_check_port = kwargs.pop("health_check_port", None) or getattr(
+                existing_runtime, "health_check_port", None
             )
             runtime = (
                 ModelDeploymentContainerRuntime()
-                .with_image(image)
+                .with_image(self.properties.deployment_image)
                 .with_image_digest(image_digest)
                 .with_cmd(cmd)
                 .with_entrypoint(entrypoint)
@@ -2856,6 +2863,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         uri: str,
         auth: Optional[Dict] = None,
         force_overwrite: Optional[bool] = False,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
     ) -> None:
         """Uploads model artifacts to the provided `uri`.
         The artifacts will be zipped before uploading.
@@ -2875,6 +2883,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             authentication signer and kwargs required to instantiate IdentityClient object.
         force_overwrite: bool
             Overwrite target_dir if exists.
+        parallel_process_count: (int, optional)
+            The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         """
         if not uri:
             raise ValueError("The `uri` must be provided.")
@@ -2889,19 +2899,34 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             uri = os.path.join(uri, f"{self.model_id}.zip")
 
         tmp_artifact_zip_path = None
+        progressbar_description = f"Uploading an artifact ZIP archive to {uri}."
         try:
             # Zip artifacts
             tmp_artifact_zip_path = zip_artifact(self.artifact_dir)
             # Upload artifacts to the provided destination
-            utils.copy_file(
-                uri_src=tmp_artifact_zip_path,
-                uri_dst=uri,
-                auth=auth,
-                force_overwrite=force_overwrite,
-                progressbar_description=f"Uploading an artifact ZIP archive to the {uri}",
+            if ObjectStorageDetails.is_oci_path(
+                uri
+            ) and ObjectStorageDetails.is_valid_uri(uri):
+                utils.upload_to_os(
+                    src_uri=tmp_artifact_zip_path,
+                    dst_uri=uri,
+                    auth=auth,
+                    parallel_process_count=parallel_process_count,
+                    progressbar_description=progressbar_description,
+                )
+            else:
+                utils.copy_file(
+                    uri_src=tmp_artifact_zip_path,
+                    uri_dst=uri,
+                    auth=auth,
+                    force_overwrite=force_overwrite,
+                    progressbar_description=progressbar_description,
+                )
+        except Exception as ex:
+            raise RuntimeError(
+                f"Failed to upload model artifact to the given Object Storage path `{uri}`."
+                f"See Exception: {ex}"
             )
-        except Exception:
-            raise
         finally:
             if tmp_artifact_zip_path:
                 os.remove(tmp_artifact_zip_path)

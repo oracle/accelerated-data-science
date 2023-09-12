@@ -15,11 +15,12 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
     ForecastOperatorModelFactory.get_model(operator_config).generate_report()
 
 
-def verify(spec: Dict) -> bool:
+def verify(spec: Dict, **kwargs) -> bool:
     """Verifies the forecasting operator config."""
     operator = ForecastOperatorConfig.from_dict(spec)
     msg_header = (
         f"{'*' * 50} The operator config has been successfully verified {'*' * 50}"
     )
+    print(msg_header)
     print(operator.to_yaml())
     print("*" * len(msg_header))
