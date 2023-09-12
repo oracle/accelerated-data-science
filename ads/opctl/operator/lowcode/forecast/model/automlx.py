@@ -4,8 +4,6 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
-import datapane as dp
 import pandas as pd
 import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
@@ -30,7 +28,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        from  automl import init
+        from automl import init
+
         init(engine="local", check_deprecation_warnings=False)
 
         full_data_dict = self.full_data_dict
@@ -61,10 +60,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 "" if y_train.index.is_monotonic else "NOT",
                 "monotonic.",
             )
-            model = automl.Pipeline(task="forecasting",
-                                    n_algos_tuned=n_algos_tuned,
-                                    score_metric=AUTOMLX_METRIC_MAP.get(self.spec.metric,
-                                                                        "neg_sym_mean_abs_percent_error"))
+            model = automl.Pipeline(
+                task="forecasting",
+                n_algos_tuned=n_algos_tuned,
+                score_metric=AUTOMLX_METRIC_MAP.get(
+                    self.spec.metric, "neg_sym_mean_abs_percent_error"
+                ),
+            )
             model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
             logger.info("Selected model: {}".format(model.selected_model_))
             logger.info(
@@ -127,6 +129,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         return outputs_merged
 
     def _generate_report(self):
+        import datapane as dp
+
         """The method that needs to be implemented on the particular model level."""
         selected_models_text = dp.Text(
             f"## Selected Models Overview \n "
