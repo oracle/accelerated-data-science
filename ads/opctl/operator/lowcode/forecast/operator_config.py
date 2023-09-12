@@ -99,7 +99,7 @@ class ForecastOperatorSpec(DataClassSerializable):
 
     def __post_init__(self):
         """Adjusts the specification details."""
-        self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE
+        self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_file_name = self.report_file_name or "report.html"
         self.report_theme = self.report_theme or "light"

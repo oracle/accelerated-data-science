@@ -20,6 +20,7 @@ from sklearn.metrics import (
     r2_score,
 )
 from typing import List
+from .const import SupportedMetrics
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
@@ -43,6 +44,62 @@ def smape(actual, predicted) -> float:
         * 100,
         2,
     )
+
+
+def _build_metrics_per_horizon(data: pd.DataFrame, outputs: pd.DataFrame, target_columns: List[str], target_col: str) -> pd.DataFrame:
+    """
+    Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
+    
+    Parameters
+    ------------
+    data:  Pandas Dataframe
+            Dataframe that has the actual data
+    outputs: Pandas Dataframe
+            Dataframe that has the forecasted data
+    target_columns: List
+            List of target category columns
+    target_col: str
+            Target column name (yhat)
+
+    Returns
+    --------
+    Pandas Dataframe
+        Dataframe with Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
+    """
+    actuals_df = data[target_columns]
+    forecasts_df = pd.concat([df[target_col] for df in outputs], axis=1)
+
+    totals = actuals_df.sum()
+    wmape_weights = np.array((totals / totals.sum()).values)
+
+    metrics_df = pd.DataFrame(columns=[
+        SupportedMetrics.MEAN_SMAPE, SupportedMetrics.MEDIAN_SMAPE,
+        SupportedMetrics.MEAN_MAPE, SupportedMetrics.MEDIAN_MAPE,
+        SupportedMetrics.MEAN_WMAPE, SupportedMetrics.MEDIAN_WMAPE
+    ])
+
+    for y_true, y_pred in zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)):
+
+        y_true, y_pred = np.array(y_true), np.array(y_pred)
+
+        smapes = np.array([smape(actual=y_t, predicted=y_p) for y_t, y_p in zip(y_true, y_pred)])
+        mapes = np.array([mean_absolute_percentage_error(y_true=[y_t], y_pred=[y_p])  for y_t, y_p in zip(y_true, y_pred)])
+        wmapes = np.array([mape * weight for mape, weight in zip(mapes, wmape_weights)])
+        
+        metrics_row = {
+            SupportedMetrics.MEAN_SMAPE: np.mean(smapes),
+            SupportedMetrics.MEDIAN_SMAPE: np.median(smapes),
+            SupportedMetrics.MEAN_MAPE: np.mean(mapes),
+            SupportedMetrics.MEDIAN_MAPE: np.median(mapes),
+            SupportedMetrics.MEAN_WMAPE: np.mean(wmapes),
+            SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes)
+        }
+        
+        metrics_df = metrics_df.append(metrics_row, ignore_index=True)
+
+    metrics_df.set_index(data['ds'], inplace=True)
+    
+    return metrics_df
 
 
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
