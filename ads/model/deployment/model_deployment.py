@@ -1304,7 +1304,8 @@ class ModelDeployment(Builder):
         ModelDeployment
             The ModelDeployment instance (self).
         """
-        return cls()._update_from_oci_model(OCIDataScienceModelDeployment.from_id(id))
+        oci_model = OCIDataScienceModelDeployment.from_id(id)
+        return cls(properties=oci_model)._update_from_oci_model(oci_model)
 
     @classmethod
     def from_dict(cls, obj_dict: Dict) -> "ModelDeployment":
@@ -1503,7 +1504,9 @@ class ModelDeployment(Builder):
             **create_model_deployment_details
         ).to_oci_model(CreateModelDeploymentDetails)
 
-    def _update_model_deployment_details(self, **kwargs) -> UpdateModelDeploymentDetails:
+    def _update_model_deployment_details(
+        self, **kwargs
+    ) -> UpdateModelDeploymentDetails:
         """Builds UpdateModelDeploymentDetails from model deployment instance.
 
         Returns
@@ -1527,7 +1530,7 @@ class ModelDeployment(Builder):
         return OCIDataScienceModelDeployment(
             **update_model_deployment_details
         ).to_oci_model(UpdateModelDeploymentDetails)
-    
+
     def _update_spec(self, **kwargs) -> "ModelDeployment":
         """Updates model deployment specs from kwargs.
 
@@ -1542,7 +1545,7 @@ class ModelDeployment(Builder):
                 Model deployment freeform tags
             defined_tags: (dict)
                 Model deployment defined tags
-            
+
             Additional kwargs arguments.
             Can be any attribute that `ads.model.deployment.ModelDeploymentCondaRuntime`, `ads.model.deployment.ModelDeploymentContainerRuntime`
             and `ads.model.deployment.ModelDeploymentInfrastructure` accepts.
@@ -1559,12 +1562,12 @@ class ModelDeployment(Builder):
         specs = {
             "self": self._spec,
             "runtime": self.runtime._spec,
-            "infrastructure": self.infrastructure._spec
+            "infrastructure": self.infrastructure._spec,
         }
         sub_set = {
             self.infrastructure.CONST_ACCESS_LOG,
             self.infrastructure.CONST_PREDICT_LOG,
-            self.infrastructure.CONST_SHAPE_CONFIG_DETAILS
+            self.infrastructure.CONST_SHAPE_CONFIG_DETAILS,
         }
         for spec_value in specs.values():
             for key in spec_value:
@@ -1572,7 +1575,9 @@ class ModelDeployment(Builder):
                     if key in sub_set:
                         for sub_key in converted_specs[key]:
                             converted_sub_key = ads_utils.snake_to_camel(sub_key)
-                            spec_value[key][converted_sub_key] = converted_specs[key][sub_key]
+                            spec_value[key][converted_sub_key] = converted_specs[key][
+                                sub_key
+                            ]
                     else:
                         spec_value[key] = copy.deepcopy(converted_specs[key])
         self = (
@@ -1616,14 +1621,14 @@ class ModelDeployment(Builder):
                 infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
                     "memory_in_gbs", None
                 )
-                or infrastructure.shape_config_details.get(
-                    "memoryInGBs", None
-                )
+                or infrastructure.shape_config_details.get("memoryInGBs", None)
                 or DEFAULT_MEMORY_IN_GBS,
             }
 
         if infrastructure.subnet_id:
-            instance_configuration[infrastructure.CONST_SUBNET_ID] = infrastructure.subnet_id
+            instance_configuration[
+                infrastructure.CONST_SUBNET_ID
+            ] = infrastructure.subnet_id
 
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
@@ -1638,13 +1643,11 @@ class ModelDeployment(Builder):
 
         model_id = runtime.model_uri
         if not model_id.startswith("ocid"):
-            
             from ads.model.datascience_model import DataScienceModel
-            
+
             dsc_model = DataScienceModel(
                 name=self.display_name,
-                compartment_id=self.infrastructure.compartment_id
-                or COMPARTMENT_OCID,
+                compartment_id=self.infrastructure.compartment_id or COMPARTMENT_OCID,
                 project_id=self.infrastructure.project_id or PROJECT_OCID,
                 artifact=runtime.model_uri,
             ).create(
@@ -1653,7 +1656,7 @@ class ModelDeployment(Builder):
                 region=runtime.region,
                 overwrite_existing_artifact=runtime.overwrite_existing_artifact,
                 remove_existing_artifact=runtime.remove_existing_artifact,
-                timeout=runtime.timeout
+                timeout=runtime.timeout,
             )
             model_id = dsc_model.id
 
