@@ -10,7 +10,6 @@ import time
 from abc import ABC, abstractmethod
 from typing import Tuple
 
-import datapane as dp
 import fsspec
 import numpy as np
 import pandas as pd
@@ -22,6 +21,7 @@ from .. import utils
 from ..const import SupportedModels, SupportedMetrics
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .transformations import Transformations
+
 
 class ForecastOperatorBaseModel(ABC):
     """The base class for the forecast operator models."""
@@ -60,6 +60,7 @@ class ForecastOperatorBaseModel(ABC):
 
     def generate_report(self):
         """Generates the forecasting report."""
+        import datapane as dp
 
         # load data and build models
         start_time = time.time()
@@ -225,7 +226,11 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         # save the report and result CSV
-        self._save_report(report_sections=report_sections, result_df=result_df, metrics_df=self.test_eval_metrics)
+        self._save_report(
+            report_sections=report_sections,
+            result_df=result_df,
+            metrics_df=self.test_eval_metrics,
+        )
 
     def _load_data(self):
         """Loads forecasting input data."""
@@ -296,14 +301,30 @@ class ForecastOperatorBaseModel(ABC):
 
         summary_metrics = pd.DataFrame(
             {
-                SupportedMetrics.MEAN_SMAPE: np.mean(total_metrics.loc[SupportedMetrics.SMAPE]),
-                SupportedMetrics.MEDIAN_SMAPE: np.median(total_metrics.loc[SupportedMetrics.SMAPE]),
-                SupportedMetrics.MEAN_MAPE: np.mean(total_metrics.loc[SupportedMetrics.MAPE]),
-                SupportedMetrics.MEDIAN_MAPE: np.median(total_metrics.loc[SupportedMetrics.MAPE]),
-                SupportedMetrics.MEAN_RMSE: np.mean(total_metrics.loc[SupportedMetrics.RMSE]),
-                SupportedMetrics.MEDIAN_RMSE: np.median(total_metrics.loc[SupportedMetrics.RMSE]),
-                SupportedMetrics.MEAN_R2: np.mean(total_metrics.loc[SupportedMetrics.R2]),
-                SupportedMetrics.MEDIAN_R2: np.median(total_metrics.loc[SupportedMetrics.R2]),
+                SupportedMetrics.MEAN_SMAPE: np.mean(
+                    total_metrics.loc[SupportedMetrics.SMAPE]
+                ),
+                SupportedMetrics.MEDIAN_SMAPE: np.median(
+                    total_metrics.loc[SupportedMetrics.SMAPE]
+                ),
+                SupportedMetrics.MEAN_MAPE: np.mean(
+                    total_metrics.loc[SupportedMetrics.MAPE]
+                ),
+                SupportedMetrics.MEDIAN_MAPE: np.median(
+                    total_metrics.loc[SupportedMetrics.MAPE]
+                ),
+                SupportedMetrics.MEAN_RMSE: np.mean(
+                    total_metrics.loc[SupportedMetrics.RMSE]
+                ),
+                SupportedMetrics.MEDIAN_RMSE: np.median(
+                    total_metrics.loc[SupportedMetrics.RMSE]
+                ),
+                SupportedMetrics.MEAN_R2: np.mean(
+                    total_metrics.loc[SupportedMetrics.R2]
+                ),
+                SupportedMetrics.MEDIAN_R2: np.median(
+                    total_metrics.loc[SupportedMetrics.R2]
+                ),
                 SupportedMetrics.MEAN_EXPLAINED_VARIANCE: np.mean(
                     total_metrics.loc[SupportedMetrics.EXPLAINED_VARIANCE]
                 ),
@@ -315,41 +336,61 @@ class ForecastOperatorBaseModel(ABC):
             index=["All Targets"],
         )
 
-        """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon 
+        """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
         if horizon <= 10."""
-        if len(data['ds'])<=10:
-
-            metrics_per_horizon = utils._build_metrics_per_horizon(data=data, outputs=outputs, target_columns=target_columns, target_col=target_col)
-
-            summary_metrics = summary_metrics.append(
-                metrics_per_horizon
+        if len(data["ds"]) <= 10:
+            metrics_per_horizon = utils._build_metrics_per_horizon(
+                data=data,
+                outputs=outputs,
+                target_columns=target_columns,
+                target_col=target_col,
             )
 
-            new_column_order = [SupportedMetrics.MEAN_SMAPE, SupportedMetrics.MEDIAN_SMAPE, SupportedMetrics.MEAN_MAPE, SupportedMetrics.MEDIAN_MAPE, SupportedMetrics.MEAN_WMAPE, SupportedMetrics.MEDIAN_WMAPE,
-                SupportedMetrics.MEAN_RMSE, SupportedMetrics.MEDIAN_RMSE, SupportedMetrics.MEAN_R2, SupportedMetrics.MEDIAN_R2, SupportedMetrics.MEAN_EXPLAINED_VARIANCE, SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE, 
-                SupportedMetrics.ELAPSED_TIME]
+            summary_metrics = summary_metrics.append(metrics_per_horizon)
+
+            new_column_order = [
+                SupportedMetrics.MEAN_SMAPE,
+                SupportedMetrics.MEDIAN_SMAPE,
+                SupportedMetrics.MEAN_MAPE,
+                SupportedMetrics.MEDIAN_MAPE,
+                SupportedMetrics.MEAN_WMAPE,
+                SupportedMetrics.MEDIAN_WMAPE,
+                SupportedMetrics.MEAN_RMSE,
+                SupportedMetrics.MEDIAN_RMSE,
+                SupportedMetrics.MEAN_R2,
+                SupportedMetrics.MEDIAN_R2,
+                SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
+                SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
+                SupportedMetrics.ELAPSED_TIME,
+            ]
             summary_metrics = summary_metrics[new_column_order]
 
         return total_metrics, summary_metrics, data
 
-    def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame, metrics_df: pd.DataFrame):
+    def _save_report(
+        self, report_sections: Tuple, result_df: pd.DataFrame, metrics_df: pd.DataFrame
+    ):
         """Saves resulting reports to the given folder."""
+        import datapane as dp
+
         if self.spec.output_directory:
             output_dir = self.spec.output_directory.url
         else:
             output_dir = "tmp_fc_operator_result"
             logger.warn(
                 "Since the output directory was not specified, the output will be saved to {} directory.".format(
-                    output_dir))
+                    output_dir
+                )
+            )
         # datapane html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                        os.path.join(output_dir, self.spec.report_file_name),
-                        "w",
-                        **default_signer(),
+                    os.path.join(output_dir, self.spec.report_file_name),
+                    "w",
+                    **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
 
@@ -367,7 +408,7 @@ class ForecastOperatorBaseModel(ABC):
             filename=os.path.join(output_dir, self.spec.metrics_filename),
             format="csv",
             storage_options=default_signer(),
-            index = True
+            index=True,
         )
 
         logger.warn(

@@ -4,10 +4,8 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
 import os
 from ads.opctl import logger
-import datapane as dp
 import fsspec
 import numpy as np
 import pandas as pd
@@ -46,10 +44,15 @@ def smape(actual, predicted) -> float:
     )
 
 
-def _build_metrics_per_horizon(data: pd.DataFrame, outputs: pd.DataFrame, target_columns: List[str], target_col: str) -> pd.DataFrame:
+def _build_metrics_per_horizon(
+    data: pd.DataFrame,
+    outputs: pd.DataFrame,
+    target_columns: List[str],
+    target_col: str,
+) -> pd.DataFrame:
     """
     Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
-    
+
     Parameters
     ------------
     data:  Pandas Dataframe
@@ -72,33 +75,46 @@ def _build_metrics_per_horizon(data: pd.DataFrame, outputs: pd.DataFrame, target
     totals = actuals_df.sum()
     wmape_weights = np.array((totals / totals.sum()).values)
 
-    metrics_df = pd.DataFrame(columns=[
-        SupportedMetrics.MEAN_SMAPE, SupportedMetrics.MEDIAN_SMAPE,
-        SupportedMetrics.MEAN_MAPE, SupportedMetrics.MEDIAN_MAPE,
-        SupportedMetrics.MEAN_WMAPE, SupportedMetrics.MEDIAN_WMAPE
-    ])
+    metrics_df = pd.DataFrame(
+        columns=[
+            SupportedMetrics.MEAN_SMAPE,
+            SupportedMetrics.MEDIAN_SMAPE,
+            SupportedMetrics.MEAN_MAPE,
+            SupportedMetrics.MEDIAN_MAPE,
+            SupportedMetrics.MEAN_WMAPE,
+            SupportedMetrics.MEDIAN_WMAPE,
+        ]
+    )
 
-    for y_true, y_pred in zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)):
-
+    for y_true, y_pred in zip(
+        actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)
+    ):
         y_true, y_pred = np.array(y_true), np.array(y_pred)
 
-        smapes = np.array([smape(actual=y_t, predicted=y_p) for y_t, y_p in zip(y_true, y_pred)])
-        mapes = np.array([mean_absolute_percentage_error(y_true=[y_t], y_pred=[y_p])  for y_t, y_p in zip(y_true, y_pred)])
+        smapes = np.array(
+            [smape(actual=y_t, predicted=y_p) for y_t, y_p in zip(y_true, y_pred)]
+        )
+        mapes = np.array(
+            [
+                mean_absolute_percentage_error(y_true=[y_t], y_pred=[y_p])
+                for y_t, y_p in zip(y_true, y_pred)
+            ]
+        )
         wmapes = np.array([mape * weight for mape, weight in zip(mapes, wmape_weights)])
-        
+
         metrics_row = {
             SupportedMetrics.MEAN_SMAPE: np.mean(smapes),
             SupportedMetrics.MEDIAN_SMAPE: np.median(smapes),
             SupportedMetrics.MEAN_MAPE: np.mean(mapes),
             SupportedMetrics.MEDIAN_MAPE: np.median(mapes),
             SupportedMetrics.MEAN_WMAPE: np.mean(wmapes),
-            SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes)
+            SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes),
         }
-        
+
         metrics_df = metrics_df.append(metrics_row, ignore_index=True)
 
-    metrics_df.set_index(data['ds'], inplace=True)
-    
+    metrics_df.set_index(data["ds"], inplace=True)
+
     return metrics_df
 
 
@@ -120,6 +136,7 @@ def _load_data(filename, format, storage_options, columns, **kwargs):
             data = data[columns]
         return data
     raise ValueError(f"Unrecognized format: {format}")
+
 
 def _write_data(data, filename, format, storage_options, index=False, **kwargs):
     if not format:
@@ -165,7 +182,9 @@ def _clean_data(data, target_column, datetime_column, target_category_columns=No
     )
 
 
-def _validate_and_clean_data(cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame):
+def _validate_and_clean_data(
+    cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame
+):
     """
     Checks compatibility between primary and additional dataframe for a category.
 
@@ -190,8 +209,12 @@ def _validate_and_clean_data(cat: str, horizon: int, primary: pd.DataFrame, addi
     data_add_row_count = additional.shape[0]
     additional_surplus = data_add_row_count - horizon - data_row_count
     if additional_surplus < 0:
-        logger.warn("Forecast for {} will not be generated since additional data has less values({}) than"
-                    " horizon({}) + primary data({})".format(cat, data_add_row_count, horizon, data_row_count))
+        logger.warn(
+            "Forecast for {} will not be generated since additional data has less values({}) than"
+            " horizon({}) + primary data({})".format(
+                cat, data_add_row_count, horizon, data_row_count
+            )
+        )
         return None, None
     elif additional_surplus > 0:
         # Removing surplus future data in additional
@@ -201,10 +224,13 @@ def _validate_and_clean_data(cat: str, horizon: int, primary: pd.DataFrame, addi
     dates_in_data = primary.index.tolist()
     dates_in_additional = additional.index.tolist()
     if not set(dates_in_data).issubset(set(dates_in_additional)):
-        logger.warn("Forecast for {} will not be generated since the dates in primary and additional do not"
-                    " match".format(cat))
+        logger.warn(
+            "Forecast for {} will not be generated since the dates in primary and additional do not"
+            " match".format(cat)
+        )
         return None, None
     return primary, additional
+
 
 def _build_indexed_datasets(
     data,
@@ -213,7 +239,7 @@ def _build_indexed_datasets(
     horizon,
     target_category_columns=None,
     additional_data=None,
-    metadata_data=None
+    metadata_data=None,
 ):
     df_by_target = dict()
     categories = []
@@ -256,7 +282,9 @@ def _build_indexed_datasets(
                 .fillna(0)
             )
 
-            valid_primary, valid_add = _validate_and_clean_data(cat, horizon, data_by_cat_clean, data_add_by_cat_clean)
+            valid_primary, valid_add = _validate_and_clean_data(
+                cat, horizon, data_by_cat_clean, data_add_by_cat_clean
+            )
             if valid_primary is None:
                 invalid_categories.append(cat)
                 data_by_cat_clean = None
@@ -268,8 +296,11 @@ def _build_indexed_datasets(
     new_target_columns = list(df_by_target.keys())
     remaining_categories = set(unique_categories) - set(invalid_categories)
     if not len(remaining_categories):
-        raise ValueError("Stopping forecast operator as there is no data that meets the validation criteria.")
+        raise ValueError(
+            "Stopping forecast operator as there is no data that meets the validation criteria."
+        )
     return df_by_target, new_target_columns, remaining_categories
+
 
 def _build_metrics_df(y_true, y_pred, column_name):
     metrics = dict()
@@ -295,6 +326,8 @@ def evaluate_metrics(target_columns, data, outputs, target_col="yhat"):
 
 
 def _select_plot_list(fn, target_columns):
+    import datapane as dp
+
     return dp.Select(
         blocks=[dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
     )
@@ -383,7 +416,7 @@ def human_time_friendly(seconds):
         ("week", 60 * 60 * 24 * 7),
         ("day", 60 * 60 * 24),
         ("hour", 60 * 60),
-        ("min", 60)
+        ("min", 60),
     )
     if seconds == 0:
         return "inf"
@@ -397,23 +430,24 @@ def human_time_friendly(seconds):
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
 
+
 def select_auto_model(columns: List[str]) -> str:
     """
     Selects AutoMLX or Arima model based on column count.
 
     If the number of columns is less than or equal to the maximum allowed for AutoMLX,
     returns 'AutoMLX'. Otherwise, returns 'Arima'.
-    
+
     Parameters
     ------------
     columns:  List
             The list of columns.
-    
+
     Returns
     --------
     str
         The type of the model.
     """
-    if columns!=None and len(columns) > MAX_COLUMNS_AUTOMLX:
+    if columns != None and len(columns) > MAX_COLUMNS_AUTOMLX:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX

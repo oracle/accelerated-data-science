@@ -4,15 +4,9 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
-import datapane as dp
 import numpy as np
 import optuna
 import pandas as pd
-from prophet import Prophet
-from prophet.diagnostics import cross_validation, performance_metrics
-from prophet.plot import add_changepoints_to_plot
-
 from ads.opctl import logger
 
 from ...forecast.const import DEFAULT_TRIALS
@@ -25,6 +19,8 @@ def _add_unit(num, unit):
 
 
 def _fit_model(data, params, additional_regressors):
+    from prophet import Prophet
+
     model = Prophet(**params)
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
@@ -36,6 +32,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing Prophet operator model."""
 
     def _build_model(self) -> pd.DataFrame:
+        from prophet import Prophet
+        from prophet.diagnostics import cross_validation, performance_metrics
+
         full_data_dict = self.full_data_dict
         models = []
         outputs = dict()
@@ -145,7 +144,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 )
                 study.optimize(
                     objective,
-                    n_trials=self.spec.tuning.n_trials if self.spec.tuning else DEFAULT_TRIALS,
+                    n_trials=self.spec.tuning.n_trials
+                    if self.spec.tuning
+                    else DEFAULT_TRIALS,
                     n_jobs=-1,
                 )
 
@@ -210,6 +211,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return outputs_merged
 
     def _generate_report(self):
+        import datapane as dp
+        from prophet.plot import add_changepoints_to_plot
+
         sec1_text = dp.Text(
             "## Forecast Overview \n"
             "These plots show your forecast in the context of historical data."

@@ -65,6 +65,7 @@ class OperatorInfo:
         """Instantiates the class from the initial operator details config."""
 
         path = kwargs.get("__operator_path__")
+        operator_readme = None
         if path:
             readme_file_path = os.path.join(path, "readme.md")
             if os.path.exists(readme_file_path):

@@ -4,12 +4,9 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
-import datapane as dp
 import numpy as np
 import optuna
 import pandas as pd
-from neuralprophet import NeuralProphet
 from torch import Tensor
 from torchmetrics.regression import (
     MeanAbsoluteError,
@@ -67,6 +64,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing NeuralProphet operator model."""
 
     def _build_model(self) -> pd.DataFrame:
+        from neuralprophet import NeuralProphet
+
         full_data_dict = self.full_data_dict
         models = []
         outputs = dict()
@@ -168,7 +167,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 )
                 study.optimize(
                     objective,
-                    n_trials=self.spec.tuning.n_trials if self.spec.tuning else DEFAULT_TRIALS,
+                    n_trials=self.spec.tuning.n_trials
+                    if self.spec.tuning
+                    else DEFAULT_TRIALS,
                     n_jobs=-1,
                 )
 
@@ -239,6 +240,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         return outputs_merged
 
     def _generate_report(self):
+        import datapane as dp
+
         sec1_text = dp.Text(
             "## Forecast Overview \nThese plots show your "
             "forecast in the context of historical data."
