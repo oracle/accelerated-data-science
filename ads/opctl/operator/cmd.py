@@ -24,6 +24,7 @@ from ads.common.decorator.runtime_dependency import (
 from ads.opctl import logger
 from ads.opctl.cmds import _BackendFactory
 from ads.opctl.conda.cmds import create as conda_create
+from ads.opctl.conda.cmds import publish as conda_publish
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import (
@@ -33,11 +34,16 @@ from ads.opctl.constants import (
     RESOURCE_TYPE,
     RUNTIME_TYPE,
 )
+from ads.opctl.operator.common.const import PACK_TYPE
 from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
 from ads.opctl.utils import publish_image as publish_image_cmd
 
 from .__init__ import __operators__
-from .common.errors import OperatorNotFoundError
+from .common.errors import (
+    OperatorCondaNotFoundError,
+    OperatorImageNotFoundError,
+    OperatorNotFoundError,
+)
 from .common.utils import (
     _build_image,
     _convert_schema_to_html,
@@ -52,7 +58,7 @@ OPERATOR_BASE_DOCKER_GPU_FILE = "Dockerfile.gpu"
 
 
 def list() -> None:
-    """Prints the list of the registered service operators."""
+    """Prints the list of the registered operators."""
     print(
         tabulate(
             (
@@ -141,7 +147,9 @@ def _init_backend_config(
         RESOURCE_TYPE.JOB: [
             {
                 RUNTIME_TYPE.PYTHON: {
-                    "conda_slug": operator_info.conda,
+                    "conda_slug": operator_info.conda
+                    if operator_info.conda_type == PACK_TYPE.SERVICE
+                    else operator_info.conda_prefix,
                     "freeform_tags": freeform_tags,
                 }
             },
@@ -155,7 +163,7 @@ def _init_backend_config(
         RESOURCE_TYPE.DATAFLOW: [
             {
                 RUNTIME_TYPE.DATAFLOW: {
-                    "conda_slug": operator_info.conda,
+                    "conda_slug": operator_info.conda_prefix,
                     "freeform_tags": freeform_tags,
                 }
             }
@@ -313,8 +321,6 @@ def init(
 def build_image(
     name: str = None,
     source_folder: str = None,
-    image: str = None,
-    tag: str = None,
     gpu: bool = None,
     rebuild_base_image: bool = None,
     **kwargs: Dict[str, Any],
@@ -327,17 +333,12 @@ def build_image(
     Parameters
     ----------
     name: (str, optional)
-        Name of the service operator to build the image.
-        Only relevant for built-in service operators.
+        Name of the operator to build the image.
     gpu: (bool, optional)
         Whether to build a GPU-enabled Docker image.
     source_folder: (str, optional)
         The folder containing the operator source code.
         Only relevant for custom operators.
-    image: (optional, str)
-        The name of the image. The operator name will be used if not provided.
-    tag: (optional, str)
-       The tag of the image. The `latest` will be used if not provided.
     rebuild_base_image: (optional, bool)
         If rebuilding both base and operator's images required.
     kwargs: (Dict, optional).
@@ -354,7 +355,7 @@ def build_image(
     """
     import docker
 
-    operator_image_name = image
+    operator_image_name = ""
     operator_name = name
 
     if name:
@@ -385,6 +386,9 @@ def build_image(
     # get operator details stored in operator's init file.
     operator_info: OperatorInfo = _operator_info(source_folder)
     tag = operator_info.version
+
+    # checks if GPU base image needs to be used.
+    gpu = operator_info.gpu or gpu
 
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     base_image_name = OPERATOR_BASE_GPU_IMAGE if gpu else OPERATOR_BASE_IMAGE
@@ -443,19 +447,20 @@ def build_image(
         )
 
 
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def publish_image(
-    image: str,
+    name: str,
     registry: str = None,
     ads_config: str = None,
     **kwargs: Dict[str, Any],
 ) -> None:
     """
-    Publishes image to the container registry.
+    Publishes operator's image to the container registry.
 
     Parameters
     ----------
-    image: str
-        The name of the image.
+    name: (str, optional)
+        Operator's name for publishing the image.
     registry: str
         Container registry.
     ads_config: (str, optional)
@@ -466,12 +471,39 @@ def publish_image(
     Raises
     ------
     ValueError
-        When image name is not provided.
+        When operator's name is not provided.
+    OperatorNotFoundError
+        If the service operator not found.
+    OperatorImageNotFoundError
+        If the operator's image doesn't exist.
     """
-    if not image:
-        raise ValueError("To publish image, the image name needs to be provided.")
 
-    # extract registry from the config.
+    import docker
+
+    if not name:
+        raise ValueError(
+            f"The `name` attribute must be specified. Supported values: {__operators__}"
+        )
+
+    if name not in __operators__:
+        raise OperatorNotFoundError(name)
+
+    # get operator details stored in operator's init file.
+    operator_info: OperatorInfo = _operator_info(
+        os.path.dirname(
+            inspect.getfile(importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}"))
+        )
+    )
+
+    try:
+        image = f"{operator_info.name}:{operator_info.version or 'undefined'}"
+        # check if the operator's image exists
+        client = docker.from_env()
+        client.api.inspect_image(image)
+    except docker.errors.ImageNotFound:
+        raise OperatorImageNotFoundError(operator_info.name)
+
+    # extract registry from the ADS config.
     if not registry:
         p = ConfigProcessor().step(
             ConfigMerger,
@@ -480,7 +512,10 @@ def publish_image(
         )
         registry = p.config.get("infrastructure", {}).get("docker_registry", None)
 
-    publish_image_cmd(image=image, registry=registry)
+    publish_image_cmd(
+        image=image,
+        registry=registry,
+    )
 
 
 def verify(
@@ -505,7 +540,7 @@ def verify(
     operator_module = importlib.import_module(
         f"{OPERATOR_MODULE_PATH}.{operator_type}.operator"
     )
-    operator_module.verify(config)
+    operator_module.verify(config, **kwargs)
 
 
 def build_conda(
@@ -524,7 +559,7 @@ def build_conda(
     Parameters
     ----------
     name: str
-        The name of the operator to generate the specification YAML.
+        The name of the operator to build conda environment for..
     source_folder: (str, optional)
         The folder containing the operator source code.
         Only relevant for custom operators.
@@ -549,7 +584,7 @@ def build_conda(
             inspect.getfile(importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}"))
         )
         operator_conda_name = operator_conda_name or name
-        logger.info(f"Building conda environment for the `{name}` service operator.")
+        logger.info(f"Building conda environment for the `{name}` operator.")
     elif source_folder:
         source_folder = os.path.abspath(os.path.expanduser(source_folder))
         if not os.path.isdir(source_folder):
@@ -567,19 +602,84 @@ def build_conda(
             "Please provide relevant options."
         )
 
-    # get operator details stored in operator's init file.
+    # get operator details stored in operator's __init__.py file.
     operator_info: OperatorInfo = _operator_info(source_folder)
-    version = re.sub("[^0-9.]", "", operator_info.version)
 
     # invoke the conda create command
     conda_create(
         name=name,
-        version=version,
+        version=re.sub("[^0-9.]", "", operator_info.version),
         environment_file=os.path.join(source_folder, "environment.yaml"),
         conda_pack_folder=conda_pack_folder,
         gpu=operator_info.gpu,
         overwrite=overwrite,
+        ads_config=ads_config,
+        **kwargs,
     )
+
+
+def publish_conda(
+    name: str = None,
+    conda_pack_folder: str = None,
+    overwrite: bool = False,
+    ads_config: Union[str, None] = None,
+    **kwargs: Dict[str, Any],
+) -> None:
+    """
+    Publishes the conda environment for the particular operator.
+
+    Parameters
+    ----------
+    name: str
+        The name of the operator to generate the specification YAML.
+    conda_pack_folder: str
+        The destination folder to save the conda environment.
+        By default will be used the path specified in the config file generated
+        with `ads opctl configure` command
+    overwrite: (bool, optional). Defaults to False.
+        Whether to overwrite the result specification YAML if exists.
+    ads_config: (str, optional)
+        The folder where the ads opctl config located.
+    kwargs: (Dict, optional).
+        Additional key value arguments.
+
+    Raises
+    ------
+    ValueError
+        When operator's name is not provided.
+    OperatorNotFoundError
+        If the service operator not found.
+    OperatorCondaNotFoundError
+        If the operator's image doesn't exist.
+    """
+    if not name:
+        raise ValueError(
+            f"The `name` attribute must be specified. Supported values: {__operators__}"
+        )
+
+    if name not in __operators__:
+        raise OperatorNotFoundError(name)
+
+    # get operator details stored in operator's init file.
+    operator_info: OperatorInfo = _operator_info(
+        os.path.dirname(
+            inspect.getfile(importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}"))
+        )
+    )
+    version = re.sub("[^0-9.]", "", operator_info.version)
+    slug = f"{operator_info.name}_v{version}".replace(" ", "").replace(".", "_").lower()
+
+    # invoke the conda publish command
+    try:
+        conda_publish(
+            slug=slug,
+            conda_pack_folder=conda_pack_folder,
+            overwrite=overwrite,
+            ads_config=ads_config,
+            **kwargs,
+        )
+    except FileNotFoundError:
+        raise OperatorCondaNotFoundError(operator_info.name)
 
 
 def create(

@@ -15,4 +15,4 @@ dependencies:
       - sktime
       - optuna==2.9.0
       - oracle-automlx==23.2.3
-      - "--editable=git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"

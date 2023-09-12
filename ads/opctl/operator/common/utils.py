@@ -8,6 +8,7 @@ import argparse
 import importlib
 import inspect
 import os
+import re
 from dataclasses import dataclass
 from string import Template
 from typing import Any, Dict, List, Optional, Tuple
@@ -22,6 +23,8 @@ from ads.opctl import logger
 from ads.opctl.constants import OPERATOR_MODULE_PATH
 from ads.opctl.operator import __operators__
 from ads.opctl.utils import run_command
+
+from .const import ARCH_TYPE, PACK_TYPE
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -58,7 +61,28 @@ class OperatorInfo:
     description: str
     version: str
     conda: str
+    conda_type: str
     path: str
+
+    @property
+    def conda_prefix(self) -> str:
+        """Generates conda prefix for the custom conda pack.
+
+        Example:
+            conda = "forecast_v1"
+            conda_prefix == "cpu/forecast/1/forecast_v1"
+
+        Returns
+        -------
+        str
+            The conda prefix for the custom conda pack.
+        """
+        return os.path.join(
+            f"{ARCH_TYPE.GPU if self.gpu else ARCH_TYPE.CPU}",
+            self.name,
+            re.sub("[^0-9.]", "", self.version),
+            f"{self.name}_{self.version}",
+        )
 
     @classmethod
     def from_init(*args: List, **kwargs: Dict) -> "OperatorInfo":
@@ -79,6 +103,7 @@ class OperatorInfo:
             short_description=kwargs.get("__short_description__"),
             version=kwargs.get("__version__"),
             conda=kwargs.get("__conda__"),
+            conda_type=kwargs.get("__conda_type__", PACK_TYPE.CUSTOM),
             path=path,
         )
 

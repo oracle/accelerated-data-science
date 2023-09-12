@@ -10,9 +10,9 @@ __version__ = "v1"
 
 __type__ = "forecast"
 
-# __conda__ = "forecast_p38_cpu_v1" # switch to slug when service conda env will be available
+__conda__ = f"{__type__}_{__version__}"
 
-__conda__ = "cpu/forecast/1/forecast_v1"
+__conda_type__ = "custom"  # service/custom
 
 __gpu__ = "no"  # yes/no
 

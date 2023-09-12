@@ -95,6 +95,21 @@ class MLJobBackend(Backend):
             The YAML specification for the given resource if `uri` was not provided.
             `None` otherwise.
         """
+
+        conda_slug = kwargs.get(
+            "conda_slug", self.config["execution"].get("conda_slug", "conda_slug")
+        ).lower()
+
+        # if conda slug contains '/' then the assumption is that it is a custom conda pack
+        # the conda prefix needs to be added
+        if "/" in conda_slug:
+            conda_slug = os.path.join(
+                self.config["execution"].get(
+                    "conda_pack_os_prefix", "oci://bucket@namespace/conda_environments"
+                ),
+                conda_slug,
+            )
+
         RUNTIME_KWARGS_MAP = {
             ContainerRuntime().type: {
                 "image": (
@@ -102,18 +117,8 @@ class MLJobBackend(Backend):
                     f"/{kwargs.get('image_name', self.config['execution'].get('image','image:latest'))}"
                 )
             },
-            ScriptRuntime().type: {
-                "conda_slug": (
-                    f"{self.config['execution'].get('conda_pack_os_prefix','oci://bucket@namespace/conda_environments').rstrip('/')}"
-                    f"/{kwargs.get('conda_slug', 'conda_slug') }"
-                )
-            },
-            PythonRuntime().type: {
-                "conda_slug": (
-                    f"{self.config['execution'].get('conda_pack_os_prefix','oci://bucket@namespace/conda_environments').rstrip('/')}"
-                    f"/{kwargs.get('conda_slug', 'conda_slug') }"
-                )
-            },
+            ScriptRuntime().type: {"conda_slug": conda_slug},
+            PythonRuntime().type: {"conda_slug": conda_slug},
             NotebookRuntime().type: {},
             GitPythonRuntime().type: {},
         }

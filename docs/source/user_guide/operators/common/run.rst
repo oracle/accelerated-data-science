@@ -101,13 +101,13 @@ To publish ``<operator-name>:<operator-version>`` to OCR, use this command:
 
 .. code-block:: bash
 
-   ads opctl operator publish-image <operator-name>:<operator-version> --registry <iad.ocir.io/tenancy/>
+   ads opctl operator publish-image --name forecast --registry <iad.ocir.io/tenancy/>
 
 After publishing the container to OCR, you can use it within Data Science jobs service. Check the ``backend_job_container_config.yaml`` configuration file built during initializing the starter configs for the operator. It should contain pre-populated infrastructure and runtime sections. The runtime section should have an image property, like ``image: iad.ocir.io/<tenancy>/<operator-name>:<operator-version>``.
 
-3. Adjust the ``<operator-name>.yaml`` configuration with the proper input/output folders. When running operator in a Data Science job, it won't have access to local folders, so input data and output folders should be placed in the Object Storage bucket. Open the ``<operator-name>.yaml`` and adjust the data path fields.
+1. Adjust the ``<operator-name>.yaml`` configuration with the proper input/output folders. When running operator in a Data Science job, it won't have access to local folders, so input data and output folders should be placed in the Object Storage bucket. Open the ``<operator-name>.yaml`` and adjust the data path fields.
 
-4. Run the operator on the Data Science jobs using this command:
+2. Run the operator on the Data Science jobs using this command:
 
 .. code-block:: bash
 
@@ -138,11 +138,11 @@ This creates a new ``<operator-name>_<operator-version>`` conda environment and 
 
 .. code-block:: bash
 
-    ads opctl conda publish <operator-name>_<operator-version>
+    ads opctl operator publish --name <operator-name>
 
 For more details on configuring the CLI, refer to the :doc:`Explore & Configure Operators<./explore>` documentation.
 
-3. After publishing the conda environment to Object Storage, you can use it within the Data Science Jobs service. Check the ``backend_job_python_config.yaml`` configuration file, which should contain pre-populated infrastructure and runtime sections. The runtime section should include a ``conda`` section like this::
+1. After publishing the conda environment to Object Storage, you can use it within the Data Science Jobs service. Check the ``backend_job_python_config.yaml`` configuration file, which should contain pre-populated infrastructure and runtime sections. The runtime section should include a ``conda`` section like this::
 
 .. code-block:: yaml
 
@@ -181,7 +181,7 @@ This creates a new ``<operator-name>_<operator-version>`` conda environment and 
 
 .. code-block:: bash
 
-    ads opctl conda publish <operator-name>_<operator-version>
+    ads opctl operator publish --name <operator-name>
 
 For more details on configuring the CLI, refer to the :doc:`Explore & Configure Operators<./explore>` documentation.
 
