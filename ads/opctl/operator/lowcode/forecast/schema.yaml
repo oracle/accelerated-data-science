@@ -171,7 +171,7 @@ spec:
       type: dict
 
     report_file_name:
-      required: true
+      required: false
       type: string
       default: report.html
       meta:
@@ -196,7 +196,7 @@ spec:
     target_column:
       type: string
       required: true
-      default: "Sales"
+      default: target
 
     datetime_column:
       type: dict
@@ -205,7 +205,7 @@ spec:
         name:
           type: string
           required: true
-          default: last_day_of_week
+          default: Date
         format:
           type: string
           required: false
@@ -217,18 +217,19 @@ spec:
         type: string
 
     horizon:
-      required: false
+      required: true
       schema:
         periods:
           type: integer
-          required: false
+          default: 3
+          required: true
         interval:
           type: integer
           required: false
         interval_unit:
-          required: false
+          required: true
           type: string
-          default: auto
+          default: M
           allowed:
             - S
             - M
