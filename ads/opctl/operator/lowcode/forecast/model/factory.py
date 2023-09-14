@@ -8,6 +8,7 @@ from ..const import SupportedModels
 from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
 from .automlx import AutoMLXOperatorModel
+from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
@@ -32,6 +33,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.Arima: ArimaOperatorModel,
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
+        SupportedModels.AutoTS: AutoTSOperatorModel
     }
 
     @classmethod

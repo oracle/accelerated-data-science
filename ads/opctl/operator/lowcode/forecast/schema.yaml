@@ -249,6 +249,7 @@ spec:
         - arima
         - neuralprophet
         - automlx
+        - autots
         - auto
 
     model_kwargs:
