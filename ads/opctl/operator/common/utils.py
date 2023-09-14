@@ -16,7 +16,6 @@ from typing import Any, Dict, List, Optional, Tuple
 import fsspec
 import yaml
 from cerberus import Validator
-from json2table import convert
 from yaml import SafeLoader
 
 from ads.opctl import logger
@@ -350,7 +349,7 @@ def _extant_file(x: str):
 
 
 def _parse_input_args(raw_args) -> Tuple:
-    """Parses operator inout arguments."""
+    """Parses operator input arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "-f",
@@ -401,110 +400,6 @@ def _load_multi_document_yaml_from_uri(uri: str, **kwargs) -> Dict:
 
 
 def _load_yaml_from_uri(uri: str, **kwargs) -> str:
-    """Loads YAML from the URI path. Can be OS path."""
+    """Loads YAML from the URI path. Can be Object Storage path."""
     with fsspec.open(uri) as f:
         return _load_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)
-
-
-def _convert_schema_to_html(module_name: str, module_schema: str) -> str:
-    """Converts operator YAML schema to HTML."""
-    t = Template(
-        """
-        <style type="text/css">
-          table {
-            background: #fff;
-            font-family: monospace;
-            font-size: 1.0rem;
-          }
-
-          table,
-          thead,
-          tbody,
-          tfoot,
-          tr,
-          td,
-          th {
-            margin: auto;
-            border: 1px solid #ececec;
-            padding: 0.5rem;
-          }
-
-          table {
-            display: table;
-            width: 50%;
-          }
-
-          tr {
-            display: table-row;
-          }
-
-          thead {
-            display: table-header-group
-          }
-
-          tbody {
-            display: table-row-group
-          }
-
-          tfoot {
-            display: table-footer-group
-          }
-
-          col {
-            display: table-column
-          }
-
-          colgroup {
-            display: table-column-group
-          }
-
-          td,
-          th {
-            display: table-cell;
-            width: 50%;
-          }
-
-          caption {
-            display: table-caption
-          }
-
-          table,
-          thead,
-          tbody,
-          tfoot,
-          tr,
-          td,
-          th {
-            margin: auto;
-            padding: 0.5rem;
-          }
-
-          table {
-            background: #fff;
-            margin: auto;
-            border: none;
-            padding: 0;
-            margin-bottom: 2rem;
-          }
-
-          th {
-            text-align: right;
-            font-weight: 700;
-            border: 1px solid #ececec;
-
-          }
-        </style>
-        <h1>Operator: $module_name</h1>
-
-        $table
-
-    """
-    )
-
-    return t.substitute(
-        module_name=module_name,
-        table=convert(
-            OperatorValidator(module_schema, allow_unknown=True).schema.schema,
-            build_direction="LEFT_TO_RIGHT",
-        ),
-    )

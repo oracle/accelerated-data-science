@@ -124,7 +124,6 @@ opctl = [
   "nbformat",
   "oci-cli",
   "rich",
-  "json2table",
 ]
 optuna = [
   "optuna==2.9.0",

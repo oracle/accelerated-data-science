@@ -46,7 +46,6 @@ from .common.errors import (
 )
 from .common.utils import (
     _build_image,
-    _convert_schema_to_html,
     _load_yaml_from_uri,
     _operator_info_list,
 )
@@ -289,11 +288,6 @@ def init(
     # save operator spec YAML
     with fsspec.open(os.path.join(output, f"{name}.yaml"), mode="w") as f:
         f.write(operator_specification_template)
-
-    # save operator schema in HTML format
-    module_schema = _load_yaml_from_uri(os.path.join(operator_path, "schema.yaml"))
-    with fsspec.open(os.path.join(output, "schema.html"), mode="w") as f:
-        f.write(_convert_schema_to_html(name, module_schema))
 
     # copy README and original schema files into a destination folder
     for src_file in ("README.md", "schema.yaml", "environment.yaml"):
