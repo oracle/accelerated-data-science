@@ -222,8 +222,8 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         # Model Description
         model_description = dp.Text(
-            "AutoTS is a time series package for Python designed for rapidly deploying high-accuracy forecasts at scale."
-            "In 2023, AutoTS has won in the M6 forecasting competition,"
+            "AutoTS is a time series package for Python designed for rapidly deploying high-accuracy forecasts at scale. "
+            "In 2023, AutoTS has won in the M6 forecasting competition, "
             "delivering the highest performance investment decisions across 12 months of stock market forecasting."
         )
 
