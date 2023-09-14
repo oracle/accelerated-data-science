@@ -38,7 +38,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             forecast_length=self.spec.horizon.periods,
             frequency="infer",
             prediction_interval=self.spec.confidence_interval_width,
-            max_generations=2,  # 10
+            max_generations=10
             no_negatives=False,
             constraint=None,
             ensemble=self.spec.model_kwargs.get("ensemble", "auto"),
