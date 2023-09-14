@@ -123,7 +123,8 @@ opctl = [
   "nbconvert",
   "nbformat",
   "oci-cli",
-  "rich"
+  "rich",
+  "json2table",
 ]
 optuna = [
   "optuna==2.9.0",
@@ -155,7 +156,6 @@ viz = [
 forecast = [
   "autots",
   "datapane",
-  "json2table",
   "neuralprophet",
   "oracle_ads[optuna]",
   "oracle-automlx==23.2.3",

@@ -897,6 +897,7 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
             BACKEND_NAME.JOB.value,
             BACKEND_NAME.DATAFLOW.value,
             BACKEND_NAME.OPERATOR_LOCAL.value,
+            BACKEND_NAME.LOCAL.value,
         )
 
         backend_runtime_map = {
@@ -916,13 +917,17 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
 
         if not backend:
             logger.info(
-                f"Backend config is not provided, the {BACKEND_NAME.OPERATOR_LOCAL.value} "
+                f"Backend config is not provided, the {BACKEND_NAME.LOCAL.value} "
                 "will be used by default. "
             )
             backend = {"kind": BACKEND_NAME.OPERATOR_LOCAL.value}
 
         if isinstance(backend, str):
-            backend = {"kind": backend}
+            backend = {
+                "kind": BACKEND_NAME.OPERATOR_LOCAL.value
+                if backend.lower() == BACKEND_NAME.LOCAL.value
+                else backend
+            }
 
         backend_kind = backend.get("kind").lower() or "unknown"
 
