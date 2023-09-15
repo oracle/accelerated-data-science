@@ -36,6 +36,7 @@ from ads.opctl.constants import (
 )
 from ads.opctl.operator.common.const import PACK_TYPE
 from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
+from ads.opctl.decorator.common import validate_environment
 from ads.opctl.utils import publish_image as publish_image_cmd
 
 from .__init__ import __operators__
@@ -46,7 +47,6 @@ from .common.errors import (
 )
 from .common.utils import (
     _build_image,
-    _load_yaml_from_uri,
     _operator_info_list,
 )
 
@@ -312,6 +312,7 @@ def init(
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@validate_environment
 def build_image(
     name: str = None,
     source_folder: str = None,
@@ -442,6 +443,7 @@ def build_image(
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@validate_environment
 def publish_image(
     name: str,
     registry: str = None,
