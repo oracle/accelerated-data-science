@@ -54,6 +54,7 @@ def commands():
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def configure(debug):
+    """Sets up the initial configurations for the ADS OPCTL."""
     suppress_traceback(debug)(configure_cmd)()
 
 
@@ -68,23 +69,10 @@ def configure(debug):
     default=False,
     required=False,
 )
-@click.option(
-    "--source-folder",
-    "-s",
-    help="when building custom operator image, source folder of the custom operator",
-    default=None,
-    required=False,
-)
-@click.option(
-    "--image",
-    "-i",
-    help="image name, used when building custom image",
-    default=None,
-    required=False,
-)
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
-def build_image(image_type, gpu, source_folder, image, debug):
-    suppress_traceback(debug)(build_image_cmd)(image_type, gpu, source_folder, image)
+def build_image(image_type, gpu, debug):
+    """Builds the local Data Science Jobs image."""
+    suppress_traceback(debug)(build_image_cmd)(image_type, gpu)
 
 
 @commands.command()
@@ -101,6 +89,7 @@ def build_image(image_type, gpu, source_folder, image, debug):
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def publish_image(**kwargs):
+    """Publishes image to the OCI Container Registry."""
     debug = kwargs.pop("debug")
     if kwargs.get("registry", None):
         registry = kwargs["registry"]
@@ -450,29 +439,7 @@ def check(file, **kwargs):
 
 
 @commands.command()
-@click.argument("operator_slug", nargs=1)
-@click.option(
-    "--folder_path",
-    "-fp",
-    help="the name of the folder wherein to put the operator code",
-    multiple=True,
-    required=False,
-    default=None,
-)
-@add_options(_options)
-def init_operator(**kwargs):
-    suppress_traceback(kwargs["debug"])(init_operator_cmd)(**kwargs)
-
-
-@commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_model_deployment_options)
-@click.option(
-    "--conda-pack-folder",
-    required=False,
-    default=None,
-    help="folder where conda packs are saved",
-)
 @click.option(
     "--auth",
     "-a",
@@ -487,6 +454,7 @@ def init_operator(**kwargs):
 )
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def delete(**kwargs):
+    """Deletes a data science service resource."""
     suppress_traceback(kwargs["debug"])(delete_cmd)(**kwargs)
 
 
@@ -513,6 +481,7 @@ def delete(**kwargs):
 )
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def cancel(**kwargs):
+    """Aborts the execution of the OCI resource run."""
     suppress_traceback(kwargs["debug"])(cancel_cmd)(**kwargs)
 
 
@@ -566,7 +535,7 @@ def cancel(**kwargs):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def watch(**kwargs):
     """
-    ``tail`` logs form a job run, dataflow run or pipeline run.
+    Tails the logs form a job run, data flow run or pipeline run.
     Connects to the logging service that was configured with the JobRun, Application Run or Pipeline Run and streams the logs.
     """
     suppress_traceback(kwargs["debug"])(watch_cmd)(**kwargs)
@@ -575,13 +544,6 @@ def watch(**kwargs):
 @commands.command()
 @click.argument("ocid", nargs=1)
 @click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
-@add_options(_model_deployment_options)
-@click.option(
-    "--conda-pack-folder",
-    required=False,
-    default=None,
-    help="folder where conda packs are saved",
-)
 @click.option(
     "--auth",
     "-a",
@@ -597,7 +559,7 @@ def watch(**kwargs):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def activate(**kwargs):
     """
-    Activates a data science service.
+    Activates a data science service resource.
     """
     suppress_traceback(kwargs["debug"])(activate_cmd)(**kwargs)
 
@@ -627,7 +589,7 @@ def activate(**kwargs):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def deactivate(**kwargs):
     """
-    Deactivates a data science service.
+    Deactivates a data science service resource.
     """
     suppress_traceback(kwargs["debug"])(deactivate_cmd)(**kwargs)
 

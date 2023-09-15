@@ -30,6 +30,7 @@ from .cmd import verify as cmd_verify
 @click.group("operator")
 @click.help_option("--help", "-h")
 def commands():
+    "The CLI to assist in the management of the ADS operators."
     pass
 
 
@@ -113,7 +114,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     default=False,
 )
 def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Builds a new image for the particular operator."""
+    """Creates a new image for the specified operator."""
     suppress_traceback(debug)(cmd_build_image)(**kwargs)
 
 
@@ -257,7 +258,7 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
     default=None,
 )
 def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Builds a new conda environment for the particular operator."""
+    """Creates a new conda environment for the specified operator."""
     suppress_traceback(debug)(cmd_build_conda)(**kwargs)
 
 
