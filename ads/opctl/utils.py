@@ -11,9 +11,7 @@ import os
 import subprocess
 import sys
 import shlex
-import tempfile
 import urllib.parse
-from distutils import dir_util
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union, List, Tuple, Dict
 import yaml
@@ -23,9 +21,7 @@ from ads.common.oci_client import OCIClientFactory
 from ads.opctl import logger
 from ads.opctl.constants import (
     ML_JOB_IMAGE,
-    OPS_IMAGE_BASE,
     ML_JOB_GPU_IMAGE,
-    OPS_IMAGE_GPU_BASE,
 )
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
@@ -96,12 +92,6 @@ def get_region_key(auth: dict) -> str:
     return client.get_tenancy(tenancy).data.home_region_key
 
 
-# Not needed at the moment
-# def _get_compartment_name(compartment_id: str, auth: dict) -> str:
-#     client = OCIClientFactory(**auth).identity
-#     return client.get_compartment(compartment_id=compartment_id).data.name
-
-
 def publish_image(image: str, registry: str = None) -> None:  # pragma: no cover
     """
     Publish an image.
@@ -138,7 +128,7 @@ def build_image(image_type: str, gpu: bool = False) -> None:
     Parameters
     ----------
     image_type: str
-        specify the image to build, can take 'job-local' or 'ads-ops-base',
+        specify the image to build, can take 'job-local',
         former for running job with conda pack locally,
         latter for running operators
     gpu: bool
@@ -182,8 +172,6 @@ def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
     look_up = {
         ("job-local", False): (ML_JOB_IMAGE, "Dockerfile.job", None),
         ("job-local", True): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
-        ("ads-ops-base", False): (OPS_IMAGE_BASE, "Dockerfile", "base"),
-        ("ads-ops-base", True): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
     }
     return look_up[(type, gpu)]
 

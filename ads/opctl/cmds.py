@@ -332,31 +332,6 @@ def _update_env_vars(config, env_vars: List):
     return config
 
 
-def init_operator(**kwargs) -> str:
-    """
-    Initialize the resources for an operator
-
-    Parameters
-    ----------
-    kwargs: dict
-        keyword argument, stores command line args
-    Returns
-    -------
-    folder_path: str
-        a path to the folder with all of the resources
-    """
-    # TODO: confirm that operator slug is in the set of valid operator slugs
-    assert kwargs["operator_slug"] == "dask_cluster"
-
-    if kwargs.get("folder_path"):
-        kwargs["operator_folder_path"] = kwargs.pop("folder_path")[0]
-    else:
-        kwargs["operator_folder_path"] = kwargs["operator_slug"]
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-    print(f"config check: {p.config}")
-    return _BackendFactory(p.config).backend.init_operator()
-
-
 def delete(**kwargs) -> None:
     """
     Delete a MLJob/DataFlow run.

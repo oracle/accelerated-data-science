@@ -24,7 +24,6 @@ from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import deactivate as deactivate_cmd
 from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init as init_cmd
-from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import run as run_cmd
@@ -59,7 +58,7 @@ def configure(debug):
 
 
 @commands.command()
-@click.argument("image-type", type=click.Choice(["job-local", "ads-ops-base"]))
+@click.argument("image-type", type=click.Choice(["job-local"]))
 @click.help_option("--help", "-h")
 @click.option(
     "--gpu",
