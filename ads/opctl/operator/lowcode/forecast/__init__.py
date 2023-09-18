@@ -18,6 +18,8 @@ __gpu__ = "no"  # yes/no
 
 __keywords__ = ["Prophet", "AutoML", "ARIMA", "RNN", "LSTM"]
 
+__backends__ = ["job", "dataflow"]  # job/dataflow
+
 __operator_path__ = os.path.dirname(__file__)
 
 __short_description__ = """

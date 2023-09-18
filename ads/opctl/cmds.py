@@ -957,7 +957,7 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
                 os.path.dirname(__file__), "operator", "lowcode", operator_type
             )
             # load operator info
-            operator_info: OperatorInfo = _operator_info(operator_path)
+            operator_info: OperatorInfo = _operator_info(path=operator_path)
 
             backends = operator_cmd._init_backend_config(
                 operator_info=operator_info, **kwargs

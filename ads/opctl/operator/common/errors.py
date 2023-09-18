@@ -11,7 +11,7 @@ class OperatorNotFoundError(Exception):
     def __init__(self, operator: str):
         super().__init__(
             f"The provided operator: `{operator}` "
-            f"is not found. Available operators: {__operators__}"
+            f"is not found. Available service operators: `{'`, `'.join(__operators__)}`"
         )
 
 
