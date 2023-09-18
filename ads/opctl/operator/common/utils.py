@@ -20,6 +20,7 @@ from yaml import SafeLoader
 
 from ads.opctl import logger
 from ads.opctl.constants import OPERATOR_MODULE_PATH
+from ads.opctl.operator.common.errors import OperatorNotFoundError
 from ads.opctl.operator import __operators__
 from ads.opctl.utils import run_command
 
@@ -62,6 +63,8 @@ class OperatorInfo:
     conda: str
     conda_type: str
     path: str
+    keywords: List[str]
+    backends: List[str]
 
     @property
     def conda_prefix(self) -> str:
@@ -104,6 +107,8 @@ class OperatorInfo:
             conda=kwargs.get("__conda__"),
             conda_type=kwargs.get("__conda_type__", PACK_TYPE.CUSTOM),
             path=path,
+            keywords=kwargs.get("__keywords__", []),
+            backends=kwargs.get("__backends__", []),
         )
 
 
@@ -290,10 +295,13 @@ def _build_image(
 def _module_constant_values(module_name: str, module_path: str) -> Dict[str, Any]:
     """Returns the list of constant variables from a given module.
 
+    Parameters
+    ----------
     module_name: str
         The name of the module to be imported.
     module_path: str
         The physical path of the module.
+
     Returns
     -------
     Dict[str, Any]
@@ -305,18 +313,36 @@ def _module_constant_values(module_name: str, module_path: str) -> Dict[str, Any
     return {name: value for name, value in vars(module).items()}
 
 
-def _operator_info(path: str) -> OperatorInfo:
+def _operator_info(path: str = None, name: str = None) -> OperatorInfo:
     """Extracts operator's details by given path.
     The expectation is that operator has init file where the all details placed.
+
+    Parameters
+    ----------
+    path: (str, optional). The path to the operator.
+    name: (str, optional). The name of the service operator.
 
     Returns
     -------
     OperatorInfo
         The operator details.
     """
-    module_name = os.path.basename(path.rstrip("/"))
-    module_path = f"{path.rstrip('/')}/__init__.py"
-    return OperatorInfo.from_init(**_module_constant_values(module_name, module_path))
+    try:
+        if name:
+            path = os.path.dirname(
+                inspect.getfile(
+                    importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}")
+                )
+            )
+
+        module_name = os.path.basename(path.rstrip("/"))
+        module_path = f"{path.rstrip('/')}/__init__.py"
+        return OperatorInfo.from_init(
+            **_module_constant_values(module_name, module_path)
+        )
+    except ModuleNotFoundError as ex:
+        logger.debug(ex)
+        raise OperatorNotFoundError(name or path)
 
 
 def _operator_info_list() -> List[OperatorInfo]:
@@ -327,28 +353,19 @@ def _operator_info_list() -> List[OperatorInfo]:
     List[OperatorInfo]
         The list of registered operators.
     """
-    return (
-        _operator_info(
-            os.path.dirname(
-                inspect.getfile(
-                    importlib.import_module(f"{OPERATOR_MODULE_PATH}.{operator_name}")
-                )
-            )
-        )
-        for operator_name in __operators__
-    )
+    return (_operator_info(name=operator_name) for operator_name in __operators__)
 
 
 def _extant_file(x: str):
     """Checks the extension of the file to yaml."""
     if not (x.lower().endswith(".yml") or x.lower().endswith(".yaml")):
         raise argparse.ArgumentTypeError(
-            f"{x} exists, but must be a yaml file (.yaml/.yml)"
+            f"The {x} exists, but must be a yaml file (.yaml/.yml)"
         )
     return x
 
 
-def _parse_input_args(raw_args) -> Tuple:
+def _parse_input_args(raw_args: List) -> Tuple:
     """Parses operator input arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument(

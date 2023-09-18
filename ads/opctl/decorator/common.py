@@ -74,3 +74,14 @@ def validate_environment(func: callable) -> Callable:
         return func(*args, **kwargs)
 
     return wrapper
+
+
+def click_options(options):
+    """The decorator to help group the click options."""
+
+    def _add_options(func):
+        for option in reversed(options):
+            func = option(func)
+        return func
+
+    return _add_options
