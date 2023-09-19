@@ -236,7 +236,7 @@ class FeatureStatistics:
             fig.layout.title = self.CONST_TITLE_FORMAT.format(self.feature_name)
             fig.update_layout(title_font_size=20)
             fig.update_layout(title_x=0.5)
-            # fig.update_layout(showlegend=False)
+            fig.update_layout(showlegend=False)
             plotly.offline.iplot(
                 fig,
                 filename=self.CONST_PLOT_FORMAT.format(self.feature_name),
