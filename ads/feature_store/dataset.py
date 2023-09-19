@@ -164,7 +164,7 @@ class Dataset(Builder):
         self.oci_dataset = self._to_oci_dataset(**kwargs)
         self.lineage = OCILineage(**kwargs)
 
-    def _to_oci_dataset(self, **kwargs):
+    def _to_oci_dataset(self, **kwargs) -> OCIDataset:
         """Creates an `OCIDataset` instance from the  `Dataset`.
 
         kwargs
@@ -235,8 +235,8 @@ class Dataset(Builder):
         return self.get_spec(self.CONST_NAME)
 
     @name.setter
-    def name(self, name: str) -> "Dataset":
-        return self.with_name(name)
+    def name(self, name: str):
+        self.with_name(name)
 
     def with_name(self, name: str) -> "Dataset":
         """Sets the name.
@@ -865,8 +865,6 @@ class Dataset(Builder):
                         features_list.append(output_feature)
 
                     value = {self.CONST_ITEMS: features_list}
-                elif infra_attr == self.CONST_FEATURE_GROUP:
-                    value = getattr(self.oci_dataset, dsc_attr)
                 else:
                     value = dataset_details[infra_attr]
                 self.set_spec(infra_attr, value)
@@ -1207,8 +1205,14 @@ class Dataset(Builder):
         for key, value in spec.items():
             if hasattr(value, "to_dict"):
                 value = value.to_dict()
-            spec[key] = value
-
+            if key == self.CONST_FEATURE_GROUP:
+                spec[
+                    key
+                ] = self.oci_dataset.client.base_client.sanitize_for_serialization(
+                    value
+                )
+            else:
+                spec[key] = value
         return {
             "kind": self.kind,
             "type": self.type,
