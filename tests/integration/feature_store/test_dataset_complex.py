@@ -70,8 +70,6 @@ class TestDatasetComplex(FeatureStoreTestCase):
         ).create()
         assert len(dataset_resource.feature_groups) == 1
         assert dataset_resource.feature_groups[0].id == feature_group.id
-        assert dataset_resource.get_spec(
-            Dataset.CONST_FEATURE_GROUP
-        ).is_manual_association
+        assert dataset_resource.is_manual_association
         dataset_resource.delete()
         return dataset_resource
