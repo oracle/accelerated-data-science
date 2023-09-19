@@ -291,13 +291,15 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         for idx, col in enumerate(target_columns):
-            y_true = np.asarray(data[col])
-            y_pred = np.asarray(outputs[idx][target_col][-len(y_true) :])
+            # Only columns present in test file will be used to generate holdout error
+            if col in data:
+                y_true = np.asarray(data[col])
+                y_pred = np.asarray(outputs[idx][target_col][-len(y_true) :])
 
-            metrics_df = utils._build_metrics_df(
-                y_true=y_true, y_pred=y_pred, column_name=col
-            )
-            total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
+                metrics_df = utils._build_metrics_df(
+                    y_true=y_true, y_pred=y_pred, column_name=col
+                )
+                total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
         summary_metrics = pd.DataFrame(
             {
@@ -338,7 +340,8 @@ class ForecastOperatorBaseModel(ABC):
 
         """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
         if horizon <= 10."""
-        if len(data["ds"]) <= 10:
+        target_columns_in_output = set(target_columns).intersection(data.columns)
+        if len(data["ds"]) <= 10 and len(outputs) == len(target_columns_in_output):
             metrics_per_horizon = utils._build_metrics_per_horizon(
                 data=data,
                 outputs=outputs,
@@ -404,11 +407,11 @@ class ForecastOperatorBaseModel(ABC):
 
         # metrics csv report
         utils._write_data(
-            data=metrics_df,
+            data=metrics_df.rename_axis('metrics').reset_index(),
             filename=os.path.join(output_dir, self.spec.metrics_filename),
             format="csv",
             storage_options=default_signer(),
-            index=True,
+            index=False,
         )
 
         logger.warn(
