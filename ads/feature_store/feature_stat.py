@@ -1,12 +1,19 @@
-import json
 from abc import abstractmethod
 
-from ads.feature_store.common.utils.utility import none_type_safe_json_loads
-from plotly.graph_objs import Figure
+from ads.common.decorator.runtime_dependency import OptionalDependency
+
 from typing import List
-import plotly
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+
+try:
+    import plotly
+    from plotly.graph_objs import Figure
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+except ModuleNotFoundError:
+    raise ModuleNotFoundError(
+        f"The `plotly` module was not found. Please run `pip install "
+        f"{OptionalDependency.FEATURE_STORE}`."
+    )
 
 
 class FeatureStat:
@@ -229,7 +236,7 @@ class FeatureStatistics:
             fig.layout.title = self.CONST_TITLE_FORMAT.format(self.feature_name)
             fig.update_layout(title_font_size=20)
             fig.update_layout(title_x=0.5)
-            fig.update_layout(showlegend=False)
+            # fig.update_layout(showlegend=False)
             plotly.offline.iplot(
                 fig,
                 filename=self.CONST_PLOT_FORMAT.format(self.feature_name),
