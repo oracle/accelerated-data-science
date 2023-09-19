@@ -137,7 +137,6 @@ class TopKFrequentElements(FeatureStat):
                     lower_bound=json_dict.get(cls.CONST_LOWER_BOUND),
                     upper_bound=json_dict.get(cls.CONST_UPPER_BOUND),
                 )
-
             else:
                 return None
 
@@ -157,12 +156,14 @@ class TopKFrequentElements(FeatureStat):
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
         if type(self.elements) == list and len(self.elements) > 0:
-            x_axis = [element.value for element in self.elements]
-            y_axis = [element.estimate for element in self.elements]
-            fig.add_bar(x=x_axis, y=y_axis, xaxis=x_str, yaxis=y_str, name="")
+            y_axis = [element.value for element in self.elements]
+            x_axis = [element.estimate for element in self.elements]
+            fig.add_bar(
+                x=x_axis, y=y_axis, xaxis=x_str, yaxis=y_str, name="", orientation="h"
+            )
         fig.layout.annotations[xaxis].text = self.CONST_TOP_K_FREQUENT_TITLE
-        fig.layout[yaxis_str]["title"] = "Count"
-        fig.layout[xaxis_str]["title"] = "Element"
+        fig.layout[yaxis_str]["title"] = "Element"
+        fig.layout[xaxis_str]["title"] = "Count"
 
 
 class FeatureStatistics:
