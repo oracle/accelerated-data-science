@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-from typing import List
-
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from typing import List
 from ads.feature_store.statistics.feature_stat import FeatureStatistics
 from ads.feature_store.response.response_builder import ResponseBuilder
 import json
