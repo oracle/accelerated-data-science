@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-import json
-
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
@@ -29,8 +27,6 @@ except Exception as e:
     raise
 
 from ads.feature_store.common.enums import (
-    FeatureStoreJobType,
-    LifecycleState,
     EntityType,
     ExpectationType,
 )
@@ -47,6 +43,11 @@ from ads.feature_store.transformation import Transformation
 
 from ads.feature_store.feature_statistics.statistics_service import StatisticsService
 from ads.feature_store.common.utils.utility import validate_input_feature_details
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ads.feature_store.feature_group import FeatureGroup
+    from ads.feature_store.dataset import Dataset
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,10 @@ class SparkExecutionEngine(Strategy):
         self._jvm = self._spark_context._jvm
 
     def ingest_feature_definition(
-        self, feature_group, feature_group_job: FeatureGroupJob, dataframe
+        self,
+        feature_group: "FeatureGroup",
+        feature_group_job: FeatureGroupJob,
+        dataframe,
     ):
         try:
             self._save_offline_dataframe(dataframe, feature_group, feature_group_job)
@@ -90,7 +94,7 @@ class SparkExecutionEngine(Strategy):
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
     def delete_feature_definition(
-        self, feature_group, feature_group_job: FeatureGroupJob
+        self, feature_group: "FeatureGroup", feature_group_job: FeatureGroupJob
     ):
         """
         Deletes a feature definition from the system.
@@ -122,7 +126,7 @@ class SparkExecutionEngine(Strategy):
                 output_details=output_details,
             )
 
-    def delete_dataset(self, dataset, dataset_job: DatasetJob):
+    def delete_dataset(self, dataset: "Dataset", dataset_job: DatasetJob):
         """
         Deletes a dataset from the system.
 
@@ -154,7 +158,7 @@ class SparkExecutionEngine(Strategy):
             )
 
     @staticmethod
-    def _validate_expectation(expectation_type, validation_output):
+    def _validate_expectation(expectation_type, validation_output: dict):
         """
         Validates the expectation based on the given expectation type and the validation output.
 
