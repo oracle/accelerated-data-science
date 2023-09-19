@@ -1207,10 +1207,6 @@ class Dataset(Builder):
         for key, value in spec.items():
             if hasattr(value, "to_dict"):
                 value = value.to_dict()
-            if hasattr(value, "attribute_map"):
-                value = self.oci_dataset.client.base_client.sanitize_for_serialization(
-                    value
-                )
             spec[key] = value
 
         return {
