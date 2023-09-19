@@ -76,7 +76,8 @@ extras_require = {
         "pyspark>=3.0.0",
          "delta-spark",
          "great-expectations==0.15.39",
-         "pyarrow"
+         "pyarrow",
+         "plotly"
     ],
     "mlm_insights": ["mlm_insights==0.1.0.dev1"],
 }
