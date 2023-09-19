@@ -67,9 +67,6 @@ class PandasDataset(object):
         self.correlation = None
         self.feature_dist_html_dict = {}
         self.feature_types = metadata if metadata is not None else {}
-        self.world = geopandas.read_file(
-            geopandas.datasets.get_path("naturalearth_lowres")
-        )
 
         self.numeric_columns = self.sampled_df.select_dtypes(
             utils.numeric_pandas_dtypes()
@@ -706,6 +703,11 @@ class PandasDataset(object):
                 gdf = geopandas.GeoDataFrame(
                     df, geometry=geopandas.points_from_xy(df["lon"], df["lat"])
                 )
+
+                self.world = geopandas.read_file(
+                    geopandas.datasets.get_path("naturalearth_lowres")
+                )
+
                 self.world.plot(
                     ax=ax, color="lightgrey", linewidth=0.5, edgecolor="white"
                 )
