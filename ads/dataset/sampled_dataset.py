@@ -704,9 +704,10 @@ class PandasDataset(object):
                     df, geometry=geopandas.points_from_xy(df["lon"], df["lat"])
                 )
 
-                self.world = geopandas.read_file(
-                    geopandas.datasets.get_path("naturalearth_lowres")
-                )
+                if not hasattr(self, "world"):
+                    self.world = geopandas.read_file(
+                        geopandas.datasets.get_path("naturalearth_lowres")
+                    )
 
                 self.world.plot(
                     ax=ax, color="lightgrey", linewidth=0.5, edgecolor="white"
