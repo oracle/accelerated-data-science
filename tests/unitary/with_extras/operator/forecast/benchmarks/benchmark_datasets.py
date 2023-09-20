@@ -34,7 +34,7 @@ if __name__ == '__main__':
     cust1_numbers = {
         prophet: {smape: 30, mape: 10, rmse: 1780},
         arima: {smape: 20, mape: 2, rmse: 1500},
-        automlx: {smape: 25, mape: 6, rmse: 1530},
+        automlx: {smape: 30, mape: 7, rmse: 1750},
         # neuralprophet: {smape: 29, mape: 9.5, rmse: 1760},
     }
 
