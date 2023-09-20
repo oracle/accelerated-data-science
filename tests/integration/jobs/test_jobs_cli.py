@@ -19,13 +19,9 @@ class TestJobsCLI:
             run,
             args=[
                 "-f",
-                os.path.join(
-                    curr_dir,
-                    "../yamls",
-                    "sample_job.yaml",
-                    "--auth",
-                    os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
-                ),
+                os.path.join(curr_dir, "../yamls", "sample_job.yaml"),
+                "--auth",
+                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
             ],
         )
         assert res.exit_code == 0, res.output
@@ -43,13 +39,9 @@ class TestJobsCLI:
             run,
             args=[
                 "-f",
-                os.path.join(
-                    curr_dir,
-                    "../yamls",
-                    "sample_dataflow.yaml",
-                    "--auth",
-                    os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
-                ),
+                os.path.join(curr_dir, "../yamls", "sample_dataflow.yaml"),
+                "--auth",
+                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
             ],
         )
         assert res.exit_code == 0, res.output
