@@ -9,6 +9,7 @@ from ads.opctl.operator.lowcode.forecast.operator_config import *
 from ads.opctl.operator.lowcode.forecast.model.factory import ForecastOperatorModelFactory
 import pandas as pd
 from ads.opctl import logger
+import os
 
 if __name__ == '__main__':
     """Benchmarks for datasets."""
@@ -53,17 +54,18 @@ if __name__ == '__main__':
     for dataset in datasets:
         for model in datasets[dataset]:
             operator_config: ForecastOperatorConfig = ForecastOperatorConfig.from_yaml(
-                uri='{}/{}/forecast.yaml'.format(data_dir, dataset)
+                uri=os.path.join(data_dir, dataset, 'forecast.yaml')
             )
             operator_config.spec.model = model
             operator_config.spec.output_directory = OutputDirectory(
-                url="{}/{}".format(operator_config.spec.output_directory.url, model))
+                url=os.path.join(operator_config.spec.output_directory.url, model)
+            )
 
             # Training and generating the model outputs
             ForecastOperatorModelFactory.get_model(operator_config).generate_report()
 
             # Reading holdout erros.
-            metrics_df = pd.read_csv('{}/{}/output/{}/metrics.csv'.format(data_dir, dataset, model)).set_index(
+            metrics_df = pd.read_csv(os.path.join(data_dir, dataset, 'output', model, 'metrics.csv')).set_index(
                 'metrics')
             metrics_dict = metrics_df.mean(axis=1).to_dict()
             logger.info("{} | {} | {}".format(dataset, model, metrics_dict))
