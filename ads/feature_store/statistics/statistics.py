@@ -32,6 +32,5 @@ class Statistics(ResponseBuilder):
             [
                 FeatureStatistics.from_json(feature, stat).to_viz()
                 for feature, stat in stats.items()
-                if FeatureStatistics.from_json(feature, stat) is not None
-                and (feature_list is None or feature in feature_list)
+                if (feature_list is None or feature in feature_list)
             ]

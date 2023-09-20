@@ -44,7 +44,7 @@ from ads.feature_store.query.query import Query
 from ads.feature_store.service.oci_feature_group import OCIFeatureGroup
 from ads.feature_store.service.oci_feature_group_job import OCIFeatureGroupJob
 from ads.feature_store.service.oci_lineage import OCILineage
-from ads.feature_store.statistics import Statistics
+from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
 from ads.feature_store.validation_output import ValidationOutput
 
