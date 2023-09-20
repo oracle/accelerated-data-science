@@ -66,6 +66,16 @@ class BoxPlot(AbsFeatureStat):
         self.box_points = box_points
         super().__init__()
 
+    def __validate__(self):
+        if (
+            self.q1 is None
+            or self.q3 is None
+            or self.iqr is None
+            or type(self.box_points) is not list
+            or len(self.box_points) == 0
+        ):
+            return self.ValidationFailedException()
+
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
         fig.add_box(
