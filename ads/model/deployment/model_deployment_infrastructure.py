@@ -221,6 +221,7 @@ class ModelDeploymentInfrastructure(Builder):
         defaults[self.CONST_BANDWIDTH_MBPS] = DEFAULT_BANDWIDTH_MBPS
         defaults[self.CONST_WEB_CONCURRENCY] = DEFAULT_WEB_CONCURRENCY
         defaults[self.CONST_REPLICA] = DEFAULT_REPLICA
+        nb_session = None
 
         if NB_SESSION_OCID:
             try:
