@@ -221,7 +221,6 @@ class ModelDeploymentInfrastructure(Builder):
         defaults[self.CONST_BANDWIDTH_MBPS] = DEFAULT_BANDWIDTH_MBPS
         defaults[self.CONST_WEB_CONCURRENCY] = DEFAULT_WEB_CONCURRENCY
         defaults[self.CONST_REPLICA] = DEFAULT_REPLICA
-        nb_session = None
 
         if NB_SESSION_OCID:
             try:
@@ -232,6 +231,7 @@ class ModelDeploymentInfrastructure(Builder):
                     f"session: {NB_SESSION_OCID}. {e}"
                 )
                 logger.debug(traceback.format_exc())
+                nb_session = None
 
             nb_config = (
                 getattr(nb_session, "notebook_session_config_details", None)
