@@ -38,13 +38,13 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             forecast_length=self.spec.horizon.periods,
             frequency="infer",
             prediction_interval=self.spec.confidence_interval_width,
-            max_generations=10,
+            max_generations=self.spec.model_kwargs.get("max_generations", 10),
             no_negatives=False,
             constraint=None,
             ensemble=self.spec.model_kwargs.get("ensemble", "auto"),
-            initial_template="General+Random",
+            initial_template=self.spec.model_kwargs.get("initial_template", "General+Random"),
             random_seed=2022,
-            holiday_country="US",
+            holiday_country=self.spec.model_kwargs.get("holiday_country", "US"),
             subset=None,
             aggfunc="first",
             na_tolerance=1,
@@ -52,13 +52,13 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             drop_data_older_than_periods=None,
             model_list=self.spec.model_kwargs.get("model_list", "multivariate"),
             transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
-            transformer_max_depth=6,
-            models_mode="random",
-            num_validations="auto",
-            models_to_validate=0.15,
+            transformer_max_depth=self.spec.model_kwargs.get("transformer_max_depth", 6),
+            models_mode=self.spec.model_kwargs.get("models_mode", "random"),
+            num_validations=self.spec.model_kwargs.get("num_validations", "auto"),
+            models_to_validate=self.spec.model_kwargs.get("models_to_validate", 0.15),
             max_per_model_class=None,
-            validation_method="backwards",
-            min_allowed_train_percent=0.5,
+            validation_method=self.spec.model_kwargs.get("validation_method", "backwards"),
+            min_allowed_train_percent=self.spec.model_kwargs.get("min_allowed_train_percent", 0.5),
             remove_leading_zeroes=False,
             prefill_na=None,
             introduce_na=None,
@@ -204,7 +204,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         # Section 2: AutoTS Model Parameters
         sec2_text = dp.Text(f"## AutoTS Model Parameters")
-        # TODO: Format the parameters better for display in report.
+        # TODO: ODSC-47612 Format the parameters better for display in report.
         sec2 = dp.Select(
             blocks=[
                 dp.HTML(
