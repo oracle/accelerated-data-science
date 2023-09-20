@@ -28,9 +28,8 @@ class Statistics(ResponseBuilder):
 
     def to_viz(self, feature_list: List[str] = None):
         if self.content is not None:
-            stats: dict = json.loads(self.content)
             [
                 FeatureStatistics.from_json(feature, stat).to_viz()
-                for feature, stat in stats.items()
+                for feature, stat in json.loads(self.content).items()
                 if (feature_list is None or feature in feature_list)
             ]

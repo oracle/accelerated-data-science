@@ -28,7 +28,7 @@ class BoxPlot(AbsFeatureStat):
     CONST_MEAN = "Mean"
     CONST_BOX_PLOT_TITLE = "Box Plot"
     CONST_IQR = "IQR"
-    CONST_FREQUENCY_DISTRIBUTION = "FrequencyDistribution"
+    CONST_BOX_POINTS = "box_points"
 
     class Quartiles:
         CONST_Q1 = "q1"
@@ -42,14 +42,11 @@ class BoxPlot(AbsFeatureStat):
 
         @classmethod
         def from_json(cls, json_dict: dict) -> "BoxPlot.Quartiles":
-            if json_dict is not None:
-                return cls(
-                    json_dict.get(cls.CONST_Q1),
-                    json_dict.get(cls.CONST_Q2),
-                    json_dict.get(cls.CONST_Q3),
-                )
-            else:
-                return None
+            return cls(
+                json_dict.get(cls.CONST_Q1),
+                json_dict.get(cls.CONST_Q2),
+                json_dict.get(cls.CONST_Q3),
+            )
 
     def __init__(
         self,
@@ -58,7 +55,7 @@ class BoxPlot(AbsFeatureStat):
         sd: float,
         q1: float,
         q3: float,
-        boxpoints: List[float],
+        box_points: List[float],
     ):
         self.mean = mean
         self.median = median
@@ -66,17 +63,20 @@ class BoxPlot(AbsFeatureStat):
         self.q3 = q3
         self.sd = sd
         self.iqr = self.q3 - self.q1
-        self.boxpoints = boxpoints
+        self.box_points = box_points
+        super().__init__()
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
         fig.add_box(
+            notched=False,
+            boxmean=False,
             mean=[self.mean],
             median=[self.median],
             q1=[self.q1],
             q3=[self.q3],
             sd=[self.sd],
-            y=[self.boxpoints],
+            y=[self.box_points],
             upperfence=[self.q3 + 1.5 * self.iqr],
             lowerfence=[self.q1 - 1.5 * self.iqr],
             xaxis=x_str,
@@ -88,33 +88,33 @@ class BoxPlot(AbsFeatureStat):
         fig.layout[yaxis_str]["title"] = "Values"
 
     @staticmethod
-    def get_boxpoints_from_frequency_distribution(
+    def get_box_points_from_frequency_distribution(
         frequency_distribution: FrequencyDistribution,
     ) -> List[float]:
-        boxpoints = []
-        if frequency_distribution is not None:
-            for frequency, bin in zip(
-                frequency_distribution.frequency, frequency_distribution.bins
-            ):
-                boxpoints.extend([bin] * frequency)
-
-        return boxpoints
+        # box_points = []
+        if (
+            frequency_distribution is not None
+            and frequency_distribution.frequency is not None
+            and frequency_distribution.bins is not None
+        ):
+            return [
+                bin_dist
+                for frequency, bin_dist in zip(
+                    frequency_distribution.frequency, frequency_distribution.bins
+                )
+                if frequency > 0
+            ]
+        else:
+            return []
 
     @classmethod
-    def from_json(cls, json_dict: dict) -> "BoxPlot":
-        if type(json_dict) is dict and json_dict.get(cls.CONST_QUARTILES) is not None:
-            quartiles = cls.Quartiles.from_json(json_dict.get(cls.CONST_QUARTILES))
-            return cls(
-                mean=GenericFeatureValue.from_json(json_dict.get(cls.CONST_MEAN)).val,
-                median=quartiles.q2,
-                sd=GenericFeatureValue.from_json(json_dict.get(cls.CONST_SD)).val,
-                q1=quartiles.q1,
-                q3=quartiles.q3,
-                boxpoints=cls.get_boxpoints_from_frequency_distribution(
-                    FrequencyDistribution.from_json(
-                        json_dict.get(cls.CONST_FREQUENCY_DISTRIBUTION)
-                    )
-                ),
-            )
-        else:
-            return None
+    def __from_json__(cls, json_dict: dict) -> "BoxPlot":
+        quartiles = cls.Quartiles.from_json(json_dict.get(cls.CONST_QUARTILES))
+        return cls(
+            mean=GenericFeatureValue.from_json(json_dict.get(cls.CONST_MEAN)).val,
+            median=quartiles.q2,
+            sd=GenericFeatureValue.from_json(json_dict.get(cls.CONST_SD)).val,
+            q1=quartiles.q1,
+            q3=quartiles.q3,
+            box_points=json_dict.get(cls.CONST_BOX_POINTS),
+        )

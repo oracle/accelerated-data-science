@@ -12,9 +12,6 @@ class GenericFeatureValue:
 
     @classmethod
     def from_json(cls, json_dict: dict) -> "GenericFeatureValue":
-        if json_dict is not None:
-            return GenericFeatureValue(
-                val=json_dict.get(cls.CONST_VALUE),
-            )
-        else:
-            return None
+        return GenericFeatureValue(
+            val=json_dict.get(cls.CONST_VALUE),
+        )
