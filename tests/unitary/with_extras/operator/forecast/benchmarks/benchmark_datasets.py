@@ -13,7 +13,11 @@ from ads.opctl import logger
 if __name__ == '__main__':
     """Benchmarks for datasets."""
 
-    data_dir = "oci://ads_preview_sdk@ociodscdev/Forecasting/data/"
+    try:
+        data_dir = os.environ["OCI__FORECASTING_DATA_DIR"] 
+    except:
+        raise ValueError("Please set the environment variable `OCI__FORECASTING_DATA_DIR` to the location of the forecasting datasets")
+        
     smape = SupportedMetrics.SMAPE
     mape = SupportedMetrics.MAPE
     rmse = SupportedMetrics.RMSE
@@ -26,14 +30,14 @@ if __name__ == '__main__':
     benchmark_metrics = [smape, mape, rmse]
 
     # Expected values
-    ppg_sales_benchmark_numbers = {
+    cust1_numbers = {
         prophet: {smape: 30, mape: 10, rmse: 1780},
         arima: {smape: 20, mape: 2, rmse: 1500},
         automlx: {smape: 25, mape: 6, rmse: 1530},
         # neuralprophet: {smape: 29, mape: 9.5, rmse: 1760},
     }
 
-    ttx_small_benchmark_numbers = {
+    cust2_numbers = {
         prophet: {smape: 18, mape: 0.5, rmse: 75},
         arima: {smape: 21, mape: 0.45, rmse: 75},
         automlx: {smape: 15, mape: 0.3, rmse: 74},
@@ -41,8 +45,8 @@ if __name__ == '__main__':
     }
 
     datasets = {
-        'EPM-PPG-CODE-SALES': ppg_sales_benchmark_numbers,
-        'TTX-small': ttx_small_benchmark_numbers
+        'cust1': cust1_numbers,
+        'cust2': cust2_numbers,
     }
     metrics = [SupportedMetrics.SMAPE, SupportedMetrics.MAPE, SupportedMetrics.RMSE]
 
