@@ -38,7 +38,7 @@ from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.service.oci_dataset import OCIDataset
-from ads.feature_store.statistics import Statistics
+from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
 from ads.feature_store.service.oci_lineage import OCILineage
 from ads.feature_store.model_details import ModelDetails

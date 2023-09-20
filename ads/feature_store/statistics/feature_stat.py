@@ -39,10 +39,10 @@ class FeatureStatistics:
     def __init__(
         self,
         feature_name: str,
-        top_k_frequent_elements: TopKFrequentElements,
-        frequency_distribution: FrequencyDistribution,
-        probability_distribution: ProbabilityDistribution,
-        box_plot: BoxPlot,
+        top_k_frequent_elements: TopKFrequentElements = None,
+        frequency_distribution: FrequencyDistribution = None,
+        probability_distribution: ProbabilityDistribution = None,
+        box_plot: BoxPlot = None,
     ):
         self.feature_name: str = feature_name
         self.top_k_frequent_elements = top_k_frequent_elements
@@ -65,7 +65,7 @@ class FeatureStatistics:
                 BoxPlot.from_json(json_dict),
             )
         else:
-            return None
+            return cls(feature_name)
 
     @property
     def __feature_stat_objects__(self) -> List[AbsFeatureStat]:
@@ -81,11 +81,18 @@ class FeatureStatistics:
         ]
 
     def to_viz(self):
+        # TODO: make it generic
+        def next_graph_position_generator():
+            yield 1
+            yield 0
+            yield 2
+
         graph_count = len(self.__feature_stat_objects__)
         if graph_count > 0:
-            fig = make_subplots(cols=graph_count, column_titles=["title"] * graph_count)
-            for idx, stat in enumerate(
-                [stat for stat in self.__feature_stat_objects__ if stat is not None]
+            fig = make_subplots(cols=3, column_titles=[" "] * 3)
+            for idx, stat in zip(
+                next_graph_position_generator(),
+                [stat for stat in self.__feature_stat_objects__ if stat is not None],
             ):
                 stat.add_to_figure(fig, idx, idx)
 
