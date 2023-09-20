@@ -27,6 +27,12 @@ class Statistics(ResponseBuilder):
         return "statistics"
 
     def to_viz(self, feature_list: List[str] = None):
+        """Visualises statistics inside notebook
+        Parameters
+        ----------
+        feature_list: (str, optional). Defaults to `None`.
+            The specific features of the FeatureGroup or Dataset we want to visualise
+        """
         if self.content is not None:
             [
                 FeatureStatistics.from_json(feature, stat).to_viz()
