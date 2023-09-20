@@ -386,7 +386,7 @@ class TestGenericModel:
             force_overwrite=True,
             training_id=None,
         )
-        self.generic_model.save()
+        self.generic_model.save(ignore_introspection=True)
         assert self.generic_model.model_id is not None and isinstance(
             self.generic_model.model_id, str
         )

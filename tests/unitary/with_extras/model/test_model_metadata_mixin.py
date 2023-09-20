@@ -217,7 +217,7 @@ class TestMetadataMixin:
         assert model.metadata_provenance.training_id is None
         assert (
             model.runtime_info.model_deployment.inference_conda_env.inference_env_path
-            == "oci://service-conda-packs@id19sfcrra6z/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+            == "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
         )
 
     def teardown_method(self):
