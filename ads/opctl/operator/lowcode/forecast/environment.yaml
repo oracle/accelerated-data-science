@@ -12,6 +12,7 @@ dependencies:
       - datapane
       - cerberus
       - sktime
+      - autots['additional']
       - optuna==2.9.0
       - oracle-automlx==23.2.3
       - "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"
