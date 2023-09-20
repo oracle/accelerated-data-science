@@ -7,6 +7,7 @@ import os
 
 from click.testing import CliRunner
 
+from ads.common.auth import AuthType
 from ads.jobs.cli import run, watch, delete
 
 
@@ -15,7 +16,17 @@ class TestJobsCLI:
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         runner = CliRunner()
         res = runner.invoke(
-            run, args=["-f", os.path.join(curr_dir, "../yamls", "sample_job.yaml")]
+            run,
+            args=[
+                "-f",
+                os.path.join(
+                    curr_dir,
+                    "../yamls",
+                    "sample_job.yaml",
+                    "--auth",
+                    os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                ),
+            ],
         )
         assert res.exit_code == 0, res.output
         run_id = res.output.split("\n")[1]
@@ -29,7 +40,17 @@ class TestJobsCLI:
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         runner = CliRunner()
         res = runner.invoke(
-            run, args=["-f", os.path.join(curr_dir, "../yamls", "sample_dataflow.yaml")]
+            run,
+            args=[
+                "-f",
+                os.path.join(
+                    curr_dir,
+                    "../yamls",
+                    "sample_dataflow.yaml",
+                    "--auth",
+                    os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                ),
+            ],
         )
         assert res.exit_code == 0, res.output
         run_id = res.output.split("\n")[1]
