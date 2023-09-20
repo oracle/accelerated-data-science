@@ -53,16 +53,27 @@ class FeatureStatistics:
     @classmethod
     def from_json(cls, feature_name: str, json_dict: dict) -> "FeatureStatistics":
         if json_dict is not None:
+            frequency_distribution = FrequencyDistribution.from_json(
+                json_dict.get(cls.CONST_FREQUENCY_DISTRIBUTION), ignore_errors=True
+            )
+
+            # inject box points for boxplot creation
+            json_dict[
+                BoxPlot.CONST_BOX_POINTS
+            ] = BoxPlot.get_box_points_from_frequency_distribution(
+                frequency_distribution
+            )
             return cls(
                 feature_name,
-                TopKFrequentElements.from_json(json_dict.get(cls.CONST_TOP_K_FREQUENT)),
-                FrequencyDistribution.from_json(
-                    json_dict.get(cls.CONST_FREQUENCY_DISTRIBUTION)
+                TopKFrequentElements.from_json(
+                    json_dict.get(cls.CONST_TOP_K_FREQUENT), ignore_errors=True
                 ),
+                frequency_distribution,
                 ProbabilityDistribution.from_json(
-                    json_dict.get(cls.CONST_PROBABILITY_DISTRIBUTION)
+                    json_dict.get(cls.CONST_PROBABILITY_DISTRIBUTION),
+                    ignore_errors=True,
                 ),
-                BoxPlot.from_json(json_dict),
+                BoxPlot.from_json(json_dict, ignore_errors=True),
             )
         else:
             return cls(feature_name)
@@ -72,10 +83,10 @@ class FeatureStatistics:
         return [
             stat
             for stat in [
+                self.box_plot,
                 self.top_k_frequent_elements,
                 self.frequency_distribution,
                 self.probability_distribution,
-                self.box_plot,
             ]
             if stat is not None
         ]
@@ -87,8 +98,7 @@ class FeatureStatistics:
             yield 0
             yield 2
 
-        graph_count = len(self.__feature_stat_objects__)
-        if graph_count > 0:
+        if len(self.__feature_stat_objects__) > 0:
             fig = make_subplots(cols=3, column_titles=[" "] * 3)
             for idx, stat in zip(
                 next_graph_position_generator(),
@@ -103,4 +113,8 @@ class FeatureStatistics:
             plotly.offline.iplot(
                 fig,
                 filename=self.CONST_PLOT_FORMAT.format(self.feature_name),
+            )
+        else:
+            print(
+                f"No statistical information for feature {self.feature_name} can be visualised"
             )

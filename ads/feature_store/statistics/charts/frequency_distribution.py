@@ -21,19 +21,25 @@ class FrequencyDistribution(AbsFeatureStat):
     CONST_BINS = "bins"
     CONST_FREQUENCY_DISTRIBUTION_TITLE = "Frequency Distribution"
 
+    def __validate__(self):
+        if not (
+            type(self.frequency) == list
+            and type(self.bins) == list
+            and 0 < len(self.frequency) == len(self.bins) > 0
+        ):
+            raise self.ValidationFailedException()
+
     def __init__(self, frequency: List, bins: List):
         self.frequency = frequency
         self.bins = bins
+        super().__init__()
 
     @classmethod
-    def from_json(cls, json_dict: dict) -> "FrequencyDistribution":
-        if json_dict is not None:
-            return FrequencyDistribution(
-                frequency=json_dict.get(cls.CONST_FREQUENCY),
-                bins=json_dict.get(cls.CONST_BINS),
-            )
-        else:
-            return None
+    def __from_json__(cls, json_dict: dict) -> "FrequencyDistribution":
+        return FrequencyDistribution(
+            frequency=json_dict.get(cls.CONST_FREQUENCY),
+            bins=json_dict.get(cls.CONST_BINS),
+        )
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
