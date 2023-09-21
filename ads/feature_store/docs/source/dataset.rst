@@ -220,6 +220,14 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 .. image:: figures/dataset_statistics.png
 
+.. code-block:: python3
+
+  # Fetch and visualize stats for a dataset job
+  df = dataset.get_statistics(job_id).to_viz()
+
+.. image:: figures/dataset_statistics_viz.png
+
+
 .. seealso::
 
     :ref:`Statistics`
