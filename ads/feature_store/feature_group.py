@@ -44,7 +44,7 @@ from ads.feature_store.query.query import Query
 from ads.feature_store.service.oci_feature_group import OCIFeatureGroup
 from ads.feature_store.service.oci_feature_group_job import OCIFeatureGroupJob
 from ads.feature_store.service.oci_lineage import OCILineage
-from ads.feature_store.statistics import Statistics
+from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
 from ads.feature_store.validation_output import ValidationOutput
 
@@ -244,8 +244,8 @@ class FeatureGroup(Builder):
         return self.get_spec(self.CONST_NAME)
 
     @name.setter
-    def name(self, name: str) -> "FeatureGroup":
-        return self.with_name(name)
+    def name(self, name: str):
+        self.with_name(name)
 
     def with_name(self, name: str) -> "FeatureGroup":
         """Sets the name.
@@ -338,7 +338,7 @@ class FeatureGroup(Builder):
         self.with_transformation_kwargs(value)
 
     def with_transformation_kwargs(
-        self, transformation_kwargs: Dict = {}
+        self, transformation_kwargs: Dict = ()
     ) -> "FeatureGroup":
         """Sets the primary keys of the feature group.
 
@@ -604,7 +604,6 @@ class FeatureGroup(Builder):
         FeatureGroup
             The FeatureGroup instance (self).
         """
-        statistics_config_in = None
         if isinstance(statistics_config, StatisticsConfig):
             statistics_config_in = statistics_config
         elif isinstance(statistics_config, bool):
@@ -1108,7 +1107,6 @@ class FeatureGroup(Builder):
                 f"RESTORE TABLE {target_table} TO VERSION AS OF {version_number}"
             )
         else:
-            iso_timestamp = timestamp.isoformat(" ", "seconds").__str__()
             sql_query = f"RESTORE TABLE {target_table} TO TIMESTAMP AS OF {timestamp}"
 
         restore_output = self.spark_engine.sql(sql_query)
