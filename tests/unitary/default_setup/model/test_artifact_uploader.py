@@ -97,14 +97,14 @@ class TestArtifactUploader:
                 == DEFAULT_PARALLEL_PROCESS_COUNT
             )
 
-    def test_prepare_artiact_tmp_zip(self):
+    def test_prepare_artifact_tmp_zip(self):
         # Tests case when a folder provided as artifacts location
         with patch("ads.model.common.utils.zip_artifact") as mock_zip_artifact:
             mock_zip_artifact.return_value = "test_artifact.zip"
             artifact_uploader = SmallArtifactUploader(
                 dsc_model=self.mock_dsc_model, artifact_path=self.mock_artifact_path
             )
-            test_result = artifact_uploader._prepare_artiact_tmp_zip()
+            test_result = artifact_uploader._prepare_artifact_tmp_zip()
             assert test_result == "test_artifact.zip"
 
         # Tests case when a zip file provided as artifacts location
@@ -114,17 +114,17 @@ class TestArtifactUploader:
                     dsc_model=self.mock_dsc_model,
                     artifact_path=self.mock_artifact_path + ".zip",
                 )
-                test_result = artifact_uploader._prepare_artiact_tmp_zip()
+                test_result = artifact_uploader._prepare_artifact_tmp_zip()
                 assert test_result == self.mock_artifact_path + ".zip"
 
-    def test_remove_artiact_tmp_zip(self):
+    def test_remove_artifact_tmp_zip(self):
         artifact_uploader = SmallArtifactUploader(
             dsc_model=self.mock_dsc_model, artifact_path=self.mock_artifact_path
         )
         with patch("shutil.rmtree") as mock_rmtree:
             # Tests case when tmp artifact needs to be removed
             artifact_uploader.artifact_zip_path = "artifacts.zip"
-            artifact_uploader._remove_artiact_tmp_zip()
+            artifact_uploader._remove_artifact_tmp_zip()
             mock_rmtree.assert_called_with("artifacts.zip", ignore_errors=True)
 
         with patch("os.path.exists", return_value=True):
@@ -135,41 +135,44 @@ class TestArtifactUploader:
                 # Tests case when tmp artifact shouldn't be removed
                 artifact_uploader.artifact_zip_path = "artifacts.zip"
                 artifact_uploader.artifact_path = "artifacts.zip"
-                artifact_uploader._remove_artiact_tmp_zip()
+                artifact_uploader._remove_artifact_tmp_zip()
                 mock_rmtree.assert_not_called()
 
     @patch.object(SmallArtifactUploader, "_upload")
-    @patch.object(SmallArtifactUploader, "_prepare_artiact_tmp_zip")
-    @patch.object(SmallArtifactUploader, "_remove_artiact_tmp_zip")
+    @patch.object(SmallArtifactUploader, "_prepare_artifact_tmp_zip")
+    @patch.object(SmallArtifactUploader, "_remove_artifact_tmp_zip")
     def test_upload(
-        self, mock__remove_artiact_tmp_zip, mock__prepare_artiact_tmp_zip, mock__upload
+        self,
+        mock__remove_artifact_tmp_zip,
+        mock__prepare_artifact_tmp_zip,
+        mock__upload,
     ):
         artifact_uploader = SmallArtifactUploader(
             dsc_model=self.mock_dsc_model, artifact_path=self.mock_artifact_path
         )
         artifact_uploader.upload()
-        mock__remove_artiact_tmp_zip.assert_called()
-        mock__prepare_artiact_tmp_zip.assert_called()
+        mock__remove_artifact_tmp_zip.assert_called()
+        mock__prepare_artifact_tmp_zip.assert_called()
         mock__upload.assert_called()
 
     def test_upload_small_artifact(self):
         with open(self.mock_artifact_zip_path, "rb") as file_data:
             with patch.object(
                 SmallArtifactUploader,
-                "_prepare_artiact_tmp_zip",
+                "_prepare_artifact_tmp_zip",
                 return_value=self.mock_artifact_zip_path,
-            ) as mock_prepare_artiact_tmp_zip:
+            ) as mock_prepare_artifact_tmp_zip:
                 with patch.object(
-                    SmallArtifactUploader, "_remove_artiact_tmp_zip"
-                ) as mock_remove_artiact_tmp_zip:
+                    SmallArtifactUploader, "_remove_artifact_tmp_zip"
+                ) as mock_remove_artifact_tmp_zip:
                     artifact_uploader = SmallArtifactUploader(
                         dsc_model=self.mock_dsc_model,
                         artifact_path=self.mock_artifact_path,
                     )
                     artifact_uploader.artifact_zip_path = self.mock_artifact_zip_path
                     artifact_uploader.upload()
-                    mock_prepare_artiact_tmp_zip.assert_called()
-                    mock_remove_artiact_tmp_zip.assert_called()
+                    mock_prepare_artifact_tmp_zip.assert_called()
+                    mock_remove_artifact_tmp_zip.assert_called()
                     self.mock_dsc_model.create_model_artifact.assert_called()
 
     @patch("ads.common.utils.is_path_exists")
