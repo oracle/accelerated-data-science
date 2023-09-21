@@ -177,7 +177,16 @@ class TestTrainingEnvInfo:
         info.training_env_type = "service_pack"
         info.training_python_version = "3.6"
 
-    def test_from_slug_not_exist(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_slug_not_exist(self, mock_get_service_packs):
+        mock_get_service_packs.return_value = (
+            {
+                "test_path" : ("mlcpuv1", "3.6"),
+            },
+            {
+                "mlcpuv1" : ("test_path", "3.6"),
+            }
+        )
         with pytest.warns(UserWarning, match="not a service pack"):
             TrainingEnvInfo.from_slug(
                 "not_exist", namespace="ociodscdev", bucketname="service-conda-packs"
@@ -256,7 +265,16 @@ class TestInferenceEnvInfo:
         info.inference_env_type = "service_pack"
         info.inference_python_version = "3.6"
 
-    def test_from_slug_not_exist(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_slug_not_exist(self, mock_get_service_packs):
+        mock_get_service_packs.return_value = (
+            {
+                "test_path" : ("mlcpuv1", "3.6"),
+            },
+            {
+                "mlcpuv1" : ("test_path", "3.6"),
+            }
+        )
         with pytest.warns(UserWarning, match="not a service pack"):
             InferenceEnvInfo.from_slug(
                 "not_exist", namespace="ociodscdev", bucketname="service-conda-packs"
