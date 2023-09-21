@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas
 from ads.common import utils
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -667,6 +668,9 @@ class DataScienceModel(Builder):
                 **(self.dsc_model.__class__.kwargs or {}),
                 "timeout": timeout,
             }
+
+        if ObjectStorageDetails.is_oci_path(self.artifact):
+            bucket_uri = self.artifact
 
         if bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES:
             if not bucket_uri:

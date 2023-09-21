@@ -10,6 +10,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
 from ads.common import utils
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.model.common import utils as model_utils
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
 
@@ -45,7 +46,7 @@ class ArtifactUploader(ABC):
             ) as progress:
                 self.progress = progress
                 self.progress.update("Preparing model artifacts ZIP archive.")
-                self._prepare_artiact_tmp_zip()
+                self._prepare_artifact_tmp_zip()
                 self.progress.update("Uploading model artifacts.")
                 self._upload()
                 self.progress.update(
@@ -55,22 +56,19 @@ class ArtifactUploader(ABC):
         except Exception:
             raise
         finally:
-            self._remove_artiact_tmp_zip()
+            self._remove_artifact_tmp_zip()
 
-    def _prepare_artiact_tmp_zip(self) -> str:
+    def _prepare_artifact_tmp_zip(self) -> str:
         """Prepares model artifacts ZIP archive.
-
-        Parameters
-        ----------
-        progress: (TqdmProgressBar, optional). Defaults to `None`.
-            The progress indicator.
 
         Returns
         -------
         str
             Path to the model artifact ZIP archive.
         """
-        if os.path.isfile(self.artifact_path) and self.artifact_path.lower().endswith(
+        if ObjectStorageDetails.is_oci_path(self.artifact_path):
+            self.artifact_zip_path = self.artifact_path
+        elif os.path.isfile(self.artifact_path) and self.artifact_path.lower().endswith(
             ".zip"
         ):
             self.artifact_zip_path = self.artifact_path
@@ -80,7 +78,7 @@ class ArtifactUploader(ABC):
             )
         return self.artifact_zip_path
 
-    def _remove_artiact_tmp_zip(self):
+    def _remove_artifact_tmp_zip(self):
         """Removes temporary created artifact zip archive."""
         if (
             self.artifact_zip_path
@@ -192,38 +190,41 @@ class LargeArtifactUploader(ArtifactUploader):
 
     def _upload(self):
         """Uploads model artifacts to the model catalog."""
-        self.progress.update("Copying model artifact to the Object Storage bucket")
 
         bucket_uri = self.bucket_uri
-        bucket_uri_file_name = os.path.basename(bucket_uri)
+        if not bucket_uri == self.artifact_zip_path:
+            bucket_uri_file_name = os.path.basename(bucket_uri)
 
-        if not bucket_uri_file_name:
-            bucket_uri = os.path.join(bucket_uri, f"{self.dsc_model.id}.zip")
-        elif not bucket_uri.lower().endswith(".zip"):
-            bucket_uri = f"{bucket_uri}.zip"
+            if not bucket_uri_file_name:
+                bucket_uri = os.path.join(bucket_uri, f"{self.dsc_model.id}.zip")
+            elif not bucket_uri.lower().endswith(".zip"):
+                bucket_uri = f"{bucket_uri}.zip"
 
-        if not self.overwrite_existing_artifact and utils.is_path_exists(
-            uri=bucket_uri, auth=self.auth
-        ):
-            raise FileExistsError(
-                f"The bucket_uri=`{self.bucket_uri}` exists. Please use a new file name or "
-                "set `overwrite_existing_artifact` to `True` if you wish to overwrite."
-            )
+            if not self.overwrite_existing_artifact and utils.is_path_exists(
+                uri=bucket_uri, auth=self.auth
+            ):
+                raise FileExistsError(
+                    f"The bucket_uri=`{self.bucket_uri}` exists. Please use a new file name or "
+                    "set `overwrite_existing_artifact` to `True` if you wish to overwrite."
+                )
 
-        try:
-            utils.upload_to_os(
-                src_uri=self.artifact_zip_path,
-                dst_uri=bucket_uri,
-                auth=self.auth,
-                parallel_process_count=self._parallel_process_count,
-                force_overwrite=self.overwrite_existing_artifact,
-                progressbar_description="Copying model artifact to the Object Storage bucket.",
-            )
-        except Exception as ex:
-            raise RuntimeError(
-                f"Failed to upload model artifact to the given Object Storage path `{self.bucket_uri}`."
-                f"See Exception: {ex}"
-            )
+            try:
+                self.progress.update(
+                    "Copying model artifact to the Object Storage bucket"
+                )
+                utils.upload_to_os(
+                    src_uri=self.artifact_zip_path,
+                    dst_uri=bucket_uri,
+                    auth=self.auth,
+                    parallel_process_count=self._parallel_process_count,
+                    force_overwrite=self.overwrite_existing_artifact,
+                    progressbar_description="Copying model artifact to the Object Storage bucket.",
+                )
+            except Exception as ex:
+                raise RuntimeError(
+                    f"Failed to upload model artifact to the given Object Storage path `{self.bucket_uri}`."
+                    f"See Exception: {ex}"
+                )
 
         self.progress.update("Exporting model artifact to the model catalog")
         self.dsc_model.export_model_artifact(bucket_uri=bucket_uri, region=self.region)
