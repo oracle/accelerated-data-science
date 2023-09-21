@@ -30,7 +30,10 @@ class ArtifactUploader(ABC):
         artifact_path: str
             The model artifact location.
         """
-        if not os.path.exists(artifact_path):
+        if not (
+            ObjectStorageDetails.is_oci_path(artifact_path)
+            or os.path.exists(artifact_path)
+        ):
             raise ValueError(f"The `{artifact_path}` does not exist")
 
         self.dsc_model = dsc_model
@@ -110,7 +113,10 @@ class LargeArtifactUploader(ArtifactUploader):
     Attributes
     ----------
     artifact_path: str
-        The model artifact location.
+        The model artifact location. Possible values are:
+            - object storage path to zip archive. Example: `oci://<bucket_name>@<namespace>/prefix/mymodel.zip`.
+            - local path to zip archive. Example: `./mymodel.zip`.
+            - local path to folder with artifacts. Example: `./mymodel`.
     artifact_zip_path: str
         The uri of the zip of model artifact.
     auth: dict
@@ -122,6 +128,8 @@ class LargeArtifactUploader(ArtifactUploader):
         The OCI Object Storage URI where model artifacts will be copied to.
         The `bucket_uri` is only necessary for uploading large artifacts which
         size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        .. versionadded:: 2.8.10
+        If artifact_path is object storage path to a zip archive, bucket_uri will be ignored.
     dsc_model: OCIDataScienceModel
         The data scince model instance.
     overwrite_existing_artifact: bool
@@ -143,7 +151,7 @@ class LargeArtifactUploader(ArtifactUploader):
         self,
         dsc_model: OCIDataScienceModel,
         artifact_path: str,
-        bucket_uri: str,
+        bucket_uri: str = None,
         auth: Optional[Dict] = None,
         region: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
@@ -157,11 +165,16 @@ class LargeArtifactUploader(ArtifactUploader):
         dsc_model: OCIDataScienceModel
             The data scince model instance.
         artifact_path: str
-            The model artifact location.
-        bucket_uri: str
+            The model artifact location. Possible values are:
+                - object storage path to zip archive. Example: `oci://<bucket_name>@<namespace>/prefix/mymodel.zip`.
+                - local path to zip archive. Example: `./mymodel.zip`.
+                - local path to folder with artifacts. Example: `./mymodel`.
+        bucket_uri: (str, optional). Defaults to `None`.
             The OCI Object Storage URI where model artifacts will be copied to.
-            The `bucket_uri` is only necessary for uploading large artifacts which
+            The `bucket_uri` is only necessary for uploading large artifacts from local which
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+            .. versionadded:: 2.8.10
+            If `artifact_path` is object storage path to a zip archive, `bucket_uri` will be ignored.
         auth: (Dict, optional). Defaults to `None`.
             The default authetication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys` or
@@ -177,11 +190,20 @@ class LargeArtifactUploader(ArtifactUploader):
         parallel_process_count: (int, optional).
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         """
+        self.auth = auth or dsc_model.auth
+        if ObjectStorageDetails.is_oci_path(artifact_path):
+            if not artifact_path.endswith(".zip"):
+                raise ValueError(
+                    f"The `artifact_path={artifact_path}` is invalid. Please check APIs doc to see the possible values for it."
+                )
+            if not utils.is_path_exists(uri=artifact_path, auth=self.auth):
+                raise ValueError(f"The `{artifact_path}` does not exist.")
+            bucket_uri = artifact_path
+
         if not bucket_uri:
             raise ValueError("The `bucket_uri` must be provided.")
 
         super().__init__(dsc_model=dsc_model, artifact_path=artifact_path)
-        self.auth = auth or dsc_model.auth
         self.region = region or utils.extract_region(self.auth)
         self.bucket_uri = bucket_uri
         self.overwrite_existing_artifact = overwrite_existing_artifact
@@ -190,7 +212,6 @@ class LargeArtifactUploader(ArtifactUploader):
 
     def _upload(self):
         """Uploads model artifacts to the model catalog."""
-
         bucket_uri = self.bucket_uri
         if not bucket_uri == self.artifact_zip_path:
             bucket_uri_file_name = os.path.basename(bucket_uri)
