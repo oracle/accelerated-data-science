@@ -865,6 +865,8 @@ class Dataset(Builder):
                         features_list.append(output_feature)
 
                     value = {self.CONST_ITEMS: features_list}
+                elif infra_attr == self.CONST_FEATURE_GROUP:
+                    value = getattr(self.oci_dataset, dsc_attr)
                 else:
                     value = dataset_details[infra_attr]
                 self.set_spec(infra_attr, value)
