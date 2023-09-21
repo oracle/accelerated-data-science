@@ -106,6 +106,16 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
         if developer_enabled():
             # Configure spark session with delta jars only in developer mode. In other cases,
             # jars should be part of the conda pack
+            # redis_host = "localhost"
+            # spark_builder.config("spark.jars", redis_path())\
+            #     .config("spark.redis.host", redis_host)\
+            #     .config("spark.redis.port", "6379")
+            # my_packages = ['org.apache.spark:spark-avro_2.12:3.2.1','org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1','com.oracle.oci.sdk:oci-java-sdk-addons-sasl:2.45.0']
+            # spark_builder.config('spark.jars.packages',
+            #                      'org.apache.spark:spark-avro_2.12:3.2.1,'
+            #                      + 'org.apache.spark:spark-sql-kafka-0-10_2.12:3.2.1,'
+            #                      + 'com.oracle.oci.sdk:oci-java-sdk-addons-sasl:2.45.0')
+            spark_builder.config('spark.jars', "......./SaslFat-1.0-SNAPSHOT.jar")#give proper location
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder
             ).getOrCreate()

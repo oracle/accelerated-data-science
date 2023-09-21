@@ -7,6 +7,8 @@ import json
 
 import logging
 import pandas as pd
+from pyspark.sql.avro.functions import to_avro
+from pyspark.sql.functions import col, concat_ws, concat, struct
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
@@ -181,6 +183,89 @@ class SparkExecutionEngine(Strategy):
 
         if error_message:
             raise Exception(error_message)
+
+    def dataset_to_avro(self, dataset, dataframe):
+
+        schema_s_key = json.dumps("string")
+
+        primary_keys = set(
+            item["name"] for item in dataset.primary_keys.get("items")
+        )
+        return dataframe.select(
+            [
+                # be aware: primary_key array should always be sorted
+                to_avro(
+                    concat(
+                        *[
+                            col(f).cast("string")
+                            for f in sorted(primary_keys)
+                        ]
+                    ), schema_s_key
+                ).alias("key"),
+                to_avro(
+                    struct(
+                        [
+                            field["name"]
+                            for field in json.loads(dataset.stream_config.get("avroSchema"))["fields"]
+                        ]
+                    ), dataset.get_encoded_avro_schema()
+                ).alias("value"),
+            ]
+        )
+
+    def _save_online_dataframe(
+            self, data_frame, dataset
+    ):
+        """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
+        dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
+
+        Parameter
+        ----------
+        data_frame
+            data_frame that needs to be ingested in the system.
+        feature_group
+            feature group.
+
+        Parameters
+        ----------
+        data_frame
+        feature_group
+
+        Returns
+        -------
+        None
+        """
+        # transformed_data_frame = self.dataset_to_avro(dataset, self.encode_complex_features(dataset, data_frame))
+        # hardcoded details for now
+        stream_config = dataset.stream_config
+        stream_name = stream_config.get("streamName")
+        stream_pool_id = stream_config.get("streamPoolId")
+        streaming_endpoint = stream_config.get("streamingEndpoint")
+        transformed_data_frame = self.dataset_to_avro(dataset, data_frame)
+        print(transformed_data_frame.show())
+        # transformed_data_frame.write.format("kafka") \
+        #     .option("kafka.bootstrap.servers", streaming_endpoint) \
+        #     .option("topic", stream_name) \
+        #     .option("startingOffsets", "earliest") \
+        #     .option("kafka.security.protocol", "SASL_SSL") \
+        #     .option("kafka.sasl.mechanism", "PLAIN") \
+        #     .option("kafka.sasl.jaas.config",
+        #             'org.apache.kafka.common.security.plain.PlainLoginModule required username="tenancy_name/<user>/stream_pool_id>" password="<auth_token>";') \
+        #     .save()
+        # logger.info("data written to stream")
+
+        transformed_data_frame.write.format("kafka") \
+            .option("kafka.bootstrap.servers", streaming_endpoint) \
+            .option("topic", stream_name) \
+            .option("startingOffsets", "earliest") \
+            .option("kafka.security.protocol", "SASL_SSL") \
+            .option("kafka.sasl.mechanism", "OCI-RSA-SHA256") \
+            .option("kafka.sasl.jaas.config",
+                    "com.oracle.bmc.auth.sasl.UserPrincipalsLoginModule required intent=\"streamPoolId:%s\";"%stream_pool_id) \
+            .save()
+
+
+        print("data written to stream")
 
     def _save_offline_dataframe(
         self, data_frame, feature_group, feature_group_job: FeatureGroupJob
@@ -424,6 +509,11 @@ class SparkExecutionEngine(Strategy):
                 statistics_config=dataset.oci_dataset.statistics_config,
                 input_df=dataset_dataframe,
             )
+            if output_features:
+                dataset._with_features(output_features)
+
+            if dataset.is_online_enabled:
+                self._save_online_dataframe(dataset_dataframe, dataset)
 
         except Exception as ex:
             error_details = str(ex)
