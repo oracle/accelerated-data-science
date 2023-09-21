@@ -11,6 +11,7 @@ import fsspec
 import yaml
 
 from ads.common.auth import AuthContext, AuthType
+from ads.opctl.decorator.common import click_options
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.utils import suppress_traceback
@@ -26,43 +27,57 @@ from .cmd import publish_conda as cmd_publish_conda
 from .cmd import publish_image as cmd_publish_image
 from .cmd import verify as cmd_verify
 
+DEBUG_OPTION = (
+    click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False),
+)
+
+ADS_CONFIG_OPTION = (
+    click.option(
+        "--ads-config",
+        help=(
+            "The folder where the ADS opctl config located. "
+            "The default location is: `~/.ads_ops` folder."
+        ),
+        required=False,
+        default=None,
+    ),
+)
+
+OPERATOR_NAME_OPTION = (
+    click.option(
+        "--name",
+        "-n",
+        help=(
+            "The name of the service operator. "
+            f"Available operators: `{'`, `'.join(__operators__)}`."
+        ),
+        required=True,
+    ),
+)
+
 
 @click.group("operator")
-@click.help_option("--help", "-h")
 def commands():
+    "The CLI to assist in the management of the ADS operators."
     pass
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
+@click_options(DEBUG_OPTION)
 def list(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Prints the list of the registered operators."""
     suppress_traceback(debug)(cmd_list)(**kwargs)
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
-@click.option(
-    "--name",
-    "-n",
-    type=click.Choice(__operators__),
-    help="The name of the operator.",
-    required=True,
-)
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION)
 def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Prints the detailed information about the particular operator."""
     suppress_traceback(debug)(cmd_info)(**kwargs)
 
 
 @commands.command()
-@click.option(
-    "--name",
-    "-n",
-    type=click.Choice(__operators__),
-    help="The name of the operator.",
-    required=True,
-)
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--output",
     help=f"The folder name to save the resulting specification templates.",
@@ -76,33 +91,19 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     is_flag=True,
     default=False,
 )
-@click.option(
-    "--ads-config",
-    help="The folder where the ADS opctl config located.",
-    required=False,
-    default=None,
-)
 def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Generates starter YAML configs for the operator."""
     suppress_traceback(debug)(cmd_init)(**kwargs)
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
-@click.help_option("--help", "-h")
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION)
 @click.option(
     "--gpu",
     "-g",
     help="Build a GPU-enabled Docker image.",
     is_flag=True,
     default=False,
-    required=False,
-)
-@click.option(
-    "--name",
-    "-n",
-    help=("Name of the operator to build the image. "),
-    default=None,
     required=False,
 )
 @click.option(
@@ -113,30 +114,16 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     default=False,
 )
 def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Builds a new image for the particular operator."""
+    """Creates a new image for the specified operator."""
     suppress_traceback(debug)(cmd_build_image)(**kwargs)
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
-@click.help_option("--help", "-h")
-@click.option(
-    "--name",
-    "-n",
-    type=click.Choice(__operators__),
-    help="The name of the operator.",
-    required=True,
-)
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--registry",
     "-r",
-    help="Registry to publish to. By default will be taken form the ADS opctl config.",
-    required=False,
-    default=None,
-)
-@click.option(
-    "--ads-config",
-    help="The folder where the ADS opctl config located.",
+    help="Registry to publish to. By default the value will be taken from the ADS opctl config.",
     required=False,
     default=None,
 )
@@ -146,14 +133,7 @@ def publish_image(debug, **kwargs):
 
 
 @commands.command(hidden=True)
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
-@click.option(
-    "--name",
-    "-n",
-    type=click.Choice(__operators__),
-    help="The name of the operator.",
-    required=True,
-)
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--overwrite",
     "-o",
@@ -162,14 +142,8 @@ def publish_image(debug, **kwargs):
     default=False,
 )
 @click.option(
-    "--ads-config",
-    help="The folder where the ADS opctl config located.",
-    required=False,
-    default=None,
-)
-@click.option(
     "--output",
-    help=f"The folder to save the resulting specification template YAML.",
+    help="The folder to save the resulting specification template YAML.",
     required=False,
     default=None,
 )
@@ -179,24 +153,16 @@ def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click.help_option("--help", "-h")
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--file", "-f", help="The path to resource YAML file.", required=True, default=None
-)
-@click.option(
-    "--ads-config",
-    "-c",
-    help="The folder where the ADS opctl config.ini located. Default value: `~/.ads_ops`.",
-    required=False,
-    default=None,
 )
 @click.option(
     "--auth",
     "-a",
     help=(
         "The authentication method to leverage OCI resources. "
-        "The default value will be taken form the ADS `config.ini` file."
+        "The default value will be taken from the ADS `config.ini` file."
     ),
     type=click.Choice(AuthType.values()),
     default=None,
@@ -224,15 +190,7 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
-@click.help_option("--help", "-h")
-@click.option(
-    "--name",
-    "-n",
-    help=("Name of the operator to build the conda environment for. "),
-    default=None,
-    required=False,
-)
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--conda-pack-folder",
     help=(
@@ -250,27 +208,13 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
     is_flag=True,
     default=False,
 )
-@click.option(
-    "--ads-config",
-    help="The folder where the ADS opctl config located.",
-    required=False,
-    default=None,
-)
 def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Builds a new conda environment for the particular operator."""
+    """Creates a new conda environment for the specified operator."""
     suppress_traceback(debug)(cmd_build_conda)(**kwargs)
 
 
 @commands.command()
-@click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False)
-@click.help_option("--help", "-h")
-@click.option(
-    "--name",
-    "-n",
-    help=("Name of the operator to publish the conda environment for. "),
-    default=None,
-    required=False,
-)
+@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--conda-pack-folder",
     help=(
@@ -287,12 +231,6 @@ def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     help="Overwrite conda environment if it already exists.",
     is_flag=True,
     default=False,
-)
-@click.option(
-    "--ads-config",
-    help="The folder where the ADS opctl config located.",
-    required=False,
-    default=None,
 )
 def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Publishes an operator's conda environment to the Object Storage bucket."""

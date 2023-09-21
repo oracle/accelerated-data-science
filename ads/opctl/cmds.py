@@ -332,31 +332,6 @@ def _update_env_vars(config, env_vars: List):
     return config
 
 
-def init_operator(**kwargs) -> str:
-    """
-    Initialize the resources for an operator
-
-    Parameters
-    ----------
-    kwargs: dict
-        keyword argument, stores command line args
-    Returns
-    -------
-    folder_path: str
-        a path to the folder with all of the resources
-    """
-    # TODO: confirm that operator slug is in the set of valid operator slugs
-    assert kwargs["operator_slug"] == "dask_cluster"
-
-    if kwargs.get("folder_path"):
-        kwargs["operator_folder_path"] = kwargs.pop("folder_path")[0]
-    else:
-        kwargs["operator_folder_path"] = kwargs["operator_slug"]
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-    print(f"config check: {p.config}")
-    return _BackendFactory(p.config).backend.init_operator()
-
-
 def delete(**kwargs) -> None:
     """
     Delete a MLJob/DataFlow run.
@@ -897,6 +872,7 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
             BACKEND_NAME.JOB.value,
             BACKEND_NAME.DATAFLOW.value,
             BACKEND_NAME.OPERATOR_LOCAL.value,
+            BACKEND_NAME.LOCAL.value,
         )
 
         backend_runtime_map = {
@@ -916,13 +892,17 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
 
         if not backend:
             logger.info(
-                f"Backend config is not provided, the {BACKEND_NAME.OPERATOR_LOCAL.value} "
+                f"Backend config is not provided, the {BACKEND_NAME.LOCAL.value} "
                 "will be used by default. "
             )
             backend = {"kind": BACKEND_NAME.OPERATOR_LOCAL.value}
 
         if isinstance(backend, str):
-            backend = {"kind": backend}
+            backend = {
+                "kind": BACKEND_NAME.OPERATOR_LOCAL.value
+                if backend.lower() == BACKEND_NAME.LOCAL.value
+                else backend
+            }
 
         backend_kind = backend.get("kind").lower() or "unknown"
 
@@ -952,7 +932,7 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
                 os.path.dirname(__file__), "operator", "lowcode", operator_type
             )
             # load operator info
-            operator_info: OperatorInfo = _operator_info(operator_path)
+            operator_info: OperatorInfo = _operator_info(path=operator_path)
 
             backends = operator_cmd._init_backend_config(
                 operator_info=operator_info, **kwargs

@@ -374,7 +374,7 @@ def get_forecast_plots(
                     ),
                 ]
             )
-        if test_data is not None:
+        if test_data is not None and col in test_data:
             fig.add_trace(
                 go.Scatter(
                     x=test_data["ds"],

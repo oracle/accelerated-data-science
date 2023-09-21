@@ -34,8 +34,15 @@ from ads.opctl.constants import (
     RESOURCE_TYPE,
     RUNTIME_TYPE,
 )
-from ads.opctl.operator.common.const import PACK_TYPE
+from ads.opctl.operator.common.const import (
+    PACK_TYPE,
+    OPERATOR_BASE_DOCKER_FILE,
+    OPERATOR_BASE_DOCKER_GPU_FILE,
+    OPERATOR_BASE_GPU_IMAGE,
+    OPERATOR_BASE_IMAGE,
+)
 from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
+from ads.opctl.decorator.common import validate_environment
 from ads.opctl.utils import publish_image as publish_image_cmd
 
 from .__init__ import __operators__
@@ -46,19 +53,17 @@ from .common.errors import (
 )
 from .common.utils import (
     _build_image,
-    _convert_schema_to_html,
-    _load_yaml_from_uri,
     _operator_info_list,
 )
 
-OPERATOR_BASE_IMAGE = "ads-operator-base"
-OPERATOR_BASE_GPU_IMAGE = "ads-operator-gpu-base"
-OPERATOR_BASE_DOCKER_FILE = "Dockerfile"
-OPERATOR_BASE_DOCKER_GPU_FILE = "Dockerfile.gpu"
-
 
 def list() -> None:
-    """Prints the list of the registered operators."""
+    """Prints the list of the registered service operators.
+
+    Returns
+    -------
+    None
+    """
     print(
         tabulate(
             (
@@ -88,14 +93,17 @@ def info(
         The name of the operator to generate the specification YAML.
     kwargs: (Dict, optional).
         Additional key value arguments.
+
+    Returns
+    -------
+    None
     """
     from rich.console import Console
     from rich.markdown import Markdown
 
     console = Console()
 
-    operator_info = {item.name: item for item in _operator_info_list()}.get(name)
-
+    operator_info = _operator_info(name=name)
     if not operator_info:
         raise OperatorNotFoundError(name)
 
@@ -144,7 +152,7 @@ def _init_backend_config(
 
     # generate supported backend specifications templates YAML
     RUNTIME_TYPE_MAP = {
-        RESOURCE_TYPE.JOB: [
+        RESOURCE_TYPE.JOB.value: [
             {
                 RUNTIME_TYPE.PYTHON: {
                     "conda_slug": operator_info.conda
@@ -160,7 +168,7 @@ def _init_backend_config(
                 }
             },
         ],
-        RESOURCE_TYPE.DATAFLOW: [
+        RESOURCE_TYPE.DATAFLOW.value: [
             {
                 RUNTIME_TYPE.DATAFLOW: {
                     "conda_slug": operator_info.conda_prefix,
@@ -168,7 +176,7 @@ def _init_backend_config(
                 }
             }
         ],
-        BACKEND_NAME.OPERATOR_LOCAL: [
+        BACKEND_NAME.OPERATOR_LOCAL.value: [
             {
                 RUNTIME_TYPE.CONTAINER: {
                     "kind": "operator",
@@ -186,13 +194,17 @@ def _init_backend_config(
         ],
     }
 
-    for resource_type in RUNTIME_TYPE_MAP:
-        for runtime_type_item in RUNTIME_TYPE_MAP[resource_type]:
+    supported_backends = set(
+        operator_info.backends + [BACKEND_NAME.OPERATOR_LOCAL.value]
+    )
+
+    for resource_type in supported_backends:
+        for runtime_type_item in RUNTIME_TYPE_MAP.get(resource_type.lower(), []):
             runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
 
             # get config info from ini files
             p = ConfigProcessor(
-                {**runtime_kwargs, **{"execution": {"backend": resource_type.value}}}
+                {**runtime_kwargs, **{"execution": {"backend": resource_type}}}
             ).step(
                 ConfigMerger,
                 ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
@@ -203,7 +215,7 @@ def _init_backend_config(
             if output:
                 uri = os.path.join(
                     output,
-                    f"backend_{resource_type.value.lower().replace('.','_') }"
+                    f"backend_{resource_type.lower().replace('.','_') }"
                     f"_{runtime_type.value.lower()}_config.yaml",
                 )
 
@@ -216,9 +228,9 @@ def _init_backend_config(
             )
 
             if yaml_str:
-                result[
-                    (resource_type.value.lower(), runtime_type.value.lower())
-                ] = yaml.load(yaml_str, Loader=yaml.FullLoader)
+                result[(resource_type.lower(), runtime_type.value.lower())] = yaml.load(
+                    yaml_str, Loader=yaml.FullLoader
+                )
 
     return result
 
@@ -284,16 +296,11 @@ def init(
     operator_path = os.path.join(os.path.dirname(__file__), "lowcode", name)
 
     # load operator info
-    operator_info: OperatorInfo = _operator_info(operator_path)
+    operator_info: OperatorInfo = _operator_info(path=operator_path)
 
     # save operator spec YAML
     with fsspec.open(os.path.join(output, f"{name}.yaml"), mode="w") as f:
         f.write(operator_specification_template)
-
-    # save operator schema in HTML format
-    module_schema = _load_yaml_from_uri(os.path.join(operator_path, "schema.yaml"))
-    with fsspec.open(os.path.join(output, "schema.html"), mode="w") as f:
-        f.write(_convert_schema_to_html(name, module_schema))
 
     # copy README and original schema files into a destination folder
     for src_file in ("README.md", "schema.yaml", "environment.yaml"):
@@ -318,6 +325,7 @@ def init(
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@validate_environment
 def build_image(
     name: str = None,
     source_folder: str = None,
@@ -384,7 +392,7 @@ def build_image(
         )
 
     # get operator details stored in operator's init file.
-    operator_info: OperatorInfo = _operator_info(source_folder)
+    operator_info: OperatorInfo = _operator_info(path=source_folder)
     tag = operator_info.version
 
     # checks if GPU base image needs to be used.
@@ -448,6 +456,7 @@ def build_image(
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@validate_environment
 def publish_image(
     name: str,
     registry: str = None,
@@ -489,11 +498,7 @@ def publish_image(
         raise OperatorNotFoundError(name)
 
     # get operator details stored in operator's init file.
-    operator_info: OperatorInfo = _operator_info(
-        os.path.dirname(
-            inspect.getfile(importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}"))
-        )
-    )
+    operator_info: OperatorInfo = _operator_info(name=name)
 
     try:
         image = f"{operator_info.name}:{operator_info.version or 'undefined'}"
@@ -603,7 +608,7 @@ def build_conda(
         )
 
     # get operator details stored in operator's __init__.py file.
-    operator_info: OperatorInfo = _operator_info(source_folder)
+    operator_info: OperatorInfo = _operator_info(path=source_folder)
 
     # invoke the conda create command
     conda_create(
@@ -661,11 +666,7 @@ def publish_conda(
         raise OperatorNotFoundError(name)
 
     # get operator details stored in operator's init file.
-    operator_info: OperatorInfo = _operator_info(
-        os.path.dirname(
-            inspect.getfile(importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}"))
-        )
-    )
+    operator_info: OperatorInfo = _operator_info(name=name)
     version = re.sub("[^0-9.]", "", operator_info.version)
     slug = f"{operator_info.name}_v{version}".replace(" ", "").replace(".", "_").lower()
 

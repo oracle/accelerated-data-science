@@ -41,7 +41,6 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - statsmodels
 - datapane
 - cerberus
-- json2table
 - sktime
 - optuna==2.9.0
 - oracle-automlx==23.2.3
