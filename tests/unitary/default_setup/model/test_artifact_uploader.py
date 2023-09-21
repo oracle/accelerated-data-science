@@ -29,6 +29,7 @@ class TestArtifactUploader:
         cls.mock_artifact_zip_path = os.path.join(
             cls.curr_dir, "test_files/model_artifacts.zip"
         )
+        cls.mock_oci_artifact_path = "oci://bucket-name@namespace/model_artifacts.zip"
 
     def teardown_class(cls):
         # if os.path.exists(cls.mock_artifact_path):
@@ -73,6 +74,35 @@ class TestArtifactUploader:
                     overwrite_existing_artifact=False,
                     remove_existing_artifact=False,
                 )
+
+            invalid_artifact_path = "oci://my-bucket@my-tenancy/mymodel"
+            with pytest.raises(
+                ValueError,
+                match=f"The `artifact_path={invalid_artifact_path}` is invalid. Please check APIs doc to see the possible values for it.",
+            ):
+                lg_artifact_uploader = LargeArtifactUploader(
+                    dsc_model=self.mock_dsc_model,
+                    artifact_path=invalid_artifact_path,
+                    auth=self.mock_auth,
+                    region=self.mock_region,
+                    overwrite_existing_artifact=False,
+                    remove_existing_artifact=False,
+                )
+
+            with patch("ads.common.utils.is_path_exists", return_value=False):
+                with pytest.raises(
+                    ValueError,
+                    match=f"The `{self.mock_oci_artifact_path}` does not exist",
+                ):
+                    lg_artifact_uploader = LargeArtifactUploader(
+                        dsc_model=self.mock_dsc_model,
+                        artifact_path=self.mock_oci_artifact_path,
+                        auth=self.mock_auth,
+                        region=self.mock_region,
+                        overwrite_existing_artifact=False,
+                        remove_existing_artifact=False,
+                    )
+
             auth = default_signer()
             lg_artifact_uploader = LargeArtifactUploader(
                 dsc_model=self.mock_dsc_model,
@@ -97,6 +127,17 @@ class TestArtifactUploader:
                 == DEFAULT_PARALLEL_PROCESS_COUNT
             )
 
+            with patch("ads.common.utils.is_path_exists", return_value=True):
+                uploader = LargeArtifactUploader(
+                    dsc_model=self.mock_dsc_model,
+                    artifact_path=self.mock_oci_artifact_path,
+                    overwrite_existing_artifact=False,
+                    remove_existing_artifact=False,
+                )
+                assert uploader.artifact_path == self.mock_oci_artifact_path
+                assert uploader.bucket_uri == self.mock_oci_artifact_path
+                assert uploader.artifact_zip_path == None
+
     def test_prepare_artifact_tmp_zip(self):
         # Tests case when a folder provided as artifacts location
         with patch("ads.model.common.utils.zip_artifact") as mock_zip_artifact:
@@ -116,6 +157,15 @@ class TestArtifactUploader:
                 )
                 test_result = artifact_uploader._prepare_artifact_tmp_zip()
                 assert test_result == self.mock_artifact_path + ".zip"
+
+        # Tests case when a zip file provided as object storage path
+        with patch("ads.common.utils.is_path_exists", return_value=True):
+            artifact_uploader = LargeArtifactUploader(
+                dsc_model=self.mock_dsc_model,
+                artifact_path=self.mock_oci_artifact_path,
+            )
+            test_result = artifact_uploader._prepare_artifact_tmp_zip()
+            assert test_result == self.mock_oci_artifact_path
 
     def test_remove_artifact_tmp_zip(self):
         artifact_uploader = SmallArtifactUploader(
@@ -217,6 +267,24 @@ class TestArtifactUploader:
                 remove_existing_artifact=False,
             )
             artifact_uploader.upload()
+
+    @patch("ads.common.utils.is_path_exists", return_value=True)
+    @patch("ads.common.utils.upload_to_os")
+    def test_skip_upload(self, mock_upload, mock_is_path_exists):
+        """Tests case when provided artifact is object storage path."""
+        artifact_uploader = LargeArtifactUploader(
+            dsc_model=self.mock_dsc_model,
+            artifact_path=self.mock_oci_artifact_path,
+            auth=default_signer(),
+            region=self.mock_region,
+            overwrite_existing_artifact=False,
+            remove_existing_artifact=False,
+        )
+        artifact_uploader.upload()
+        mock_upload.assert_not_called()
+        self.mock_dsc_model.export_model_artifact.assert_called_with(
+            bucket_uri=self.mock_oci_artifact_path, region=self.mock_region
+        )
 
     def test_zip_artifact_fail(self):
         with pytest.raises(ValueError, match="The `artifact_dir` must be provided."):
