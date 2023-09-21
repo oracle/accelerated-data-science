@@ -108,7 +108,7 @@ class PyTorchRunnerTest(unittest.TestCase):
             cmd_list,
             [
                 "pip install -r abc/requirements.txt",
-                "pip install abc==1.0",
+                "pip install 'abc==1.0'",
             ],
         )
 
@@ -172,7 +172,7 @@ class AccelerateRunnerTest(unittest.TestCase):
             driver.CONST_ENV_DEEPSPEED: "1",
             driver.OCI__WORKER_COUNT: "1",
             driver.CONST_ENV_LAUNCH_CMD: "accelerate launch train.py --data abc",
-            "RANK": "0",
+            "NODE_RANK": "0",
         },
     )
     @mock.patch("ads.jobs.templates.driver_pytorch.DeepSpeedRunner.run_deepspeed_host")

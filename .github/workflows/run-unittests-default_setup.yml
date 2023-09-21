@@ -9,8 +9,7 @@ on:
       - develop
     paths:
       - "ads/**"
-      - "!ads/ads_version.json"
-      - setup.py
+      - pyproject.toml
       - "**requirements.txt"
       - .github/workflows/run-unittests.yml
       - .github/workflows/run-unittests-default_setup.yml
