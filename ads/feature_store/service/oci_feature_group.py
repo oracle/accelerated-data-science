@@ -5,6 +5,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import datetime
+import pandas as pd
+from ads.common import utils
 
 import oci
 from oci.feature_store.models import (
@@ -64,9 +66,9 @@ class OCIFeatureGroup(OCIFeatureStoreMixin, oci.feature_store.models.FeatureGrou
         Gets feature group by OCID.
     Examples
     --------
-    >>> oci_feature_group = OCIFeatureGroup.from_id("<feature_group_id>")
-    >>> oci_feature_group.description = "A brand new description"
-    >>> oci_feature_group.delete()
+    >>> self = OCIFeatureGroup.from_id("<feature_group_id>")
+    >>> self.description = "A brand new description"
+    >>> self.delete()
     """
 
     def create(self) -> "OCIFeatureGroup":
@@ -121,6 +123,27 @@ class OCIFeatureGroup(OCIFeatureStoreMixin, oci.feature_store.models.FeatureGrou
         None
         """
         self.client.delete_feature_group(self.id)
+
+    def to_df(self):
+        return pd.DataFrame.from_records([self.to_df_record()])
+
+    def to_df_record(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "description": self.description,
+            "time_created": self.time_created.strftime(utils.date_format),
+            "time_updated": self.time_updated.strftime(utils.date_format),
+            "lifecycle_state": self.lifecycle_state,
+            "created_by": f"...{self.created_by[-6:]}",
+            "compartment_id": f"...{self.compartment_id[-6:]}",
+            "primary_keys": self.primary_keys,
+            "feature_store_id": self.feature_store_id,
+            "entity_id": self.entity_id,
+            "input_feature_details": self.input_feature_details,
+            "expectation_details": self.expectation_details,
+            "statistics_config": self.statistics_config,
+        }
 
     @classmethod
     def from_id(cls, id: str) -> "OCIFeatureGroup":

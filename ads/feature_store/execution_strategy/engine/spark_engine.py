@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+from datetime import datetime
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 
@@ -17,7 +18,7 @@ except ModuleNotFoundError:
     )
 except Exception as e:
     raise
-from typing import List
+from typing import List, Dict
 
 from ads.feature_store.common.utils.feature_schema_mapper import (
     map_spark_type_to_feature_type,
@@ -35,6 +36,71 @@ class SparkEngine:
             self.spark = spark_session
         else:
             self.spark = SparkSessionSingleton(metastore_id).get_spark_session()
+
+        self.managed_table_location = (
+            SparkSessionSingleton().get_managed_table_location()
+        )
+
+    def get_time_version_data(
+        self,
+        delta_table_name: str,
+        version_number: int = None,
+        timestamp: datetime = None,
+    ):
+        split_db_name = delta_table_name.split(".")
+
+        # Get the Delta table path
+        delta_table_path = (
+            f"{self.managed_table_location}/{split_db_name[0].lower()}.db/{split_db_name[1]}"
+            if self.managed_table_location
+            else self._get_delta_table_path(delta_table_name)
+        )
+
+        # Set read options based on version_number and timestamp
+        read_options = {}
+        if version_number is not None:
+            read_options["versionAsOf"] = version_number
+        if timestamp:
+            read_options["timestampAsOf"] = timestamp
+
+        # Load the data from the Delta table using specified read options
+        df = self._read_delta_table(delta_table_path, read_options)
+        return df
+
+    def _get_delta_table_path(self, delta_table_name: str) -> str:
+        """
+        Get the path of the Delta table using DESCRIBE EXTENDED SQL command.
+
+        Args:
+            delta_table_name (str): The name of the Delta table.
+
+        Returns:
+            str: The path of the Delta table.
+        """
+        delta_table_path = (
+            self.spark.sql(f"DESCRIBE EXTENDED {delta_table_name}")
+            .filter("col_name = 'Location'")
+            .collect()[0][1]
+        )
+        return delta_table_path
+
+    def _read_delta_table(self, delta_table_path: str, read_options: Dict):
+        """
+        Read the Delta table using specified read options.
+
+        Args:
+            delta_table_path (str): The path of the Delta table.
+            read_options (dict): Dictionary of read options for Delta table.
+
+        Returns:
+            DataFrame: The loaded DataFrame from the Delta table.
+        """
+        df = (
+            self.spark.read.format("delta")
+            .options(**read_options)
+            .load(delta_table_path)
+        )
+        return df
 
     def sql(
         self,

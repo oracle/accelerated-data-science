@@ -10,6 +10,7 @@ from random import random
 
 import oci
 import pandas as pd
+from ads.feature_store.entity import Entity
 from great_expectations.core import ExpectationSuite, ExpectationConfiguration
 import ads
 import os
@@ -21,8 +22,8 @@ from ads.feature_store.statistics_config import StatisticsConfig
 
 
 client_kwargs = dict(
-    retry_strategy=oci.retry.NoneRetryStrategy,
-    service_endpoint=os.getenv("service_endpoint"),
+    retry_strategy=oci.retry.NoneRetryStrategy(),
+    fs_service_endpoint=os.getenv("service_endpoint"),
 )
 ads.set_auth(client_kwargs=client_kwargs)
 
@@ -36,12 +37,16 @@ SLEEP_INTERVAL = 60
 
 
 def transformation_with_kwargs(data_frame, **kwargs):
-    is_area_enabled = kwargs.get('is_area_enabled')
+    is_area_enabled = kwargs.get("is_area_enabled")
 
     if is_area_enabled:
         # Calculate petal area and sepal area
-        data_frame["petal_area"] = data_frame["petal_length"] * data_frame["petal_width"]
-        data_frame["sepal_area"] = data_frame["sepal_length"] * data_frame["sepal_width"]
+        data_frame["petal_area"] = (
+            data_frame["petal_length"] * data_frame["petal_width"]
+        )
+        data_frame["sepal_area"] = (
+            data_frame["sepal_length"] * data_frame["sepal_width"]
+        )
 
     # Return the updated DataFrame
     return data_frame
@@ -49,7 +54,9 @@ def transformation_with_kwargs(data_frame, **kwargs):
 
 class FeatureStoreTestCase:
     # networks compartment in feature store
-    TIME_NOW = str.format("{}_{}",datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"),int(random()*1000))
+    TIME_NOW = str.format(
+        "{}_{}", datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"), int(random() * 1000)
+    )
     TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
@@ -376,9 +383,11 @@ class FeatureStoreTestCase:
         return entity
 
     def create_transformation_resource(self, feature_store) -> "Transformation":
-        transformation = feature_store.create_transformation(source_code_func=transformation_with_kwargs,
-                                                             display_name="transformation_with_kwargs",
-                                                             transformation_mode=TransformationMode.PANDAS)
+        transformation = feature_store.create_transformation(
+            source_code_func=transformation_with_kwargs,
+            display_name="transformation_with_kwargs",
+            transformation_mode=TransformationMode.PANDAS,
+        )
         return transformation
 
     def define_feature_group_resource(
