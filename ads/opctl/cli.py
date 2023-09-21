@@ -192,10 +192,10 @@ _options = [
         "--oci-config",
         help="oci config file",
         required=False,
-        default=None,
+        default=authutil.DEFAULT_LOCATION,
     ),
     click.option(
-        "--oci-profile", help="oci config profile", required=False, default=None
+        "--oci-profile", help="oci config profile", required=False, default=authutil.DEFAULT_PROFILE
     ),
     click.option(
         "--conf-file",
@@ -393,7 +393,11 @@ def run(file, **kwargs):
         if os.path.exists(file):
             auth = {}
             if kwargs["auth"]:
-                auth = authutil.create_signer(kwargs["auth"])
+                auth = authutil.create_signer(
+                    auth_type=kwargs["auth"], 
+                    oci_config_location=kwargs["oci_config"],
+                    profile=kwargs["oci_profile"]
+                )
             else:
                 auth = authutil.default_signer()
 

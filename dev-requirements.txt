@@ -1,6 +1,5 @@
 -r test-requirements.txt
--e ".[opctl]"
--e ".[all-optional]"
+-e ".[bds,data,geo,huggingface,notebook,onnx,opctl,optuna,spark,tensorflow,text,torch,viz]"
 arff
 category_encoders
 dask
@@ -12,7 +11,5 @@ nltk
 pdfplumber
 py4j
 pyarrow
-pyspark
-setuptools
 tables
 xlrd>=1.2.0
