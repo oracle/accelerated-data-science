@@ -111,6 +111,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             output_i["Date"] = outputs[f"{col}_{cat}"].index
             output_i["Series"] = cat
+            output_i["input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
+            output_i[f"fitted_value"] = float('nan')
             output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"].values
             output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"].values
             output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"].values

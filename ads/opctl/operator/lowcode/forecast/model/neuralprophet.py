@@ -219,13 +219,17 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
             output_i["Series"] = cat
-            output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat1"]
-            output_i[f"p{int(quantiles[1]*100)}"] = outputs[f"{col}_{cat}"][
-                f"yhat1 {quantiles[1]*100}%"
-            ]
-            output_i[f"p{int(quantiles[0]*100)}"] = outputs[f"{col}_{cat}"][
-                f"yhat1 {quantiles[0]*100}%"
-            ]
+            output_i[f"input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
+
+            output_i[f"fitted_value"] = float('nan')
+            output_i[f"forecast_value"] = float('nan')
+            output_i[f"p{int(quantiles[1]*100)}"] = float('nan')
+            output_i[f"p{int(quantiles[0]*100)}"] = float('nan')
+
+            output_i.iloc[:-self.spec.horizon.periods, output_i.columns.get_loc(f"fitted_value")] = outputs[f"{col}_{cat}"]["yhat1"].iloc[:-self.spec.horizon.periods].values
+            output_i.iloc[-self.spec.horizon.periods:, output_i.columns.get_loc(f"forecast_value")] = outputs[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon.periods:].values
+            output_i.iloc[-self.spec.horizon.periods:, output_i.columns.get_loc(f"p{int(quantiles[1]*100)}")] = outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1]*100}%"].iloc[-self.spec.horizon.periods:].values
+            output_i.iloc[-self.spec.horizon.periods:, output_i.columns.get_loc(f"p{int(quantiles[0]*100)}")] = outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0]*100}%"].iloc[-self.spec.horizon.periods:].values
             output_col = pd.concat([output_col, output_i])
         # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
         output_col = output_col.reset_index(drop=True)
