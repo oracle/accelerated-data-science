@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -198,6 +198,7 @@ class CreditCard(String):
         df_stat = _count_unique_missing(x)
         card_types = x.apply(assign_issuer)
         value_counts = card_types.value_counts()
+        value_counts.rename("creditcard", inplace=True)
         value_counts.index = [
             "count_" + cardtype for cardtype in list(value_counts.index)
         ]

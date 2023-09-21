@@ -156,7 +156,6 @@ ARTIFACT_HEADER_INFO = {
 
 
 class TestDataScienceModel:
-
     DEFAULT_PROPERTIES_PAYLOAD = {
         "compartmentId": DSC_MODEL_PAYLOAD["compartmentId"],
         "projectId": DSC_MODEL_PAYLOAD["projectId"],
@@ -368,6 +367,7 @@ class TestDataScienceModel:
             bucket_uri="test_bucket_uri",
             overwrite_existing_artifact=False,
             remove_existing_artifact=False,
+            parallel_process_count=3,
         )
         mock_oci_dsc_model_create.assert_called()
         mock_create_model_provenance.assert_called_with(
@@ -380,6 +380,7 @@ class TestDataScienceModel:
             region=None,
             auth=None,
             timeout=None,
+            parallel_process_count=3,
         )
         mock_sync.assert_called()
         assert self.prepare_dict(result.to_dict()["spec"]) == self.prepare_dict(
@@ -622,6 +623,7 @@ class TestDataScienceModel:
                         bucket_uri="test_bucket_uri",
                         overwrite_existing_artifact=False,
                         remove_existing_artifact=False,
+                        parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
                     )
                     mock_upload.assert_called()
 
@@ -659,7 +661,6 @@ class TestDataScienceModel:
             LargeArtifactDownloader, "__init__", return_value=None
         ) as mock_init:
             with patch.object(LargeArtifactDownloader, "download") as mock_download:
-
                 # If artifact is large and bucket_uri not provided
                 with pytest.raises(ModelArtifactSizeError):
                     self.mock_dsc_model.download_artifact(target_dir="test_target_dir")
