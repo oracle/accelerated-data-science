@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+from unittest.mock import patch
 
 import yaml
 from ads.model.runtime.model_provenance_details import (
@@ -57,8 +58,19 @@ class TestModelProvenanceDetails:
         with open(os.path.join(curr_dir, "runtime_fail.yaml"), encoding="utf-8") as rt:
             cls.runtime_dict_fail = yaml.load(rt, loader)
 
-    def test_from_dict(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_dict(self, mock_get_service_packs):
+        conda_env="oci://service_conda_packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        python_version="3.6"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env : ("mlcpuv1", python_version),
+            },
+            {
+                "mlcpuv1" : (conda_env, python_version),
 
+            }
+        )
         model_provenance = ModelProvenanceDetails.from_dict(
             self.runtime_dict["MODEL_PROVENANCE"]
         )
