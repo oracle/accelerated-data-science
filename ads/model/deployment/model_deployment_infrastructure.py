@@ -223,6 +223,7 @@ class ModelDeploymentInfrastructure(Builder):
         defaults[self.CONST_REPLICA] = DEFAULT_REPLICA
 
         if NB_SESSION_OCID:
+            nb_session = None
             try:
                 nb_session = DSCNotebookSession.from_ocid(NB_SESSION_OCID)
             except Exception as e:
