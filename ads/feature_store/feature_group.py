@@ -13,6 +13,7 @@ from typing import Dict, List, Optional, Union
 import pandas as pd
 from great_expectations.core import ExpectationSuite
 
+from ads import deprecated
 from ads.common import utils
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.common.oci_mixin import OCIModelMixin
@@ -43,7 +44,7 @@ from ads.feature_store.query.query import Query
 from ads.feature_store.service.oci_feature_group import OCIFeatureGroup
 from ads.feature_store.service.oci_feature_group_job import OCIFeatureGroupJob
 from ads.feature_store.service.oci_lineage import OCILineage
-from ads.feature_store.statistics import Statistics
+from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
 from ads.feature_store.validation_output import ValidationOutput
 
@@ -179,7 +180,7 @@ class FeatureGroup(Builder):
         # Specify oci FeatureGroup instance
         self.feature_group_job = None
         self._spark_engine = None
-        self.oci_feature_group = self._to_oci_feature_group(**kwargs)
+        self.oci_feature_group: OCIFeatureGroup = self._to_oci_feature_group(**kwargs)
         self.dsc_job = OCIFeatureGroupJob()
         self.lineage = OCILineage(**kwargs)
 
@@ -243,8 +244,8 @@ class FeatureGroup(Builder):
         return self.get_spec(self.CONST_NAME)
 
     @name.setter
-    def name(self, name: str) -> "FeatureGroup":
-        return self.with_name(name)
+    def name(self, name: str):
+        self.with_name(name)
 
     def with_name(self, name: str) -> "FeatureGroup":
         """Sets the name.
@@ -337,7 +338,7 @@ class FeatureGroup(Builder):
         self.with_transformation_kwargs(value)
 
     def with_transformation_kwargs(
-        self, transformation_kwargs: Dict = {}
+        self, transformation_kwargs: Dict = ()
     ) -> "FeatureGroup":
         """Sets the primary keys of the feature group.
 
@@ -431,6 +432,11 @@ class FeatureGroup(Builder):
         FeatureGroup
             The FeatureGroup instance (self)
         """
+
+        # Initialize the empty dictionary as transformation arguemnts if not specified
+        if not self.transformation_kwargs:
+            self.with_transformation_kwargs()
+
         return self.set_spec(self.CONST_TRANSFORMATION_ID, transformation_id)
 
     def _with_lifecycle_state(self, lifecycle_state: str) -> "FeatureGroup":
@@ -598,7 +604,6 @@ class FeatureGroup(Builder):
         FeatureGroup
             The FeatureGroup instance (self).
         """
-        statistics_config_in = None
         if isinstance(statistics_config, StatisticsConfig):
             statistics_config_in = statistics_config
         elif isinstance(statistics_config, bool):
@@ -748,7 +753,6 @@ class FeatureGroup(Builder):
                 {
                     "name": feature.feature_name,
                     "type": feature.feature_type,
-                    "feature_group_id": feature.feature_group_id,
                 }
             )
         return pd.DataFrame.from_records(records)
@@ -921,13 +925,21 @@ class FeatureGroup(Builder):
             )
 
         if not self.job_id:
-            raise ValueError(
-                "Associated jobs cannot be retrieved before calling 'materialise' or 'delete'."
+            fg_job = FeatureGroupJob.list(
+                feature_group_id=self.id,
+                compartment_id=self.compartment_id,
+                sort_by="timeCreated",
+                limit="1",
             )
-
+            if not fg_job:
+                raise ValueError(
+                    "Unable to retrieve the associated last job. Please make sure you materialized the data."
+                )
+            self.with_job_id(fg_job[0].id)
+            return fg_job[0]
         return FeatureGroupJob.from_id(self.job_id)
 
-    def select(self, features: Optional[List[str]] = []) -> Query:
+    def select(self, features: Optional[List[str]] = ()) -> Query:
         """
         Selects a subset of features from the feature group and returns a Query object that can be used to view the
         resulting dataframe.
@@ -989,6 +1001,7 @@ class FeatureGroup(Builder):
         """
         return self.select().filter(f)
 
+    @deprecated(details="preview functionality is deprecated. Please use as_of.")
     def preview(
         self,
         row_count: int = 10,
@@ -1020,9 +1033,40 @@ class FeatureGroup(Builder):
 
         if version_number is not None:
             logger.warning("Time travel queries are not supported in current version")
+
         sql_query = f"select * from {target_table} LIMIT {row_count}"
 
         return self.spark_engine.sql(sql_query)
+
+    def as_of(
+        self,
+        version_number: int = None,
+        commit_timestamp: datetime = None,
+    ):
+        """preview the feature definition and return the response in dataframe.
+
+        Parameters
+        ----------
+        commit_timestamp: datetime
+            commit date time to preview in format yyyy-MM-dd or yyyy-MM-dd HH:mm:ss
+            commit date time is maintained for every ingestion commit using delta lake
+        version_number: int
+            commit version number for the preview. Version numbers are automatically versioned for every ingestion
+            commit using delta lake
+
+        Returns
+        -------
+        spark dataframe
+            The preview result in spark dataframe
+        """
+        self.check_resource_materialization()
+
+        validate_delta_format_parameters(commit_timestamp, version_number)
+        target_table = self.target_delta_table()
+
+        return self.spark_engine.get_time_version_data(
+            target_table, version_number, commit_timestamp
+        )
 
     def profile(self):
         """get the profile information for feature definition and return the response in dataframe.
@@ -1063,7 +1107,6 @@ class FeatureGroup(Builder):
                 f"RESTORE TABLE {target_table} TO VERSION AS OF {version_number}"
             )
         else:
-            iso_timestamp = timestamp.isoformat(" ", "seconds").__str__()
             sql_query = f"RESTORE TABLE {target_table} TO TIMESTAMP AS OF {timestamp}"
 
         restore_output = self.spark_engine.sql(sql_query)
@@ -1085,7 +1128,6 @@ class FeatureGroup(Builder):
         """Checks whether the target Delta table for this resource has been materialized in Spark.
         If the target Delta table doesn't exist, raises a NotMaterializedError with the type and name of this resource.
         """
-        print(self.target_delta_table())
         if not self.spark_engine.is_delta_table_exists(self.target_delta_table()):
             raise NotMaterializedError(self.type, self.name)
 
@@ -1121,28 +1163,9 @@ class FeatureGroup(Builder):
         for oci_feature_group in OCIFeatureGroup.list_resource(
             compartment_id, **kwargs
         ):
-            records.append(
-                {
-                    "id": oci_feature_group.id,
-                    "name": oci_feature_group.name,
-                    "description": oci_feature_group.description,
-                    "time_created": oci_feature_group.time_created.strftime(
-                        utils.date_format
-                    ),
-                    "time_updated": oci_feature_group.time_updated.strftime(
-                        utils.date_format
-                    ),
-                    "lifecycle_state": oci_feature_group.lifecycle_state,
-                    "created_by": f"...{oci_feature_group.created_by[-6:]}",
-                    "compartment_id": f"...{oci_feature_group.compartment_id[-6:]}",
-                    "primary_keys": oci_feature_group.primary_keys,
-                    "feature_store_id": oci_feature_group.feature_store_id,
-                    "entity_id": oci_feature_group.entity_id,
-                    "input_feature_details": oci_feature_group.input_feature_details,
-                    "expectation_details": oci_feature_group.expectation_details,
-                    "statistics_config": oci_feature_group.statistics_config,
-                }
-            )
+            oci_feature_group: OCIFeatureGroup = oci_feature_group
+            records.append(oci_feature_group.to_df_record())
+
         return pd.DataFrame.from_records(records)
 
     @classmethod
@@ -1313,7 +1336,7 @@ class FeatureGroup(Builder):
                 "FeatureGroup needs to be saved to the feature store before retrieving the statistics"
             )
 
-        stat_job_id = self._get_job_id(job_id)
+        stat_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # TODO: take the one in memory or will list down job ids and find the latest
         fg_job = FeatureGroupJob.from_id(stat_job_id)
@@ -1342,7 +1365,7 @@ class FeatureGroup(Builder):
                 "FeatureGroup needs to be saved to the feature store before retrieving the validation report"
             )
 
-        validation_job_id = self._get_job_id(job_id)
+        validation_job_id = job_id if job_id is not None else self.get_last_job().id
 
         # Retrieve the validation output JSON from data_flow_batch_execution_output.
         fg_job = FeatureGroupJob.from_id(validation_job_id)

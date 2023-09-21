@@ -3,8 +3,35 @@
 =============
 Release Notes
 =============
-1.2
----
+1.0.3
+-----
+.. note::
+
+    .. list-table::
+      :header-rows: 1
+
+      * - Package Name
+        - Latest Version
+        - Notes
+      * - SERVICE_VERSION
+        - 0.1.225.master
+        -
+
+Release notes: August 10, 2023
+
+* [FEATURE] Addition of ``featurestore_dataset``  as optional parameter in GenericModel ``save`` function.
+* [FEATURE] Addition of ``transformation_kwargs`` in ``Transformation`` entity.
+* [FEATURE] Addition of partition keys in ``FeatureGroup`` and ``Dataset``
+* [FEATURE] OCI Marketplace integration of the stack.
+* [FEATURE] Conda release of feature store pack ``fspyspark32_p38_cpu_v1``
+* [FIX] Validation of model ids when associated with ``Dataset``
+* [UI] Stats visualisation of feature group and dataset.
+* [UI] Global search for feature store entities.
+* [UI] Addition of onboarding page for feature store.
+* [UI] Redirection of entities within the lineage tab of feature group and dataset.
+
+1.0.2
+-----
 .. note::
 
     .. list-table::
@@ -32,8 +59,8 @@ Release notes: July 18, 2023
 * [DOCS] For ``ValidationOutput`` instance, addition of ``to_summary()`` method  for validation summary details.
 * [DOCS] For ``ValidationOutput`` instance, addition of ``to_pandas()`` method  for validation detailed report.
 
-1.1
----
+1.0.1
+-----
 
 .. note::
 
@@ -63,8 +90,8 @@ Release notes: July 5, 2023
 * [DOCS] Data Type update for Offline Feature Type COMPLEX
 * [DOCS] Updated terraform default version as 1.1.x
 
-1.0
----
+1.0.0
+----
 
 .. note::
 

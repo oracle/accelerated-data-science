@@ -18,15 +18,19 @@ A ``FeatureGroup`` instance will be created.
     :caption: Python
 
     from ads.feature_store.feature_group import FeatureGroup
+    # Dictionary containing arguments for the feature group for the transformation function.
+    transformation_kwargs = {}
 
     feature_group_flights = (
         FeatureGroup()
         .with_feature_store_id(feature_store.id)
         .with_primary_keys(["col1"])
+        .with_partition_keys(["col1", "col2"])
         .with_name("flights_feature_group")
         .with_entity_id("<entity_id>")
         .with_compartment_id("ocid1.compartment..<unique_id>")
         .with_schema_details_from_dataframe(dataframe)
+        .with_transformation_kwargs(transformation_kwargs)
     )
 
   .. code-tab:: Python3
@@ -50,6 +54,9 @@ A ``FeatureGroup`` instance will be created.
         orderNumber: 2
       name: <feature_group_name>
       primaryKeys:
+        items:
+        - name: col1
+      partitionKeys:
         items:
         - name: col1
       statisticsConfig:
@@ -247,6 +254,13 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 .. image:: figures/stats_1.png
 
+.. code-block:: python3
+
+  # Fetch and visualize stats for a dataset job
+  df = feature_group.get_statistics(job_id).to_viz()
+
+.. image:: figures/feature_group_statistics_viz.png
+
 .. seealso::
 
     :ref:`Statistics`
@@ -283,8 +297,12 @@ Feature store provides an API similar to Pandas to join feature groups together 
   # Filter feature group
   feature_group.filter(feature_group.col1 > 10).show()
 
+
 Preview
 =======
+
+.. deprecated:: 1.0.3
+   Use :func:`as_of` instead.
 
 You can call the ``preview()`` method of the FeatureGroup instance to preview the feature group.
 
@@ -298,6 +316,21 @@ The ``.preview()`` method takes the following optional parameter:
 
   # Preview feature group
   df = feature_group.preview(row_count=50)
+
+as_of
+=======
+
+You can call the ``as_of()`` method of the FeatureGroup instance to get specified point in time and time traveled data.
+
+The ``.as_of()`` method takes the following optional parameter:
+
+- ``commit_timestamp: date-time``. Commit timestamp for feature group
+- ``version_number: int``. Version number for feature group
+
+.. code-block:: python3
+
+  # as_of feature group
+  df = feature_group.as_of(version_number=1)
 
 Restore
 =======

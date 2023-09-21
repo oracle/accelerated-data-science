@@ -6,8 +6,7 @@ Quick start
 
   ..  code-block:: shell
 
-    odsc conda install --uri https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda
-
+     odsc conda install -s fspyspark32_p38_cpu_v1
 3. Download the notebooks from the example notebook section.
 
 .. seealso::
@@ -73,19 +72,24 @@ Background reading to understand the concepts of Feature Store and OCI Data Scie
 
 
     # step2: Create feature store
-    def transactions_df(dataframe):
+    def transactions_df(dataframe, **kwargs):
+        columns = kwargs.get('columns', '*')  # Default to select all columns if 'columns' not provided
+        where_clause = kwargs.get('where_clause', '')  # Default to empty where clause if 'where_clause' not provided
+
         sql_query = f"""
                     SELECT
-                        col1,
-                        col2
+                        {columns}
                     FROM
-                        {dataframe}
+                        {table_name}
+                    {where_clause}
                 """
         return sql_query
 
+    transformation = feature_store.create_transformation(
+        transformation_mode=TransformationMode.SQL,
+        source_code_func=transactions_df
+    )
 
-    transformation = feature_store.create_transformation(transformation_mode=TransformationMode.SQL,
-                                                         source_code_func=transactions_df)
 
     # step3: Create expectation
     expectation_suite = ExpectationSuite(expectation_suite_name="feature_definition")
@@ -102,14 +106,17 @@ Background reading to understand the concepts of Feature Store and OCI Data Scie
     stats_config = StatisticsConfig().with_is_enabled(False)
 
     # step5: Create feature group
+    transformation_args = {"columns": "col1, col2", "where_clause": "col3 > 100"}
     feature_group = entity.create_feature_group(
-                        ["name"],
+                        primary_keys=["name"],
+                        partition_keys=["name"],
                         input_feature_details,
-                        expectation_suite,
-                        ExpectationType.LENIENT,
-                        stats_config,
+                        expectation_suite=expectation_suite,
+                        expectation_type=ExpectationType.LENIENT,
+                        statistics_config=stats_config,
                         name="<feature_group_name>",
-                        transformation_id=transformation.id
+                        transformation_id=transformation.id,
+                        transformation_kwargs=transformation_args
                     )
 
 

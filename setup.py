@@ -72,9 +72,14 @@ extras_require = {
     "bds": ["ibis-framework[impala]", "hdfs[kerberos]", "sqlalchemy"],
     "spark": ["pyspark>=3.0.0", "delta-spark"],
     "huggingface": ["transformers"],
-    "great-expectations": ["great-expectations==0.15.39"],
+    "feature-store": [
+        "pyspark>=3.0.0",
+         "delta-spark",
+         "great-expectations==0.15.39",
+         "pyarrow",
+         "plotly"
+    ],
     "mlm_insights": ["mlm_insights==0.1.0.dev1"],
-    "pyarrow": ["pyarrow"],
 }
 
 this_directory = Path(__file__).parent

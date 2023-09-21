@@ -21,8 +21,8 @@ try:
     from great_expectations.validator.validator import Validator
 except ModuleNotFoundError:
     raise ModuleNotFoundError(
-        f"The `great-expectations` module was not found. Please run `pip install "
-        f"{OptionalDependency.GREAT_EXPECTATIONS}`."
+        f"The `feature-store` module was not found. Please run `pip install "
+        f"{OptionalDependency.FEATURE_STORE}`."
     )
 except Exception as e:
     raise
