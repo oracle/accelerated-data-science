@@ -138,10 +138,23 @@ class TestModelArtifact:
             (TrainingEnvInfo, mlcpu_path_cust, None, None, training_info_cust),
         ],
     )
+    @patch("ads.model.runtime.env_info.get_service_packs")
     def test__populate_env_info_inference(
-        self, env_info_class, conda_pack, bucketname, namespace, expected_env_info
+        self, mock_get_service_packs, env_info_class, conda_pack, bucketname, namespace, expected_env_info
     ):
         """test _populate_env_info."""
+        env_path = (
+            expected_env_info.inference_env_path if isinstance(expected_env_info, InferenceEnvInfo) 
+            else expected_env_info.training_env_path
+        )
+        mock_get_service_packs.return_value = (
+            {
+                env_path : ("mlcpuv1", "3.6")
+            },
+            {
+                "mlcpuv1" : (env_path, "3.6")
+            }
+        )
         env_info = self.artifact._populate_env_info(
             env_info_class,
             conda_pack=conda_pack,

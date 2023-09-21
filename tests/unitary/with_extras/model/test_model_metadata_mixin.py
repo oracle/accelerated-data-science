@@ -3,6 +3,7 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from unittest.mock import patch
 import numpy as np
 import pytest
 from sklearn import datasets, linear_model
@@ -104,7 +105,19 @@ class TestMetadataMixin:
         )
         assert model.metadata_provenance.training_id is None
 
-    def test_metadata_sklearn_model(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_metadata_sklearn_model(self, mock_get_service_packs):
+        conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        python_version="3.7"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env : ("dataexpl_p37_cpu_v3", python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3" : (conda_env, python_version),
+
+            }
+        )
         model = SklearnModel(self.rgr, artifact_dir="./test_sklearn")
         model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
@@ -146,7 +159,19 @@ class TestMetadataMixin:
         )
         assert model.metadata_provenance.training_id is None
 
-    def test_metadata_xgboost_model(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_metadata_xgboost_model(self, mock_get_service_packs):
+        conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        python_version="3.7"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env : ("dataexpl_p37_cpu_v3", python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3" : (conda_env, python_version),
+
+            }
+        )
         model = XGBoostModel(self.xgb_rgr, artifact_dir="./test_xgboost")
         model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
@@ -192,7 +217,7 @@ class TestMetadataMixin:
         assert model.metadata_provenance.training_id is None
         assert (
             model.runtime_info.model_deployment.inference_conda_env.inference_env_path
-            == "oci://service-conda-packs@id19sfcrra6z/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+            == "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
         )
 
     def teardown_method(self):
