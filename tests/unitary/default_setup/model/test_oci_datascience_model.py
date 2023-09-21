@@ -88,7 +88,6 @@ ARTIFACT_HEADER_INFO = {
 
 class TestOCIDataScienceModel:
     def setup_class(cls):
-
         # Mock delete model response
         cls.mock_delete_model_response = Response(
             data=None, status=None, headers=None, request=None
@@ -229,7 +228,9 @@ class TestOCIDataScienceModel:
                 mock_model_deployment.return_value = [
                     MagicMock(lifecycle_state="ACTIVE", identifier="md_id")
                 ]
-                with patch("ads.model.deployment.ModelDeployment.from_id") as mock_from_id:
+                with patch(
+                    "ads.model.deployment.ModelDeployment.from_id"
+                ) as mock_from_id:
                     with patch.object(OCIDataScienceModel, "sync") as mock_sync:
                         self.mock_model.delete(delete_associated_model_deployment=True)
                         mock_from_id.assert_called_with("md_id")
@@ -445,7 +446,7 @@ class TestOCIDataScienceModel:
             )
             mock_wait_for_work_request.assert_called_with(
                 work_request_id="work_request_id",
-                num_steps=3,
+                num_steps=2,
             )
 
     @patch.object(TqdmProgressBar, "update")

@@ -3,7 +3,7 @@ name: "Add 3P License Warning to PR"
 on:
   pull_request:
     paths:
-      - setup.py
+      - pyproject.toml
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -23,9 +23,9 @@ jobs:
     steps:
       - run: |
           BODY_MSG=$(cat << EOF
-          ⚠️ This PR changed **setup.py** file. ⚠️ 
-            - PR Creator must update 📃 THIRD_PARTY_LICENSES.txt, if any 📚 library added/removed in **setup.py**.
-            - PR Approver must confirm 📃 THIRD_PARTY_LICENSES.txt updated, if any 📚 library added/removed in **setup.py**.
+          ⚠️ This PR changed **pyproject.toml** file. ⚠️
+            - PR Creator must update 📃 THIRD_PARTY_LICENSES.txt, if any 📚 library added/removed in **pyproject.toml**.
+            - PR Approver must confirm 📃 THIRD_PARTY_LICENSES.txt updated, if any 📚 library added/removed in **pyproject.toml**.
           EOF
           )
           echo "BODY_MSG<<EOF" >> $GITHUB_ENV

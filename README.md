@@ -29,12 +29,6 @@ You have various options when installing ADS.
 
 ### Installing extras libraries
 
-The `all-optional` module will install all optional dependencies. Note the single quotes around installation of extra libraries.
-
-```bash
-  python3 -m pip install 'oracle-ads[all-optional]'
-```
-
 To work with gradient boosting models, install the `boosted` module. This module includes XGBoost and LightGBM model classes.
 
 ```bash
@@ -106,6 +100,8 @@ Install the `viz` module to include libraries for visualization tasks. Some of t
 ```bash
   python3 -m pip install 'oracle-ads[viz]'
 ```
+
+See `pyproject.toml` file `[project.optional-dependencies]` section for full list of modules and its list of extra libraries.
 
 **Note**
 

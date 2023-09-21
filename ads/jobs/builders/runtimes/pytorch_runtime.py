@@ -205,7 +205,8 @@ class PyTorchDistributedRuntime(PythonRuntime):
                 if not envs:
                     envs = {}
                 # Huggingface accelerate requires machine rank
-                envs["RANK"] = str(i)
+                # Here we use NODE_RANK to store the machine rank
+                envs["NODE_RANK"] = str(i)
                 envs["WORLD_SIZE"] = str(replicas)
                 if main_run:
                     envs["MAIN_JOB_RUN_OCID"] = main_run.id

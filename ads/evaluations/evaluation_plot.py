@@ -447,7 +447,7 @@ class EvaluationPlot:
 
     @classmethod
     def _lift_chart(cls, ax, evaluation):
-        for mod_name, col in evaluation.iteritems():
+        for mod_name, col in evaluation.items():
             if col["y_score"] is not None:
                 ax.plot(
                     col["percentages"][1:],
@@ -476,7 +476,7 @@ class EvaluationPlot:
 
     @classmethod
     def _gain_chart(cls, ax, evaluation):
-        for mod_name, col in evaluation.iteritems():
+        for mod_name, col in evaluation.items():
             if col["y_score"] is not None:
                 ax.plot(
                     col["percentages"],
@@ -517,7 +517,7 @@ class EvaluationPlot:
                 ax.axis("off")
                 return
             if cls.prob_type == "_bin":
-                for mod_name, col in evaluation.iteritems():
+                for mod_name, col in evaluation.items():
                     if col["y_score"] is not None:
                         ax.plot(
                             col["recall_values"],
@@ -589,7 +589,7 @@ class EvaluationPlot:
                 ax.axis("off")
                 return
             if cls.prob_type == "_bin":
-                for mod_name, col in evaluation.iteritems():
+                for mod_name, col in evaluation.items():
                     if col["y_score"] is not None:
                         ax.plot(
                             col["false_positive_rate"],
@@ -803,7 +803,6 @@ class EvaluationPlot:
         label=None,
         plot_kwargs=None,
     ):
-
         if plot_kwargs is None:
             plot_kwargs = {}
         ax.scatter(x, y, s=s, label=label, marker="o", alpha=alpha, **plot_kwargs)

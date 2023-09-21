@@ -694,7 +694,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         # --multi_gpu will be set automatically if there is more than 1 GPU
         # self.multi_gpu = bool(self.node_count > 1 or self.gpu_count > 1)
         self.num_machines = self.node_count
-        self.machine_rank = os.environ["RANK"]
+        self.machine_rank = os.environ["NODE_RANK"]
         # Total number of processes across all nodes
         # Here we assume all nodes are having the same shape
         self.num_processes = (self.gpu_count if self.gpu_count else 1) * self.node_count

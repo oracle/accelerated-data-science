@@ -58,7 +58,7 @@ Open the destination folder where you want to clone ADS library, and install dep
     python3 -m pip install -e .
 ```
 
-To which packages were installed and their version numbers, run:
+To view which packages were installed and their version numbers, run:
 
 ```bash
     python3 -m pip freeze
@@ -71,10 +71,11 @@ You should also set up configuration files, see the [SDK and CLI Configuration F
 
 ### Step 5: Versioning and generation the wheel
 
-Use `ads_version.json` for versioning. The ADS SDK is packaged as a wheel. To generate the wheel, you can run:
+Bump the versions in `pyproject.toml`. The ADS SDK using [build](https://pypa-build.readthedocs.io/en/stable/index.html) as build frontend. To generate sdist and wheel, you can run:
 
 ```bash
-    python3 setup.py sdist bdist_wheel
+    pip install build
+    python3 -m build
 ```
 
 This wheel can then be installed using `pip`.
@@ -85,7 +86,7 @@ The SDK uses pytest as its test framework.
 
 ### Running default setup tests
 
-Default setup tests for testing ADS SDK without extra dependencies, specified in setup.py.
+Default setup tests for testing ADS SDK without extra dependencies, specified in `pyproject.toml` in `[project.optional-dependencies]`.
 
 ```bash
   # Update your environment with tests dependencies
