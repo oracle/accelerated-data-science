@@ -22,9 +22,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automl",
         err_msg=(
-            "Please run `pip3 install "
-            "--extra-index-url=https://artifacthub-phx.oci.oraclecorp.com/artifactory/api/pypi/automlx-pypi/simple/automlx==23.2.2` "
-            "to install the required dependencies for automlx."
+                "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
         ),
     )
     def _build_model(self) -> pd.DataFrame:

@@ -198,6 +198,13 @@ spec:
       required: true
       default: target
 
+    feature_engineering:
+      type: boolean
+      required: true
+      default: true
+      meta:
+        description: "feature_engineering disabled using this flag, Defaults to true"
+
     datetime_column:
       type: dict
       required: true

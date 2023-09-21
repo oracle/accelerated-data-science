@@ -88,6 +88,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     metrics_filename: str = None
     forecast_filename: str = None
     target_column: str = None
+    feature_engineering: bool = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
     horizon: Horizon = field(default_factory=Horizon)
@@ -102,6 +103,7 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_file_name = self.report_file_name or "report.html"
+        self.feature_engineering = self.feature_engineering if self.feature_engineering is not None else True
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
         self.forecast_filename = self.forecast_filename or "forecast.csv"

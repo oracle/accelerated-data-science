@@ -4,6 +4,9 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from ads.opctl import logger
+
+
 class Transformations:
     """A class which implements transformation for forecast operator"""
     def __init__(self, data, dataset_info):
@@ -19,6 +22,7 @@ class Transformations:
         self.series_id_column = dataset_info.target_category_columns
         self.target_variables = dataset_info.target_column
         self.date_column = dataset_info.datetime_column.name
+        self.feature_engineering = dataset_info.feature_engineering
 
     def run(self):
         """
@@ -29,7 +33,11 @@ class Transformations:
             A new Pandas DataFrame with treated / transformed target values.
         """
         imputed_df = self._missing_value_imputation(self.data)
-        treated_df = self._outlier_treatment(imputed_df)
+        if self.feature_engineering:
+            treated_df = self._outlier_treatment(imputed_df)
+        else:
+            logger.info("Skipping outlier treatment as feature_engineering is disabled")
+            treated_df = imputed_df
         return treated_df
 
     def _missing_value_imputation(self, df):
