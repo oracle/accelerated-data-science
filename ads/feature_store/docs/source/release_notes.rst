@@ -14,7 +14,7 @@ Release Notes
         - Latest Version
         - Notes
       * - SERVICE_VERSION
-        - 0.1.225.master
+        - 0.1.256.master
         -
 
 Release notes: August 10, 2023
@@ -22,10 +22,11 @@ Release notes: August 10, 2023
 * [FEATURE] Addition of ``featurestore_dataset``  as optional parameter in GenericModel ``save`` function.
 * [FEATURE] Addition of ``transformation_kwargs`` in ``Transformation`` entity.
 * [FEATURE] Addition of partition keys in ``FeatureGroup`` and ``Dataset``
-* [FEATURE] OCI Marketplace integration of the stack.
+* [FEATURE] Addition of ``to_viz`` interface for feature store
 * [FEATURE] Conda release of feature store pack ``fspyspark32_p38_cpu_v1``
 * [FIX] Validation of model ids when associated with ``Dataset``
 * [UI] Stats visualisation of feature group and dataset.
+* [UI] Transformation listing in the transformation tab
 * [UI] Global search for feature store entities.
 * [UI] Addition of onboarding page for feature store.
 * [UI] Redirection of entities within the lineage tab of feature group and dataset.
