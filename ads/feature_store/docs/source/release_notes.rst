@@ -14,9 +14,6 @@ Release Notes
       * - Package Name
         - Latest Version
         - Notes
-      * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/p/LzT6f_OEVuPRU-zp8xIyGkf-iUTXDGpzcW6V0CIPYP_Z4NlUsZLm7ssBsdgfK18a/n/ociodscdev/b/fs-conda-packs-release/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/2.0/fspyspark32_p38_cpu_v2`
-        -
       * - SERVICE_VERSION
         - 0.1.256.master
         -
