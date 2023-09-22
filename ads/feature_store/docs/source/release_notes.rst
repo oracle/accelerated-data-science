@@ -4,40 +4,6 @@
 Release Notes
 =============
 
-1.0.3
------
-.. note::
-
-    .. list-table::
-      :header-rows: 1
-
-      * - Package Name
-        - Latest Version
-        - Notes
-      * - SERVICE_VERSION
-        - 0.1.256.master
-        -
-      * - Terraform Stack
-        - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__
-        -
-
-
-Release notes: September 22, 2023
-
-* [FEATURE] Addition of ``featurestore_dataset``  as optional parameter in GenericModel ``save`` function.
-* [FEATURE] Addition of ``transformation_kwargs`` in ``Transformation`` entity.
-* [FEATURE] Addition of partition keys in ``FeatureGroup`` and ``Dataset``
-* [FEATURE] as_of interface for time travel
-* [FEATURE] Manual association of feature groups in ``Dataset`` construct and support for complex queries
-* [FEATURE] Simplify the ads init experience without users need to specify the feature store endpoint
-* [FEATURE] Visualisation of feature statistics with ``to_viz`` in ``Statistics`` entity
-* [FIX] Validation of model ids when associated with ``Dataset``
-* [UI] Stats visualisation of feature group and dataset.
-* [UI] Transformation listing in the transformation tab
-* [UI] Global search for feature store entities.
-* [UI] Addition of onboarding page for feature store.
-* [UI] Redirection of entities within the lineage tab of feature group and dataset.
-
 1.0.2
 -----
 .. note::
@@ -48,9 +14,6 @@ Release notes: September 22, 2023
       * - Package Name
         - Latest Version
         - Notes
-      * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
-        -
       * - SERVICE_VERSION
         - 0.1.225.master
         -
@@ -78,9 +41,6 @@ Release notes: July 18, 2023
       * - Package Name
         - Latest Version
         - Notes
-      * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
-        -
       * - SERVICE_VERSION
         - 0.1.218.master
         -
@@ -109,9 +69,6 @@ Release notes: July 5, 2023
       * - Package Name
         - Latest Version
         - Notes
-      * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
-        -
       * - SERVICE_VERSION
         - 0.1.209.master
         -
