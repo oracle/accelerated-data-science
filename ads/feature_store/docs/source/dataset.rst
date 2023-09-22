@@ -220,13 +220,6 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 .. image:: figures/dataset_statistics.png
 
-.. code-block:: python3
-
-  # Fetch and visualize stats for a dataset job
-  df = dataset.get_statistics(job_id).to_viz()
-
-.. image:: figures/dataset_statistics_viz.png
-
 
 .. seealso::
 
@@ -247,9 +240,6 @@ You can call the ``get_features_df()`` method of the Dataset instance to fetch f
 Preview
 ========
 
-.. deprecated:: 1.0.3
-   Use :func:`as_of` instead.
-
 You can call the ``preview()`` method of the Dataset instance to preview the dataset.
 
 The ``.preview()`` method takes the following optional parameter:
@@ -262,21 +252,6 @@ The ``.preview()`` method takes the following optional parameter:
   # Preview dataset
   df = dataset.preview(row_count=50)
   df.show()
-
-as_of
-=======
-
-You can call the ``as_of()`` method of the Dataset instance to get specified point in time and time traveled data.
-
-The ``.as_of()`` method takes the following optional parameter:
-
-- ``commit_timestamp: date-time``. Commit timestamp for dataset
-- ``version_number: int``. Version number for dataset
-
-.. code-block:: python3
-
-  # as_of feature group
-  df = dataset.as_of(version_number=1)
 
 
 Restore

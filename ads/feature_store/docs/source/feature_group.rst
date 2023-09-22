@@ -254,8 +254,6 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 .. image:: figures/stats_1.png
 
-.. image:: figures/feature_group_statistics_viz.png
-
 .. seealso::
 
     :ref:`Statistics`
@@ -295,9 +293,6 @@ Feature store provides an API similar to Pandas to join feature groups together 
 
 Preview
 =======
-
-.. deprecated:: 1.0.3
-   Use :func:`as_of` instead.
 
 You can call the ``preview()`` method of the FeatureGroup instance to preview the feature group.
 
