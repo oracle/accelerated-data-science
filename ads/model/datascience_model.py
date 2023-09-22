@@ -673,13 +673,11 @@ class DataScienceModel(Builder):
                 "timeout": timeout,
             }
 
-        if (
-            ObjectStorageDetails.is_oci_path(self.artifact)
-            and self.artifact != bucket_uri
-        ):
-            logger.warn(
-                "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
-            )
+        if ObjectStorageDetails.is_oci_path(self.artifact):
+            if bucket_uri and bucket_uri != self.artifac:
+                logger.warn(
+                    "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
+                )
             bucket_uri = self.artifact
 
         if bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES:

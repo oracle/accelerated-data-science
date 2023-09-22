@@ -213,6 +213,7 @@ class LargeArtifactUploader(ArtifactUploader):
     def _upload(self):
         """Uploads model artifacts to the model catalog."""
         bucket_uri = self.bucket_uri
+        self.progress.update("Copying model artifact to the Object Storage bucket")
         if not bucket_uri == self.artifact_zip_path:
             bucket_uri_file_name = os.path.basename(bucket_uri)
 
@@ -230,9 +231,6 @@ class LargeArtifactUploader(ArtifactUploader):
                 )
 
             try:
-                self.progress.update(
-                    "Copying model artifact to the Object Storage bucket"
-                )
                 utils.upload_to_os(
                     src_uri=self.artifact_zip_path,
                     dst_uri=bucket_uri,
