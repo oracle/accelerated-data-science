@@ -73,6 +73,7 @@ AUTH_TYPE_OPTION = (
 
 @click.group("operator")
 def commands():
+    "The CLI to assist in the management of the ADS operators."
     pass
 
 
@@ -133,7 +134,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
 )
 @with_auth
 def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Builds a new image for the particular operator."""
+    """Creates a new image for the specified operator."""
     suppress_traceback(debug)(cmd_build_image)(**kwargs)
 
 
@@ -208,7 +209,7 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
 )
 @with_auth
 def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """Builds a new conda environment for the particular operator."""
+    """Creates a new conda environment for the specified operator."""
     suppress_traceback(debug)(cmd_build_conda)(**kwargs)
 
 

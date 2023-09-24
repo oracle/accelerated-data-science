@@ -33,6 +33,7 @@ from ads.opctl.constants import (
     RESOURCE_TYPE,
     RUNTIME_TYPE,
 )
+from ads.opctl.decorator.common import validate_environment
 from ads.opctl.operator.common.const import (
     OPERATOR_BASE_DOCKER_FILE,
     OPERATOR_BASE_DOCKER_GPU_FILE,
@@ -41,6 +42,7 @@ from ads.opctl.operator.common.const import (
     PACK_TYPE,
 )
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
+from ads.opctl.operator.common.utils import OperatorInfo
 from ads.opctl.utils import publish_image as publish_image_cmd
 
 from .__init__ import __operators__
@@ -315,6 +317,7 @@ def init(
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@validate_environment
 def build_image(
     name: str = None,
     gpu: bool = None,
@@ -417,6 +420,7 @@ def build_image(
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@validate_environment
 def publish_image(
     name: str,
     registry: str = None,

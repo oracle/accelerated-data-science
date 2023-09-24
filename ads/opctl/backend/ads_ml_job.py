@@ -14,8 +14,6 @@ import time
 from distutils import dir_util
 from typing import Dict, Tuple, Union
 
-from jinja2 import Environment, PackageLoader
-
 from ads.common.auth import AuthContext, AuthType, create_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.jobs import (
@@ -198,36 +196,6 @@ class MLJobBackend(Backend):
             print("JOB RUN OCID:", run_id)
             return {"job_id": job_id, "run_id": run_id}
 
-    def init_operator(self):
-        # TODO: check if folder is empty, check for force overwrite
-        # TODO: check that command is being run from advanced-ds repo (important until ads released)
-
-        operator_folder = self.config["execution"].get("operator_folder_path")
-        os.makedirs(operator_folder, exist_ok=True)
-
-        operator_folder_name = os.path.basename(os.path.normpath(operator_folder))
-        docker_tag = f"{os.path.join(self.config['infrastructure'].get('docker_registry'), operator_folder_name)}:latest"
-
-        self.config["execution"]["operator_folder_name"] = operator_folder_name
-        self.config["execution"]["docker_tag"] = docker_tag
-
-        operator_slug = self.config["execution"].get("operator_slug")
-        self._jinja_write(operator_slug, operator_folder)
-
-        # DONE
-        print(
-            "\nInitialization Successful.\n"
-            f"All code should be written in main.py located at: {os.path.join(operator_folder, 'main.py')}\n"
-            f"Additional libraries should be added to environment.yaml located at: {os.path.join(operator_folder, 'environment.yaml')}\n"
-            "Any changes to main.py will require re-building the docker image, whereas changes to args in the"
-            " runtime section of the yaml file do not. Write accordingly.\n"
-            "Run this cluster with:\n"
-            f"\tdocker build -t {docker_tag} -f {os.path.join(operator_folder, 'Dockerfile')} .\n"
-            f"\tads opctl publish-image {docker_tag} \n"
-            f"\tads opctl run -f {os.path.join(operator_folder, operator_slug + '.yaml')} \n"
-        )
-        return operator_folder
-
     def delete(self):
         """
         Delete Job or Job Run from OCID.
@@ -262,25 +230,6 @@ class MLJobBackend(Backend):
         with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataScienceJobRun.from_ocid(run_id)
             run.watch(interval=interval, wait=wait)
-
-    def _jinja_write(self, operator_slug, operator_folder):
-        # TODO AH: fill in templates with relevant details
-        env = Environment(
-            loader=PackageLoader("ads", f"opctl/operators/{operator_slug}")
-        )
-
-        for setup_file in [
-            "Dockerfile",
-            "environment.yaml",
-            "main.py",
-            "run.py",
-            "start_scheduler.sh",
-            "start_worker.sh",
-            "dask_cluster.yaml",
-        ]:
-            template = env.get_template(setup_file + ".jinja2")
-            with open(os.path.join(operator_folder, setup_file), "w") as ff:
-                ff.write(template.render(config=self.config))
 
     def _create_payload(self, infra=None, name=None) -> Job:
         if not infra:
