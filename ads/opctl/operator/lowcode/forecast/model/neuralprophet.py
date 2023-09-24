@@ -22,7 +22,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.opctl import logger
 
-from ...forecast.const import DEFAULT_TRIALS
+from ..const import DEFAULT_TRIALS
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 

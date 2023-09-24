@@ -1084,7 +1084,6 @@ class AuthContext:
         """
         self.previous_state = copy.deepcopy(AuthState())
         set_auth(**self.kwargs)
-        return default_signer()
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         """

@@ -9,7 +9,8 @@ from typing import Dict
 import click
 
 from ads.opctl import logger
-from ads.opctl.operator.common.utils import YamlGenerator, _load_yaml_from_uri
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
+from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
 
 from .const import SupportedModels
 

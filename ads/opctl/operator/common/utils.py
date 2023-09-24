@@ -6,12 +6,9 @@
 
 import argparse
 import importlib
-import inspect
 import os
-import re
-from dataclasses import dataclass
 from string import Template
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 import fsspec
 import yaml
@@ -19,12 +16,8 @@ from cerberus import Validator
 from yaml import SafeLoader
 
 from ads.opctl import logger
-from ads.opctl.constants import OPERATOR_MODULE_PATH
-from ads.opctl.operator.common.errors import OperatorNotFoundError
 from ads.opctl.operator import __operators__
 from ads.opctl.utils import run_command
-
-from .const import ARCH_TYPE, PACK_TYPE
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -33,188 +26,6 @@ class OperatorValidator(Validator):
     """The custom validator class."""
 
     pass
-
-
-@dataclass
-class OperatorInfo:
-    """Class representing short information about the operator.
-
-    Attributes
-    ----------
-    name: str
-        The name of the operator.
-    short_description: str
-        The short description of the operator.
-    description: str
-        The detailed description of the operator.
-    version: str
-        The version of the operator.
-    conda: str
-        The conda environment that have to be used to run the operator.
-    path: str
-        The operator location.
-    """
-
-    name: str
-    gpu: bool
-    short_description: str
-    description: str
-    version: str
-    conda: str
-    conda_type: str
-    path: str
-    keywords: List[str]
-    backends: List[str]
-
-    @property
-    def conda_prefix(self) -> str:
-        """Generates conda prefix for the custom conda pack.
-
-        Example:
-            conda = "forecast_v1"
-            conda_prefix == "cpu/forecast/1/forecast_v1"
-
-        Returns
-        -------
-        str
-            The conda prefix for the custom conda pack.
-        """
-        return os.path.join(
-            f"{ARCH_TYPE.GPU if self.gpu else ARCH_TYPE.CPU}",
-            self.name,
-            re.sub("[^0-9.]", "", self.version),
-            f"{self.name}_{self.version}",
-        )
-
-    @classmethod
-    def from_init(*args: List, **kwargs: Dict) -> "OperatorInfo":
-        """Instantiates the class from the initial operator details config."""
-
-        path = kwargs.get("__operator_path__")
-        operator_readme = None
-        if path:
-            readme_file_path = os.path.join(path, "readme.md")
-            if os.path.exists(readme_file_path):
-                with open(readme_file_path, "r") as readme_file:
-                    operator_readme = readme_file.read()
-
-        return OperatorInfo(
-            name=kwargs.get("__type__"),
-            gpu=kwargs.get("__gpu__", "").lower() == "yes",
-            description=operator_readme or kwargs.get("__short_description__"),
-            short_description=kwargs.get("__short_description__"),
-            version=kwargs.get("__version__"),
-            conda=kwargs.get("__conda__"),
-            conda_type=kwargs.get("__conda_type__", PACK_TYPE.CUSTOM),
-            path=path,
-            keywords=kwargs.get("__keywords__", []),
-            backends=kwargs.get("__backends__", []),
-        )
-
-
-@dataclass
-class YamlGenerator:
-    """
-    Class for generating the YAML config based on the given YAML schema.
-
-    Attributes
-    ----------
-    schema: Dict
-        The schema of the template.
-    """
-
-    schema: Dict[str, Any] = None
-
-    def generate_example(self, values: Optional[Dict[str, Any]] = None) -> str:
-        """
-        Generate the YAML config based on the YAML schema.
-
-        Properties
-        ----------
-        values: Optional dictionary containing specific values for the attributes.
-
-        Returns
-        -------
-        str
-            The generated YAML config.
-        """
-        example = self._generate_example(self.schema, values)
-        return yaml.dump(example)
-
-    def _check_condition(
-        self, condition: Dict[str, Any], example: Dict[str, Any]
-    ) -> bool:
-        """
-        Checks if the YAML schema condition fulfils.
-        This method is used to include conditional fields into the final config.
-
-        Properties
-        ----------
-        condition: Dict[str, Any]
-            The schema condition.
-            Example:
-            In the example below the `owner_name` field has dependency on the `model` field.
-            The `owner_name` will be included to the final config if only `model` is `prophet`.
-                owner_name:
-                    type: string
-                    dependencies: {"model":"prophet"}
-        example: Dict[str, Any]
-            The config to check if the dependable value presented there.
-        Returns
-        -------
-        bool
-            True if the condition fulfils, false otherwise.
-        """
-        for key, value in condition.items():
-            if key not in example or example[key] != value:
-                return False
-        return True
-
-    def _generate_example(
-        self, schema: Dict[str, Any], values: Optional[Dict[str, Any]] = None
-    ) -> Dict[str, Any]:
-        """
-        Generates the final YAML config.
-        This is a recursive method, which iterates through the entire schema.
-
-        Properties
-        ----------
-        schema: Dict[str, Any]
-            The schema to generate the config.
-        values: Optional[Dict[str, Any]]
-            The optional values that would be used instead of default values provided in the schama.
-
-        Returns
-        -------
-        Dict
-            The result config.
-        """
-        example = {}
-        for key, value in schema.items():
-            # only generate values fro required fields
-            if value.get("required", False) or value.get("dependencies", False):
-                if not "dependencies" in value or self._check_condition(
-                    value["dependencies"], example
-                ):
-                    data_type = value.get("type")
-
-                    if key in values:
-                        example[key] = values[key]
-                    elif "default" in value:
-                        example[key] = value["default"]
-                    elif data_type == "string":
-                        example[key] = "value"
-                    elif data_type == "number":
-                        example[key] = 1
-                    elif data_type == "boolean":
-                        example[key] = True
-                    elif data_type == "array":
-                        example[key] = ["item1", "item2"]
-                    elif data_type == "dict":
-                        example[key] = self._generate_example(
-                            schema=value.get("schema", {}), values=values
-                        )
-        return example
 
 
 def _build_image(
@@ -290,70 +101,6 @@ def _build_image(
         raise RuntimeError("Docker build failed.")
 
     return image_name
-
-
-def _module_constant_values(module_name: str, module_path: str) -> Dict[str, Any]:
-    """Returns the list of constant variables from a given module.
-
-    Parameters
-    ----------
-    module_name: str
-        The name of the module to be imported.
-    module_path: str
-        The physical path of the module.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Map of variable names and their values.
-    """
-    spec = importlib.util.spec_from_file_location(module_name, module_path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return {name: value for name, value in vars(module).items()}
-
-
-def _operator_info(path: str = None, name: str = None) -> OperatorInfo:
-    """Extracts operator's details by given path.
-    The expectation is that operator has init file where the all details placed.
-
-    Parameters
-    ----------
-    path: (str, optional). The path to the operator.
-    name: (str, optional). The name of the service operator.
-
-    Returns
-    -------
-    OperatorInfo
-        The operator details.
-    """
-    try:
-        if name:
-            path = os.path.dirname(
-                inspect.getfile(
-                    importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}")
-                )
-            )
-
-        module_name = os.path.basename(path.rstrip("/"))
-        module_path = f"{path.rstrip('/')}/__init__.py"
-        return OperatorInfo.from_init(
-            **_module_constant_values(module_name, module_path)
-        )
-    except ModuleNotFoundError as ex:
-        logger.debug(ex)
-        raise OperatorNotFoundError(name or path)
-
-
-def _operator_info_list() -> List[OperatorInfo]:
-    """Returns the list of registered operators.
-
-    Returns
-    -------
-    List[OperatorInfo]
-        The list of registered operators.
-    """
-    return (_operator_info(name=operator_name) for operator_name in __operators__)
 
 
 def _extant_file(x: str):

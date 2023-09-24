@@ -117,9 +117,13 @@ class ConfigMerger(ConfigProcessor):
         # set default auth
         if not self.config["execution"].get("auth", None):
             if is_in_notebook_session():
-                self.config["execution"]["auth"] = AuthType.RESOURCE_PRINCIPAL
+                self.config["execution"]["auth"] = (
+                    exec_config.get("auth") or AuthType.RESOURCE_PRINCIPAL
+                )
             else:
-                self.config["execution"]["auth"] = AuthType.API_KEY
+                self.config["execution"]["auth"] = (
+                    exec_config.get("auth") or AuthType.API_KEY
+                )
         # determine profile
         if self.config["execution"]["auth"] == AuthType.RESOURCE_PRINCIPAL:
             profile = self.config["execution"]["auth"].upper()
@@ -173,6 +177,7 @@ class ConfigMerger(ConfigProcessor):
             return {
                 "oci_config": parser["OCI"].get("oci_config"),
                 "oci_profile": parser["OCI"].get("oci_profile"),
+                "auth": parser["OCI"].get("auth"),
                 "conda_pack_folder": parser["CONDA"].get("conda_pack_folder"),
                 "conda_pack_os_prefix": parser["CONDA"].get("conda_pack_os_prefix"),
             }

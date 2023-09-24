@@ -11,7 +11,7 @@ import fsspec
 import yaml
 
 from ads.common.auth import AuthContext, AuthType
-from ads.opctl.decorator.common import click_options
+from ads.opctl.decorator.common import click_options, with_auth
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.utils import suppress_traceback
@@ -35,8 +35,9 @@ ADS_CONFIG_OPTION = (
     click.option(
         "--ads-config",
         help=(
-            "The folder where the ADS opctl config located. "
-            "The default location is: `~/.ads_ops` folder."
+            "The folder where the ADS `config.ini` located. "
+            "The default location is: `~/.ads_ops` folder. "
+            "Check the `ads opctl configure --help` command to get details about the `config.ini`."
         ),
         required=False,
         default=None,
@@ -48,10 +49,24 @@ OPERATOR_NAME_OPTION = (
         "--name",
         "-n",
         help=(
-            "The name of the service operator. "
-            f"Available operators: `{'`, `'.join(__operators__)}`."
+            "The name of the operator. "
+            f"Available service operators: `{'`, `'.join(__operators__)}`."
         ),
         required=True,
+    ),
+)
+
+AUTH_TYPE_OPTION = (
+    click.option(
+        "--auth",
+        "-a",
+        help=(
+            "The authentication method to leverage OCI resources. "
+            "The default value will be taken from the ADS `config.ini` file. "
+            "Check the `ads opctl configure --help` command to get details about the `config.ini`."
+        ),
+        type=click.Choice(AuthType.values()),
+        default=None,
     ),
 )
 
@@ -69,7 +84,10 @@ def list(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION)
+@click_options(
+    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+)
+@with_auth
 def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Prints the detailed information about the particular operator."""
     suppress_traceback(debug)(cmd_info)(**kwargs)
@@ -90,6 +108,7 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     is_flag=True,
     default=False,
 )
+@with_auth
 def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Generates starter YAML configs for the operator."""
     suppress_traceback(debug)(cmd_init)(**kwargs)
@@ -112,6 +131,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
     is_flag=True,
     default=False,
 )
+@with_auth
 def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Builds a new image for the particular operator."""
     suppress_traceback(debug)(cmd_build_image)(**kwargs)
@@ -126,6 +146,7 @@ def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
     required=False,
     default=None,
 )
+@with_auth
 def publish_image(debug, **kwargs):
     """Publishes an operator's image to the container registry."""
     suppress_traceback(debug)(cmd_publish_image)(**kwargs)
@@ -146,44 +167,22 @@ def publish_image(debug, **kwargs):
     required=False,
     default=None,
 )
+@with_auth
 def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Creates new operator."""
     suppress_traceback(debug)(cmd_create)(**kwargs)
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(DEBUG_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION)
 @click.option(
     "--file", "-f", help="The path to resource YAML file.", required=True, default=None
 )
-@click.option(
-    "--auth",
-    "-a",
-    help=(
-        "The authentication method to leverage OCI resources. "
-        "The default value will be taken from the ADS `config.ini` file."
-    ),
-    type=click.Choice(AuthType.values()),
-    default=None,
-)
+@with_auth
 def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Verifies the operator config."""
-
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-
-    with AuthContext(
-        **{
-            key: value
-            for key, value in {
-                "auth": kwargs["auth"],
-                "oci_config_location": p.config["execution"]["oci_config"],
-                "profile": p.config["execution"]["oci_profile"],
-            }.items()
-            if value
-        }
-    ) as auth:
-        with fsspec.open(kwargs["file"], "r", **auth) as f:
-            operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
+    with fsspec.open(kwargs["file"], "r", **(kwargs.get("auth", {}) or {})) as f:
+        operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(cmd_verify)(operator_spec, **kwargs)
 
@@ -207,13 +206,16 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
     is_flag=True,
     default=False,
 )
+@with_auth
 def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Builds a new conda environment for the particular operator."""
     suppress_traceback(debug)(cmd_build_conda)(**kwargs)
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(
+    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+)
 @click.option(
     "--conda-pack-folder",
     help=(
@@ -231,6 +233,7 @@ def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     is_flag=True,
     default=False,
 )
+@with_auth
 def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Publishes an operator's conda environment to the Object Storage bucket."""
     suppress_traceback(debug)(cmd_publish_conda)(**kwargs)

@@ -7,6 +7,10 @@
 from typing import Dict, Callable
 from functools import wraps
 
+from ads.opctl.config.base import ConfigProcessor
+from ads.opctl.config.merger import ConfigMerger
+from ads.common.auth import AuthContext, AuthType
+
 RUN_ID_FIELD = "run_id"
 
 
@@ -35,3 +39,26 @@ def click_options(options):
         return func
 
     return _add_options
+
+
+def with_auth(func: Callable) -> Callable:
+    """The decorator to add AuthContext to the method."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> Dict:
+        p = ConfigProcessor().step(ConfigMerger, **kwargs)
+
+        with AuthContext(
+            **{
+                key: value
+                for key, value in {
+                    "auth": p.config["execution"]["auth"],
+                    "oci_config_location": p.config["execution"]["oci_config"],
+                    "profile": p.config["execution"]["oci_profile"],
+                }.items()
+                if value
+            }
+        ):
+            return func(*args, **kwargs)
+
+    return wrapper
