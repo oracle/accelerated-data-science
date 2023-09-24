@@ -24,6 +24,9 @@ def init(**kwargs: Dict) -> str:
     kwargs: (Dict, optional).
         Additional key value arguments.
 
+        - type: str
+            The type of the operator.
+
     Returns
     -------
     str
@@ -39,4 +42,4 @@ def init(**kwargs: Dict) -> str:
 
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example(values={"model": model_type})
+    ).generate_example(values={"model": model_type, "type": kwargs.get("type")})

@@ -42,7 +42,6 @@ from ads.opctl.operator.common.const import (
     PACK_TYPE,
 )
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
-from ads.opctl.operator.common.utils import OperatorInfo
 from ads.opctl.utils import publish_image as publish_image_cmd
 
 from .__init__ import __operators__
@@ -281,12 +280,13 @@ def init(
             f"{operator_info.name}.cmd", run_name="init"
         )
         operator_specification_template = operator_cmd_module.get("init", lambda: "")(
-            **kwargs
+            **{**kwargs, **{"type": name}}
         )
-        with fsspec.open(
-            os.path.join(output, f"{operator_info.name}.yaml"), mode="w"
-        ) as f:
-            f.write(operator_specification_template)
+        if operator_specification_template:
+            with fsspec.open(
+                os.path.join(output, f"{operator_info.name}.yaml"), mode="w"
+            ) as f:
+                f.write(operator_specification_template)
     except Exception as ex:
         logger.info(
             "The operator's specification was not generated "

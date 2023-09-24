@@ -10,10 +10,8 @@ import click
 import fsspec
 import yaml
 
-from ads.common.auth import AuthContext, AuthType
+from ads.common.auth import AuthType
 from ads.opctl.decorator.common import click_options, with_auth
-from ads.opctl.config.base import ConfigProcessor
-from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__

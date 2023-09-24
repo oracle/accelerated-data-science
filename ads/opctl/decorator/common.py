@@ -41,7 +41,7 @@ def print_watch_command(func: callable) -> Callable:
         if result and isinstance(result, Dict) and RUN_ID_FIELD in result:
             msg_header = (
                 f"{'*' * 40} To monitor the progress of the task, "
-                "execute the following command {'*' * 40}"
+                f"execute the following command {'*' * 40}"
             )
             print(msg_header)
             print(f"ads opctl watch {result[RUN_ID_FIELD]}")

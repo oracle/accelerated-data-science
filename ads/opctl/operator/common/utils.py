@@ -5,7 +5,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import argparse
-import importlib
 import os
 from string import Template
 from typing import Any, Dict, List, Tuple
