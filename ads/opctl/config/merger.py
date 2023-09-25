@@ -202,6 +202,8 @@ class ConfigMerger(ConfigProcessor):
             parser = read_from_ini(os.path.join(ads_config_folder, config_file))
             if oci_profile in parser:
                 return parser[oci_profile]
+            if DEFAULT_PROFILE in parser:
+                return parser[DEFAULT_PROFILE]
         else:
             logger.info(
                 f"{os.path.join(ads_config_folder, config_file)} does not exist. No config loaded."

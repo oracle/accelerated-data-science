@@ -1324,11 +1324,15 @@ def copy_file(
         If a destination file exists and `force_overwrite` set to `False`.
     """
     chunk_size = chunk_size or DEFAULT_BUFFER_SIZE
-    auth = auth or authutil.default_signer()
 
     if not os.path.basename(uri_dst):
         uri_dst = os.path.join(uri_dst, os.path.basename(uri_src))
     src_path_scheme = urlparse(uri_src).scheme or "file"
+
+    auth = auth or {}
+    if src_path_scheme.lower() == "oci" and not auth:
+        auth = authutil.default_signer()
+
     src_file_system = fsspec.filesystem(src_path_scheme, **auth)
 
     if not fsspec.filesystem(src_path_scheme, **auth).exists(uri_src):

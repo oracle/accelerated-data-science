@@ -307,8 +307,6 @@ class OperatorLoader:
 
         uri = os.path.expanduser(uri)
 
-        auth = auth or authutil.default_signer()
-
         for loader in (
             ServiceOperatorLoader,
             LocalOperatorLoader,
@@ -436,6 +434,24 @@ class RemoteOperatorLoader(Loader):
     auth (Dict, optional)
         Default authentication settings.
     """
+
+    def __init__(self, uri: str, uri_dst: str = None, auth: Dict = None) -> None:
+        """
+        Instantiates Loader.
+
+        Parameters
+        ----------
+        uri (str)
+            The operator's location.
+        uri_dst (str)
+            The local folder where the operator can be downloaded from the remote location.
+            A temporary folder will be generated if not provided.
+        auth (Dict, optional)
+            Default authentication settings.
+        """
+        super().__init__(
+            uri=uri, uri_dst=uri_dst, auth=auth or authutil.default_signer()
+        )
 
     def _load(self, **kwargs: Dict) -> OperatorInfo:
         """Downloads the operator's source code to the local folder.
