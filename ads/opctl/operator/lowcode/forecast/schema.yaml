@@ -200,7 +200,7 @@ spec:
 
     preprocessing:
       type: boolean
-      required: true
+      required: false
       default: true
       meta:
         description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
