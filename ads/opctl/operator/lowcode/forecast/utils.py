@@ -175,6 +175,7 @@ def _clean_data(data, target_column, datetime_column, target_category_columns=No
             df = pd.concat([df, data_cat_clean], axis=1)
             new_target_columns.append(f"{target_column}_{cat}")
         df = df.reset_index()
+
         return df.fillna(0), new_target_columns
 
     raise ValueError(
@@ -327,10 +328,9 @@ def evaluate_metrics(target_columns, data, outputs, target_col="yhat"):
 
 def _select_plot_list(fn, target_columns):
     import datapane as dp
+
     blocks = [dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
-    return dp.Select(
-        blocks=blocks
-    ) if len(target_columns) > 1 else blocks[0]
+    return dp.Select(blocks=blocks) if len(target_columns) > 1 else blocks[0]
 
 
 def _add_unit(num, unit):
