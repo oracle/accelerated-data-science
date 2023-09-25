@@ -111,12 +111,13 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             output_i["Date"] = outputs[f"{col}_{cat}"].index
             output_i["Series"] = cat
-            output_i["input_value"] = float('nan')
-            output_i[f"fitted_value"] = float('nan')
+            output_i["input_value"] = float("nan")
+            output_i[f"fitted_value"] = float("nan")
             output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"].values
             output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"].values
             output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"].values
             output_col = pd.concat([output_col, output_i])
+
         # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
         output_col = output_col.reset_index(drop=True)
         outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
