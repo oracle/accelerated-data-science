@@ -22,7 +22,7 @@ class Transformations:
         self.series_id_column = dataset_info.target_category_columns
         self.target_variables = dataset_info.target_column
         self.date_column = dataset_info.datetime_column.name
-        self.feature_engineering = dataset_info.feature_engineering
+        self.preprocessing = dataset_info.preprocessing
 
     def run(self):
         """
@@ -33,10 +33,10 @@ class Transformations:
             A new Pandas DataFrame with treated / transformed target values.
         """
         imputed_df = self._missing_value_imputation(self.data)
-        if self.feature_engineering:
+        if self.preprocessing:
             treated_df = self._outlier_treatment(imputed_df)
         else:
-            logger.info("Skipping outlier treatment as feature_engineering is disabled")
+            logger.info("Skipping outlier treatment as preprocessing is disabled")
             treated_df = imputed_df
         return treated_df
 

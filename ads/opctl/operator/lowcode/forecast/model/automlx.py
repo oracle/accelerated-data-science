@@ -61,6 +61,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             model = automl.Pipeline(
                 task="forecasting",
                 n_algos_tuned=n_algos_tuned,
+                preprocessing=self.spec.preprocessing,
                 score_metric=AUTOMLX_METRIC_MAP.get(
                     self.spec.metric, "neg_sym_mean_abs_percent_error"
                 ),

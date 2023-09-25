@@ -198,12 +198,12 @@ spec:
       required: true
       default: target
 
-    feature_engineering:
+    preprocessing:
       type: boolean
       required: true
       default: true
       meta:
-        description: "feature_engineering disabled using this flag, Defaults to true"
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
     datetime_column:
       type: dict
