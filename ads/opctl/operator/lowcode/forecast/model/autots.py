@@ -205,8 +205,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         # Section 2: AutoTS Model Parameters
         sec2_text = dp.Text(f"## AutoTS Model Parameters")
         # TODO: ODSC-47612 Format the parameters better for display in report.
-        sec2 = dp.Select(
-            blocks=[
+        blocks=[
                 dp.HTML(
                     pd.DataFrame(
                         [self.models.best_model_params["models"][x]["ModelParameters"]]
@@ -217,7 +216,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     list(self.models.best_model_params["models"].keys())
                 )
             ]
-        )
+        sec2 = dp.Select(blocks=blocks) if len(blocks)>1 else blocks[0]
         all_sections = [sec1_text, sec_1, sec2_text, sec2]
 
         # Model Description

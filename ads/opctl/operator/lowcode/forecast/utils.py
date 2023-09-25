@@ -327,10 +327,10 @@ def evaluate_metrics(target_columns, data, outputs, target_col="yhat"):
 
 def _select_plot_list(fn, target_columns):
     import datapane as dp
-
+    blocks = [dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
     return dp.Select(
-        blocks=[dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
-    )
+        blocks=blocks
+    ) if len(target_columns) > 1 else blocks[0]
 
 
 def _add_unit(num, unit):

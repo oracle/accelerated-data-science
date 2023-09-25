@@ -136,12 +136,11 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         import datapane as dp
 
         sec5_text = dp.Text(f"## ARIMA Model Parameters")
-        sec5 = dp.Select(
-            blocks=[
-                dp.HTML(m.summary().as_html(), label=self.target_columns[i])
-                for i, m in enumerate(self.models)
-            ]
-        )
+        blocks=[
+            dp.HTML(m.summary().as_html(), label=self.target_columns[i])
+            for i, m in enumerate(self.models)
+        ]
+        sec5 = dp.Select(blocks=blocks) if len(blocks)>1 else blocks[0]
         all_sections = [sec5_text, sec5]
 
         model_description = dp.Text(
