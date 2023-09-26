@@ -5,12 +5,10 @@ import traceback
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
-import datapane as dp
 import pandas as pd
 import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
-from ads.opctl.operator.lowcode.forecast.const import automlx_metric_dict
+from ads.opctl.operator.lowcode.forecast.const import AUTOMLX_METRIC_MAP
 from sktime.forecasting.model_selection import temporal_train_test_split
 from ads.opctl import logger
 
@@ -32,9 +30,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automl",
         err_msg=(
-            "Please run `pip3 install "
-            "--extra-index-url=https://artifacthub-phx.oci.oraclecorp.com/artifactory/api/pypi/automlx-pypi/simple/automlx==23.2.1` "
-            "to install the required dependencies for automlx."
+                "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
         ),
     )
     def _build_model(self) -> pd.DataFrame:
@@ -70,13 +66,14 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 "" if y_train.index.is_monotonic else "NOT",
                 "monotonic.",
             )
-
             model = automl.Pipeline(
                 task="forecasting",
                 n_algos_tuned=n_algos_tuned,
-                score_metric=automlx_metric_dict[self.spec.metric],
+                preprocessing=self.spec.preprocessing,
+                score_metric=AUTOMLX_METRIC_MAP.get(
+                    self.spec.metric, "neg_sym_mean_abs_percent_error"
+                ),
             )
-
             model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
             logger.info("Selected model: {}".format(model.selected_model_))
             logger.info(
@@ -139,6 +136,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         return outputs_merged
 
     def _generate_report(self):
+        import datapane as dp
+
         """The method that needs to be implemented on the particular model level."""
         selected_models_text = dp.Text(
             f"## Selected Models Overview \n "

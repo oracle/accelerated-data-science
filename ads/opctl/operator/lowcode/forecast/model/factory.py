@@ -8,9 +8,11 @@ from ..const import SupportedModels
 from ..operator_config import ForecastOperatorConfig
 from .arima import ArimaOperatorModel
 from .automlx import AutoMLXOperatorModel
+from .autots import AutoTSOperatorModel
 from .base_model import ForecastOperatorBaseModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
+from ..utils import select_auto_model
 
 
 class UnSupportedModelError(Exception):
@@ -31,6 +33,7 @@ class ForecastOperatorModelFactory:
         SupportedModels.Arima: ArimaOperatorModel,
         SupportedModels.NeuralProphet: NeuralProphetOperatorModel,
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
+        SupportedModels.AutoTS: AutoTSOperatorModel
     }
 
     @classmethod
@@ -56,6 +59,8 @@ class ForecastOperatorModelFactory:
             In case of not supported model.
         """
         model_type = operator_config.spec.model
+        if model_type == "auto":
+            model_type = select_auto_model(operator_config.spec.historical_data.columns)
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config)

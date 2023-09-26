@@ -12,8 +12,17 @@ from typing import Any, ClassVar, Dict, List
 
 from cerberus import Validator
 
+from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
+
+
+class OPERATOR_LOCAL_RUNTIME_TYPE(ExtendedEnum):
+    PYTHON = "python"
+    CONTAINER = "container"
+
+
+OPERATOR_LOCAL_RUNTIME_KIND = "operator.local"
 
 
 @dataclass(repr=True)
@@ -21,7 +30,7 @@ class Runtime(DataClassSerializable):
     """Base class for the operator's runtimes."""
 
     _schema: ClassVar[str] = None
-    kind: str = None
+    kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     type: str = None
     version: str = None
     spec: Any = None
@@ -69,8 +78,7 @@ class ContainerRuntime(Runtime):
     """Represents a container operator runtime."""
 
     _schema: ClassVar[str] = "container_runtime_schema.yaml"
-    kind: str = "operator.local"
-    type: str = "container"
+    type: str = OPERATOR_LOCAL_RUNTIME_TYPE.CONTAINER.value
     version: str = "v1"
     spec: ContainerRuntimeSpec = field(default_factory=ContainerRuntimeSpec)
 
@@ -84,3 +92,23 @@ class ContainerRuntime(Runtime):
             The runtime instance.
         """
         return cls(spec=ContainerRuntimeSpec.from_dict(kwargs))
+
+
+@dataclass(repr=True)
+class PythonRuntime(Runtime):
+    """Represents a python operator runtime."""
+
+    _schema: ClassVar[str] = "python_runtime_schema.yaml"
+    type: str = OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON.value
+    version: str = "v1"
+
+    @classmethod
+    def init(cls, **kwargs: Dict) -> "PythonRuntime":
+        """Initializes a starter specification for the runtime.
+
+        Returns
+        -------
+        PythonRuntime
+            The runtime instance.
+        """
+        return cls()

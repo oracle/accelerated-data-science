@@ -131,7 +131,7 @@ class ConfigMerger(ConfigProcessor):
             )
             self.config["execution"]["oci_profile"] = profile
         # loading config for corresponding profile
-        logger.info(f"Loading service config for profile {profile}.")
+        logger.debug(f"Loading service config for profile {profile}.")
         infra_config = self._get_service_config(profile, ads_config_path)
         if infra_config.get(
             "conda_pack_os_prefix"
@@ -218,7 +218,7 @@ class ConfigMerger(ConfigProcessor):
                 ):
                     raise ValueError(
                         "Parameters `ocpus` and `memory_in_gbs` must be provided for using flex shape. "
-                        "Call `ads opctl config` to specify."
+                        "Call `ads opctl configure` to specify."
                     )
                 infrastructure["shape_config_details"] = {
                     "ocpus": infrastructure.pop("ocpus"),
@@ -239,7 +239,7 @@ class ConfigMerger(ConfigProcessor):
                     if parameter not in infrastructure:
                         raise ValueError(
                             f"Parameters {parameter} must be provided for using flex shape. "
-                            "Call `ads opctl config` to specify."
+                            "Call `ads opctl configure` to specify."
                         )
                 infrastructure["driver_shape_config"] = {
                     "ocpus": infrastructure.pop("driver_shape_ocpus"),

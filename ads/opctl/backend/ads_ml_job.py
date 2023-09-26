@@ -16,8 +16,6 @@ import time
 from distutils import dir_util
 from typing import Dict, Tuple, Union
 
-from jinja2 import Environment, PackageLoader
-
 from ads.common.auth import AuthContext, AuthType, create_signer
 from ads.common.oci_client import OCIClientFactory
 from ads.jobs import (
@@ -95,6 +93,21 @@ class MLJobBackend(Backend):
             The YAML specification for the given resource if `uri` was not provided.
             `None` otherwise.
         """
+
+        conda_slug = kwargs.get(
+            "conda_slug", self.config["execution"].get("conda_slug", "conda_slug")
+        ).lower()
+
+        # if conda slug contains '/' then the assumption is that it is a custom conda pack
+        # the conda prefix needs to be added
+        if "/" in conda_slug:
+            conda_slug = os.path.join(
+                self.config["execution"].get(
+                    "conda_pack_os_prefix", "oci://bucket@namespace/conda_environments"
+                ),
+                conda_slug,
+            )
+
         RUNTIME_KWARGS_MAP = {
             ContainerRuntime().type: {
                 "image": (
@@ -102,18 +115,8 @@ class MLJobBackend(Backend):
                     f"/{kwargs.get('image_name', self.config['execution'].get('image','image:latest'))}"
                 )
             },
-            ScriptRuntime().type: {
-                "conda_slug": (
-                    f"{self.config['execution'].get('conda_pack_os_prefix','oci://bucket@namespace/conda_environments').rstrip('/')}"
-                    f"/{kwargs.get('conda_slug', 'conda_slug') }"
-                )
-            },
-            PythonRuntime().type: {
-                "conda_slug": (
-                    f"{self.config['execution'].get('conda_pack_os_prefix','oci://bucket@namespace/conda_environments').rstrip('/')}"
-                    f"/{kwargs.get('conda_slug', 'conda_slug') }"
-                )
-            },
+            ScriptRuntime().type: {"conda_slug": conda_slug},
+            PythonRuntime().type: {"conda_slug": conda_slug},
             NotebookRuntime().type: {},
             GitPythonRuntime().type: {},
         }
@@ -194,36 +197,6 @@ class MLJobBackend(Backend):
             print("JOB RUN OCID:", run_id)
             return {"job_id": job_id, "run_id": run_id}
 
-    def init_operator(self):
-        # TODO: check if folder is empty, check for force overwrite
-        # TODO: check that command is being run from advanced-ds repo (important until ads released)
-
-        operator_folder = self.config["execution"].get("operator_folder_path")
-        os.makedirs(operator_folder, exist_ok=True)
-
-        operator_folder_name = os.path.basename(os.path.normpath(operator_folder))
-        docker_tag = f"{os.path.join(self.config['infrastructure'].get('docker_registry'), operator_folder_name)}:latest"
-
-        self.config["execution"]["operator_folder_name"] = operator_folder_name
-        self.config["execution"]["docker_tag"] = docker_tag
-
-        operator_slug = self.config["execution"].get("operator_slug")
-        self._jinja_write(operator_slug, operator_folder)
-
-        # DONE
-        print(
-            "\nInitialization Successful.\n"
-            f"All code should be written in main.py located at: {os.path.join(operator_folder, 'main.py')}\n"
-            f"Additional libraries should be added to environment.yaml located at: {os.path.join(operator_folder, 'environment.yaml')}\n"
-            "Any changes to main.py will require re-building the docker image, whereas changes to args in the"
-            " runtime section of the yaml file do not. Write accordingly.\n"
-            "Run this cluster with:\n"
-            f"\tdocker build -t {docker_tag} -f {os.path.join(operator_folder, 'Dockerfile')} .\n"
-            f"\tads opctl publish-image {docker_tag} \n"
-            f"\tads opctl run -f {os.path.join(operator_folder, operator_slug + '.yaml')} \n"
-        )
-        return operator_folder
-
     def delete(self):
         """
         Delete Job or Job Run from OCID.
@@ -258,25 +231,6 @@ class MLJobBackend(Backend):
         with AuthContext(auth=self.auth_type, profile=self.profile):
             run = DataScienceJobRun.from_ocid(run_id)
             run.watch(interval=interval, wait=wait)
-
-    def _jinja_write(self, operator_slug, operator_folder):
-        # TODO AH: fill in templates with relevant details
-        env = Environment(
-            loader=PackageLoader("ads", f"opctl/operators/{operator_slug}")
-        )
-
-        for setup_file in [
-            "Dockerfile",
-            "environment.yaml",
-            "main.py",
-            "run.py",
-            "start_scheduler.sh",
-            "start_worker.sh",
-            "dask_cluster.yaml",
-        ]:
-            template = env.get_template(setup_file + ".jinja2")
-            with open(os.path.join(operator_folder, setup_file), "w") as ff:
-                ff.write(template.render(config=self.config))
 
     def _create_payload(self, infra=None, name=None) -> Job:
         if not infra:
@@ -685,17 +639,17 @@ class MLJobOperatorBackend(MLJobBackend):
         # run the job if only it is not a dry run mode
         if not self.config["execution"].get("dry_run"):
             job = self.job.create()
-            print(f"{'*' * 50}Job{'*' * 50}")
-            print(job)
+            logger.info(f"{'*' * 50}Job{'*' * 50}")
+            logger.info(job)
 
             job_run = job.run()
-            print(f"{'*' * 50}JobRun{'*' * 50}")
-            print(job_run)
+            logger.info(f"{'*' * 50}JobRun{'*' * 50}")
+            logger.info(job_run)
 
             return {"job_id": job.id, "run_id": job_run.id}
         else:
-            print(f"{'*' * 50} Job (Dry Run Mode) {'*' * 50}")
-            print(self.job)
+            logger.info(f"{'*' * 50} Job (Dry Run Mode) {'*' * 50}")
+            logger.info(self.job)
 
 
 class JobRuntimeFactory(RuntimeFactory):

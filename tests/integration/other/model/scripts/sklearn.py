@@ -48,7 +48,7 @@ def bank_data():
     df_clas = pd.read_csv(get_test_dataset_path("vor_bank.csv"))
     y_clas = df_clas["y"]
     X_clas = df_clas.drop(columns=["y"])
-    for i, col in X_clas.iteritems():
+    for i, col in X_clas.items():
         col.replace("unknown", "", inplace=True)
     (X_train_clas, X_test_clas, y_train_clas, y_test_clas) = train_test_split(
         X_clas, y_clas, test_size=0.1, random_state=42
@@ -86,7 +86,7 @@ def sklearn_pipeline_with_sklearn_model():
     (X_train_clas, X_test_clas, y_train_clas, y_test_clas) = bank_dataset
     categorical_cols = []
     numerical_cols = []
-    for i, col in X_train_clas.iteritems():
+    for i, col in X_train_clas.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:
@@ -137,7 +137,7 @@ def sklearn_pipeline_with_xgboost_model():
     (X_train_clas, X_test_clas, y_train_clas, y_test_clas) = bank_dataset
     categorical_cols = []
     numerical_cols = []
-    for i, col in X_train_clas.iteritems():
+    for i, col in X_train_clas.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:
@@ -190,7 +190,7 @@ def sklearn_pipeline_with_lightgbm_model():
     (X_train_clas, X_test_clas, y_train_clas, y_test_clas) = bank_dataset
     categorical_cols = []
     numerical_cols = []
-    for i, col in X_train_clas.iteritems():
+    for i, col in X_train_clas.items():
         if col.dtypes == "object":
             categorical_cols.append(col.name)
         else:

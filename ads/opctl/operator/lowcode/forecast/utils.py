@@ -4,10 +4,8 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
 import os
-
-import datapane as dp
+from ads.opctl import logger
 import fsspec
 import numpy as np
 import pandas as pd
@@ -19,8 +17,11 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from typing import List
+from .const import SupportedMetrics
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
+from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -43,6 +44,80 @@ def smape(actual, predicted) -> float:
     )
 
 
+def _build_metrics_per_horizon(
+    data: pd.DataFrame,
+    outputs: pd.DataFrame,
+    target_columns: List[str],
+    target_col: str,
+) -> pd.DataFrame:
+    """
+    Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
+
+    Parameters
+    ------------
+    data:  Pandas Dataframe
+            Dataframe that has the actual data
+    outputs: Pandas Dataframe
+            Dataframe that has the forecasted data
+    target_columns: List
+            List of target category columns
+    target_col: str
+            Target column name (yhat)
+
+    Returns
+    --------
+    Pandas Dataframe
+        Dataframe with Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
+    """
+    actuals_df = data[target_columns]
+    forecasts_df = pd.concat([df[target_col] for df in outputs], axis=1)
+
+    totals = actuals_df.sum()
+    wmape_weights = np.array((totals / totals.sum()).values)
+
+    metrics_df = pd.DataFrame(
+        columns=[
+            SupportedMetrics.MEAN_SMAPE,
+            SupportedMetrics.MEDIAN_SMAPE,
+            SupportedMetrics.MEAN_MAPE,
+            SupportedMetrics.MEDIAN_MAPE,
+            SupportedMetrics.MEAN_WMAPE,
+            SupportedMetrics.MEDIAN_WMAPE,
+        ]
+    )
+
+    for y_true, y_pred in zip(
+        actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)
+    ):
+        y_true, y_pred = np.array(y_true), np.array(y_pred)
+
+        smapes = np.array(
+            [smape(actual=y_t, predicted=y_p) for y_t, y_p in zip(y_true, y_pred)]
+        )
+        mapes = np.array(
+            [
+                mean_absolute_percentage_error(y_true=[y_t], y_pred=[y_p])
+                for y_t, y_p in zip(y_true, y_pred)
+            ]
+        )
+        wmapes = np.array([mape * weight for mape, weight in zip(mapes, wmape_weights)])
+
+        metrics_row = {
+            SupportedMetrics.MEAN_SMAPE: np.mean(smapes),
+            SupportedMetrics.MEDIAN_SMAPE: np.median(smapes),
+            SupportedMetrics.MEAN_MAPE: np.mean(mapes),
+            SupportedMetrics.MEDIAN_MAPE: np.median(mapes),
+            SupportedMetrics.MEAN_WMAPE: np.mean(wmapes),
+            SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes),
+        }
+
+        metrics_df = metrics_df.append(metrics_row, ignore_index=True)
+
+    metrics_df.set_index(data["ds"], inplace=True)
+
+    return metrics_df
+
+
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":
         return pd_fn(filename, **kwargs)
@@ -63,14 +138,14 @@ def _load_data(filename, format, storage_options, columns, **kwargs):
     raise ValueError(f"Unrecognized format: {format}")
 
 
-def _write_data(data, filename, format, storage_options, **kwargs):
+def _write_data(data, filename, format, storage_options, index=False, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         write_fn = getattr(data, f"to_{format}")
         return _call_pandas_fsspec(
-            write_fn, filename, index=False, storage_options=storage_options
+            write_fn, filename, index=index, storage_options=storage_options
         )
     raise ValueError(f"Unrecognized format: {format}")
 
@@ -107,18 +182,67 @@ def _clean_data(data, target_column, datetime_column, target_category_columns=No
     )
 
 
+def _validate_and_clean_data(
+    cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame
+):
+    """
+    Checks compatibility between primary and additional dataframe for a category.
+
+    Parameters
+    ----------
+        cat: (str)
+         Category for which data is being validated.
+        horizon: (int)
+         horizon value for the forecast.
+        primary: (pd.DataFrame)
+         primary dataframe.
+        additional: (pd.DataFrame)
+         additional dataframe.
+
+    Returns
+    -------
+        (pd.DataFrame, pd.DataFrame) or (None, None)
+         Updated primary and additional dataframe or None values if the validation criteria does not satisfy.
+    """
+    # Additional data should have future values for horizon
+    data_row_count = primary.shape[0]
+    data_add_row_count = additional.shape[0]
+    additional_surplus = data_add_row_count - horizon - data_row_count
+    if additional_surplus < 0:
+        logger.warn(
+            "Forecast for {} will not be generated since additional data has less values({}) than"
+            " horizon({}) + primary data({})".format(
+                cat, data_add_row_count, horizon, data_row_count
+            )
+        )
+        return None, None
+    elif additional_surplus > 0:
+        # Removing surplus future data in additional
+        additional.drop(additional.tail(additional_surplus).index, inplace=True)
+
+    # Dates in primary data should be subset of additional data
+    dates_in_data = primary.index.tolist()
+    dates_in_additional = additional.index.tolist()
+    if not set(dates_in_data).issubset(set(dates_in_additional)):
+        logger.warn(
+            "Forecast for {} will not be generated since the dates in primary and additional do not"
+            " match".format(cat)
+        )
+        return None, None
+    return primary, additional
+
+
 def _build_indexed_datasets(
     data,
     target_column,
     datetime_column,
+    horizon,
     target_category_columns=None,
     additional_data=None,
     metadata_data=None,
 ):
     df_by_target = dict()
     categories = []
-    data_long = None
-    data_wide = None
 
     if target_category_columns is None:
         if additional_data is None:
@@ -135,7 +259,7 @@ def _build_indexed_datasets(
 
     data["__Series__"] = _merge_category_columns(data, target_category_columns)
     unique_categories = data["__Series__"].unique()
-
+    invalid_categories = []
     for cat in unique_categories:
         data_by_cat = data[data["__Series__"] == cat].rename(
             {target_column: f"{target_column}_{cat}"}, axis=1
@@ -157,13 +281,25 @@ def _build_indexed_datasets(
                 .set_index(datetime_column)
                 .fillna(0)
             )
-            data_by_cat_clean = pd.concat(
-                [data_add_by_cat_clean, data_by_cat_clean], axis=1
+
+            valid_primary, valid_add = _validate_and_clean_data(
+                cat, horizon, data_by_cat_clean, data_add_by_cat_clean
             )
-        df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
+            if valid_primary is None:
+                invalid_categories.append(cat)
+                data_by_cat_clean = None
+            else:
+                data_by_cat_clean = pd.concat([valid_add, valid_primary], axis=1)
+        if data_by_cat_clean is not None:
+            df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
 
     new_target_columns = list(df_by_target.keys())
-    return df_by_target, new_target_columns, unique_categories
+    remaining_categories = set(unique_categories) - set(invalid_categories)
+    if not len(remaining_categories):
+        raise ValueError(
+            "Stopping forecast operator as there is no data that meets the validation criteria."
+        )
+    return df_by_target, new_target_columns, remaining_categories
 
 
 def _build_metrics_df(y_true, y_pred, column_name):
@@ -190,6 +326,8 @@ def evaluate_metrics(target_columns, data, outputs, target_col="yhat"):
 
 
 def _select_plot_list(fn, target_columns):
+    import datapane as dp
+
     return dp.Select(
         blocks=[dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
     )
@@ -236,7 +374,7 @@ def get_forecast_plots(
                     ),
                 ]
             )
-        if test_data is not None:
+        if test_data is not None and col in test_data:
             fig.add_trace(
                 go.Scatter(
                     x=test_data["ds"],
@@ -278,7 +416,7 @@ def human_time_friendly(seconds):
         ("week", 60 * 60 * 24 * 7),
         ("day", 60 * 60 * 24),
         ("hour", 60 * 60),
-        ("min", 60)
+        ("min", 60),
     )
     if seconds == 0:
         return "inf"
@@ -291,3 +429,25 @@ def human_time_friendly(seconds):
             )
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
+
+
+def select_auto_model(columns: List[str]) -> str:
+    """
+    Selects AutoMLX or Arima model based on column count.
+
+    If the number of columns is less than or equal to the maximum allowed for AutoMLX,
+    returns 'AutoMLX'. Otherwise, returns 'Arima'.
+
+    Parameters
+    ------------
+    columns:  List
+            The list of columns.
+
+    Returns
+    --------
+    str
+        The type of the model.
+    """
+    if columns != None and len(columns) > MAX_COLUMNS_AUTOMLX:
+        return SupportedModels.Arima
+    return SupportedModels.AutoMLX

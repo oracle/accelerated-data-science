@@ -85,8 +85,10 @@ class ForecastOperatorSpec(DataClassSerializable):
     report_file_name: str = None
     report_title: str = None
     report_theme: str = None
-    report_metrics_name: str = None
+    metrics_filename: str = None
+    forecast_filename: str = None
     target_column: str = None
+    preprocessing: bool = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
     horizon: Horizon = field(default_factory=Horizon)
@@ -98,11 +100,13 @@ class ForecastOperatorSpec(DataClassSerializable):
 
     def __post_init__(self):
         """Adjusts the specification details."""
-        self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE
-        # self.confidence_interval_width = self.confidence_interval_width or 0.80
+        self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
+        self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_file_name = self.report_file_name or "report.html"
+        self.preprocessing = self.preprocessing if self.preprocessing is not None else True
         self.report_theme = self.report_theme or "light"
-        self.report_metrics_name = self.report_metrics_name or "report.csv"
+        self.metrics_filename = self.metrics_filename or "metrics.csv"
+        self.forecast_filename = self.forecast_filename or "forecast.csv"
         self.target_column = self.target_column or "Sales"
         self.model_kwargs = self.model_kwargs or dict()
 

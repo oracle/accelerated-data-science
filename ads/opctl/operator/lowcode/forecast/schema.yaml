@@ -100,7 +100,7 @@ spec:
           type: integer
 
     test_data:
-      required: true
+      required: false
       meta:
         description: "Optional, only if evaluation is needed."
       schema:
@@ -139,7 +139,7 @@ spec:
       type: dict
 
     output_directory:
-      required: true
+      required: false
       schema:
         connect_args:
           nullable: true
@@ -169,8 +169,9 @@ spec:
           required: false
           type: dict
       type: dict
+
     report_file_name:
-      required: true
+      required: false
       type: string
       default: report.html
       meta:
@@ -195,7 +196,14 @@ spec:
     target_column:
       type: string
       required: true
-      default: "Sales"
+      default: target
+
+    preprocessing:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
     datetime_column:
       type: dict
@@ -204,7 +212,7 @@ spec:
         name:
           type: string
           required: true
-          default: last_day_of_week
+          default: Date
         format:
           type: string
           required: false
@@ -216,18 +224,19 @@ spec:
         type: string
 
     horizon:
-      required: false
+      required: true
       schema:
         periods:
           type: integer
-          required: false
+          default: 3
+          required: true
         interval:
           type: integer
           required: false
         interval_unit:
-          required: false
+          required: true
           type: string
-          default: auto
+          default: M
           allowed:
             - S
             - M
@@ -248,6 +257,8 @@ spec:
         - arima
         - neuralprophet
         - automlx
+        - autots
+        - auto
 
     model_kwargs:
       type: dict

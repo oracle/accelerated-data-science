@@ -24,7 +24,6 @@ from ads.opctl.cmds import configure as configure_cmd
 from ads.opctl.cmds import deactivate as deactivate_cmd
 from ads.opctl.cmds import delete as delete_cmd
 from ads.opctl.cmds import init as init_cmd
-from ads.opctl.cmds import init_operator as init_operator_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import run as run_cmd
@@ -54,11 +53,12 @@ def commands():
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def configure(debug):
+    """Sets up the initial configurations for the ADS OPCTL."""
     suppress_traceback(debug)(configure_cmd)()
 
 
 @commands.command()
-@click.argument("image-type", type=click.Choice(["job-local", "ads-ops-base"]))
+@click.argument("image-type", type=click.Choice(["job-local"]))
 @click.help_option("--help", "-h")
 @click.option(
     "--gpu",
@@ -68,23 +68,10 @@ def configure(debug):
     default=False,
     required=False,
 )
-@click.option(
-    "--source-folder",
-    "-s",
-    help="when building custom operator image, source folder of the custom operator",
-    default=None,
-    required=False,
-)
-@click.option(
-    "--image",
-    "-i",
-    help="image name, used when building custom image",
-    default=None,
-    required=False,
-)
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
-def build_image(image_type, gpu, source_folder, image, debug):
-    suppress_traceback(debug)(build_image_cmd)(image_type, gpu, source_folder, image)
+def build_image(image_type, gpu, debug):
+    """Builds the local Data Science Jobs image."""
+    suppress_traceback(debug)(build_image_cmd)(image_type, gpu)
 
 
 @commands.command()
@@ -101,6 +88,7 @@ def build_image(image_type, gpu, source_folder, image, debug):
 @click.help_option("--help", "-h")
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def publish_image(**kwargs):
+    """Publishes image to the OCI Container Registry."""
     debug = kwargs.pop("debug")
     if kwargs.get("registry", None):
         registry = kwargs["registry"]
@@ -195,10 +183,13 @@ _options = [
         "--oci-config",
         help="oci config file",
         required=False,
-        default=None,
+        default=authutil.DEFAULT_LOCATION,
     ),
     click.option(
-        "--oci-profile", help="oci config profile", required=False, default=None
+        "--oci-profile",
+        help="oci config profile",
+        required=False,
+        default=authutil.DEFAULT_PROFILE,
     ),
     click.option(
         "--conf-file",
@@ -402,7 +393,11 @@ def run(file, **kwargs):
         if os.path.exists(file):
             auth = {}
             if kwargs["auth"]:
-                auth = authutil.create_signer(kwargs["auth"])
+                auth = authutil.create_signer(
+                    auth_type=kwargs["auth"],
+                    oci_config_location=kwargs["oci_config"],
+                    profile=kwargs["oci_profile"],
+                )
             else:
                 auth = authutil.default_signer()
 
@@ -443,29 +438,7 @@ def check(file, **kwargs):
 
 
 @commands.command()
-@click.argument("operator_slug", nargs=1)
-@click.option(
-    "--folder_path",
-    "-fp",
-    help="the name of the folder wherein to put the operator code",
-    multiple=True,
-    required=False,
-    default=None,
-)
-@add_options(_options)
-def init_operator(**kwargs):
-    suppress_traceback(kwargs["debug"])(init_operator_cmd)(**kwargs)
-
-
-@commands.command()
 @click.argument("ocid", nargs=1)
-@add_options(_model_deployment_options)
-@click.option(
-    "--conda-pack-folder",
-    required=False,
-    default=None,
-    help="folder where conda packs are saved",
-)
 @click.option(
     "--auth",
     "-a",
@@ -480,6 +453,7 @@ def init_operator(**kwargs):
 )
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def delete(**kwargs):
+    """Deletes a data science service resource."""
     suppress_traceback(kwargs["debug"])(delete_cmd)(**kwargs)
 
 
@@ -506,6 +480,7 @@ def delete(**kwargs):
 )
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def cancel(**kwargs):
+    """Aborts the execution of the OCI resource run."""
     suppress_traceback(kwargs["debug"])(cancel_cmd)(**kwargs)
 
 
@@ -559,7 +534,7 @@ def cancel(**kwargs):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def watch(**kwargs):
     """
-    ``tail`` logs form a job run, dataflow run or pipeline run.
+    Tails the logs form a job run, data flow run or pipeline run.
     Connects to the logging service that was configured with the JobRun, Application Run or Pipeline Run and streams the logs.
     """
     suppress_traceback(kwargs["debug"])(watch_cmd)(**kwargs)
@@ -568,13 +543,6 @@ def watch(**kwargs):
 @commands.command()
 @click.argument("ocid", nargs=1)
 @click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
-@add_options(_model_deployment_options)
-@click.option(
-    "--conda-pack-folder",
-    required=False,
-    default=None,
-    help="folder where conda packs are saved",
-)
 @click.option(
     "--auth",
     "-a",
@@ -590,7 +558,7 @@ def watch(**kwargs):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def activate(**kwargs):
     """
-    Activates a data science service.
+    Activates a data science service resource.
     """
     suppress_traceback(kwargs["debug"])(activate_cmd)(**kwargs)
 
@@ -620,7 +588,7 @@ def activate(**kwargs):
 @click.option("--debug", "-d", help="set debug mode", is_flag=True, default=False)
 def deactivate(**kwargs):
     """
-    Deactivates a data science service.
+    Deactivates a data science service resource.
     """
     suppress_traceback(kwargs["debug"])(deactivate_cmd)(**kwargs)
 
@@ -764,9 +732,16 @@ def predict(**kwargs):
     "--file", "-f", help="The path to resource YAML file.", required=True, default=None
 )
 @click.option(
-    "--backend-config",
+    "--backend",
     "-b",
-    help="The path to the backend config YAML file.",
+    help=(
+        "Backend name or the path to the operator's backend config YAML file. "
+        f"Example 1: `ads opctl apply -f operator.yaml -b {BACKEND_NAME.LOCAL.value}` "
+        "Supported backends: "
+        f"{[BACKEND_NAME.JOB.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.LOCAL.value,]} "
+        "Example 2: `ads opctl apply -f operator.yaml -b backend.yaml` "
+        "Use the `ads opctl operator init` command to generate operator's configs. "
+    ),
     required=False,
     default=None,
 )
@@ -799,7 +774,7 @@ def apply(debug: bool, **kwargs: Dict[str, Any]) -> None:
     Runs the operator with the given specification on the targeted backend.
     """
     operator_spec = {}
-    backend_config = {}
+    backend = kwargs.pop("backend")
 
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
 
@@ -817,12 +792,11 @@ def apply(debug: bool, **kwargs: Dict[str, Any]) -> None:
         with fsspec.open(kwargs["file"], "r", **auth) as f:
             operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-        backend_config_file = kwargs.pop("backend_config")
-        if backend_config_file:
-            with fsspec.open(backend_config_file, "r", **auth) as f:
-                backend_config = suppress_traceback(debug)(yaml.safe_load)(f.read())
+        if backend and backend.lower().endswith((".yaml", ".yml")):
+            with fsspec.open(backend, "r", **auth) as f:
+                backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-    suppress_traceback(debug)(apply_cmd)(operator_spec, backend_config, **kwargs)
+    suppress_traceback(debug)(apply_cmd)(operator_spec, backend, **kwargs)
 
 
 commands.add_command(ads.opctl.conda.cli.commands)

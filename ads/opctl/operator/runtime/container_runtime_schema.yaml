@@ -4,7 +4,7 @@ kind:
   required: true
   type: string
   meta:
-    description: "The operator local runtime. Kind should always be `local` when using an operator with local container runtime."
+    description: "The operator local runtime. Kind should always be `operator.local` when using an operator with local container runtime."
 version:
   allowed:
     - "v1"
@@ -41,10 +41,10 @@ spec:
             type: string
           value:
             type:
-            - number
-            - string
+              - number
+              - string
     volume:
       required: false
       type:
-      - string
-      - list
+        - string
+        - list

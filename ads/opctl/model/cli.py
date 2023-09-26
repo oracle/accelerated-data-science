@@ -14,6 +14,7 @@ from ads.opctl.constants import DEFAULT_MODEL_FOLDER
 @click.group("model")
 @click.help_option("--help", "-h")
 def commands():
+    "The CLI to assist in the management of the Data Science Model Deployment."
     pass
 
 
