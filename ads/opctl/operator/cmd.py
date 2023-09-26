@@ -351,9 +351,7 @@ def build_image(
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=name).load()
-    logger.info(
-        f"Building Docker image for the `{operator_info.name}` service operator."
-    )
+    logger.info(f"Building Docker image for the `{operator_info.name}` operator.")
 
     # checks if GPU base image needs to be used.
     gpu = operator_info.gpu or gpu
@@ -413,7 +411,7 @@ def build_image(
         )
 
         logger.info(
-            f"The operator image `{result_image_name}` has been successfully built."
+            f"The operator image `{result_image_name}` has been successfully built. "
             "To publish the image to OCI Container Registry run the "
             f"`ads opctl operator publish-image -n {result_image_name}` command"
         )
