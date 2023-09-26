@@ -194,10 +194,44 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
             output_i["Series"] = cat
-            output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
-            output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
-            output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
+            output_i["input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
+
+            output_i[f"fitted_value"] = float("nan")
+            output_i[f"forecast_value"] = float("nan")
+            output_i[yhat_upper_name] = float("nan")
+            output_i[yhat_lower_name] = float("nan")
+
+            output_i.iloc[
+                : -self.spec.horizon.periods, output_i.columns.get_loc(f"fitted_value")
+            ] = (
+                outputs[f"{col}_{cat}"]["yhat"]
+                .iloc[: -self.spec.horizon.periods]
+                .values
+            )
+            output_i.iloc[
+                -self.spec.horizon.periods :,
+                output_i.columns.get_loc(f"forecast_value"),
+            ] = (
+                outputs[f"{col}_{cat}"]["yhat"]
+                .iloc[-self.spec.horizon.periods :]
+                .values
+            )
+            output_i.iloc[
+                -self.spec.horizon.periods :, output_i.columns.get_loc(yhat_upper_name)
+            ] = (
+                outputs[f"{col}_{cat}"]["yhat_upper"]
+                .iloc[-self.spec.horizon.periods :]
+                .values
+            )
+            output_i.iloc[
+                -self.spec.horizon.periods :, output_i.columns.get_loc(yhat_lower_name)
+            ] = (
+                outputs[f"{col}_{cat}"]["yhat_lower"]
+                .iloc[-self.spec.horizon.periods :]
+                .values
+            )
             output_col = pd.concat([output_col, output_i])
+
         # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
         output_col = output_col.reset_index(drop=True)
         outputs_merged = pd.concat([outputs_merged, output_col], axis=1)

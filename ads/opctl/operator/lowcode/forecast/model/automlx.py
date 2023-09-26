@@ -104,14 +104,22 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
         output_col = pd.DataFrame()
+        yhat_lower_percentage = (
+            100 - (self.spec.confidence_interval_width or 0.5) * 100
+        ) // 2
+        yhat_upper_name = "p" + str(int(100 - yhat_lower_percentage))
+        yhat_lower_name = "p" + str(int(yhat_lower_percentage))
         for cat in self.categories:  # Note: add [:2] to restrict
             output_i = pd.DataFrame()
-            output_i[self.spec.datetime_column.name] = outputs[f"{col}_{cat}"]["ds"]
+            output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
             output_i["Series"] = cat
-            output_i[f"{col}_forecast"] = outputs[f"{col}_{cat}"]["yhat"]
-            output_i[f"{col}_forecast_upper"] = outputs[f"{col}_{cat}"]["yhat_upper"]
-            output_i[f"{col}_forecast_lower"] = outputs[f"{col}_{cat}"]["yhat_lower"]
+            output_i["input_value"] = float("nan")
+            output_i[f"fitted_value"] = float("nan")
+            output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
+            output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
+            output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
             output_col = pd.concat([output_col, output_i])
+
         # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
         output_col = output_col.reset_index(drop=True)
         outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
