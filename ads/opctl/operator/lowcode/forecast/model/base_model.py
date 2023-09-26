@@ -83,6 +83,32 @@ class ForecastOperatorBaseModel(ABC):
         title_text = dp.Text("# Forecast Report")
 
         md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
+        first_10_rows_blocks = [
+            dp.DataTable(
+                df.head(10).rename({col: self.spec.target_column}, axis=1),
+                caption="Start",
+                label=col,
+            )
+            for col, df in self.full_data_dict.items()
+        ]
+
+        last_10_rows_blocks = [
+            dp.DataTable(
+                df.tail(10).rename({col: self.spec.target_column}, axis=1),
+                caption="End",
+                label=col,
+            )
+            for col, df in self.full_data_dict.items()
+        ]
+
+        data_summary_blocks = [
+            dp.DataTable(
+                df.rename({col: self.spec.target_column}, axis=1).describe(),
+                caption="Summary Statistics",
+                label=col,
+            )
+            for col, df in self.full_data_dict.items()
+        ]
         summary = dp.Blocks(
             dp.Select(
                 blocks=[
@@ -116,45 +142,18 @@ class ForecastOperatorBaseModel(ABC):
                             columns=4,
                         ),
                         dp.Text("### First 10 Rows of Data"),
-                        dp.Select(
-                            blocks=[
-                                dp.DataTable(
-                                    df.head(10).rename(
-                                        {col: self.spec.target_column}, axis=1
-                                    ),
-                                    caption="Start",
-                                    label=col,
-                                )
-                                for col, df in self.full_data_dict.items()
-                            ]
-                        ),
+                        dp.Select(blocks=first_10_rows_blocks)
+                        if len(first_10_rows_blocks) > 1
+                        else first_10_rows_blocks[0],
                         dp.Text("----"),
                         dp.Text("### Last 10 Rows of Data"),
-                        dp.Select(
-                            blocks=[
-                                dp.DataTable(
-                                    df.tail(10).rename(
-                                        {col: self.spec.target_column}, axis=1
-                                    ),
-                                    caption="End",
-                                    label=col,
-                                )
-                                for col, df in self.full_data_dict.items()
-                            ]
-                        ),
+                        dp.Select(blocks=last_10_rows_blocks)
+                        if len(last_10_rows_blocks) > 1
+                        else last_10_rows_blocks[0],
                         dp.Text("### Data Summary Statistics"),
-                        dp.Select(
-                            blocks=[
-                                dp.DataTable(
-                                    df.rename(
-                                        {col: self.spec.target_column}, axis=1
-                                    ).describe(),
-                                    caption="Summary Statistics",
-                                    label=col,
-                                )
-                                for col, df in self.full_data_dict.items()
-                            ]
-                        ),
+                        dp.Select(blocks=data_summary_blocks)
+                        if len(data_summary_blocks) > 1
+                        else data_summary_blocks[0],
                         label="Summary",
                     ),
                     dp.Text(
@@ -407,7 +406,7 @@ class ForecastOperatorBaseModel(ABC):
 
         # metrics csv report
         utils._write_data(
-            data=metrics_df.rename_axis('metrics').reset_index(),
+            data=metrics_df.rename_axis("metrics").reset_index(),
             filename=os.path.join(output_dir, self.spec.metrics_filename),
             format="csv",
             storage_options=default_signer(),
