@@ -194,7 +194,9 @@ class LargeArtifactUploader(ArtifactUploader):
         if ObjectStorageDetails.is_oci_path(artifact_path):
             if not artifact_path.endswith(".zip"):
                 raise ValueError(
-                    f"The `artifact_path={artifact_path}` is invalid. Please check APIs doc to see the possible values for it."
+                    f"The `artifact_path={artifact_path}` is invalid."
+                    "The remote path for model artifact should be a zip archive, "
+                    "e.g. `oci://<bucket_name>@<namespace>/prefix/mymodel.zip`."
                 )
             if not utils.is_path_exists(uri=artifact_path, auth=self.auth):
                 raise ValueError(f"The `{artifact_path}` does not exist.")
