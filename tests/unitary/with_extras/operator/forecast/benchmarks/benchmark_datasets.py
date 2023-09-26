@@ -15,10 +15,11 @@ if __name__ == '__main__':
     """Benchmarks for datasets."""
 
     try:
-        data_dir = os.environ["OCI__FORECASTING_DATA_DIR"] 
+        data_dir = os.environ["OCI__FORECASTING_DATA_DIR"]
     except:
-        raise ValueError("Please set the environment variable `OCI__FORECASTING_DATA_DIR` to the location of the forecasting datasets")
-        
+        raise ValueError("Please set the environment variable `OCI__FORECASTING_DATA_DIR` to the location of the "
+                         "forecasting datasets")
+
     smape = SupportedMetrics.SMAPE
     mape = SupportedMetrics.MAPE
     rmse = SupportedMetrics.RMSE
@@ -64,7 +65,7 @@ if __name__ == '__main__':
             # Training and generating the model outputs
             ForecastOperatorModelFactory.get_model(operator_config).generate_report()
 
-            # Reading holdout erros.
+            # Reading holdout errors.
             metrics_df = pd.read_csv(os.path.join(data_dir, dataset, 'output', model, 'metrics.csv')).set_index(
                 'metrics')
             metrics_dict = metrics_df.mean(axis=1).to_dict()
