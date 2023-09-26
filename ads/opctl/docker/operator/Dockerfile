@@ -3,7 +3,13 @@
 
 FROM ghcr.io/oracle/oraclelinux8-instantclient:21 as base
 
-RUN rm -rf /var/cache/yum/* && yum clean all && yum install -y gcc make patch vim iproute net-tools git && rm -rf /var/cache/yum/*
+RUN \
+    rm -rf /var/cache/yum/* && \
+    yum install -y gcc make patch vim iproute net-tools git && \
+    yum clean all && \
+    rm -rf /var/cache/yum/*
+
+########################### CONDA INSTALLATION ########################################
 RUN curl -L https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh >> miniconda.sh
 RUN bash ./miniconda.sh -b -p /miniconda; rm ./miniconda.sh;
 ENV PATH="/miniconda/bin:$PATH"
@@ -21,16 +27,11 @@ ENV PATH="/miniconda/envs/${CONDA_ENV_NAME}}/bin:$PATH"
 
 RUN conda init bash && source ~/.bashrc && conda activate ${CONDA_ENV_NAME}
 
+########################### SETUP WORKDIR ########################################
 RUN mkdir ${OPERATOR_DIR}
-# COPY ./artifacts/* ${OPERATOR_DIR}/
 
 ENV OPERATOR_DIR=${OPERATOR_DIR}
 ENV CONDA_ENV_NAME=${CONDA_ENV_NAME}
-
-# RUN if [ -f ${OPERATOR_DIR}/oracle_ads*.whl ]; then \
-#         local_whl=$(find ${OPERATOR_DIR} -name "*.whl" -exec basename {} \; | head -n 1 ); \
-#         source ~/.bashrc && conda activate ${CONDA_ENV_NAME} && pip install ${OPERATOR_DIR}/$local_whl; \
-#     fi
 
 WORKDIR ${OPERATOR_DIR}
 

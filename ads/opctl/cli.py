@@ -17,7 +17,8 @@ import ads.opctl.model.cli
 import ads.opctl.operator.cli
 import ads.opctl.spark.cli
 from ads.common import auth as authutil
-from ads.common.auth import AuthContext, AuthType
+from ads.common.auth import AuthType
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import apply as apply_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
@@ -30,7 +31,6 @@ from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import run as run_cmd
 from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
-from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import (
     BACKEND_NAME,
@@ -779,7 +779,9 @@ def apply(debug: bool, **kwargs: Dict[str, Any]) -> None:
     operator_spec = {}
     backend = kwargs.pop("backend")
 
-    auth = authutil.default_signer()
+    auth = {}
+    if any(ObjectStorageDetails.is_oci_path(uri) for uri in (kwargs["file"], backend)):
+        auth = authutil.default_signer()
 
     with fsspec.open(kwargs["file"], "r", **auth) as f:
         operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
@@ -788,7 +790,9 @@ def apply(debug: bool, **kwargs: Dict[str, Any]) -> None:
         with fsspec.open(backend, "r", **auth) as f:
             backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-    suppress_traceback(debug)(apply_cmd)(operator_spec, backend, **kwargs)
+    suppress_traceback(debug)(apply_cmd)(
+        config=operator_spec, backend=backend, **kwargs
+    )
 
 
 commands.add_command(ads.opctl.conda.cli.commands)
