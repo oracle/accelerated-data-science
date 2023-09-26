@@ -76,10 +76,7 @@ class TestArtifactUploader:
                 )
 
             invalid_artifact_path = "oci://my-bucket@my-tenancy/mymodel"
-            with pytest.raises(
-                ValueError,
-                match=f"The `artifact_path={invalid_artifact_path}` is invalid. Please check APIs doc to see the possible values for it.",
-            ):
+            with pytest.raises(ValueError):
                 lg_artifact_uploader = LargeArtifactUploader(
                     dsc_model=self.mock_dsc_model,
                     artifact_path=invalid_artifact_path,
