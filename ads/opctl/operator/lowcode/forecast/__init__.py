@@ -6,9 +6,11 @@
 
 import os
 
-__version__ = "v1"
+__operator_path__ = os.path.dirname(__file__)
 
-__type__ = "forecast"
+__type__ = os.path.basename(__operator_path__.rstrip("/"))
+
+__version__ = "v1"
 
 __conda__ = f"{__type__}_{__version__}"
 
@@ -18,9 +20,8 @@ __gpu__ = "no"  # yes/no
 
 __keywords__ = ["Prophet", "AutoML", "ARIMA", "RNN", "LSTM"]
 
-__backends__ = ["job", "dataflow"]  # job/dataflow
+__backends__ = ["job", "dataflow"]  # job/dataflow/
 
-__operator_path__ = os.path.dirname(__file__)
 
 __short_description__ = """
 Forecasting operator, that leverages historical time series data to generate accurate

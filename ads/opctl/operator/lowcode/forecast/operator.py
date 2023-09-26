@@ -15,7 +15,7 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
     ForecastOperatorModelFactory.get_model(operator_config).generate_report()
 
 
-def verify(spec: Dict, **kwargs) -> bool:
+def verify(spec: Dict, **kwargs: Dict) -> bool:
     """Verifies the forecasting operator config."""
     operator = ForecastOperatorConfig.from_dict(spec)
     msg_header = (

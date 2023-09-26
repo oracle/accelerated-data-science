@@ -518,6 +518,12 @@ def configure() -> None:
     if "CONDA" not in config_parser:
         config_parser["CONDA"] = {}
 
+    oci_auth = click.prompt(
+        text="Default OCI authentication type:",
+        type=click.Choice(AuthType.values()),
+        default=None,
+    )
+
     oci_config_path = click.prompt(
         "OCI config path:",
         default=config_parser["OCI"].get("oci_config", DEFAULT_OCI_CONFIG_FILE),
@@ -533,6 +539,7 @@ def configure() -> None:
     config_parser["OCI"] = {
         "oci_config": oci_config_path,
         "oci_profile": oci_profile,
+        "auth": oci_auth,
     }
     conda_pack_path = click.prompt(
         "Conda pack install folder:",
@@ -859,14 +866,22 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
     p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
 
     if p.config.get("kind", "").lower() == "operator":
-        from ads.opctl.operator import OperatorNotFoundError, __operators__
         from ads.opctl.operator import cmd as operator_cmd
-        from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
+        from ads.opctl.operator.common.operator_loader import (
+            OperatorLoader,
+            OperatorInfo,
+        )
 
         operator_type = p.config.get("type", "").lower()
 
-        if not (operator_type and operator_type in __operators__):
-            raise OperatorNotFoundError(operator_type or "unknown")
+        # validation
+        if not operator_type:
+            raise ValueError(
+                f"The `type` attribute must be specified in the operator's config."
+            )
+
+        # extracting details about the operator
+        operator_info: OperatorInfo = OperatorLoader.from_uri(uri=operator_type).load()
 
         supported_backends = (
             BACKEND_NAME.JOB.value,
@@ -927,13 +942,6 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
 
         # generate backend specification in case if it is not provided
         if not backend.get("spec"):
-            # get operator physical location
-            operator_path = os.path.join(
-                os.path.dirname(__file__), "operator", "lowcode", operator_type
-            )
-            # load operator info
-            operator_info: OperatorInfo = _operator_info(path=operator_path)
-
             backends = operator_cmd._init_backend_config(
                 operator_info=operator_info, **kwargs
             )
@@ -956,10 +964,10 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
                     "The dry run option is not supported for "
                     "the local backend and will be ignored."
                 )
-            LocalOperatorBackend(config=p.config).run()
+            LocalOperatorBackend(config=p.config, operator_info=operator_info).run()
         elif p_backend.config["execution"]["backend"] == BACKEND_NAME.JOB.value:
-            MLJobOperatorBackend(config=p.config).run()
+            MLJobOperatorBackend(config=p.config, operator_info=operator_info).run()
         elif p_backend.config["execution"]["backend"] == BACKEND_NAME.DATAFLOW.value:
-            DataFlowOperatorBackend(config=p.config).run()
+            DataFlowOperatorBackend(config=p.config, operator_info=operator_info).run()
     else:
-        raise RuntimeError("Not supported operator.")
+        raise RuntimeError("Not supported kind of workload.")

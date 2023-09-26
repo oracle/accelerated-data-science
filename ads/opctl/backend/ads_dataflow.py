@@ -26,6 +26,7 @@ from ads.opctl.backend.base import Backend, RuntimeFactory
 from ads.opctl.constants import OPERATOR_MODULE_PATH
 from ads.opctl.decorator.common import print_watch_command
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
+from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 
 REQUIRED_FIELDS = [
     "compartment_id",
@@ -214,10 +215,36 @@ class DataFlowBackend(Backend):
 
 
 class DataFlowOperatorBackend(DataFlowBackend):
-    """Backend class to run operator on Data Flow Applications."""
+    """
+    Backend class to run operator on Data Flow Application.
 
-    def __init__(self, config: Dict) -> None:
-        super().__init__(config=config)
+    Attributes
+    ----------
+    runtime_config: (Dict)
+        The runtime config for the operator.
+    operator_config: (Dict)
+        The operator specification config.
+    operator_type: str
+        The type of the operator.
+    operator_version: str
+        The version of the operator.
+    job: Job
+        The Data Science Job.
+    """
+
+    def __init__(self, config: Dict, operator_info: OperatorInfo = None) -> None:
+        """
+        Instantiates the operator backend.
+
+        Parameters
+        ----------
+        config: (Dict)
+            The configuration file containing operator's specification details and execution section.
+        operator_info: (OperatorInfo, optional)
+            The operator's detailed information extracted from the operator.__init__ file.
+            Will be extracted from the operator type in case if not provided.
+        """
+        super().__init__(config=config or {})
 
         self.job = None
 
@@ -231,13 +258,15 @@ class DataFlowOperatorBackend(DataFlowBackend):
         }
         self.operator_type = self.operator_config.get("type", "unknown")
         self.operator_version = self.operator_config.get("version", "unknown")
+        self.operator_info = operator_info
 
     def _adjust_common_information(self):
         """Adjusts common information of the application."""
 
         if self.job.name.lower().startswith("{job"):
             self.job.with_name(
-                f"job_{self.operator_type.lower()}" f"_{self.operator_version.lower()}"
+                f"job_{self.operator_info.name.lower()}"
+                f"_{self.operator_version.lower()}"
             )
         self.job.runtime.with_maximum_runtime_in_minutes(
             self.config["execution"].get("max_wait_time", 1200)
@@ -247,7 +276,7 @@ class DataFlowOperatorBackend(DataFlowBackend):
 
         # prepare run.py file to run the operator
         script_file = os.path.join(
-            temp_dir, f"{self.operator_type}_{int(time.time())}_run.py"
+            temp_dir, f"{self.operator_info.name}_{int(time.time())}_run.py"
         )
 
         operator_module = f"{OPERATOR_MODULE_PATH}.{self.operator_type}"
@@ -291,6 +320,9 @@ class DataFlowOperatorBackend(DataFlowBackend):
         """
         Runs the operator on the Data Flow service.
         """
+        if not self.operator_info:
+            self.operator_info = OperatorLoader.from_uri(self.operator_type).load()
+
         self.job = Job.from_dict(self.runtime_config).build()
 
         # adjust job's common information

@@ -17,8 +17,6 @@ version:
     description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
 
 type:
-  allowed:
-    - forecast
   required: true
   type: string
   default: forecast
