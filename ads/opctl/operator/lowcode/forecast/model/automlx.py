@@ -69,7 +69,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 "Time Index is",
                 "" if y_train.index.is_monotonic else "NOT",
                 "monotonic.",
-                vikas,
             )
 
             model = automl.Pipeline(
