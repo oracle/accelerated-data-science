@@ -674,7 +674,7 @@ class DataScienceModel(Builder):
             }
 
         if ObjectStorageDetails.is_oci_path(self.artifact):
-            if bucket_uri and bucket_uri != self.artifac:
+            if bucket_uri and bucket_uri != self.artifact:
                 logger.warn(
                     "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
                 )
