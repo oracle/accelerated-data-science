@@ -26,10 +26,24 @@ class TestJobsCLI:
         )
         assert res.exit_code == 0, res.output
         run_id = res.output.split("\n")[1]
-        res2 = runner.invoke(watch, args=[run_id])
+        res2 = runner.invoke(
+            watch,
+            args=[
+                run_id,
+                "--auth",
+                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+            ],
+        )
         assert res2.exit_code == 0, res2.output
 
-        res3 = runner.invoke(delete, args=[run_id])
+        res3 = runner.invoke(
+            delete,
+            args=[
+                run_id,
+                "--auth",
+                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+            ],
+        )
         assert res3.exit_code == 0, res3.output
 
     def test_create_watch_delete_dataflow(self):
@@ -46,12 +60,26 @@ class TestJobsCLI:
         )
         assert res.exit_code == 0, res.output
         run_id = res.output.split("\n")[1]
-        res2 = runner.invoke(watch, args=[run_id])
+        res2 = runner.invoke(
+            watch,
+            args=[
+                run_id,
+                "--auth",
+                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+            ],
+        )
         assert res2.exit_code == 0, res2.output
 
         res3 = runner.invoke(
             run, args=["-f", os.path.join(curr_dir, "../yamls", "sample_dataflow.yaml")]
         )
         run_id2 = res3.output.split("\n")[1]
-        res4 = runner.invoke(delete, args=[run_id2])
+        res4 = runner.invoke(
+            delete,
+            args=[
+                run_id2,
+                "--auth",
+                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+            ],
+        )
         assert res4.exit_code == 0, res4.output
