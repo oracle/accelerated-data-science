@@ -13,6 +13,7 @@ useDefault = true
         '''example-password''',
         '''this-is-not-the-secret''',
         '''<redacted>''',
+        '''security_token''',
         # NVIDIA_GPGKEY_SUM from public documentation:
         # https://gitlab.com/nvidia/container-images/cuda/-/blob/master/dist/10.1/centos7/base/Dockerfile
         '''d0664fbbdb8c32356d45de36c5984617217b2d0bef41b93ccecd326ba3b80c87'''

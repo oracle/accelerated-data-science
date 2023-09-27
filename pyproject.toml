@@ -57,7 +57,7 @@ dependencies = [
   "asteval>=0.9.25",
   "cerberus>=1.3.4",
   "cloudpickle>=1.6.0",
-  "fsspec>=0.8.7,<2023.9.1",  # v2.9.1 introduced issues, releved by unit tests
+  "fsspec>=0.8.7,<2023.9.1",  # v2.9.1 introduced issues, revealed by unit tests
   "gitpython>=3.1.2",
   "jinja2>=2.11.2",
   "matplotlib>=3.1.3",
@@ -109,7 +109,7 @@ onnx = [
   "lightgbm==3.3.1",
   "onnx>=1.12.0",
   "onnxmltools>=1.10.0",
-  "onnxruntime>=1.10.0,<1.16",  # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, releved by unit tests
+  "onnxruntime>=1.10.0,<1.16",  # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealedd by unit tests
   "oracle_ads[viz]",
   "protobuf<=3.20",
   "skl2onnx>=1.10.4",
