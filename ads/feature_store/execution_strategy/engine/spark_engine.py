@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
+from ads.feature_store.common.utils.utility import get_schema_from_spark_dataframe, get_schema_from_spark_df
 
 try:
     from pyspark.sql import SparkSession
@@ -42,10 +43,10 @@ class SparkEngine:
         )
 
     def get_time_version_data(
-        self,
-        delta_table_name: str,
-        version_number: int = None,
-        timestamp: datetime = None,
+            self,
+            delta_table_name: str,
+            version_number: int = None,
+            timestamp: datetime = None,
     ):
         split_db_name = delta_table_name.split(".")
 
@@ -103,10 +104,10 @@ class SparkEngine:
         return df
 
     def sql(
-        self,
-        query: str,
-        dataframe_type: DataFrameType = DataFrameType.SPARK,
-        is_online: bool = False,
+            self,
+            query: str,
+            dataframe_type: DataFrameType = DataFrameType.SPARK,
+            is_online: bool = False,
     ):
         """Execute SQL command on the offline or online feature store database
 
@@ -186,19 +187,27 @@ class SparkEngine:
 
         return permanent_tables
 
-    def get_columns_from_table(self, table_name: str):
+    def get_output_columns_from_table_or_dataframe(self, table_name: str = None, dataframe=None):
         """Returns the column(features) along with type from the given table.
 
         Args:
           table_name(str): A string specifying the name of table name for which columns should be returned.
+          dataframe: Dataframe containing the transformed dataframe.
 
         Returns:
          List[{"name": "<feature_name>","featureType": "<feature_type>"}]
          Returns the List of dictionary of column with name and type from the given table.
+
         """
+        if table_name is None and dataframe is None:
+            raise ValueError("Either 'table_name' or 'dataframe' must be provided to retrieve output columns.")
+
+        if dataframe is not None:
+            feature_data_target = dataframe
+        else:
+            feature_data_target = self.spark.sql(f"SELECT * FROM {table_name} LIMIT 1")
 
         target_table_columns = []
-        feature_data_target = self.spark.sql(f"SELECT * FROM {table_name} LIMIT 1")
 
         for field in feature_data_target.schema.fields:
             target_table_columns.append(

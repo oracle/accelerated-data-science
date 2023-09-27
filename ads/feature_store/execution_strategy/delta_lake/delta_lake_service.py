@@ -57,6 +57,18 @@ class DeltaLakeService:
             None.
         """
         logger.info(f"target table name {target_table_name}")
+        # query = (
+        #     dataflow_output.writeStream.outputMode("append")
+        #     .format("delta")
+        #     .option(
+        #         "checkpointLocation",
+        #         "/Users/yogeshkumawat/Desktop/Github-Oracle/accelerated-data-science/TestYogi/streaming",
+        #     )
+        #     .toTable(target_table_name)
+        # )
+        #
+        # query.awaitTermination()
+
         if (
             self.spark_engine.is_delta_table_exists(target_table_name)
             and ingestion_mode.upper() == IngestionMode.UPSERT.value
@@ -341,3 +353,33 @@ class DeltaLakeService:
 
         logger.info(f"get_insert_update_query_expression {feature_data_update_set}")
         return feature_data_update_set
+
+    def write_stream_dataframe_to_delta_lake(
+        self,
+        stream_dataframe,
+        target_table,
+        output_mode,
+        query_name,
+        await_termination,
+        timeout,
+        checkpoint_dir,
+        feature_option_details,
+    ):
+        query = (
+            stream_dataframe
+            .writeStream.
+            outputMode(output_mode)
+            .format("delta")
+            .option(
+                "checkpointLocation",
+                checkpoint_dir,
+            )
+            .options(self.get_delta_write_config(feature_option_details))
+            .queryName(query_name)
+            .toTable(target_table)
+        )
+
+        if await_termination:
+            query.awaitTermination(timeout)
+
+        return query

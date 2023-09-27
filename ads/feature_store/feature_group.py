@@ -17,7 +17,7 @@ from ads import deprecated
 from ads.common import utils
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.common.oci_mixin import OCIModelMixin
-from ads.feature_store.common.enums import ExpectationType, EntityType
+from ads.feature_store.common.enums import ExpectationType, EntityType, StreamIngestionMode
 from ads.feature_store.common.exceptions import (
     NotMaterializedError,
 )
@@ -911,6 +911,93 @@ class FeatureGroup(Builder):
 
         feature_group_execution_strategy.ingest_feature_definition(
             self, feature_group_job, input_dataframe
+        )
+
+    def materialise_stream(
+        self,
+        input_dataframe: Union[DataFrame],
+        query_name: Optional[str] = None,
+        ingestion_mode: StreamIngestionMode = StreamIngestionMode.APPEND,
+        await_termination: Optional[bool] = False,
+        timeout: Optional[int] = None,
+        checkpoint_dir: Optional[str] = None,
+        feature_option_details: FeatureOptionDetails = None,
+    ):
+        """Ingest a Spark Structured Streaming Dataframe to the feature store.
+
+        This method creates a long running Spark Streaming Query, you can control the
+        termination of the query through the arguments.
+
+        It is possible to stop the returned query with the `.stop()` and check its
+        status with `.isActive`.
+
+        !!! warning "Engine Support"
+            **Spark only**
+
+            Stream ingestion using Pandas/Python as engine is currently not supported.
+            Python/Pandas has no notion of streaming.
+
+        !!! warning "Data Validation Support"
+            `materialise_stream` does not perform any data validation using Great Expectations
+            even when a expectation suite is attached.
+
+        # Arguments
+            input_dataframe: Features in Streaming Dataframe to be saved.
+            query_name: It is possible to optionally specify a name for the query to
+                make it easier to recognise in the Spark UI. Defaults to `None`.
+            ingestion_mode: Specifies how data of a streaming DataFrame/Dataset is
+                written to a streaming sink. (1) `"append"`: Only the new rows in the
+                streaming DataFrame/Dataset will be written to the sink. (2)
+                `"complete"`: All the rows in the streaming DataFrame/Dataset will be
+                written to the sink every time there is some update. (3) `"update"`:
+                only the rows that were updated in the streaming DataFrame/Dataset will
+                be written to the sink every time there are some updates.
+                If the query doesn’t contain aggregations, it will be equivalent to
+                append mode. Defaults to `"append"`.
+            await_termination: Waits for the termination of this query, either by
+                query.stop() or by an exception. If the query has terminated with an
+                exception, then the exception will be thrown. If timeout is set, it
+                returns whether the query has terminated or not within the timeout
+                seconds. Defaults to `False`.
+            timeout: Only relevant in combination with `await_termination=True`.
+                Defaults to `None`.
+            checkpoint_dir: Checkpoint directory location. This will be used to as a reference to
+                from where to resume the streaming job. If `None` then hsfs will construct as
+                "insert_stream_" + online_topic_name. Defaults to `None`.
+                write_options: Additional write options for Spark as key-value pairs.
+                Defaults to `{}`.
+
+        # Returns
+            `StreamingQuery`: Spark Structured Streaming Query object.
+        """
+
+        # Create Feature Definition Job and persist it
+        feature_group_job = self._build_feature_group_job(
+            ingestion_mode=ingestion_mode,
+            feature_option_details=feature_option_details,
+        )
+
+        # Create the Job
+        feature_group_job.create()
+
+        # Update the feature group with corresponding job so that user can see the details about the job
+        self.with_job_id(feature_group_job.id)
+
+        feature_group_execution_strategy = (
+            OciExecutionStrategyProvider.provide_execution_strategy(
+                execution_engine=get_execution_engine_type(input_dataframe),
+                metastore_id=get_metastore_id(self.feature_store_id),
+            )
+        )
+
+        return feature_group_execution_strategy.ingest_feature_definition_stream(
+            self,
+            feature_group_job,
+            input_dataframe,
+            query_name,
+            await_termination,
+            timeout,
+            checkpoint_dir,
         )
 
     def get_last_job(self) -> "FeatureGroupJob":
