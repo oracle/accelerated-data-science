@@ -210,26 +210,6 @@ class SparkExecutionEngine(Strategy):
         if error_message:
             raise Exception(error_message)
 
-    @classmethod
-    def is_streaming_dataframe(cls, data_frame):
-        """
-        Check if the provided DataFrame is a Spark Streaming DataFrame.
-
-        Args:
-            data_frame (DataFrame): The DataFrame to check.
-
-        Returns:
-            bool: True if it's a Spark Streaming DataFrame, False otherwise.
-        """
-        if isinstance(data_frame, pd.DataFrame):
-            return False
-        elif isinstance(data_frame, DataFrame):
-            return data_frame.isStreaming
-        else:
-            raise ValueError(
-                "Invalid DataFrame type. Expected Pandas or Spark DataFrame."
-            )
-
     def _save_offline_dataframe(
             self, data_frame, feature_group, feature_group_job: FeatureGroupJob
     ):
@@ -332,17 +312,12 @@ class SparkExecutionEngine(Strategy):
             )
 
             logger.info(f"output features for the FeatureGroup: {output_features}")
-            # Compute Feature Statistics
 
-            if self.is_streaming_dataframe(data_frame):
-                logger.warning(
-                    "Stats skipped: Streaming DataFrames are not supported for statistics."
-                )
-            else:
-                feature_statistics = StatisticsService.compute_stats_with_mlm(
-                    statistics_config=feature_group.oci_feature_group.statistics_config,
-                    input_df=featured_data,
-                )
+            # Compute Feature Statistics
+            feature_statistics = StatisticsService.compute_stats_with_mlm(
+                statistics_config=feature_group.oci_feature_group.statistics_config,
+                input_df=featured_data,
+            )
 
         except Exception as ex:
             error_details = str(ex)
