@@ -61,7 +61,8 @@ class TestFeatureGroupStatistics(FeatureStoreTestCase):
         stat_obj = fg.get_statistics()
         assert stat_obj.content is not None
         assert len(stat_obj.to_pandas().columns) == 6
-
+        # Validate visualisation is possible
+        fg.get_statistics().to_viz()
         self.clean_up_feature_group(fg)
         self.clean_up_entity(entity)
         self.clean_up_feature_store(fs)

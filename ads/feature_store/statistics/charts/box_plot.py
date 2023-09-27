@@ -2,10 +2,12 @@
 # -*- coding: utf-8; -*-
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from typing import List
+from typing import List, Union
+
+from ads.feature_store.statistics.abs_feature_value import AbsFeatureValue
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
-from ads.feature_store.statistics.charts.abstract_feature_stat import AbsFeatureStat
+from ads.feature_store.statistics.charts.abstract_feature_plot import AbsFeaturePlot
 from ads.feature_store.statistics.charts.frequency_distribution import (
     FrequencyDistribution,
 )
@@ -20,7 +22,7 @@ except ModuleNotFoundError:
     )
 
 
-class BoxPlot(AbsFeatureStat):
+class BoxPlot(AbsFeaturePlot):
     CONST_MIN = "Min"
     CONST_MAX = "Max"
     CONST_QUARTILES = "Quartiles"
@@ -30,7 +32,7 @@ class BoxPlot(AbsFeatureStat):
     CONST_IQR = "IQR"
     CONST_BOX_POINTS = "box_points"
 
-    class Quartiles:
+    class Quartiles(AbsFeatureValue):
         CONST_Q1 = "q1"
         CONST_Q2 = "q2"
         CONST_Q3 = "q3"
@@ -39,14 +41,19 @@ class BoxPlot(AbsFeatureStat):
             self.q1 = q1
             self.q2 = q2
             self.q3 = q3
+            super().__init__()
 
         @classmethod
-        def from_json(cls, json_dict: dict) -> "BoxPlot.Quartiles":
+        def __from_json__(cls, json_dict: dict) -> "BoxPlot.Quartiles":
             return cls(
                 json_dict.get(cls.CONST_Q1),
                 json_dict.get(cls.CONST_Q2),
                 json_dict.get(cls.CONST_Q3),
             )
+
+        def __validate__(self):
+            assert type(self.q1) == type(self.q2) == type(self.q3) == int or float
+            assert self.q3 >= self.q2 >= self.q1
 
     def __init__(
         self,
@@ -67,14 +74,14 @@ class BoxPlot(AbsFeatureStat):
         super().__init__()
 
     def __validate__(self):
-        if (
-            self.q1 is None
-            or self.q3 is None
-            or self.iqr is None
-            or type(self.box_points) is not list
-            or len(self.box_points) == 0
-        ):
-            return self.ValidationFailedException()
+        assert self.q1 is not None
+        assert self.q3 is not None
+        assert self.iqr is not None
+        assert self.q3 is not None
+        assert self.median is not None
+        assert self.mean is not None
+        assert type(self.box_points) is list
+        assert len(self.box_points) > 0
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
