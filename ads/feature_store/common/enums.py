@@ -67,6 +67,35 @@ class IngestionMode(Enum):
     DEFAULT = "DEFAULT"
     UPSERT = "UPSERT"
 
+class StreamIngestionMode(Enum):
+    """
+    Enumeration for stream ingestion modes.
+
+    - `COMPLETE`: Represents complete stream ingestion where the entire dataset is replaced.
+    - `APPEND`: Represents appending new data to the existing dataset.
+    - `UPDATE`: Represents updating existing data in the dataset.
+    """
+    COMPLETE = "COMPLETE"
+    APPEND = "APPEND"
+    UPDATE = "UPDATE"
+
+class StreamingIngestionMode(Enum):
+    """
+    An enumeration that represents the supported Ingestion Mode in feature store.
+
+    Attributes:
+        OVERWRITE (str): Ingestion mode to overwrite the data in the system.
+        APPEND (str): Ingestion mode to append the data in the system.
+        UPSERT (str): Ingestion mode to insert and update the data in the system.
+
+    Methods:
+        None
+    """
+
+    APPEND = "APPEND"
+    DEFAULT = "DEFAULT"
+    UPSERT = "UPSERT"
+
 
 class JoinType(Enum):
     """Enumeration of supported SQL join types.

@@ -77,13 +77,36 @@ class SparkExecutionEngine(Strategy):
         self._jvm = self._spark_context._jvm
 
     def ingest_feature_definition(
-        self,
-        feature_group: "FeatureGroup",
-        feature_group_job: FeatureGroupJob,
-        dataframe,
+            self,
+            feature_group: "FeatureGroup",
+            feature_group_job: FeatureGroupJob,
+            dataframe,
     ):
         try:
             self._save_offline_dataframe(dataframe, feature_group, feature_group_job)
+        except Exception as e:
+            raise SparkExecutionException(e).with_traceback(e.__traceback__)
+
+    def ingest_feature_definition_stream(
+            self,
+            feature_group,
+            feature_group_job: FeatureGroupJob,
+            dataframe,
+            query_name,
+            await_termination,
+            timeout,
+            checkpoint_dir,
+    ):
+        try:
+            self._save_offline_dataframe_stream(
+                dataframe,
+                feature_group,
+                feature_group_job,
+                query_name,
+                await_termination,
+                timeout,
+                checkpoint_dir,
+            )
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
@@ -94,7 +117,7 @@ class SparkExecutionEngine(Strategy):
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
     def delete_feature_definition(
-        self, feature_group: "FeatureGroup", feature_group_job: FeatureGroupJob
+            self, feature_group: "FeatureGroup", feature_group_job: FeatureGroupJob
     ):
         """
         Deletes a feature definition from the system.
@@ -187,8 +210,28 @@ class SparkExecutionEngine(Strategy):
         if error_message:
             raise Exception(error_message)
 
+    @classmethod
+    def is_streaming_dataframe(cls, data_frame):
+        """
+        Check if the provided DataFrame is a Spark Streaming DataFrame.
+
+        Args:
+            data_frame (DataFrame): The DataFrame to check.
+
+        Returns:
+            bool: True if it's a Spark Streaming DataFrame, False otherwise.
+        """
+        if isinstance(data_frame, pd.DataFrame):
+            return False
+        elif isinstance(data_frame, DataFrame):
+            return data_frame.isStreaming
+        else:
+            raise ValueError(
+                "Invalid DataFrame type. Expected Pandas or Spark DataFrame."
+            )
+
     def _save_offline_dataframe(
-        self, data_frame, feature_group, feature_group_job: FeatureGroupJob
+            self, data_frame, feature_group, feature_group_job: FeatureGroupJob
     ):
         """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
         dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
@@ -225,7 +268,9 @@ class SparkExecutionEngine(Strategy):
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 
             if feature_group.expectation_details:
-                expectation_type = feature_group.expectation_details["expectationType"]
+                expectation_type = feature_group.expectation_details[
+                    "expectationType"
+                ]
                 logger.info(f"Validation expectation type: {expectation_type}")
 
                 # Apply validations
@@ -289,10 +334,15 @@ class SparkExecutionEngine(Strategy):
             logger.info(f"output features for the FeatureGroup: {output_features}")
             # Compute Feature Statistics
 
-            feature_statistics = StatisticsService.compute_stats_with_mlm(
-                statistics_config=feature_group.oci_feature_group.statistics_config,
-                input_df=featured_data,
-            )
+            if self.is_streaming_dataframe(data_frame):
+                logger.warning(
+                    "Stats skipped: Streaming DataFrames are not supported for statistics."
+                )
+            else:
+                feature_statistics = StatisticsService.compute_stats_with_mlm(
+                    statistics_config=feature_group.oci_feature_group.statistics_config,
+                    input_df=featured_data,
+                )
 
         except Exception as ex:
             error_details = str(ex)
@@ -419,7 +469,7 @@ class SparkExecutionEngine(Strategy):
 
             # Get the output features
             output_features = get_features(
-                output_columns=self.spark_engine.get_columns_from_table(target_table),
+                output_columns=self.spark_engine.get_output_columns_from_table_or_dataframe(table_name=target_table),
                 parent_id=dataset.id,
                 entity_type=EntityType.DATASET,
             )
@@ -460,7 +510,7 @@ class SparkExecutionEngine(Strategy):
 
     @staticmethod
     def _update_job_and_parent_details(
-        parent_entity, job_entity, output_features=None, output_details=None
+            parent_entity, job_entity, output_features=None, output_details=None
     ):
         """
         Updates the parent and job entities with relevant details.
@@ -484,3 +534,92 @@ class SparkExecutionEngine(Strategy):
 
         # Update both the parent and job entities.
         parent_entity.update()
+
+    def _save_offline_dataframe_stream(
+            self,
+            dataframe,
+            feature_group,
+            feature_group_job,
+            query_name,
+            await_termination,
+            timeout,
+            checkpoint_dir,
+    ):
+        output_features = []
+        output_details = {
+            "error_details": None,
+            "validation_output": None,
+            "commit_id": "commit_id",
+            "feature_statistics": None,
+        }
+
+        try:
+            # Create database in hive metastore if not exist
+            database = feature_group.entity_id
+            self.spark_engine.create_database(database)
+
+            target_table = f"{database}.{feature_group.name}"
+
+            # Apply the transformation
+            if feature_group.transformation_id:
+                logger.info("Dataframe is transformation enabled.")
+
+                # Get the Transformation Arguments if exists and pass to the transformation function.
+                transformation_kwargs = Base64EncoderDecoder.decode(
+                    feature_group.transformation_kwargs
+                )
+
+                # Loads the transformation resource
+                transformation = Transformation.from_id(feature_group.transformation_id)
+
+                featured_data = TransformationUtils.apply_transformation(
+                    self._spark_session,
+                    dataframe,
+                    transformation,
+                    transformation_kwargs,
+                )
+            else:
+                logger.info("Transformation not defined.")
+                featured_data = dataframe
+
+            # Get the output features
+            output_features = get_features(
+                self.spark_engine.get_output_columns_from_table_or_dataframe(dataframe=featured_data), feature_group.id
+            )
+
+            self._update_job_and_parent_details(
+                parent_entity=feature_group,
+                job_entity=feature_group_job,
+                output_features=output_features,
+                output_details=output_details,
+            )
+
+            streaming_query = self.delta_lake_service.write_stream_dataframe_to_delta_lake(
+                featured_data,
+                target_table,
+                feature_group_job.ingestion_mode,
+                query_name,
+                await_termination,
+                timeout,
+                checkpoint_dir,
+                feature_group_job.feature_option_details,
+            )
+
+            return streaming_query
+
+        except Exception as ex:
+            # Update Job with Failed Status
+            error_details = str(ex)
+            tb = traceback.format_exc()
+            logger.error(
+                f"FeatureGroup Stream Materialization Failed with : {type(ex)} with error message: {ex} and stacktrace {tb}",
+            )
+
+            output_details["error_details"] = error_details
+
+            self._update_job_and_parent_details(
+                parent_entity=feature_group,
+                job_entity=feature_group_job,
+                output_features=output_features,
+                output_details=output_details,
+            )
