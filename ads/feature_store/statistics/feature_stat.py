@@ -5,7 +5,7 @@
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from typing import List
-from ads.feature_store.statistics.charts.abstract_feature_stat import AbsFeatureStat
+from ads.feature_store.statistics.charts.abstract_feature_plot import AbsFeaturePlot
 from ads.feature_store.statistics.charts.box_plot import BoxPlot
 from ads.feature_store.statistics.charts.frequency_distribution import (
     FrequencyDistribution,
@@ -79,7 +79,7 @@ class FeatureStatistics:
             return cls(feature_name)
 
     @property
-    def __feature_stat_objects__(self) -> List[AbsFeatureStat]:
+    def __feature_stat_objects__(self) -> List[AbsFeaturePlot]:
         return [
             stat
             for stat in [
@@ -101,14 +101,15 @@ class FeatureStatistics:
         if len(self.__feature_stat_objects__) > 0:
             fig = make_subplots(cols=3, column_titles=[" "] * 3)
             for idx, stat in zip(
-                next_graph_position_generator(),
-                [stat for stat in self.__feature_stat_objects__ if stat is not None],
+                next_graph_position_generator(), self.__feature_stat_objects__
             ):
                 stat.add_to_figure(fig, idx, idx)
 
             fig.layout.title = self.CONST_TITLE_FORMAT.format(self.feature_name)
             fig.update_layout(title_font_size=20)
+            # Center align the title
             fig.update_layout(title_x=0.5)
+            # Disable legend for unrelated plots
             fig.update_layout(showlegend=False)
             plotly.offline.iplot(
                 fig,
