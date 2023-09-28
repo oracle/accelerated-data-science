@@ -15,11 +15,14 @@ Release Notes
         - Latest Version
         - Notes
       * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/p/LzT6f_OEVuPRU-zp8xIyGkf-iUTXDGpzcW6V0CIPYP_Z4NlUsZLm7ssBsdgfK18a/n/ociodscdev/b/fs-conda-packs-release/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/2.0/fspyspark32_p38_cpu_v2`
+        - `fs_pyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.256.master
         -
+      * - ADS_VERSION
+        - oracle-ads==2.9.0rc0
+        - `https://github.com/oracle/accelerated-data-science/releases/tag/v2.9.0rc0`
       * - Terraform Stack
         - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__
         -
@@ -52,7 +55,7 @@ Release notes: September 22, 2023
         - Latest Version
         - Notes
       * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
+        - `fs_pyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.225.master
@@ -82,7 +85,7 @@ Release notes: July 18, 2023
         - Latest Version
         - Notes
       * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
+        - `fs_pyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.218.master
@@ -113,7 +116,7 @@ Release notes: July 5, 2023
         - Latest Version
         - Notes
       * - Conda pack
-        - `https://objectstorage.us-ashburn-1.oraclecloud.com/n/bigdatadatasciencelarge/b/service-conda-packs-fs/o/service_pack/cpu/PySpark_3.2_and_Feature_Store/1.0/fspyspark32_p38_cpu_v1#conda`
+        - `fs_pyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.209.master
