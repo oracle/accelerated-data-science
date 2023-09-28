@@ -119,7 +119,7 @@ If you don't have an Object Storage bucket, create one using the OCI SDK or the 
 
         Allow service datascience to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
-        Allow service objectstorage to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
+        Allow service objectstorage-<region> to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
 The following example loads a model using the large model artifact approach. The ``bucket_uri`` has the following syntax: ``oci://<bucket_name>@<namespace>/<path>/`` See `API documentation <../../ads.model.html#id4>`__ for more details.
 

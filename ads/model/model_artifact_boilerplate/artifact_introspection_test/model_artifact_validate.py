@@ -30,7 +30,7 @@ TESTS_PATH = os.path.join(_cwd, "resources", "tests.yaml")
 HTML_PATH = os.path.join(_cwd, "resources", "template.html")
 CONFIG_PATH = os.path.join(_cwd, "resources", "config.yaml")
 PYTHON_VER_PATTERN = "^([3])(\.[6-9])(\.\d+)?$"
-PAR_URL = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/Ri7zFc_h91sxMdgnza9Qnqw3Ina8hf8wzDvEpAnUXMDOnUR1U1fpsaBUjUfgPgIq/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
+PAR_URL = "https://objectstorage.us-ashburn-1.oraclecloud.com/p/WyjtfVIG0uda-P3-2FmAfwaLlXYQZbvPZmfX1qg0-sbkwEQO6jpwabGr2hMDBmBp/n/ociodscdev/b/service-conda-packs/o/service_pack/index.json"
 
 TESTS = {
     "score_py": {
@@ -195,7 +195,9 @@ def check_runtime_yml(file_path) -> Tuple[bool, str]:
                         return False, TESTS["runtime_path_exist"]["error_msg"]
                 else:
                     TESTS["runtime_path_exist"]["success"] = False
-                    return False, TESTS["runtime_path_exist"]["error_msg"]
+                    TESTS["runtime_path_exist"][
+                        "error_msg"
+                    ] = "WARNING: Unable to validate if INFERENCE_ENV_PATH exists. Please check if you have internet access."
             else:
                 bucket_name = env_path.username
                 namespace = env_path.hostname
