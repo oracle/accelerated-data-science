@@ -15,7 +15,7 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-from .__init__ import __name__ as MODULE
+from .__init__ import __type__ as MODULE
 from .operator import operate, verify
 from .operator_config import FeatureStoreOperatorConfig
 

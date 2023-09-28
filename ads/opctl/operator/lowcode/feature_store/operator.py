@@ -11,7 +11,9 @@ from .operator_config import FeatureStoreOperatorConfig
 
 def operate(operator_config: FeatureStoreOperatorConfig) -> None:
     """Runs the operator."""
+    print("*************")
     print(operator_config)
+    print("*************")
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:

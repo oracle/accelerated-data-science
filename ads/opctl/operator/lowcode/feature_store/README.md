@@ -7,32 +7,32 @@ Below are the steps to configure and deploy the Feature Store on OCI resources.
 ## 1. Prerequisites
 
 ### User policies for stack setup
-Feature Store users need to provide the following access permissions in order to deploy the feature store terraform stack. Below mentioned are the policy statements required for terraform stack deployment
+Feature Store users need to provide the following access permissions in order to deploy the feature store terraform stack. Below mentioned are the policy statements required for terraform stack deployment:
 
- - define tenancy service_tenancy as <YOUR_OCID>
- - endorse group <feature store user group> to read repos in tenancy service_tenancy
- - allow group <feature store user group> to manage orm-stacks in compartment <compartmentName>
- - allow group <feature store user group> to manage orm-jobs in compartment <compartmentName>
- - allow group <feature store user group> to manage object-family in compartment <compartmentName>
- - allow group <feature store user group> to manage users in compartment <compartmentName>
- - allow group <feature store user group> to manage instance-family in compartment <compartmentName>
- - allow group <feature store user group> to manage tag-namespaces in compartment <compartmentName>
- - allow group <feature store user group> to manage groups in compartment <compartmentName>
- - allow group <feature store user group> to manage policies in compartment <compartmentName>
- - allow group <feature store user group> to manage dynamic-groups in compartment <compartmentName>
- - allow group <feature store user group> to manage virtual-network-family in compartment <compartmentName>
- - allow group <feature store user group> to manage functions-family in compartment <compartmentName>
- - allow group <feature store user group> to inspect compartments in compartment <compartmentName>
- - allow group <feature store user group> to manage cluster-family in compartment <compartmentName>
- - allow group <feature store user group> to manage mysql-family in compartment <compartmentName>
- - allow group <feature store user group> to manage api-gateway-family in compartment <compartmentName>
+- define tenancy service_tenancy as `<YOUR_OCID>`
+- endorse group `<feature store user group>` to read repos in tenancy service_tenancy
+- allow group `<feature store user group>` to manage orm-stacks in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage orm-jobs in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage object-family in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage users in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage instance-family in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage tag-namespaces in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage groups in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage policies in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage dynamic-groups in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage virtual-network-family in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage functions-family in compartment `<compartmentName>`
+- allow group `<feature store user group>` to inspect compartments in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage cluster-family in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage mysql-family in compartment `<compartmentName>`
+- allow group `<feature store user group>` to manage api-gateway-family in compartment `<compartmentName>`
 
 ## 2. Generating configs
 
 To generate starter configs, run the command below. This will create a list of YAML configs and place them in the `output` folder.
 
 ```bash
-ads opctl operator init -n feature_store --overwrite --output ~/feature_store/
+ads operator init -n feature_store --overwrite --output ~/feature_store/
 ```
 
 The most important files expected to be generated are:
@@ -57,13 +57,13 @@ Please review the previously generated `feature_store.yaml` file using the `init
 Use the command below to verify the operator's config.
 
 ```bash
-ads opctl operator verify -f ~/feature_store/feature_store.yaml
+ads operator verify -f ~/feature_store/feature_store.yaml
 ```
 
 Use the following command to run the operator within the `ads-feature-store` conda environment.
 
 ```bash
-ads opctl apply -f ~/feature_store/feature_store.yaml -b local
+ads operator run -f ~/feature_store/feature_store.yaml -b local
 ```
 
 The operator will run in your local environment without requiring any additional modifications.
@@ -75,7 +75,7 @@ To run the the operator within a local container, follow these steps:
 Use the command below to build the operator's container.
 
 ```bash
-ads opctl operator build-image -n feature_store
+ads operator build-image -n feature_store
 ```
 
 This will create a new `feature_store:v1` image, with `/etc/operator` as the designated working directory within the container.
@@ -109,5 +109,5 @@ version: v1
 Run the operator within a container using the command below:
 
 ```bash
-ads opctl apply -f ~/feature_store/feature_store.yaml --backend-config ~/feature_store/backend_operator_local_container_config.yaml
+ads operator run -f ~/feature_store/feature_store.yaml --backend-config ~/feature_store/backend_operator_local_container_config.yaml
 ```
