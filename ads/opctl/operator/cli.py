@@ -10,11 +10,15 @@ import click
 import fsspec
 import yaml
 
+from ads.common import auth as authutil
 from ads.common.auth import AuthType
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.opctl.constants import BACKEND_NAME
 from ads.opctl.decorator.common import click_options, with_auth
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
+from .cmd import apply as cmd_apply
 from .cmd import build_conda as cmd_build_conda
 from .cmd import build_image as cmd_build_image
 from .cmd import create as cmd_create
@@ -93,7 +97,9 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(
+    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+)
 @click.option(
     "--output",
     help=f"The folder name to save the resulting specification templates.",
@@ -236,3 +242,53 @@ def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
 def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Publishes an operator's conda environment to the Object Storage bucket."""
     suppress_traceback(debug)(cmd_publish_conda)(**kwargs)
+
+
+@commands.command()
+@click_options(DEBUG_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION)
+@click.option(
+    "--file", "-f", help="The path to resource YAML file.", required=True, default=None
+)
+@click.option(
+    "--backend",
+    "-b",
+    help=(
+        "Backend name or the path to the operator's backend config YAML file. "
+        f"Example 1: `ads opctl apply -f operator.yaml -b {BACKEND_NAME.LOCAL.value}` "
+        "Supported backends: "
+        f"{[BACKEND_NAME.JOB.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.LOCAL.value,]} "
+        "Example 2: `ads opctl apply -f operator.yaml -b backend.yaml` "
+        "Use the `ads opctl operator init` command to generate operator's configs. "
+    ),
+    required=False,
+    default=None,
+)
+@click.option(
+    "--dry-run",
+    "-r",
+    default=False,
+    is_flag=True,
+    help="During dry run, the actual operation is not performed, only the steps are enumerated.",
+)
+@with_auth
+def run(debug: bool, **kwargs: Dict[str, Any]) -> None:
+    """
+    Runs the operator with the given specification on the targeted backend.
+    """
+    operator_spec = {}
+    backend = kwargs.pop("backend")
+
+    auth = {}
+    if any(ObjectStorageDetails.is_oci_path(uri) for uri in (kwargs["file"], backend)):
+        auth = authutil.default_signer()
+
+    with fsspec.open(kwargs["file"], "r", **auth) as f:
+        operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
+
+    if backend and backend.lower().endswith((".yaml", ".yml")):
+        with fsspec.open(backend, "r", **auth) as f:
+            backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
+
+    suppress_traceback(debug)(cmd_apply)(
+        config=operator_spec, backend=backend, **kwargs
+    )
