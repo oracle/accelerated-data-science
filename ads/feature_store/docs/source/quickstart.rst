@@ -6,7 +6,7 @@ Quick start
 
   ..  code-block:: shell
 
-     odsc conda install -s fspyspark32_p38_cpu_v1
+     odsc conda install -s fspyspark32_p38_cpu_v1 && pip install --pre oracle-ads==2.9.0rc0
 3. Download the notebooks from the example notebook section.
 
 .. seealso::
