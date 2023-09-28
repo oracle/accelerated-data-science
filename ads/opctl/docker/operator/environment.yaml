@@ -5,4 +5,4 @@ dependencies:
   - python=3.8
   - pip
   - pip:
-      - oracle-ads[opctl]
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"

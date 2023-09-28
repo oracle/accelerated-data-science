@@ -377,7 +377,7 @@ def build_image(
         client = docker.from_env()
         client.api.inspect_image(base_image_name)
         if rebuild_base_image:
-            raise docker.errors.ImageNotFound()
+            raise docker.errors.ImageNotFound("The base operator's image not found.")
     except docker.errors.ImageNotFound:
         logger.info(f"Building the base operator's image `{base_image_name}`.")
 
