@@ -5,7 +5,7 @@
 
 from typing import List
 from ads.common.decorator.runtime_dependency import OptionalDependency
-from ads.feature_store.statistics.charts.abstract_feature_stat import AbsFeatureStat
+from ads.feature_store.statistics.charts.abstract_feature_plot import AbsFeaturePlot
 
 try:
     from plotly.graph_objs import Figure
@@ -16,23 +16,20 @@ except ModuleNotFoundError:
     )
 
 
-class FrequencyDistribution(AbsFeatureStat):
+class FrequencyDistribution(AbsFeaturePlot):
     CONST_FREQUENCY = "frequency"
     CONST_BINS = "bins"
     CONST_FREQUENCY_DISTRIBUTION_TITLE = "Frequency Distribution"
-
-    def __validate__(self):
-        if not (
-            type(self.frequency) == list
-            and type(self.bins) == list
-            and 0 < len(self.frequency) == len(self.bins) > 0
-        ):
-            raise self.ValidationFailedException()
 
     def __init__(self, frequency: List, bins: List):
         self.frequency = frequency
         self.bins = bins
         super().__init__()
+
+    def __validate__(self):
+        assert type(self.frequency) == list
+        assert type(self.bins) == list
+        assert 0 < len(self.frequency) == len(self.bins) > 0
 
     @classmethod
     def __from_json__(cls, json_dict: dict) -> "FrequencyDistribution":
