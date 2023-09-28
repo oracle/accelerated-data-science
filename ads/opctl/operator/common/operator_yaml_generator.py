@@ -91,7 +91,11 @@ class YamlGenerator:
         example = {}
         for key, value in schema.items():
             # only generate values fro required fields
-            if value.get("required", False) or value.get("dependencies", False):
+            if (
+                value.get("required", False)
+                or value.get("dependencies", False)
+                or key in values
+            ):
                 if not "dependencies" in value or self._check_condition(
                     value["dependencies"], example
                 ):

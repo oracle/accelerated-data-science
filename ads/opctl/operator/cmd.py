@@ -9,7 +9,7 @@ import re
 import runpy
 import shutil
 import tempfile
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Tuple
 
 import fsspec
 import yaml
@@ -112,6 +112,7 @@ def _init_backend_config(
     ads_config: Union[str, None] = None,
     output: Union[str, None] = None,
     overwrite: bool = False,
+    backend_kind: Tuple[str] = None,
     **kwargs: Dict,
 ):
     """
@@ -126,6 +127,8 @@ def _init_backend_config(
         Whether to overwrite the result specification YAML if exists.
     ads_config: (str, optional)
         The folder where the ads opctl config located.
+    backend_kind: (str, optional)
+        The required backend.
     kwargs: (Dict, optional).
         Additional key value arguments.
 
@@ -135,6 +138,11 @@ def _init_backend_config(
         The dictionary where the key will be a tuple containing runtime kind and type.
         Example:
         >>> {("local","python"): {}, ("job", "container"): {}}
+
+    Raises
+    ------
+    RuntimeError
+        In case if the provided backend is not supported.
     """
     result = {}
 
@@ -186,9 +194,16 @@ def _init_backend_config(
         ],
     }
 
-    supported_backends = set(
-        operator_info.backends + [BACKEND_NAME.OPERATOR_LOCAL.value]
+    supported_backends = tuple(
+        set(RUNTIME_TYPE_MAP.keys()) & set(operator_info.backends)
     )
+
+    if backend_kind:
+        if backend_kind not in supported_backends:
+            raise RuntimeError(
+                f"Not supported backend - {backend_kind}. Supported backends: {supported_backends}"
+            )
+        supported_backends = (backend_kind,)
 
     for resource_type in supported_backends:
         for runtime_type_item in RUNTIME_TYPE_MAP.get(resource_type.lower(), []):
@@ -412,7 +427,7 @@ def build_image(
         logger.info(
             f"The operator image `{result_image_name}` has been successfully built. "
             "To publish the image to OCI Container Registry run the "
-            f"`ads opctl operator publish-image -n {result_image_name}` command"
+            f"`ads operator publish-image -n {result_image_name}` command"
         )
 
 
@@ -697,11 +712,16 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
     # extracting details about the operator
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=operator_type).load()
 
-    supported_backends = (
-        BACKEND_NAME.JOB.value,
-        BACKEND_NAME.DATAFLOW.value,
-        BACKEND_NAME.OPERATOR_LOCAL.value,
-        BACKEND_NAME.LOCAL.value,
+    supported_backends = tuple(
+        set(
+            (
+                BACKEND_NAME.JOB.value,
+                BACKEND_NAME.DATAFLOW.value,
+                BACKEND_NAME.OPERATOR_LOCAL.value,
+                BACKEND_NAME.LOCAL.value,
+            )
+        )
+        & set(operator_info.backends)
     )
 
     backend_runtime_map = {
@@ -754,7 +774,7 @@ def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
     # generate backend specification in case if it is not provided
     if not backend.get("spec"):
         backends = operator_cmd._init_backend_config(
-            operator_info=operator_info, **kwargs
+            operator_info=operator_info, backend_kind=backend_kind, **kwargs
         )
         backend = backends[backend_runtime_map[backend_kind]]
 
