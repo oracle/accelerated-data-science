@@ -16,33 +16,33 @@ After ensuring that you have all the necessary prerequisites in order, the next 
 CLI Overview
 ============
 
-The ``ads opctl operator`` CLI tool is your trusty companion when working with operators. It simplifies the process, making it easy to explore the catalog of registered operators, gain insights into their specific use cases, and configure them to meet your needs. Additionally, this tool provides assistance in constructing Docker containers or setting up Conda environments to execute the operator, all while guiding you through the essential steps for running them.
+The ``ads operator`` CLI tool is your trusty companion when working with operators. It simplifies the process, making it easy to explore the catalog of registered operators, gain insights into their specific use cases, and configure them to meet your needs. Additionally, this tool provides assistance in constructing Docker containers or setting up Conda environments to execute the operator, all while guiding you through the essential steps for running them.
 
 
 Let's start from the very beginning by calling the following command in your terminal to see a list of supported CLI commands:
 
 .. code-block:: bash
 
-   ads opctl operator --help
+   ads operator --help
 
 
 This command provides a concise overview of all available commands.
 
-- ``ads opctl operator list``: Retrieve a list of registered operators with this command.
+- ``ads operator list``: Retrieve a list of registered operators with this command.
 
-- ``ads opctl operator info``: Obtain detailed information about a specific operator using this command. It offers comprehensive instructions on how to configure and run the operator across different environments and runtimes.
+- ``ads operator info``: Obtain detailed information about a specific operator using this command. It offers comprehensive instructions on how to configure and run the operator across different environments and runtimes.
 
-- ``ads opctl operator init``: Generate starter YAML configurations for an operator with this command.
+- ``ads operator init``: Generate starter YAML configurations for an operator with this command.
 
-- ``ads opctl operator verify``: Ensure the correctness of an operator's YAML specification using this command.
+- ``ads operator verify``: Ensure the correctness of an operator's YAML specification using this command.
 
-- ``ads opctl operator build-conda``: Build a new Conda environment tailored to a particular operator using this command.
+- ``ads operator build-conda``: Build a new Conda environment tailored to a particular operator using this command.
 
-- ``ads opctl operator publish-conda``: Publish the operator's Conda environment to the Object Storage bucket with this command.
+- ``ads operator publish-conda``: Publish the operator's Conda environment to the Object Storage bucket with this command.
 
-- ``ads opctl operator build-image``: Create a new image customized for the operator using this command.
+- ``ads operator build-image``: Create a new image customized for the operator using this command.
 
-- ``ads opctl operator publish-image``: Publish the operator's image to the container registry with this command.
+- ``ads operator publish-image``: Publish the operator's image to the container registry with this command.
 
 
 Listing Operators
@@ -52,7 +52,7 @@ Begin by browsing our operator catalog to discover the pre-packaged solutions av
 
 .. code-block:: bash
 
-   ads opctl operator list
+   ads operator list
 
 
 .. figure:: figures/operator_list.png
@@ -66,7 +66,7 @@ Each operator is accompanied by highly detailed instructions explaining how it c
 
 .. code-block:: bash
 
-   ads opctl operator info --help
+   ads operator info --help
 
 
 .. figure:: figures/operator_info.png
@@ -75,7 +75,7 @@ Each operator is accompanied by highly detailed instructions explaining how it c
 
 .. code-block:: bash
 
-   ads opctl operator info --name <operator-name>
+   ads operator info --name <operator-name>
 
 
 .. figure:: figures/operator_info1.png
@@ -108,7 +108,7 @@ Now let's explore the ``init`` command.
 
 .. code-block:: bash
 
-   ads opctl operator init --help
+   ads operator init --help
 
 .. figure:: figures/operator_init.png
    :align: center
@@ -117,7 +117,7 @@ To create starter configuration files, execute the following command.
 
 .. code-block:: bash
 
-   ads opctl operator init -n <operator-name> --overwrite --output ~/<operator-name>
+   ads operator init -n <operator-name> --overwrite --output ~/<operator-name>
 
 **The essential files generated include:**
 
@@ -146,7 +146,7 @@ Before proceeding to run an operator, it's essential to verify the operator's co
 
 .. code-block:: bash
 
-   ads opctl operator verify --help
+   ads operator verify --help
 
 .. figure:: figures/operator_config_verify.png
    :align: center
@@ -157,7 +157,7 @@ Verification helps you catch any errors or inconsistencies in the operator's con
 
 .. code-block:: bash
 
-   ads opctl operator verify -f ~/<operator-name>/config/<operator-name>.yaml
+   ads operator verify -f ~/<operator-name>/config/<operator-name>.yaml
 
 .. figure:: figures/operator_config_verify_result.png
    :align: center
@@ -169,7 +169,7 @@ In order to run an operator within a local container or utilize it with the OCI 
 
 .. code-block:: bash
 
-   ads opctl operator build-image --help
+   ads operator build-image --help
 
 .. figure:: figures/build_operator_image.png
    :align: center
@@ -178,7 +178,7 @@ The fundamental attribute you need to provide is ``--name``, which represents th
 
 .. code-block:: bash
 
-   ads opctl operator build-image --name <operator-name>
+   ads operator build-image --name <operator-name>
 
 An interesting point to note is that the operator's container can be built to accommodate both CPU and GPU architectures, although this capability depends on the specific operator's requirements.
 
@@ -192,7 +192,7 @@ After successfully building the operator's image, the next step is to publish it
 
 .. code-block:: bash
 
-   ads opctl operator publish-image --help
+   ads operator publish-image --help
 
 .. figure:: figures/publish_operator_image.png
    :align: center
@@ -201,7 +201,7 @@ The only mandatory parameter for this command is the image name that you wish to
 
 .. code-block:: bash
 
-   ads opctl operator publish-image --name <operator-name>
+   ads operator publish-image --name <operator-name>
 
 While the image name is the only required parameter, you also have the option to provide the ``registry`` parameter if needed. By default, the information about the registry where the container should be published is retrieved from the ADS config generated during the :doc:`Configure Defaults<../../cli/opctl/configure>` step.
 
@@ -217,7 +217,7 @@ To build the operator's Conda environment, follow these steps:
 
 .. code-block:: bash
 
-   ads opctl operator build-conda --help
+   ads operator build-conda --help
 
 .. figure:: figures/build_operator_conda.png
    :align: center
@@ -226,7 +226,7 @@ The only mandatory parameter for this command is the ``--name`` of the operator.
 
 .. code-block:: bash
 
-   ads opctl operator build-conda --name <operator-name>
+   ads operator build-conda --name <operator-name>
 
 Once you have successfully built the Conda environment, you will need to publish it to OCI Object Storage. This step allows the OCI Data Science Jobs and Data Flow services to utilize the Conda environment seamlessly.
 
@@ -238,7 +238,7 @@ To make a locally built Conda environment available in the OCI Object Storage bu
 
 .. code-block:: bash
 
-   ads opctl operator publish-conda --help
+   ads operator publish-conda --help
 
 .. figure:: figures/publish_operator_conda.png
    :align: center
@@ -247,6 +247,6 @@ For instance, if you have constructed a Conda environment for the specific opera
 
 .. code-block:: bash
 
-   ads opctl operator publish-conda --name <operator-name>
+   ads operator publish-conda --name <operator-name>
 
 Publishing the Conda environment to OCI Object Storage enables the OCI Data Science Jobs and Data Flow services to access and utilize this environment efficiently. This step is essential to ensure that your operators run seamlessly within the OCI ecosystem.

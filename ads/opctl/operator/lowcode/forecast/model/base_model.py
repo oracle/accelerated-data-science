@@ -45,6 +45,7 @@ class ForecastOperatorBaseModel(ABC):
         self.full_data_dict = None
         self.target_columns = None
         self.categories = None
+        self.test_eval_metrics = None
         self.original_target_column = self.spec.target_column
 
         # these fields are populated in the _build_model() method
@@ -405,13 +406,14 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         # metrics csv report
-        utils._write_data(
-            data=metrics_df.rename_axis("metrics").reset_index(),
-            filename=os.path.join(output_dir, self.spec.metrics_filename),
-            format="csv",
-            storage_options=default_signer(),
-            index=False,
-        )
+        if metrics_df is not None:
+            utils._write_data(
+                data=metrics_df.rename_axis("metrics").reset_index(),
+                filename=os.path.join(output_dir, self.spec.metrics_filename),
+                format="csv",
+                storage_options=default_signer(),
+                index=False,
+            )
 
         logger.warn(
             f"The report has been successfully "
