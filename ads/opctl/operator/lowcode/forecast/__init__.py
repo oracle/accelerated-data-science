@@ -25,6 +25,6 @@ __backends__ = ["job", "dataflow"]  # job/dataflow/
 
 __short_description__ = """
 Forecasting operator, that leverages historical time series data to generate accurate
-forecasts for future trends. Use `ads opctl operator info forecast`
+forecasts for future trends. Use `ads operator info forecast`
 to get more details about the forecasting operator.
 """

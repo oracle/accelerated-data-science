@@ -21,7 +21,7 @@ from ads.common import auth as authutil
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.common.utils import copy_from_uri
 from ads.opctl import logger
-from ads.opctl.constants import OPERATOR_MODULE_PATH
+from ads.opctl.constants import BACKEND_NAME, OPERATOR_MODULE_PATH
 from ads.opctl.operator import __operators__
 
 from .const import ARCH_TYPE, PACK_TYPE
@@ -130,7 +130,12 @@ class OperatorInfo:
             conda_type=kwargs.get("__conda_type__", PACK_TYPE.CUSTOM),
             path=path,
             keywords=kwargs.get("__keywords__", []),
-            backends=kwargs.get("__backends__", []),
+            backends=list(
+                set(
+                    kwargs.get("__backends__", [])
+                    + [BACKEND_NAME.OPERATOR_LOCAL.value, BACKEND_NAME.LOCAL.value]
+                )
+            ),
         )
 
 

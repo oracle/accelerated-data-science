@@ -8,9 +8,8 @@ import os
 import re
 import runpy
 import shutil
-import sys
 import tempfile
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union, Tuple
 
 import fsspec
 import yaml
@@ -22,6 +21,9 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
 )
 from ads.opctl import logger
+from ads.opctl.backend.ads_dataflow import DataFlowOperatorBackend
+from ads.opctl.backend.ads_ml_job import MLJobOperatorBackend
+from ads.opctl.backend.local import LocalOperatorBackend
 from ads.opctl.cmds import _BackendFactory
 from ads.opctl.conda.cmds import create as conda_create
 from ads.opctl.conda.cmds import publish as conda_publish
@@ -110,6 +112,7 @@ def _init_backend_config(
     ads_config: Union[str, None] = None,
     output: Union[str, None] = None,
     overwrite: bool = False,
+    backend_kind: Tuple[str] = None,
     **kwargs: Dict,
 ):
     """
@@ -124,6 +127,8 @@ def _init_backend_config(
         Whether to overwrite the result specification YAML if exists.
     ads_config: (str, optional)
         The folder where the ads opctl config located.
+    backend_kind: (str, optional)
+        The required backend.
     kwargs: (Dict, optional).
         Additional key value arguments.
 
@@ -133,6 +138,11 @@ def _init_backend_config(
         The dictionary where the key will be a tuple containing runtime kind and type.
         Example:
         >>> {("local","python"): {}, ("job", "container"): {}}
+
+    Raises
+    ------
+    RuntimeError
+        In case if the provided backend is not supported.
     """
     result = {}
 
@@ -184,9 +194,16 @@ def _init_backend_config(
         ],
     }
 
-    supported_backends = set(
-        operator_info.backends + [BACKEND_NAME.OPERATOR_LOCAL.value]
+    supported_backends = tuple(
+        set(RUNTIME_TYPE_MAP.keys()) & set(operator_info.backends)
     )
+
+    if backend_kind:
+        if backend_kind not in supported_backends:
+            raise RuntimeError(
+                f"Not supported backend - {backend_kind}. Supported backends: {supported_backends}"
+            )
+        supported_backends = (backend_kind,)
 
     for resource_type in supported_backends:
         for runtime_type_item in RUNTIME_TYPE_MAP.get(resource_type.lower(), []):
@@ -320,7 +337,6 @@ def init(
 @validate_environment
 def build_image(
     name: str = None,
-    gpu: bool = None,
     rebuild_base_image: bool = None,
     **kwargs: Dict[str, Any],
 ) -> None:
@@ -331,8 +347,6 @@ def build_image(
     ----------
     name: (str, optional)
         Name of the operator to build the image.
-    gpu: (bool, optional)
-        Whether to build a GPU-enabled Docker image.
     rebuild_base_image: (optional, bool)
         If rebuilding both base and operator's images required.
     kwargs: (Dict, optional).
@@ -354,7 +368,7 @@ def build_image(
     logger.info(f"Building Docker image for the `{operator_info.name}` operator.")
 
     # checks if GPU base image needs to be used.
-    gpu = operator_info.gpu or gpu
+    gpu = operator_info.gpu
 
     cur_dir = os.path.dirname(os.path.abspath(__file__))
     base_image_name = OPERATOR_BASE_GPU_IMAGE if gpu else OPERATOR_BASE_IMAGE
@@ -413,7 +427,7 @@ def build_image(
         logger.info(
             f"The operator image `{result_image_name}` has been successfully built. "
             "To publish the image to OCI Container Registry run the "
-            f"`ads opctl operator publish-image -n {result_image_name}` command"
+            f"`ads operator publish-image -n {result_image_name}` command"
         )
 
 
@@ -661,3 +675,128 @@ def create(
         Additional key value arguments.
     """
     raise NotImplementedError()
+
+
+def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
+    """
+    Runs the operator with the given specification on the targeted backend.
+
+    Parameters
+    ----------
+    config: Dict
+        The operator's config.
+    backend: (Union[Dict, str], optional)
+        The backend config or backend name to run the operator.
+    kwargs: (Dict, optional)
+        Optional key value arguments to run the operator.
+    """
+    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+
+    if p.config.get("kind", "").lower() != "operator":
+        raise RuntimeError("Not supported kind of workload.")
+
+    from ads.opctl.operator import cmd as operator_cmd
+    from ads.opctl.operator.common.operator_loader import (
+        OperatorInfo,
+        OperatorLoader,
+    )
+
+    operator_type = p.config.get("type", "").lower()
+
+    # validation
+    if not operator_type:
+        raise ValueError(
+            f"The `type` attribute must be specified in the operator's config."
+        )
+
+    # extracting details about the operator
+    operator_info: OperatorInfo = OperatorLoader.from_uri(uri=operator_type).load()
+
+    supported_backends = tuple(
+        set(
+            (
+                BACKEND_NAME.JOB.value,
+                BACKEND_NAME.DATAFLOW.value,
+                BACKEND_NAME.OPERATOR_LOCAL.value,
+                BACKEND_NAME.LOCAL.value,
+            )
+        )
+        & set(operator_info.backends)
+    )
+
+    backend_runtime_map = {
+        BACKEND_NAME.JOB.value.lower(): (
+            BACKEND_NAME.JOB.value.lower(),
+            RUNTIME_TYPE.PYTHON.value.lower(),
+        ),
+        BACKEND_NAME.DATAFLOW.value.lower(): (
+            BACKEND_NAME.DATAFLOW.value.lower(),
+            RUNTIME_TYPE.DATAFLOW.value.lower(),
+        ),
+        BACKEND_NAME.OPERATOR_LOCAL.value.lower(): (
+            BACKEND_NAME.OPERATOR_LOCAL.value.lower(),
+            RUNTIME_TYPE.PYTHON.value.lower(),
+        ),
+    }
+
+    if not backend:
+        logger.info(
+            f"Backend config is not provided, the {BACKEND_NAME.LOCAL.value} "
+            "will be used by default. "
+        )
+        backend = {"kind": BACKEND_NAME.OPERATOR_LOCAL.value}
+
+    if isinstance(backend, str):
+        backend = {
+            "kind": BACKEND_NAME.OPERATOR_LOCAL.value
+            if backend.lower() == BACKEND_NAME.LOCAL.value
+            else backend
+        }
+
+    backend_kind = backend.get("kind").lower() or "unknown"
+
+    # If backend kind is Job, then it is necessary to check the infrastructure kind.
+    # This is necessary, because Jobs and DataFlow have similar kind,
+    # The only difference would be in the infrastructure kind.
+    # This is a temporary solution, the logic needs to be placed in the ConfigMerger instead.
+    if backend_kind == BACKEND_NAME.JOB.value:
+        if (
+            backend.get("spec", {}).get("infrastructure", {}).get("type", "").lower()
+            == BACKEND_NAME.DATAFLOW.value
+        ):
+            backend_kind = BACKEND_NAME.DATAFLOW.value
+
+    if backend_kind not in supported_backends:
+        raise RuntimeError(
+            f"Not supported backend - {backend_kind}. Supported backends: {supported_backends}"
+        )
+
+    # generate backend specification in case if it is not provided
+    if not backend.get("spec"):
+        backends = operator_cmd._init_backend_config(
+            operator_info=operator_info, backend_kind=backend_kind, **kwargs
+        )
+        backend = backends[backend_runtime_map[backend_kind]]
+
+    p_backend = ConfigProcessor(
+        {**backend, **{"execution": {"backend": backend_kind}}}
+    ).step(ConfigMerger, **kwargs)
+
+    p.config["runtime"] = backend
+    p.config["infrastructure"] = p_backend.config["infrastructure"]
+    p.config["execution"] = p_backend.config["execution"]
+
+    if p_backend.config["execution"]["backend"].lower() in [
+        BACKEND_NAME.OPERATOR_LOCAL.value,
+        BACKEND_NAME.LOCAL.value,
+    ]:
+        if kwargs.get("dry_run"):
+            logger.info(
+                "The dry run option is not supported for "
+                "the local backend and will be ignored."
+            )
+        LocalOperatorBackend(config=p.config, operator_info=operator_info).run()
+    elif p_backend.config["execution"]["backend"] == BACKEND_NAME.JOB.value:
+        MLJobOperatorBackend(config=p.config, operator_info=operator_info).run()
+    elif p_backend.config["execution"]["backend"] == BACKEND_NAME.DATAFLOW.value:
+        DataFlowOperatorBackend(config=p.config, operator_info=operator_info).run()
