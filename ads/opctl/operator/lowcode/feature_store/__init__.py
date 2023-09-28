@@ -24,7 +24,7 @@ __backends__ = []  # ["job","dataflow"]. The local backend will be supported by 
 
 
 __short_description__ = """
-Oracle feature store is a stack based solution that is deployed in the customer enclave using OCI
-resource manager. Customer can stand up the service with infrastructure in their own tenancy.
-The service consists of API which are deployed in customer tenancy using resource manager.
+Oracle Feature Store is a stack based solution that is deployed in the customer enclave using OCI
+resource manager. This operator will help you to configure and deploy the Feature Store in your tenancy.
+The Oracle Resource Manager will be used for the deployment purpose.
 """

@@ -1611,7 +1611,9 @@ def is_path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
     bool: return True if the path exists.
     """
     path_scheme = urlparse(uri).scheme or "file"
-    storage_options = auth or authutil.default_signer()
+    storage_options = {}
+    if path_scheme != "file":
+        storage_options = auth or authutil.default_signer()
     if fsspec.filesystem(path_scheme, **storage_options).exists(uri):
         return True
     return False

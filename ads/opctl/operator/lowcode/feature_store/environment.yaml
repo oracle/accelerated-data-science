@@ -5,4 +5,5 @@ dependencies:
   - python=3.8
   - pip
   - pip:
-      - oci-mlflow
+      - oci-cli
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/feature_store_operator#egg=oracle-ads"

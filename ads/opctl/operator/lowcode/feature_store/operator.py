@@ -6,18 +6,17 @@
 
 from typing import Dict
 
-from .operator_config import OperatorConfig
+from .operator_config import FeatureStoreOperatorConfig
 
 
-def operate(operator_config: OperatorConfig) -> None:
+def operate(operator_config: FeatureStoreOperatorConfig) -> None:
     """Runs the operator."""
     print(operator_config)
-    pass
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:
     """Verifies the operator config."""
-    operator = OperatorConfig.from_dict(spec)
+    operator = FeatureStoreOperatorConfig.from_dict(spec)
     msg_header = (
         f"{'*' * 50} The operator's config has been successfully verified {'*' * 50}"
     )

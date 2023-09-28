@@ -17,7 +17,7 @@ from ads.opctl.operator.common.utils import _parse_input_args
 
 from .__init__ import __name__ as MODULE
 from .operator import operate, verify
-from .operator_config import OperatorConfig
+from .operator_config import FeatureStoreOperatorConfig
 
 
 def main(raw_args: List[str]):
@@ -44,7 +44,7 @@ def main(raw_args: List[str]):
         except:
             yaml_string = operator_spec_str
 
-    operator_config = OperatorConfig.from_yaml(
+    operator_config = FeatureStoreOperatorConfig.from_yaml(
         uri=args.file,
         yaml_string=yaml_string,
     )

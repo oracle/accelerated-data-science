@@ -1,79 +1,84 @@
-# Forecasting Operator
+# Feature Store Operator
 
-The Forecasting Operator leverages historical time series data to generate accurate forecasts for future trends. This operator aims to simplify and expedite the data science process by automating the selection of appropriate models and hyperparameters, as well as identifying relevant features for a given prediction task.
+Managing many datasets, data-sources and transformations for machine learning is complex and costly. Poorly cleaned data, data issues, bugs in transformations, data drift and training serving skew all leads to increased model development time and worse model performance. Here, feature store is well positioned to solve many of the problems since it provides a centralised way to transform and access data for training and serving time and helps defines a standardised pipeline for ingestion of data and querying of data.
 
-Below are the steps to configure and run the Forecasting Operator on different resources.
+Below are the steps to configure and deploy the Feature Store on OCI resources.
 
 ## 1. Prerequisites
 
-Follow the [CLI Configuration](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/opctl/configure.html) steps from the ADS documentation. This step is mandatory as it sets up default values for different options while running the Forecasting Operator on OCI Data Science jobs or OCI Data Flow applications. If you have previously done this and used a flexible shape, make sure to adjust `ml_job_config.ini` with shape config details and `docker_registry` information.
+### User policies for stack setup
+Feature Store users need to provide the following access permissions in order to deploy the feature store terraform stack. Below mentioned are the policy statements required for terraform stack deployment
 
-- ocpus = 1
-- memory_in_gbs = 16
-- docker_registry = `<iad.ocir.io/namespace/>`
+ - define tenancy service_tenancy as <YOUR_OCID>
+ - endorse group <feature store user group> to read repos in tenancy service_tenancy
+ - allow group <feature store user group> to manage orm-stacks in compartment <compartmentName>
+ - allow group <feature store user group> to manage orm-jobs in compartment <compartmentName>
+ - allow group <feature store user group> to manage object-family in compartment <compartmentName>
+ - allow group <feature store user group> to manage users in compartment <compartmentName>
+ - allow group <feature store user group> to manage instance-family in compartment <compartmentName>
+ - allow group <feature store user group> to manage tag-namespaces in compartment <compartmentName>
+ - allow group <feature store user group> to manage groups in compartment <compartmentName>
+ - allow group <feature store user group> to manage policies in compartment <compartmentName>
+ - allow group <feature store user group> to manage dynamic-groups in compartment <compartmentName>
+ - allow group <feature store user group> to manage virtual-network-family in compartment <compartmentName>
+ - allow group <feature store user group> to manage functions-family in compartment <compartmentName>
+ - allow group <feature store user group> to inspect compartments in compartment <compartmentName>
+ - allow group <feature store user group> to manage cluster-family in compartment <compartmentName>
+ - allow group <feature store user group> to manage mysql-family in compartment <compartmentName>
+ - allow group <feature store user group> to manage api-gateway-family in compartment <compartmentName>
 
 ## 2. Generating configs
 
 To generate starter configs, run the command below. This will create a list of YAML configs and place them in the `output` folder.
 
 ```bash
-ads opctl operator init -n forecast --overwrite --output ~/forecast/
+ads opctl operator init -n feature_store --overwrite --output ~/feature_store/
 ```
 
 The most important files expected to be generated are:
 
-- `forecast.yaml`: Contains forecast-related configuration.
-- `backend_operator_local_python_config.yaml`: This includes a local backend configuration for running forecasting in a local environment. The environment should be set up manually before running the operator.
-- `backend_operator_local_container_config.yaml`: This includes a local backend configuration for running forecasting within a local container. The container should be built before running the operator. Please refer to the instructions below for details on how to accomplish this.
-- `backend_job_container_config.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a container (BYOC) runtime. The container should be built and published before running the operator. Please refer to the instructions below for details on how to accomplish this.
-- `backend_job_python_config.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a conda runtime. The conda should be built and published before running the operator.
+- `feature_store.yaml`: Contains feature store related configuration.
+- `backend_operator_local_python_config.yaml`: This includes a local backend configuration for running the operator in a local environment. The environment should be set up manually before running the operator.
+- `backend_operator_local_container_config.yaml`: This includes a local backend configuration for running operator within a local container. The container should be built before running the operator. Please refer to the instructions below for details on how to accomplish this.
 
 All generated configurations should be ready to use without the need for any additional adjustments. However, they are provided as starter kit configurations that can be customized as needed.
 
-## 3. Running forecasting on the local conda environment
+## 3. Running the operator on the local environment
 
-To run forecasting locally, create and activate a new conda environment (`ads-forecasting`). Install all the required libraries listed in the `environment.yaml` file.
+To run operator locally, create and activate a new conda environment (`ads-feature-store`). Install all the required libraries listed in the `environment.yaml` file.
 
 ```yaml
-- prophet
-- neuralprophet
-- pmdarima
-- statsmodels
-- datapane
-- cerberus
-- sktime
-- optuna==2.9.0
-- oracle-automlx==23.2.3
-- "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"
+- oci-cli
+- "git+https://github.com/oracle/accelerated-data-science.git@feature/feature_store_operator#egg=oracle-ads"
 ```
 
-Please review the previously generated `forecast.yaml` file using the `init` command, and make any necessary adjustments to the input and output file locations. By default, it assumes that the files should be located in the same folder from which the `init` command was executed.
+Please review the previously generated `feature_store.yaml` file using the `init` command, and make any necessary adjustments to the input and output file locations. By default, it assumes that the files should be located in the same folder from which the `init` command was executed.
 
-Use the command below to verify the forecasting config.
+Use the command below to verify the operator's config.
 
 ```bash
-ads opctl operator verify -f ~/forecast/forecast.yaml
+ads opctl operator verify -f ~/feature_store/feature_store.yaml
 ```
 
-Use the following command to run the forecasting within the `ads-forecasting` conda environment.
+Use the following command to run the operator within the `ads-feature-store` conda environment.
 
 ```bash
-ads opctl apply -f ~/forecast/forecast.yaml -b local
+ads opctl apply -f ~/feature_store/feature_store.yaml -b local
 ```
 
 The operator will run in your local environment without requiring any additional modifications.
 
-## 4. Running forecasting on the local container
+## 4. Running the operator on the local container
 
-To run the forecasting operator within a local container, follow these steps:
+To run the the operator within a local container, follow these steps:
 
-Use the command below to build the forecast container.
+Use the command below to build the operator's container.
 
 ```bash
-ads opctl operator build-image -n forecast
+ads opctl operator build-image -n feature_store
 ```
 
-This will create a new `forecast:v1` image, with `/etc/operator` as the designated working directory within the container.
+This will create a new `feature_store:v1` image, with `/etc/operator` as the designated working directory within the container.
 
 
 Check the `backend_operator_local_container_config.yaml` config file. By default, it should have a `volume` section with the `.oci` configs folder mounted.
@@ -83,132 +88,26 @@ volume:
   - "/Users/<user>/.oci:/root/.oci"
 ```
 
-Mounting the OCI configs folder is only required if an OCI Object Storage bucket will be used to store the input forecasting data or output forecasting result. The input/output folders can also be mounted to the container.
+Mounting the OCI configs folder is required because the container will need to access the OCI resources.
 
 ```yaml
 volume:
   - /Users/<user>/.oci:/root/.oci
-  - /Users/<user>/forecast/data:/etc/operator/data
-  - /Users/<user>/forecast/result:/etc/operator/result
 ```
 
 The full config can look like:
 ```yaml
 kind: operator.local
 spec:
-  image: forecast:v1
+  image: feature_store:v1
   volume:
   - /Users/<user>/.oci:/root/.oci
-  - /Users/<user>/forecast/data:/etc/operator/data
-  - /Users/<user>/forecast/result:/etc/operator/result
 type: container
 version: v1
 ```
 
-Run the forecasting within a container using the command below:
+Run the operator within a container using the command below:
 
 ```bash
-ads opctl apply -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_operator_local_container_config.yaml
-```
-
-## 5. Running forecasting in the Data Science job within container runtime
-
-To execute the forecasting operator within a Data Science job using container runtime, please follow the steps outlined below:
-
-You can use the following command to build the forecast container. This step can be skipped if you have already done this for running the operator within a local container.
-
-```bash
-ads opctl operator build-image -n forecast
-```
-
-This will create a new `forecast:v1` image, with `/etc/operator` as the designated working directory within the container.
-
-Publish the `forecast:v1` container to the [Oracle Container Registry](https://docs.public.oneportal.content.oci.oraclecloud.com/en-us/iaas/Content/Registry/home.htm). To become familiar with OCI, read the documentation links posted below.
-
-- [Access Container Registry](https://docs.public.oneportal.content.oci.oraclecloud.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm#access)
-- [Create repositories](https://docs.public.oneportal.content.oci.oraclecloud.com/en-us/iaas/Content/Registry/Tasks/registrycreatingarepository.htm#top)
-- [Push images](https://docs.public.oneportal.content.oci.oraclecloud.com/en-us/iaas/Content/Registry/Tasks/registrypushingimagesusingthedockercli.htm#Pushing_Images_Using_the_Docker_CLI)
-
-To publish `forecast:v1` to OCR, use the command posted below:
-
-```bash
-ads opctl operator publish-image forecast:v1 --registry <iad.ocir.io/tenancy/>
-```
-
-After the container is published to OCR, it can be used within Data Science jobs service. Check the `backend_job_container_config.yaml` config file. It should contain pre-populated infrastructure and runtime sections. The runtime section should contain an image property, something like `image: iad.ocir.io/<tenancy>/forecast:v1`. More details about supported options can be found in the ADS Jobs documentation - [Run a Container](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/run_container.html).
-
-Adjust the `forecast.yaml` config with proper input/output folders. When the forecasting is run in the Data Science job, it will not have access to local folders. Therefore, input data and output folders should be placed in the Object Storage bucket. Open the `forecast.yaml` and adjust the following fields:
-
-```yaml
-historical_data:
-  url: oci://bucket@namespace/forecast/input_data/data.csv
-output_directory:
-  url: oci://bucket@namespace/forecast/result/
-test_data:
-  url: oci://bucket@namespace/forecast/input_data/test.csv
-```
-
-Run the forecasting on the Data Science jobs using the command posted below:
-
-```bash
-ads opctl apply -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_job_container_config.yaml
-```
-
-The logs can be monitored using the `ads opctl watch` command.
-
-```bash
-ads opctl watch <OCID>
-```
-
-## 6. Running forecasting in the Data Science job within conda runtime
-
-To execute the forecasting operator within a Data Science job using conda runtime, please follow the steps outlined below:
-
-You can use the following command to build the forecast conda environment.
-
-```bash
-ads opctl operator build-conda -n forecast
-```
-
-This will create a new `forecast_v1` conda environment and place it in the folder specified within `ads opctl configure` command.
-
-Use the command below to Publish the `forecast_v1` conda environment to the Object Storage bucket.
-
-```bash
-ads opctl conda publish forecast_v1
-```
-More details about configuring CLI can be found here - [Configuring CLI](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/opctl/configure.html)
-
-
-After the conda environment is published to Object Storage, it can be used within Data Science jobs service. Check the `backend_job_python_config.yaml` config file. It should contain pre-populated infrastructure and runtime sections. The runtime section should contain a `conda` section.
-
-```yaml
-conda:
-  type: published
-  uri: oci://bucket@namespace/conda_environments/cpu/forecast/1/forecast_v1
-```
-
-More details about supported options can be found in the ADS Jobs documentation - [Run a Python Workload](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/run_python.html).
-
-Adjust the `forecast.yaml` config with proper input/output folders. When the forecasting is run in the Data Science job, it will not have access to local folders. Therefore, input data and output folders should be placed in the Object Storage bucket. Open the `forecast.yaml` and adjust the following fields:
-
-```yaml
-historical_data:
-  url: oci://bucket@namespace/forecast/input_data/data.csv
-output_directory:
-  url: oci://bucket@namespace/forecast/result/
-test_data:
-  url: oci://bucket@namespace/forecast/input_data/test.csv
-```
-
-Run the forecasting on the Data Science jobs using the command posted below:
-
-```bash
-ads opctl apply -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_job_python_config.yaml
-```
-
-The logs can be monitored using the `ads opctl watch` command.
-
-```bash
-ads opctl watch <OCID>
+ads opctl apply -f ~/feature_store/feature_store.yaml --backend-config ~/feature_store/backend_operator_local_container_config.yaml
 ```
