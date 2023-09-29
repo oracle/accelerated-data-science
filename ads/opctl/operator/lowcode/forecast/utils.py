@@ -22,7 +22,7 @@ from .const import SupportedMetrics
 
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
-
+from .errors import ForecastInputDataError, ForecastSchemaYamlError
 
 def _label_encode_dataframe(df, no_encode=set()):
     df_to_encode = df[list(set(df.columns) - no_encode)]
@@ -135,7 +135,7 @@ def _load_data(filename, format, storage_options, columns, **kwargs):
             # keep only these columns, done after load because only CSV supports stream filtering
             data = data[columns]
         return data
-    raise ValueError(f"Unrecognized format: {format}")
+    raise ForecastInputDataError(f"Unrecognized format: {format}")
 
 
 def _write_data(data, filename, format, storage_options, index=False, **kwargs):
@@ -147,7 +147,7 @@ def _write_data(data, filename, format, storage_options, index=False, **kwargs):
         return _call_pandas_fsspec(
             write_fn, filename, index=index, storage_options=storage_options
         )
-    raise ValueError(f"Unrecognized format: {format}")
+    raise ForecastInputDataError(f"Unrecognized format: {format}")
 
 
 def _merge_category_columns(data, target_category_columns):
@@ -178,7 +178,7 @@ def _clean_data(data, target_column, datetime_column, target_category_columns=No
 
         return df.fillna(0), new_target_columns
 
-    raise ValueError(
+    raise ForecastSchemaYamlError(
         f"Either target_columns, target_category_columns, or datetime_column not specified."
     )
 
@@ -297,7 +297,7 @@ def _build_indexed_datasets(
     new_target_columns = list(df_by_target.keys())
     remaining_categories = set(unique_categories) - set(invalid_categories)
     if not len(remaining_categories):
-        raise ValueError(
+        raise ForecastInputDataError(
             "Stopping forecast operator as there is no data that meets the validation criteria."
         )
     return df_by_target, new_target_columns, remaining_categories

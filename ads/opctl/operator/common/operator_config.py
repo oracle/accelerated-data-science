@@ -13,6 +13,7 @@ from typing import Any, Dict
 from ads.common.serializer import DataClassSerializable
 
 from .utils import OperatorValidator
+from .errors import OperatorSchemaYamlError
 
 
 @dataclass(repr=True)
@@ -52,7 +53,7 @@ class OperatorConfig(DataClassSerializable):
 
         Raises
         ------
-        ValueError
+        ForecastSchemaYamlError
             In case of wrong specification format.
         """
         schema = cls._load_schema()
@@ -60,11 +61,7 @@ class OperatorConfig(DataClassSerializable):
         result = validator.validate(obj_dict)
 
         if not result:
-            raise ValueError(
-                "Invalid operator specification. Check the YAML structure and ensure it "
-                "complies with the required schema for the operator. \n"
-                f"{json.dumps(validator.errors, indent=2)}"
-            )
+            raise OperatorSchemaYamlError(json.dumps(validator.errors, indent=2))
         return True
 
     @classmethod

@@ -194,7 +194,6 @@ spec:
     target_column:
       type: string
       required: true
-      default: target
 
     preprocessing:
       type: boolean
@@ -217,7 +216,7 @@ spec:
 
     target_category_columns:
       type: list
-      required: false
+      required: true
       schema:
         type: string
 
