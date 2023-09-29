@@ -39,9 +39,9 @@ optimize GPU memory usage. OCI offers `a variety of GPU options <https://docs.pu
 
 You can use the following methods to deploy an LLM with OCI Data Science:
 
-- Online Method. This approach involves downloading the LLM directly from the hosting repository into the `Data Science Model Deployment <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm>`_. It minimizes data copying, making it suitable for large models. However, it lacks governance and may not be ideal for production environments or fine-tuning scenarios. The step by step instructions are available at `here <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/model-deployment/containers/llama2>`_.
+- Online Method. This approach involves downloading the LLM directly from the hosting repository into the `Data Science Model Deployment <https://docs.oracle.com/en-us/iaas/data-science/using/model-dep-about.htm>`_. It minimizes data copying, making it suitable for large models. However, it lacks governance and may not be ideal for production environments or fine-tuning scenarios.
 
-- Offline Method. In this method, you download the LLM model from the host repository and save it in the `Data Science Model Catalog <https://docs.oracle.com/en-us/iaas/data-science/using/models-about.htm>`_. Deployment then occurs directly from the catalog, allowing for better control and governance of the model. This documentation will forcus on this part.
+- Offline Method. In this method, you download the LLM model from the host repository and save it in the `Data Science Model Catalog <https://docs.oracle.com/en-us/iaas/data-science/using/models-about.htm>`_. Deployment then occurs directly from the catalog, allowing for better control and governance of the model.
 
 **Inference Container**
 
@@ -82,6 +82,12 @@ Zip all items of the folder using zip/tar utility, preferrably using below comma
 Upload the zipped artifact created in an object storage bucket in your tenancy. Tools like `rclone <https://rclone.org/>`_,
 can help speed this upload. Using rclone with OCI can be referred from `here <https://docs.oracle.com/en/solutions/move-data-to-cloud-storage-using-rclone/configure-rclone-object-storage.html#GUID-8471A9B3-F812-4358-945E-8F7EEF115241>`_.
 
+Example of using ``oci-cli``:
+
+.. code-block:: bash
+
+    oci os object put -ns <namespace> -bn <bucket> --name <prefix>/my_large_model.zip --file my_large_model.zip
+
 Next step is to create a model catalog item. Use :py:class:`~ads.model.DataScienceModel` to register the large model to Model Catalog.
 
 .. versionadd:: 2.8.10
@@ -94,13 +100,15 @@ Next step is to create a model catalog item. Use :py:class:`~ads.model.DataScien
     ads.set_auth("resource_principal")
 
     MODEL_DISPLAY_NAME = "My Large Model"
-    ARTIFACT_PATH = "oci://<bucket>@<namespace>/prefix/my_large_model.zip"
+    ARTIFACT_PATH = "oci://<bucket>@<namespace>/<prefix>/my_large_model.zip"
 
     model = (DataScienceModel()
             .with_display_name(MODEL_DISPLAY_NAME)
-            .with_artifact(ARTFICAT_FILE_NAME)
-            .create())
-
+            .with_artifact(ARTIFACT_PATH)
+            .create(
+                remove_existing_artifact=False
+            ))
+    model_id = model.id
 
 Deploy Model
 ------------
@@ -114,7 +122,37 @@ examples below, you will need to change with the OCIDs of the resources required
 ``compartment ID`` etc. All of the configurations with ``<UNIQUE_ID>`` should be replaces with your corresponding ID from
 your tenancy, the resources we created in the previous steps.
 
-.. include:: ../model_registration/tabs/ads-md-deploy.rst
+
+Online Deployment
+^^^^^^^^^^^^^^^^^
+
+**Prerequisites**
+
+Check on `GitHub Sample repository <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/model-deployment/containers/llama2#model-deployment-steps>`_ to see how to complete the Prerequisites before actual deployment.
+
+- Zips your Hugging Face user access token and registers it into Model Catalog by following the instruction on ``Register Model`` in this page.
+- Creates logging in the `OCI Logging Service <https://cloud.oracle.com/logging/log-groups>`_ for the model deployment (if you have to already created, you can skip this step).
+- Creates a subnet in `Virtual Cloud Network <https://cloud.oracle.com/networking/vcns>`_  for the model deployment.
+- Executes container build and push process to `Oracle Cloud Container Registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_.
+- You can now use the Bring Your Own Container Deployment in OCI Data Science to the deploy the Llama2 model.
+
+.. include:: ../model_registration/tabs/env-var-online.rst
+
+.. include:: ../model_registration/tabs/ads-md-deploy-online.rst
+
+Offline Deployment
+^^^^^^^^^^^^^^^^^^
+
+Check on `GitHub Sample repository <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/model-deployment/containers/llama2-offline#model-deployment-steps>`_ to see how to complete the Prerequisites before actual deployment.
+
+- Registers the zipped artifact into Model Catalog by following the instruction on ``Register Model`` in this page.
+- Creates logging in the `OCI Logging Service <https://cloud.oracle.com/logging/log-groups>`_ for the model deployment (if you have to already created, you can skip this step).
+- Executes container build and push process to `Oracle Cloud Container Registry <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryoverview.htm>`_.
+- You can now use the Bring Your Own Container Deployment in OCI Data Science to the deploy the Llama2 model.
+
+.. include:: ../model_registration/tabs/env-var-offline.rst
+
+.. include:: ../model_registration/tabs/ads-md-deploy-offline.rst
 
 You can deploy the model through API call or ADS CLI.
 

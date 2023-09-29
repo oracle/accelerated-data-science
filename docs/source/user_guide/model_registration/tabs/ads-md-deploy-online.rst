@@ -24,31 +24,15 @@
         .with_subnet_id("ocid1.subnet.oc1.<UNIQUE_ID>")
     )
 
-    # ENV_VAR for vllm
-    env_var_vllm = {
-          "PARAMS": "--model meta-llama/Llama-2-7b-chat-hf",
-          "HUGGINGFACE_HUB_CACHE": "/home/datascience/.cache",
-          "TOKEN_FILE": "/opt/ds/model/deployed_model/token",
-          "STORAGE_SIZE_IN_GB": "950",
-          "WEB_CONCURRENCY": 1,
-        }
-
-    # ENV_VAR for TGI
-    env_var_tgi = {
-      "TOKEN": "/opt/ds/model/deployed_model/token",
-      "PARAMS": "--model-id meta-llama/Llama-2-7b-chat-hf --max-batch-prefill-tokens 1024",
-    }
-
     # configure model deployment runtime
     container_runtime = (
         ModelDeploymentContainerRuntime()
         .with_image("iad.ocir.io/<namespace>/<image>:<tag>")
         .with_server_port(5001)
         .with_health_check_port(5001)
-        .with_env(env_var_vllm) # for TGI, replace with env_var_tgi.
+        .with_env(env_var)
         .with_deployment_mode("HTTPS_ONLY")
         .with_model_uri("ocid1.datasciencemodel.oc1.<UNIQUE_ID>")
-        .with_auth({"auth_key":"auth_value"})
         .with_region("us-ashburn-1")
         .with_overwrite_existing_artifact(True)
         .with_remove_existing_artifact(True)
