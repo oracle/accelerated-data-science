@@ -225,6 +225,7 @@ class TransformationMode(Enum):
 
     SQL = "sql"
     PANDAS = "pandas"
+    SPARK = "spark"
 
 
 class FilterOperators(Enum):
