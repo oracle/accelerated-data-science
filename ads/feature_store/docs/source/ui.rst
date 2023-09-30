@@ -4,7 +4,7 @@ The users will have the convenience of utilizing a user-friendly UI interface fo
 
 Feature Store
 =============
-The "Feature Store" is the top-level entity within a feature store service, and it serves as the central hub and repository for managing, organizing, and serving features in a data-driven organization.
+The "Feature Store" is the top-level entity within a feature store service.
 
 
 Feature Group
