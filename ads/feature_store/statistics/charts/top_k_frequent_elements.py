@@ -3,9 +3,12 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import List
+
+from ads.feature_store.statistics.abs_feature_value import AbsFeatureValue
+
 from ads.common.decorator.runtime_dependency import OptionalDependency
 
-from ads.feature_store.statistics.charts.abstract_feature_stat import AbsFeatureStat
+from ads.feature_store.statistics.charts.abstract_feature_plot import AbsFeaturePlot
 
 try:
     from plotly.graph_objs import Figure
@@ -16,15 +19,11 @@ except ModuleNotFoundError:
     )
 
 
-class TopKFrequentElements(AbsFeatureStat):
-    def __validate__(self):
-        if not (type(self.elements) == list and len(self.elements) > 0):
-            raise self.ValidationFailedException
-
+class TopKFrequentElements(AbsFeaturePlot):
     CONST_VALUE = "value"
     CONST_TOP_K_FREQUENT_TITLE = "Top K Frequent Elements"
 
-    class TopKFrequentElement:
+    class TopKFrequentElement(AbsFeatureValue):
         CONST_VALUE = "value"
         CONST_ESTIMATE = "estimate"
         CONST_LOWER_BOUND = "lower_bound"
@@ -37,9 +36,14 @@ class TopKFrequentElements(AbsFeatureStat):
             self.estimate = estimate
             self.lower_bound = lower_bound
             self.upper_bound = upper_bound
+            super().__init__()
+
+        def __validate__(self):
+            assert type(self.value) == str and len(self.value) > 0
+            assert type(self.estimate) == int and self.estimate >= 0
 
         @classmethod
-        def from_json(
+        def __from_json__(
             cls, json_dict: dict
         ) -> "TopKFrequentElements.TopKFrequentElement":
             return cls(
@@ -52,6 +56,12 @@ class TopKFrequentElements(AbsFeatureStat):
     def __init__(self, elements: List[TopKFrequentElement]):
         self.elements = elements
         super().__init__()
+
+    def __validate__(self):
+        assert type(self.elements) == list
+        assert len(self.elements) > 0
+        for element in self.elements:
+            assert element is not None
 
     @classmethod
     def __from_json__(cls, json_dict: dict) -> "TopKFrequentElements":
