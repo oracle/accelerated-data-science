@@ -16,11 +16,7 @@ except ModuleNotFoundError:
     )
 
 
-class AbsFeatureStat:
-    class ValidationFailedException(Exception):
-        def __init__(self):
-            pass
-
+class AbsFeatureValue:
     def __init__(self):
         self.__validate__()
 
@@ -28,28 +24,15 @@ class AbsFeatureStat:
     def __validate__(self):
         pass
 
-    @abstractmethod
-    def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
-        pass
-
     @classmethod
     @abstractmethod
     def __from_json__(cls, json_dict: dict):
         pass
 
-    @staticmethod
-    def get_x_y_str_axes(xaxis: int, yaxis: int) -> ():
-        return (
-            ("xaxis" + str(xaxis + 1)),
-            ("yaxis" + str(yaxis + 1)),
-            ("x" + str(xaxis + 1)),
-            ("y" + str(yaxis + 1)),
-        )
-
     @classmethod
     def from_json(
         cls, json_dict: dict, ignore_errors: bool = False
-    ) -> Union["AbsFeatureStat", None]:
+    ) -> Union["AbsFeatureValue", None]:
         try:
             return cls.__from_json__(json_dict=json_dict)
         except Exception as e:
