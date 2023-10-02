@@ -63,9 +63,9 @@ def list() -> None:
         tabulate(
             (
                 {
-                    "Name": item.name,
+                    "Type": item.type,
                     "Version": item.version,
-                    "Description": item.short_description,
+                    "Description": item.description,
                 }
                 for item in _operator_info_list()
             ),
@@ -99,9 +99,17 @@ def info(
     console = Console()
     operator_info = OperatorLoader.from_uri(uri=name).load()
 
+    operator_readme = None
+    if operator_info.path:
+        readme_file_path = os.path.join(operator_info.path, "readme.md")
+        if os.path.exists(readme_file_path):
+            with open(readme_file_path, "r") as readme_file:
+                operator_readme = readme_file.read()
+
     console.print(
         Markdown(
-            operator_info.description
+            operator_readme
+            or operator_info.description
             or "The description for this operator has not been specified."
         )
     )
@@ -147,7 +155,7 @@ def _init_backend_config(
     result = {}
 
     freeform_tags = {
-        "operator": f"{operator_info.name}:{operator_info.version}",
+        "operator": f"{operator_info.type}:{operator_info.version}",
     }
 
     # generate supported backend specifications templates YAML
@@ -163,7 +171,7 @@ def _init_backend_config(
             },
             {
                 RUNTIME_TYPE.CONTAINER: {
-                    "image_name": f"{operator_info.name}:{operator_info.version}",
+                    "image_name": f"{operator_info.type}:{operator_info.version}",
                     "freeform_tags": freeform_tags,
                 }
             },
@@ -180,14 +188,14 @@ def _init_backend_config(
             {
                 RUNTIME_TYPE.CONTAINER: {
                     "kind": "operator",
-                    "type": operator_info.name,
+                    "type": operator_info.type,
                     "version": operator_info.version,
                 }
             },
             {
                 RUNTIME_TYPE.PYTHON: {
                     "kind": "operator",
-                    "type": operator_info.name,
+                    "type": operator_info.type,
                     "version": operator_info.version,
                 }
             },
@@ -294,20 +302,20 @@ def init(
     # generating operator specification
     try:
         operator_cmd_module = runpy.run_module(
-            f"{operator_info.name}.cmd", run_name="init"
+            f"{operator_info.type}.cmd", run_name="init"
         )
         operator_specification_template = operator_cmd_module.get("init", lambda: "")(
             **{**kwargs, **{"type": name}}
         )
         if operator_specification_template:
             with fsspec.open(
-                os.path.join(output, f"{operator_info.name}.yaml"), mode="w"
+                os.path.join(output, f"{operator_info.type}.yaml"), mode="w"
             ) as f:
                 f.write(operator_specification_template)
     except Exception as ex:
         logger.info(
             "The operator's specification was not generated "
-            f"because it is not supported by the `{operator_info.name}` operator."
+            f"because it is not supported by the `{operator_info.type}` operator."
         )
         logger.debug(ex)
 
@@ -365,7 +373,7 @@ def build_image(
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=name).load()
-    logger.info(f"Building Docker image for the `{operator_info.name}` operator.")
+    logger.info(f"Building Docker image for the `{operator_info.type}` operator.")
 
     # checks if GPU base image needs to be used.
     gpu = operator_info.gpu
@@ -404,12 +412,12 @@ def build_image(
 
         run_command = [
             f"FROM {base_image_name}",
-            f"COPY ./operator/ $OPERATOR_DIR/{operator_info.name}/",
+            f"COPY ./operator/ $OPERATOR_DIR/{operator_info.type}/",
             "RUN yum install -y libX11",
         ]
         if os.path.exists(os.path.join(td, "operator", "environment.yaml")):
             run_command.append(
-                f"RUN mamba env update -f $OPERATOR_DIR/{operator_info.name}/environment.yaml "
+                f"RUN mamba env update -f $OPERATOR_DIR/{operator_info.type}/environment.yaml "
                 "--name $CONDA_ENV_NAME && conda clean -afy"
             )
 
@@ -420,7 +428,7 @@ def build_image(
 
         result_image_name = _build_image(
             dockerfile=custom_docker_file,
-            image_name=operator_info.name,
+            image_name=operator_info.type,
             tag=operator_info.version,
         )
 
@@ -477,11 +485,11 @@ def publish_image(
         # load operator info
         operator_info: OperatorInfo = OperatorLoader.from_uri(uri=name).load()
         try:
-            image = f"{operator_info.name}:{operator_info.version or 'undefined'}"
+            image = f"{operator_info.type}:{operator_info.version or 'undefined'}"
             # check if the operator's image exists
             client.api.inspect_image(image)
         except docker.errors.ImageNotFound:
-            raise OperatorImageNotFoundError(operator_info.name)
+            raise OperatorImageNotFoundError(operator_info.type)
 
     # extract registry from the ADS config.
     if not registry:
@@ -524,7 +532,7 @@ def verify(
     # validate operator
     try:
         operator_module = runpy.run_module(
-            f"{operator_info.name}.operator",
+            f"{operator_info.type}.operator",
             run_name="verify",
         )
         operator_module.get("verify")(config, **kwargs)
@@ -532,7 +540,7 @@ def verify(
         print(ex)
         logger.debug(ex)
         raise ValueError(
-            f"The validator is not implemented for the `{operator_info.name}` operator."
+            f"The validator is not implemented for the `{operator_info.type}` operator."
         )
 
 
@@ -579,11 +587,11 @@ def build_conda(
 
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=name).load()
-    logger.info(f"Building conda environment for the `{operator_info.name}` operator.")
+    logger.info(f"Building conda environment for the `{operator_info.type}` operator.")
 
     # invoke the conda create command
     conda_create(
-        name=operator_info.name,
+        name=operator_info.type,
         version=re.sub("[^0-9.]", "", operator_info.version),
         environment_file=os.path.join(operator_info.path, "environment.yaml"),
         conda_pack_folder=conda_pack_folder,
@@ -635,7 +643,7 @@ def publish_conda(
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=name).load()
 
     version = re.sub("[^0-9.]", "", operator_info.version)
-    slug = f"{operator_info.name}_v{version}".replace(" ", "").replace(".", "_").lower()
+    slug = f"{operator_info.type}_v{version}".replace(" ", "").replace(".", "_").lower()
 
     # invoke the conda publish command
     try:
@@ -647,7 +655,7 @@ def publish_conda(
             **kwargs,
         )
     except FileNotFoundError:
-        raise OperatorCondaNotFoundError(operator_info.name)
+        raise OperatorCondaNotFoundError(operator_info.type)
 
 
 def create(

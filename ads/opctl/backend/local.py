@@ -896,13 +896,13 @@ class LocalOperatorBackend(Backend):
 
         # run operator
         operator_spec = json.dumps(self.operator_config)
-        sys.argv = [self.operator_info.name, "--spec", operator_spec]
+        sys.argv = [self.operator_info.type, "--spec", operator_spec]
 
         print(f"{'*' * 50} Runtime Config {'*' * 50}")
         print(runtime.to_yaml())
 
         try:
-            runpy.run_module(self.operator_info.name, run_name="__main__")
+            runpy.run_module(self.operator_info.type, run_name="__main__")
         except SystemExit as exception:
             return exception.code
         else:
@@ -944,7 +944,7 @@ class LocalOperatorBackend(Backend):
             image=runtime.spec.image,
             bind_volumes=bind_volumes,
             env_vars=env_vars,
-            command=f"'python3 -m {self.operator_info.name}'",
+            command=f"'python3 -m {self.operator_info.type}'",
         )
 
     def run(self, **kwargs: Dict) -> Dict:

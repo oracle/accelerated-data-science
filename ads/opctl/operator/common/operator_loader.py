@@ -17,8 +17,11 @@ from dataclasses import dataclass
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
+from yaml import SafeLoader as loader
+
 from ads.common import auth as authutil
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from ads.common.serializer import DataClassSerializable
 from ads.common.utils import copy_from_uri
 from ads.opctl import logger
 from ads.opctl.constants import BACKEND_NAME, OPERATOR_MODULE_PATH
@@ -31,14 +34,14 @@ LOCAL_SCHEME = "local"
 MAIN_BRANCH = "main"
 
 
-@dataclass
-class OperatorInfo:
+@dataclass(repr=True)
+class OperatorInfo(DataClassSerializable):
     """Class representing brief information about the operator.
 
     Attributes
     ----------
-    name (str)
-        The name of the operator.
+    type (str)
+        The type of the operator.
     gpu (bool)
         Whether the operator supports GPU.
     short_description (str)
@@ -64,9 +67,8 @@ class OperatorInfo:
         Generates the conda prefix for the custom conda pack.
     """
 
-    name: str
+    type: str
     gpu: bool
-    short_description: str
     description: str
     version: str
     conda: str
@@ -92,51 +94,51 @@ class OperatorInfo:
         """
         return os.path.join(
             f"{ARCH_TYPE.GPU if self.gpu else ARCH_TYPE.CPU}",
-            self.name,
+            self.type,
             re.sub("[^0-9.]", "", self.version),
-            f"{self.name}_{self.version}",
+            f"{self.type}_{self.version}",
         )
 
+    def __post_init__(self):
+        self.gpu = self.gpu == "yes"
+        self.version = self.version or "v1"
+        self.conda_type = self.conda_type or PACK_TYPE.CUSTOM
+        self.conda = self.conda or f"{self.type}_{self.version}"
+
     @classmethod
-    def from_init(cls, **kwargs: Dict) -> "OperatorInfo":
-        """
-        Instantiates the class from the initial operator details config.
+    def from_yaml(
+        cls,
+        yaml_string: str = None,
+        uri: str = None,
+        loader: callable = loader,
+        **kwargs,
+    ) -> "OperatorInfo":
+        """Creates an object from YAML string provided or from URI location containing YAML string
 
         Parameters
         ----------
-        **kwargs (Dict)
-            Keyword arguments containing operator details.
+            yaml_string (string, optional): YAML string. Defaults to None.
+            uri (string, optional): URI location of file containing YAML string. Defaults to None.
+            loader (callable, optional): Custom YAML loader. Defaults to CLoader/SafeLoader.
+            kwargs (dict): keyword arguments to be passed into fsspec.open().
+                For OCI object storage, this should be config="path/to/.oci/config".
+                For other storage connections consider e.g. host, port, username, password, etc.
+
+        Raises
+        ------
+        ValueError
+            Raised if neither string nor uri is provided
 
         Returns
         -------
-        OperatorInfo
-            An instance of OperatorInfo.
+        cls
+            Returns instance of the class
         """
-        path = kwargs.get("__operator_path__")
-        operator_readme = None
-        if path:
-            readme_file_path = os.path.join(path, "readme.md")
-            if os.path.exists(readme_file_path):
-                with open(readme_file_path, "r") as readme_file:
-                    operator_readme = readme_file.read()
-
-        return OperatorInfo(
-            name=kwargs.get("__type__"),
-            gpu=kwargs.get("__gpu__", "").lower() == "yes",
-            description=operator_readme or kwargs.get("__short_description__"),
-            short_description=kwargs.get("__short_description__"),
-            version=kwargs.get("__version__"),
-            conda=kwargs.get("__conda__"),
-            conda_type=kwargs.get("__conda_type__", PACK_TYPE.CUSTOM),
-            path=path,
-            keywords=kwargs.get("__keywords__", []),
-            backends=list(
-                set(
-                    kwargs.get("__backends__", [])
-                    + [BACKEND_NAME.OPERATOR_LOCAL.value, BACKEND_NAME.LOCAL.value]
-                )
-            ),
+        obj: OperatorInfo = super().from_yaml(
+            yaml_string=yaml_string, uri=uri, loader=loader, **kwargs
         )
+        obj.path = os.path.dirname(uri)
+        return obj
 
 
 class Loader(ABC):
@@ -712,13 +714,8 @@ def _operator_info(path: str = None, name: str = None) -> OperatorInfo:
                     importlib.import_module(f"{OPERATOR_MODULE_PATH}.{name}")
                 )
             )
-
-        module_name = os.path.basename(path.rstrip("/"))
-        module_path = f"{path.rstrip('/')}/__init__.py"
-        return OperatorInfo.from_init(
-            **_module_constant_values(module_name, module_path)
-        )
-    except (ModuleNotFoundError, FileNotFoundError) as ex:
+        return OperatorInfo.from_yaml(uri=os.path.join(path, "MLoperator"))
+    except FileNotFoundError as ex:
         logger.debug(ex)
         raise OperatorNotFoundError(name or path)
 
