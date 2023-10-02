@@ -435,7 +435,7 @@ def build_image(
         logger.info(
             f"The operator image `{result_image_name}` has been successfully built. "
             "To publish the image to OCI Container Registry run the "
-            f"`ads operator publish-image -n {result_image_name}` command"
+            f"`ads operator publish-image -t {operator_info.type}` command"
         )
 
 
