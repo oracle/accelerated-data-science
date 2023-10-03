@@ -6,6 +6,19 @@
 
 
 class TestCommonUtils:
-    """Tests all common utils methods of the operators."""
+    """Tests all operator's common utils methods."""
 
-    pass
+    def test_build_image_success(self):
+        pass
+
+    def test_build_image_fail(self):
+        pass
+
+    def test_load_yaml_from_string(self):
+        pass
+
+    def test_load_yaml_from_uri(self):
+        pass
+
+    def test_parse_input_args(self):
+        pass

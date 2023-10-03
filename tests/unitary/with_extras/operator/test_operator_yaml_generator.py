@@ -5,7 +5,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-class TestOperator:
-    """Tests operator base class."""
+class TestOperatorYamlGenerator:
+    """Tests class for generating the YAML config based on the given YAML schema."""
 
-    pass
+    def test_generate_example(self):
+        pass

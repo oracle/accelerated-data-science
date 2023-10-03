@@ -6,6 +6,7 @@
 
 
 class TestOperatorConfig:
-    """Tests operator config class"""
+    """Tests base class representing operator config."""
 
-    pass
+    def test_validate_dict(self):
+        pass

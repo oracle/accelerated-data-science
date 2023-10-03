@@ -9,3 +9,9 @@ class TestContainerRuntime:
     """Tests operator container local runtime."""
 
     pass
+
+
+class TestPythonRuntime:
+    """Tests operator python local runtime."""
+
+    pass

@@ -18,7 +18,7 @@ from ads.opctl.decorator.common import click_options, with_auth
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
-from .cmd import apply as cmd_apply
+from .cmd import run as cmd_run
 from .cmd import build_conda as cmd_build_conda
 from .cmd import build_image as cmd_build_image
 from .cmd import create as cmd_create
@@ -289,6 +289,4 @@ def run(debug: bool, **kwargs: Dict[str, Any]) -> None:
         with fsspec.open(backend, "r", **auth) as f:
             backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-    suppress_traceback(debug)(cmd_apply)(
-        config=operator_spec, backend=backend, **kwargs
-    )
+    suppress_traceback(debug)(cmd_run)(config=operator_spec, backend=backend, **kwargs)

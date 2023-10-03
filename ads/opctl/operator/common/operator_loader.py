@@ -24,7 +24,7 @@ from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import copy_from_uri
 from ads.opctl import logger
-from ads.opctl.constants import BACKEND_NAME, OPERATOR_MODULE_PATH
+from ads.opctl.constants import OPERATOR_MODULE_PATH
 from ads.opctl.operator import __operators__
 
 from .const import ARCH_TYPE, PACK_TYPE
