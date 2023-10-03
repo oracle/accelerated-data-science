@@ -5,8 +5,6 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
-import importlib
-import inspect
 import json
 import os
 import shlex
@@ -31,12 +29,13 @@ from ads.jobs import (
 from ads.opctl import logger
 from ads.opctl.backend.base import Backend, RuntimeFactory
 from ads.opctl.config.resolver import ConfigResolver
-from ads.opctl.constants import DEFAULT_IMAGE_SCRIPT_DIR, OPERATOR_MODULE_PATH
+from ads.opctl.constants import DEFAULT_IMAGE_SCRIPT_DIR
 from ads.opctl.decorator.common import print_watch_command
 from ads.opctl.distributed.common.cluster_config_helper import (
     ClusterConfigToJobSpecConverter,
 )
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
+from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 
 REQUIRED_FIELDS = [
     "project_id",
@@ -528,10 +527,41 @@ class MLJobDistributedBackend(MLJobBackend):
 
 
 class MLJobOperatorBackend(MLJobBackend):
-    """Backend class to run operator on Data Science Jobs."""
+    """
+    Backend class to run operator on Data Science Jobs.
+    Currently supported two scenarios:
+        * Running operator within container runtime.
+        * Running operator within python runtime.
 
-    def __init__(self, config: Dict) -> None:
-        super().__init__(config=config)
+    Attributes
+    ----------
+    runtime_config: (Dict)
+        The runtime config for the operator.
+    operator_config: (Dict)
+        The operator specification config.
+    operator_type: str
+        The type of the operator.
+    operator_version: str
+        The version of the operator.
+    operator_info: OperatorInfo
+        The detailed information about the operator.
+    job: Job
+        The Data Science Job.
+    """
+
+    def __init__(self, config: Dict, operator_info: OperatorInfo = None) -> None:
+        """
+        Instantiates the operator backend.
+
+        Parameters
+        ----------
+        config: (Dict)
+            The configuration file containing operator's specification details and execution section.
+        operator_info: (OperatorInfo, optional)
+            The operator's detailed information extracted from the operator.__init__ file.
+            Will be extracted from the operator type in case if not provided.
+        """
+        super().__init__(config=config or {})
 
         self.job = None
 
@@ -552,12 +582,15 @@ class MLJobOperatorBackend(MLJobBackend):
             PythonRuntime().type: self._adjust_python_runtime,
         }
 
+        self.operator_info = operator_info
+
     def _adjust_common_information(self):
         """Adjusts common information of the job."""
 
         if self.job.name.lower().startswith("{job"):
             self.job.with_name(
-                f"job_{self.operator_type.lower()}" f"_{self.operator_version.lower()}"
+                f"job_{self.operator_info.name.lower()}"
+                f"_{self.operator_version.lower()}"
             )
         self.job.runtime.with_maximum_runtime_in_minutes(
             self.config["execution"].get("max_wait_time", 1200)
@@ -571,7 +604,7 @@ class MLJobOperatorBackend(MLJobBackend):
             [
                 "python3",
                 "-m",
-                f"{self.operator_type}",
+                f"{self.operator_info.name}",
             ]
         )
         self.job.runtime.with_environment_variable(
@@ -591,20 +624,15 @@ class MLJobOperatorBackend(MLJobBackend):
 
         # prepare run.sh file to run the operator's code
         script_file = os.path.join(
-            temp_dir, f"{self.operator_type}_{int(time.time())}_run.sh"
+            temp_dir, f"{self.operator_info.name}_{int(time.time())}_run.sh"
         )
         with open(script_file, "w") as fp:
-            fp.write(f"python3 -m {self.operator_type}")
+            fp.write(f"python3 -m {self.operator_info.name}")
 
         # copy the operator's source code to the temporary folder
-        operator_source_folder = os.path.dirname(
-            inspect.getfile(
-                importlib.import_module(f"{OPERATOR_MODULE_PATH}.{self.operator_type}")
-            )
-        )
         shutil.copytree(
-            operator_source_folder.rstrip("/"),
-            os.path.join(temp_dir, self.operator_type),
+            self.operator_info.path.rstrip("/"),
+            os.path.join(temp_dir, self.operator_info.name),
             dirs_exist_ok=True,
         )
 
@@ -628,6 +656,9 @@ class MLJobOperatorBackend(MLJobBackend):
         """
         Runs the operator on the Data Science Jobs.
         """
+        if not self.operator_info:
+            self.operator_info = OperatorLoader.from_uri(self.operator_type).load()
+
         self.job = Job.from_dict(self.runtime_config).build()
 
         # adjust job's common information

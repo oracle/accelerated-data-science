@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import pandas as pd
 import numpy as np
 
@@ -42,7 +48,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             no_negatives=False,
             constraint=None,
             ensemble=self.spec.model_kwargs.get("ensemble", "auto"),
-            initial_template=self.spec.model_kwargs.get("initial_template", "General+Random"),
+            initial_template=self.spec.model_kwargs.get(
+                "initial_template", "General+Random"
+            ),
             random_seed=2022,
             holiday_country=self.spec.model_kwargs.get("holiday_country", "US"),
             subset=None,
@@ -52,13 +60,19 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             drop_data_older_than_periods=None,
             model_list=self.spec.model_kwargs.get("model_list", "multivariate"),
             transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
-            transformer_max_depth=self.spec.model_kwargs.get("transformer_max_depth", 6),
+            transformer_max_depth=self.spec.model_kwargs.get(
+                "transformer_max_depth", 6
+            ),
             models_mode=self.spec.model_kwargs.get("models_mode", "random"),
             num_validations=self.spec.model_kwargs.get("num_validations", "auto"),
             models_to_validate=self.spec.model_kwargs.get("models_to_validate", 0.15),
             max_per_model_class=None,
-            validation_method=self.spec.model_kwargs.get("validation_method", "backwards"),
-            min_allowed_train_percent=self.spec.model_kwargs.get("min_allowed_train_percent", 0.5),
+            validation_method=self.spec.model_kwargs.get(
+                "validation_method", "backwards"
+            ),
+            min_allowed_train_percent=self.spec.model_kwargs.get(
+                "min_allowed_train_percent", 0.5
+            ),
             remove_leading_zeroes=False,
             prefill_na=None,
             introduce_na=None,
@@ -163,6 +177,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
             output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
             output_col = pd.concat([output_col, output_i])
+
         output_col = output_col.reset_index(drop=True)
         outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
@@ -205,19 +220,16 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         # Section 2: AutoTS Model Parameters
         sec2_text = dp.Text(f"## AutoTS Model Parameters")
         # TODO: ODSC-47612 Format the parameters better for display in report.
-        sec2 = dp.Select(
-            blocks=[
-                dp.HTML(
-                    pd.DataFrame(
-                        [self.models.best_model_params["models"][x]["ModelParameters"]]
-                    ).to_html(),
-                    label=self.original_target_column + "_model_" +str(i),
-                )
-                for i, x in enumerate(
-                    list(self.models.best_model_params["models"].keys())
-                )
-            ]
-        )
+        blocks = [
+            dp.HTML(
+                pd.DataFrame(
+                    [self.models.best_model_params["models"][x]["ModelParameters"]]
+                ).to_html(),
+                label=self.original_target_column + "_model_" + str(i),
+            )
+            for i, x in enumerate(list(self.models.best_model_params["models"].keys()))
+        ]
+        sec2 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
         all_sections = [sec1_text, sec_1, sec2_text, sec2]
 
         # Model Description

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -15,7 +15,7 @@ from ads.common import auth as authutil
 from ads.common import oci_client
 
 
-class InvalidObjectStoragePath(Exception):   # pragma: no cover
+class InvalidObjectStoragePath(Exception):  # pragma: no cover
     """Invalid Object Storage Path."""
 
     pass
@@ -137,4 +137,4 @@ class ObjectStorageDetails:
         """
         if not uri:
             return False
-        return uri.startswith("oci://")
+        return uri.lower().startswith("oci://")

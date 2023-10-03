@@ -1204,7 +1204,7 @@ If you don't have an Object Storage bucket, create one using the OCI SDK or the 
 
         Allow service datascience to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
-        Allow service objectstorage to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
+        Allow service objectstorage-<region> to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
 Saving
 ======
@@ -1545,4 +1545,3 @@ In the next example, the model that was stored in the model catalog as part of t
 .. code-block:: python3
 
     mc.delete_model(mc_model.id)
-

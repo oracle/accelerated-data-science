@@ -11,13 +11,13 @@ import click
 import fsspec
 import yaml
 
-import ads.opctl.operator.cli
 import ads.opctl.conda.cli
 import ads.opctl.distributed.cli
 import ads.opctl.model.cli
+import ads.opctl.operator.cli
 import ads.opctl.spark.cli
 from ads.common import auth as authutil
-from ads.common.auth import AuthType, AuthContext
+from ads.common.auth import AuthType
 from ads.opctl.cmds import activate as activate_cmd
 from ads.opctl.cmds import cancel as cancel_cmd
 from ads.opctl.cmds import configure as configure_cmd
@@ -27,11 +27,9 @@ from ads.opctl.cmds import init as init_cmd
 from ads.opctl.cmds import init_vscode as init_vscode_cmd
 from ads.opctl.cmds import predict as predict_cmd
 from ads.opctl.cmds import run as run_cmd
-from ads.opctl.cmds import apply as apply_cmd
 from ads.opctl.cmds import run_diagnostics as run_diagnostics_cmd
 from ads.opctl.cmds import watch as watch_cmd
 from ads.opctl.config.merger import ConfigMerger
-from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.constants import (
     BACKEND_NAME,
     DEFAULT_MODEL_FOLDER,
@@ -725,82 +723,7 @@ def predict(**kwargs):
     suppress_traceback(kwargs["debug"])(predict_cmd)(**kwargs)
 
 
-@commands.command()
-@click.help_option("--help", "-h")
-@click.option("--debug", "-d", help="Set debug mode", is_flag=True, default=False)
-@click.option(
-    "--file", "-f", help="The path to resource YAML file.", required=True, default=None
-)
-@click.option(
-    "--backend",
-    "-b",
-    help=(
-        "Backend name or the path to the operator's backend config YAML file. "
-        f"Example 1: `ads opctl apply -f operator.yaml -b {BACKEND_NAME.LOCAL.value}` "
-        "Supported backends: "
-        f"{[BACKEND_NAME.JOB.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.LOCAL.value,]} "
-        "Example 2: `ads opctl apply -f operator.yaml -b backend.yaml` "
-        "Use the `ads opctl operator init` command to generate operator's configs. "
-    ),
-    required=False,
-    default=None,
-)
-@click.option(
-    "--ads-config",
-    "-c",
-    help="The folder where the ADS opctl config.ini located. Default value: `~/.ads_ops`.",
-    required=False,
-    default=None,
-)
-@click.option(
-    "--dry-run",
-    "-r",
-    default=False,
-    is_flag=True,
-    help="During dry run, the actual operation is not performed, only the steps are enumerated.",
-)
-@click.option(
-    "--auth",
-    "-a",
-    help=(
-        "The authentication method to leverage OCI resources. "
-        "The default value will be taken form the ADS `config.ini` file."
-    ),
-    type=click.Choice(AuthType.values()),
-    default=None,
-)
-def apply(debug: bool, **kwargs: Dict[str, Any]) -> None:
-    """
-    Runs the operator with the given specification on the targeted backend.
-    """
-    operator_spec = {}
-    backend = kwargs.pop("backend")
-
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-
-    with AuthContext(
-        **{
-            key: value
-            for key, value in {
-                "auth": kwargs["auth"],
-                "oci_config_location": p.config["execution"]["oci_config"],
-                "profile": p.config["execution"]["oci_profile"],
-            }.items()
-            if value
-        }
-    ) as auth:
-        with fsspec.open(kwargs["file"], "r", **auth) as f:
-            operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
-
-        if backend and backend.lower().endswith((".yaml", ".yml")):
-            with fsspec.open(backend, "r", **auth) as f:
-                backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
-
-    suppress_traceback(debug)(apply_cmd)(operator_spec, backend, **kwargs)
-
-
 commands.add_command(ads.opctl.conda.cli.commands)
 commands.add_command(ads.opctl.model.cli.commands)
 commands.add_command(ads.opctl.spark.cli.commands)
 commands.add_command(ads.opctl.distributed.cli.commands)
-commands.add_command(ads.opctl.operator.cli.commands)

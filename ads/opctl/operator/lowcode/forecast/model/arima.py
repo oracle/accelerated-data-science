@@ -115,10 +115,13 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             output_i["Date"] = outputs[f"{col}_{cat}"].index
             output_i["Series"] = cat
+            output_i["input_value"] = float("nan")
+            output_i[f"fitted_value"] = float("nan")
             output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"].values
             output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"].values
             output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"].values
             output_col = pd.concat([output_col, output_i])
+
         # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
         output_col = output_col.reset_index(drop=True)
         outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
@@ -140,12 +143,11 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         import datapane as dp
 
         sec5_text = dp.Text(f"## ARIMA Model Parameters")
-        sec5 = dp.Select(
-            blocks=[
-                dp.HTML(m.summary().as_html(), label=self.target_columns[i])
-                for i, m in enumerate(self.models)
-            ]
-        )
+        blocks = [
+            dp.HTML(m.summary().as_html(), label=self.target_columns[i])
+            for i, m in enumerate(self.models)
+        ]
+        sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
         all_sections = [sec5_text, sec5]
 
         model_description = dp.Text(
