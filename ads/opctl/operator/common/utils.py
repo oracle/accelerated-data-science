@@ -12,11 +12,10 @@ from typing import Any, Dict, List, Tuple
 import fsspec
 import yaml
 from cerberus import Validator
-from yaml import SafeLoader
 
 from ads.opctl import logger
 from ads.opctl.operator import __operators__
-from ads.opctl.utils import run_command
+from ads.opctl import utils
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -95,7 +94,7 @@ def _build_image(
 
     logger.info(f"Build image: {command}")
 
-    proc = run_command(command)
+    proc = utils.run_command(command)
     if proc.returncode != 0:
         raise RuntimeError("Docker build failed.")
 

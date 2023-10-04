@@ -67,15 +67,15 @@ class OperatorInfo(DataClassSerializable):
         Generates the conda prefix for the custom conda pack.
     """
 
-    type: str
-    gpu: bool
-    description: str
-    version: str
-    conda: str
-    conda_type: str
-    path: str
-    keywords: List[str]
-    backends: List[str]
+    type: str = ""
+    gpu: bool = False
+    description: str = ""
+    version: str = ""
+    conda: str = ""
+    conda_type: str = ""
+    path: str = ""
+    keywords: List[str] = None
+    backends: List[str] = None
 
     @property
     def conda_prefix(self) -> str:
@@ -100,7 +100,7 @@ class OperatorInfo(DataClassSerializable):
         )
 
     def __post_init__(self):
-        self.gpu = self.gpu == "yes"
+        self.gpu = self.gpu == True or self.gpu == "yes"
         self.version = self.version or "v1"
         self.conda_type = self.conda_type or PACK_TYPE.CUSTOM
         self.conda = self.conda or f"{self.type}_{self.version}"
@@ -137,7 +137,9 @@ class OperatorInfo(DataClassSerializable):
         obj: OperatorInfo = super().from_yaml(
             yaml_string=yaml_string, uri=uri, loader=loader, **kwargs
         )
-        obj.path = os.path.dirname(uri)
+
+        if uri:
+            obj.path = os.path.dirname(uri)
         return obj
 
 
@@ -669,25 +671,6 @@ def _module_from_file(module_name: str, module_path: str) -> Any:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
-
-
-def _module_constant_values(module_name: str, module_path: str) -> Dict[str, Any]:
-    """Returns the list of constant variables from a given module.
-
-    Parameters
-    ----------
-    module_name (str)
-        The name of the module to be imported.
-    module_path (str)
-        The physical path of the module.
-
-    Returns
-    -------
-    Dict[str, Any]
-        Map of variable names and their values.
-    """
-    module = _module_from_file(module_name, module_path)
-    return {name: value for name, value in vars(module).items()}
 
 
 def _operator_info(path: str = None, name: str = None) -> OperatorInfo:

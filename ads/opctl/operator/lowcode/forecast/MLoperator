@@ -1,6 +1,6 @@
 type: forecast
 version: v1
-conda_type: custom
+conda_type: published
 gpu: no
 keywords:
   - Prophet

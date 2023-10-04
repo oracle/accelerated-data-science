@@ -43,6 +43,6 @@ conda_type:
   default: custom
   allowed:
     - service
-    - custom
+    - published
   meta:
     description: "The operator's conda environment type. Can be either service or custom type."
