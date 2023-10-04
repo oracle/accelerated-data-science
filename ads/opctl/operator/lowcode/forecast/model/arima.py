@@ -17,8 +17,6 @@ from ..operator_config import ForecastOperatorConfig
 class ArimaOperatorModel(ForecastOperatorBaseModel):
     """Class representing ARIMA operator model."""
 
-    def __init__(self, config: ForecastOperatorConfig):
-        super().__init__(config)
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.full_data_dict

@@ -192,17 +192,18 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
 
     def _custom_predict_automlx(self, data):
+        """
+        Predicts the future values of a time series using the AutoMLX model.
+        Parameters:
+            data (numpy.ndarray): The input data to be used for prediction.
+        Returns:
+            numpy.ndarray: The predicted future values of the time series.
+        """
         temp = 0
         data_temp = pd.DataFrame(
             data,  # [:, :len(self.dataset_cols)],
             columns=[col for col in self.dataset_cols],
         )
-        # if data.shape[0] == 1:
-        #     orig_data_index = self.full_data_dict.get(self.series_id)[:-4].set_index(
-        #         list(self.dataset_cols)).index
-        #     new_data_index = data_temp.set_index(list(self.dataset_cols)).index
-        #     prediction_index = self.full_data_dict.get(self.series_id)[:-4][
-        #         orig_data_index.isin(new_data_index)].index.values
 
         return self.models.get(self.series_id).forecast(
             X=data_temp.drop(self.series_id, axis=1), periods=data_temp.shape[0]
@@ -210,7 +211,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
     def explain_model(self) -> dict:
         """
-        explain the automlx model using local and global explanations
+        Generates an explanation for the model by using the SHAP (SHapley Additive exPlanations) library.
+        This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
+        Returns:
+            dict: A dictionary containing the global explanation for each feature in the dataset.
+                    The keys are the feature names and the values are the average absolute SHAP values.
         """
         try:
             from shap import KernelExplainer
