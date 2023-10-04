@@ -77,10 +77,10 @@ class SparkExecutionEngine(Strategy):
         self._jvm = self._spark_context._jvm
 
     def ingest_feature_definition(
-            self,
-            feature_group: "FeatureGroup",
-            feature_group_job: FeatureGroupJob,
-            dataframe,
+        self,
+        feature_group: "FeatureGroup",
+        feature_group_job: FeatureGroupJob,
+        dataframe,
     ):
         try:
             self._save_offline_dataframe(dataframe, feature_group, feature_group_job)
@@ -88,14 +88,14 @@ class SparkExecutionEngine(Strategy):
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
     def ingest_feature_definition_stream(
-            self,
-            feature_group,
-            feature_group_job: FeatureGroupJob,
-            dataframe,
-            query_name,
-            await_termination,
-            timeout,
-            checkpoint_dir,
+        self,
+        feature_group,
+        feature_group_job: FeatureGroupJob,
+        dataframe,
+        query_name,
+        await_termination,
+        timeout,
+        checkpoint_dir,
     ):
         try:
             self._save_offline_dataframe_stream(
@@ -117,7 +117,7 @@ class SparkExecutionEngine(Strategy):
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
     def delete_feature_definition(
-            self, feature_group: "FeatureGroup", feature_group_job: FeatureGroupJob
+        self, feature_group: "FeatureGroup", feature_group_job: FeatureGroupJob
     ):
         """
         Deletes a feature definition from the system.
@@ -211,7 +211,7 @@ class SparkExecutionEngine(Strategy):
             raise Exception(error_message)
 
     def _save_offline_dataframe(
-            self, data_frame, feature_group, feature_group_job: FeatureGroupJob
+        self, data_frame, feature_group, feature_group_job: FeatureGroupJob
     ):
         """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
         dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
@@ -248,9 +248,7 @@ class SparkExecutionEngine(Strategy):
             # TODO: Get event timestamp column and apply filtering basis from and to timestamp
 
             if feature_group.expectation_details:
-                expectation_type = feature_group.expectation_details[
-                    "expectationType"
-                ]
+                expectation_type = feature_group.expectation_details["expectationType"]
                 logger.info(f"Validation expectation type: {expectation_type}")
 
                 # Apply validations
@@ -308,7 +306,10 @@ class SparkExecutionEngine(Strategy):
 
             # Get the output features
             output_features = get_features(
-                self.spark_engine.get_columns_from_table(target_table), feature_group.id
+                self.spark_engine.get_output_columns_from_table_or_dataframe(
+                    target_table
+                ),
+                feature_group.id,
             )
 
             logger.info(f"output features for the FeatureGroup: {output_features}")
@@ -444,7 +445,9 @@ class SparkExecutionEngine(Strategy):
 
             # Get the output features
             output_features = get_features(
-                output_columns=self.spark_engine.get_output_columns_from_table_or_dataframe(table_name=target_table),
+                output_columns=self.spark_engine.get_output_columns_from_table_or_dataframe(
+                    table_name=target_table
+                ),
                 parent_id=dataset.id,
                 entity_type=EntityType.DATASET,
             )
@@ -485,7 +488,7 @@ class SparkExecutionEngine(Strategy):
 
     @staticmethod
     def _update_job_and_parent_details(
-            parent_entity, job_entity, output_features=None, output_details=None
+        parent_entity, job_entity, output_features=None, output_details=None
     ):
         """
         Updates the parent and job entities with relevant details.
@@ -511,14 +514,14 @@ class SparkExecutionEngine(Strategy):
         parent_entity.update()
 
     def _save_offline_dataframe_stream(
-            self,
-            dataframe,
-            feature_group,
-            feature_group_job,
-            query_name,
-            await_termination,
-            timeout,
-            checkpoint_dir,
+        self,
+        dataframe,
+        feature_group,
+        feature_group_job,
+        query_name,
+        await_termination,
+        timeout,
+        checkpoint_dir,
     ):
         output_features = []
         output_details = {
@@ -559,7 +562,10 @@ class SparkExecutionEngine(Strategy):
 
             # Get the output features
             output_features = get_features(
-                self.spark_engine.get_output_columns_from_table_or_dataframe(dataframe=featured_data), feature_group.id
+                self.spark_engine.get_output_columns_from_table_or_dataframe(
+                    dataframe=featured_data
+                ),
+                feature_group.id,
             )
 
             self._update_job_and_parent_details(
@@ -569,15 +575,17 @@ class SparkExecutionEngine(Strategy):
                 output_details=output_details,
             )
 
-            streaming_query = self.delta_lake_service.write_stream_dataframe_to_delta_lake(
-                featured_data,
-                target_table,
-                feature_group_job.ingestion_mode,
-                query_name,
-                await_termination,
-                timeout,
-                checkpoint_dir,
-                feature_group_job.feature_option_details,
+            streaming_query = (
+                self.delta_lake_service.write_stream_dataframe_to_delta_lake(
+                    featured_data,
+                    target_table,
+                    feature_group_job.ingestion_mode,
+                    query_name,
+                    await_termination,
+                    timeout,
+                    checkpoint_dir,
+                    feature_group_job.feature_option_details,
+                )
             )
 
             return streaming_query

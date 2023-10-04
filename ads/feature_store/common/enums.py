@@ -49,7 +49,20 @@ class DatasetIngestionMode(Enum):
     SQL = "SQL"
 
 
-class IngestionMode(Enum):
+class IngestionType(Enum):
+    """
+    The type of ingestion that can be performed.
+
+    Possible values:
+        * STREAMING: The data is ingested in real time.
+        * BATCH: The data is ingested in batches.
+    """
+
+    STREAMING = "STREAMING"
+    BATCH = "BATCH"
+
+
+class BatchIngestionMode(Enum):
     """
     An enumeration that represents the supported Ingestion Mode in feature store.
 
@@ -67,7 +80,8 @@ class IngestionMode(Enum):
     DEFAULT = "DEFAULT"
     UPSERT = "UPSERT"
 
-class StreamIngestionMode(Enum):
+
+class StreamingIngestionMode(Enum):
     """
     Enumeration for stream ingestion modes.
 
@@ -75,9 +89,11 @@ class StreamIngestionMode(Enum):
     - `APPEND`: Represents appending new data to the existing dataset.
     - `UPDATE`: Represents updating existing data in the dataset.
     """
+
     COMPLETE = "COMPLETE"
     APPEND = "APPEND"
     UPDATE = "UPDATE"
+
 
 class JoinType(Enum):
     """Enumeration of supported SQL join types.

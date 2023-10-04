@@ -69,7 +69,10 @@ class TransformationUtils:
                     temporary_table_view, **transformation_kwargs_dict
                 )
             )
-        elif transformation.transformation_mode in [TransformationMode.PANDAS.value, TransformationMode.SPARK.value]:
+        elif transformation.transformation_mode in [
+            TransformationMode.PANDAS.value,
+            TransformationMode.SPARK.value,
+        ]:
             transformed_data = transformation_function_caller(
                 dataframe, **transformation_kwargs_dict
             )

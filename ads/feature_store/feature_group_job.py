@@ -8,12 +8,12 @@ import json
 import logging
 from copy import deepcopy
 from enum import Enum
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 
 import pandas
 
 from ads.common import utils
-from ads.feature_store.common.enums import IngestionMode
+from ads.feature_store.common.enums import BatchIngestionMode, StreamingIngestionMode
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.service.oci_feature_group_job import OCIFeatureGroupJob
 from ads.jobs.builders.base import Builder
@@ -331,16 +331,19 @@ class FeatureGroupJob(Builder):
         return self.get_spec(self.CONST_INGESTION_MODE)
 
     @ingestion_mode.setter
-    def ingestion_mode(self, ingestion_mode: IngestionMode) -> "FeatureGroupJob":
+    def ingestion_mode(
+        self, ingestion_mode: Union[BatchIngestionMode, StreamingIngestionMode]
+    ) -> "FeatureGroupJob":
         return self.with_ingestion_mode(ingestion_mode)
 
-    def with_ingestion_mode(self, ingestion_mode: IngestionMode) -> "FeatureGroupJob":
+    def with_ingestion_mode(
+        self, ingestion_mode: Union[BatchIngestionMode, StreamingIngestionMode]
+    ) -> "FeatureGroupJob":
         """Sets the mode of the dataset ingestion mode.
 
         Parameters
         ----------
-        ingestion_mode: IngestionMode
-            The mode of the dataset ingestion mode.
+        ingestion_mode
 
         Returns
         -------
