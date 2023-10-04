@@ -193,10 +193,17 @@ class ForecastOperatorBaseModel(ABC):
                 elapsed_time=elapsed_time,
             )
             sec7_text = dp.Text(f"## Holdout Data Evaluation Metrics")
-            sec7 = dp.DataTable(self.test_eval_metrics)
-
+            sec7 = (
+                dp.DataTable(self.test_eval_metrics)
+                if not self.test_eval_metrics.empty
+                else dp.Table(self.test_eval_metrics)
+            )
             sec8_text = dp.Text(f"## Holdout Data Summary Metrics")
-            sec8 = dp.DataTable(summary_metrics)
+            sec8 = (
+                dp.DataTable(summary_metrics)
+                if not summary_metrics.empty
+                else dp.Table(summary_metrics)
+            )
 
             test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
 
@@ -272,13 +279,18 @@ class ForecastOperatorBaseModel(ABC):
         self, target_columns, test_filename, outputs, target_col="yhat", elapsed_time=0
     ):
         total_metrics = pd.DataFrame()
-
-        data = utils._load_data(
-            filename=test_filename,
-            format=self.spec.test_data.format,
-            storage_options=default_signer(),
-            columns=self.spec.test_data.columns,
-        )
+        summary_metrics = pd.DataFrame()
+        data = None
+        try:
+            data = utils._load_data(
+                filename=test_filename,
+                format=self.spec.test_data.format,
+                storage_options=default_signer(),
+                columns=self.spec.test_data.columns,
+            )
+        except pd.errors.EmptyDataError:
+            logger.warn("Empty testdata file")
+            return total_metrics, summary_metrics, None
 
         data = self._preprocess(
             data, self.spec.datetime_column.name, self.spec.datetime_column.format
