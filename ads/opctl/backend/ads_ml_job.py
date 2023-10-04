@@ -589,7 +589,7 @@ class MLJobOperatorBackend(MLJobBackend):
 
         if self.job.name.lower().startswith("{job"):
             self.job.with_name(
-                f"job_{self.operator_info.name.lower()}"
+                f"job_{self.operator_info.type.lower()}"
                 f"_{self.operator_version.lower()}"
             )
         self.job.runtime.with_maximum_runtime_in_minutes(
@@ -604,7 +604,7 @@ class MLJobOperatorBackend(MLJobBackend):
             [
                 "python3",
                 "-m",
-                f"{self.operator_info.name}",
+                f"{self.operator_info.type}",
             ]
         )
         self.job.runtime.with_environment_variable(
@@ -624,15 +624,15 @@ class MLJobOperatorBackend(MLJobBackend):
 
         # prepare run.sh file to run the operator's code
         script_file = os.path.join(
-            temp_dir, f"{self.operator_info.name}_{int(time.time())}_run.sh"
+            temp_dir, f"{self.operator_info.type}_{int(time.time())}_run.sh"
         )
         with open(script_file, "w") as fp:
-            fp.write(f"python3 -m {self.operator_info.name}")
+            fp.write(f"python3 -m {self.operator_info.type}")
 
         # copy the operator's source code to the temporary folder
         shutil.copytree(
             self.operator_info.path.rstrip("/"),
-            os.path.join(temp_dir, self.operator_info.name),
+            os.path.join(temp_dir, self.operator_info.type),
             dirs_exist_ok=True,
         )
 

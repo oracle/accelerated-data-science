@@ -75,7 +75,7 @@ Each operator is accompanied by highly detailed instructions explaining how it c
 
 .. code-block:: bash
 
-   ads operator info --name <operator-name>
+   ads operator info --type <operator-type>
 
 
 .. figure:: figures/operator_info1.png
@@ -117,11 +117,11 @@ To create starter configuration files, execute the following command.
 
 .. code-block:: bash
 
-   ads operator init -n <operator-name> --overwrite --output ~/<operator-name>
+   ads operator init --type <operator-type> --overwrite --output ~/<operator-type>
 
 **The essential files generated include:**
 
-- **<operator-name>.yaml**: Contains configuration related to particular operator.
+- **<operator-type>.yaml**: Contains configuration related to particular operator.
 - **backend_operator_local_python_config.yaml**: This file includes local backend configuration for running operator in a local environment. You must manually set up the environment before executing the operator.
 - **backend_operator_local_container_config.yaml**: This file contains local backend configuration for running operator within a local container. You should build the container before running the operator, following the instructions below.
 - **backend_job_container_config.yaml**: Contains Data Science job-related configuration for running operator in a container (BYOC) runtime. The container must be built and published before executing the operator, as detailed below. For comprehensive details about the supported configuration options, including the schema and available settings, please refer to the :doc:`OCI Data Science Jobs<../../jobs/yaml_schema>` documentation.
@@ -130,7 +130,7 @@ To create starter configuration files, execute the following command.
 
 These generated configurations are designed to be ready for use without additional adjustments. However, they are provided as starter kit configurations that can be customized as needed.
 
-The operator's configuration file, named as ``<operator-name>.yaml``, is generated based on the operator's schema and contains the essential input attributes required to run the operator. These attributes serve as the bare minimum configuration for the operator to function.
+The operator's configuration file, named as ``<operator-type>.yaml``, is generated based on the operator's schema and contains the essential input attributes required to run the operator. These attributes serve as the bare minimum configuration for the operator to function.
 
 However, in cases where the operator requires specific input or output sources of data, you may need to adjust the configuration manually to accommodate these requirements.
 
@@ -157,7 +157,7 @@ Verification helps you catch any errors or inconsistencies in the operator's con
 
 .. code-block:: bash
 
-   ads operator verify -f ~/<operator-name>/config/<operator-name>.yaml
+   ads operator verify -f ~/<operator-type>/config/<operator-type>.yaml
 
 .. figure:: figures/operator_config_verify_result.png
    :align: center
@@ -174,11 +174,11 @@ In order to run an operator within a local container or utilize it with the OCI 
 .. figure:: figures/build_operator_image.png
    :align: center
 
-The fundamental attribute you need to provide is ``--name``, which represents the name of the operator. The operator's name and version will be automatically used as the image name and tag.
+The fundamental attribute you need to provide is ``--type``, which represents the name of the operator. The operator's name and version will be automatically used as the image name and tag.
 
 .. code-block:: bash
 
-   ads operator build-image --name <operator-name>
+   ads operator build-image --type <operator-type>
 
 An interesting point to note is that the operator's container can be built to accommodate both CPU and GPU architectures, although this capability depends on the specific operator's requirements.
 
@@ -201,7 +201,7 @@ The only mandatory parameter for this command is the image name that you wish to
 
 .. code-block:: bash
 
-   ads operator publish-image --name <operator-name>
+   ads operator publish-image --type <operator-type>
 
 While the image name is the only required parameter, you also have the option to provide the ``registry`` parameter if needed. By default, the information about the registry where the container should be published is retrieved from the ADS config generated during the :doc:`Configure Defaults<../../cli/opctl/configure>` step.
 
@@ -222,11 +222,11 @@ To build the operator's Conda environment, follow these steps:
 .. figure:: figures/build_operator_conda.png
    :align: center
 
-The only mandatory parameter for this command is the ``--name`` of the operator. However, you also have the option to specify the destination folder for the Conda environment. By default, the information about the destination folder where the Conda environment should be created is retrieved from the ADS config generated during the :doc:`Configure Defaults<../../cli/opctl/configure>` step.
+The only mandatory parameter for this command is the ``--type`` of the operator. However, you also have the option to specify the destination folder for the Conda environment. By default, the information about the destination folder where the Conda environment should be created is retrieved from the ADS config generated during the :doc:`Configure Defaults<../../cli/opctl/configure>` step.
 
 .. code-block:: bash
 
-   ads operator build-conda --name <operator-name>
+   ads operator build-conda --type <operator-type>
 
 Once you have successfully built the Conda environment, you will need to publish it to OCI Object Storage. This step allows the OCI Data Science Jobs and Data Flow services to utilize the Conda environment seamlessly.
 
@@ -247,6 +247,6 @@ For instance, if you have constructed a Conda environment for the specific opera
 
 .. code-block:: bash
 
-   ads operator publish-conda --name <operator-name>
+   ads operator publish-conda -t <operator-type>
 
 Publishing the Conda environment to OCI Object Storage enables the OCI Data Science Jobs and Data Flow services to access and utilize this environment efficiently. This step is essential to ensure that your operators run seamlessly within the OCI ecosystem.

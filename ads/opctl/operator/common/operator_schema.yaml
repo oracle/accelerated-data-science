@@ -1,0 +1,48 @@
+type:
+  required: false
+  type: string
+  meta:
+    description: "The type of the operator."
+version:
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "The version of the operator."
+description:
+  required: false
+  type: string
+  meta:
+    description: "The short description of the operator."
+gpu:
+  required: false
+  type: string
+  default: no
+  allowed:
+    - yes
+    - no
+  meta:
+    description: "If the operator requires GPU cluster."
+keywords:
+  required: false
+  type: list
+  schema:
+    type: string
+  meta:
+    description: "The operator's keywords."
+backends:
+  required: false
+  type: list
+  schema:
+    type: string
+  meta:
+    description: "The operator's supported backends. Can be [job, dataflow]"
+conda_type:
+  required: false
+  type: string
+  default: custom
+  allowed:
+    - service
+    - custom
+  meta:
+    description: "The operator's conda environment type. Can be either service or custom type."
