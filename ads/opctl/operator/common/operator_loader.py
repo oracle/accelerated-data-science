@@ -616,6 +616,7 @@ class GitOperatorLoader(Loader):
 
             # Clean up the temporary directory
             repo.close()
+            return _operator_info(path=uri_dst)
 
     def cleanup(self, **kwargs: Dict) -> None:
         """Cleans up all temporary files and folders created during operator loading.
