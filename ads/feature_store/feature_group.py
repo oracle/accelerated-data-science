@@ -17,7 +17,13 @@ from ads import deprecated
 from ads.common import utils
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.common.oci_mixin import OCIModelMixin
-from ads.feature_store.common.enums import ExpectationType, EntityType, StreamIngestionMode
+from ads.feature_store.common.enums import (
+    ExpectationType,
+    EntityType,
+    StreamingIngestionMode,
+    IngestionType,
+    BatchIngestionMode,
+)
 from ads.feature_store.common.exceptions import (
     NotMaterializedError,
 )
@@ -36,7 +42,7 @@ from ads.feature_store.execution_strategy.execution_strategy_provider import (
 )
 from ads.feature_store.feature import Feature
 from ads.feature_store.feature_group_expectation import Expectation
-from ads.feature_store.feature_group_job import IngestionMode, FeatureGroupJob
+from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.input_feature_detail import FeatureDetail, FeatureType
 from ads.feature_store.query.filter import Filter, Logic
@@ -866,7 +872,7 @@ class FeatureGroup(Builder):
     def materialise(
         self,
         input_dataframe: Union[DataFrame, pd.DataFrame],
-        ingestion_mode: IngestionMode = IngestionMode.OVERWRITE,
+        ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
         from_timestamp: str = None,
         to_timestamp: str = None,
         feature_option_details: FeatureOptionDetails = None,
@@ -891,10 +897,10 @@ class FeatureGroup(Builder):
 
         # Create Feature Definition Job and persist it
         feature_group_job = self._build_feature_group_job(
-            ingestion_mode,
-            from_timestamp,
-            to_timestamp,
-            feature_option_details,
+            ingestion_mode=ingestion_mode,
+            from_timestamp=from_timestamp,
+            to_timestamp=to_timestamp,
+            feature_option_details=feature_option_details,
         )
 
         # Create the Job
@@ -916,11 +922,11 @@ class FeatureGroup(Builder):
     def materialise_stream(
         self,
         input_dataframe: Union[DataFrame],
+        checkpoint_dir: str,
         query_name: Optional[str] = None,
-        ingestion_mode: StreamIngestionMode = StreamIngestionMode.APPEND,
+        ingestion_mode: StreamingIngestionMode = StreamingIngestionMode.APPEND,
         await_termination: Optional[bool] = False,
         timeout: Optional[int] = None,
-        checkpoint_dir: Optional[str] = None,
         feature_option_details: FeatureOptionDetails = None,
     ):
         """Ingest a Spark Structured Streaming Dataframe to the feature store.
@@ -1057,7 +1063,7 @@ class FeatureGroup(Builder):
         None
         """
         # Create Feature Definition Job and persist it
-        feature_group_job = self._build_feature_group_job(IngestionMode.DEFAULT)
+        feature_group_job = self._build_feature_group_job(BatchIngestionMode.DEFAULT)
 
         # Create the Job
         feature_group_job.create()
