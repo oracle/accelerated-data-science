@@ -318,11 +318,16 @@ def _build_metrics_df(y_true, y_pred, column_name):
 def evaluate_metrics(target_columns, data, outputs, target_col="yhat"):
     total_metrics = pd.DataFrame()
     for idx, col in enumerate(target_columns):
-        y_true = np.asarray(data[col])
-        y_pred = np.asarray(outputs[idx][target_col][: len(y_true)])
+        try:
+            y_true = np.asarray(data[col])
+            y_pred = np.asarray(outputs[idx][target_col][: len(y_true)])
 
-        metrics_df = _build_metrics_df(y_true=y_true, y_pred=y_pred, column_name=col)
-        total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
+            metrics_df = _build_metrics_df(
+                y_true=y_true, y_pred=y_pred, column_name=col
+            )
+            total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
+        except:
+            logger.warn(f"Failed to generate training metrics for target_series: {col}")
     return total_metrics
 
 
