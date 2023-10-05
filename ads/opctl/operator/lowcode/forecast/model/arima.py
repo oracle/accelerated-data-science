@@ -11,7 +11,6 @@ from ads.opctl import logger
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
-from ..operator_config import ForecastOperatorConfig
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
