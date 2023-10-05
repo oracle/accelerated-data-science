@@ -7,7 +7,6 @@
 import numpy as np
 import optuna
 import pandas as pd
-from neuralprophet import NeuralProphet
 from torch import Tensor
 from torchmetrics.regression import (
     MeanAbsoluteError,
