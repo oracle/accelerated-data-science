@@ -46,12 +46,12 @@ ADS_CONFIG_OPTION = (
     ),
 )
 
-OPERATOR_NAME_OPTION = (
+OPERATOR_TYPE_OPTION = (
     click.option(
-        "--name",
-        "-n",
+        "--type",
+        "-t",
         help=(
-            "The name of the operator. "
+            "The type of the operator. "
             f"Available service operators: `{'`, `'.join(__operators__)}`."
         ),
         required=True,
@@ -88,7 +88,7 @@ def list(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click_options(
-    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+    DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
 )
 @with_auth
 def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
@@ -98,7 +98,7 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click_options(
-    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+    DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
 )
 @click.option(
     "--output",
@@ -120,7 +120,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION)
 @click.option(
     "--gpu",
     "-g",
@@ -143,7 +143,7 @@ def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--registry",
     "-r",
@@ -158,7 +158,7 @@ def publish_image(debug, **kwargs):
 
 
 @commands.command(hidden=True)
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--overwrite",
     "-o",
@@ -193,7 +193,7 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--conda-pack-folder",
     help=(
@@ -219,7 +219,7 @@ def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click_options(
-    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+    DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
 )
 @click.option(
     "--conda-pack-folder",
