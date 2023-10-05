@@ -144,6 +144,18 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         return outputs_merged
 
     def _generate_report(self):
+        """
+        Generate the report for the automlx model.
+        
+        Returns:
+            - model_description (datapane.Text): A Text component containing the description of the automlx model.
+            - other_sections (List[Union[datapane.Text, datapane.Blocks]]): A list of Text and Blocks components representing various sections of the report.
+            - forecast_col_name (str): The name of the forecasted column.
+            - train_metrics (bool): A boolean value indicating whether to include train metrics in the report.
+            - ds_column_series (pd.Series): The pd.Series object representing the datetime column of the dataset.
+            - ds_forecast_col (pd.Series): The pd.Series object representing the forecasted column.
+            - ci_col_names (List[str]): A list of column names for the confidence interval in the report.
+        """
         import datapane as dp
 
         """The method that needs to be implemented on the particular model level."""
@@ -211,7 +223,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
     def explain_model(self) -> dict:
         """
-        Generates an explanation for the model by using the SHAP (SHapley Additive exPlanations) library.
+        Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
         This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
         Returns:
             dict: A dictionary containing the global explanation for each feature in the dataset.
