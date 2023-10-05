@@ -685,7 +685,7 @@ def create(
     raise NotImplementedError()
 
 
-def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
+def run(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
     """
     Runs the operator with the given specification on the targeted backend.
 

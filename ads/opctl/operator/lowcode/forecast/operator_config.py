@@ -10,7 +10,7 @@ from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.operator_config import OperatorConfig
+from ads.opctl.operator.common.operator_config import OperatorConfig
 
 from .const import SupportedMetrics
 
@@ -103,7 +103,9 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_file_name = self.report_file_name or "report.html"
-        self.preprocessing = self.preprocessing if self.preprocessing is not None else True
+        self.preprocessing = (
+            self.preprocessing if self.preprocessing is not None else True
+        )
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
         self.forecast_filename = self.forecast_filename or "forecast.csv"
