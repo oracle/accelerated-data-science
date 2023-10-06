@@ -18,7 +18,7 @@ from ads.opctl.decorator.common import click_options, with_auth
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
-from .cmd import apply as cmd_apply
+from .cmd import run as cmd_run
 from .cmd import build_conda as cmd_build_conda
 from .cmd import build_image as cmd_build_image
 from .cmd import create as cmd_create
@@ -46,12 +46,12 @@ ADS_CONFIG_OPTION = (
     ),
 )
 
-OPERATOR_NAME_OPTION = (
+OPERATOR_TYPE_OPTION = (
     click.option(
-        "--name",
-        "-n",
+        "--type",
+        "-t",
         help=(
-            "The name of the operator. "
+            "The type of the operator. "
             f"Available service operators: `{'`, `'.join(__operators__)}`."
         ),
         required=True,
@@ -88,7 +88,7 @@ def list(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click_options(
-    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+    DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
 )
 @with_auth
 def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
@@ -98,7 +98,7 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click_options(
-    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+    DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
 )
 @click.option(
     "--output",
@@ -120,7 +120,7 @@ def init(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION)
 @click.option(
     "--gpu",
     "-g",
@@ -143,7 +143,7 @@ def build_image(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--registry",
     "-r",
@@ -158,7 +158,7 @@ def publish_image(debug, **kwargs):
 
 
 @commands.command(hidden=True)
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--overwrite",
     "-o",
@@ -193,7 +193,7 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 
 @commands.command()
-@click_options(DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION)
+@click_options(DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION)
 @click.option(
     "--conda-pack-folder",
     help=(
@@ -219,7 +219,7 @@ def build_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
 
 @commands.command()
 @click_options(
-    DEBUG_OPTION + OPERATOR_NAME_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
+    DEBUG_OPTION + OPERATOR_TYPE_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION
 )
 @click.option(
     "--conda-pack-folder",
@@ -289,6 +289,4 @@ def run(debug: bool, **kwargs: Dict[str, Any]) -> None:
         with fsspec.open(backend, "r", **auth) as f:
             backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
-    suppress_traceback(debug)(cmd_apply)(
-        config=operator_spec, backend=backend, **kwargs
-    )
+    suppress_traceback(debug)(cmd_run)(config=operator_spec, backend=backend, **kwargs)

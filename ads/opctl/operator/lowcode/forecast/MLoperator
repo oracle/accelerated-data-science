@@ -1,0 +1,17 @@
+type: forecast
+version: v1
+conda_type: published
+gpu: no
+keywords:
+  - Prophet
+  - AutoML
+  - ARIMA
+  - RNN
+  - LSTM
+backends:
+  - job
+  - dataflow
+description: |
+  Forecasting operator, that leverages historical time series data to generate accurate
+  forecasts for future trends. Use `ads operator info forecast` to get more details about
+  the forecasting operator."

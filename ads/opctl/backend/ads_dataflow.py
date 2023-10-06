@@ -265,7 +265,7 @@ class DataFlowOperatorBackend(DataFlowBackend):
 
         if self.job.name.lower().startswith("{job"):
             self.job.with_name(
-                f"job_{self.operator_info.name.lower()}"
+                f"job_{self.operator_info.type.lower()}"
                 f"_{self.operator_version.lower()}"
             )
         self.job.runtime.with_maximum_runtime_in_minutes(
@@ -276,7 +276,7 @@ class DataFlowOperatorBackend(DataFlowBackend):
 
         # prepare run.py file to run the operator
         script_file = os.path.join(
-            temp_dir, f"{self.operator_info.name}_{int(time.time())}_run.py"
+            temp_dir, f"{self.operator_info.type}_{int(time.time())}_run.py"
         )
 
         operator_module = f"{OPERATOR_MODULE_PATH}.{self.operator_type}"

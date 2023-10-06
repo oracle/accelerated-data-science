@@ -29,7 +29,7 @@ OPERATOR_LOCAL_RUNTIME_KIND = "operator.local"
 class Runtime(DataClassSerializable):
     """Base class for the operator's runtimes."""
 
-    _schema: ClassVar[str] = None
+    _schema: ClassVar[str] = ""
     kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     type: str = None
     version: str = None

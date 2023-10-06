@@ -17,7 +17,7 @@ Follow the [CLI Configuration](https://accelerated-data-science.readthedocs.io/e
 To generate starter configs, run the command below. This will create a list of YAML configs and place them in the `output` folder.
 
 ```bash
-ads operator init -n forecast --overwrite --output ~/forecast/
+ads operator init -t forecast --overwrite --output ~/forecast/
 ```
 
 The most important files expected to be generated are:
@@ -70,7 +70,7 @@ To run the forecasting operator within a local container, follow these steps:
 Use the command below to build the forecast container.
 
 ```bash
-ads operator build-image -n forecast
+ads operator build-image -t forecast
 ```
 
 This will create a new `forecast:v1` image, with `/etc/operator` as the designated working directory within the container.
@@ -118,7 +118,7 @@ To execute the forecasting operator within a Data Science job using container ru
 You can use the following command to build the forecast container. This step can be skipped if you have already done this for running the operator within a local container.
 
 ```bash
-ads operator build-image -n forecast
+ads operator build-image -t forecast
 ```
 
 This will create a new `forecast:v1` image, with `/etc/operator` as the designated working directory within the container.
@@ -167,7 +167,7 @@ To execute the forecasting operator within a Data Science job using conda runtim
 You can use the following command to build the forecast conda environment.
 
 ```bash
-ads operator build-conda -n forecast
+ads operator build-conda -t forecast
 ```
 
 This will create a new `forecast_v1` conda environment and place it in the folder specified within `ads opctl configure` command.

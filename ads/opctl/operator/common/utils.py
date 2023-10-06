@@ -12,11 +12,10 @@ from typing import Any, Dict, List, Tuple
 import fsspec
 import yaml
 from cerberus import Validator
-from yaml import SafeLoader
 
 from ads.opctl import logger
 from ads.opctl.operator import __operators__
-from ads.opctl.utils import run_command
+from ads.opctl import utils
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -95,7 +94,7 @@ def _build_image(
 
     logger.info(f"Build image: {command}")
 
-    proc = run_command(command)
+    proc = utils.run_command(command)
     if proc.returncode != 0:
         raise RuntimeError("Docker build failed.")
 
@@ -143,23 +142,6 @@ def _load_yaml_from_string(doc: str, **kwargs) -> Dict:
             **template_dict,
         )
     )
-
-
-def _load_multi_document_yaml_from_string(doc: str, **kwargs) -> Dict:
-    """Loads multiline YAML from string and merge it with env variables and kwargs."""
-    template_dict = {**os.environ, **kwargs}
-    return yaml.load_all(
-        Template(doc).substitute(
-            **template_dict,
-        ),
-        Loader=SafeLoader,
-    )
-
-
-def _load_multi_document_yaml_from_uri(uri: str, **kwargs) -> Dict:
-    """Loads multiline YAML from file and merge it with env variables and kwargs."""
-    with fsspec.open(uri) as f:
-        return _load_multi_document_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)
 
 
 def _load_yaml_from_uri(uri: str, **kwargs) -> str:

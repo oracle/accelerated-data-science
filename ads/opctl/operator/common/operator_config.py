@@ -12,7 +12,7 @@ from typing import Any, Dict
 
 from ads.common.serializer import DataClassSerializable
 
-from .common.utils import OperatorValidator
+from .utils import OperatorValidator
 
 
 @dataclass(repr=True)
