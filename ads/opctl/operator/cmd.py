@@ -203,7 +203,14 @@ def _init_backend_config(
     }
 
     supported_backends = tuple(
-        set(RUNTIME_TYPE_MAP.keys()) & set(operator_info.backends)
+        set(RUNTIME_TYPE_MAP.keys())
+        & set(
+            operator_info.backends
+            + [
+                BACKEND_NAME.OPERATOR_LOCAL.value,
+                BACKEND_NAME.LOCAL.value,
+            ]
+        )
     )
 
     if backend_kind:
@@ -729,7 +736,13 @@ def run(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
                 BACKEND_NAME.LOCAL.value,
             )
         )
-        & set(operator_info.backends)
+        & set(
+            operator_info.backends
+            + [
+                BACKEND_NAME.OPERATOR_LOCAL.value,
+                BACKEND_NAME.LOCAL.value,
+            ]
+        )
     )
 
     backend_runtime_map = {

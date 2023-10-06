@@ -15,7 +15,6 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-from .__init__ import __name__ as MODULE
 from .operator import operate, verify
 from .operator_config import ForecastOperatorConfig
 
@@ -31,7 +30,7 @@ def main(raw_args: List[str]):
         return
 
     logger.info("-" * 100)
-    logger.info(f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}")
+    logger.info(f"{'Running' if not args.verify else 'Verifying'} the operator...")
 
     # if spec provided as input string, then convert the string into YAML
     yaml_string = ""
