@@ -1,0 +1,12 @@
+type: feature_store
+version: v1
+conda_type: published
+gpu: no
+keywords:
+  - Feature Store
+backends:
+  - local
+description: |
+  Oracle Feature Store is a stack based solution that is deployed in the customer enclave using OCI
+  resource manager. This operator will help you to configure and deploy the Feature Store in your tenancy.
+  The Oracle Resource Manager will be used for the deployment purpose.
