@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.operator_config import OperatorConfig
+from ads.opctl.operator.common.operator_config import OperatorConfig
 
 
 @dataclass(repr=True)

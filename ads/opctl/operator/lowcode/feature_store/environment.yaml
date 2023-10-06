@@ -1,4 +1,4 @@
-name: Forecast
+name: feature_store
 channels:
   - conda-forge
 dependencies:
