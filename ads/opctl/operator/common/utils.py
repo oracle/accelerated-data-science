@@ -6,6 +6,7 @@
 
 import argparse
 import os
+import time
 from string import Template
 from typing import Any, Dict, List, Tuple
 
@@ -13,9 +14,8 @@ import fsspec
 import yaml
 from cerberus import Validator
 
-from ads.opctl import logger
+from ads.opctl import logger, utils
 from ads.opctl.operator import __operators__
-from ads.opctl import utils
 
 CONTAINER_NETWORK = "CONTAINER_NETWORK"
 
@@ -88,6 +88,7 @@ def _build_image(
         command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
     if os.environ.get("https_proxy"):
         command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
+    command += ["--build-arg", f"RND={time.time()}"]
     if os.environ.get(CONTAINER_NETWORK):
         command += ["--network", os.environ[CONTAINER_NETWORK]]
     command += [os.path.dirname(dockerfile)]
