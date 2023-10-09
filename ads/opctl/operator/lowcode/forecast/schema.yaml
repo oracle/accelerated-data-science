@@ -194,6 +194,7 @@ spec:
     target_column:
       type: string
       required: true
+      default: target
 
     preprocessing:
       type: boolean

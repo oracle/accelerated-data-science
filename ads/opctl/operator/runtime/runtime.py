@@ -15,7 +15,7 @@ from cerberus import Validator
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ..common.errors import OperatorSchemaYamlError
+from ads.opctl.operator.common.errors import OperatorSchemaYamlError
 
 class OPERATOR_LOCAL_RUNTIME_TYPE(ExtendedEnum):
     PYTHON = "python"

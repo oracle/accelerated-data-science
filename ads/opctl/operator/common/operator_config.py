@@ -12,8 +12,8 @@ from typing import Any, Dict
 
 from ads.common.serializer import DataClassSerializable
 
-from .utils import OperatorValidator
-from .errors import OperatorSchemaYamlError
+from ads.opctl.operator.common.utils import OperatorValidator
+from ads.opctl.operator.common.errors import OperatorSchemaYamlError
 
 
 @dataclass(repr=True)
