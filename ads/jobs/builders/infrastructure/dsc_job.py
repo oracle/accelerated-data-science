@@ -1482,7 +1482,7 @@ class DataScienceJob(Infrastructure):
 
         if self.storage_mount:
             if not hasattr(
-                oci.data_science.models, "JobStorageMountConfigurationDetails"
+                oci.data_science.models, "StorageMountConfigurationDetails"
             ):
                 raise EnvironmentError(
                     "Storage mount hasn't been supported in the current OCI SDK installed."
