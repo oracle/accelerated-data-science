@@ -237,12 +237,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         """
         temp = 0
         data_temp = pd.DataFrame(
-            data,  # [:, :len(self.dataset_cols)],
+            data,
             columns=[col for col in self.dataset_cols],
         )
 
         return self.models.get(self.series_id).forecast(
-            X=data_temp, #.drop(self.series_id, axis=1),
+            X=data_temp,
               periods=data_temp.shape[0]
         )[self.series_id]
 
@@ -263,7 +263,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             )
             logger.debug(ex)
             logger.debug(traceback.format_exc())
-            exit()
+
         for series_id in self.target_columns:
             self.series_id = series_id
             self.dataset_cols = (
@@ -271,9 +271,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 .set_index(self.spec.datetime_column.name).drop(self.series_id, axis=1)
                 .columns
             )
-
-            # if not self.models.get(self.series_id).selected_model_params_.get("use_X", False):
-            #     self.dataset_cols = {self.series_id}
 
             kernel_explnr = KernelExplainer(
                 model=self._custom_predict_automlx,
