@@ -80,8 +80,7 @@ class ForecastOperatorBaseModel(ABC):
             ci_col_names,
         ) = self._generate_report()
 
-        # if self.spec.model == "automlx":
-        #     self.explain_model()
+
         report_sections = []
         title_text = dp.Text("# Forecast Report")
 
