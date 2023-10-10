@@ -447,4 +447,4 @@ class ForecastOperatorBaseModel(ABC):
         """
         explain model using global & local explanations
         """
-        return NotImplemented
+        raise NotImplementedError()

@@ -141,12 +141,22 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         self.outputs = outputs_legacy
         self.data = data_merged
         return outputs_merged
-
+    @runtime_dependency(
+        module="datapane",
+        err_msg=(
+                "Please run `pip3 install datapane` to install the required dependencies for report generation."
+        ),
+    )
     def _generate_report(self):
         """
         Generate the report for the automlx model.
-        
-        Returns:
+
+        Parameters
+        ----------
+        None
+
+        Returns
+        -------
             - model_description (datapane.Text): A Text component containing the description of the automlx model.
             - other_sections (List[Union[datapane.Text, datapane.Blocks]]): A list of Text and Blocks components representing various sections of the report.
             - forecast_col_name (str): The name of the forecasted column.
@@ -189,7 +199,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             # Create a markdown text block for the global explanation section
             global_explanation_text = dp.Text(
                 f"## Global Explanation of Models \n "
-                "The following tables provides the feature attribution for the global explainability."
+                "The following tables provide the feature attribution for the global explainability."
             )
 
             # Convert the global explanation data to a DataFrame
@@ -205,9 +215,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             all_sections = all_sections + [global_explanation_text, global_explanation_section]
 
         model_description = dp.Text(
-            "The automlx model automatically preprocesses, selects and engineers "
-            "high-quality features in your dataset, which then given to an automatically "
-            "chosen and optimized machine learning model.."
+            "The AutoMLx model automatically preprocesses, selects and engineers "
+            "high-quality features in your dataset, which are then provided for further processing."
         )
         other_sections = all_sections
         forecast_col_name = "yhat"
@@ -229,9 +238,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     def _custom_predict_automlx(self, data):
         """
         Predicts the future values of a time series using the AutoMLX model.
-        Parameters:
+        Parameters
+        ----------
             data (numpy.ndarray): The input data to be used for prediction.
-        Returns:
+
+        Returns
+        -------
             numpy.ndarray: The predicted future values of the time series.
         """
         temp = 0
@@ -245,6 +257,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
               periods=data_temp.shape[0]
         )[self.series_id]
 
+    @runtime_dependency(
+        module="shap",
+        err_msg=(
+                "Please run `pip3 install shap` to install the required dependencies for model explanation."
+        ),
+    )
     def explain_model(self) -> dict:
         """
         Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
@@ -253,15 +271,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             dict: A dictionary containing the global explanation for each feature in the dataset.
                     The keys are the feature names and the values are the average absolute SHAP values.
         """
-        try:
-            from shap import KernelExplainer
-        except Exception as ex:
-            print(
-                "Please run `pip install shap to install "
-                "the required dependencies for ADS CLI."
-            )
-            logger.debug(ex)
-            logger.debug(traceback.format_exc())
+        from shap import KernelExplainer
 
         for series_id in self.target_columns:
             self.series_id = series_id
