@@ -2,12 +2,12 @@ name: "[Py3.8][COV REPORT] tests/unitary/**"
 
 on:
   workflow_dispatch:
-#  pull_request:
-#    paths:
-#      - "ads/**"
-#      - pyproject.toml
-#      - "**requirements.txt"
-#      - ".github/workflows/run-unittests*.yml"
+  pull_request:
+    paths:
+      - "ads/**"
+      - pyproject.toml
+      - "**requirements.txt"
+      - ".github/workflows/run-unittests*.yml"
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -41,12 +41,8 @@ jobs:
             name: "model"
 
     steps:
-#      - name: "Create more disk space"
-#        run: |
-#          sudo rm -rf /usr/share/dotnet
-#          sudo rm -rf /opt/ghc
-#          sudo rm -rf "/usr/local/share/boost"
-#          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+      - uses: ./.github/workflows/reusable/create-more-space
+        name: "Create more disk space"
 
       - uses: actions/checkout@v3
 
@@ -55,14 +51,10 @@ jobs:
           python-version: "3.8"
           cache: "pip"
           cache-dependency-path: |
-            pyproject.toml
-            "**requirements.txt"
+          pyproject.toml
+          "**requirements.txt"
 
-      - name: df
-        shell: bash
-        run: df -h
-
-      - uses: ./.github/workflows/set-dummy-conf
+      - uses: ./.github/workflows/reusable/dummy-oci-config
         name: "Test config setup"
 
       - name: "Test env setup"
@@ -112,7 +104,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: test
-    if: ${{ success() }} && ${{ github.event.issue.pull_request }}
+    if: ${{ success() }} && && github.event_name == 'pull_request'
     env:
       COMPARE_BRANCH: main
 
