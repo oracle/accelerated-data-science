@@ -1,3 +1,6 @@
+# This composite action is to avoid duplicating code across test actions.
+# Ref: https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
+
 name: "Create dummy oci config"
 description: "Creates  dummy oci config folder in ~/.oci"
 runs:
