@@ -204,10 +204,14 @@ class OCIFileStorage(DSCFileSystem):
             raise ValueError(
                 "Missing parameter `destination_directory_name` from service. Check service log to see the error."
             )
+        
+        dest = dsc_model.destination_directory_name
+        if dsc_model.destination_path:
+            dest = f"{dsc_model.destination_path.rstrip('/')}/{dsc_model.destination_directory_name}"
 
         return {
             "src" : f"{dsc_model.mount_target_id}:{dsc_model.export_id}",
-            "dest" : f"{(dsc_model.destination_path or '').rstrip('/')}/{dsc_model.destination_directory_name}"
+            "dest" : dest
         }
 
 @dataclass
@@ -249,9 +253,13 @@ class OCIObjectStorage(DSCFileSystem):
                 "Missing parameter `destination_directory_name` from service. Check service log to see the error."
             )
 
+        dest = dsc_model.destination_directory_name
+        if dsc_model.destination_path:
+            dest = f"{dsc_model.destination_path.rstrip('/')}/{dsc_model.destination_directory_name}"
+
         return {
             "src" : f"oci://{dsc_model.bucket}@{dsc_model.namespace}/{dsc_model.prefix or ''}",
-            "dest" : f"{(dsc_model.destination_path or '').rstrip('/')}/{dsc_model.destination_directory_name}"
+            "dest" : dest
         }
 
 

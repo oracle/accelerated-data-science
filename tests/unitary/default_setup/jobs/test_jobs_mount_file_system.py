@@ -532,7 +532,7 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
     def test_get_destination_path_and_name(self):
         path, directory = OCIFileStorage.get_destination_path_and_name("abc")
 
-        assert path == ""
+        assert path == None
         assert directory == "abc"
 
         path, directory = OCIFileStorage.get_destination_path_and_name("/abc")
