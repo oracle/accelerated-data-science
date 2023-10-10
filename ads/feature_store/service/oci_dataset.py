@@ -6,13 +6,17 @@
 
 import datetime
 
-import oci
-from oci.feature_store.models import CreateDatasetDetails, UpdateDatasetDetails
+import feature_store_client.feature_store as fs
+from feature_store_client.feature_store.models import (
+    Dataset,
+    CreateDatasetDetails,
+    UpdateDatasetDetails,
+)
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
 
 
-class OCIDataset(OCIFeatureStoreMixin, oci.feature_store.models.Dataset):
+class OCIDataset(OCIFeatureStoreMixin, Dataset):
     """Represents an OCI Data Science dataset.
     This class contains all attributes of the `oci.data_science.models.Dataset`.
     The main purpose of this class is to link the `oci.data_science.models.Dataset`
@@ -59,7 +63,7 @@ class OCIDataset(OCIFeatureStoreMixin, oci.feature_store.models.Dataset):
     """
 
     @property
-    def client(self) -> oci.feature_store.feature_store_client.FeatureStoreClient:
+    def client(self) -> fs.feature_store_client.FeatureStoreClient:
         return super().client
 
     def create(self) -> "OCIDataset":

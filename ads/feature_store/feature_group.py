@@ -694,7 +694,7 @@ class FeatureGroup(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.FeatureGroup` accepts.
+            Can be any attribute that `feature_store.models.FeatureGroup` accepts.
 
         Returns
         -------
@@ -784,7 +784,7 @@ class FeatureGroup(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.FeatureGroup` accepts.
+            Can be any attribute that `feature_store.models.FeatureGroup` accepts.
 
         Returns
         -------

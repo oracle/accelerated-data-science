@@ -10,7 +10,7 @@ import pandas as pd
 from great_expectations.core import ExpectationSuite
 
 from ads import deprecated
-from oci.feature_store.models import (
+from feature_store_client.feature_store.models import (
     DatasetFeatureGroupCollection,
     DatasetFeatureGroupSummary,
 )
@@ -720,7 +720,7 @@ class Dataset(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Dataset` accepts.
+            Can be any attribute that `feature_store.models.Dataset` accepts.
         validate_sql:
             Boolean value indicating whether to validate sql before creating dataset
 
@@ -821,7 +821,7 @@ class Dataset(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Dataset` accepts.
+            Can be any attribute that `feature_store.models.Dataset` accepts.
 
         Returns
         -------

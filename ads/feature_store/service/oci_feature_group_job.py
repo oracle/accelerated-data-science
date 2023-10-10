@@ -8,10 +8,12 @@ import datetime
 import logging
 import time
 
-import oci.feature_store
-from oci.feature_store.models import (
+import feature_store_client.feature_store as fs
+from feature_store_client.feature_store.models import (
     CreateFeatureGroupJobDetails,
     CompleteFeatureGroupJobDetails,
+    FeatureGroupJob,
+    DatasetJob,
 )
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
@@ -21,9 +23,7 @@ logger = logging.getLogger(__name__)
 SLEEP_INTERVAL = 3
 
 
-class OCIFeatureGroupJob(
-    OCIFeatureStoreMixin, oci.feature_store.models.FeatureGroupJob
-):
+class OCIFeatureGroupJob(OCIFeatureStoreMixin, FeatureGroupJob):
     """Represents an OCI Data Science FeatureGroupJob.
     This class contains all attributes of the `oci.data_science.models.FeatureGroupJob`.
     The main purpose of this class is to link the `oci.data_science.models.FeatureGroupJob`
@@ -67,8 +67,8 @@ class OCIFeatureGroupJob(
     """
 
     TERMINAL_STATES = [
-        oci.feature_store.models.DatasetJob.LIFECYCLE_STATE_SUCCEEDED,
-        oci.feature_store.models.DatasetJob.LIFECYCLE_STATE_FAILED,
+        DatasetJob.LIFECYCLE_STATE_SUCCEEDED,
+        DatasetJob.LIFECYCLE_STATE_FAILED,
     ]
 
     def __init__(self, **kwargs) -> None:
@@ -77,7 +77,7 @@ class OCIFeatureGroupJob(
         Parameters
         ----------
         kwargs:
-            Same as kwargs in oci.feature_store.models.OCIFeatureGroupJob.
+            Same as kwargs in feature_store.models.OCIFeatureGroupJob.
             Keyword arguments are passed into OCI feature group job model to initialize the properties.
 
         """
@@ -86,9 +86,7 @@ class OCIFeatureGroupJob(
 
     # Overriding default behavior
     @classmethod
-    def init_client(
-        cls, **kwargs
-    ) -> oci.feature_store.feature_store_client.FeatureStoreClient:
+    def init_client(cls, **kwargs) -> fs.feature_store_client.FeatureStoreClient:
         client = super().init_client(**kwargs)
 
         # Define the list entities callable to list the resources
