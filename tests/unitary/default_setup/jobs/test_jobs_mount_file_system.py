@@ -392,7 +392,6 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
             "namespace" : "Missing parameter `namespace` from service. Check service log to see the error.",
             "bucket" : "Missing parameter `bucket` from service. Check service log to see the error.",
             "destination_directory_name" : "Missing parameter `destination_directory_name` from service. Check service log to see the error.",
-            "destination_path" : "Missing parameter `destination_path` from service. Check service log to see the error."
         }
 
         dsc_model_dict = {
@@ -509,7 +508,6 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
             "mount_target_id" : "Missing parameter `mount_target_id` from service. Check service log to see the error.",
             "export_id" : "Missing parameter `export_id` from service. Check service log to see the error.",
             "destination_directory_name" : "Missing parameter `destination_directory_name` from service. Check service log to see the error.",
-            "destination_path" : "Missing parameter `destination_path` from service. Check service log to see the error."
         }
 
         dsc_model_dict = {
@@ -530,3 +528,24 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
                 OCIFileStorage.update_from_dsc_model(
                     FileStorageMountConfigurationDetails(**dsc_model_copy)
                 )
+
+    def test_get_destination_path_and_name(self):
+        path, directory = OCIFileStorage.get_destination_path_and_name("abc")
+
+        assert path == ""
+        assert directory == "abc"
+
+        path, directory = OCIFileStorage.get_destination_path_and_name("/abc")
+
+        assert path == "/"
+        assert directory == "abc"
+
+        path, directory = OCIFileStorage.get_destination_path_and_name("/abc/def")
+
+        assert path == "/abc"
+        assert directory == "def"
+
+        path, directory = OCIFileStorage.get_destination_path_and_name("/abc/def/ghi")
+
+        assert path == "/abc/def"
+        assert directory == "ghi"

@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import ads
 import oci
+import os
 import ipaddress
 
 from dataclasses import dataclass
@@ -51,6 +52,10 @@ class DSCFileSystem:
     @staticmethod
     def get_destination_path_and_name(dest: str) -> (str, str):
         """Gets the destination path and destination directory name from dest.
+        Example:
+            dir - "fss" & path - "/opc" : mount happens under "/opc/fss"
+            dir - "fss" & path - "/" : mount happens under "/fss"
+            dir - "fss" & path - omitted : mount happens under "/mnt/fss" (for backward compatibility)
 
         Parameters
         ----------
@@ -62,10 +67,10 @@ class DSCFileSystem:
         tuple
             A tuple of destination path and destination directory name.
         """
-        directory_index = dest.rfind("/")
-        directory_name = dest[directory_index+1:]
-        path = "/" if directory_index <= 0 else dest[:directory_index]
-        return (path, directory_name)
+        return (
+            os.path.dirname(dest.rstrip("/")),
+            os.path.basename(dest.rstrip("/"))
+        )
 
 
 @dataclass
@@ -199,14 +204,10 @@ class OCIFileStorage(DSCFileSystem):
             raise ValueError(
                 "Missing parameter `destination_directory_name` from service. Check service log to see the error."
             )
-        if not dsc_model.destination_path:
-            raise ValueError(
-                "Missing parameter `destination_path` from service. Check service log to see the error."
-            )
 
         return {
             "src" : f"{dsc_model.mount_target_id}:{dsc_model.export_id}",
-            "dest" : f"{dsc_model.destination_path.rstrip('/')}/{dsc_model.destination_directory_name}"
+            "dest" : f"{(dsc_model.destination_path or '').rstrip('/')}/{dsc_model.destination_directory_name}"
         }
 
 @dataclass
@@ -247,14 +248,10 @@ class OCIObjectStorage(DSCFileSystem):
             raise ValueError(
                 "Missing parameter `destination_directory_name` from service. Check service log to see the error."
             )
-        if not dsc_model.destination_path:
-            raise ValueError(
-                "Missing parameter `destination_path` from service. Check service log to see the error."
-            )
 
         return {
             "src" : f"oci://{dsc_model.bucket}@{dsc_model.namespace}/{dsc_model.prefix or ''}",
-            "dest" : f"{dsc_model.destination_path.rstrip('/')}/{dsc_model.destination_directory_name}"
+            "dest" : f"{(dsc_model.destination_path or '').rstrip('/')}/{dsc_model.destination_directory_name}"
         }
 
 
