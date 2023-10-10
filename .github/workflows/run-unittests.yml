@@ -41,7 +41,7 @@ jobs:
             name: "model"
 
     steps:
-      - uses: ./.github/workflows/reusable/create-more-space
+      - uses: ./.github/workflows/create-more-space
         name: "Create more disk space"
 
       - uses: actions/checkout@v3
@@ -54,7 +54,7 @@ jobs:
             pyproject.toml
             "**requirements.txt"
 
-      - uses: ./.github/workflows/reusable/dummy-oci-config
+      - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
       - name: "Test env setup"
