@@ -41,10 +41,10 @@ jobs:
             name: "model"
 
     steps:
+      - uses: actions/checkout@v3
+
       - uses: ./.github/workflows/create-more-space
         name: "Create more disk space"
-
-      - uses: actions/checkout@v3
 
       - uses: actions/setup-python@v4
         with:
