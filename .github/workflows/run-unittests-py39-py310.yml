@@ -2,12 +2,12 @@ name: "[Py3.9][Py3.10] - tests/unitary/**"
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - "ads/**"
-      - pyproject.toml
-      - "**requirements.txt"
-      - ".github/workflows/run-unittests*.yml"
+#  pull_request:
+#    paths:
+#      - "ads/**"
+#      - pyproject.toml
+#      - "**requirements.txt"
+#      - ".github/workflows/run-unittests*.yml"
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -57,6 +57,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - uses: ./.github/workflows/set-dummy-conf
+        name: "Test config setup"
 
       - name: "Test env setup"
         timeout-minutes: 20
