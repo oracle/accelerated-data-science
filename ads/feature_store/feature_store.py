@@ -110,7 +110,7 @@ class FeatureStore(Builder):
 
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.FeatureStore` accepts.
+            Can be any attribute that `feature_store.models.FeatureStore` accepts.
 
         Returns
         -------
@@ -271,7 +271,7 @@ class FeatureStore(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.FeatureStore` accepts.
+            Can be any attribute that `feature_store.models.FeatureStore` accepts.
 
         Returns
         -------
