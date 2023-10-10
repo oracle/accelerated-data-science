@@ -217,7 +217,7 @@ spec:
 
     target_category_columns:
       type: list
-      required: false
+      required: true
       schema:
         type: string
 

@@ -7,6 +7,16 @@
 from ads.opctl.operator import __operators__
 
 
+class OperatorSchemaYamlError(Exception):
+    """Exception raised when there is an issue with the schema."""
+    def __init__(self, error: str):
+        super().__init__(
+            "Invalid operator specification. Check the YAML structure and ensure it "
+            "complies with the required schema for the operator. \n"
+            f"{error}"
+        )
+
+
 class OperatorNotFoundError(Exception):
     def __init__(self, operator: str):
         super().__init__(
