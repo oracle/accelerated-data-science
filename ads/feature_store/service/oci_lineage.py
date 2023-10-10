@@ -6,14 +6,18 @@
 
 import logging
 
-import oci.feature_store
+import feature_store_client.feature_store as fs
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
+
+from feature_store_client.feature_store.models import (
+    Lineage,
+)
 
 logger = logging.getLogger(__name__)
 
 
-class OCILineage(OCIFeatureStoreMixin, oci.feature_store.models.Lineage):
+class OCILineage(OCIFeatureStoreMixin, Lineage):
     """Represents an OCI Data Science Lineage Resource Class.
     This class contains all attributes of the `oci.data_science.models.Lineaage`.
     The main purpose of this class is to link the `oci.data_science.models.Lineaage`
@@ -58,14 +62,14 @@ class OCILineage(OCIFeatureStoreMixin, oci.feature_store.models.Lineage):
         Parameters
         ----------
         kwargs:
-            Same as kwargs in oci.feature_store.models.Lineage.
+            Same as kwargs in feature_store.models.Lineage.
             Keyword arguments are passed into OCI feature group Lineage model to initialize the properties.
 
         """
 
         super().__init__(**kwargs)
 
-    def from_id(self, feature_store_lineage_resource_id: str, **kwargs) -> "Lineage":
+    def from_id(self, feature_store_lineage_resource_id: str, **kwargs) -> Lineage:
         """Gets lineage resource  by feature store id.
 
         Parameters

@@ -4,8 +4,12 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import oci.feature_store
-from oci.feature_store.models import CreateEntityDetails, UpdateEntityDetails
+import feature_store_client.feature_store as fs
+from feature_store_client.feature_store.models import (
+    CreateEntityDetails,
+    UpdateEntityDetails,
+    Entity,
+)
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
 import logging
@@ -13,7 +17,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class OCIEntity(OCIFeatureStoreMixin, oci.feature_store.models.Entity):
+class OCIEntity(OCIFeatureStoreMixin, Entity):
     """Represents an OCI Data Science Entity.
     This class contains all attributes of the `oci.data_science.models.Entity`.
     The main purpose of this class is to link the `oci.data_science.models.Entity`
@@ -60,9 +64,7 @@ class OCIEntity(OCIFeatureStoreMixin, oci.feature_store.models.Entity):
 
     # Overriding default behavior
     @classmethod
-    def init_client(
-        cls, **kwargs
-    ) -> oci.feature_store.feature_store_client.FeatureStoreClient:
+    def init_client(cls, **kwargs) -> fs.feature_store_client.FeatureStoreClient:
         client = super().init_client(**kwargs)
 
         # Define the list entities callable to list the resources
