@@ -56,7 +56,7 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - uses: ./.github/workflows/set-dummy-conf@tag_test_actions
+      - uses: .github/workflows/set-dummy-conf@tag_test_actions
 
       - name: "Test env setup"
         timeout-minutes: 20
