@@ -68,7 +68,7 @@ class DSCFileSystem:
             A tuple of destination path and destination directory name.
         """
         return (
-            os.path.dirname(dest.rstrip("/")),
+            os.path.dirname(dest.rstrip("/")) or None, # when destination path is omitted, oci api requires it to be None
             os.path.basename(dest.rstrip("/"))
         )
 
