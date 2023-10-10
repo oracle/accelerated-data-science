@@ -1,0 +1,84 @@
+name: "[Py3.9][Py3.10] - tests/unitary/**"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ads/**"
+      - pyproject.toml
+      - "**requirements.txt"
+      - ".github/workflows/run-unittests*.yml"
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+# hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
+env:
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+
+jobs:
+  test:
+    name: python ${{ matrix.python-version }}, ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.10"]
+        test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
+        include:
+          - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
+            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store"
+            name: "unitary"
+          - test-path: "tests/unitary/with_extras/model"
+            name: "model"
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Caching python libraries installed with pip
+      # https://github.com/actions/cache/blob/main/examples.md#python---pip
+      - uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/dev-requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: ./.github/workflows/reusable-actions/set-dummy-conf@tag_test_actions
+
+      - name: "Test env setup"
+        timeout-minutes: 20
+        shell: bash
+        run: |
+          set -x # print commands that are executed
+
+          sudo apt-get install libkrb5-dev graphviz
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc
+
+          pip install -r dev-requirements.txt
+
+      - name: "Run unitary tests folder with maximum ADS dependencies"
+        timeout-minutes: 60
+        shell: bash
+        env:
+          CONDA_PREFIX: /usr/share/miniconda
+        run: |
+          set -x # print commands that are executed
+
+          # Run tests
+          python -m pytest -v -p no:warnings --durations=5 \
+          -n auto --dist loadfile \
+          ${{ matrix.test-path }} ${{ matrix.ignore-path }}
