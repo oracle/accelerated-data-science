@@ -51,8 +51,8 @@ jobs:
           python-version: "3.8"
           cache: "pip"
           cache-dependency-path: |
-          pyproject.toml
-          "**requirements.txt"
+            pyproject.toml
+            "**requirements.txt"
 
       - uses: ./.github/workflows/reusable/dummy-oci-config
         name: "Test config setup"

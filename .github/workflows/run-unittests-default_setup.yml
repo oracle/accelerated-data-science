@@ -41,8 +41,8 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
           cache-dependency-path: |
-          pyproject.toml
-          "**requirements.txt"
+            pyproject.toml
+            "**requirements.txt"
 
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
