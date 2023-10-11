@@ -156,9 +156,10 @@ def _write_data(data, filename, format, storage_options, index=False, **kwargs):
 
 
 def _merge_category_columns(data, target_category_columns):
-    return data.apply(
+    result = data.apply(
         lambda x: "__".join([str(x[col]) for col in target_category_columns]), axis=1
     )
+    return result if not result.empty else pd.Series([], dtype=str)
 
 
 def _clean_data(data, target_column, datetime_column, target_category_columns=None):

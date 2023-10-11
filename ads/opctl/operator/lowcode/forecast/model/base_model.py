@@ -313,75 +313,76 @@ class ForecastOperatorBaseModel(ABC):
                 )
                 total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
-        summary_metrics = pd.DataFrame(
-            {
-                SupportedMetrics.MEAN_SMAPE: np.mean(
-                    total_metrics.loc[SupportedMetrics.SMAPE]
-                ),
-                SupportedMetrics.MEDIAN_SMAPE: np.median(
-                    total_metrics.loc[SupportedMetrics.SMAPE]
-                ),
-                SupportedMetrics.MEAN_MAPE: np.mean(
-                    total_metrics.loc[SupportedMetrics.MAPE]
-                ),
-                SupportedMetrics.MEDIAN_MAPE: np.median(
-                    total_metrics.loc[SupportedMetrics.MAPE]
-                ),
-                SupportedMetrics.MEAN_RMSE: np.mean(
-                    total_metrics.loc[SupportedMetrics.RMSE]
-                ),
-                SupportedMetrics.MEDIAN_RMSE: np.median(
-                    total_metrics.loc[SupportedMetrics.RMSE]
-                ),
-                SupportedMetrics.MEAN_R2: np.mean(
-                    total_metrics.loc[SupportedMetrics.R2]
-                ),
-                SupportedMetrics.MEDIAN_R2: np.median(
-                    total_metrics.loc[SupportedMetrics.R2]
-                ),
-                SupportedMetrics.MEAN_EXPLAINED_VARIANCE: np.mean(
-                    total_metrics.loc[SupportedMetrics.EXPLAINED_VARIANCE]
-                ),
-                SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE: np.median(
-                    total_metrics.loc[SupportedMetrics.EXPLAINED_VARIANCE]
-                ),
-                SupportedMetrics.ELAPSED_TIME: elapsed_time,
-            },
-            index=["All Targets"],
-        )
-
-        """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
-        if horizon <= 10."""
-        target_columns_in_output = set(target_columns).intersection(data.columns)
-        if self.spec.horizon.periods <= SUMMARY_METRICS_HORIZON_LIMIT and len(
-            outputs
-        ) == len(target_columns_in_output):
-            metrics_per_horizon = utils._build_metrics_per_horizon(
-                data=data,
-                outputs=outputs,
-                target_columns=target_columns,
-                target_col=target_col,
-                horizon_periods=self.spec.horizon.periods,
+        if not total_metrics.empty:
+            summary_metrics = pd.DataFrame(
+                {
+                    SupportedMetrics.MEAN_SMAPE: np.mean(
+                        total_metrics.loc[SupportedMetrics.SMAPE]
+                    ),
+                    SupportedMetrics.MEDIAN_SMAPE: np.median(
+                        total_metrics.loc[SupportedMetrics.SMAPE]
+                    ),
+                    SupportedMetrics.MEAN_MAPE: np.mean(
+                        total_metrics.loc[SupportedMetrics.MAPE]
+                    ),
+                    SupportedMetrics.MEDIAN_MAPE: np.median(
+                        total_metrics.loc[SupportedMetrics.MAPE]
+                    ),
+                    SupportedMetrics.MEAN_RMSE: np.mean(
+                        total_metrics.loc[SupportedMetrics.RMSE]
+                    ),
+                    SupportedMetrics.MEDIAN_RMSE: np.median(
+                        total_metrics.loc[SupportedMetrics.RMSE]
+                    ),
+                    SupportedMetrics.MEAN_R2: np.mean(
+                        total_metrics.loc[SupportedMetrics.R2]
+                    ),
+                    SupportedMetrics.MEDIAN_R2: np.median(
+                        total_metrics.loc[SupportedMetrics.R2]
+                    ),
+                    SupportedMetrics.MEAN_EXPLAINED_VARIANCE: np.mean(
+                        total_metrics.loc[SupportedMetrics.EXPLAINED_VARIANCE]
+                    ),
+                    SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE: np.median(
+                        total_metrics.loc[SupportedMetrics.EXPLAINED_VARIANCE]
+                    ),
+                    SupportedMetrics.ELAPSED_TIME: elapsed_time,
+                },
+                index=["All Targets"],
             )
 
-            summary_metrics = summary_metrics.append(metrics_per_horizon)
+            """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
+            if horizon <= 10."""
+            target_columns_in_output = set(target_columns).intersection(data.columns)
+            if self.spec.horizon.periods <= SUMMARY_METRICS_HORIZON_LIMIT and len(
+                outputs
+            ) == len(target_columns_in_output):
+                metrics_per_horizon = utils._build_metrics_per_horizon(
+                    data=data,
+                    outputs=outputs,
+                    target_columns=target_columns,
+                    target_col=target_col,
+                    horizon_periods=self.spec.horizon.periods,
+                )
 
-            new_column_order = [
-                SupportedMetrics.MEAN_SMAPE,
-                SupportedMetrics.MEDIAN_SMAPE,
-                SupportedMetrics.MEAN_MAPE,
-                SupportedMetrics.MEDIAN_MAPE,
-                SupportedMetrics.MEAN_WMAPE,
-                SupportedMetrics.MEDIAN_WMAPE,
-                SupportedMetrics.MEAN_RMSE,
-                SupportedMetrics.MEDIAN_RMSE,
-                SupportedMetrics.MEAN_R2,
-                SupportedMetrics.MEDIAN_R2,
-                SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
-                SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
-                SupportedMetrics.ELAPSED_TIME,
-            ]
-            summary_metrics = summary_metrics[new_column_order]
+                summary_metrics = summary_metrics.append(metrics_per_horizon)
+
+                new_column_order = [
+                    SupportedMetrics.MEAN_SMAPE,
+                    SupportedMetrics.MEDIAN_SMAPE,
+                    SupportedMetrics.MEAN_MAPE,
+                    SupportedMetrics.MEDIAN_MAPE,
+                    SupportedMetrics.MEAN_WMAPE,
+                    SupportedMetrics.MEDIAN_WMAPE,
+                    SupportedMetrics.MEAN_RMSE,
+                    SupportedMetrics.MEDIAN_RMSE,
+                    SupportedMetrics.MEAN_R2,
+                    SupportedMetrics.MEDIAN_R2,
+                    SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
+                    SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
+                    SupportedMetrics.ELAPSED_TIME,
+                ]
+                summary_metrics = summary_metrics[new_column_order]
 
         return total_metrics, summary_metrics, data
 
