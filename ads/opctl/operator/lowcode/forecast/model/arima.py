@@ -168,3 +168,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             ds_forecast_col,
             ci_col_names,
         )
+
+    def explain_model(self) -> dict:
+        pass
