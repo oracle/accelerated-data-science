@@ -91,7 +91,6 @@ jobs:
 
       - name: "Save coverage files"
         uses: actions/upload-artifact@v3
-        if: ${{ matrix.cov-reports }}
         with:
           name: cov-reports-${{ matrix.name }}
           path: |
