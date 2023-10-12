@@ -4,31 +4,33 @@ Advanced Use Cases
 
 **Documentation: Forecasting Science and Model Parameterization**
 
-## The Science of Forecasting
+**The Science of Forecasting**
 
 Forecasting is a complex yet essential discipline that involves predicting future values or events based on historical data and various mathematical and statistical techniques. To achieve accurate forecasts, it is crucial to understand some fundamental concepts:
 
-### Seasonality
+**Seasonality**
 
 Seasonality refers to patterns in data that repeat at regular intervals, typically within a year. For example, retail sales often exhibit seasonality with spikes during holidays or specific seasons. Seasonal components can be daily, weekly, monthly, or yearly, and understanding them is vital for capturing and predicting such patterns accurately.
 
-### Stationarity
+**Stationarity**
 
 Stationarity is a critical property of time series data. A time series is considered stationary when its statistical properties, such as mean, variance, and autocorrelation, remain constant over time. Stationary data simplifies forecasting since it allows models to assume that future patterns will resemble past patterns.
 
-### Cold Start
+**Cold Start**
 
 The "cold start" problem arises when you have limited historical data for a new product, service, or entity. Traditional forecasting models may struggle to make accurate predictions in these cases due to insufficient historical context.
 
-## Passing Parameters to Models
+**Passing Parameters to Models**
 
 To enhance the accuracy and adaptability of forecasting models, our system allows you to pass parameters directly. Here's how to do it:
 
+
 **Forecast Configuration YAML File:**
 
-   In your ``forecast.yaml`` configuration file, you can specify various model parameters under the ``model_params`` section. For instance:
+In your ``forecast.yaml`` configuration file, you can specify various model parameters under the ``model_params`` section. For instance:
 
-   ```yaml
+.. code-block:: yaml
+
    kind: operator
    type: forecast
    version: v1
@@ -40,10 +42,10 @@ To enhance the accuracy and adaptability of forecasting models, our system allow
        num_trees: 100
        max_depth: 5
        learning_rate: 0.01
-   ```
 
 
-## When Models Perform Poorly and the "Auto" Method
+
+**When Models Perform Poorly and the "Auto" Method**
 
 Forecasting models are not one-size-fits-all, and some models may perform poorly under certain conditions. Common scenarios where models might struggle include:
 
