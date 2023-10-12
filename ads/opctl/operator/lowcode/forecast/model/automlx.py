@@ -17,7 +17,6 @@ from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 
 
-
 # TODO: ODSC-44785 Fix the error message, before GA.
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     """Class representing AutoMLX operator model."""
@@ -25,11 +24,12 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     def __init__(self, config: ForecastOperatorConfig):
         super().__init__(config)
         self.global_explanation = {}
+        self.local_explanation = {}
 
     @runtime_dependency(
         module="automl",
         err_msg=(
-                "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
+            "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
         ),
     )
     def _build_model(self) -> pd.DataFrame:
@@ -141,10 +141,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         self.outputs = outputs_legacy
         self.data = data_merged
         return outputs_merged
+
     @runtime_dependency(
         module="datapane",
         err_msg=(
-                "Please run `pip3 install datapane` to install the required dependencies for report generation."
+            "Please run `pip3 install datapane` to install the required dependencies for report generation."
         ),
     )
     def _generate_report(self):
@@ -208,11 +209,16 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             # Create a markdown section for the global explainability
             global_explanation_section = dp.Blocks(
                 "### Global Explainability ",
-                dp.Table(global_explanation_df/global_explanation_df.sum(axis=0) * 100)
+                dp.Table(
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                ),
             )
 
             # Append the global explanation text and section to the "all_sections" list
-            all_sections = all_sections + [global_explanation_text, global_explanation_section]
+            all_sections = all_sections + [
+                global_explanation_text,
+                global_explanation_section,
+            ]
 
         model_description = dp.Text(
             "The AutoMLx model automatically preprocesses, selects and engineers "
@@ -253,21 +259,22 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
 
         return self.models.get(self.series_id).forecast(
-            X=data_temp,
-              periods=data_temp.shape[0]
+            X=data_temp, periods=data_temp.shape[0]
         )[self.series_id]
 
     @runtime_dependency(
         module="shap",
         err_msg=(
-                "Please run `pip3 install shap` to install the required dependencies for model explanation."
+            "Please run `pip3 install shap` to install the required dependencies for model explanation."
         ),
     )
     def explain_model(self) -> dict:
         """
         Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
         This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
-        Returns:
+
+        Returns
+        -------
             dict: A dictionary containing the global explanation for each feature in the dataset.
                     The keys are the feature names and the values are the average absolute SHAP values.
         """
@@ -277,7 +284,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             self.series_id = series_id
             self.dataset_cols = (
                 self.full_data_dict.get(self.series_id)
-                .set_index(self.spec.datetime_column.name).drop(self.series_id, axis=1)
+                .set_index(self.spec.datetime_column.name)
+                .drop(self.series_id, axis=1)
                 .columns
             )
 
@@ -294,6 +302,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 )[: -self.spec.horizon.periods][list(self.dataset_cols)],
                 nsamples=50,
             )
+
             print(kernel_explnr)
             self.global_explanation[self.series_id] = dict(
                 zip(
@@ -301,3 +310,32 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     np.average(np.absolute(kernel_explnr_vals), axis=0),
                 )
             )
+
+            self.local_explainer(kernel_explnr)
+
+    def local_explainer(self, kernel_explainer) -> pd.DataFrame:
+        """
+        Generate local explanations using a kernel explainer.
+
+        Parameters
+        ----------
+            kernel_explainer: The kernel explainer object to use for generating explanations.
+
+        Returns
+        -------
+            A pandas DataFrame containing the local explanation values.
+        """
+        # Get the data for the series ID and select the relevant columns
+        data = self.full_data_dict.get(self.series_id).set_index(self.spec.datetime_column.name)
+        data = data[-self.spec.horizon.periods:][list(self.dataset_cols)]
+
+        # Generate local SHAP values using the kernel explainer
+        local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
+
+        # Convert the SHAP values into a DataFrame
+        local_kernel_explnr_df = pd.DataFrame(local_kernel_explnr_vals, columns=self.dataset_cols)
+
+        # set the index of the DataFrame to the datetime column
+        local_kernel_explnr_df.index = data.index
+
+        self.local_explanation[self.series_id] = local_kernel_explnr_df
