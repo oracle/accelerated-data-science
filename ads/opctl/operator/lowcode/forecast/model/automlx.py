@@ -214,10 +214,19 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 ),
             )
 
+            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+            blocks = [
+                dp.Table(local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100, label=s_id)
+                for s_id, local_ex_df in self.local_explanation.items()
+            ]
+            local_explanation_section = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+
             # Append the global explanation text and section to the "all_sections" list
             all_sections = all_sections + [
                 global_explanation_text,
                 global_explanation_section,
+                local_explanation_text,
+                local_explanation_section
             ]
 
         model_description = dp.Text(
@@ -326,14 +335,18 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             A pandas DataFrame containing the local explanation values.
         """
         # Get the data for the series ID and select the relevant columns
-        data = self.full_data_dict.get(self.series_id).set_index(self.spec.datetime_column.name)
-        data = data[-self.spec.horizon.periods:][list(self.dataset_cols)]
+        data = self.full_data_dict.get(self.series_id).set_index(
+            self.spec.datetime_column.name
+        )
+        data = data[-self.spec.horizon.periods :][list(self.dataset_cols)]
 
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
 
         # Convert the SHAP values into a DataFrame
-        local_kernel_explnr_df = pd.DataFrame(local_kernel_explnr_vals, columns=self.dataset_cols)
+        local_kernel_explnr_df = pd.DataFrame(
+            local_kernel_explnr_vals, columns=self.dataset_cols
+        )
 
         # set the index of the DataFrame to the datetime column
         local_kernel_explnr_df.index = data.index
