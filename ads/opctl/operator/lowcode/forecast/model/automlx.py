@@ -322,17 +322,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
             self.local_explainer(kernel_explnr)
 
-    def local_explainer(self, kernel_explainer) -> pd.DataFrame:
+    def local_explainer(self, kernel_explainer) -> None:
         """
         Generate local explanations using a kernel explainer.
 
         Parameters
         ----------
             kernel_explainer: The kernel explainer object to use for generating explanations.
-
-        Returns
-        -------
-            A pandas DataFrame containing the local explanation values.
         """
         # Get the data for the series ID and select the relevant columns
         data = self.full_data_dict.get(self.series_id).set_index(
