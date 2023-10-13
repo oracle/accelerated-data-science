@@ -2,6 +2,38 @@
 Release Notes
 =============
 
+2.8.10
+------
+Release date: September 27, 2023
+
+* Improved the ``LargeArtifactUploader`` class to understand OCI paths to upload model artifacts to the model catalog by reference.
+* Removed ``ADSDataset`` runtime dependency on ``geopandas``.
+* Fixed a bug in the progress bar during model registration.
+* Fixed a bug where session variable could be referenced before assignment.
+* Fixed a bug with model artifact save.
+* Fixed a bug with pipelines step.
+
+2.8.9
+-----
+Release date: September 5, 2023
+
+* Upgraded the ``scikit-learn`` dependency to ``>=1.0``.
+* Upgraded the ``pandas`` dependency to ``>1.2.1,<2.1`` to allow you to use ADS with pandas 2.0.
+* Implemented multi-part upload in the ``ArtifactUploader`` to upload model artifacts to the model catalog.
+* Fixed the "Attribute not found" error, when ``deploy()`` called twice in ``GenericModel``.
+* Fixed the fetch of the security token, when the relative path for the ``security_token_file`` is provided (used in session token-bases authentication).
+
+2.8.8
+-----
+Release date: July 27, 2023
+
+* Added ``PyTorchDistributed`` runtime option for Data Science jobs to add support for training large language models with PyTorch.
+* Added options to configure flexible shape in ``opctl``.
+* Refactored ``deploy()`` in ``GenericModel`` to prioritize the parameters.
+* Fixed the ``opctl`` commands delete/cancel/watch/activate/deactivate commands to add missing parameter options.
+* Fixed the ``opctl`` commands to call run to start an ML job when no YAML is specified.
+* Deprecated the ``DatasetFactory`` class, and refactored the code.
+
 2.8.7
 -----
 Release date: June 22, 2023

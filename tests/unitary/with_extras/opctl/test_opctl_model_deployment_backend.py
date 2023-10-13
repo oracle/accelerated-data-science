@@ -46,7 +46,7 @@ class TestModelDeploymentBackend:
                 "project_id": "ocid1.datascienceproject.oc1.<unique_id>",
                 "log_group_id": "ocid1.loggroup.oc1.iad.<unique_id>",
                 "log_id": "ocid1.log.oc1.iad.<unique_id>",
-                "shape_name": "VM.Standard.E2.4",
+                "shape_name": "VM.Standard.E4.Flex",
                 "bandwidth_mbps": 10,
                 "replica": 1,
                 "web_concurrency": 10,

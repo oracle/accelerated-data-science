@@ -333,6 +333,11 @@ class TestDataSciencePipelineBase:
                             "name": "TestPipelineStepOne",
                             "jobId": "TestJobIdOne",
                             "description": "Test description one",
+                            "commandLineArguments": "ARGUMENT --KEY VALUE",
+                            "environmentVariables": {
+                                "ENV": "VALUE"
+                            },
+                            "maximumRuntimeInMinutes": 20
                         },
                     },
                     {
@@ -1060,6 +1065,11 @@ class TestDataSciencePipelineBase:
                             "name": "TestPipelineStepOne",
                             "jobId": "TestJobIdOne",
                             "description": "Test description one",
+                            "commandLineArguments": "ARGUMENT --KEY VALUE",
+                            "environmentVariables": {
+                                "ENV": "VALUE"
+                            },
+                            "maximumRuntimeInMinutes": 20
                         },
                     },
                     {

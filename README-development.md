@@ -30,10 +30,10 @@ for development and testing purposes.
 Install Anaconda from `https://repo.continuum.io/miniconda/` for the operating system you are using.
 
 In the terminal client, enter the following where <yourenvname> is the name you want to call your environment,
-and set the Python version you want to use. ADS SDK requires Python >=3.7.
+and set the Python version you want to use. ADS SDK requires Python >=3.8.
 
 ```bash
-    conda create -n <yourenvname> python=3.7 anaconda
+    conda create -n <yourenvname> python=3.8 anaconda
 ```
 
 This installs the Python version and all the associated anaconda packaged libraries at `path_to_your_anaconda_location/anaconda/envs/<yourenvname>`
@@ -58,7 +58,7 @@ Open the destination folder where you want to clone ADS library, and install dep
     python3 -m pip install -e .
 ```
 
-To which packages were installed and their version numbers, run:
+To view which packages were installed and their version numbers, run:
 
 ```bash
     python3 -m pip freeze
@@ -71,13 +71,69 @@ You should also set up configuration files, see the [SDK and CLI Configuration F
 
 ### Step 5: Versioning and generation the wheel
 
-Use `ads_version.json` for versioning. The ADS SDK is packaged as a wheel. To generate the wheel, you can run:
+Bump the versions in `pyproject.toml`. The ADS SDK using [build](https://pypa-build.readthedocs.io/en/stable/index.html) as build frontend. To generate sdist and wheel, you can run:
 
 ```bash
-    python3 setup.py sdist bdist_wheel
+    pip install build
+    python3 -m build
 ```
 
 This wheel can then be installed using `pip`.
+
+## Running tests
+
+The SDK uses pytest as its test framework.
+
+### Running default setup tests
+
+Default setup tests for testing ADS SDK without extra dependencies, specified in `pyproject.toml` in `[project.optional-dependencies]`.
+
+```bash
+  # Update your environment with tests dependencies
+  pip install -r test-requirements.txt
+  # Run default setup tests
+  python3 -m pytest tests/unitary/default_setup
+```
+
+### Running all unit tests
+
+To run all unit test install extra dependencies to test all modules of ADS ASD.
+
+```bash
+  # Update your environment with tests dependencies
+  pip install -r dev-requirements.txt
+  # Run all unit tests
+  python3 -m pytest tests/unitary
+```
+
+### Running integration tests
+
+ADS opctl integration tests can't be run together with all other integration tests, they require special setup.
+To run all but opctl integration tests, you can run:
+
+```bash
+  # Update your environment with tests dependencies
+  pip install -r dev-requirements.txt
+  # Run integration tests
+  python3 -m pytest tests/integration --ignore=tests/integration/opctl
+```
+
+### Running opctl integration tests
+
+ADS opctl integration tests utilize cpu, gpu jobs images and need dataexpl_p37_cpu_v2 and pyspark30_p37_cpu_v3 Data Science Environments be installed, see the [About Conda Environments](https://docs.oracle.com/en-us/iaas/data-science/using/conda_understand_environments.htm).
+To build development container, see the [Build Development Container Image](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/opctl/localdev/jobs_container_image.html).
+
+```bash
+  # Update your environment with tests dependencies
+  pip install -r test-requirements.txt
+  pip install -e ".[opctl]"
+  pip install oci oci-cli
+  # Build cpu and gpu jobs images
+  ads opctl build-image -d job-local
+  ads opctl build-image -g -d job-local  
+  # Run opclt integration tests
+  python3 -m pytest tests/integration/opctl
+```
 
 ## Security
 

@@ -184,7 +184,6 @@ class _Objective(object):
 
         for step in range(self.max_iter):
             for i, (train, test) in enumerate(self.cv.split(X, y, groups=self.groups)):
-
                 out = self._partial_fit_and_score(
                     X, y, estimators[i], train, test, partial_fit_params
                 )
@@ -201,7 +200,6 @@ class _Objective(object):
             trial.report(intermediate_value, step=step)
 
             if trial.should_prune():
-
                 self._store_scores(trial, scores, self.scoring_name)
 
                 raise optuna.TrialPruned(f"trial was pruned at iteration {step}.")

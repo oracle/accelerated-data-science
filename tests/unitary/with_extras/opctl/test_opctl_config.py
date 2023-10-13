@@ -169,6 +169,135 @@ conda_pack_os_prefix: oci://bucket@namespace/path3
                 },
             }
 
+    def test_config_flex_shape_details(self):
+        config_one = {
+            "execution": {
+                "backend": "job",
+                "auth": "api_key",
+                "oci_config": DEFAULT_OCI_CONFIG_FILE,
+                "oci_profile": "PROFILE",
+                "conda_pack_folder": "~/condapack",
+                "conda_pack_os_prefix": "oci://bucket@namespace/path2",
+            },
+            "infrastructure": {
+                "compartment_id": "oci.compartmentid.abcd",
+                "project_id": "oci.projectid.abcd",
+                "shape_name": "VM.Standard.E2.4"
+            },
+        }
+
+        m = ConfigMerger(config_one)
+        m._config_flex_shape_details()
+
+        assert m.config == {
+            "execution": {
+                "backend": "job",
+                "auth": "api_key",
+                "oci_config": DEFAULT_OCI_CONFIG_FILE,
+                "oci_profile": "PROFILE",
+                "conda_pack_folder": "~/condapack",
+                "conda_pack_os_prefix": "oci://bucket@namespace/path2",
+            },
+            "infrastructure": {
+                "compartment_id": "oci.compartmentid.abcd",
+                "project_id": "oci.projectid.abcd",
+                "shape_name": "VM.Standard.E2.4"
+            },
+        }
+        
+        config_one["infrastructure"]["shape_name"] = "VM.Standard.E3.Flex"
+        m = ConfigMerger(config_one)
+
+        with pytest.raises(
+            ValueError, 
+            match="Parameters `ocpus` and `memory_in_gbs` must be provided for using flex shape. "
+                    "Call `ads opctl config` to specify."
+        ):
+            m._config_flex_shape_details()    
+
+        config_one["infrastructure"]["ocpus"] = 2
+        config_one["infrastructure"]["memory_in_gbs"] = 24
+        m = ConfigMerger(config_one)
+        m._config_flex_shape_details()
+
+        assert m.config == {
+            "execution": {
+                "backend": "job",
+                "auth": "api_key",
+                "oci_config": DEFAULT_OCI_CONFIG_FILE,
+                "oci_profile": "PROFILE",
+                "conda_pack_folder": "~/condapack",
+                "conda_pack_os_prefix": "oci://bucket@namespace/path2",
+            },
+            "infrastructure": {
+                "compartment_id": "oci.compartmentid.abcd",
+                "project_id": "oci.projectid.abcd",
+                "shape_name": "VM.Standard.E3.Flex",
+                "shape_config_details": {
+                    "ocpus": 2,
+                    "memory_in_gbs": 24
+                }
+            },
+        }
+
+        config_two = {
+            "execution": {
+                "backend": "dataflow",
+                "auth": "api_key",
+                "oci_config": DEFAULT_OCI_CONFIG_FILE,
+                "oci_profile": "PROFILE",
+                "conda_pack_folder": "~/condapack",
+                "conda_pack_os_prefix": "oci://bucket@namespace/path2",
+            },
+            "infrastructure": {
+                "compartment_id": "oci.compartmentid.abcd",
+                "project_id": "oci.projectid.abcd",
+                "executor_shape": "VM.Standard.E3.Flex",
+                "driver_shape": "VM.Standard.E3.Flex"
+            },
+        }
+
+        m = ConfigMerger(config_two)
+
+        with pytest.raises(
+            ValueError, 
+            match="Parameters driver_shape_memory_in_gbs must be provided for using flex shape. "
+                    "Call `ads opctl config` to specify."
+        ):
+            m._config_flex_shape_details()
+
+
+        config_two["infrastructure"]["driver_shape_memory_in_gbs"] = 36
+        config_two["infrastructure"]["driver_shape_ocpus"] = 4
+        config_two["infrastructure"]["executor_shape_memory_in_gbs"] = 48
+        config_two["infrastructure"]["executor_shape_ocpus"] = 5
+
+        m = ConfigMerger(config_two)
+        m._config_flex_shape_details()
+        assert m.config == {
+            "execution": {
+                "backend": "dataflow",
+                "auth": "api_key",
+                "oci_config": DEFAULT_OCI_CONFIG_FILE,
+                "oci_profile": "PROFILE",
+                "conda_pack_folder": "~/condapack",
+                "conda_pack_os_prefix": "oci://bucket@namespace/path2",
+            },
+            "infrastructure": {
+                "compartment_id": "oci.compartmentid.abcd",
+                "project_id": "oci.projectid.abcd",
+                "executor_shape": "VM.Standard.E3.Flex",
+                "executor_shape_config": {
+                    "ocpus": 5,
+                    "memory_in_gbs": 48
+                },
+                "driver_shape": "VM.Standard.E3.Flex",
+                "driver_shape_config": {
+                    "ocpus": 4,
+                    "memory_in_gbs": 36
+                }
+            },
+        }
 
 class TestConfigResolver:
     def test_resolve_operator_name(self):

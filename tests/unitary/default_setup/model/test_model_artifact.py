@@ -143,29 +143,11 @@ MODEL_DEPLOYMENT:
             os.path.join(conda_file.strpath, "score.py")
         ), "score.py does not exist"
         assert os.path.exists(
-            os.path.join(conda_file.strpath, "schema_input.json")
-        ), "schema_input.json does not exist"
+            os.path.join(conda_file.strpath, "input_schema.json")
+        ), "input_schema.json does not exist"
         assert os.path.exists(
-            os.path.join(conda_file.strpath, "schema_output.json")
-        ), "schema_output.json does not exist"
-
-    def test_prepare_with_schema(self, model, conda_file):
-        model.prepare(
-            conda_file.strpath,
-            X_sample=self.X_sample,
-            y_sample=self.y_sample,
-            force_overwrite=True,
-            data_science_env=True,
-        )
-        assert os.path.exists(
-            os.path.join(conda_file.strpath, "score.py")
-        ), "score.py does not exist"
-        assert os.path.exists(
-            os.path.join(conda_file, "input_schema.json")
-        ), "schema_input.json does not exist"
-        assert os.path.exists(
-            os.path.join(conda_file, "output_schema.json")
-        ), "schema_output.json does not exist"
+            os.path.join(conda_file.strpath, "output_schema.json")
+        ), "output_schema.json does not exist"
 
     def test_prepare_with_no_schema(self, model, conda_file):
         with pytest.raises(

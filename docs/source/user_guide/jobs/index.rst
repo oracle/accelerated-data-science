@@ -15,6 +15,7 @@ Data Science Jobs
   ../jobs/run_script
   ../jobs/run_container
   ../jobs/run_git
+  ../jobs/run_pytorch_ddp
   ../cli/opctl/_template/jobs
   ../cli/opctl/_template/monitoring
   ../cli/opctl/localdev/local_jobs

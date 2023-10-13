@@ -14,16 +14,6 @@ Here is an example to define and run a job using :py:class:`~ads.jobs.PythonRunt
 
 .. include:: ../jobs/tabs/python_runtime.rst
 
-.. code-block:: python
-
-  # Create the job on OCI Data Science
-  job.create()
-  # Start a job run
-  run = job.run()
-  # Stream the job run outputs
-  run.watch()
-
-
 The :py:class:`~ads.jobs.PythonRuntime` uses an driver script from ADS for the job run.
 It performs additional operations before and after invoking your code.
 You can examine the driver script by downloading the job artifact from the OCI Console.

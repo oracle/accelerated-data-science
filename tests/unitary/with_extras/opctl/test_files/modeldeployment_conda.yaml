@@ -18,7 +18,10 @@ spec:
       logId: ocid1.log.oc1.iad.<unique_id>
       projectId: ocid1.datascienceproject.oc1.<unique_id>
       replica: 1
-      shapeName: VM.Standard.E2.4
+      shapeName: VM.Standard.E4.Flex
+      shapeConfigDetails:
+        ocpus: 1
+        memoryInGBs: 16
       webConcurrency: 10
     type: datascienceModelDeployment
   runtime:

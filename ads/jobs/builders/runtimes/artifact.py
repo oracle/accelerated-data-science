@@ -8,7 +8,6 @@ import logging
 import os
 import shutil
 import tempfile
-import zipfile
 from io import DEFAULT_BUFFER_SIZE
 from urllib import request
 from urllib.parse import urlparse
@@ -41,7 +40,7 @@ class Artifact:
 
     def __init__(self, source, runtime=None) -> None:
         # Get the full path of source file if it is local file.
-        if not urlparse(source).scheme:
+        if source and not urlparse(source).scheme:
             self.source = os.path.abspath(os.path.expanduser(source))
         else:
             self.source = source
@@ -203,6 +202,7 @@ class PythonArtifact(Artifact):
     """Represents a PythonRuntime job artifact"""
 
     CONST_DRIVER_SCRIPT = "driver_python.py"
+    DEFAULT_BASENAME = "artifact"
     # The directory to store user code
     # This directory must match the USER_CODE_DIR in driver_python.py
     USER_CODE_DIR = "code"
@@ -217,7 +217,12 @@ class PythonArtifact(Artifact):
         """Copies the drivers and artifacts to the temp artifact dir."""
         # The basename of the job artifact,
         # this will be the name of the zip file uploading to OCI
-        self.basename = os.path.basename(str(self.source).rstrip("/")).split(".", 1)[0]
+        if self.source:
+            self.basename = os.path.basename(str(self.source).rstrip("/")).split(
+                ".", 1
+            )[0]
+        else:
+            self.basename = self.DEFAULT_BASENAME
         # The temp dir path for storing the artifacts, including drivers and user code
         self.artifact_dir = os.path.join(self.temp_dir.name, self.basename)
         # The temp dir path for storing the user code
@@ -236,8 +241,9 @@ class PythonArtifact(Artifact):
             shutil.copy(file_path, os.path.join(self.artifact_dir, filename))
 
         # Copy user code
-        os.makedirs(self.code_dir, exist_ok=True)
-        Artifact.copy_from_uri(self.source, self.code_dir, unpack=True)
+        if self.source:
+            os.makedirs(self.code_dir, exist_ok=True)
+            Artifact.copy_from_uri(self.source, self.code_dir, unpack=True)
 
     def _zip_artifacts(self):
         """Create a zip file from the temp artifact dir."""
@@ -312,7 +318,6 @@ class NotebookArtifact(PythonArtifact):
 
 
 class GitPythonArtifact(Artifact):
-
     CONST_DRIVER_SCRIPT = "driver_oci.py"
 
     def __init__(self) -> None:

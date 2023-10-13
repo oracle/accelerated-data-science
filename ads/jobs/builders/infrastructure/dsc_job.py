@@ -35,7 +35,11 @@ from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import GitPythonRuntime
 
-from ads.common.dsc_file_system import OCIFileStorage, DSCFileSystemManager, OCIObjectStorage
+from ads.common.dsc_file_system import (
+    OCIFileStorage,
+    DSCFileSystemManager,
+    OCIObjectStorage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -262,10 +266,9 @@ class DSCJob(OCIDataScienceMixin, oci.data_science.models.Job):
                 # This will skip loading the default configure.
                 nb_session = None
             if nb_session:
-                nb_config = getattr(
-                    nb_session,
-                    "notebook_session_config_details",
-                    getattr(nb_session, "notebook_session_configuration_details", None),
+                nb_config = (
+                    getattr(nb_session, "notebook_session_config_details", None)
+                    or getattr(nb_session, "notebook_session_configuration_details", None)
                 )
 
                 if nb_config:
@@ -722,9 +725,14 @@ class DataScienceJobRun(
 
         return self
 
-    def cancel(self) -> DataScienceJobRun:
+    def cancel(self, wait_for_completion: bool = True) -> DataScienceJobRun:
         """Cancels a job run
-        This method will wait for the job run to be canceled before returning.
+
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Whether to wait for job run to be cancelled before proceeding.
+            Defaults to True.
 
         Returns
         -------
@@ -732,9 +740,13 @@ class DataScienceJobRun(
             The job run instance.
         """
         self.client.cancel_job_run(self.id)
-        while self.lifecycle_state != "CANCELED":
-            self.sync()
-            time.sleep(SLEEP_INTERVAL)
+        if wait_for_completion:
+            while (
+                self.lifecycle_state != 
+                oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELED
+            ):
+                self.sync()
+                time.sleep(SLEEP_INTERVAL)
         return self
 
     def __repr__(self) -> str:
@@ -1454,11 +1466,14 @@ class DataScienceJob(Infrastructure):
             if value:
                 dsc_job.job_infrastructure_configuration_details[camel_attr] = value
 
-        if (
-            not dsc_job.job_infrastructure_configuration_details.get("shapeName", "").endswith("Flex")
-            and dsc_job.job_infrastructure_configuration_details.get("jobShapeConfigDetails")
+        if not dsc_job.job_infrastructure_configuration_details.get(
+            "shapeName", ""
+        ).endswith("Flex") and dsc_job.job_infrastructure_configuration_details.get(
+            "jobShapeConfigDetails"
         ):
-            raise ValueError("Shape config is not required for non flex shape from user end.")
+            raise ValueError(
+                "Shape config is not required for non flex shape from user end."
+            )
 
         if dsc_job.job_infrastructure_configuration_details.get("subnetId"):
             dsc_job.job_infrastructure_configuration_details[
@@ -1467,7 +1482,7 @@ class DataScienceJob(Infrastructure):
 
         if self.storage_mount:
             if not hasattr(
-                oci.data_science.models, "JobStorageMountConfigurationDetails"
+                oci.data_science.models, "StorageMountConfigurationDetails"
             ):
                 raise EnvironmentError(
                     "Storage mount hasn't been supported in the current OCI SDK installed."
@@ -1495,7 +1510,10 @@ class DataScienceJob(Infrastructure):
             self.build()
             .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
             .with_project_id(self.project_id or "{Provide a project OCID}")
-            .with_subnet_id(self.subnet_id or "{Provide a subnet OCID or remove this field if you use a default networking}")
+            .with_subnet_id(
+                self.subnet_id
+                or "{Provide a subnet OCID or remove this field if you use a default networking}"
+            )
         )
 
     def create(self, runtime, **kwargs) -> DataScienceJob:
@@ -1552,7 +1570,7 @@ class DataScienceJob(Infrastructure):
         freeform_tags=None,
         defined_tags=None,
         wait=False,
-        **kwargs
+        **kwargs,
     ) -> DataScienceJobRun:
         """Runs a job on OCI Data Science job
 
@@ -1603,15 +1621,21 @@ class DataScienceJob(Infrastructure):
                 envs.update(env_var)
             name = Template(name).safe_substitute(envs)
 
-        return self.dsc_job.run(
+        kwargs = dict(
             display_name=name,
             command_line_arguments=args,
             environment_variables=env_var,
             freeform_tags=freeform_tags,
             defined_tags=defined_tags,
             wait=wait,
-            **kwargs
+            **kwargs,
         )
+        # A Runtime class may define customized run() method.
+        # Use the customized method if the run() method is defined by the runtime.
+        # Otherwise, use the default run() method defined in this class.
+        if hasattr(self.runtime, "run"):
+            return self.runtime.run(self.dsc_job, **kwargs)
+        return self.dsc_job.run(**kwargs)
 
     def delete(self) -> None:
         """Deletes a job"""

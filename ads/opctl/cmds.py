@@ -120,7 +120,7 @@ class _BackendFactory:
     @property
     def backend(self):
         if self._backend == BACKEND_NAME.LOCAL.value:
-            kind = self.config.get("kind")
+            kind = self.config.get("kind") or self.config["execution"].get("kind")
             if kind not in self.LOCAL_BACKENDS_MAP:
                 options = [backend for backend in self.LOCAL_BACKENDS_MAP.keys()]
                 # Special case local backend option not supported by this factory.
@@ -154,7 +154,6 @@ def _save_yaml(yaml_content, **kwargs):
             f.write(yaml_content)
         print(f"Job run info saved to {yaml_path}")
 
-
 def run(config: Dict, **kwargs) -> Dict:
     """
     Run a job given configuration and command line args passed in (kwargs).
@@ -171,7 +170,15 @@ def run(config: Dict, **kwargs) -> Dict:
     Dict
         dictionary of job id and run id in case of ML Job run, else empty if running locally
     """
-    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+    if config:
+        p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+        if p.config["kind"] != BACKEND_NAME.LOCAL.value and p.config["kind"] != "distributed":
+            p.config["execution"]["backend"] = p.config["kind"]
+            return _BackendFactory(p.config).backend.apply()
+    else:
+        # If no yaml is provided and config is empty, we assume there's cmdline args to define a job.
+        config = {"kind": "job"}
+        p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
     if config.get("kind") == "distributed":  # TODO: add kind factory
         print(
             "......................... Initializing the process ..................................."
@@ -243,14 +250,6 @@ def run(config: Dict, **kwargs) -> Dict:
                 _save_yaml(yamlContent, **kwargs)
             return cluster_run_info
     else:
-        if (
-            "kind" in p.config
-            and p.config["execution"].get("backend", None) != BACKEND_NAME.LOCAL.value
-            and "ocid" not in p.config["execution"]
-        ):
-            p.config["execution"]["backend"] = p.config["kind"]
-            return _BackendFactory(p.config).backend.apply()
-
         if "ocid" in p.config["execution"]:
             resource_to_backend = {
                 DataScienceResource.JOB: BACKEND_NAME.JOB,
@@ -375,7 +374,7 @@ def delete(**kwargs) -> None:
     ):
         kwargs["id"] = kwargs.pop("ocid")
     else:
-        raise ValueError(f"{kwargs['ocid']} is valid or supported.")
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
 
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.delete()
@@ -389,13 +388,24 @@ def cancel(**kwargs) -> None:
     ----------
     kwargs: dict
         keyword argument, stores command line args
+    
     Returns
     -------
     None
     """
-    kwargs["run_id"] = kwargs.pop("ocid")
-    if not kwargs.get("backend"):
-        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    kwargs["backend"] = _get_backend_from_ocid(kwargs["ocid"])
+    if (
+        DataScienceResourceRun.JOB_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.DATAFLOW_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
+    ):
+        kwargs["run_id"] = kwargs.pop("ocid")
+    elif (
+        DataScienceResource.JOB in kwargs["ocid"]
+    ):
+        kwargs["id"] = kwargs.pop("ocid")
+    else:
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.cancel()
 
@@ -593,6 +603,8 @@ def configure() -> None:
             ("log_id", ""),
             ("docker_registry", ""),
             ("conda_pack_os_prefix", "in the format oci://<bucket>@<namespace>/<path>"),
+            ("memory_in_gbs", ""),
+            ("ocpus", "")
         ]
         _set_service_configurations(
             ADS_JOBS_CONFIG_FILE_NAME,
@@ -619,6 +631,10 @@ def configure() -> None:
             ("num_executors", ""),
             ("spark_version", ""),
             ("archive_bucket", "in the format oci://<bucket>@<namespace>/<path>"),
+            ("driver_shape_memory_in_gbs", ""),
+            ("driver_shape_ocpus", ""),
+            ("executor_shape_memory_in_gbs", ""),
+            ("executor_shape_ocpus", "")
         ]
         _set_service_configurations(
             ADS_DATAFLOW_CONFIG_FILE_NAME,
@@ -668,6 +684,8 @@ def configure() -> None:
             ("bandwidth_mbps", ""),
             ("replica", ""),
             ("web_concurrency", ""),
+            ("memory_in_gbs", ""),
+            ("ocpus", "")
         ]
 
         _set_service_configurations(

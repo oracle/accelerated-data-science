@@ -38,19 +38,19 @@ MODEL_NEEDS_TO_BE_SAVED = (
 )
 
 
-class ModelProvenanceNotFoundError(Exception):   # pragma: no cover
+class ModelProvenanceNotFoundError(Exception):  # pragma: no cover
     pass
 
 
-class ModelArtifactNotFoundError(Exception):   # pragma: no cover
+class ModelArtifactNotFoundError(Exception):  # pragma: no cover
     pass
 
 
-class ModelNotSavedError(Exception):   # pragma: no cover
+class ModelNotSavedError(Exception):  # pragma: no cover
     pass
 
 
-class ModelWithActiveDeploymentError(Exception):   # pragma: no cover
+class ModelWithActiveDeploymentError(Exception):  # pragma: no cover
     pass
 
 
@@ -410,7 +410,7 @@ class OCIDataScienceModel(
         # Show progress of exporting model artifacts
         self._wait_for_work_request(
             work_request_id=work_request_id,
-            num_steps=3,
+            num_steps=2,
         )
 
     @check_for_model_id(
@@ -596,3 +596,7 @@ class OCIDataScienceModel(
                             )
                     else:
                         break
+
+            while i < num_steps:
+                progress.update()
+                i += 1

@@ -1,18 +1,13 @@
-name: tests/unitary/default_setup/**
+name: "[Py3.8][Py3.9][Py3.10] tests/unitary/default_setup/**"
 
 on:
+  workflow_dispatch:
   pull_request:
-    branches:
-      - main
-      - "release/**"
-      - develop
     paths:
       - "ads/**"
-      - "!ads/ads_version.json"
-      - setup.py
+      - pyproject.toml
       - "**requirements.txt"
-      - .github/workflows/run-unittests.yml
-      - .github/workflows/run-unittests-default_setup.yml
+      - ".github/workflows/run-unittests*.yml"
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -41,37 +36,16 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      # Caching python libraries installed with pip
-      # https://github.com/actions/cache/blob/main/examples.md#python---pip
-      - uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/test-requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
       - uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+            "**requirements.txt"
 
-      - name: "Test config setup"
-        shell: bash
-        env:
-          HOME_RUNNER_DIR: /home/runner
-        run: |
-          set -x # print commands that are executed
-          mkdir -p "$HOME_RUNNER_DIR"/.oci
-          openssl genrsa -out $HOME_RUNNER_DIR/.oci/oci_ads_user.pem 2048
-          cat <<EOT >> "$HOME_RUNNER_DIR/.oci/config"
-          [DEFAULT]
-          user=ocid1.user.oc1..xxx
-          fingerprint=00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
-          tenancy=ocid1.tenancy.oc1..xxx
-          region=test_region
-          key_file=$HOME_RUNNER_DIR/.oci/oci_ads_user.pem
-          EOT
-          ls -lha "$HOME_RUNNER_DIR"/.oci
-          echo "Test config file:"
-          cat $HOME_RUNNER_DIR/.oci/config
+      - uses: ./.github/workflows/set-dummy-conf
+        name: "Test config setup"
 
       - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
         timeout-minutes: 15
