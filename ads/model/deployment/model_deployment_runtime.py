@@ -21,6 +21,11 @@ class OCIModelDeploymentRuntimeType:
     CONTAINER = "OCIR_CONTAINER"
 
 
+class ModelDeploymentMode:
+    HTTPS = "HTTPS_ONLY"
+    STREAM = "STREAM_ONLY"
+
+
 class ModelDeploymentRuntime(Builder):
     """A class used to represent a Model Deployment Runtime.
 
@@ -173,7 +178,7 @@ class ModelDeploymentRuntime(Builder):
         str
             The deployment mode of model deployment.
         """
-        return self.get_spec(self.CONST_DEPLOYMENT_MODE, None)
+        return self.get_spec(self.CONST_DEPLOYMENT_MODE, ModelDeploymentMode.HTTPS)
 
     def with_deployment_mode(self, deployment_mode: str) -> "ModelDeploymentRuntime":
         """Sets the deployment mode of model deployment.
