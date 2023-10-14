@@ -1,0 +1,14 @@
+# We are running out space on the disk, solution described here:
+# https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
+
+name: "Create more disk space"
+description: "Removing some folders to create more disk space"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        sudo rm -rf /usr/share/dotnet
+        sudo rm -rf /opt/ghc
+        sudo rm -rf "/usr/local/share/boost"
+        sudo rm -rf "$AGENT_TOOLSDIRECTORY"

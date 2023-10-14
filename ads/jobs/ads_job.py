@@ -3,14 +3,20 @@
 
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import time
 from typing import List, Union, Dict
 from urllib.parse import urlparse
 
 import fsspec
+import oci
 from ads.common.auth import default_signer
 from ads.jobs.builders.base import Builder
 from ads.jobs.builders.infrastructure.dataflow import DataFlow, DataFlowRun
-from ads.jobs.builders.infrastructure.dsc_job import DataScienceJob, DataScienceJobRun
+from ads.jobs.builders.infrastructure.dsc_job import (
+    DataScienceJob, 
+    DataScienceJobRun, 
+    SLEEP_INTERVAL
+)
 from ads.jobs.builders.runtimes.pytorch_runtime import PyTorchDistributedRuntime
 from ads.jobs.builders.runtimes.container_runtime import ContainerRuntime
 from ads.jobs.builders.runtimes.python_runtime import (
@@ -460,7 +466,29 @@ class Job(Builder):
             A list of job run instances, the actual object type depends on the infrastructure.
         """
         return self.infrastructure.run_list(**kwargs)
+    
+    def cancel(self, wait_for_completion: bool = True) -> None:
+        """Cancels the runs of the job.
 
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Whether to wait for run to be cancelled before proceeding.
+            Defaults to True.
+        """
+        runs = self.run_list()
+        for run in runs:
+            run.cancel(wait_for_completion=False)
+        
+        if wait_for_completion:
+            for run in runs:
+                while (
+                    run.lifecycle_state !=
+                    oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELED
+                ):
+                    run.sync()
+                    time.sleep(SLEEP_INTERVAL)
+        
     def delete(self) -> None:
         """Deletes the job from the infrastructure."""
         self.infrastructure.delete()
