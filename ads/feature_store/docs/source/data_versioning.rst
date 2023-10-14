@@ -3,7 +3,7 @@ Data Versioning
 
 Data versioning is a practice aimed at recording the various data commits integrated into a particular feature group and dataset. This involves tracking changes in data over time while maintaining consistent schema structures and feature definitions within a shared schema version. In the context of feature store, it's important to note that data versioning features are exclusively available for offline feature groups.
 
-.. image:: figures/dataset_versioning.png
+.. image:: figures/data_versioning.png
 
 
 As Of
