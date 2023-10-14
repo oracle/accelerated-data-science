@@ -317,10 +317,10 @@ The ``.preview()`` method takes the following optional parameter:
   # Preview feature group
   df = feature_group.preview(row_count=50)
 
-as_of
+As Of
 =======
 
-You can call the ``as_of()`` method of the FeatureGroup instance to get specified point in time and time traveled data.
+You can call the ``as_of()`` method of the ``FeatureGroup`` instance to get specified point in time and time traveled data.
 
 The ``.as_of()`` method takes the following optional parameter:
 
