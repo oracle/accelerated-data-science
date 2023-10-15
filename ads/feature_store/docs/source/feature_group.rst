@@ -254,6 +254,13 @@ The ``get_statistics()`` method takes the following optional parameter:
 
 .. image:: figures/stats_1.png
 
+.. code-block:: python3
+
+  # Fetch and visualize stats for a dataset job
+  df = feature_group.get_statistics(job_id).to_viz()
+
+.. image:: figures/feature_group_statistics_viz.png
+
 .. seealso::
 
     :ref:`Statistics`
@@ -310,10 +317,10 @@ The ``.preview()`` method takes the following optional parameter:
   # Preview feature group
   df = feature_group.preview(row_count=50)
 
-as_of
+As Of
 =======
 
-You can call the ``as_of()`` method of the FeatureGroup instance to get specified point in time and time traveled data.
+You can call the ``as_of()`` method of the ``FeatureGroup`` instance to get specified point in time and time traveled data.
 
 The ``.as_of()`` method takes the following optional parameter:
 

@@ -28,7 +28,7 @@ Feature Store users need to provide the following access permissions in order to
 
 ..  code-block:: shell
 
-    define tenancy service_tenancy as ocid1.tenancy.oc1..aaaaaaaahzy3x4boh7ipxyft2rowu2xeglvanlfewudbnueugsieyuojkldq
+    define tenancy service_tenancy as ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa
     endorse group <feature store user group> to read repos in tenancy service_tenancy
     allow group <feature store user group> to manage orm-stacks in compartment <compartmentName>
     allow group <feature store user group> to manage orm-jobs in compartment <compartmentName>

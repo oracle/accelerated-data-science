@@ -111,7 +111,7 @@ class Entity(Builder):
 
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Entity` accepts.
+            Can be any attribute that `feature_store.models.Entity` accepts.
 
         Returns
         -------
@@ -252,7 +252,7 @@ class Entity(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Entity` accepts.
+            Can be any attribute that `feature_store.models.Entity` accepts.
 
         Returns
         -------

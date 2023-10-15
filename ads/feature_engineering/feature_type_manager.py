@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -371,7 +371,7 @@ class FeatureTypeManager:
             feature_type_df = feature_type.warning.registered()
             feature_type_df.insert(0, "Feature Type", feature_type.name)
             feature_type_df = feature_type_df.rename(columns={"Name": "Warning"})
-            result_df = result_df.append(feature_type_df)
+            result_df = pd.concat([result_df, feature_type_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 
@@ -401,6 +401,6 @@ class FeatureTypeManager:
             feature_type_df = feature_type.validator.registered()
             feature_type_df.insert(0, "Feature Type", feature_type.name)
             feature_type_df = feature_type_df.rename(columns={"Name": "Validator"})
-            result_df = result_df.append(feature_type_df)
+            result_df = pd.concat([result_df, feature_type_df])
         result_df.reset_index(drop=True, inplace=True)
         return result_df

@@ -2,6 +2,27 @@
 Release Notes
 =============
 
+2.8.10
+------
+Release date: September 27, 2023
+
+* Improved the ``LargeArtifactUploader`` class to understand OCI paths to upload model artifacts to the model catalog by reference.
+* Removed ``ADSDataset`` runtime dependency on ``geopandas``.
+* Fixed a bug in the progress bar during model registration.
+* Fixed a bug where session variable could be referenced before assignment.
+* Fixed a bug with model artifact save.
+* Fixed a bug with pipelines step.
+
+2.8.9
+-----
+Release date: September 5, 2023
+
+* Upgraded the ``scikit-learn`` dependency to ``>=1.0``.
+* Upgraded the ``pandas`` dependency to ``>1.2.1,<2.1`` to allow you to use ADS with pandas 2.0.
+* Implemented multi-part upload in the ``ArtifactUploader`` to upload model artifacts to the model catalog.
+* Fixed the "Attribute not found" error, when ``deploy()`` called twice in ``GenericModel``.
+* Fixed the fetch of the security token, when the relative path for the ``security_token_file`` is provided (used in session token-bases authentication).
+
 2.8.8
 -----
 Release date: July 27, 2023

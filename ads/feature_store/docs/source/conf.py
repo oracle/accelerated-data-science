@@ -9,7 +9,7 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../../"))
 
-version = "1.0.2"
+version = "1.0.3"
 release = version
 
 
@@ -54,11 +54,6 @@ intersphinx_disabled_domains = ["std"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
-
-# Get version
-
-version = "1.0.2"
-release = version
 
 # Unless we want to expose real buckets and namespaces
 nbsphinx_allow_errors = True

@@ -8,10 +8,10 @@ import datetime
 from functools import wraps
 from typing import Callable
 
-import oci.feature_store
-from oci.feature_store.models import (
+from feature_store_client.feature_store.models import (
     CreateFeatureStoreDetails,
     UpdateFeatureStoreDetails,
+    FeatureStore,
 )
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
@@ -72,7 +72,7 @@ def check_for_feature_store_id(msg: str = FEATURE_STORE_NEEDS_TO_BE_SAVED):
     return decorator
 
 
-class OCIFeatureStore(OCIFeatureStoreMixin, oci.feature_store.models.FeatureStore):
+class OCIFeatureStore(OCIFeatureStoreMixin, FeatureStore):
     """Represents an OCI Data Science feature store.
     This class contains all attributes of the `oci.data_science.models.FeatureStore`.
     The main purpose of this class is to link the `oci.data_science.models.FeatureStore`

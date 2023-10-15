@@ -20,6 +20,7 @@ from ads.jobs import (
     ScriptRuntime,
     NotebookRuntime,
 )
+from ads.jobs.builders.infrastructure.dsc_job import DataScienceJobRun
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     CondaRuntimeHandler,
     ScriptRuntimeHandler,
@@ -603,3 +604,25 @@ class TestRunInstance:
         test_run_instance = RunInstance()
         test_result = test_run_instance.run_details_link
         assert test_result == ""
+
+
+class DataScienceJobMethodTest(DataScienceJobPayloadTest):
+
+    @patch("ads.jobs.builders.infrastructure.dsc_job.DataScienceJobRun.cancel")
+    @patch("ads.jobs.ads_job.Job.run_list")
+    def test_job_cancel(self, mock_run_list, mock_cancel):
+        mock_run_list.return_value = [
+            DataScienceJobRun(
+                lifecycle_state="CANCELED"
+            )
+        ] * 3
+
+        job = (
+            Job(name="test")
+            .with_infrastructure(infrastructure.DataScienceJob())
+            .with_runtime(ScriptRuntime().with_script(self.SCRIPT_URI))
+        )
+
+        job.cancel()
+        mock_run_list.assert_called()
+        mock_cancel.assert_called_with(wait_for_completion=False)

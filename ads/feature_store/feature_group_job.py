@@ -121,7 +121,7 @@ class FeatureGroupJob(Builder):
 
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.FeatureGroupJob` accepts.
+            Can be any attribute that `feature_store.models.FeatureGroupJob` accepts.
 
         Returns
         -------
@@ -409,7 +409,7 @@ class FeatureGroupJob(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.FeatureGroupJob` accepts.
+            Can be any attribute that `feature_store.models.FeatureGroupJob` accepts.
 
         Returns
         -------
@@ -444,7 +444,7 @@ class FeatureGroupJob(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.FeatureGroupJob` accepts.
+            Can be any attribute that `feature_store.models.FeatureGroupJob` accepts.
 
         Returns
         -------

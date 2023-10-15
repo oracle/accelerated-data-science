@@ -74,7 +74,11 @@ class DSCJobTestCase(unittest.TestCase):
     @property
     def default_datascience_job(self):
         random.seed(self.random_seed)
-        return DataScienceJob().with_project_id(self.PROJECT_ID)
+        return (
+            DataScienceJob()
+            .with_project_id(self.PROJECT_ID)
+            .with_subnet_id(self.SUBNET_ID)
+        )
 
     @classmethod
     def setUpClass(cls) -> None:
@@ -632,7 +636,7 @@ class DSCJobTestCaseWithoutCleanUp(DSCJobTestCase):
         self.assertEqual(infra.project_id, self.PROJECT_ID)
         self.assertEqual(infra.compartment_id, None)
         self.assertEqual(infra.block_storage_size, None)
-        self.assertEqual(infra.subnet_id, None)
+        self.assertEqual(infra.subnet_id, self.SUBNET_ID)
 
     def test_build_job_within_notebook(self):
         job = (
@@ -666,4 +670,4 @@ class DSCJobTestCaseWithoutCleanUp(DSCJobTestCase):
         self.assertEqual(job.infrastructure.project_id, self.PROJECT_ID)
         self.assertEqual(job.infrastructure.compartment_id, self.COMPARTMENT_ID)
         self.assertEqual(job.infrastructure.block_storage_size, 50)
-        self.assertEqual(job.infrastructure.subnet_id, None)
+        self.assertEqual(job.infrastructure.subnet_id, self.SUBNET_ID)
