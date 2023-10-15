@@ -10,7 +10,7 @@ import pandas as pd
 from great_expectations.core import ExpectationSuite
 
 from ads import deprecated
-from oci.feature_store.models import (
+from feature_store_client.feature_store.models import (
     DatasetFeatureGroupCollection,
     DatasetFeatureGroupSummary,
 )
@@ -39,7 +39,7 @@ from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.service.oci_dataset import OCIDataset
-from ads.feature_store.statistics import Statistics
+from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
 from ads.feature_store.service.oci_lineage import OCILineage
 from ads.feature_store.model_details import ModelDetails
@@ -165,7 +165,7 @@ class Dataset(Builder):
         self.oci_dataset = self._to_oci_dataset(**kwargs)
         self.lineage = OCILineage(**kwargs)
 
-    def _to_oci_dataset(self, **kwargs):
+    def _to_oci_dataset(self, **kwargs) -> OCIDataset:
         """Creates an `OCIDataset` instance from the  `Dataset`.
 
         kwargs
@@ -236,8 +236,8 @@ class Dataset(Builder):
         return self.get_spec(self.CONST_NAME)
 
     @name.setter
-    def name(self, name: str) -> "Dataset":
-        return self.with_name(name)
+    def name(self, name: str):
+        self.with_name(name)
 
     def with_name(self, name: str) -> "Dataset":
         """Sets the name.
@@ -721,7 +721,7 @@ class Dataset(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Dataset` accepts.
+            Can be any attribute that `feature_store.models.Dataset` accepts.
         validate_sql:
             Boolean value indicating whether to validate sql before creating dataset
 
@@ -822,7 +822,7 @@ class Dataset(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Dataset` accepts.
+            Can be any attribute that `feature_store.models.Dataset` accepts.
 
         Returns
         -------
@@ -1208,12 +1208,14 @@ class Dataset(Builder):
         for key, value in spec.items():
             if hasattr(value, "to_dict"):
                 value = value.to_dict()
-            if hasattr(value, "attribute_map"):
-                value = self.oci_dataset.client.base_client.sanitize_for_serialization(
+            if key == self.CONST_FEATURE_GROUP:
+                spec[
+                    key
+                ] = self.oci_dataset.client.base_client.sanitize_for_serialization(
                     value
                 )
-            spec[key] = value
-
+            else:
+                spec[key] = value
         return {
             "kind": self.kind,
             "type": self.type,

@@ -120,7 +120,7 @@ class Transformation(Builder):
 
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Transformation` accepts.
+            Can be any attribute that `feature_store.models.Transformation` accepts.
 
         Returns
         -------
@@ -213,10 +213,8 @@ class Transformation(Builder):
         return self.get_spec(self.CONST_TRANSFORMATION_MODE)
 
     @transformation_mode.setter
-    def transformation_mode(
-        self, transformation_mode: TransformationMode
-    ) -> "Transformation":
-        return self.with_transformation_mode(transformation_mode)
+    def transformation_mode(self, transformation_mode: TransformationMode) -> None:
+        self.with_transformation_mode(transformation_mode)
 
     def with_transformation_mode(
         self, transformation_mode: TransformationMode
@@ -327,7 +325,7 @@ class Transformation(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Transformation` accepts.
+            Can be any attribute that `feature_store.models.Transformation` accepts.
 
         Returns
         -------

@@ -47,13 +47,13 @@ from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
 )
 
+NATURAL_EARTH_DATASET = "naturalearth_lowres"
 
 class PandasDataset(object):
     """
     This class provides APIs that can work on a sampled dataset.
     """
 
-    @runtime_dependency(module="geopandas", install_from=OptionalDependency.GEO)
     def __init__(
         self,
         sampled_df,
@@ -67,9 +67,7 @@ class PandasDataset(object):
         self.correlation = None
         self.feature_dist_html_dict = {}
         self.feature_types = metadata if metadata is not None else {}
-        self.world = geopandas.read_file(
-            geopandas.datasets.get_path("naturalearth_lowres")
-        )
+        self.world = None
 
         self.numeric_columns = self.sampled_df.select_dtypes(
             utils.numeric_pandas_dtypes()
@@ -562,7 +560,7 @@ class PandasDataset(object):
                 ),
             )
             world = geopandas.read_file(
-                geopandas.datasets.get_path("naturalearth_lowres")
+                geopandas.datasets.get_path(NATURAL_EARTH_DATASET)
             )
             ax1 = world.plot(ax=ax, color="lightgrey", linewidth=0.5, edgecolor="white")
             gdf.plot(ax=ax1, color="blue", markersize=10)
@@ -706,6 +704,12 @@ class PandasDataset(object):
                 gdf = geopandas.GeoDataFrame(
                     df, geometry=geopandas.points_from_xy(df["lon"], df["lat"])
                 )
+
+                if not self.world:
+                    self.world = geopandas.read_file(
+                        geopandas.datasets.get_path(NATURAL_EARTH_DATASET)
+                    )
+
                 self.world.plot(
                     ax=ax, color="lightgrey", linewidth=0.5, edgecolor="white"
                 )

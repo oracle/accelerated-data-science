@@ -40,6 +40,7 @@ from ads.model.deployment.model_deployment_infrastructure import (
 from ads.model.deployment.model_deployment_runtime import (
     ModelDeploymentCondaRuntime,
     ModelDeploymentContainerRuntime,
+    ModelDeploymentMode,
     ModelDeploymentRuntime,
     ModelDeploymentRuntimeType,
     OCIModelDeploymentRuntimeType,
@@ -78,11 +79,6 @@ MODEL_DEPLOYMENT_RUNTIMES = {
 class ModelDeploymentLogType:
     PREDICT = "predict"
     ACCESS = "access"
-
-
-class ModelDeploymentMode:
-    HTTPS = "HTTPS_ONLY"
-    STREAM = "STREAM_ONLY"
 
 
 class LogNotConfiguredError(Exception):  # pragma: no cover
@@ -911,48 +907,59 @@ class ModelDeployment(Builder):
                 "`data` and `json_input` are both provided. You can only use one of them."
             )
 
-        if auto_serialize_data:
-            data = data or json_input
-            serialized_data = serializer.serialize(data=data)
-            return send_request(
-                data=serialized_data,
+        try:
+            if auto_serialize_data:
+                data = data or json_input
+                serialized_data = serializer.serialize(data=data)
+                return send_request(
+                    data=serialized_data,
+                    endpoint=endpoint,
+                    is_json_payload=_is_json_serializable(serialized_data),
+                    header=header,
+                )
+
+            if json_input is not None:
+                if not _is_json_serializable(json_input):
+                    raise ValueError(
+                        "`json_input` must be json serializable. "
+                        "Set `auto_serialize_data` to True, or serialize the provided input data first,"
+                        "or using `data` to pass binary data."
+                    )
+                utils.get_logger().warning(
+                    "The `json_input` argument of `predict()` will be deprecated soon. "
+                    "Please use `data` argument. "
+                )
+                data = json_input
+
+            is_json_payload = _is_json_serializable(data)
+            if not isinstance(data, bytes) and not is_json_payload:
+                raise TypeError(
+                    "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
+                )
+            if model_name and model_version:
+                header["model-name"] = model_name
+                header["model-version"] = model_version
+            elif bool(model_version) ^ bool(model_name):
+                raise ValueError(
+                    "`model_name` and `model_version` have to be provided together."
+                )
+            prediction = send_request(
+                data=data,
                 endpoint=endpoint,
-                is_json_payload=_is_json_serializable(serialized_data),
+                is_json_payload=is_json_payload,
                 header=header,
             )
-
-        if json_input is not None:
-            if not _is_json_serializable(json_input):
-                raise ValueError(
-                    "`json_input` must be json serializable. "
-                    "Set `auto_serialize_data` to True, or serialize the provided input data first,"
-                    "or using `data` to pass binary data."
+            return prediction
+        except oci.exceptions.ServiceError as ex:
+            # When bandwidth exceeds the allocated value, TooManyRequests error (429) will be raised by oci backend.
+            if ex.status == 429:
+                bandwidth_mbps = self.infrastructure.bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
+                utils.get_logger().warning(
+                    f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
+                    "To estimate the actual bandwidth, use formula: (payload size in KB) * (estimated requests per second) * 8 / 1024."
+                    "To resolve the issue, try sizing down the payload, slowing down the request rate or increasing the allocated bandwidth."
                 )
-            utils.get_logger().warning(
-                "The `json_input` argument of `predict()` will be deprecated soon. "
-                "Please use `data` argument. "
-            )
-            data = json_input
-
-        is_json_payload = _is_json_serializable(data)
-        if not isinstance(data, bytes) and not is_json_payload:
-            raise TypeError(
-                "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
-            )
-        if model_name and model_version:
-            header["model-name"] = model_name
-            header["model-version"] = model_version
-        elif bool(model_version) ^ bool(model_name):
-            raise ValueError(
-                "`model_name` and `model_version` have to be provided together."
-            )
-        prediction = send_request(
-            data=data,
-            endpoint=endpoint,
-            is_json_payload=is_json_payload,
-            header=header,
-        )
-        return prediction
+            raise
 
     def activate(
         self,
@@ -1304,7 +1311,8 @@ class ModelDeployment(Builder):
         ModelDeployment
             The ModelDeployment instance (self).
         """
-        return cls()._update_from_oci_model(OCIDataScienceModelDeployment.from_id(id))
+        oci_model = OCIDataScienceModelDeployment.from_id(id)
+        return cls(properties=oci_model)._update_from_oci_model(oci_model)
 
     @classmethod
     def from_dict(cls, obj_dict: Dict) -> "ModelDeployment":
@@ -1503,7 +1511,9 @@ class ModelDeployment(Builder):
             **create_model_deployment_details
         ).to_oci_model(CreateModelDeploymentDetails)
 
-    def _update_model_deployment_details(self, **kwargs) -> UpdateModelDeploymentDetails:
+    def _update_model_deployment_details(
+        self, **kwargs
+    ) -> UpdateModelDeploymentDetails:
         """Builds UpdateModelDeploymentDetails from model deployment instance.
 
         Returns
@@ -1527,7 +1537,7 @@ class ModelDeployment(Builder):
         return OCIDataScienceModelDeployment(
             **update_model_deployment_details
         ).to_oci_model(UpdateModelDeploymentDetails)
-    
+
     def _update_spec(self, **kwargs) -> "ModelDeployment":
         """Updates model deployment specs from kwargs.
 
@@ -1542,7 +1552,7 @@ class ModelDeployment(Builder):
                 Model deployment freeform tags
             defined_tags: (dict)
                 Model deployment defined tags
-            
+
             Additional kwargs arguments.
             Can be any attribute that `ads.model.deployment.ModelDeploymentCondaRuntime`, `ads.model.deployment.ModelDeploymentContainerRuntime`
             and `ads.model.deployment.ModelDeploymentInfrastructure` accepts.
@@ -1559,12 +1569,12 @@ class ModelDeployment(Builder):
         specs = {
             "self": self._spec,
             "runtime": self.runtime._spec,
-            "infrastructure": self.infrastructure._spec
+            "infrastructure": self.infrastructure._spec,
         }
         sub_set = {
             self.infrastructure.CONST_ACCESS_LOG,
             self.infrastructure.CONST_PREDICT_LOG,
-            self.infrastructure.CONST_SHAPE_CONFIG_DETAILS
+            self.infrastructure.CONST_SHAPE_CONFIG_DETAILS,
         }
         for spec_value in specs.values():
             for key in spec_value:
@@ -1572,7 +1582,9 @@ class ModelDeployment(Builder):
                     if key in sub_set:
                         for sub_key in converted_specs[key]:
                             converted_sub_key = ads_utils.snake_to_camel(sub_key)
-                            spec_value[key][converted_sub_key] = converted_specs[key][sub_key]
+                            spec_value[key][converted_sub_key] = converted_specs[key][
+                                sub_key
+                            ]
                     else:
                         spec_value[key] = copy.deepcopy(converted_specs[key])
         self = (
@@ -1616,14 +1628,14 @@ class ModelDeployment(Builder):
                 infrastructure.CONST_MEMORY_IN_GBS: infrastructure.shape_config_details.get(
                     "memory_in_gbs", None
                 )
-                or infrastructure.shape_config_details.get(
-                    "memoryInGBs", None
-                )
+                or infrastructure.shape_config_details.get("memoryInGBs", None)
                 or DEFAULT_MEMORY_IN_GBS,
             }
 
         if infrastructure.subnet_id:
-            instance_configuration[infrastructure.CONST_SUBNET_ID] = infrastructure.subnet_id
+            instance_configuration[
+                infrastructure.CONST_SUBNET_ID
+            ] = infrastructure.subnet_id
 
         scaling_policy = {
             infrastructure.CONST_POLICY_TYPE: "FIXED_SIZE",
@@ -1638,13 +1650,11 @@ class ModelDeployment(Builder):
 
         model_id = runtime.model_uri
         if not model_id.startswith("ocid"):
-            
             from ads.model.datascience_model import DataScienceModel
-            
+
             dsc_model = DataScienceModel(
                 name=self.display_name,
-                compartment_id=self.infrastructure.compartment_id
-                or COMPARTMENT_OCID,
+                compartment_id=self.infrastructure.compartment_id or COMPARTMENT_OCID,
                 project_id=self.infrastructure.project_id or PROJECT_OCID,
                 artifact=runtime.model_uri,
             ).create(
@@ -1653,7 +1663,7 @@ class ModelDeployment(Builder):
                 region=runtime.region,
                 overwrite_existing_artifact=runtime.overwrite_existing_artifact,
                 remove_existing_artifact=runtime.remove_existing_artifact,
-                timeout=runtime.timeout
+                timeout=runtime.timeout,
             )
             model_id = dsc_model.id
 

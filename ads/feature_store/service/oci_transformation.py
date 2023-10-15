@@ -4,8 +4,10 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import oci.feature_store
-from oci.feature_store.models import CreateTransformationDetails
+from feature_store_client.feature_store.models import (
+    CreateTransformationDetails,
+    Transformation,
+)
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
 import logging
@@ -13,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class OCITransformation(OCIFeatureStoreMixin, oci.feature_store.models.Transformation):
+class OCITransformation(OCIFeatureStoreMixin, Transformation):
     """Represents an OCI Data Science Transformation.
     This class contains all attributes of the `oci.data_science.models.Transformation`.
     The main purpose of this class is to link the `oci.data_science.models.Transformation`

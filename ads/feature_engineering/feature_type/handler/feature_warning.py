@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -280,7 +280,7 @@ class FeatureWarning:
                         f"Details: '{name}' should return a DataFrame "
                         f"with columns: {expected_columns}."
                     )
-                result_df = result_df.append(handler_result)
+                result_df = pd.concat([result_df, handler_result])
         result_df.reset_index(drop=True, inplace=True)
         return result_df
 

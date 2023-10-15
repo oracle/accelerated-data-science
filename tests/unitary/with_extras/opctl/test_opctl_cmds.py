@@ -181,8 +181,9 @@ key_file = ~/.oci/oci_api_key.pem
         monkeypatch.delenv("NB_SESSION_OCID", raising=False)
         cancel(ocid="...datasciencejobrun...")
         job_cancel_func.assert_called()
-        with pytest.raises(ValueError):
-            cancel(ocid="....datasciencejob....")
+
+        cancel(ocid="....datasciencejob....")
+        job_cancel_func.assert_called()
 
         cancel(ocid="...datasciencepipelinerun...")
         pipeline_cancel_func.assert_called()

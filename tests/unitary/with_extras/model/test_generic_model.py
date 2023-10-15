@@ -279,14 +279,29 @@ class TestGenericModel:
                 "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
             )
 
+    @patch("ads.model.runtime.env_info.get_service_packs")
     @patch("ads.common.auth.default_signer")
-    def test_prepare_both_conda_env(self, mock_signer):
+    def test_prepare_both_conda_env(self, mock_signer, mock_get_service_packs):
         """prepare a model by only providing inference conda env."""
+        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        inference_python_version="3.6"
+        training_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
+        training_python_version="3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env : ("mlcpuv1", inference_python_version),
+                training_conda_env : ("database_p37_cpu_v1", training_python_version)
+            },
+            {
+                "mlcpuv1" : (inference_conda_env, inference_python_version),
+                "database_p37_cpu_v1" : (training_conda_env, training_python_version)
+            }
+        )
         self.generic_model.prepare(
-            inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
-            inference_python_version="3.6",
-            training_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1",
-            training_python_version="3.7",
+            inference_conda_env=inference_conda_env,
+            inference_python_version=inference_python_version,
+            training_conda_env=training_conda_env,
+            training_python_version=training_python_version,
             model_file_name="fake_model_name",
             force_overwrite=True,
         )
@@ -349,8 +364,19 @@ class TestGenericModel:
 
     @patch.object(GenericModel, "_random_display_name", return_value="test_name")
     @patch.object(DataScienceModel, "create")
-    def test_save(self, mock_dsc_model_create, mock__random_display_name):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_save(self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name):
         """test saving a model to artifact."""
+        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version="3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env : ("dataexpl_p37_cpu_v3", inference_python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3" : (inference_conda_env, inference_python_version),
+            }
+        )
         mock_dsc_model_create.return_value = MagicMock(id="fake_id")
         self.generic_model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
@@ -360,7 +386,7 @@ class TestGenericModel:
             force_overwrite=True,
             training_id=None,
         )
-        self.generic_model.save()
+        self.generic_model.save(ignore_introspection=True)
         assert self.generic_model.model_id is not None and isinstance(
             self.generic_model.model_id, str
         )
@@ -368,10 +394,22 @@ class TestGenericModel:
             bucket_uri=None,
             overwrite_existing_artifact=True,
             remove_existing_artifact=True,
+            parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
         )
 
-    def test_save_not_implemented_error(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_save_not_implemented_error(self, mock_get_service_packs):
         """test saving a model to artifact."""
+        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version="3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env : ("dataexpl_p37_cpu_v3", inference_python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3" : (inference_conda_env, inference_python_version),
+            }
+        )
         self.generic_model._serialize = False
         self.generic_model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
@@ -606,7 +644,10 @@ class TestGenericModel:
             "ocpus": input_dict["deployment_ocpus"],
             "memory_in_gbs": input_dict["deployment_memory_in_gbs"],
         }
-        assert result.infrastructure.subnet_id == input_dict["deployment_instance_subnet_id"]
+        assert (
+            result.infrastructure.subnet_id
+            == input_dict["deployment_instance_subnet_id"]
+        )
         assert result.runtime.image == input_dict["deployment_image"]
         assert result.runtime.entrypoint == input_dict["entrypoint"]
         assert result.runtime.server_port == input_dict["server_port"]
@@ -994,9 +1035,7 @@ class TestGenericModel:
             compartment_id="test_compartment_id",
         )
 
-        mock_from_id.assert_called_with(
-            test_model_deployment_id
-        )
+        mock_from_id.assert_called_with(test_model_deployment_id)
         mock_from_model_catalog.assert_called_with(
             model_id=test_model_id,
             model_file_name="test.pkl",
@@ -1049,9 +1088,7 @@ class TestGenericModel:
                 remove_existing_artifact=True,
                 compartment_id="test_compartment_id",
             )
-            mock_from_id.assert_called_with(
-                test_model_deployment_id
-            )
+            mock_from_id.assert_called_with(test_model_deployment_id)
 
     @patch.object(ModelDeployment, "update")
     @patch.object(ModelDeployment, "from_id")
@@ -1086,9 +1123,7 @@ class TestGenericModel:
             poll_interval=200,
         )
 
-        mock_from_id.assert_called_with(
-            test_model_deployment_id
-        )
+        mock_from_id.assert_called_with(test_model_deployment_id)
 
         mock_update.assert_called_with(
             properties=None,

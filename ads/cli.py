@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-from ads.common import logger
+
 import traceback
+import sys
+
+from ads.common import logger
 
 try:
     import click
@@ -22,11 +25,13 @@ except Exception as ex:
     logger.debug(traceback.format_exc())
     exit()
 
+# https://packaging.python.org/en/latest/guides/single-sourcing-package-version/#single-sourcing-the-package-version
+if sys.version_info >= (3, 8):
+    from importlib import metadata
+else:
+    import importlib_metadata as metadata
 
-with open(
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "ads_version.json")
-) as version_file:
-    ADS_VERSION = json.load(version_file)["version"]
+ADS_VERSION = metadata.version("oracle_ads")
 
 
 @click.group()

@@ -314,7 +314,6 @@ def _get_dtype_from_error(e):
     error_string = str(e)
 
     if "mismatched dtypes" in error_string.lower():
-
         # For the mismatched dtypes error, dask either returns a error message containing the dtype argument
         # to specify, or  the found and expected dtypes in a table format, depending on what stage
         # the type inferencing fails. The below logic supports building the dtype dictionary for both cases
@@ -732,8 +731,8 @@ def down_sample(df, target):
     """
     dfs = []
     target_value_counts = df[target].value_counts()
-    min_key = min(target_value_counts.iteritems(), key=lambda k: k[1])
-    for key, value in target_value_counts.iteritems():
+    min_key = min(target_value_counts.items(), key=lambda k: k[1])
+    for key, value in target_value_counts.items():
         if key != min_key[0]:
             dfs.append(
                 df[df[target] == key].sample(frac=1 - ((value - min_key[1]) / value))
@@ -835,6 +834,7 @@ def _log_yscale_not_set():
         "`yscale` parameter is not set. Valid values are `'linear'`, `'log'`, `'symlog'`."
     )
 
+
 def infer_target_type(target, target_series, discover_target_type=True):
     # if type discovery is turned off, infer type from pandas dtype
     if discover_target_type:
@@ -845,12 +845,14 @@ def infer_target_type(target, target_series, discover_target_type=True):
         target_type = get_feature_type(target, target_series)
     return target_type
 
+
 def get_target_type(target, sampled_df, **init_kwargs):
     discover_target_type = init_kwargs.get("type_discovery", True)
     if target in init_kwargs.get("types", {}):
         sampled_df[target] = sampled_df[target].astype(init_kwargs.get("types")[target])
         discover_target_type = False
     return infer_target_type(target, sampled_df[target], discover_target_type)
+
 
 def get_dataset(
     df: pd.DataFrame,
@@ -860,12 +862,12 @@ def get_dataset(
     shape: Tuple[int, int],
     positive_class=None,
     **init_kwargs,
-):  
+):
     from ads.dataset.classification_dataset import (
-        BinaryClassificationDataset, 
-        BinaryTextClassificationDataset, 
-        MultiClassClassificationDataset, 
-        MultiClassTextClassificationDataset
+        BinaryClassificationDataset,
+        BinaryTextClassificationDataset,
+        MultiClassClassificationDataset,
+        MultiClassTextClassificationDataset,
     )
     from ads.dataset.forecasting_dataset import ForecastingDataset
     from ads.dataset.regression_dataset import RegressionDataset
@@ -874,9 +876,7 @@ def get_dataset(
         logger.warning(
             "It is not recommended to use an empty column as the target variable."
         )
-        raise ValueError(
-            f"We do not support using empty columns as the chosen target"
-        )
+        raise ValueError(f"We do not support using empty columns as the chosen target")
     if utils.is_same_class(target_type, ContinuousTypedFeature):
         return RegressionDataset(
             df=df,
@@ -899,9 +899,9 @@ def get_dataset(
         )
 
     # Adding ordinal typed feature, but ultimately we should rethink how we want to model this type
-    elif utils.is_same_class(target_type, CategoricalTypedFeature) or utils.is_same_class(
-        target_type, OrdinalTypedFeature
-    ):
+    elif utils.is_same_class(
+        target_type, CategoricalTypedFeature
+    ) or utils.is_same_class(target_type, OrdinalTypedFeature):
         if target_type.meta_data["internal"]["unique"] == 2:
             if is_text_data(sampled_df, target):
                 return BinaryTextClassificationDataset(
@@ -946,17 +946,13 @@ def get_dataset(
         or "text" in target_type["type"]
         or "text" in target
     ):
-        raise ValueError(
-            f"The column {target} cannot be used as the target column."
-        )
+        raise ValueError(f"The column {target} cannot be used as the target column.")
     elif (
         utils.is_same_class(target_type, GISTypedFeature)
         or "coord" in target_type["type"]
         or "coord" in target
     ):
-        raise ValueError(
-            f"The column {target} cannot be used as the target column."
-        )
+        raise ValueError(f"The column {target} cannot be used as the target column.")
     # This is to catch constant columns that are boolean. Added as a fix for pd.isnull(), and datasets with a
     #   binary target, but only data on one instance
     elif target_type["low_level_type"] == "bool":
@@ -973,6 +969,7 @@ def get_dataset(
         f"Unable to identify problem type. Specify the data type of {target} using 'types'. "
         f"For example, types = {{{target}: 'category'}}"
     )
+
 
 def open(
     source,
@@ -1074,9 +1071,7 @@ def open(
         progress.update("Opening data")
         path = ElaboratedPath(source, format=format, **kwargs)
         reader_fn = (
-            get_format_reader(path=path, **kwargs)
-            if reader_fn is None
-            else reader_fn
+            get_format_reader(path=path, **kwargs) if reader_fn is None else reader_fn
         )
         df = load_dataset(path=path, reader_fn=reader_fn, **kwargs)
         name = path.name
@@ -1107,6 +1102,7 @@ def open(
             **{"html_table_index": html_table_index, "column_names": column_names},
         ),
     )
+
 
 def build_dataset(
     df: pd.DataFrame,
@@ -1149,9 +1145,7 @@ def build_dataset(
         discover_target_type = False
 
     # if type discovery is turned off, infer type from pandas dtype
-    target_type = infer_target_type(
-        target, sampled_df[target], discover_target_type
-    )
+    target_type = infer_target_type(target, sampled_df[target], discover_target_type)
 
     result = get_dataset(
         df=df,
@@ -1167,6 +1161,7 @@ def build_dataset(
         "Use `suggest_recommendations()` to view and apply recommendations for dataset optimization."
     )
     return result
+
 
 class CustomFormatReaders:
     @staticmethod
@@ -1352,7 +1347,6 @@ class CustomFormatReaders:
         import xml.etree.cElementTree as et
 
         def get_children(df, node, parent, i):
-
             for name in node.attrib.keys():
                 df.at[i, parent + name] = node.attrib[name]
             for child in list(node):
@@ -1373,6 +1367,7 @@ class CustomFormatReaders:
                     get_children(ret_df, node, node.tag + "/", last_i + i)
                 last_i = i
         return ret_df
+
 
 reader_fns = {
     "csv": pd.read_csv,
@@ -1399,12 +1394,14 @@ reader_fns = {
     "xml": CustomFormatReaders.read_xml,
 }
 
+
 def validate_kwargs(func: Callable, kwargs):
     valid_params = inspect.signature(func).parameters
     if "kwargs" in valid_params:
         return kwargs
     else:
         return {k: v for k, v in kwargs.items() if k in valid_params}
+
 
 def get_format_reader(path: ElaboratedPath, **kwargs) -> Callable:
     format_key = path.format
@@ -1419,6 +1416,7 @@ def get_format_reader(path: ElaboratedPath, **kwargs) -> Callable:
         )
 
     return reader_fn
+
 
 def load_dataset(path: ElaboratedPath, reader_fn: Callable, **kwargs) -> pd.DataFrame:
     dfs = []

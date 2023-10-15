@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas
 from ads.common import utils
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -35,7 +36,7 @@ logger = logging.getLogger(__name__)
 _MAX_ARTIFACT_SIZE_IN_BYTES = 2147483648  # 2GB
 
 
-class ModelArtifactSizeError(Exception):   # pragma: no cover
+class ModelArtifactSizeError(Exception):  # pragma: no cover
     def __init__(self, max_artifact_size: str):
         super().__init__(
             f"The model artifacts size is greater than `{max_artifact_size}`. "
@@ -548,6 +549,8 @@ class DataScienceModel(Builder):
                 The OCI Object Storage URI where model artifacts will be copied to.
                 The `bucket_uri` is only necessary for uploading large artifacts which
                 size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+                .. versionadded:: 2.8.10
+                If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
             overwrite_existing_artifact: (bool, optional). Defaults to `True`.
                 Overwrite target bucket artifact if exists.
             remove_existing_artifact: (bool, optional). Defaults to `True`.
@@ -562,6 +565,8 @@ class DataScienceModel(Builder):
                 and kwargs required to instantiate IdentityClient object.
             timeout: (int, optional). Defaults to 10 seconds.
                 The connection timeout in seconds for the client.
+            parallel_process_count: (int, optional).
+                The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
 
         Returns
         -------
@@ -607,6 +612,7 @@ class DataScienceModel(Builder):
             region=kwargs.pop("region", None),
             auth=kwargs.pop("auth", None),
             timeout=kwargs.pop("timeout", None),
+            parallel_process_count=kwargs.pop("parallel_process_count", None),
         )
 
         # Sync up model
@@ -623,6 +629,7 @@ class DataScienceModel(Builder):
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
         timeout: Optional[int] = None,
+        parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
     ) -> None:
         """Uploads model artifacts to the model catalog.
 
@@ -632,6 +639,8 @@ class DataScienceModel(Builder):
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for uploading large artifacts which
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+            .. versionadded:: 2.8.10
+            If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
         auth: (Dict, optional). Defaults to `None`.
             The default authentication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys` or
@@ -646,6 +655,8 @@ class DataScienceModel(Builder):
             Wether artifacts uploaded to object storage bucket need to be removed or not.
         timeout: (int, optional). Defaults to 10 seconds.
             The connection timeout in seconds for the client.
+        parallel_process_count: (int, optional)
+            The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
         """
         # Upload artifact to the model catalog
         if not self.artifact:
@@ -662,6 +673,13 @@ class DataScienceModel(Builder):
                 "timeout": timeout,
             }
 
+        if ObjectStorageDetails.is_oci_path(self.artifact):
+            if bucket_uri and bucket_uri != self.artifact:
+                logger.warn(
+                    "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
+                )
+            bucket_uri = self.artifact
+
         if bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES:
             if not bucket_uri:
                 raise ModelArtifactSizeError(
@@ -676,6 +694,7 @@ class DataScienceModel(Builder):
                 bucket_uri=bucket_uri,
                 overwrite_existing_artifact=overwrite_existing_artifact,
                 remove_existing_artifact=remove_existing_artifact,
+                parallel_process_count=parallel_process_count,
             )
         else:
             artifact_uploader = SmallArtifactUploader(

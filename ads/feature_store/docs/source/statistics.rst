@@ -49,3 +49,10 @@ The statistical metrics that are computed by feature store depend on the feature
 +------------------------+-----------------------+
 | Kurtosis               |                       |
 +------------------------+-----------------------+
+
+Drift Monitoring
+================
+
+Models can fail silently. Over and over we see the root cause of model issues in production can be traced back to the data itself, not the model. By applying data monitoring to the feature store, practitioners can automatically catch data issues like missing values, change in data format or unexpected values (change in data cardinality), and data drift upstream before the models are impacted
+
+.. image:: figures/drift_monitoring.png

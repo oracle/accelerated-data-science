@@ -1,27 +1,55 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import bisect
-from collections import defaultdict
+import numpy as np
 
+from collections import defaultdict
 from sklearn.base import TransformerMixin
 from sklearn.preprocessing import LabelEncoder
 
 
 class DataFrameLabelEncoder(TransformerMixin):
     """
-    Label encoder for pandas.dataframe. dask.dataframe.core.DataFrame
+    Label encoder for `pandas.DataFrame` and `dask.dataframe.core.DataFrame`.
+
+    Attributes
+    ----------
+    label_encoders : defaultdict
+        Holds the label encoder for each column.
+
+    Examples
+    --------
+    >>> import pandas as pd
+    >>> from ads.dataset.label_encoder import DataFrameLabelEncoder
+
+    >>> df = pd.DataFrame(data={'col1': [1, 2], 'col2': [3, 4]})
+    >>> le = DataFrameLabelEncoder()
+    >>> le.fit_transform(X=df)
+
     """
 
     def __init__(self):
+        """Initialize an instance of DataFrameLabelEncoder."""
         self.label_encoders = defaultdict(LabelEncoder)
 
-    def fit(self, X):
+    def fit(self, X: "pandas.DataFrame"):
         """
-        Fits a DataFrameLAbelEncoder.
+        Fits a DataFrameLabelEncoder.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame
+            Target values.
+
+        Returns
+        -------
+        self : returns an instance of self.
+            Fitted label encoder.
+
         """
         for column in X.columns:
             if X[column].dtype.name in ["object", "category"]:
@@ -33,12 +61,24 @@ class DataFrameLabelEncoder(TransformerMixin):
                     for class_ in self.label_encoders[column].classes_.tolist()
                 ]
                 bisect.insort_left(label_encoder_classes_, "unknown")
+                label_encoder_classes_ = np.asarray(label_encoder_classes_)
                 self.label_encoders[column].classes_ = label_encoder_classes_
         return self
 
-    def transform(self, X):
+    def transform(self, X: "pandas.DataFrame"):
         """
-        Transforms a dataset using the DataFrameLAbelEncoder.
+        Transforms a dataset using the DataFrameLabelEncoder.
+
+        Parameters
+        ----------
+        X : pandas.DataFrame
+            Target values.
+
+        Returns
+        -------
+        pandas.DataFrame
+            Labels as normalized encodings.
+
         """
         categorical_columns = list(self.label_encoders.keys())
         if len(categorical_columns) == 0:
