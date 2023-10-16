@@ -69,7 +69,7 @@ Use the ``from_id()`` method from the ``Transformation`` class to load an existi
 
   from ads.feature_store.transformation import Transformation
 
-  transformation = Transformation.from_id("ocid1.transformation..<unique_id>")
+  transformation = Transformation.from_id(".<unique_id>")
 
 Delete
 ======

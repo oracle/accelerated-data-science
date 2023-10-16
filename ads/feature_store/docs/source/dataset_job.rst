@@ -67,7 +67,7 @@ Use the ``from_id()`` method from the ``DatasetJob`` class to load an existing d
 
   from ads.feature_store.dataset_job import DatasetJob
 
-  dataset_job = DatasetJob.from_id("ocid1.dataset_job..<unique_id>")
+  dataset_job = DatasetJob.from_id("<unique_id>")
 
 Delete
 ======

@@ -74,7 +74,7 @@ Use the ``from_id()`` method from the ``Dataset`` class to load an existing data
 
   from ads.feature_store.dataset import Dataset
 
-  dataset = Dataset.from_id("ocid1.dataset..<unique_id>")
+  dataset = Dataset.from_id("<unique_id>")
 
 Materialise
 ===========
@@ -138,6 +138,10 @@ Feature store allows you to define expectations on data being materialized into 
 
 .. code-block:: python3
 
+    from great_expectations.core import ExpectationSuite, ExpectationConfiguration
+    from ads.feature_store.common.enums import TransformationMode, ExpectationType
+    from ads.feature_store.feature_group import FeatureGroup
+
     expectation_suite = ExpectationSuite(
         expectation_suite_name="expectation_suite_name"
     )
@@ -186,6 +190,7 @@ dataset or it can be updated later as well.
 .. code-block:: python3
 
   # Define statistics configuration for selected features
+  from ads.feature_store.statistics_config import StatisticsConfig
   stats_config = StatisticsConfig().with_is_enabled(True).with_columns(["column1", "column2"])
 
 
@@ -194,6 +199,7 @@ This can be used with dataset instance.
 .. code-block:: python3
 
   from ads.feature_store.dataset import Dataset
+  from ads.feature_store.statistics_config import StatisticsConfig
 
   dataset = (
         Dataset
