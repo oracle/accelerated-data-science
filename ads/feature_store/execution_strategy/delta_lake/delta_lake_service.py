@@ -7,7 +7,7 @@
 import logging
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
-from ads.feature_store.common.enums import IngestionMode
+from ads.feature_store.common.enums import BatchIngestionMode
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 
 try:
@@ -57,9 +57,10 @@ class DeltaLakeService:
             None.
         """
         logger.info(f"target table name {target_table_name}")
+
         if (
             self.spark_engine.is_delta_table_exists(target_table_name)
-            and ingestion_mode.upper() == IngestionMode.UPSERT.value
+            and ingestion_mode.upper() == BatchIngestionMode.UPSERT.value
         ):
             logger.info(f"Upsert ops for target table {target_table_name} begin")
 
@@ -341,3 +342,34 @@ class DeltaLakeService:
 
         logger.info(f"get_insert_update_query_expression {feature_data_update_set}")
         return feature_data_update_set
+
+    def write_stream_dataframe_to_delta_lake(
+        self,
+        stream_dataframe,
+        target_table,
+        output_mode,
+        query_name,
+        await_termination,
+        timeout,
+        checkpoint_dir,
+        feature_option_details,
+    ):
+        if query_name is None:
+            query_name = "insert_stream_" + target_table.split(".")[1]
+
+        query = (
+            stream_dataframe.writeStream.outputMode(output_mode)
+            .format("delta")
+            .option(
+                "checkpointLocation",
+                checkpoint_dir,
+            )
+            .options(**self.get_delta_write_config(feature_option_details))
+            .queryName(query_name)
+            .toTable(target_table)
+        )
+
+        if await_termination:
+            query.awaitTermination(timeout)
+
+        return query

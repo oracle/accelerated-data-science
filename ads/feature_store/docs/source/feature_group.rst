@@ -93,7 +93,7 @@ Use the ``from_id()`` method from the ``FeatureGroup`` class to load an existing
 
   from ads.feature_store.feature_group import FeatureGroup
 
-  feature_group = FeatureGroup.from_id("ocid1.feature_group..<unique_id>")
+  feature_group = FeatureGroup.from_id("<unique_id>")
 
 
 Materialise
@@ -121,6 +121,32 @@ The ``.materialise()`` method takes the following parameter:
 
 .. seealso::
    Refer  :ref:`Data types` supported by feature store
+
+
+Materialise Stream
+==================
+You can call the ``materialise_stream() -> FeatureGroupJob`` method of the ``FeatureGroup`` instance to load the streaming data to feature group. To persist the feature_group and save feature_group data along the metadata in the feature store, call the ``materialise_stream()``
+
+The ``.materialise_stream()`` method takes the following parameter:
+    - ``input_dataframe``: Features in Streaming Dataframe to be saved.
+    - ``query_name``: It is possible to optionally specify a name for the query to make it easier to recognise in the Spark UI. Defaults to ``None``.
+    - ``ingestion_mode``: Specifies how data of a streaming DataFrame/Dataset is written to a streaming sink.
+        - ``append``: Only the new rows in the streaming DataFrame/Dataset will be written to the sink. If the query doesn’t contain aggregations, it will be equivalent to append mode. Defaults to ``"append"``.
+        - ``complete``: All the rows in the streaming DataFrame/Dataset will be written to the sink every time there is some update.
+        - ``update``: only the rows that were updated in the streaming DataFrame/Dataset will be written to the sink every time there are some updates.
+    - ``await_termination``: Waits for the termination of this query, either by ``query.stop()`` or by an exception. If the query has terminated with an exception, then the exception will be thrown. If timeout is set, it returns whether the query has terminated or not within the timeout seconds. Defaults to ``False``.
+    - ``timeout``: Only relevant in combination with ``await_termination=True``.
+        - Defaults to ``None``.
+    - ``checkpoint_dir``: Checkpoint directory location. This will be used to as a reference to from where to resume the streaming job. Defaults to ``None``.
+    - ``write_options``: Additional write options for Spark as key-value pairs.
+        - Defaults to ``{}``.
+
+.. seealso::
+   :ref:`Feature Group Job`
+
+.. seealso::
+   Refer  :ref:`Data types` supported by feature store
+
 
 Delete
 ======
@@ -173,6 +199,9 @@ With a ``FeatureGroup`` instance, You can save the expectation details using ``w
 .. image:: figures/validation.png
 
 .. code-block:: python3
+    from great_expectations.core import ExpectationSuite, ExpectationConfiguration
+    from ads.feature_store.common.enums import TransformationMode, ExpectationType
+    from ads.feature_store.feature_group import FeatureGroup
 
     expectation_suite = ExpectationSuite(
         expectation_suite_name="expectation_suite_name"
@@ -221,6 +250,7 @@ feature group or it can be updated later as well.
 .. code-block:: python3
 
   # Define statistics configuration for selected features
+  from ads.feature_store.statistics_config import StatisticsConfig
   stats_config = StatisticsConfig().with_is_enabled(True).with_columns(["column1", "column2"])
 
 
