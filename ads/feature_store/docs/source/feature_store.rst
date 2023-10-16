@@ -67,7 +67,7 @@ Use the ``from_id()`` method from the ``FeatureStore`` class to load an existing
 
   from ads.feature_store.feature_store import FeatureStore
 
-  feature_store = FeatureStore.from_id("ocid1.feature_store..<unique_id>")
+  feature_store = FeatureStore.from_id("<unique_id>")
 
 Delete
 ======

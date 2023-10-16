@@ -93,7 +93,7 @@ Use the ``from_id()`` method from the ``FeatureGroup`` class to load an existing
 
   from ads.feature_store.feature_group import FeatureGroup
 
-  feature_group = FeatureGroup.from_id("ocid1.feature_group..<unique_id>")
+  feature_group = FeatureGroup.from_id("<unique_id>")
 
 
 Materialise

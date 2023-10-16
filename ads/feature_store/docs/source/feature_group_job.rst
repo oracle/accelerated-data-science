@@ -67,7 +67,7 @@ Use the ``from_id()`` method from the ``FeatureGroupJob`` class to load an exist
 
   from ads.feature_store.feature_group_job import FeatureGroupJob
 
-  feature_group_job = FeatureGroupJob.from_id("ocid1.feature_group_job..<unique_id>")
+  feature_group_job = FeatureGroupJob.from_id("<unique_id>")
 
 Delete
 ======

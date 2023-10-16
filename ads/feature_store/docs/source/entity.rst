@@ -66,7 +66,7 @@ Use the ``from_id()`` method from the ``Entity`` class to load an existing entit
 
   from ads.feature_store.entity import Entity
 
-  entity = Entity.from_id("ocid1.entity..<unique_id>")
+  entity = Entity.from_id("<unique_id>")
 
 Delete
 ======
