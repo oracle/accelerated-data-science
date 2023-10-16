@@ -98,7 +98,7 @@ class SparkExecutionEngine(Strategy):
         checkpoint_dir,
     ):
         try:
-            self._save_offline_dataframe_stream(
+            return self._save_offline_dataframe_stream(
                 dataframe,
                 feature_group,
                 feature_group_job,
