@@ -74,7 +74,7 @@ Use the ``from_id()`` method from the ``Dataset`` class to load an existing data
 
   from ads.feature_store.dataset import Dataset
 
-  dataset = Dataset.from_id("ocid1.dataset..<unique_id>")
+  dataset = Dataset.from_id("<unique_id>")
 
 Materialise
 ===========
