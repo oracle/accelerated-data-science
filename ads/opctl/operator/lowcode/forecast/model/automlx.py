@@ -61,6 +61,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
         )
         model_kwargs_cleaned.pop("task", None)
+        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
         model_kwargs_cleaned[
             "preprocessing"
         ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
@@ -88,7 +89,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 task="forecasting",
                 **model_kwargs_cleaned,
             )
-            model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
+            model.fit(
+                X=y_train.drop(target, axis=1),
+                y=pd.DataFrame(y_train[target]),
+                time_budget=time_budget,
+            )
             logger.info("Selected model: {}".format(model.selected_model_))
             logger.info(
                 "Selected model params: {}".format(model.selected_model_params_)
@@ -156,7 +161,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         self.outputs = outputs_legacy
         self.data = data_merged
         return outputs_merged
-
 
     @runtime_dependency(
         module="datapane",
@@ -234,18 +238,22 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
             local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
             blocks = [
-                dp.Table(local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100, label=s_id)
+                dp.Table(
+                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                    label=s_id,
+                )
                 for s_id, local_ex_df in self.local_explanation.items()
             ]
-            local_explanation_section = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            local_explanation_section = (
+                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            )
 
             # Append the global explanation text and section to the "all_sections" list
             all_sections = all_sections + [
                 global_explanation_text,
                 global_explanation_section,
                 local_explanation_text,
-                local_explanation_section
-            ,
+                local_explanation_section,
             ]
 
         model_description = dp.Text(
