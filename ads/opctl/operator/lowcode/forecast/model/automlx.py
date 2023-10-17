@@ -17,6 +17,10 @@ from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 
 
+AUTOMLX_N_ALGOS_TUNED = 4
+AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
+
+
 # TODO: ODSC-44785 Fix the error message, before GA.
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     """Class representing AutoMLX operator model."""
@@ -29,6 +33,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     @runtime_dependency(
         module="automl",
         err_msg=(
+            "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
             "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
         ),
     )
@@ -43,9 +48,23 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         outputs = dict()
         outputs_legacy = []
         selected_models = dict()
-        n_algos_tuned = self.spec.model_kwargs.get("n_algos_tuned", 4)
         date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon.periods
+
+        # Clean up kwargs for pass through
+        model_kwargs_cleaned = self.spec.model_kwargs.copy()
+        model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
+            "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
+        )
+        model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
+            self.spec.metric,
+            model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
+        )
+        model_kwargs_cleaned.pop("task", None)
+        model_kwargs_cleaned[
+            "preprocessing"
+        ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
+
         for i, (target, df) in enumerate(full_data_dict.items()):
             logger.info("Running automl for {} at position {}".format(target, i))
             series_values = df[df[target].notna()]
@@ -67,11 +86,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             )
             model = automl.Pipeline(
                 task="forecasting",
-                n_algos_tuned=n_algos_tuned,
-                preprocessing=self.spec.preprocessing,
-                score_metric=AUTOMLX_METRIC_MAP.get(
-                    self.spec.metric, "neg_sym_mean_abs_percent_error"
-                ),
+                **model_kwargs_cleaned,
             )
             model.fit(X=y_train.drop(target, axis=1), y=pd.DataFrame(y_train[target]))
             logger.info("Selected model: {}".format(model.selected_model_))
@@ -142,6 +157,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         self.data = data_merged
         return outputs_merged
 
+
     @runtime_dependency(
         module="datapane",
         err_msg=(
@@ -192,8 +208,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         all_sections = [selected_models_text, selected_models_section]
 
-        # Check if the "explain_model" key is present in the "model_kwargs" dictionary of the "self.spec" object
-        if self.spec.model_kwargs.get("explain_model"):
+        if self.spec.explain:
             # If the key is present, call the "explain_model" method
             self.explain_model()
 
@@ -212,6 +227,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 dp.Table(
                     global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 ),
+                dp.Table(
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                ),
             )
 
             local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
@@ -227,6 +245,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 global_explanation_section,
                 local_explanation_text,
                 local_explanation_section
+            ,
             ]
 
         model_description = dp.Text(
@@ -275,6 +294,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         module="shap",
         err_msg=(
             "Please run `pip3 install shap` to install the required dependencies for model explanation."
+            "Please run `pip3 install shap` to install the required dependencies for model explanation."
         ),
     )
     def explain_model(self) -> dict:
@@ -293,6 +313,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             self.series_id = series_id
             self.dataset_cols = (
                 self.full_data_dict.get(self.series_id)
+                .set_index(self.spec.datetime_column.name)
+                .drop(self.series_id, axis=1)
                 .set_index(self.spec.datetime_column.name)
                 .drop(self.series_id, axis=1)
                 .columns

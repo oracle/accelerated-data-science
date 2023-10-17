@@ -25,9 +25,9 @@ The "cold start" problem arises when you have limited historical data for a new 
 To enhance the accuracy and adaptability of forecasting models, our system allows you to pass parameters directly. Here's how to do it:
 
 
-**Forecast Configuration YAML File:**
+**Specify Model Type**
 
-In your ``forecast.yaml`` configuration file, you can specify various model parameters under the ``model_params`` section. For instance:
+Sometimes users will know which models they want to use. When users know this in advance, they can specify using the ``model_kwargs`` dictionary. In the following example, we will instruct the model to *only* use the ``DecisionTreeRegressor`` model.
 
 .. code-block:: yaml
 
@@ -43,6 +43,46 @@ In your ``forecast.yaml`` configuration file, you can specify various model para
        max_depth: 5
        learning_rate: 0.01
 
+
+When using autots, there are model_list *families*. These families are named after the shared characteristics of the models included. For example, we can use the autots "superfast" model_list and set it in the following way:
+
+.. code-block:: yaml
+
+  kind: operator
+  type: forecast
+  version: v1
+  spec:
+    model: autots
+    model_params:
+      model_list: superfast
+
+
+Note: this is only supported for the ``autots`` model.
+
+
+**Specify Other Model Details**
+
+In addition to ``model_list``, there are many other parameters that can be specified. Users may specify, for example, the search space they want to search for their given model type. In automlx, specifying a hyperparameter range is as simple as:
+
+.. code-block:: yaml
+
+  kind: operator
+  type: forecast
+  version: v1
+  spec:
+    model: autots
+    model_params:
+      search_space:
+        LogisticRegression:
+          C: 
+            range: [0.03125, 512]
+            type': continuous
+          solver:
+            range: ['newton-cg', 'lbfgs', 'liblinear', 'sag']
+            type': categorical
+          class_weight:
+            range: [None, 'balanced']
+            type: categorical
 
 
 **When Models Perform Poorly and the "Auto" Method**

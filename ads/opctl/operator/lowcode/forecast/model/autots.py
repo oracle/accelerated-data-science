@@ -15,6 +15,10 @@ from .base_model import ForecastOperatorBaseModel
 from ads.common.decorator.runtime_dependency import runtime_dependency
 
 
+AUTOTS_MAX_GENERATION = 10
+AUTOTS_MODELS_TO_VALIDATE = 0.15
+
+
 class AutoTSOperatorModel(ForecastOperatorBaseModel):
     """Class representing AutoTS operator model."""
 
@@ -44,7 +48,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             forecast_length=self.spec.horizon.periods,
             frequency="infer",
             prediction_interval=self.spec.confidence_interval_width,
-            max_generations=self.spec.model_kwargs.get("max_generations", 10),
+            max_generations=self.spec.model_kwargs.get(
+                "max_generations", AUTOTS_MAX_GENERATION
+            ),
             no_negatives=False,
             constraint=None,
             ensemble=self.spec.model_kwargs.get("ensemble", "auto"),
@@ -58,14 +64,16 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             na_tolerance=1,
             drop_most_recent=0,
             drop_data_older_than_periods=None,
-            model_list=self.spec.model_kwargs.get("model_list", "multivariate"),
+            model_list=self.spec.model_kwargs.get("model_list", "superfast"),
             transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
             transformer_max_depth=self.spec.model_kwargs.get(
                 "transformer_max_depth", 6
             ),
             models_mode=self.spec.model_kwargs.get("models_mode", "random"),
             num_validations=self.spec.model_kwargs.get("num_validations", "auto"),
-            models_to_validate=self.spec.model_kwargs.get("models_to_validate", 0.15),
+            models_to_validate=self.spec.model_kwargs.get(
+                "models_to_validate", AUTOTS_MODELS_TO_VALIDATE
+            ),
             max_per_model_class=None,
             validation_method=self.spec.model_kwargs.get(
                 "validation_method", "backwards"
@@ -174,8 +182,10 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             output_i["Date"] = outputs[f"{col}_{cat}"][self.spec.datetime_column.name]
             output_i["Series"] = cat
             output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
-            output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
-            output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
+            if "yhat_upper" in outputs[f"{col}_{cat}"].columns:
+                output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
+            if "yhat_lower" in outputs[f"{col}_{cat}"].columns:
+                output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
             output_col = pd.concat([output_col, output_i])
 
         output_col = output_col.reset_index(drop=True)
@@ -256,3 +266,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             ds_forecast_col,
             ci_col_names,
         )
+
+    def explain_model(self) -> dict:
+        """
+        explain model using global & local explanations
+        """
+        return None

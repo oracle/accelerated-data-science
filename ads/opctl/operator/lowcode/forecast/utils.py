@@ -24,6 +24,7 @@ from ads.dataset.label_encoder import DataFrameLabelEncoder
 from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 
+
 def _label_encode_dataframe(df, no_encode=set()):
     df_to_encode = df[list(set(df.columns) - no_encode)]
     le = DataFrameLabelEncoder().fit(df_to_encode)
@@ -358,7 +359,11 @@ def get_forecast_plots(
 
     def plot_forecast_plotly(idx, col):
         fig = go.Figure()
-        if ci_col_names is not None:
+        if (
+            (ci_col_names is not None)
+            and (ci_col_names[0] in outputs[idx].columns)
+            and (ci_col_names[1] in outputs[idx].columns)
+        ):
             fig.add_traces(
                 [
                     go.Scatter(
