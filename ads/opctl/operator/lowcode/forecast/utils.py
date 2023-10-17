@@ -24,6 +24,7 @@ from ads.dataset.label_encoder import DataFrameLabelEncoder
 from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 
+
 def _label_encode_dataframe(df, no_encode=set()):
     df_to_encode = df[list(set(df.columns) - no_encode)]
     le = DataFrameLabelEncoder().fit(df_to_encode)
@@ -49,6 +50,7 @@ def _build_metrics_per_horizon(
     outputs: pd.DataFrame,
     target_columns: List[str],
     target_col: str,
+    horizon: int,
 ) -> pd.DataFrame:
     """
     Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
@@ -70,8 +72,7 @@ def _build_metrics_per_horizon(
         Dataframe with Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
     """
     actuals_df = data[target_columns]
-    forecasts_df = pd.concat([df[target_col] for df in outputs], axis=1)
-
+    forecasts_df = pd.concat([df[target_col].iloc[-horizon:] for df in outputs], axis=1)
     totals = actuals_df.sum()
     wmape_weights = np.array((totals / totals.sum()).values)
 
