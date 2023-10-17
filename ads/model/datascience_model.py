@@ -549,8 +549,11 @@ class DataScienceModel(Builder):
                 The OCI Object Storage URI where model artifacts will be copied to.
                 The `bucket_uri` is only necessary for uploading large artifacts which
                 size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+
                 .. versionadded:: 2.8.10
-                If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
+
+                    If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
+
             overwrite_existing_artifact: (bool, optional). Defaults to `True`.
                 Overwrite target bucket artifact if exists.
             remove_existing_artifact: (bool, optional). Defaults to `True`.
@@ -639,8 +642,11 @@ class DataScienceModel(Builder):
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for uploading large artifacts which
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+
             .. versionadded:: 2.8.10
-            If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
+
+                If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
+
         auth: (Dict, optional). Defaults to `None`.
             The default authentication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys` or
