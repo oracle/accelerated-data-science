@@ -17,6 +17,8 @@ except ModuleNotFoundError:
 
 
 class AbsFeatureValue:
+    CONST_METRIC_DATA = "metric_data"
+
     def __init__(self):
         self.__validate__()
 
