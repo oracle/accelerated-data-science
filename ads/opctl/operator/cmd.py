@@ -101,7 +101,8 @@ def info(
 
     operator_readme = None
     if operator_info.path:
-        readme_file_path = os.path.join(operator_info.path, "readme.md")
+        readme_file_path = os.path.join(operator_info.path, "README.md")
+
         if os.path.exists(readme_file_path):
             with open(readme_file_path, "r") as readme_file:
                 operator_readme = readme_file.read()
@@ -539,12 +540,11 @@ def verify(
     # validate operator
     try:
         operator_module = runpy.run_module(
-            f"{operator_info.type}.operator",
-            run_name="verify",
+            operator_info.type,
+            run_name="__main__",
         )
         operator_module.get("verify")(config, **kwargs)
     except Exception as ex:
-        print(ex)
         logger.debug(ex)
         raise ValueError(
             f"The validator is not implemented for the `{operator_info.type}` operator."
@@ -649,13 +649,10 @@ def publish_conda(
     # load operator info
     operator_info: OperatorInfo = OperatorLoader.from_uri(uri=type).load()
 
-    version = re.sub("[^0-9.]", "", operator_info.version)
-    slug = f"{operator_info.type}_v{version}".replace(" ", "").replace(".", "_").lower()
-
     # invoke the conda publish command
     try:
         conda_publish(
-            slug=slug,
+            slug=operator_info.conda,
             conda_pack_folder=conda_pack_folder,
             overwrite=overwrite,
             ads_config=ads_config,

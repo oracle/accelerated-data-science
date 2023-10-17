@@ -1,6 +1,8 @@
 type: forecast
 version: v1
+name: Forecasting Operator
 conda_type: published
+conda: forecast_v1
 gpu: no
 keywords:
   - Prophet
