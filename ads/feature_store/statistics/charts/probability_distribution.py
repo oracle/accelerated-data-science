@@ -5,6 +5,7 @@
 from typing import List
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
+from ads.feature_store.statistics.abs_feature_value import AbsFeatureValue
 from ads.feature_store.statistics.charts.abstract_feature_plot import AbsFeaturePlot
 
 try:
@@ -29,13 +30,14 @@ class ProbabilityDistribution(AbsFeaturePlot):
     def __validate__(self):
         assert type(self.density) == list
         assert type(self.bins) == list
-        assert 0 < len(self.density) == len(self.bins) > 0
+        # assert 0 < len(self.density) == len(self.bins) > 0
 
     @classmethod
     def __from_json__(cls, json_dict: dict) -> "ProbabilityDistribution":
+        metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
         return cls(
-            density=json_dict.get(ProbabilityDistribution.CONST_DENSITY),
-            bins=json_dict.get(ProbabilityDistribution.CONST_BINS),
+            bins=metric_data[0],
+            density=metric_data[1]
         )
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
@@ -43,7 +45,7 @@ class ProbabilityDistribution(AbsFeaturePlot):
         if (
             type(self.density) == list
             and type(self.bins) == list
-            and 0 < len(self.density) == len(self.bins) > 0
+            and 0 < len(self.density) and 0 < len(self.bins)
         ):
             fig.add_bar(
                 x=self.bins,

@@ -5,6 +5,7 @@
 
 from typing import List
 from ads.common.decorator.runtime_dependency import OptionalDependency
+from ads.feature_store.statistics.abs_feature_value import AbsFeatureValue
 from ads.feature_store.statistics.charts.abstract_feature_plot import AbsFeaturePlot
 
 try:
@@ -29,21 +30,22 @@ class FrequencyDistribution(AbsFeaturePlot):
     def __validate__(self):
         assert type(self.frequency) == list
         assert type(self.bins) == list
-        assert 0 < len(self.frequency) == len(self.bins) > 0
+        # assert 0 < len(self.frequency) == len(self.bins) > 0
 
     @classmethod
     def __from_json__(cls, json_dict: dict) -> "FrequencyDistribution":
+        metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
         return FrequencyDistribution(
-            frequency=json_dict.get(cls.CONST_FREQUENCY),
-            bins=json_dict.get(cls.CONST_BINS),
+            bins=metric_data[0],
+            frequency=metric_data[1]
         )
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
         if (
-            type(self.frequency) == list
-            and type(self.bins) == list
-            and 0 < len(self.frequency) == len(self.bins) > 0
+                type(self.frequency) == list
+                and type(self.bins) == list
+                and 0 < len(self.frequency) and 0 < len(self.bins)
         ):
             fig.add_bar(
                 x=self.bins, y=self.frequency, xaxis=x_str, yaxis=y_str, name=""

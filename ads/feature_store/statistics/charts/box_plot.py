@@ -45,10 +45,11 @@ class BoxPlot(AbsFeaturePlot):
 
         @classmethod
         def __from_json__(cls, json_dict: dict) -> "BoxPlot.Quartiles":
+            metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
             return cls(
-                json_dict.get(cls.CONST_Q1),
-                json_dict.get(cls.CONST_Q2),
-                json_dict.get(cls.CONST_Q3),
+                metric_data[0],
+                metric_data[1],
+                metric_data[2]
             )
 
         def __validate__(self):

@@ -19,6 +19,6 @@ class GenericFeatureValue(AbsFeatureValue):
     def __from_json__(cls, json_dict: dict) -> "GenericFeatureValue":
         val = None
         if type(json_dict) == dict:
-            val = json_dict.get(cls.CONST_VALUE)
-
+            metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
+            val = metric_data[0]
         return GenericFeatureValue(val=val)
