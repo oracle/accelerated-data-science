@@ -157,7 +157,7 @@ Mounting File Systems
 ---------------------
 
 Data Science Job supports mounting multiple types of file systems,
-see `Data Science Job Mounting File Systems <place_holder>`_. A maximum number of 5 file systems are
+see `Data Science Job Mounting File Systems <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-create.htm>`_. A maximum number of 5 file systems are
 allowed to be mounted for each Data Science Job. You can specify a list of file systems to be mounted
 by calling :py:meth:`~ads.jobs.DataScienceJob.with_storage_mount()`. For each file system to be mounted,
 you need to pass a dictionary with ``src`` and ``dest`` as keys. For example, you can pass
