@@ -7,7 +7,7 @@
 import json
 import os
 import sys
-from typing import List
+from typing import Dict, List
 
 import yaml
 
@@ -15,8 +15,27 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
+
 from .operator import operate, verify
 from .operator_config import AnomalyOperatorConfig
+
+
+def operate(operator_config: AnomalyOperatorConfig) -> None:
+    """Runs the anomaly detection operator."""
+    from .model.factory import AnomalyOperatorModelFactory
+
+    AnomalyOperatorModelFactory.get_model(operator_config).generate_report()
+
+
+def verify(spec: Dict, **kwargs: Dict) -> bool:
+    """Verifies the anomaly detection operator config."""
+    operator = AnomalyOperatorConfig.from_dict(spec)
+    msg_header = (
+        f"{'*' * 50} The operator config has been successfully verified {'*' * 50}"
+    )
+    print(msg_header)
+    print(operator.to_yaml())
+    print("*" * len(msg_header))
 
 
 def main(raw_args: List[str]):

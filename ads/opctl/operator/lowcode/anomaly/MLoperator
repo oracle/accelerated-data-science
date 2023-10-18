@@ -1,6 +1,7 @@
 type: anomaly
 version: v1
 conda_type: published
+name: Anomaly Detection Operator
 gpu: no
 keywords:
   - Anomaly Detection
