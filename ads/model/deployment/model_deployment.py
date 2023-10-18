@@ -40,6 +40,7 @@ from ads.model.deployment.model_deployment_infrastructure import (
 from ads.model.deployment.model_deployment_runtime import (
     ModelDeploymentCondaRuntime,
     ModelDeploymentContainerRuntime,
+    ModelDeploymentMode,
     ModelDeploymentRuntime,
     ModelDeploymentRuntimeType,
     OCIModelDeploymentRuntimeType,
@@ -78,11 +79,6 @@ MODEL_DEPLOYMENT_RUNTIMES = {
 class ModelDeploymentLogType:
     PREDICT = "predict"
     ACCESS = "access"
-
-
-class ModelDeploymentMode:
-    HTTPS = "HTTPS_ONLY"
-    STREAM = "STREAM_ONLY"
 
 
 class LogNotConfiguredError(Exception):  # pragma: no cover
@@ -911,48 +907,59 @@ class ModelDeployment(Builder):
                 "`data` and `json_input` are both provided. You can only use one of them."
             )
 
-        if auto_serialize_data:
-            data = data or json_input
-            serialized_data = serializer.serialize(data=data)
-            return send_request(
-                data=serialized_data,
+        try:
+            if auto_serialize_data:
+                data = data or json_input
+                serialized_data = serializer.serialize(data=data)
+                return send_request(
+                    data=serialized_data,
+                    endpoint=endpoint,
+                    is_json_payload=_is_json_serializable(serialized_data),
+                    header=header,
+                )
+
+            if json_input is not None:
+                if not _is_json_serializable(json_input):
+                    raise ValueError(
+                        "`json_input` must be json serializable. "
+                        "Set `auto_serialize_data` to True, or serialize the provided input data first,"
+                        "or using `data` to pass binary data."
+                    )
+                utils.get_logger().warning(
+                    "The `json_input` argument of `predict()` will be deprecated soon. "
+                    "Please use `data` argument. "
+                )
+                data = json_input
+
+            is_json_payload = _is_json_serializable(data)
+            if not isinstance(data, bytes) and not is_json_payload:
+                raise TypeError(
+                    "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
+                )
+            if model_name and model_version:
+                header["model-name"] = model_name
+                header["model-version"] = model_version
+            elif bool(model_version) ^ bool(model_name):
+                raise ValueError(
+                    "`model_name` and `model_version` have to be provided together."
+                )
+            prediction = send_request(
+                data=data,
                 endpoint=endpoint,
-                is_json_payload=_is_json_serializable(serialized_data),
+                is_json_payload=is_json_payload,
                 header=header,
             )
-
-        if json_input is not None:
-            if not _is_json_serializable(json_input):
-                raise ValueError(
-                    "`json_input` must be json serializable. "
-                    "Set `auto_serialize_data` to True, or serialize the provided input data first,"
-                    "or using `data` to pass binary data."
+            return prediction
+        except oci.exceptions.ServiceError as ex:
+            # When bandwidth exceeds the allocated value, TooManyRequests error (429) will be raised by oci backend.
+            if ex.status == 429:
+                bandwidth_mbps = self.infrastructure.bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
+                utils.get_logger().warning(
+                    f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
+                    "To estimate the actual bandwidth, use formula: (payload size in KB) * (estimated requests per second) * 8 / 1024."
+                    "To resolve the issue, try sizing down the payload, slowing down the request rate or increasing the allocated bandwidth."
                 )
-            utils.get_logger().warning(
-                "The `json_input` argument of `predict()` will be deprecated soon. "
-                "Please use `data` argument. "
-            )
-            data = json_input
-
-        is_json_payload = _is_json_serializable(data)
-        if not isinstance(data, bytes) and not is_json_payload:
-            raise TypeError(
-                "`data` is not bytes or json serializable. Set `auto_serialize_data` to `True` to serialize the input data."
-            )
-        if model_name and model_version:
-            header["model-name"] = model_name
-            header["model-version"] = model_version
-        elif bool(model_version) ^ bool(model_name):
-            raise ValueError(
-                "`model_name` and `model_version` have to be provided together."
-            )
-        prediction = send_request(
-            data=data,
-            endpoint=endpoint,
-            is_json_payload=is_json_payload,
-            header=header,
-        )
-        return prediction
+            raise
 
     def activate(
         self,

@@ -416,7 +416,7 @@ def create_signer(
     >>> auth = ads.auth.create_signer(auth_type="security_token", config=config) # security token authentication created based on provided config
     """
     if signer or signer_callable:
-        configuration = ads.telemetry.update_oci_client_config()
+        configuration = ads.telemetry.update_oci_client_config(config)
         if signer_callable:
             signer = signer_callable(**signer_kwargs)
         signer_dict = {
@@ -479,7 +479,7 @@ def default_signer(client_kwargs: Optional[Dict] = None) -> Dict:
     """
     auth_state = AuthState()
     if auth_state.oci_signer or auth_state.oci_signer_callable:
-        configuration = ads.telemetry.update_oci_client_config()
+        configuration = ads.telemetry.update_oci_client_config(auth_state.oci_config)
         signer = auth_state.oci_signer
         if auth_state.oci_signer_callable:
             signer_kwargs = auth_state.oci_signer_kwargs or {}
