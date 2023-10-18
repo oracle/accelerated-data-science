@@ -15,7 +15,7 @@ from cerberus import Validator
 from ads.common.extended_enum import ExtendedEnum
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-
+from ads.opctl.operator.common.errors import OperatorSchemaYamlError
 
 class OPERATOR_LOCAL_RUNTIME_TYPE(ExtendedEnum):
     PYTHON = "python"
@@ -56,11 +56,7 @@ class Runtime(DataClassSerializable):
         result = validator.validate(obj_dict)
 
         if not result:
-            raise ValueError(
-                "Invalid runtime specification. Check the YAML structure and ensure it "
-                "complies with the required schema for the runtime. \n"
-                f"{json.dumps(validator.errors, indent=2)}"
-            )
+            raise OperatorSchemaYamlError(json.dumps(validator.errors, indent=2))
         return True
 
 

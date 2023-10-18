@@ -7,7 +7,7 @@
 import json
 import os
 import sys
-from typing import List
+from typing import Dict, List
 
 import yaml
 
@@ -15,9 +15,25 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-from .__init__ import __name__ as MODULE
-from .operator import operate, verify
 from .operator_config import ForecastOperatorConfig
+
+
+def operate(operator_config: ForecastOperatorConfig) -> None:
+    """Runs the forecasting operator."""
+    from .model.factory import ForecastOperatorModelFactory
+
+    ForecastOperatorModelFactory.get_model(operator_config).generate_report()
+
+
+def verify(spec: Dict, **kwargs: Dict) -> bool:
+    """Verifies the forecasting operator config."""
+    operator = ForecastOperatorConfig.from_dict(spec)
+    msg_header = (
+        f"{'*' * 30} The operator config has been successfully verified {'*' * 30}"
+    )
+    print(msg_header)
+    print(operator.to_yaml())
+    print("*" * len(msg_header))
 
 
 def main(raw_args: List[str]):
@@ -31,7 +47,7 @@ def main(raw_args: List[str]):
         return
 
     logger.info("-" * 100)
-    logger.info(f"{'Running' if not args.verify else 'Verifying'} operator: {MODULE}")
+    logger.info(f"{'Running' if not args.verify else 'Verifying'} the operator...")
 
     # if spec provided as input string, then convert the string into YAML
     yaml_string = ""

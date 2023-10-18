@@ -203,6 +203,13 @@ spec:
       meta:
         description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
+    explain:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
+
     datetime_column:
       type: dict
       required: true
@@ -217,7 +224,7 @@ spec:
 
     target_category_columns:
       type: list
-      required: false
+      required: true
       schema:
         type: string
 

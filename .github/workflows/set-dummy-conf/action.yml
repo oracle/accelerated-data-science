@@ -1,0 +1,26 @@
+# This composite action is to avoid duplicating code across test actions.
+# Ref: https://docs.github.com/en/actions/creating-actions/creating-a-composite-action
+
+name: "Create dummy oci config"
+description: "Creates  dummy oci config folder in ~/.oci"
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        HOME_RUNNER_DIR: /home/runner
+      run: |
+        set -x # print commands that are executed
+        mkdir -p "$HOME_RUNNER_DIR"/.oci
+        openssl genrsa -out $HOME_RUNNER_DIR/.oci/oci_ads_user.pem 2048
+        cat <<EOT >> "$HOME_RUNNER_DIR/.oci/config"
+        [DEFAULT]
+        user=ocid1.user.oc1..xxx
+        fingerprint=00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
+        tenancy=ocid1.tenancy.oc1..xxx
+        region=test_region
+        key_file=$HOME_RUNNER_DIR/.oci/oci_ads_user.pem
+        EOT
+        ls -lha "$HOME_RUNNER_DIR"/.oci
+        echo "Test config file:"
+        cat $HOME_RUNNER_DIR/.oci/config

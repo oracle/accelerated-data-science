@@ -215,10 +215,22 @@ class MLJobBackend(Backend):
         """
         Cancel Job Run from OCID.
         """
-        run_id = self.config["execution"]["run_id"]
         with AuthContext(auth=self.auth_type, profile=self.profile):
-            DataScienceJobRun.from_ocid(run_id).cancel()
-            print(f"Job run {run_id} has been cancelled.")
+            wait_for_completion = self.config["execution"].get("wait_for_completion")
+            if self.config["execution"].get("id"):
+                id = self.config["execution"]["id"]
+                Job.from_datascience_job(id).cancel(
+                    wait_for_completion=wait_for_completion
+                )
+                if wait_for_completion:
+                    print(f"All job runs under {id} have been cancelled.")
+            elif self.config["execution"].get("run_id"):
+                run_id = self.config["execution"]["run_id"]
+                DataScienceJobRun.from_ocid(run_id).cancel(
+                    wait_for_completion=wait_for_completion
+                )
+                if wait_for_completion:
+                    print(f"Job run {run_id} has been cancelled.")
 
     def watch(self):
         """

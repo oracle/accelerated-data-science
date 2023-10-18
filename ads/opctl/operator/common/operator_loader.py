@@ -42,6 +42,8 @@ class OperatorInfo(DataClassSerializable):
     ----------
     type (str)
         The type of the operator.
+    name (str)
+        The name of the operator.
     gpu (bool)
         Whether the operator supports GPU.
     short_description (str)
@@ -68,6 +70,7 @@ class OperatorInfo(DataClassSerializable):
     """
 
     type: str = ""
+    name: str = ""
     gpu: bool = False
     description: str = ""
     version: str = ""
@@ -94,9 +97,9 @@ class OperatorInfo(DataClassSerializable):
         """
         return os.path.join(
             f"{ARCH_TYPE.GPU if self.gpu else ARCH_TYPE.CPU}",
-            self.type,
+            self.name or self.type,
             re.sub("[^0-9.]", "", self.version),
-            f"{self.type}_{self.version}",
+            self.conda or f"{self.type}_{self.version}",
         )
 
     def __post_init__(self):
@@ -618,6 +621,7 @@ class GitOperatorLoader(Loader):
 
             # Clean up the temporary directory
             repo.close()
+        return _operator_info(path=uri_dst)
 
     def cleanup(self, **kwargs: Dict) -> None:
         """Cleans up all temporary files and folders created during operator loading.
