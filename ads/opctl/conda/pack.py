@@ -23,7 +23,7 @@ def main(pack_folder_path):
     manifest_path = glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
     with open(manifest_path) as f:
         env = yaml.safe_load(f.read())
-
+    
     with tempfile.TemporaryDirectory() as td:
         process = subprocess.Popen(
             ["conda", "env", "export", "--prefix", pack_folder_path],
@@ -31,11 +31,12 @@ def main(pack_folder_path):
             stderr=subprocess.PIPE,
         )
         stdout, stderr = process.communicate()
-        if stderr:
-            print(stderr)
-            raise Exception(
-                f"Error export environment information from {pack_folder_path}"
-            )
+        # import pdb; pdb.set_trace()
+        # if stderr:
+        #     print(stderr)
+        #     raise Exception(
+        #         f"Error export environment information from {pack_folder_path}"
+        #     )
         try:
             new_env_info = yaml.safe_load(StringIO(stdout.decode("utf-8")))
         except Exception as e:
