@@ -22,7 +22,9 @@ class TestBuildImage(unittest.TestCase):
         self.kwargs = {"arg1": "value1", "arg2": "value2"}
 
     @patch("ads.opctl.utils.run_command")
-    def test_build_image(self, mock_run_command):
+    @patch("time.time")
+    def test_build_image(self, mock_time, mock_run_command):
+        mock_time.return_value = 1
         mock_proc = MagicMock()
         mock_proc.returncode = 0
         mock_run_command.return_value = mock_proc
@@ -45,6 +47,8 @@ class TestBuildImage(unittest.TestCase):
             self.dockerfile,
             "--target",
             self.target,
+            "--build-arg",
+            "RND=1",
             os.path.dirname(self.dockerfile),
         ]
 

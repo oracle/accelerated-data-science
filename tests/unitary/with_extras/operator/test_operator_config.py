@@ -10,6 +10,7 @@ from dataclasses import dataclass
 import pytest
 import yaml
 
+from ads.opctl.operator.common.errors import OperatorSchemaYamlError
 from ads.opctl.operator.common.operator_config import OperatorConfig
 
 
@@ -83,7 +84,7 @@ class TestOperatorConfig:
                 """
                 )
 
-        with pytest.raises(ValueError):
+        with pytest.raises(OperatorSchemaYamlError):
             InvalidOperatorConfig.from_dict(
                 {
                     "kind": "operator",
