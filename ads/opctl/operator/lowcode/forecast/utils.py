@@ -50,7 +50,7 @@ def _build_metrics_per_horizon(
     outputs: pd.DataFrame,
     target_columns: List[str],
     target_col: str,
-    horizon: int,
+    horizon_periods: int,
 ) -> pd.DataFrame:
     """
     Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
@@ -65,6 +65,8 @@ def _build_metrics_per_horizon(
             List of target category columns
     target_col: str
             Target column name (yhat)
+    horizon_periods: int
+            Horizon Periods
 
     Returns
     --------
@@ -72,7 +74,9 @@ def _build_metrics_per_horizon(
         Dataframe with Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
     """
     actuals_df = data[target_columns]
-    forecasts_df = pd.concat([df[target_col].iloc[-horizon:] for df in outputs], axis=1)
+    forecasts_df = pd.concat(
+        [df[target_col].iloc[-horizon_periods:] for df in outputs], axis=1
+    )
     totals = actuals_df.sum()
     wmape_weights = np.array((totals / totals.sum()).values)
 
