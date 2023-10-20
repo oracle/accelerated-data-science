@@ -305,13 +305,24 @@ class ForecastOperatorBaseModel(ABC):
         for idx, col in enumerate(target_columns):
             # Only columns present in test file will be used to generate holdout error
             if col in data:
-                y_true = np.asarray(data[col])
+                # Assuming that predictions have all forecast values
+                dates = outputs[idx]["ds"]
+                # Filling zeros for any date missing in test data to maintain consistency in metric calculation as in all other missing values cases it comes as 0
+                y_true = [
+                    data.loc[data["ds"] == date, col].values[0]
+                    if date in data["ds"].values
+                    else 0
+                    for date in dates
+                ]
+                # Select for the ds that is there in y_true, discard others
                 y_pred = np.asarray(outputs[idx][target_col][-len(y_true) :])
 
                 metrics_df = utils._build_metrics_df(
                     y_true=y_true, y_pred=y_pred, column_name=col
                 )
                 total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
+            else:
+                logger.warn(f"{col} is not there in test file")
 
         if not total_metrics.empty:
             summary_metrics = pd.DataFrame(
