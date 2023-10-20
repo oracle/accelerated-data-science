@@ -77,10 +77,10 @@ class SparkExecutionEngine(Strategy):
         self._jvm = self._spark_context._jvm
 
     def ingest_feature_definition(
-        self,
-        feature_group: "FeatureGroup",
-        feature_group_job: FeatureGroupJob,
-        dataframe,
+            self,
+            feature_group: "FeatureGroup",
+            feature_group_job: FeatureGroupJob,
+            dataframe,
     ):
         try:
             self._save_offline_dataframe(dataframe, feature_group, feature_group_job)
@@ -94,7 +94,7 @@ class SparkExecutionEngine(Strategy):
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
     def delete_feature_definition(
-        self, feature_group: "FeatureGroup", feature_group_job: FeatureGroupJob
+            self, feature_group: "FeatureGroup", feature_group_job: FeatureGroupJob
     ):
         """
         Deletes a feature definition from the system.
@@ -188,7 +188,7 @@ class SparkExecutionEngine(Strategy):
             raise Exception(error_message)
 
     def _save_offline_dataframe(
-        self, data_frame, feature_group, feature_group_job: FeatureGroupJob
+            self, data_frame, feature_group, feature_group_job: FeatureGroupJob
     ):
         """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
         dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
@@ -211,6 +211,7 @@ class SparkExecutionEngine(Strategy):
         feature_statistics = None
         validation_output = None
         output_features = []
+        version = 2  # after MLM upgrade
 
         try:
             # Create database in hive metastore if not exist
@@ -312,6 +313,7 @@ class SparkExecutionEngine(Strategy):
             "validation_output": str(validation_output) if validation_output else None,
             "commit_id": "commit_id",
             "feature_statistics": feature_statistics,
+            "version": version
         }
 
         self._update_job_and_parent_details(
@@ -460,7 +462,7 @@ class SparkExecutionEngine(Strategy):
 
     @staticmethod
     def _update_job_and_parent_details(
-        parent_entity, job_entity, output_features=None, output_details=None
+            parent_entity, job_entity, output_features=None, output_details=None
     ):
         """
         Updates the parent and job entities with relevant details.

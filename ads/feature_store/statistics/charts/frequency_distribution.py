@@ -30,10 +30,20 @@ class FrequencyDistribution(AbsFeaturePlot):
     def __validate__(self):
         assert type(self.frequency) == list
         assert type(self.bins) == list
-        # assert 0 < len(self.frequency) == len(self.bins) > 0
+        assert 0 < len(self.frequency)
+        assert len(self.bins) > 0
 
     @classmethod
-    def __from_json__(cls, json_dict: dict) -> "FrequencyDistribution":
+    def __from_json__(cls, json_dict: dict, version: int = 1) -> "FrequencyDistribution":
+        if version == 2:
+            return cls.__from_json_v2__(json_dict)
+        return FrequencyDistribution(
+            frequency=json_dict.get(cls.CONST_FREQUENCY),
+            bins=json_dict.get(cls.CONST_BINS),
+        )
+
+    @classmethod
+    def __from_json_v2__(cls, json_dict: dict) -> "FrequencyDistribution":
         metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
         return FrequencyDistribution(
             bins=metric_data[0],

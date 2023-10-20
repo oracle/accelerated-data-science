@@ -44,7 +44,7 @@ class TopKFrequentElements(AbsFeaturePlot):
 
         @classmethod
         def __from_json__(
-            cls, json_dict: dict
+            cls, json_dict: dict, version: int = 1
         ) -> "TopKFrequentElements.TopKFrequentElement":
             return cls(
                 value=json_dict.get(cls.CONST_VALUE),
@@ -64,7 +64,17 @@ class TopKFrequentElements(AbsFeaturePlot):
         assert 0 < len(self.values) == len(self.estimates) > 0
 
     @classmethod
-    def __from_json__(cls, json_dict: dict) -> "TopKFrequentElements":
+    def __from_json__(cls, json_dict: dict, version: int = 1) -> "TopKFrequentElements":
+        if version == 2:
+            return cls.__from_json_v2__(json_dict)
+        elements = json_dict.get(cls.CONST_VALUE)
+        top_k_frequent_elements = [cls.TopKFrequentElement.__from_json__(element) for element in elements]
+        values = [element.value for element in top_k_frequent_elements]
+        estimates = [element.estimate for element in top_k_frequent_elements]
+        return cls(values, estimates)
+
+    @classmethod
+    def __from_json_v2__(cls, json_dict: dict) -> "TopKFrequentElements":
         metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
         return cls(
             values=metric_data[0],
