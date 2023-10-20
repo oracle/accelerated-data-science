@@ -33,7 +33,16 @@ class ProbabilityDistribution(AbsFeaturePlot):
         # assert 0 < len(self.density) == len(self.bins) > 0
 
     @classmethod
-    def __from_json__(cls, json_dict: dict) -> "ProbabilityDistribution":
+    def __from_json__(cls, json_dict: dict, version: int = 1) -> "ProbabilityDistribution":
+        if version == 2:
+            return cls.__from_json_v2__(json_dict)
+        return cls(
+            density=json_dict.get(ProbabilityDistribution.CONST_DENSITY),
+            bins=json_dict.get(ProbabilityDistribution.CONST_BINS),
+        )
+
+    @classmethod
+    def __from_json_v2__(cls, json_dict: dict) -> "ProbabilityDistribution":
         metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
         return cls(
             bins=metric_data[0],
