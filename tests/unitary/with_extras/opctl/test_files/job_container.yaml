@@ -22,15 +22,12 @@ spec:
   runtime:
     kind: runtime
     spec:
-      cmd: '{Container CMD. For MLFlow, it will be replaced with the Project CMD}'
+      args: []
+      cmd: '{Container CMD. For MLflow and Operator will be auto generated}'
       entrypoint:
       - bash
       - --login
       - -c
-      env:
-      - name: env_name
-        value: env_value
-      freeformTags:
-        tag_name: tag_value
-      image: iad.ocir.io/namespace/image:tag
+      freeformTags: {}
+      image: /image:latest
     type: container

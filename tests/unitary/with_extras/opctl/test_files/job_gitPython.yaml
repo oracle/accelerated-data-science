@@ -22,14 +22,11 @@ spec:
   runtime:
     kind: runtime
     spec:
+      args: []
       conda:
-        type: published
-        uri: '{Path to the custom conda environment. Example: oci://your_bucket@namespace/object_name'
+        slug: ''
+        type: service
       entrypoint: '{For MLflow and Operator will be auto generated}'
-      env:
-      - name: env_name
-        value: env_value
-      freeformTags:
-        tag_name: tag_value
+      freeformTags: {}
       url: '{Git URI. For MLflow and Operator will be auto generated}'
     type: gitPython
