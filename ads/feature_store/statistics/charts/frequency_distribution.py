@@ -34,7 +34,9 @@ class FrequencyDistribution(AbsFeaturePlot):
         assert len(self.bins) > 0
 
     @classmethod
-    def __from_json__(cls, json_dict: dict, version: int = 1) -> "FrequencyDistribution":
+    def __from_json__(
+        cls, json_dict: dict, version: int = 1
+    ) -> "FrequencyDistribution":
         if version == 2:
             return cls.__from_json_v2__(json_dict)
         return FrequencyDistribution(
@@ -45,17 +47,15 @@ class FrequencyDistribution(AbsFeaturePlot):
     @classmethod
     def __from_json_v2__(cls, json_dict: dict) -> "FrequencyDistribution":
         metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
-        return FrequencyDistribution(
-            bins=metric_data[0],
-            frequency=metric_data[1]
-        )
+        return FrequencyDistribution(bins=metric_data[0], frequency=metric_data[1])
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
         if (
-                type(self.frequency) == list
-                and type(self.bins) == list
-                and 0 < len(self.frequency) and 0 < len(self.bins)
+            type(self.frequency) == list
+            and type(self.bins) == list
+            and 0 < len(self.frequency)
+            and 0 < len(self.bins)
         ):
             fig.add_bar(
                 x=self.bins, y=self.frequency, xaxis=x_str, yaxis=y_str, name=""

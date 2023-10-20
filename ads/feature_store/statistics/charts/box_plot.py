@@ -44,7 +44,9 @@ class BoxPlot(AbsFeaturePlot):
             super().__init__()
 
         @classmethod
-        def __from_json__(cls, json_dict: dict, version: int = 1) -> "BoxPlot.Quartiles":
+        def __from_json__(
+            cls, json_dict: dict, version: int = 1
+        ) -> "BoxPlot.Quartiles":
             if version == 2:
                 return cls.__from_json_v2__(json_dict)
             return cls(
@@ -56,11 +58,7 @@ class BoxPlot(AbsFeaturePlot):
         @classmethod
         def __from_json_v2__(cls, json_dict: dict) -> "BoxPlot.Quartiles":
             metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
-            return cls(
-                metric_data[0],
-                metric_data[1],
-                metric_data[2]
-            )
+            return cls(metric_data[0], metric_data[1], metric_data[2])
 
         def __validate__(self):
             assert type(self.q1) == type(self.q2) == type(self.q3) == int or float
@@ -139,9 +137,11 @@ class BoxPlot(AbsFeaturePlot):
     def __from_json__(cls, json_dict: dict, version: int = 1) -> "BoxPlot":
         quartiles = cls.Quartiles.from_json(json_dict.get(cls.CONST_QUARTILES), version)
         return cls(
-            mean=GenericFeatureValue.from_json(json_dict.get(cls.CONST_MEAN),version).val,
+            mean=GenericFeatureValue.from_json(
+                json_dict.get(cls.CONST_MEAN), version
+            ).val,
             median=quartiles.q2,
-            sd=GenericFeatureValue.from_json(json_dict.get(cls.CONST_SD),version).val,
+            sd=GenericFeatureValue.from_json(json_dict.get(cls.CONST_SD), version).val,
             q1=quartiles.q1,
             q3=quartiles.q3,
             box_points=json_dict.get(cls.CONST_BOX_POINTS),

@@ -51,10 +51,14 @@ class FeatureStatistics:
         self.box_plot = box_plot
 
     @classmethod
-    def from_json(cls, feature_name: str, json_dict: dict, version: int) -> "FeatureStatistics":
+    def from_json(
+        cls, feature_name: str, json_dict: dict, version: int
+    ) -> "FeatureStatistics":
         if json_dict is not None:
             frequency_distribution = FrequencyDistribution.from_json(
-                json_dict.get(cls.CONST_FREQUENCY_DISTRIBUTION), version, ignore_errors=True,
+                json_dict.get(cls.CONST_FREQUENCY_DISTRIBUTION),
+                version,
+                ignore_errors=True,
             )
 
             # inject box points for boxplot creation
@@ -70,7 +74,8 @@ class FeatureStatistics:
                 ),
                 frequency_distribution,
                 ProbabilityDistribution.from_json(
-                    json_dict.get(cls.CONST_PROBABILITY_DISTRIBUTION), version,
+                    json_dict.get(cls.CONST_PROBABILITY_DISTRIBUTION),
+                    version,
                     ignore_errors=True,
                 ),
                 BoxPlot.from_json(json_dict, version, ignore_errors=True),
