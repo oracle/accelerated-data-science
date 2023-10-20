@@ -6,8 +6,8 @@
 
 
 import datetime
+import functools
 import operator
-from abc import ABC
 from typing import Any, List
 from langchain.load.serializable import Serializable
 from langchain.schema.prompt import PromptValue
@@ -69,6 +69,28 @@ class GuardrailIO(BaseModel):
     """A list of RunInfo attached by guardrails that processed the data."""
 
 
+class SingleMetric:
+    @staticmethod
+    def check(func):
+        @functools.wraps(func)
+        def wrapper(self: "Guardrail", metrics: dict, data: list, *args, **kwargs):
+            if self.metric_key not in metrics:
+                raise KeyError(
+                    f"This method requires the metrics contains {self.metric_key}."
+                )
+            if not isinstance(metrics[self.metric_key], list):
+                raise ValueError(
+                    f"This method requires the value of {self.metric_key} in metrics."
+                )
+            if len(metrics[self.metric_key]) != len(data):
+                raise ValueError(
+                    f"This method requires the value of {self.metric_key} in metrics to have the same size as data."
+                )
+            return func(self, metrics, data, *args, **kwargs)
+
+        return wrapper
+
+
 class Guardrail(Serializable, Runnable):
     """Base class for guardrails.
 
@@ -120,6 +142,31 @@ class Guardrail(Serializable, Runnable):
 
     name: str = ""
     custom_msg: str = None
+
+    _SELECT_OPERATOR = {"min": min, "max": max}
+    _FILTER_OPERATOR = {
+        "<": operator.lt,
+        "<=": operator.le,
+        "==": operator.eq,
+        "!=": operator.ne,
+        ">=": operator.ge,
+        ">": operator.gt,
+    }
+
+    select: str = None
+    """The method to select the best candidate. Should be one of the keys in ``_SELECT_OPERATOR``
+    This is used by the ``apply_select()`` method.
+    """
+
+    direction: str = "<"
+    """The operator for filtering the candidates. Should be one of the keys in the ``_FILTER_OPERATOR``
+    This is used by the ``apply_filter()`` method.
+    """
+
+    threshold: float = None
+    """The threshold for filtering the candidates.
+    This is used by the ``apply_filter()`` method.
+    """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -190,71 +237,109 @@ class Guardrail(Serializable, Runnable):
         """Checks the metrics and see if the data can pass the guardrail.
         Returns the moderated data as needed.
         """
+        if self.metric_key in metrics:
+            return self.single_metric_moderate(metrics, data, **kwargs)
         return data
-
-
-class SingleMetric(BaseModel, ABC):
-    """Interface for guardrail processing a list of data(texts)
-    and produces a single score for each element(text) in the list.
-
-    The metrics produced by the ``compute()`` still needs to be a dictionary.
-    The metrics may contain multiple keys.
-    The key holding the list of scores should be returned by the ``metric_key`` property.
-    """
-
-    _SUPPORTED_FUNC = {"min": min, "max": max}
-    _SUPPORTED_OPERATOR = {
-        "<": operator.lt,
-        "<=": operator.le,
-        "==": operator.eq,
-        "!=": operator.ne,
-        ">=": operator.ge,
-        ">": operator.gt,
-    }
-
-    select: str = None
-    threshold: float = None
-    direction: str = "<"
 
     @property
     def metric_key(self):
-        """Returns the key holding the list of scores corresponding to the input data.
-        By default, this will return the class name.
+        """Returns the key in the metrics dictionary returned by ``compute()``.
+        The default methods for selecting and filtering candidates can be only be applied based on a single metric.
+        The value corresponding to the key should be a list of numerical scores corresponding to the input data.
+        The scores will be used for selecting and filtering the candidates.
+        By default, this property will return the class name.
+        The implementation of the guardrail should override this property as needed.
+        If the key is not found in the metrics,
+        the default apply_select() and apply_filter method will raise an error when called.
         """
         return self.__class__.__name__
 
-    def pick(self, metrics: dict, data: list):
-        if self.select not in self._SUPPORTED_FUNC:
+    @SingleMetric.check
+    def apply_select(self, metrics: dict, data: list):
+        """Selects a candidate from the data using the method specified by the ``select`` property.
+
+        Parameters
+        ----------
+        metrics : dict
+            The metrics returned by ``compute()``.
+        data : list
+            A list of candidates.
+
+        Returns
+        -------
+        list
+            The selected candidate in a list.
+
+        Raises
+        ------
+        ValueError
+            If the method specified by the ``select`` property is not supported.
+        """
+        if self.select not in self._SELECT_OPERATOR:
             raise ValueError(f"select='{self.select}' is not supported.")
-        func = self._SUPPORTED_FUNC[self.select]
+        func = self._SELECT_OPERATOR[self.select]
         values = metrics[self.metric_key]
         idx = values.index(func(values))
         metrics["selected"] = idx
         data = [data[idx]]
         return data
 
+    @SingleMetric.check
     def apply_filter(self, metrics: dict, data: list):
-        if self.direction not in self._SUPPORTED_OPERATOR:
+        """Filters the data by certain threshold.
+
+        Parameters
+        ----------
+        metrics : dict
+            The metrics returned by ``compute()``.
+        data : list
+            A list of candidates.
+
+        Returns
+        -------
+        list
+            The filtered data.
+
+        Raises
+        ------
+        ValueError
+            If the operator specified by the ``direction`` property is not supported.
+        """
+        if self.direction not in self._FILTER_OPERATOR:
             raise ValueError(f"direction='{self.direction}' is not supported.")
-        operation = self._SUPPORTED_OPERATOR[self.direction]
+        operation = self._FILTER_OPERATOR[self.direction]
         values = metrics[self.metric_key]
         passed = [operation(val, self.threshold) for val in values]
         metrics["passed"] = passed
         return [data[i] for i in range(len(passed)) if passed[i]]
 
-    def filter_and_pick(self, metrics: dict, data: list):
+    def filter_and_select(self, metrics: dict, data: list):
+        """Filters the data and select a candidate.
+
+        Parameters
+        ----------
+        metrics : dict
+            The metrics returned by ``compute()``.
+        data : list
+            A list of candidates.
+
+        Returns
+        -------
+        list
+            The selected candidate in a list.
+        """
         filtered_data = self.apply_filter(metrics, data)
         passed_idx = [i for i in range(len(metrics["passed"])) if metrics["passed"]]
         filtered_metrics = {
             self.metric_key: [metrics[self.metric_key][i] for i in passed_idx]
         }
-        return self.pick(filtered_data, filtered_metrics)
+        return self.apply_select(filtered_data, filtered_metrics)
 
-    def moderate(self, metrics: dict, data: list, **kwargs) -> List[str]:
+    def single_metric_moderate(self, metrics: dict, data=None, **kwargs) -> List[str]:
         if self.select and self.threshold is not None:
-            return self.filter_and_pick(metrics, data)
+            return self.filter_and_select(metrics, data)
         elif self.select:
-            return self.pick(metrics, data)
+            return self.apply_select(metrics, data)
         elif self.threshold is not None:
             return self.apply_filter(metrics, data)
         return data
