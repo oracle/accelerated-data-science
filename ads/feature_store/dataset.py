@@ -1101,9 +1101,7 @@ class Dataset(Builder):
         feature_statistics = (
             output_details.get("featureStatistics") if output_details else None
         )
-        stat_version = (
-            output_details.get("version") if output_details else None
-        )
+        stat_version = output_details.get("version") if output_details else None
         version = stat_version if stat_version is not None else 1
 
         return Statistics(feature_statistics, version)

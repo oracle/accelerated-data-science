@@ -30,7 +30,7 @@ class TopKFrequentElements(AbsFeaturePlot):
         CONST_UPPER_BOUND = "upper_bound"
 
         def __init__(
-                self, value: str, estimate: int, lower_bound: int, upper_bound: int
+            self, value: str, estimate: int, lower_bound: int, upper_bound: int
         ):
             self.value = value
             self.estimate = estimate
@@ -68,7 +68,9 @@ class TopKFrequentElements(AbsFeaturePlot):
         if version == 2:
             return cls.__from_json_v2__(json_dict)
         elements = json_dict.get(cls.CONST_VALUE)
-        top_k_frequent_elements = [cls.TopKFrequentElement.__from_json__(element) for element in elements]
+        top_k_frequent_elements = [
+            cls.TopKFrequentElement.__from_json__(element) for element in elements
+        ]
         values = [element.value for element in top_k_frequent_elements]
         estimates = [element.estimate for element in top_k_frequent_elements]
         return cls(values, estimates)
@@ -76,15 +78,16 @@ class TopKFrequentElements(AbsFeaturePlot):
     @classmethod
     def __from_json_v2__(cls, json_dict: dict) -> "TopKFrequentElements":
         metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
-        return cls(
-            values=metric_data[0],
-            estimates=metric_data[1]
-        )
+        return cls(values=metric_data[0], estimates=metric_data[1])
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
-        if type(self.values) == list and len(self.values) > 0 and \
-                type(self.estimates) == list and len(self.estimates) > 0:
+        if (
+            type(self.values) == list
+            and len(self.values) > 0
+            and type(self.estimates) == list
+            and len(self.estimates) > 0
+        ):
             y_axis = [value for value in self.values]
             x_axis = [estimate for estimate in self.estimates]
             fig.add_bar(
