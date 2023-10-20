@@ -21,12 +21,16 @@ spec:
   runtime:
     kind: runtime
     spec:
+      args: []
+      conda:
+        type: published
+        uri: oci://bucket@namespace/conda_environments/test/conda/slug
       condaAuthType: resource_principal
       configuration:
         spark.driverEnv.env_key: env_value
-      freeformTags:
-        tag_name: tag_value
+      freeformTags: {}
       overwrite: true
-      scriptBucket: '{The object storage bucket to save a script. Example: oci://<bucket_name>@<tenancy>/<prefix>}'
-      scriptPathURI: '{Path to the executable script. For MLflow and Operator will be auto generated}'
+      scriptBucket: oci://bucket@namespace/prefix
+      scriptPathURI: '{Path to the executable script. For MLflow and Operator will
+        auto generated}'
     type: dataFlow

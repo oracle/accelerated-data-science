@@ -123,6 +123,7 @@ class TestDataFlowBackend:
                 uri=test_yaml_uri,
                 overwrite=False,
                 runtime_type=runtime_type,
+                conda_slug="test/conda/slug",
             )
 
             with open(test_yaml_uri, "r") as stream:
