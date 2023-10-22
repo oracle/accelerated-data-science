@@ -200,6 +200,17 @@ class ForecastOperatorBaseModel(ABC):
 
             test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
 
+            if self.spec.llm_endpoint is not None:
+                metric_str = ""
+                with pd.option_context("display.float_format", "{:0.2f}".format):
+                    metric_str = self.test_eval_metrics.to_string()
+                llm_description = utils.describe_metrics(
+                    self.spec.llm_endpoint, metric_str
+                )
+                llm_header = dp.Text("## Analysis (Powered by Generative AI)")
+                llm_body = dp.Text(llm_description)
+                test_eval_metrics = test_eval_metrics + [llm_header, llm_body]
+
         forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
         forecast_sec = utils.get_forecast_plots(
             self.data,

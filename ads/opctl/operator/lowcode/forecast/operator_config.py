@@ -98,6 +98,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     confidence_interval_width: float = None
     metric: str = None
     tuning: Tuning = field(default_factory=Tuning)
+    llm_endpoint: str = None
 
     def __post_init__(self):
         """Adjusts the specification details."""

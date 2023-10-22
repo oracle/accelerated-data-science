@@ -210,6 +210,10 @@ spec:
       meta:
         description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
 
+    llm_endpoint:
+      type: string
+      required: false
+
     datetime_column:
       type: dict
       required: true

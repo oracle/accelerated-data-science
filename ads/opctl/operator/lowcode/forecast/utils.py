@@ -465,3 +465,51 @@ def select_auto_model(columns: List[str]) -> str:
     if columns != None and len(columns) > MAX_COLUMNS_AUTOMLX:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX
+
+
+def describe_metrics(llm_endpoint: str, metrics_str: str):
+    """
+    Formats the metrics string into a query and submits it to LLM.
+
+    Returns the formatted LLM response
+
+    Parameters
+    ------------
+    columns:  str
+        The ip address of the llm that can be invoked from the operator
+    metrics_str: str
+        A string version of the metrics being described
+
+    Returns
+    --------
+    str
+        The formatted text of the LLM response
+    """
+    from gradio_client import Client
+    import tempfile
+    import json
+
+    query = "The following table summarises the evaluation metrics for a machine learning forecasting model. Please evaluate the performance of the model across each metric and then summarise the overall strength of the model. Metrics: "
+    prompt = [[query + metrics_str, ""]]
+
+    logger.debug(f"Full prompt is: {prompt}")
+
+    client = Client(llm_endpoint, serialize=False)
+    result = ""
+
+    with tempfile.NamedTemporaryFile(mode="w") as temp:
+        json.dump(prompt, temp)
+        temp.flush()
+
+        result = client.predict(
+            temp.name,
+            1024,  # int | float (numeric value between 256 and 4096)
+            0.2,  # int | float (numeric value between 0.2 and 2.0)
+            0.1,  # int | float (numeric value between 0.1 and 1.0)
+            fn_index=2,
+        )
+
+        with open(result) as t:
+            result = json.dumps(json.loads(t.read()), indent=2, ensure_ascii=False)
+    logger.debug(f"Output from LLM: {result}")
+    return str(result)
