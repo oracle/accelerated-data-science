@@ -1,10 +1,20 @@
+from datetime import datetime
 import importlib
 import importlib.util
+import json
 import logging
 import os
+import pathlib
 import sys
 from copy import deepcopy
+import tempfile
 from typing import Any, List, Optional
+import fsspec
+from jinja2 import Environment, PackageLoader
+
+import yaml
+from ads.model.artifact import ADS_VERSION, SCORE_VERSION
+from ads.model.generic_model import GenericModel
 from langchain.llms.base import LLM
 from langchain.schema.runnable import (
     Runnable,
@@ -110,7 +120,7 @@ class GuardrailSequence(RunnableSequence):
                 return obj
         return obj
 
-    def save(self):
+    def save(self, file_name: str = None, overwrite: bool = True):
         BUILT_IN = "ads.opctl.operator.lowcode.responsible_ai.guardrails"
         chain_spec = []
         for step in self.steps:
@@ -124,7 +134,76 @@ class GuardrailSequence(RunnableSequence):
             chain_spec.append(
                 {SPEC_CLASS: class_name, SPEC_PATH: path, SPEC_SPEC: step.dict()}
             )
+
+        if file_name:
+            expanded_path = os.path.expanduser(file_name)
+            if (
+                not os.path.isfile(expanded_path) or 
+                (os.path.isfile(expanded_path) and overwrite)
+            ):
+                chain = {"chain": chain_spec}
+                file_ext = pathlib.Path(expanded_path).suffix
+                with open(expanded_path, "w") as f:
+                    if file_ext == ".yaml":
+                        yaml.safe_dump(chain, f, default_flow_style=False)
+                    elif file_ext == ".json":
+                        json.dump(chain, f)
+                    else:
+                        logger.warning(
+                            "GuardrailSequence can only be saved as yaml or json format."
+                            f"Skipped saving GuardrailSequence to {file_name}."
+                        )
+
         return chain_spec
+    
+    def deploy(
+        self,
+        compartment_id: str,
+        project_id: str,
+        **kwargs
+    ) -> GenericModel:
+        generic_model = GenericModel(
+            estimator=None, 
+            artifact_dir=tempfile.mkdtemp()
+        )
+        generic_model.prepare(
+            score_py_uri=self._generate_score_py(),
+            **kwargs
+        )
+        generic_model.save(
+            compartment_id=compartment_id,
+            project_id=project_id,
+            **kwargs
+        )
+        generic_model.deploy(**kwargs)
+
+        return generic_model
+    
+    def _generate_score_py(self) -> str:
+        temp_dir = tempfile.mkdtemp()
+        score_py_uri = os.path.join(temp_dir, "score.py")
+        env = Environment(loader=PackageLoader("ads", "llm/templates"))
+        score_template = env.get_template("score_guardrail_sequence.jinja2")
+        time_suffix = datetime.today().strftime("%Y%m%d_%H%M%S")
+        guardrail_sequence_dict = self.save()
+        for guardrail in guardrail_sequence_dict:
+            guardrail["spec"].pop("_type")
+        guardrail_sequence_yaml = yaml.safe_dump(guardrail_sequence_dict)
+
+        context = {
+            "guardrail_sequence_yaml": guardrail_sequence_yaml,
+            "SCORE_VERSION": SCORE_VERSION,
+            "ADS_VERSION": ADS_VERSION,
+            "time_created": time_suffix,
+        }
+        with fsspec.open(score_py_uri, "w") as f:
+            f.write(score_template.render(context))
+        
+        return score_py_uri
+
+    @classmethod
+    def from_yaml(cls, yaml_string: str) -> "GuardrailSequence":
+        return cls.load(yaml.safe_load(yaml_string))
 
     def __str__(self) -> str:
         return "\n".join([str(step.__class__) for step in self.steps])
