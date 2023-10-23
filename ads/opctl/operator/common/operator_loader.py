@@ -702,7 +702,7 @@ def _operator_info(path: str = None, name: str = None) -> OperatorInfo:
                 )
             )
         return OperatorInfo.from_yaml(uri=os.path.join(path, "MLoperator"))
-    except FileNotFoundError as ex:
+    except Exception as ex:
         logger.debug(ex)
         raise OperatorNotFoundError(name or path)
 
@@ -715,4 +715,13 @@ def _operator_info_list() -> List[OperatorInfo]:
     List[OperatorInfo]
         The list of registered operators.
     """
-    return (_operator_info(name=operator_name) for operator_name in __operators__)
+    result = []
+
+    for operator_name in __operators__:
+        try:
+            result.append(_operator_info(name=operator_name))
+        except OperatorNotFoundError:
+            logger.debug(f"Operator `{operator_name}` is not registered.")
+            continue
+
+    return result

@@ -880,7 +880,7 @@ class LocalOperatorBackend(Backend):
 
         self.operator_info = operator_info
 
-    def _run_with_python(self) -> int:
+    def _run_with_python(self, **kwargs: Dict) -> int:
         """Runs the operator within a local python environment.
 
         Returns
@@ -908,7 +908,7 @@ class LocalOperatorBackend(Backend):
         else:
             return 0
 
-    def _run_with_container(self) -> int:
+    def _run_with_container(self, **kwargs: Dict) -> int:
         """Runs the operator within a container.
 
         Returns
@@ -963,6 +963,12 @@ class LocalOperatorBackend(Backend):
 
         if not self.operator_info:
             self.operator_info = OperatorLoader.from_uri(self.operator_type).load()
+
+        if self.config.get("dry_run"):
+            logger.info(
+                "The dry run option is not supported for "
+                "the local backends and will be ignored."
+            )
 
         # run operator with provided runtime
         exit_code = self._RUNTIME_RUN_MAP.get(runtime_type, lambda: None)(**kwargs)

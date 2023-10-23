@@ -262,12 +262,6 @@ def add_options(options):
 
 @commands.command()
 @add_options(_options)
-@click.option(
-    "--backend-config",
-    help="path to the backend config YAML file",
-    required=False,
-    default=None,
-)
 @click.option("--image", "-i", help="image name", required=False, default=None)
 @click.option("--conda-slug", help="slug name", required=False, default=None)
 @click.option(
