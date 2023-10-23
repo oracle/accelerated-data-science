@@ -13,7 +13,7 @@ import yaml
 from ads.common import auth as authutil
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.opctl.constants import BACKEND_NAME
+from ads.opctl.constants import BACKEND_NAME, RUNTIME_TYPE
 from ads.opctl.decorator.common import click_options, with_auth
 from ads.opctl.utils import suppress_traceback
 
@@ -70,6 +70,16 @@ AUTH_TYPE_OPTION = (
         type=click.Choice(AuthType.values()),
         default=None,
     ),
+    click.option(
+        "--oci-profile",
+        help=(
+            "OCI profile name to use for authentication. "
+            "By default will be used the value specified in the ADS config file. "
+            "Check the `ads opctl configure --help` command to get details about the `config.ini`. "
+        ),
+        required=False,
+        default=None,
+    ),
 )
 
 
@@ -110,6 +120,17 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "--overwrite",
     "-o",
     help="Overwrite result file if it already exists.",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--merge-config",
+    "-m",
+    help=(
+        "Merge the operator's configuration with various backend configurations, "
+        "resulting in multiple operator configurations, each paired with a distinct backend. "
+        "By default, the operator's configuration will remain distinct from the backend configuration."
+    ),
     is_flag=True,
     default=False,
 )
@@ -186,7 +207,7 @@ def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @with_auth
 def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Verifies the operator config."""
-    with fsspec.open(kwargs["file"], "r", **(kwargs.get("auth", {}) or {})) as f:
+    with fsspec.open(kwargs["file"], "r", **authutil.default_signer()) as f:
         operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(cmd_verify)(operator_spec, **kwargs)
@@ -247,18 +268,24 @@ def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @commands.command()
 @click_options(DEBUG_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION)
 @click.option(
-    "--file", "-f", help="The path to resource YAML file.", required=True, default=None
+    "--file",
+    "-f",
+    help="The path to the operator's specification YAML file.",
+    required=True,
+    default=None,
 )
 @click.option(
     "--backend",
     "-b",
     help=(
         "Backend name or the path to the operator's backend config YAML file. "
-        f"Example 1: `ads operator run -f operator.yaml -b {BACKEND_NAME.LOCAL.value}` "
-        "Supported backends: "
-        f"{[BACKEND_NAME.JOB.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.LOCAL.value,]} "
-        "Example 2: `ads operator run -f operator.yaml -b backend.yaml` "
-        "Use the `ads operator init` command to generate operator's configs. "
+        f"\n\nExample 1:\n\n`ads operator run -f operator.yaml -b {BACKEND_NAME.LOCAL.value}`\n\n"
+        "Supported backend names: "
+        f"{(BACKEND_NAME.JOB.value,BACKEND_NAME.JOB.value + '.' + RUNTIME_TYPE.CONTAINER.value,BACKEND_NAME.DATAFLOW.value,BACKEND_NAME.LOCAL.value,BACKEND_NAME.LOCAL.value + '.'+ RUNTIME_TYPE.CONTAINER.value,)}. "
+        "However some operators may support only a subset of these backends."
+        "\n\nExample 2:\n\n`ads operator run -f operator.yaml -b backend.yaml`\n\n"
+        "Use the `ads operator init --help` command to generate the operator's specification "
+        "and all required backend configs. Generating configs is optional and fully automated. "
     ),
     required=False,
     default=None,

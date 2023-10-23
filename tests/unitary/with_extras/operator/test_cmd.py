@@ -16,10 +16,6 @@ class TestOperatorCMD:
         """Ensures that the detailed information about the particular operator can be printed."""
         pass
 
-    def test_init_backend_config(self):
-        """Ensures the operator's backend configs can be generated."""
-        pass
-
     def test_init_success(self):
         """Ensures that a starter YAML configurations for the operator can be generated."""
         pass

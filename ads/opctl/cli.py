@@ -36,6 +36,7 @@ from ads.opctl.constants import (
     RESOURCE_TYPE,
     RUNTIME_TYPE,
 )
+from ads.opctl.decorator.common import with_auth
 from ads.opctl.utils import build_image as build_image_cmd
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import suppress_traceback
@@ -184,10 +185,7 @@ _options = [
         default=authutil.DEFAULT_LOCATION,
     ),
     click.option(
-        "--oci-profile",
-        help="oci config profile",
-        required=False,
-        default=authutil.DEFAULT_PROFILE,
+        "--oci-profile", help="oci config profile", required=False, default=None
     ),
     click.option(
         "--conf-file",
@@ -262,12 +260,6 @@ def add_options(options):
 
 @commands.command()
 @add_options(_options)
-@click.option(
-    "--backend-config",
-    help="path to the backend config YAML file",
-    required=False,
-    default=None,
-)
 @click.option("--image", "-i", help="image name", required=False, default=None)
 @click.option("--conda-slug", help="slug name", required=False, default=None)
 @click.option(
@@ -380,29 +372,16 @@ def add_options(options):
     required=False,
     default=None,
 )
-def run(file, **kwargs):
+@with_auth
+def run(file, debug, **kwargs):
     """
-    Runs the workload on the targeted backend. When run `distributed` yaml spec, the backend is always OCI Data Science
-    Jobs
+    Runs the operator with the given specification on the targeted backend.
+    For the distributed backend, the operator is always run as a OCI Data Science job.
     """
-    debug = kwargs["debug"]
     config = {}
     if file:
-        if os.path.exists(file):
-            auth = {}
-            if kwargs["auth"]:
-                auth = authutil.create_signer(
-                    auth_type=kwargs["auth"],
-                    oci_config_location=kwargs["oci_config"],
-                    profile=kwargs["oci_profile"],
-                )
-            else:
-                auth = authutil.default_signer()
-
-            with fsspec.open(file, "r", **auth) as f:
-                config = suppress_traceback(debug)(yaml.safe_load)(f.read())
-        else:
-            raise FileNotFoundError(f"{file} is not found")
+        with fsspec.open(file, "r", **authutil.default_signer()) as f:
+            config = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(run_cmd)(config, **kwargs)
 
