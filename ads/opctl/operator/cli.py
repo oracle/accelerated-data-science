@@ -70,6 +70,16 @@ AUTH_TYPE_OPTION = (
         type=click.Choice(AuthType.values()),
         default=None,
     ),
+    click.option(
+        "--oci-profile",
+        help=(
+            "OCI profile name to use for authentication. "
+            "By default will be used the value specified in the ADS config file. "
+            "Check the `ads opctl configure --help` command to get details about the `config.ini`. "
+        ),
+        required=False,
+        default=None,
+    ),
 )
 
 
@@ -110,6 +120,17 @@ def info(debug: bool, **kwargs: Dict[str, Any]) -> None:
     "--overwrite",
     "-o",
     help="Overwrite result file if it already exists.",
+    is_flag=True,
+    default=False,
+)
+@click.option(
+    "--merge-config",
+    "-m",
+    help=(
+        "Merge the operator's configuration with various backend configurations, "
+        "resulting in multiple operator configurations, each paired with a distinct backend. "
+        "By default, the operator's configuration will remain distinct from the backend configuration."
+    ),
     is_flag=True,
     default=False,
 )
@@ -186,7 +207,7 @@ def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @with_auth
 def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Verifies the operator config."""
-    with fsspec.open(kwargs["file"], "r", **(kwargs.get("auth", {}) or {})) as f:
+    with fsspec.open(kwargs["file"], "r", **authutil.default_signer()) as f:
         operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(cmd_verify)(operator_spec, **kwargs)

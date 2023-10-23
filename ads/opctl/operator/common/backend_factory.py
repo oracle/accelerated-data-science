@@ -122,12 +122,14 @@ class BackendFactory:
                 f"The `type` attribute must be specified in the operator's config."
             )
 
-        if not backend:
+        if not backend and not config.config.get("runtime"):
             logger.info(
                 f"Backend config is not provided, the {BACKEND_NAME.LOCAL.value} "
                 "will be used by default. "
             )
             backend = BACKEND_NAME.LOCAL.value
+        elif not backend:
+            backend = config.config.get("runtime")
 
         # extracting details about the operator
         operator_info = OperatorLoader.from_uri(uri=operator_type).load()
@@ -300,21 +302,14 @@ class BackendFactory:
         cls,
         operator_info: OperatorInfo,
         ads_config: Union[str, None] = None,
-        output: Union[str, None] = None,
-        overwrite: bool = False,
         backend_kind: Tuple[str] = None,
         **kwargs: Dict,
-    ):
+    ) -> Dict[Tuple, Dict]:
         """
         Generates the operator's backend configs.
 
         Parameters
         ----------
-        output: (str, optional). Defaults to None.
-            The path to the folder to save the resulting specification templates.
-            The Tmp folder will be created in case when `output` is not provided.
-        overwrite: (bool, optional). Defaults to False.
-            Whether to overwrite the result specification YAML if exists.
         ads_config: (str, optional)
             The folder where the ads opctl config located.
         backend_kind: (str, optional)
@@ -417,25 +412,12 @@ class BackendFactory:
                     **kwargs,
                 )
 
-                uri = None
-                if output:
-                    uri = os.path.join(
-                        output,
-                        f"backend_{resource_type.lower().replace('.','_') }"
-                        f"_{runtime_type.value.lower()}_config.yaml",
-                    )
-
                 # generate YAML specification template
-                yaml_str = _BackendFactory(p.config).backend.init(
-                    uri=uri,
-                    overwrite=overwrite,
-                    runtime_type=runtime_type.value,
-                    **{**kwargs, **runtime_kwargs},
+                result[(resource_type.lower(), runtime_type.value.lower())] = yaml.load(
+                    _BackendFactory(p.config).backend.init(
+                        runtime_type=runtime_type.value,
+                        **{**kwargs, **runtime_kwargs},
+                    ),
+                    Loader=yaml.FullLoader,
                 )
-
-                if yaml_str:
-                    result[
-                        (resource_type.lower(), runtime_type.value.lower())
-                    ] = yaml.load(yaml_str, Loader=yaml.FullLoader)
-
         return result

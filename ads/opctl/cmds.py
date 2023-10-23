@@ -180,7 +180,7 @@ def run(config: Dict, **kwargs) -> Dict:
         try:
             return OperatorBackendFactory.backend(
                 config=p,
-                backend=p.config["execution"]["backend"],
+                backend=p.config["execution"].get("backend"),
                 **{
                     key: value
                     for key, value in kwargs.items()

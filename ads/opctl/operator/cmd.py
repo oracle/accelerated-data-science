@@ -12,6 +12,7 @@ import tempfile
 from typing import Any, Dict, Union
 
 import fsspec
+import yaml
 from tabulate import tabulate
 
 from ads.common import utils as ads_common_utils
@@ -110,6 +111,7 @@ def init(
     type: str,
     output: Union[str, None] = None,
     overwrite: bool = False,
+    merge_config: bool = False,
     ads_config: Union[str, None] = None,
     **kwargs: Dict[str, Any],
 ) -> None:
@@ -125,6 +127,8 @@ def init(
         The Tmp folder will be created in case when `output` is not provided.
     overwrite: (bool, optional). Defaults to False.
         Whether to overwrite the result specification YAML if exists.
+    merge_config: (bool, optional). Defaults to False.
+        Whether to merge the generated specification YAML with the backend configuration.
     ads_config: (str, optional)
         The folder where the ads opctl config located.
     kwargs: (Dict, optional).
@@ -156,18 +160,18 @@ def init(
         output = os.path.join(tempfile.TemporaryDirectory().name, "")
 
     # generating operator specification
+    operator_config = None
     try:
         operator_cmd_module = runpy.run_module(
             f"{operator_info.type}.cmd", run_name="init"
         )
-        operator_specification_template = operator_cmd_module.get("init", lambda: "")(
+        operator_config = operator_cmd_module.get("init", lambda: "")(
             **{**kwargs, **{"type": type}}
         )
-        if operator_specification_template:
-            with fsspec.open(
-                os.path.join(output, f"{operator_info.type}.yaml"), mode="w"
-            ) as f:
-                f.write(operator_specification_template)
+        with fsspec.open(
+            os.path.join(output, f"{operator_info.type}.yaml"), mode="w"
+        ) as f:
+            f.write(yaml.dump(operator_config))
     except Exception as ex:
         logger.info(
             "The operator's specification was not generated "
@@ -184,13 +188,24 @@ def init(
         )
 
     # generate supported backend specifications templates YAML
-    BackendFactory._init_backend_config(
+    for key, value in BackendFactory._init_backend_config(
         operator_info=operator_info,
         ads_config=ads_config,
         output=output,
         overwrite=overwrite,
         **kwargs,
-    )
+    ).items():
+        tmp_config = value
+        if merge_config and operator_config:
+            tmp_config = {**operator_config, "runtime": value}
+
+        with fsspec.open(
+            os.path.join(
+                output, f"{operator_info.type}_{'_'.join(key).replace('.','_')}.yaml"
+            ),
+            mode="w",
+        ) as f:
+            f.write(yaml.dump(tmp_config))
 
     logger.info("#" * 100)
     logger.info(f"The auto-generated configs have been placed in: {output}")
@@ -282,7 +297,7 @@ def build_image(
         with open(custom_docker_file, "w") as f:
             f.writelines("\n".join(run_command))
 
-        result_image_name = _build_image(
+        result_image_name = operator_utils._build_image(
             dockerfile=custom_docker_file,
             image_name=operator_info.type,
             tag=operator_info.version,
@@ -388,10 +403,11 @@ def verify(
     # validate operator
     try:
         operator_module = runpy.run_module(
-            operator_info.type,
-            run_name="__main__",
+            f"{operator_info.type}.__main__",
+            run_name="verify",
         )
         operator_module.get("verify")(config, **kwargs)
+
     except Exception as ex:
         logger.debug(ex)
         raise ValueError(
