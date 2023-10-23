@@ -42,4 +42,4 @@ def init(**kwargs: Dict) -> str:
 
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example(values={"model": model_type, "type": kwargs.get("type")})
+    ).generate_example_dict(values={"model": model_type, "type": kwargs.get("type")})

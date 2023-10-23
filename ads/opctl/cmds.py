@@ -17,10 +17,7 @@ from ads.common.auth import AuthContext, AuthType
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.oci_datascience import DSCNotebookSession
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
-from ads.opctl.backend.ads_ml_job import (
-    MLJobBackend,
-    MLJobDistributedBackend,
-)
+from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
 from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 from ads.opctl.backend.local import (
@@ -57,6 +54,9 @@ from ads.opctl.distributed.cmds import (
     update_image,
     update_ini,
     verify_and_publish_image,
+)
+from ads.opctl.operator.common.backend_factory import (
+    BackendFactory as OperatorBackendFactory,
 )
 from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
@@ -177,6 +177,19 @@ def run(config: Dict, **kwargs) -> Dict:
     """
     if config:
         p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+        try:
+            return OperatorBackendFactory.backend(
+                config=p,
+                backend=p.config["execution"].get("backend"),
+                **{
+                    key: value
+                    for key, value in kwargs.items()
+                    if key not in ("backend", "config")
+                },
+            ).run(**kwargs)
+        except RuntimeError:
+            pass
+
         if (
             p.config["kind"] != BACKEND_NAME.LOCAL.value
             and p.config["kind"] != "distributed"
@@ -371,7 +384,7 @@ def cancel(**kwargs) -> None:
     ----------
     kwargs: dict
         keyword argument, stores command line args
-    
+
     Returns
     -------
     None
@@ -383,9 +396,7 @@ def cancel(**kwargs) -> None:
         or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
     ):
         kwargs["run_id"] = kwargs.pop("ocid")
-    elif (
-        DataScienceResource.JOB in kwargs["ocid"]
-    ):
+    elif DataScienceResource.JOB in kwargs["ocid"]:
         kwargs["id"] = kwargs.pop("ocid")
     else:
         raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")

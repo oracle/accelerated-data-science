@@ -24,6 +24,21 @@ class YamlGenerator:
 
     schema: Dict[str, Any] = None
 
+    def generate_example_dict(self, values: Optional[Dict[str, Any]] = None) -> Dict:
+        """
+        Generate the YAML config based on the YAML schema.
+
+        Properties
+        ----------
+        values: Optional dictionary containing specific values for the attributes.
+
+        Returns
+        -------
+        Dict
+            The generated dictionary config.
+        """
+        return self._generate_example(self.schema, values)
+
     def generate_example(self, values: Optional[Dict[str, Any]] = None) -> str:
         """
         Generate the YAML config based on the YAML schema.
@@ -37,8 +52,7 @@ class YamlGenerator:
         str
             The generated YAML config.
         """
-        example = self._generate_example(self.schema, values)
-        return yaml.dump(example)
+        return yaml.dump(self._generate_example(self.schema, values))
 
     def _check_condition(
         self, condition: Dict[str, Any], example: Dict[str, Any]
