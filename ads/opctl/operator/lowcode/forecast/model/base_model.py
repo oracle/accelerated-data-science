@@ -202,10 +202,13 @@ class ForecastOperatorBaseModel(ABC):
 
             if self.spec.llm_endpoint is not None:
                 metric_str = ""
+                algorithm_name = self.spec.model
                 with pd.option_context("display.float_format", "{:0.2f}".format):
                     metric_str = self.test_eval_metrics.to_string()
                 llm_description = utils.describe_metrics(
-                    self.spec.llm_endpoint, metric_str
+                    llm_endpoint=self.spec.llm_endpoint,
+                    metrics_str=metric_str,
+                    algorithm_name=algorithm_name,
                 )
                 llm_header = dp.Text("## Analysis (Powered by Generative AI)")
                 llm_body = dp.Text(llm_description)

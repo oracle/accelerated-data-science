@@ -9,6 +9,9 @@ from ads.opctl import logger
 import fsspec
 import numpy as np
 import pandas as pd
+import json
+import logging
+import tempfile
 import plotly.express as px
 from plotly import graph_objects as go
 from sklearn.metrics import (
@@ -467,7 +470,60 @@ def select_auto_model(columns: List[str]) -> str:
     return SupportedModels.AutoMLX
 
 
-def describe_metrics(llm_endpoint: str, metrics_str: str):
+class GradioLLM:
+    def __init__(self, url: str) -> None:
+        from gradio_client import Client
+
+        logging.basicConfig(level=logging.DEBUG)
+
+        self.client = Client(url, serialize=True)
+
+    def complete(self, completion: str, max_length=256) -> str:
+        prompt = [[completion, ""]]
+
+        with tempfile.NamedTemporaryFile(mode="w") as temp:
+            json.dump(prompt, temp)
+            temp.flush()
+
+            results_file = self.client.predict(
+                temp.name,
+                max_length,  # int | float (numeric value between 256 and 4096)
+                0.2,  # int | float (numeric value between 0.2 and 2.0)
+                0.1,  # int | float (numeric value between 0.1 and 1.0)
+                fn_index=2,
+            )
+
+            with open(results_file) as t:
+                try:
+                    data = t.read()
+                    return json.loads(data)
+                except Exception as ex:
+                    logging.error(ex)
+                    return None
+
+
+# if __name__ == "__main__":
+
+#     llm = GradioLLM("http://100.100.84.214:5000/")
+#     metrics = """The following table summarises the evaluation metrics for a machine learning forecasting model.
+#     Please evaluate the performance of the model across each metric and then summarise the overall
+#     strength of the model. The algorithm used was prophet, add commentary on how this model type works.
+
+#     Metrics:
+
+#     Sales_10  Sales_1  Sales_2  Sales_3  Sales_4  Sales_9  Sales_6  Sales_8  Sales_5  Sales_7
+#     sMAPE                   7.20    14.50     5.01     6.56     7.54     5.33     8.00     7.13     2.36     7.58
+#     MAPE                    0.14     0.25     0.09     0.13     0.15     0.10     0.16     0.15     0.05     0.13
+#     RMSE                 1112.98  1359.32   762.83  1167.54  2037.95   975.77   912.11  1322.79   327.40  2538.02
+#     r2                     -1.89    -7.76    -2.49    -4.40    -1.08     0.21    -4.43    -1.51     0.84    -1.67
+#     Explained Variance     -1.89     0.67    -2.06    -4.35    -1.00     0.52    -4.39    -1.28     0.85    -0.19"""
+# ​
+#     result = llm.complete(metrics, max_length=512)
+# ​
+#     print(result[0][1])
+
+
+def describe_metrics(llm_endpoint: str, metrics_str: str, algorithm_name: str):
     """
     Formats the metrics string into a query and submits it to LLM.
 
@@ -485,31 +541,18 @@ def describe_metrics(llm_endpoint: str, metrics_str: str):
     str
         The formatted text of the LLM response
     """
-    from gradio_client import Client
-    import tempfile
-    import json
 
-    query = "The following table summarises the evaluation metrics for a machine learning forecasting model. Please evaluate the performance of the model across each metric and then summarise the overall strength of the model. Metrics: "
-    prompt = [[query + metrics_str, ""]]
+    BASE_METRICS_PROMPT = f"""The following table summarises the evaluation metrics for a machine learning forecasting model.
+The columns of the table are the targets the model is forecasting and the rows show the performance across each metric.
+Please evaluate the performance of the model across each target and then summarise the overall
+strength of the model. The algorithm used was {algorithm_name}, add commentary on how this model type works.
 
-    logger.debug(f"Full prompt is: {prompt}")
+Metrics:
 
-    client = Client(llm_endpoint, serialize=False)
-    result = ""
-
-    with tempfile.NamedTemporaryFile(mode="w") as temp:
-        json.dump(prompt, temp)
-        temp.flush()
-
-        result = client.predict(
-            temp.name,
-            1024,  # int | float (numeric value between 256 and 4096)
-            0.2,  # int | float (numeric value between 0.2 and 2.0)
-            0.1,  # int | float (numeric value between 0.1 and 1.0)
-            fn_index=2,
-        )
-
-        with open(result) as t:
-            result = json.dumps(json.loads(t.read()), indent=2, ensure_ascii=False)
-    logger.debug(f"Output from LLM: {result}")
-    return str(result)
+"""
+    llm = GradioLLM(llm_endpoint)
+    metric_prompt = BASE_METRICS_PROMPT + metrics_str
+    logger.debug(f"The full metrics prompt is: {metric_prompt}")
+    result = llm.complete(metric_prompt, max_length=512)
+    logger.debug(f"The LLM-generated response is: {result[0][1]}")
+    return str(result[0][1])
