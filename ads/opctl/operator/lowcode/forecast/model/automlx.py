@@ -34,7 +34,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         module="automl",
         err_msg=(
             "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
-            "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
         ),
     )
     def _build_model(self) -> pd.DataFrame:
@@ -231,9 +230,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 dp.Table(
                     global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 ),
-                dp.Table(
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                ),
             )
 
             local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
@@ -302,7 +298,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         module="shap",
         err_msg=(
             "Please run `pip3 install shap` to install the required dependencies for model explanation."
-            "Please run `pip3 install shap` to install the required dependencies for model explanation."
         ),
     )
     def explain_model(self) -> dict:
@@ -321,8 +316,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             self.series_id = series_id
             self.dataset_cols = (
                 self.full_data_dict.get(self.series_id)
-                .set_index(self.spec.datetime_column.name)
-                .drop(self.series_id, axis=1)
                 .set_index(self.spec.datetime_column.name)
                 .drop(self.series_id, axis=1)
                 .columns
