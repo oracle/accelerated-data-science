@@ -30,6 +30,7 @@ class GuardrailSequence(RunnableSequence):
 
     @property
     def steps(self) -> List[Runnable[Any, Any]]:
+        """Steps in the sequence."""
         if self.first:
             chain = [self.first] + self.middle
         else:
@@ -43,6 +44,9 @@ class GuardrailSequence(RunnableSequence):
         return cls(first=sequence.first, middle=sequence.middle, last=sequence.last)
 
     def __or__(self, other) -> "GuardrailSequence":
+        """Adds another component to the end of this sequence.
+        If the sequence is empty, the component will be added as the first step of the sequence.
+        """
         if not self.first:
             return GuardrailSequence(first=other)
         if not self.last:
@@ -50,6 +54,7 @@ class GuardrailSequence(RunnableSequence):
         return self.from_sequence(super().__or__(other))
 
     def __ror__(self, other) -> "GuardrailSequence":
+        """Chain this sequence to the end of another component."""
         return self.from_sequence(super().__ror__(other))
 
     def invoke(self, input: Any, config: RunnableConfig = None) -> GuardrailIO:
