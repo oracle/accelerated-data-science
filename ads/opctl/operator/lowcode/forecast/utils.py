@@ -502,27 +502,6 @@ class GradioLLM:
                     return None
 
 
-# if __name__ == "__main__":
-
-#     llm = GradioLLM("http://100.100.84.214:5000/")
-#     metrics = """The following table summarises the evaluation metrics for a machine learning forecasting model.
-#     Please evaluate the performance of the model across each metric and then summarise the overall
-#     strength of the model. The algorithm used was prophet, add commentary on how this model type works.
-
-#     Metrics:
-
-#     Sales_10  Sales_1  Sales_2  Sales_3  Sales_4  Sales_9  Sales_6  Sales_8  Sales_5  Sales_7
-#     sMAPE                   7.20    14.50     5.01     6.56     7.54     5.33     8.00     7.13     2.36     7.58
-#     MAPE                    0.14     0.25     0.09     0.13     0.15     0.10     0.16     0.15     0.05     0.13
-#     RMSE                 1112.98  1359.32   762.83  1167.54  2037.95   975.77   912.11  1322.79   327.40  2538.02
-#     r2                     -1.89    -7.76    -2.49    -4.40    -1.08     0.21    -4.43    -1.51     0.84    -1.67
-#     Explained Variance     -1.89     0.67    -2.06    -4.35    -1.00     0.52    -4.39    -1.28     0.85    -0.19"""
-# ​
-#     result = llm.complete(metrics, max_length=512)
-# ​
-#     print(result[0][1])
-
-
 def describe_metrics(llm_endpoint: str, metrics_str: str, algorithm_name: str):
     """
     Formats the metrics string into a query and submits it to LLM.
