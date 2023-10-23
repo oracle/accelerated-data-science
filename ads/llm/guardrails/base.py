@@ -68,6 +68,19 @@ class GuardrailIO(BaseModel):
     info: List[RunInfo] = []
     """A list of RunInfo attached by guardrails that processed the data."""
 
+    def __str__(self) -> str:
+        return str(self.data)
+
+    def __repr__(self) -> str:
+        steps = []
+        run_info = None
+        for run_info in self.info:
+            steps.append(str(run_info.input))
+            steps.append(f"{run_info.name} - {run_info.metrics}")
+        if run_info:
+            steps.append(str(run_info.output))
+        return "\n".join(steps)
+
 
 class SingleMetric:
     @staticmethod
