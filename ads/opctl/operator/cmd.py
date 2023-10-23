@@ -39,7 +39,11 @@ from ads.opctl.utils import publish_image as publish_image_cmd
 from .__init__ import __operators__
 from .common import utils as operator_utils
 from .common.backend_factory import BackendFactory
-from .common.errors import OperatorCondaNotFoundError, OperatorImageNotFoundError
+from .common.errors import (
+    OperatorCondaNotFoundError,
+    OperatorImageNotFoundError,
+    OperatorSchemaYamlError,
+)
 from .common.operator_loader import _operator_info_list
 
 
@@ -160,7 +164,7 @@ def init(
         output = os.path.join(tempfile.TemporaryDirectory().name, "")
 
     # generating operator specification
-    operator_config = None
+    operator_config = {}
     try:
         operator_cmd_module = runpy.run_module(
             f"{operator_info.type}.cmd", run_name="init"
@@ -168,10 +172,12 @@ def init(
         operator_config = operator_cmd_module.get("init", lambda: "")(
             **{**kwargs, **{"type": type}}
         )
-        with fsspec.open(
-            os.path.join(output, f"{operator_info.type}.yaml"), mode="w"
-        ) as f:
-            f.write(yaml.dump(operator_config))
+
+        if not merge_config:
+            with fsspec.open(
+                os.path.join(output, f"{operator_info.type}.yaml"), mode="w"
+            ) as f:
+                f.write(yaml.dump(operator_config))
     except Exception as ex:
         logger.info(
             "The operator's specification was not generated "
@@ -407,7 +413,12 @@ def verify(
             run_name="verify",
         )
         operator_module.get("verify")(config, **kwargs)
-
+    except OperatorSchemaYamlError as ex:
+        logger.debug(ex)
+        raise ValueError(
+            f"The operator's specification is not valid for the `{operator_info.type}` operator. "
+            f"{ex}"
+        )
     except Exception as ex:
         logger.debug(ex)
         raise ValueError(

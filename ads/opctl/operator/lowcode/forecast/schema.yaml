@@ -227,6 +227,7 @@ spec:
       required: true
       schema:
         type: string
+      default: ["Column1"]
 
     horizon:
       required: true

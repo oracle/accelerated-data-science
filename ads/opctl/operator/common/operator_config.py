@@ -61,6 +61,7 @@ class OperatorConfig(DataClassSerializable):
         """
         schema = cls._load_schema()
         validator = OperatorValidator(schema)
+        validator.allow_unknown = True
         result = validator.validate(obj_dict)
 
         if not result:
