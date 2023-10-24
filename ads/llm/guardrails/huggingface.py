@@ -6,25 +6,25 @@
 
 
 import evaluate
-from pydantic import PrivateAttr
 from .base import Guardrail
 
 
 class HuggingFaceEvaluation(Guardrail):
     class Config:
         arbitrary_types_allowed = True
+        underscore_attrs_are_private = True
 
     path: str = ""
     load_args: dict = {}
-    evaluator: evaluate.EvaluationModule = None
+    _evaluator: evaluate.EvaluationModule = ""
 
     def __init__(self, **kwargs):
         if "name" not in kwargs and "path" in kwargs:
             kwargs["name"] = kwargs["path"]
         super().__init__(**kwargs)
-        self.evaluator = None
+        self._evaluator = None
         # Load evaluator only if user did not specified one in constructor.
-        if not self.evaluator:
+        if not self._evaluator:
             self.load()
 
     def load(self) -> None:
@@ -32,10 +32,10 @@ class HuggingFaceEvaluation(Guardrail):
             raise NotImplementedError("Please provide path in load_args.")
         load_args = {"path": self.path}
         load_args.update(self.load_args)
-        self.evaluator = evaluate.load(**load_args)
+        self._evaluator = evaluate.load(**load_args)
 
     def compute(self, data=None, **kwargs):
-        return self.evaluator.compute(predictions=data, **kwargs)
+        return self._evaluator.compute(predictions=data, **kwargs)
 
     @property
     def metric_key(self):
