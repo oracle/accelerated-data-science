@@ -8,7 +8,7 @@ import pathlib
 import sys
 from copy import deepcopy
 import tempfile
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Union
 import fsspec
 from jinja2 import Environment, PackageLoader
 
@@ -21,6 +21,8 @@ from langchain.schema.runnable import (
     RunnableConfig,
     RunnableSequence,
 )
+from langchain.chains import load_chain as llm_load_chain
+from langchain.chains import LLMChain
 from . import guardrails
 from .guardrails.base import GuardrailIO, Guardrail, RunInfo
 
@@ -155,55 +157,6 @@ class GuardrailSequence(RunnableSequence):
                         )
 
         return chain_spec
-    
-    def deploy(
-        self,
-        compartment_id: str,
-        project_id: str,
-        **kwargs
-    ) -> GenericModel:
-        generic_model = GenericModel(
-            estimator=None, 
-            artifact_dir=tempfile.mkdtemp()
-        )
-        generic_model.prepare(
-            score_py_uri=self._generate_score_py(),
-            **kwargs
-        )
-        generic_model.save(
-            compartment_id=compartment_id,
-            project_id=project_id,
-            **kwargs
-        )
-        generic_model.deploy(**kwargs)
-
-        return generic_model
-    
-    def _generate_score_py(self) -> str:
-        temp_dir = tempfile.mkdtemp()
-        score_py_uri = os.path.join(temp_dir, "score.py")
-        env = Environment(loader=PackageLoader("ads", "llm/templates"))
-        score_template = env.get_template("score_guardrail_sequence.jinja2")
-        time_suffix = datetime.today().strftime("%Y%m%d_%H%M%S")
-        guardrail_sequence_dict = self.save()
-        for guardrail in guardrail_sequence_dict:
-            guardrail["spec"].pop("_type")
-        guardrail_sequence_yaml = yaml.safe_dump(guardrail_sequence_dict)
-
-        context = {
-            "guardrail_sequence_yaml": guardrail_sequence_yaml,
-            "SCORE_VERSION": SCORE_VERSION,
-            "ADS_VERSION": ADS_VERSION,
-            "time_created": time_suffix,
-        }
-        with fsspec.open(score_py_uri, "w") as f:
-            f.write(score_template.render(context))
-        
-        return score_py_uri
-
-    @classmethod
-    def from_yaml(cls, yaml_string: str) -> "GuardrailSequence":
-        return cls.load(yaml.safe_load(yaml_string))
 
     def __str__(self) -> str:
         return "\n".join([str(step.__class__) for step in self.steps])
@@ -263,3 +216,69 @@ class GuardrailSequence(RunnableSequence):
             # Chain the guardrail
             chain |= guardrail
         return chain
+
+
+class ADSChain:
+
+    def __init__(self, chain):
+        self.chain = chain
+
+    def deploy(
+        self,
+        compartment_id: str,
+        project_id: str,
+        **kwargs
+    ):
+        artifact_dir = tempfile.mkdtemp()
+        chain_yaml_uri = os.path.join(artifact_dir, "chain.yaml")
+        self.chain.save(chain_yaml_uri)
+        
+        generic_model = GenericModel(
+            estimator=None, 
+            artifact_dir=artifact_dir
+        )
+
+        generic_model.prepare(
+            score_py_uri=self._generate_score_py(),
+            **kwargs
+        )
+
+        generic_model.save(
+            compartment_id=compartment_id,
+            project_id=project_id,
+            **kwargs
+        )
+
+        generic_model.deploy(**kwargs)
+
+        return generic_model
+    
+    def _generate_score_py(self) -> str:
+        temp_dir = tempfile.mkdtemp()
+        score_py_uri = os.path.join(temp_dir, "score.py")
+        env = Environment(loader=PackageLoader("ads", "llm/templates"))
+        score_template = env.get_template("score_chain.jinja2")
+        time_suffix = datetime.today().strftime("%Y%m%d_%H%M%S")
+
+        context = {
+            "SCORE_VERSION": SCORE_VERSION,
+            "ADS_VERSION": ADS_VERSION,
+            "time_created": time_suffix,
+        }
+        with fsspec.open(score_py_uri, "w") as f:
+            f.write(score_template.render(context))
+
+        return score_py_uri
+    
+    @classmethod
+    def load_chain(cls, yaml_uri: str) -> Union["GuardrailSequence", LLMChain]:
+        chain_dict = {}
+        with open(yaml_uri, 'r') as file:
+            chain_dict = yaml.safe_load(file)
+        
+        if chain_dict.get("_type", None) == "llm_chain":
+            return llm_load_chain(yaml_uri)
+        else:
+            for guardrail in chain_dict["chain"]:
+                guardrail["spec"].pop("_type")
+            return GuardrailSequence.load(chain_dict["chain"])
