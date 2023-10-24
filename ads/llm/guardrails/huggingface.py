@@ -10,9 +10,6 @@ from .base import Guardrail
 
 
 class HuggingFaceEvaluation(Guardrail):
-    class Config:
-        arbitrary_types_allowed = True
-        underscore_attrs_are_private = True
 
     path: str = ""
     load_args: dict = {}

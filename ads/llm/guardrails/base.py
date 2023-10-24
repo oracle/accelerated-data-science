@@ -153,6 +153,10 @@ class Guardrail(Serializable, Runnable):
 
     """
 
+    class Config:
+        arbitrary_types_allowed = True
+        underscore_attrs_are_private = True
+
     name: str = ""
     custom_msg: str = None
 
