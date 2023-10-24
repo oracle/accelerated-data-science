@@ -1,0 +1,13 @@
+dependencies:
+  - main::ipykernel=6.15.2
+  - main::ipython<=8.8.0
+  - main::nb_conda_kernels=2.3.1
+  - main::pip
+  - main::python=3.8.17
+  - main::libffi=3.4.2
+  - main::PyYAML=5.4.1
+  - pip:
+    - oci
+    - oci-cli
+    - cffi>=1.15.1
+    - oracledb

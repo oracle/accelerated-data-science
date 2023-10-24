@@ -1,0 +1,113 @@
+#!/bin/bash -e
+exec 2>&1
+
+# conf file
+SCRIPT_DIR="$( dirname -- "$0"; )"
+[ -r $SCRIPT_DIR/conf ] && . $SCRIPT_DIR/conf
+
+NOTEBOOK_STOP_ACTION="delete"
+
+trap execute_container_onstop_script SIGTERM
+trap rundeactivatescript SIGUSR1 #Deactivate flag
+trap rundeletescript SIGUSR2 #Delete flag
+
+execute_container_onstop_script() {
+  echo "Going to check and run the script on container stop...."
+  file_to_search=""
+  script_execution_timeout_seconds=""
+  
+  if [[ $NOTEBOOK_STOP_ACTION == "deactivate" ]]
+  then
+    echo "Deactivate Notebook Action......."
+    file_to_search=$DEACTIVATE_SCRIPT_FILE_NAME
+    script_execution_timeout_seconds=$NB_LFS_ONDEACTIVATE_TIMEOUT_S
+  elif [[ $NOTEBOOK_STOP_ACTION == "delete" ]]
+  then
+    echo "Delete Notebook Action......."
+    file_to_search=$DELETE_SCRIPT_FILE_NAME
+    script_execution_timeout_seconds=$NB_LFS_ONDELETE_TIMEOUT_S
+  else
+    echo "Invalid function argument."
+    exit 1
+  fi
+
+  echo "Checking if the script is present"
+
+  [[ -z "$file_to_search" ]] && echo "Unrecognized user action or file name is missing. exit...." && exit 1
+
+  script_file=$(find "$SCRIPTS_DIR" -maxdepth 1 -iname "$file_to_search*" -type f)
+  [[ ! -n "$script_file" ]] && echo "Find command return empty list of files. exit...." && exit 1
+
+  file_count=`echo $script_file | wc -l`
+  [[ "$file_count" != 1 ]] && echo "More than 1 script file found. exit...." && exit 1
+
+  echo "Executing the script..$script_file"
+  exec odsc-notebook execute-lifecycle-script -f $script_file -d $SCRIPTS_DIR -e $SCRIPT_EXECUTION_DIR -t $script_execution_timeout_seconds
+
+  echo "Exiting after file execution is finished.."
+  exit 0
+}
+
+execute_container_onstart_script() {
+  echo "Going to check and run the script on container start...."
+  [[ -z "$USER_ACTION" ]] && echo "No user action provided." && return
+
+  echo "Checking if the script is present"
+
+  file_to_search=""
+  script_execution_timeout_seconds=""
+  if [[ "$USER_ACTION" == "$CREATE_NOTEBOOK_ACTION" ]]; then
+    echo "Create Notebook Action..."
+    file_to_search=$CREATE_SCRIPT_FILE_NAME
+    script_execution_timeout_seconds=$NB_LFS_ONCREATE_TIMEOUT_S
+  elif [[ "$USER_ACTION" == "$ACTIVATE_NOTEBOOK_ACTION" ]]; then
+    echo "Activate Notebook Action..."
+    file_to_search=$ACTIVATE_SCRIPT_FILE_NAME
+    script_execution_timeout_seconds=$NB_LFS_ONACTIVATE_TIMEOUT_S
+  fi
+
+  [[ -z "$file_to_search" ]] && echo "Unrecognized user action or file name is missing. exit...." && return
+
+  script_file=$(find "$SCRIPTS_DIR" -maxdepth 1 -iname "$file_to_search*" -type f)
+  [[ ! -n "$script_file" ]] && echo "Find command return empty list of files. exit...." && return
+
+  file_count=`echo $script_file | wc -l`
+  [[ "$file_count" != 1 ]] && echo "More than 1 script file found. exit...." && return
+
+  #Execute script
+  echo "executing the script..$script_file"
+  exec odsc-notebook execute-lifecycle-script -f $script_file -d $SCRIPTS_DIR -e $SCRIPT_EXECUTION_DIR -t $script_execution_timeout_seconds &
+}
+
+rundeactivatescript() {
+  echo "Received USR1, setting the stop action to deactivate."
+  NOTEBOOK_STOP_ACTION="deactivate"
+}
+
+rundeletescript() {
+  echo "Received USR2, setting the stop action to delete."
+  NOTEBOOK_STOP_ACTION="delete"
+}
+
+# enable conda commands
+source /etc/profile.d/enableconda.sh
+
+#activating runtimeconfig conda
+conda activate $OCI_INTERNAL_DS_RUNTIME_CONFIG_ENV_NAME
+
+# Start git cloning in background
+set +H 
+exec \
+odsc-notebook runtime-config process_git_configuration \
+-f $OCI_INTERNAL_RUNTIME_CONFIG_FILE_PATH \
+-d $OCI_INTERNAL_DS_REPO_HOME || \
+echo "Runtime Config process git settings exit status: $?" &
+
+# Start the on start script
+execute_container_onstart_script || echo "Container onstart script execution exit with status code: $?" &
+
+echo "Starting the while loop with sleep 1....."
+while [[ true ]]
+do
+  sleep 1
+done

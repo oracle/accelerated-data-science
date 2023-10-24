@@ -31,12 +31,12 @@ def main(pack_folder_path):
             stderr=subprocess.PIPE,
         )
         stdout, stderr = process.communicate()
-        # import pdb; pdb.set_trace()
-        # if stderr:
-        #     print(stderr)
-        #     raise Exception(
-        #         f"Error export environment information from {pack_folder_path}"
-        #     )
+        
+        if process.returncode and stderr:
+            print(stderr)
+            raise Exception(
+                f"Error export environment information from {pack_folder_path}"
+            )
         try:
             new_env_info = yaml.safe_load(StringIO(stdout.decode("utf-8")))
         except Exception as e:
