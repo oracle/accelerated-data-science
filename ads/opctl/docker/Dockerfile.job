@@ -1,5 +1,7 @@
-# Used OL8 because miniconda required a higher version of glibc that was unavoidable
-FROM ocr-docker-remote.artifactory.oci.oraclecorp.com/os/oraclelinux:8-slim-fips
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+FROM ghcr.io/oracle/oraclelinux:7-slim
 
 # Configure environment
 ENV DATASCIENCE_USER datascience
@@ -9,139 +11,76 @@ ENV DATASCIENCE_INSTALL_DIR /etc/datascience
 ENV LOGS_DIRECTORY /logs
 
 ARG release=19
-ARG update=10
-ARG target=cpu
-
-# Move this arg around the file as needed when you want to use cache for local builds/testing to speed up the process
-# This will allow you to set success points where you know previous code in the dockerfile is working
-# ARG RAND
-
-COPY common /etc/datascience
-COPY etc/yum.repos.d /etc/yum.repos.d
-
-# source: https://confluence.oraclecorp.com/confluence/pages/viewpage.action?spaceKey=ESEDoc&title=Artifactory+FAQ
-ADD Symantec_Private_SSL_SHA256_CA.cer /etc/pki/ca-trust/source/anchors
-ADD Symantec_Private_SSL_SHA256_Root.cer /etc/pki/ca-trust/source/anchors
-
-RUN update-ca-trust
-
-RUN microdnf install yum yum-utils && yum clean all && rm -rf /var/cache/yum
+ARG update=13
 
 RUN \
-    yum install -y \
-    oracle-release-el8 \
-    oraclelinux-developer-release-el8 \
-    oracle-epel-release-el8 \
-    https://dl.fedoraproject.org/pub/epel/epel-release-latest-8.noarch.rpm && \
-    yum-config-manager --enable ol8_addons --enable ol8_oracle_instantclient > /dev/null && yum -y update && \
-    yum clean all && \
-    rm -rf /var/cache/yum/*
-
-RUN \
-    yum install -y \
-    --setopt=skip_missing_names_on_install=False \
+    yum -y -q install oracle-release-el7 && \
+    yum-config-manager --add-repo http://yum.oracle.com/repo/OracleLinux/OL7/developer_EPEL/x86_64 && \
+    yum-config-manager --enable ol7_optional_latest --enable ol7_addons --enable ol7_software_collections --enable ol7_oracle_instantclient > /dev/null && \
+    yum groupinstall -y -q 'Development Tools' && \
+    yum update -y && \
+    yum install -y --setopt=skip_missing_names_on_install=False \
     bzip2 \
+    curl \
     git \
-    httpd \
+    gcc-gfortran \
     libcurl-devel \
     libxml2-devel \
-    java-11-openjdk-headless \
     oracle-instantclient${release}.${update}-basic \
     oracle-instantclient${release}.${update}-sqlplus \
     openssl \
     openssl-devel \
     patch \
-    snappy \
-    gcc-c++ \
     sudo \
     unzip \
-    vi \
     zip \
+    gcc-c++ \
     wget \
-    jq \
     gcc \
-    htop \
-    git-lfs \
-    pcsc-lite-libs \
-    perl-Env \
-    perl-CPAN \
-    perl-devel \
-    curl-devel \
-    expat-devel \
-    asciidoc \
-    xmlto \
-    supervisor && \
-    yum clean all && \
-    rm -rf /var/cache/yum/*
-
-RUN \
-    yum groupinstall -y -q "development tools" \
     && yum clean all \
     && rm -rf /var/cache/yum/*
 
 # setup user
 RUN \
-    mkdir -p /home/$DATASCIENCE_USER && \
-    useradd -m -s /bin/bash -N -u $DATASCIENCE_UID $DATASCIENCE_USER && \
-    chown $DATASCIENCE_USER /home/$DATASCIENCE_USER && \
-    chown -R $DATASCIENCE_USER:users /usr/local/ && \
-    touch /etc/sudoers.d/$DATASCIENCE_USER && echo "$DATASCIENCE_USER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$DATASCIENCE_USER && \
-    mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR
+  mkdir -p /home/$DATASCIENCE_USER && \
+  useradd -m -s /bin/bash -N -u $DATASCIENCE_UID $DATASCIENCE_USER && \
+  chown -R $DATASCIENCE_USER /home/$DATASCIENCE_USER && \
+  chown -R $DATASCIENCE_USER:users /usr/local/ && \
+  touch /etc/sudoers.d/$DATASCIENCE_USER && echo "$DATASCIENCE_USER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$DATASCIENCE_USER && \
+  mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR && \
+  mkdir -p $LOGS_DIRECTORY && chown -R $DATASCIENCE_USER:users $LOGS_DIRECTORY && \
+  mkdir -p $LOGS_DIRECTORY/harness && chown -R $DATASCIENCE_USER:users $LOGS_DIRECTORY/harness
 
-# COPY build-tool-entrypoint.sh /etc/datascience/build-tool-entrypoint.sh
-# COPY install-capture-entrypoint.sh /etc/datascience/install-capture-entrypoint.sh
+RUN mkdir -p /etc/datascience/build
+RUN mkdir -p $DATASCIENCE_INSTALL_DIR/{pre-build-ds,post-build-ds,pre-run-ds,pre-run-user}
 
+#conda
 # set a default language for localization.  necessary for oci cli
 ARG LANG=en_US.utf8
 ENV LANG=$LANG
 ENV SHELL=/bin/bash
 
-############### SETUP ROOT (BASE) ENVIRONMENT WITH CONDA ######################
-ARG PYTHON_MAJOR='3'
-ARG PYTHON_MINOR='8'
-ARG PYTHON_PATCH=''
-ARG MINICONDA_VER=py${PYTHON_MAJOR}${PYTHON_MINOR}_23.5.2-0
-ARG MAMBAFORGE_VER=23.3.1-1
-
 # set /opt folder permissions for $DATASCIENCE_USER. Conda is going to live in this folder.
-RUN chown $DATASCIENCE_USER /opt
+RUN chown -R $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
+RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /home/datascience/miniconda.sh \
+    && /bin/bash /home/datascience/miniconda.sh -f -b -p /opt/conda \
+    && rm /home/datascience/miniconda.sh \
+    && /opt/conda/bin/conda clean -yaf
 
-# Note in order to run sudo commands as a non root user, you must specify --credential yes if using qemu static to build the image
-RUN wget -nv https://artifactory.oci.oraclecorp.com/odsc-dev-generic-local/datascience/Miniconda3-${MINICONDA_VER}-$(uname)-$(uname -m).sh \
-    -O /home/datascience/Miniconda3.sh \
-    && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
-    && rm /home/datascience/Miniconda3.sh \
-    && wget -nv https://artifactory.oci.oraclecorp.com/odsc-dev-generic-local/datascience/Mambaforge-${MAMBAFORGE_VER}-$(uname)-$(uname -m).sh \
-    -O /home/datascience/Mambaforge3.sh \
-    && /bin/bash /home/datascience/Mambaforge3.sh -f -b -p /opt/conda \
-    && rm /home/datascience/Mambaforge3.sh \
-    && ls  /opt/**/*
-
-# Adding conda to the path
-ENV PATH="/opt/conda/bin:${PATH}"
-
-# Set activate conda by default
+WORKDIR /
 USER root
 RUN printf "#!/bin/bash\nsource /opt/conda/bin/activate\n" > /etc/profile.d/enableconda.sh \
     && chmod +x /etc/profile.d/enableconda.sh
 
 USER $DATASCIENCE_USER
+ENV PATH="/opt/conda/bin:${PATH}"
 WORKDIR /home/datascience
 
-COPY base-env-arm.yaml /opt/base-env.yaml
-COPY jupyter-arm.yaml /opt/jupyter.yaml
-
-# Needs to be set to prevent a hang with mamba installations if this dockerfile
-# is being built by running qemu-user-static to emulate an ARM machine
-# <https://github.com/mamba-org/mamba/issues/1611>
-ENV G_SLICE=always-malloc
-
-# Replaced conda with mamba. Conda wasn't able to resolve conflicts
-RUN mamba env update -n root -f /opt/jupyter.yaml && mamba clean -yaf && rm -rf /home/datascience/.cache/pip
-
+COPY docker/base-env.yaml /opt/base-env.yaml
+RUN conda env update -q -n root -f /opt/base-env.yaml && conda clean -yaf && rm -rf /home/datascience/.cache/pip
 
 USER $DATASCIENCE_USER
 
@@ -157,3 +96,13 @@ ARG PIP_INDEX_URL
 
 ############# Setup Conda environment tools ###########################
 ARG RAND=1
+
+ARG RUN_WORKING_DIR="/home/datascience"
+WORKDIR $RUN_WORKING_DIR
+
+# clean tmp folder
+RUN rm -rf /tmp/*
+
+RUN mkdir -p /etc/datascience/operators
+
+USER datascience

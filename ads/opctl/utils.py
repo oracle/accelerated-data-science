@@ -17,6 +17,7 @@ from distutils import dir_util
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union, List, Tuple, Dict
 import yaml
+import re
 
 import ads
 from ads.common.oci_client import OCIClientFactory
@@ -161,7 +162,14 @@ def build_image(
             )
         proc = _build_custom_operator_image(gpu, source_folder, dst_image)
     else:
-        image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu)
+        # https://stackoverflow.com/questions/66842004/get-the-processor-type-using-python-for-apple-m1-processor-gives-me-an-intel-pro
+        import cpuinfo
+        # Just get the manufacturer of the processors
+        manufacturer = cpuinfo.get_cpu_info().get('brand_raw')
+        arch = 'arm' if re.search("apple m\d ", manufacturer, re.IGNORECASE) else 'other'
+        print(f"The local machine's platform is {arch}.")
+        image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu, arch)
+        print(f"dockerfile used is {dockerfile}")
         command = [
             "docker",
             "build",
@@ -180,21 +188,22 @@ def build_image(
             command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
         if os.environ.get(CONTAINER_NETWORK):
             command += ["--network", os.environ[CONTAINER_NETWORK]]
-        command += [os.path.abspath(curr_dir)]
+        command += [os.path.join(os.path.abspath(curr_dir), "docker")]
         logger.info("Build image with command %s", command)
         proc = run_command(command)
     if proc.returncode != 0:
         raise RuntimeError("Docker build failed.")
 
 
-def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
+def _get_image_name_dockerfile_target(type: str, gpu: bool, arch: str) -> str:
     look_up = {
-        ("job-local", False): (ML_JOB_IMAGE, "Dockerfile.job", None),
-        ("job-local", True): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
-        ("ads-ops-base", False): (OPS_IMAGE_BASE, "Dockerfile", "base"),
-        ("ads-ops-base", True): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
+        ("job-local", False, "arm"): (ML_JOB_IMAGE, "Dockerfile_arm.job", None),
+        ("job-local", False, "other"): (ML_JOB_IMAGE, "Dockerfile.job", None),
+        ("job-local", True, "other"): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
+        ("ads-ops-base", False, "other"): (OPS_IMAGE_BASE, "Dockerfile", "base"),
+        ("ads-ops-base", True, "other"): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
     }
-    return look_up[(type, gpu)]
+    return look_up[(type, gpu, arch)]
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)

@@ -1,0 +1,19 @@
+channels:
+- conda-forge
+dependencies:
+  - conda-forge::conda-pack=0.5.0
+  - main::ipykernel=6.15.2
+  - main::jupyterlab=2.2.10
+  - main::nb_conda_kernels=2.3.1
+  - main::nodejs>=16,<=17
+  - main::pip
+  - main::python=3.8.17
+  - main::PyYAML=5.4.1
+  - conda-forge::pillow=9.2.0 
+  - conda-forge::bokeh=2.4.3 
+  - conda-forge::jupyter_bokeh=2.0.4
+  - pip:
+    - oracle-ads[opctl]
+    - oci # install from artifactory if possible
+    - oci-cli # install from artifactory if possible
+    - cffi>=1.15.1
