@@ -379,7 +379,7 @@ class ADSChain:
         with open(yaml_uri, 'r') as file:
             chain_dict = yaml.safe_load(file)
         
-        chain_type = chain_dict.get("_type", None)
+        chain_type = chain_dict.get(SPEC_CHAIN_TYPE, None)
         if chain_type == "llm_chain":
             return llm_load_chain(yaml_uri)
         elif chain_type == "ads_guardrail_sequence":
