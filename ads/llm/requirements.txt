@@ -1,0 +1,2 @@
+pydantic>=1.10.13,<3
+typing-extensions>=4.2.0
