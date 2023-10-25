@@ -9,7 +9,7 @@ import sys
 import yaml
 from copy import deepcopy
 import tempfile
-from typing import Any, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 import fsspec
 from jinja2 import Environment, PackageLoader
 
@@ -325,6 +325,7 @@ class ADSChain:
 
     def __init__(self, chain):
         self.chain = chain
+        self.generic_model = None
 
     def deploy(
         self,
@@ -354,7 +355,9 @@ class ADSChain:
 
         generic_model.deploy(**kwargs)
 
-        return generic_model
+        self.generic_model = generic_model
+
+        return self
     
     def _generate_score_py(self) -> str:
         temp_dir = tempfile.mkdtemp()
@@ -384,3 +387,25 @@ class ADSChain:
             return llm_load_chain(yaml_uri)
         elif chain_type == "ads_guardrail_sequence":
             return GuardrailSequence.load(chain_dict)
+
+    def predict(
+        self,
+        data: Any = None,
+        auto_serialize_data: bool = False,
+        local: bool = False,
+        **kwargs,
+    ) -> Dict[str, Any]:
+        
+        if not self.generic_model:
+            raise ValueError(
+                "Error invoking the remote endpoint as the chain is not "
+                "deployed yet or the endpoint information is not available. "
+                "Use `deploy()` method to start chain deployment. "
+            )
+        
+        return self.generic_model.predict(
+            data=data,
+            auto_serialize_data=auto_serialize_data,
+            local=local,
+            **kwargs
+        )
