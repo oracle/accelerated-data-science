@@ -63,7 +63,7 @@ DEFAULT_TIME_OUT = 300
 DEFAULT_CONTENT_TYPE_JSON = "application/json"
 
 
-class OCILLM(LLM):
+class BaseLLM(LLM):
     """Base OCI LLM class. Contains common attributes."""
 
     auth: Any
@@ -86,13 +86,8 @@ class OCILLM(LLM):
     stop: Optional[List[str]] = None
     """Stop words to use when generating. Model output is cut off at the first occurrence of any of these substrings."""
 
-    class Config:
-        """Configuration for this pydantic object."""
 
-        extra = Extra.forbid
-
-
-class GenerativeAI(OCILLM):
+class GenerativeAI(BaseLLM):
     """GenerativeAI Service.
 
     To use, you should have the ``oci`` python package installed.
@@ -351,7 +346,7 @@ class GenerativeAI(OCILLM):
         )
 
 
-class OCIModelDeployment(OCILLM):
+class OCIModelDeployment(BaseLLM):
     """Base class for OCI Model Deployment Endpoint model."""
 
     endpoint: str = None
