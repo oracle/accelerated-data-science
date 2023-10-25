@@ -8,11 +8,11 @@
 from ads.llm.langchain.plugins import GenerativeAI
 from ads.llm.langchain.plugins import OCIModelDeploymentTGI
 
-# from ads.llm.langchain.plugins import ModelDeploymentVLLM
+# from ads.llm.langchain.plugins import OCIModelDeploymentVLLM
 
 
 __all__ = [
     "GenerativeAI",
     "OCIModelDeploymentTGI",
-    # "ModelDeploymentVLLM",
+    # "OCIModelDeploymentVLLM",
 ]
