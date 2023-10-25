@@ -317,7 +317,6 @@ class ForecastOperatorBaseModel(ABC):
                     else 0
                     for date in dates
                 ]
-                # Select for the ds that is there in y_true, discard others
                 y_pred = np.asarray(outputs[idx][target_col][-len(y_true) :])
 
                 metrics_df = utils._build_metrics_df(
