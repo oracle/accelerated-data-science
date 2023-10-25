@@ -3,12 +3,12 @@
 Statistics
 *************
 
-Feature Store provides functionality to compute statistics for feature groups as well as datasets and persist them along with the metadata. These statistics can help you
-to derive insights about the data quality. These statistical metrics are computed during materialisation time and persisting with other metadata.
+Feature Store provides functionality to compute statistics for feature groups and datasets, and then persists them including the metadata. These statistics can help you
+to derive insights about the data quality. These statistical metrics are computed during materialization time and persisting with other metadata.
 
 .. note::
 
-  Feature Store utilizes MLM Insights which is a Python API that helps evaluate and monitor data for entirety of ML Observability lifecycle. It performs data summarization which reduces a dataset into a set of descriptive statistics.
+  Feature Store uses MLM Insights, which is a Python API that helps evaluate and monitor data for entire ML observability lifecycle. It performs data summarization, which reduces a dataset into a set of descriptive statistics.
 
 The statistical metrics that are computed by feature store depend on the feature type.
 
