@@ -197,7 +197,10 @@ class GuardrailSequence(RunnableSequence):
                 path = getattr(step, "path", None)
             else:
                 path = step.__module__
-            logger.debug("class: %s | path: %s", class_name, path)
+
+            logger.debug("class: %s | module: %s", class_name, path)
+            if not hasattr(step, "dict"):
+                raise NotImplementedError(f"{class_name} is not serializable.")
             chain_spec.append(
                 {SPEC_CLASS: class_name, SPEC_PATH: path, SPEC_SPEC: step.dict()}
             )
