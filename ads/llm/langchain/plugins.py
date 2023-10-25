@@ -360,7 +360,6 @@ class GenerativeAI(OCILLM):
             else [gen.text for gen in response.data.generated_texts[0]]
         )
 
-    @with_oci_token
     def completion_with_retry(self, **kwargs: Any) -> Any:
         _model_kwargs = {**kwargs}
         _endpoint_kwargs = self.endpoint_kwargs or {}
@@ -490,7 +489,6 @@ class OCIModelDeployment(OCILLM):
 
         return str(response.get("generated_text", response))
 
-    @with_oci_token
     def send_request(
         self,
         data,
