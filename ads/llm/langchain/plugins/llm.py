@@ -11,20 +11,10 @@ import logging
 from typing import Any, Mapping, Dict, List, Optional
 from ads.common.auth import default_signer
 
-# TODO: Switch to runtime_dependency
-# from ads.common.decorator.runtime_dependency import (
-#     runtime_dependency,
-#     OptionalDependency,
-# )
-# @runtime_dependency(module="langchain", install_from=OptionalDependency.LANGCHAIN)
+from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.llms.base import LLM
+from langchain.pydantic_v1 import root_validator, Field, Extra
 
-try:
-    from langchain.callbacks.manager import CallbackManagerForLLMRun
-    from langchain.llms.base import LLM
-    from langchain.pydantic_v1 import root_validator, Field, Extra
-except ImportError as e:
-    print("Pip install `langchain`")
-    pass
 
 try:
     from oci.generative_ai import GenerativeAiClient, models
