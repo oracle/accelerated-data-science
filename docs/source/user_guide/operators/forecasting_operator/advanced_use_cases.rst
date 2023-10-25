@@ -31,17 +31,17 @@ Sometimes users will know which models they want to use. When users know this in
 
 .. code-block:: yaml
 
-   kind: operator
-   type: forecast
-   version: v1
-   spec:
-     model: automlx
-     model_params:
-       model_list:
-         - DecisionTreeRegressor
-       num_trees: 100
-       max_depth: 5
-       learning_rate: 0.01
+  kind: operator
+  type: forecast
+  version: v1
+  spec:
+    model: automlx
+    model_kwargs:
+      model_list:
+        - NaiveForecaster
+      search_space:
+        NaiveForecaster:
+          sp: [1,100]
 
 
 When using autots, there are model_list *families*. These families are named after the shared characteristics of the models included. For example, we can use the autots "superfast" model_list and set it in the following way:
@@ -53,7 +53,7 @@ When using autots, there are model_list *families*. These families are named aft
   version: v1
   spec:
     model: autots
-    model_params:
+    model_kwargs:
       model_list: superfast
 
 
@@ -70,8 +70,8 @@ In addition to ``model_list``, there are many other parameters that can be speci
   type: forecast
   version: v1
   spec:
-    model: autots
-    model_params:
+    model: automlx
+    model_kwargs:
       search_space:
         LogisticRegression:
           C: 

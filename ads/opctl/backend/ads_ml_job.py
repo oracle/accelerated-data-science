@@ -93,8 +93,11 @@ class MLJobBackend(Backend):
             `None` otherwise.
         """
 
-        conda_slug = kwargs.get(
-            "conda_slug", self.config["execution"].get("conda_slug", "conda_slug")
+        conda_slug = (
+            kwargs.get(
+                "conda_slug", self.config["execution"].get("conda_slug", "conda_slug")
+            )
+            or ""
         ).lower()
 
         # if conda slug contains '/' then the assumption is that it is a custom conda pack

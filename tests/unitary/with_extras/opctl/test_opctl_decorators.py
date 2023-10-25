@@ -4,19 +4,13 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pytest
-from ads.opctl.decorator import common
 from ads.opctl.decorator.common import validate_environment, OpctlEnvironmentError
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 
 class TestOpctlDecorators:
     """Tests the all OPCTL common decorators."""
 
-    @patch("ads.opctl.decorator.common.NB_SESSION_OCID", None)
-    @patch("ads.opctl.decorator.common.JOB_RUN_OCID", None)
-    @patch("ads.opctl.decorator.common.PIPELINE_RUN_OCID", None)
-    @patch("ads.opctl.decorator.common.DATAFLOW_RUN_OCID", None)
-    @patch("ads.opctl.decorator.common.MD_OCID", None)
     def test_validate_environment_success(self):
         """Tests validating environment decorator."""
 
@@ -26,7 +20,6 @@ class TestOpctlDecorators:
 
         assert mock_function() == "SUCCESS"
 
-    @patch("ads.opctl.decorator.common.NB_SESSION_OCID", "TEST")
     def test_validate_environment_fail(self):
         """Tests validating environment decorator fails."""
 
@@ -34,5 +27,15 @@ class TestOpctlDecorators:
         def mock_function():
             return "SUCCESS"
 
-        with pytest.raises(OpctlEnvironmentError):
-            assert mock_function()
+        import docker
+
+        with patch.object(
+            docker,
+            "from_env",
+            return_value=MagicMock(
+                "version",
+                return_value=MagicMock(side_effect=ValueError("Something went wrong")),
+            ),
+        ):
+            with pytest.raises(OpctlEnvironmentError):
+                assert mock_function()

@@ -64,7 +64,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             na_tolerance=1,
             drop_most_recent=0,
             drop_data_older_than_periods=None,
-            model_list=self.spec.model_kwargs.get("model_list", "superfast"),
+            model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
             transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
             transformer_max_depth=self.spec.model_kwargs.get(
                 "transformer_max_depth", 6
