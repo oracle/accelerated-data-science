@@ -12,6 +12,7 @@ import logging
 
 from typing import Any, Mapping, Dict, List, Optional
 
+# TODO: Switch to runtime_dependency
 # from ads.common.decorator.runtime_dependency import (
 #     runtime_dependency,
 #     OptionalDependency,
@@ -173,16 +174,19 @@ class OCILLM(LLM):
         raise NotImplementedError
 
 
-class OCIGenerativeAI(OCILLM):
-    """OCIGenerativeAI
+class GenerativeAI(OCILLM):
+    """GenerativeAI
 
     To use, you should have the ``oci`` python package installed
 
-    Example:
+    Example
+    -------
+
     .. code-block:: python
 
-        import OCIGenerateAI
-        gen_ai = OCIGenerateAI(*args, **kwargs) # some params config
+        from ads.llm import GenerativeAI
+        gen_ai = GenerativeAI(*args, **kwargs) # some params config
+        gen_ai("Tell me a joke.")
 
     """
 
@@ -217,19 +221,8 @@ class OCIGenerativeAI(OCILLM):
     """Optional attributes passed to the generate_text/summarize_text function."""
 
     client_kwargs: Dict[str, Any] = {"service_endpoint": DEFAULT_SERVICE_ENDPOINT}
-    """Holds any client parametes for creating GenerativeAiClient
-    Example:
-    .. code-block:: python
+    """Holds any client parametes for creating GenerativeAiClient"""
 
-        gen_ai = OCIGenerateAI(
-            ...,
-            client_kwargs={
-                "service_endpoint":"",
-                "retry_strategy":"",
-                ...
-            }
-        )
-    """
     compartment_id: str = None
 
     task: str = TASK.TEXT_GENERATION
@@ -390,10 +383,6 @@ class OCIGenerativeAI(OCILLM):
                 f"task={TASK.SUMMARY_TEXT} does not support batch_completion. "
             )
 
-        # text_generations = self._call()
-        # return LLMResult(
-        #     generations=[[Generation(text=text)] for text in text_generations]
-        # )
         return self._call(
             prompt=prompt,
             stop=stop,
@@ -401,10 +390,6 @@ class OCIGenerativeAI(OCILLM):
             num_generations=num_generations,
             **kwargs,
         )
-        # known issues: generate_text does not support multiple prompts
-        # ServiceError: {'target_service': 'generative_ai', 'status': 400, 'code': '400', 'opc-request-id': '3099A9C932D440378976DC6DD247F556/E9EEA69E1CB37E825E147540D8A34312/422D54EFE16F7100886D121D3F080D57', 'message': 'Prompts must be provided, support prompts size to be 1.', 'operation_name': 'generate_text', 'timestamp': '2023-10-09T17:59:00.229156+00:00', 'client_version': 'Oracle-PythonSDK/2.112.1+preview.1.1649', 'request_endpoint': 'POST https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com/20231130/actions/generateText', 'logging_tips': 'To get more info on the failing request, refer to https://docs.oracle.com/en-us/iaas/tools/python/latest/logging.html for ways to log the request/response details.', 'troubleshooting_tips': 'See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_400__400_400 for more information about resolving this error. If you are unable to resolve this generative_ai issue, please contact Oracle support and provide them this full error message.'}
-
-    # def embed(self): skip
 
 
 class OCIModelDeployment(OCILLM):
@@ -511,6 +496,26 @@ class OCIModelDeployment(OCILLM):
 
 
 class OCIModelDeploymentTGI(OCIModelDeployment):
+    """_summary_
+
+    Args:
+        OCIModelDeployment (_type_): _description_
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+
+    Example
+    -------
+    >>> # Initialize the LLM client
+    >>> oci_md = OCIModelDeploymentTGI(*args, **kwargs)
+    >>> # Get a response given a prompt
+    >>> oci_md("Tell me a joke.")
+
+    """
+
     do_sample = True
     watermark = True
     return_full_text = True
@@ -555,65 +560,58 @@ class OCIModelDeploymentTGI(OCIModelDeployment):
         }
 
 
-class OCIModelDeploymentvLLM(OCIModelDeployment):
-    """Not finished yet. Need to clarify the usage first."""
+# class OCIModelDeploymentvLLM(OCIModelDeployment):
+#     """Not finished yet. Need to clarify the usage first."""
 
-    n: int = 1
-    """Number of output sequences to return for the given prompt."""
+#     n: int = 1
+#     """Number of output sequences to return for the given prompt."""
 
-    presence_penalty: float = 0.0
-    """Float that penalizes new tokens based on whether they appear in the
-    generated text so far"""
+#     presence_penalty: float = 0.0
+#     """Float that penalizes new tokens based on whether they appear in the
+#     generated text so far"""
 
-    frequency_penalty: float = 0.0
-    """Float that penalizes new tokens based on their frequency in the
-    generated text so far"""
+#     frequency_penalty: float = 0.0
+#     """Float that penalizes new tokens based on their frequency in the
+#     generated text so far"""
 
-    use_beam_search: bool = False
-    """Whether to use beam search instead of sampling."""
+#     use_beam_search: bool = False
+#     """Whether to use beam search instead of sampling."""
 
-    ignore_eos: bool = False
-    """Whether to ignore the EOS token and continue generating tokens after
-    the EOS token is generated."""
+#     ignore_eos: bool = False
+#     """Whether to ignore the EOS token and continue generating tokens after
+#     the EOS token is generated."""
 
-    logprobs: Optional[int] = None
-    """Number of log probabilities to return per output token."""
+#     logprobs: Optional[int] = None
+#     """Number of log probabilities to return per output token."""
 
-    @property
-    def _llm_type(self) -> str:
-        """Return type of llm."""
-        return "oci_model_deployment_vllm_endpoint"
+#     @property
+#     def _llm_type(self) -> str:
+#         """Return type of llm."""
+#         return "oci_model_deployment_vllm_endpoint"
 
-    @property
-    def _default_params(self) -> Dict[str, Any]:
-        """Get the default parameters for invoking OCI model deployment vllm endpoint."""
-        return {
-            "n": self.n,
-            "best_of": self.best_of,
-            "max_tokens": self.max_tokens,
-            "top_k": self.k,
-            "top_p": self.p,
-            "temperature": self.temperature,
-            "presence_penalty": self.presence_penalty,
-            "frequency_penalty": self.frequency_penalty,
-            "ignore_eos": self.ignore_eos,
-            "use_beam_search": self.use_beam_search,
-            "logprobs": self.logprobs,
-        }
+#     @property
+#     def _default_params(self) -> Dict[str, Any]:
+#         """Get the default parameters for invoking OCI model deployment vllm endpoint."""
+#         return {
+#             "n": self.n,
+#             "best_of": self.best_of,
+#             "max_tokens": self.max_tokens,
+#             "top_k": self.k,
+#             "top_p": self.p,
+#             "temperature": self.temperature,
+#             "presence_penalty": self.presence_penalty,
+#             "frequency_penalty": self.frequency_penalty,
+#             "ignore_eos": self.ignore_eos,
+#             "use_beam_search": self.use_beam_search,
+#             "logprobs": self.logprobs,
+#         }
 
-    def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
-        params = self._default_params
-        if self.stop is not None and stop is not None:
-            raise ValueError("`stop` found in both the input and default params.")
-        elif self.stop is not None:
-            params["stop"] = self.stop
-        else:
-            params["stop"] = stop
-        return {**params, **kwargs}
-
-
-######################################
-# Initialize the LLM client
-# gen_ai = OCIGenerateAI(*args, **kwargs)
-# Get a response given a prompt
-# response = gen_ai(prompt)
+#     def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
+#         params = self._default_params
+#         if self.stop is not None and stop is not None:
+#             raise ValueError("`stop` found in both the input and default params.")
+#         elif self.stop is not None:
+#             params["stop"] = self.stop
+#         else:
+#             params["stop"] = stop
+#         return {**params, **kwargs}
