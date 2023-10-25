@@ -30,12 +30,9 @@ try:
     from oci.generative_ai import GenerativeAiClient, models
 except ImportError as e:
     print("Pip install `oci` with correct version")
+    pass
 
 logger = logging.getLogger(__name__)
-
-
-class NotAuthorizedError(oci.exceptions.ServiceError):
-    pass
 
 
 # Move to constant.py
@@ -499,8 +496,9 @@ class OCIModelDeploymentTGI(OCIModelDeployment):
 
         .. code-block:: python
 
-            oci_md = OCIModelDeploymentTGI(*args, **kwargs)
-            oci_md("Tell me a joke.")
+            from ads.llm import GenerativeAI
+
+            oci_md = OCIModelDeploymentTGI(endpoint="<url_of_model_deployment_endpoint>")
 
     """
 
@@ -555,57 +553,3 @@ class OCIModelDeploymentvLLM(OCIModelDeployment):
     """Not support yet."""
 
     pass
-
-
-#     n: int = 1
-#     """Number of output sequences to return for the given prompt."""
-
-#     presence_penalty: float = 0.0
-#     """Float that penalizes new tokens based on whether they appear in the
-#     generated text so far"""
-
-#     frequency_penalty: float = 0.0
-#     """Float that penalizes new tokens based on their frequency in the
-#     generated text so far"""
-
-#     use_beam_search: bool = False
-#     """Whether to use beam search instead of sampling."""
-
-#     ignore_eos: bool = False
-#     """Whether to ignore the EOS token and continue generating tokens after
-#     the EOS token is generated."""
-
-#     logprobs: Optional[int] = None
-#     """Number of log probabilities to return per output token."""
-
-#     @property
-#     def _llm_type(self) -> str:
-#         """Return type of llm."""
-#         return "oci_model_deployment_vllm_endpoint"
-
-#     @property
-#     def _default_params(self) -> Dict[str, Any]:
-#         """Get the default parameters for invoking OCI model deployment vllm endpoint."""
-#         return {
-#             "n": self.n,
-#             "best_of": self.best_of,
-#             "max_tokens": self.max_tokens,
-#             "top_k": self.k,
-#             "top_p": self.p,
-#             "temperature": self.temperature,
-#             "presence_penalty": self.presence_penalty,
-#             "frequency_penalty": self.frequency_penalty,
-#             "ignore_eos": self.ignore_eos,
-#             "use_beam_search": self.use_beam_search,
-#             "logprobs": self.logprobs,
-#         }
-
-#     def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
-#         params = self._default_params
-#         if self.stop is not None and stop is not None:
-#             raise ValueError("`stop` found in both the input and default params.")
-#         elif self.stop is not None:
-#             params["stop"] = self.stop
-#         else:
-#             params["stop"] = stop
-#         return {**params, **kwargs}
