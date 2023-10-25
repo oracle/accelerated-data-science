@@ -78,54 +78,54 @@ DEFAULT_TIME_OUT = 300
 DEFAULT_CONTENT_TYPE_JSON = "application/json"
 
 
-def authenticate_with_security_token(profile):
-    return subprocess.check_output(
-        f"oci session authenticate --profile-name {profile} --region us-ashburn-1 --tenancy-name bmc_operator_access",
-        shell=True,
-    )
+# def authenticate_with_security_token(profile):
+#     return subprocess.check_output(
+#         f"oci session authenticate --profile-name {profile} --region us-ashburn-1 --tenancy-name bmc_operator_access",
+#         shell=True,
+#     )
 
 
-def with_oci_token(func):
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        try:
-            results = func(self, *args, **kwargs)
-            return results
-        except (
-            oci.exceptions.ServiceError,
-            oci.exceptions.ProfileNotFound,
-            NotAuthorizedError,
-        ) as ex:
-            if self.config_profile and ex.status in [401, 404]:
-                authenticate_with_security_token(self.config_profile)
-            _auth = get_oci_auth(profile=self.config_profile)
-            if hasattr(self, "client"):
-                _client_kwargs = self.client_kwargs or {}
-                self.client = GenerativeAiClient(**_auth, **_client_kwargs)
-            if hasattr(self, "signer"):
-                self.signer = _auth.get("signer")
-            return func(self, *args, **kwargs)
+# def with_oci_token(func):
+#     @functools.wraps(func)
+#     def wrapper(self, *args, **kwargs):
+#         try:
+#             results = func(self, *args, **kwargs)
+#             return results
+#         except (
+#             oci.exceptions.ServiceError,
+#             oci.exceptions.ProfileNotFound,
+#             NotAuthorizedError,
+#         ) as ex:
+#             if self.config_profile and ex.status in [401, 404]:
+#                 authenticate_with_security_token(self.config_profile)
+#             _auth = get_oci_auth(profile=self.config_profile)
+#             if hasattr(self, "client"):
+#                 _client_kwargs = self.client_kwargs or {}
+#                 self.client = GenerativeAiClient(**_auth, **_client_kwargs)
+#             if hasattr(self, "signer"):
+#                 self.signer = _auth.get("signer")
+#             return func(self, *args, **kwargs)
 
-    return wrapper
+#     return wrapper
 
 
-def get_oci_auth(
-    config_location=oci.config.DEFAULT_LOCATION,
-    profile=oci.config.DEFAULT_PROFILE,
-):
-    oci_config = oci.config.from_file(
-        file_location=config_location, profile_name=profile
-    )
-    if "security_token_file" in oci_config and "key_file" in oci_config:
-        token_file = oci_config["security_token_file"]
-        with open(token_file, "r", encoding="utf-8") as f:
-            token = f.read()
-        private_key = oci.signer.load_private_key_from_file(oci_config["key_file"])
-        signer = oci.auth.signers.SecurityTokenSigner(token, private_key)
-        oci_auth = {"config": oci_config, "signer": signer}
-    else:
-        oci_auth = {"config": oci_config}
-    return oci_auth
+# def get_oci_auth(
+#     config_location=oci.config.DEFAULT_LOCATION,
+#     profile=oci.config.DEFAULT_PROFILE,
+# ):
+#     oci_config = oci.config.from_file(
+#         file_location=config_location, profile_name=profile
+#     )
+#     if "security_token_file" in oci_config and "key_file" in oci_config:
+#         token_file = oci_config["security_token_file"]
+#         with open(token_file, "r", encoding="utf-8") as f:
+#             token = f.read()
+#         private_key = oci.signer.load_private_key_from_file(oci_config["key_file"])
+#         signer = oci.auth.signers.SecurityTokenSigner(token, private_key)
+#         oci_auth = {"config": oci_config, "signer": signer}
+#     else:
+#         oci_auth = {"config": oci_config}
+#     return oci_auth
 
 
 class OCILLM(LLM):
@@ -156,17 +156,17 @@ class OCILLM(LLM):
 
         extra = Extra.forbid
 
-    @classmethod
-    def _try_init_oci_auth(cls, values: Dict) -> dict:
-        """Returns {"config": "", "signer": ""}."""
-        allowed_params = ["config", "config_profile", "signer", "config_location"]
-        params = {k: v for k, v in values.items() if k in allowed_params}
-        _config_location = params.get("config_location", oci.config.DEFAULT_LOCATION)
-        if params.get("config_profile"):
-            return get_oci_auth(
-                profile=params["config_profile"], config_location=_config_location
-            )
-        return params
+    # @classmethod
+    # def _try_init_oci_auth(cls, values: Dict) -> dict:
+    #     """Returns {"config": "", "signer": ""}."""
+    #     allowed_params = ["config", "config_profile", "signer", "config_location"]
+    #     params = {k: v for k, v in values.items() if k in allowed_params}
+    #     _config_location = params.get("config_location", oci.config.DEFAULT_LOCATION)
+    #     if params.get("config_profile"):
+    #         return get_oci_auth(
+    #             profile=params["config_profile"], config_location=_config_location
+    #         )
+    #     return params
 
     @classmethod
     def _create_default_signer():
