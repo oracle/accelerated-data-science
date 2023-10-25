@@ -163,7 +163,7 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
 
         self.assertTrue(total_metrics.empty)
         self.assertTrue(summary_metrics.empty)
-        self.assertTrue(data.empty)
+        self.assertIsNone(data)
 
     @patch("ads.opctl.operator.lowcode.forecast.utils._load_data")
     def test_one_missing_series_testdata_file(self, mock__load_data):

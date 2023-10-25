@@ -292,6 +292,9 @@ class ForecastOperatorBaseModel(ABC):
             logger.warn("Empty testdata file")
             return total_metrics, summary_metrics, None
 
+        if data.empty:
+            return total_metrics, summary_metrics, None
+
         data = self._preprocess(
             data, self.spec.datetime_column.name, self.spec.datetime_column.format
         )
