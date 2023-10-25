@@ -6,13 +6,13 @@
 
 
 from ads.llm.langchain.plugins import GenerativeAI
-from ads.llm.langchain.plugins import ModelDeploymentTGI
+from ads.llm.langchain.plugins import OCIModelDeploymentTGI
 
 # from ads.llm.langchain.plugins import ModelDeploymentVLLM
 
 
 __all__ = [
     "GenerativeAI",
-    "ModelDeploymentTGI",
+    "OCIModelDeploymentTGI",
     # "ModelDeploymentVLLM",
 ]
