@@ -332,11 +332,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
     def _custom_predict_prophet(self, data):
 
-        # data_temp = pd.DataFrame(
-        #     data,
-        #     columns=["ds"] + [col for col in self.dataset_cols],
-        # )
-
         return self.models[self.target_columns.index(self.series_id)].predict(data.reset_index())['yhat']
 
     def explain_model(self) -> dict:
@@ -374,4 +369,32 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 )
             )
 
+            self.local_explainer(kernel_explnr)
+
+
+    def local_explainer(self, kernel_explainer) -> None:
+        """
+        Generate local explanations using a kernel explainer.
+
+        Parameters
+        ----------
+            kernel_explainer: The kernel explainer object to use for generating explanations.
+        """
+        # Get the data for the series ID and select the relevant columns
+        data = self.full_data_dict.get(self.series_id).set_index("ds")
+        data = data[-self.spec.horizon.periods :][list(self.dataset_cols)]
+
+        # Generate local SHAP values using the kernel explainer
+        local_kernel_explnr_vals = kernel_explainer.shap_values(data,
+                                                                nsamples=50)
+
+        # Convert the SHAP values into a DataFrame
+        local_kernel_explnr_df = pd.DataFrame(
+            local_kernel_explnr_vals, columns=self.dataset_cols
+        )
+
+        # set the index of the DataFrame to the datetime column
+        local_kernel_explnr_df.index = data.index
+
+        self.local_explanation[self.series_id] = local_kernel_explnr_df
 
