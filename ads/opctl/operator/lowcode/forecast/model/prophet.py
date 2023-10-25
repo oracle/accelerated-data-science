@@ -8,6 +8,7 @@ import numpy as np
 import optuna
 import pandas as pd
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 
 from ..const import DEFAULT_TRIALS
 from .. import utils
@@ -21,7 +22,7 @@ def _add_unit(num, unit):
 def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
 
-    model = Prophet(**params)
+    model = Prophet(**params) # ({k:v for k,v in params.items() if k not in ["explain_model"]})
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
     model.fit(data)
@@ -30,6 +31,11 @@ def _fit_model(data, params, additional_regressors):
 
 class ProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing Prophet operator model."""
+
+    def __init__(self, config: ForecastOperatorConfig):
+        super().__init__(config)
+        self.global_explanation = {}
+        self.local_explanation = {}
 
     def _build_model(self) -> pd.DataFrame:
         from prophet import Prophet
@@ -312,6 +318,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         ds_forecast_col = self.outputs[0]["ds"]
         ci_col_names = ["yhat_lower", "yhat_upper"]
 
+        self.explain_model()
+
         return (
             model_description,
             other_sections,
@@ -322,5 +330,48 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             ci_col_names,
         )
 
+    def _custom_predict_prophet(self, data):
+
+        # data_temp = pd.DataFrame(
+        #     data,
+        #     columns=["ds"] + [col for col in self.dataset_cols],
+        # )
+
+        return self.models[self.target_columns.index(self.series_id)].predict(data.reset_index())['yhat']
+
     def explain_model(self) -> dict:
-        pass
+        
+        from shap import KernelExplainer
+        
+        for series_id in self.target_columns:
+            self.series_id = series_id
+            self.dataset_cols = (
+                self.full_data_dict.get(self.series_id)
+                .set_index("ds")
+                .drop(self.series_id, axis=1)
+                .columns
+            )
+
+            kernel_explnr = KernelExplainer(
+                model=self._custom_predict_prophet,
+                data=self.full_data_dict.get(self.series_id).set_index(
+                    "ds"
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                keep_index=True,
+            )
+
+            kernel_explnr_vals = kernel_explnr.shap_values(
+                self.full_data_dict.get(self.series_id).set_index(
+                    "ds"
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                nsamples=50,
+            )
+
+            self.global_explanation[self.series_id] = dict(
+                zip(
+                    self.dataset_cols,
+                    np.average(np.absolute(kernel_explnr_vals), axis=0),
+                )
+            )
+
+
