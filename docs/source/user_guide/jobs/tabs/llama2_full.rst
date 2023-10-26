@@ -14,42 +14,32 @@
             .with_compartment_id("<compartment_ocid>")
             .with_project_id("<project_ocid>")
             .with_subnet_id("<subnet_ocid>")
-            .with_shape_name("VM.GPU.A10.1")
+            .with_shape_name("VM.GPU.A10.2")
             .with_block_storage_size(256)
         )
         .with_runtime(
             PyTorchDistributedRuntime()
             # Specify the service conda environment by slug name.
-            .with_service_conda("pytorch20_p39_gpu_v1")
+            .with_service_conda("pytorch20_p39_gpu_v2")
             .with_git(
               url="https://github.com/facebookresearch/llama-recipes.git",
-              commit="03faba661f079ee1ecaeb66deaa6bdec920a7bab"
+              commit="1aecd00924738239f8d86f342b36bacad180d2b3"
             )
             .with_dependency(
               pip_pkg=" ".join([
-                "'accelerate>=0.21.0'",
-                "appdirs",
-                "loralib",
-                "bitsandbytes==0.39.1",
-                "black",
-                "'black[jupyter]'",
-                "datasets",
-                "fire",
-                "'git+https://github.com/huggingface/peft.git'",
-                "'transformers>=4.31.0'",
-                "sentencepiece",
-                "py7zr",
-                "scipy",
-                "optimum"
+                "--extra-index-url https://download.pytorch.org/whl/cu118 torch==2.1.0",
+                "git+https://github.com/huggingface/peft.git@15a013af5ff5660b9377af24d3eee358213d72d4"
+                "appdirs==1.4.4",
+                "llama-recipes==0.0.1",
+                "py7zr==0.20.6",
               ])
             )
             .with_output("/home/datascience/outputs", "oci://bucket@namespace/outputs/$JOB_RUN_OCID")
             .with_command(" ".join([
-              "torchrun llama_finetuning.py",
+              "torchrun examples/finetuning.py",
               "--enable_fsdp",
               "--pure_bf16",
               "--batch_size_training 1",
-              "--micro_batch_size 1",
               "--model_name $MODEL_NAME",
               "--dist_checkpoint_root_folder /home/datascience/outputs",
               "--dist_checkpoint_folder fine-tuned"
@@ -87,36 +77,26 @@
         spec:
           git:
             url: https://github.com/facebookresearch/llama-recipes.git
-            commit: 03faba661f079ee1ecaeb66deaa6bdec920a7bab
+            commit: 1aecd00924738239f8d86f342b36bacad180d2b3
           command: >-
             torchrun llama_finetuning.py
             --enable_fsdp
             --pure_bf16
             --batch_size_training 1
-            --micro_batch_size 1
             --model_name $MODEL_NAME
             --dist_checkpoint_root_folder /home/datascience/outputs
             --dist_checkpoint_folder fine-tuned
           replicas: 2
           conda:
             type: service
-            slug: pytorch20_p39_gpu_v1
+            slug: pytorch20_p39_gpu_v2
           dependencies:
             pipPackages: >-
-              'accelerate>=0.21.0'
-              appdirs
-              loralib
-              bitsandbytes==0.39.1
-              black
-              'black[jupyter]'
-              datasets
-              fire
-              'git+https://github.com/huggingface/peft.git'
-              'transformers>=4.31.0'
-              sentencepiece
-              py7zr
-              scipy
-              optimum
+              --extra-index-url https://download.pytorch.org/whl/cu118 torch==2.1.0
+              git+https://github.com/huggingface/peft.git@15a013af5ff5660b9377af24d3eee358213d72d4
+              llama-recipes==0.0.1
+              appdirs==1.4.4
+              py7zr==0.20.6
           outputDir: /home/datascience/outputs
           outputUri: oci://bucket@namespace/outputs/$JOB_RUN_OCID
           env:

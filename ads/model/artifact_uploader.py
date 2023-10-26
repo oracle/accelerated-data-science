@@ -128,8 +128,11 @@ class LargeArtifactUploader(ArtifactUploader):
         The OCI Object Storage URI where model artifacts will be copied to.
         The `bucket_uri` is only necessary for uploading large artifacts which
         size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+
         .. versionadded:: 2.8.10
-        If artifact_path is object storage path to a zip archive, bucket_uri will be ignored.
+
+            If artifact_path is object storage path to a zip archive, bucket_uri will be ignored.
+
     dsc_model: OCIDataScienceModel
         The data scince model instance.
     overwrite_existing_artifact: bool
@@ -173,8 +176,11 @@ class LargeArtifactUploader(ArtifactUploader):
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for uploading large artifacts from local which
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+
             .. versionadded:: 2.8.10
-            If `artifact_path` is object storage path to a zip archive, `bucket_uri` will be ignored.
+
+                If `artifact_path` is object storage path to a zip archive, `bucket_uri` will be ignored.
+
         auth: (Dict, optional). Defaults to `None`.
             The default authetication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys` or

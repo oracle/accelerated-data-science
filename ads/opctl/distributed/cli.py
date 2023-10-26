@@ -30,7 +30,14 @@ def commands():
     "-f",
     help="Distributed training framework type",
     type=click.Choice(
-        ["dask", "horovod-tensorflow", "horovod-pytorch", "pytorch", "tensorflow"]
+        [
+            "dask",
+            "horovod-tensorflow",
+            "horovod-pytorch",
+            "pytorch",
+            "tensorflow",
+            "ray",
+        ]
     ),
     default=None,
     required=True,
