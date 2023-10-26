@@ -1,16 +1,15 @@
 Transformation
 **************
 
-Transformations in a feature store refers to the operations and processes applied to raw data to create, modify or derive new features that can be used as inputs for ML Models. These transformations are crucial for improving the quality, relevance and usefulness of features which in turn can enhance the performance of ml models. It is an object that represents a transformation applied on the feature group and can be a pandas transformation or spark sql transformation.
+Transformations in a feature store us the operations and processes applied to raw data to create, modify, or derive new features that can be used as inputs for machine learning models. These transformations are important for improving the quality, relevance, and usefulness of features and can enhance the performance of models. A transformation is an object that represents a transformation applied on the feature group and can be a Pandas transformation or Spark SQL transformation.
 
 Define
 ======
 
-In an ADS feature store module, you can either use the Python API or YAML to define a transformation.
+In an ADS feature store module, you can use the Python API or a yaml file to define a transformation.
 
 
-With the specified way below, you can define a transformation and give it a name.
-A ``Transformation`` instance will be created.
+The following example defines a transformation and gives it a name. A ``Transformation`` instance is created.
 
 .. tabs::
 
@@ -52,7 +51,7 @@ A ``Transformation`` instance will be created.
 Create
 ======
 
-You can call the ``create()`` method of the ``Transformation`` instance to create an transformation.
+Use the ``create()`` method of the ``Transformation`` instance to create an transformation.
 
 .. code-block:: python3
 
@@ -63,20 +62,18 @@ You can call the ``create()`` method of the ``Transformation`` instance to creat
 Load
 ====
 
-Use the ``from_id()`` method from the ``Transformation`` class to load an existing transformation with its OCID provided. It returns a ``Transformation`` instance.
+Use the ``from_id()`` method from the ``Transformation`` class to load an existing transformation by specifiying its OCID. A ``Transformation`` instance is returned.
 
 .. code-block:: python3
 
   from ads.feature_store.transformation import Transformation
 
-  transformation = Transformation.from_id("ocid1.transformation..<unique_id>")
+  transformation = Transformation.from_id("<unique_id>")
 
 Delete
 ======
 
-Use the ``.delete()`` method on the ``Transformation`` instance to delete a transformation.
-
-A transformation can only be deleted when its associated entities are all deleted,
+Use the ``.delete()`` method on the ``Transformation`` instance to delete a transformation. A transformation can only be deleted when its associated entities are all deleted.
 
 .. code-block:: python3
 

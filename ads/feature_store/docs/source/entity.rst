@@ -1,17 +1,16 @@
 Entity
 ********
 
-An entity is a group of semantically related features. The first step a consumer of features would typically do when accessing the feature store service is to list the entities and the entities associated features. Another way to look at it is that an entity is an object or concept that is described by its features. Examples of entities could be customer, product, transaction, review, image, document, etc.
+An entity is a group of semantically related features. An entity is an object or concept that is described by its features. The first step when accessing a feature store is typically to list the entities and the entities associated features. Examples of entities are customer, product, transaction, review, image, document, and so on.
 
 
 Define
 ======
 
-In an ADS feature store module, you can either use the Python API or YAML to define a entity.
+In an ADS feature store module, you can use the Python API or a yaml file to define an entity.
 
 
-With the specified way below, you can define a entity and give it a name.
-A ``Entity`` instance will be created.
+The following example defines an entity and gives it a name. An ``Entity`` instance is created.
 
 .. tabs::
 
@@ -49,7 +48,7 @@ A ``Entity`` instance will be created.
 Create
 ======
 
-You can call the ``create()`` method of the ``Entity`` instance to create an entity.
+Use the ``create()`` method of the ``Entity`` instance to create an entity.
 
 .. code-block:: python3
 
@@ -60,20 +59,18 @@ You can call the ``create()`` method of the ``Entity`` instance to create an ent
 Load
 ====
 
-Use the ``from_id()`` method from the ``Entity`` class to load an existing entity with its OCID provided. It returns a ``Entity`` instance.
+Use the ``from_id()`` method from the ``Entity`` class to load an existing entity by specifying its OCID. An ``Entity`` instance is returned.
 
 .. code-block:: python3
 
   from ads.feature_store.entity import Entity
 
-  entity = Entity.from_id("ocid1.entity..<unique_id>")
+  entity = Entity.from_id("<unique_id>")
 
 Delete
 ======
 
-Use the ``.delete()`` method on the ``Entity`` instance to delete a entity.
-
-A entity can only be deleted when its associated entities are all deleted,
+Use the ``.delete()`` method on the ``Entity`` instance to delete a entity. A entity can only be deleted when its associated entities are all deleted,
 
 .. code-block:: python3
 
