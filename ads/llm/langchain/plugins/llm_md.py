@@ -147,7 +147,7 @@ class OCIModelDeployment(BaseLLM):
         raise NotImplementedError
 
 
-class OCIModelDeploymentTGI(OCIModelDeployment):
+class ModelDeploymentTGI(OCIModelDeployment):
     """OCI Data Science Model Deployment TGI Endpoint.
 
     Example
@@ -208,7 +208,7 @@ class OCIModelDeploymentTGI(OCIModelDeployment):
         }
 
 
-class OCIModelDeploymentvLLM(OCIModelDeployment):
+class ModelDeploymentvLLM(OCIModelDeployment):
     """Not support yet."""
 
     pass
