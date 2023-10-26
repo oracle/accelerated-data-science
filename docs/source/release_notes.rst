@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+2.8.11
+------
+Release date: October 18, 2023
+
+* Added support to mount file systems in Data Science notebook sessions and jobs.
+* Added support to cancel all job runs in the ADS ``api`` and ``opctl`` commands.
+* Updated ``ads.set_auth()`` to use both ``config`` and ``signer`` when provided.
+* Fixed a bug when initializing distributed training artifacts with "Ray" framework.
+
 2.8.10
 ------
 Release date: September 27, 2023
