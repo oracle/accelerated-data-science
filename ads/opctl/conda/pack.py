@@ -18,9 +18,9 @@ import conda_pack
 import yaml
 
 
-def main(pack_folder_path):
+def main(pack_folder_path, manifest_file=None):
     slug = os.path.basename(pack_folder_path)
-    manifest_path = glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
+    manifest_path = manifest_file or glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
     with open(manifest_path) as f:
         env = yaml.safe_load(f.read())
 
@@ -59,8 +59,10 @@ def main(pack_folder_path):
             raise RuntimeError(
                 "Error creating the pack file using `conda_pack.pack()`."
             )
+        print(f"Copy {pack_file} to {pack_folder_path}")
         shutil.copy(pack_file, pack_folder_path)
         file_path = os.path.join(pack_folder_path, os.path.basename(pack_file))
+        print(f"Pack built at {file_path}")
         print(
             f"changing permission for {file_path}",
             flush=True,
@@ -69,4 +71,7 @@ def main(pack_folder_path):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    if len(sys.argv)== 2:
+        main(sys.argv[1])
+    elif len(sys.argv) == 3:
+        main(sys.argv[1], sys.argv[2])

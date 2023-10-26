@@ -108,6 +108,7 @@ def _create(
     conda_pack_folder: str,
     gpu: bool,
     overwrite: bool,
+    prepare_publish: bool = True,
 ) -> str:
     """Create a conda pack given an environment yaml file under conda pack folder specified.
 
@@ -122,6 +123,8 @@ def _create(
     gpu : bool
         whether to build against GPU image
     overwrite : bool
+        whether to overwrite existing pack of the same slug
+    prepare_pubish : bool
         whether to overwrite existing pack of the same slug
 
     Raises
@@ -190,22 +193,47 @@ def _create(
             DEFAULT_IMAGE_HOME_DIR, os.path.basename(env_file)
         )
 
+        pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
+
         create_command = f"conda env create --prefix {docker_pack_folder_path} --file {docker_env_file_path}"
 
+        pack_command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} {docker_pack_folder_path} {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'manifest.yaml')}"
+
+        import tempfile
+        tmp_file = tempfile.NamedTemporaryFile(suffix=".yaml")
+
+        if prepare_publish:
+
+            conda_dep = None
+            with open(env_file) as mfile:
+                conda_dep = yaml.safe_load(mfile.read())
+            conda_dep["manifest"] = manifest["manifest"]
+            manifest_location = tmp_file
+            with open(tmp_file.name, 'w') as f:
+                yaml.safe_dump(conda_dep, f)           
+            
         volumes = {
             pack_folder_path: {"bind": docker_pack_folder_path},
             os.path.abspath(os.path.expanduser(env_file)): {
                 "bind": docker_env_file_path
             },
+            pack_script: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")},
+            tmp_file.name: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "manifest.yaml")}
         }
+
         if gpu:
             image = ML_JOB_GPU_IMAGE
         else:
             image = ML_JOB_IMAGE
         try:
-            run_container(
-                image=image, bind_volumes=volumes, env_vars={}, command=create_command
-            )
+            if prepare_publish:
+                run_container(
+                    image=image, bind_volumes=volumes, entrypoint="/bin/bash -c ", env_vars={}, command=f" '{create_command} && {pack_command}'"
+                )
+            else:
+                run_container(
+                    image=image, bind_volumes=volumes, env_vars={}, command=create_command
+                )                
         except Exception:
             if os.path.exists(pack_folder_path):
                 shutil.rmtree(pack_folder_path)
@@ -215,11 +243,13 @@ def _create(
     with open(env_file) as mfile:
         conda_dep = yaml.safe_load(mfile.read())
     conda_dep["manifest"] = manifest["manifest"]
-    with open(f"{os.path.join(pack_folder_path, slug)}_manifest.yaml", "w") as mfile:
+    manifest_location = f"{os.path.join(pack_folder_path, slug)}_manifest.yaml"
+    with open(manifest_location, "w") as mfile:
         yaml.safe_dump(conda_dep, mfile)
 
     logger.info(f"Environment `{slug}` setup complete.")
     print(f"Pack {slug} created under {pack_folder_path}.")
+
     return slug
 
 
@@ -467,6 +497,7 @@ def _install(
 def publish(**kwargs) -> None:
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     exec_config = p.config["execution"]
+    skip_archive = False
     if exec_config.get("environment_file", None):
         name = _get_name(exec_config.get("name"), exec_config.get("environment_file"))
         slug = _create(
@@ -476,7 +507,9 @@ def publish(**kwargs) -> None:
             conda_pack_folder=exec_config["conda_pack_folder"],
             gpu=exec_config.get("gpu", False),
             overwrite=exec_config["overwrite"],
+            prepare_publish=True
         )
+        skip_archive = True # The conda pack archive is already created during create process.
     else:
         slug = exec_config.get("slug")
     if not slug:
@@ -493,9 +526,10 @@ def publish(**kwargs) -> None:
         oci_profile=exec_config.get("oci_profile"),
         overwrite=exec_config["overwrite"],
         auth_type=exec_config["auth"],
+        skip_archive=skip_archive
     )
 
-
+    
 def _publish(
     conda_slug: str,
     conda_uri_prefix: str,
@@ -504,6 +538,7 @@ def _publish(
     oci_profile: str,
     overwrite: bool,
     auth_type: str,
+    skip_archive: bool = False
 ) -> None:
     """Publish a local conda pack to object storage location
 
@@ -579,29 +614,30 @@ def _publish(
                 publish_slug = "_".join(ans.lower().split(" "))
 
     pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
-    if is_in_notebook_session() or NO_CONTAINER:
-        command = f"python {pack_script} {pack_folder_path}"
-        run_command(command, shell=True)
-    else:
-        volumes = {
-            pack_folder_path: {
-                "bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, conda_slug)
-            },
-            pack_script: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")},
-        }
-        command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} {os.path.join(DEFAULT_IMAGE_HOME_DIR, conda_slug)}"
-        gpu = env["manifest"]["arch_type"] == "GPU"
-        _check_job_image_exists(gpu)
-        if gpu:
-            image = ML_JOB_GPU_IMAGE
+    if not skip_archive:
+        if is_in_notebook_session() or NO_CONTAINER:
+            command = f"python {pack_script} {pack_folder_path}"
+            run_command(command, shell=True)
         else:
-            image = ML_JOB_IMAGE
-        try:
-            run_container(
-                image=image, bind_volumes=volumes, env_vars={}, command=command
-            )
-        except Exception:
-            raise RuntimeError(f"Could not pack environment {conda_slug}.")
+            volumes = {
+                pack_folder_path: {
+                    "bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, conda_slug)
+                },
+                pack_script: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")},
+            }
+            command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} {os.path.join(DEFAULT_IMAGE_HOME_DIR, conda_slug)}"
+            gpu = env["manifest"]["arch_type"] == "GPU"
+            _check_job_image_exists(gpu)
+            if gpu:
+                image = ML_JOB_GPU_IMAGE
+            else:
+                image = ML_JOB_IMAGE
+            try:
+                run_container(
+                    image=image, bind_volumes=volumes, env_vars={}, command=command
+                )
+            except Exception:
+                raise RuntimeError(f"Could not pack environment {conda_slug}.")
 
     pack_file = os.path.join(pack_folder_path, f"{conda_slug}.tar.gz")
     if not os.path.exists(pack_file):
