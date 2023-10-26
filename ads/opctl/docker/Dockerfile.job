@@ -62,7 +62,7 @@ RUN chown -R $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
-ARG MINICONDA_VERSION=23.5.2-0
+ARG MINICONDA_VER=23.5.2-0
 RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-x86_64.sh -O /home/datascience/Miniconda3.sh \
     && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
     && rm /home/datascience/Miniconda3.sh \

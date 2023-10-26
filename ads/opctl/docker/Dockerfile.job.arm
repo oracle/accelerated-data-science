@@ -66,8 +66,8 @@ RUN chown -R $DATASCIENCE_USER /opt
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
 # Note in order to run sudo commands as a non root user, you must specify --credential yes if using qemu static to build the image
-ARG MINICONDA_VERSION=23.5.2-0
-RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VERSION}-Linux-aarch64.sh -O /home/datascience/Miniconda3.sh \
+ARG MINICONDA_VER=23.5.2-0
+RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-aarch64.sh -O /home/datascience/Miniconda3.sh \
     && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
     && rm /home/datascience/Miniconda3.sh \
     && /opt/conda/bin/conda clean -yaf
