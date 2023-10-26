@@ -9,10 +9,7 @@ from typing import Any, Dict, List, Optional, Mapping
 
 import requests
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-from langchain.pydantic_v1 import root_validator
-from ads.common.auth import default_signer
 from ads.llm.langchain.plugins.base import BaseLLM
-
 
 logger = logging.getLogger(__name__)
 
@@ -37,14 +34,6 @@ class OCIModelDeployment(BaseLLM):
             **{"endpoint": self.endpoint},
             **self._default_params,
         }
-
-    @root_validator()
-    def validate_environment(cls, values: Dict) -> Dict:
-        """Dont do anything if client provided externally."""
-
-        _signer = values.get("auth", default_signer()["signer"])
-        values["signer"] = _signer
-        return values
 
     def _call(
         self,
@@ -86,14 +75,14 @@ class OCIModelDeployment(BaseLLM):
         self,
         data,
         endpoint: str,
-        header: dict = {},
+        header: dict = None,
         **kwargs,
     ) -> Dict:
         """Sends request to the model deployment endpoint.
 
         Parameters
         ----------
-        data (Json serializablype):
+        data (Json serializable):
             data need to be sent to the endpoint.
         endpoint (str):
             The model HTTP endpoint.
@@ -102,22 +91,22 @@ class OCIModelDeployment(BaseLLM):
 
         Raises
         ------
-        NotAuthorizedError:
-            Raise when the provided ``auth`` is not valid.
-        ValueError:
+        Exception:
             Raise when invoking fails.
 
         Returns
         -------
-            A JSON representive of a requests.Response object.
+            A JSON representation of a requests.Response object.
         """
+        if not header:
+            header = {}
         header["Content-Type"] = (
             header.pop("content_type", DEFAULT_CONTENT_TYPE_JSON)
             or DEFAULT_CONTENT_TYPE_JSON
         )
         request_kwargs = {"json": data}
         request_kwargs["headers"] = header
-        request_kwargs["auth"] = self.signer
+        request_kwargs["auth"] = self.auth.get("signer")
 
         try:
             response = requests.post(endpoint, **request_kwargs, **kwargs)
@@ -147,9 +136,9 @@ class ModelDeploymentTGI(OCIModelDeployment):
 
         .. code-block:: python
 
-            from ads.llm import GenerativeAI
+            from ads.llm import ModelDeploymentTGI
 
-            oci_md = OCIModelDeploymentTGI(endpoint="<url_of_model_deployment_endpoint>")
+            oci_md = ModelDeploymentTGI(endpoint="<url_of_model_deployment_endpoint>")
 
     """
 
@@ -158,7 +147,7 @@ class ModelDeploymentTGI(OCIModelDeployment):
 
     watermark = True
 
-    return_full_text = True
+    return_full_text = False
 
     @property
     def _llm_type(self) -> str:
