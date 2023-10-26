@@ -16,11 +16,14 @@ import stat
 import conda_pack
 
 import yaml
+import argparse
 
 
 def main(pack_folder_path, manifest_file=None):
     slug = os.path.basename(pack_folder_path)
-    manifest_path = manifest_file or glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
+    manifest_path = (
+        manifest_file or glob.glob(os.path.join(pack_folder_path, "*_manifest.yaml"))[0]
+    )
     with open(manifest_path) as f:
         env = yaml.safe_load(f.read())
 
@@ -71,7 +74,14 @@ def main(pack_folder_path, manifest_file=None):
 
 
 if __name__ == "__main__":
-    if len(sys.argv)== 2:
-        main(sys.argv[1])
-    elif len(sys.argv) == 3:
-        main(sys.argv[1], sys.argv[2])
+    parser = argparse.ArgumentParser(
+        prog="Prepare conda archive",
+        description="Uses conda_pack library to pack the conda environment.",
+    )
+    parser.add_argument("conda-path", type=str, help="Path to the conda environment")
+    parser.add_argument(
+        "manifest-location", type=str, default=None, help="Path to manifest location"
+    )
+    args = parser.parse_args()
+
+    main(args.conda_path, args.manifest_location)

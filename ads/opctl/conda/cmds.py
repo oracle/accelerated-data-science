@@ -46,6 +46,7 @@ from ads.opctl.utils import (
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.conda.multipart_uploader import MultiPartUploader
+import tempfile
 
 
 def _fetch_manifest_template() -> Dict:
@@ -108,7 +109,7 @@ def _create(
     conda_pack_folder: str,
     gpu: bool,
     overwrite: bool,
-    prepare_publish: bool = True,
+    prepare_publish: bool = False,
 ) -> str:
     """Create a conda pack given an environment yaml file under conda pack folder specified.
 
@@ -125,7 +126,7 @@ def _create(
     overwrite : bool
         whether to overwrite existing pack of the same slug
     prepare_pubish : bool
-        whether to overwrite existing pack of the same slug
+        whether to create conda pack archive after conda pack is created
 
     Raises
     ------
@@ -183,6 +184,11 @@ def _create(
     manifest["manifest"]["manifest_version"] = "1.0"
 
     logger.info(f"Creating conda environment {slug}")
+    conda_dep = None
+    with open(env_file) as mfile:
+        conda_dep = yaml.safe_load(mfile.read())
+    conda_dep["manifest"] = manifest["manifest"]
+
     if is_in_notebook_session() or NO_CONTAINER:
         command = f"conda env create --prefix {pack_folder_path} --file {os.path.abspath(os.path.expanduser(env_file))}"
         run_command(command, shell=True)
@@ -193,32 +199,14 @@ def _create(
             DEFAULT_IMAGE_HOME_DIR, os.path.basename(env_file)
         )
 
-        pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
-
         create_command = f"conda env create --prefix {docker_pack_folder_path} --file {docker_env_file_path}"
-
-        pack_command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} {docker_pack_folder_path} {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'manifest.yaml')}"
-
-        import tempfile
-        tmp_file = tempfile.NamedTemporaryFile(suffix=".yaml")
-
-        if prepare_publish:
-
-            conda_dep = None
-            with open(env_file) as mfile:
-                conda_dep = yaml.safe_load(mfile.read())
-            conda_dep["manifest"] = manifest["manifest"]
-            manifest_location = tmp_file
-            with open(tmp_file.name, 'w') as f:
-                yaml.safe_dump(conda_dep, f)           
             
         volumes = {
             pack_folder_path: {"bind": docker_pack_folder_path},
             os.path.abspath(os.path.expanduser(env_file)): {
                 "bind": docker_env_file_path
             },
-            pack_script: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")},
-            tmp_file.name: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "manifest.yaml")}
+
         }
 
         if gpu:
@@ -227,6 +215,21 @@ def _create(
             image = ML_JOB_IMAGE
         try:
             if prepare_publish:
+                tmp_file = tempfile.NamedTemporaryFile(suffix=".yaml")
+                # Save the manifest in the temp file that can be mounted inside the container so that archiving will work
+                with open(tmp_file.name, 'w') as f:
+                    yaml.safe_dump(conda_dep, f)      
+
+                pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
+                pack_command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} --conda-path {docker_pack_folder_path} --manifest-location {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'manifest.yaml')}"
+
+                # add pack script and manifest file to the mount so that archive can be created in the same container run
+                condapack_script = {
+                    pack_script: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")},
+                    tmp_file.name: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "manifest.yaml")}
+                }
+                volumes = {**volumes, **condapack_script} # | not supported in python 3.8
+
                 run_container(
                     image=image, bind_volumes=volumes, entrypoint="/bin/bash -c ", env_vars={}, command=f" '{create_command} && {pack_command}'"
                 )
@@ -239,10 +242,7 @@ def _create(
                 shutil.rmtree(pack_folder_path)
             raise RuntimeError(f"Could not create environment {slug}.")
 
-    conda_dep = None
-    with open(env_file) as mfile:
-        conda_dep = yaml.safe_load(mfile.read())
-    conda_dep["manifest"] = manifest["manifest"]
+    # Save the manifest file inside the host machine, where the conda environment is saved.
     manifest_location = f"{os.path.join(pack_folder_path, slug)}_manifest.yaml"
     with open(manifest_location, "w") as mfile:
         yaml.safe_dump(conda_dep, mfile)
