@@ -10,12 +10,12 @@ from typing import Any, Dict, List, Optional, Mapping
 import requests
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from ads.llm.langchain.plugins.base import BaseLLM
+from ads.llm.langchain.plugins.contant import (
+    DEFAULT_CONTENT_TYPE_JSON,
+    DEFAULT_TIME_OUT,
+)
 
 logger = logging.getLogger(__name__)
-
-
-DEFAULT_TIME_OUT = 300
-DEFAULT_CONTENT_TYPE_JSON = "application/json"
 
 
 class OCIModelDeployment(BaseLLM):

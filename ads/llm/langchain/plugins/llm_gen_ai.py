@@ -8,41 +8,10 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-from ads.llm.langchain.plugins.base import StrEnum, BaseLLM, GenerativeAiClientModel
-
+from ads.llm.langchain.plugins.base import BaseLLM, GenerativeAiClientModel
+from ads.llm.langchain.plugins.contant import *
 
 logger = logging.getLogger(__name__)
-
-
-# Move to constant.py
-class Task(StrEnum):
-    TEXT_GENERATION = "text_generation"
-    SUMMARY_TEXT = "summary_text"
-
-
-class LengthParam(StrEnum):
-    SHORT = "SHORT"
-    MEDIUM = "MEDIUM"
-    LONG = "LONG"
-    AUTO = "AUTO"
-
-
-class FormatParam(StrEnum):
-    PARAGRAPH = "PARAGRAPH"
-    BULLETS = "BULLETS"
-    AUTO = "AUTO"
-
-
-class ExtractivenessParam(StrEnum):
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    AUTO = "AUTO"
-
-
-class OCIGenerativeAIModel(StrEnum):
-    COHERE_COMMAND = "cohere.command"
-    COHERE_COMMAND_LIGHT = "cohere.command-light"
 
 
 class GenerativeAI(GenerativeAiClientModel, BaseLLM):

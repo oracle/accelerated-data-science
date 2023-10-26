@@ -58,6 +58,7 @@
 #         assert all(key in llm._default_params for key in model_params_keys)
 #         assert llm.temperature == 0.9
 
+#     @pytest.mark.skip(reason="add extra = forbid later")
 #     def test_oci_model_deployment_invalid_field(self):
 #         with pytest.raises(Exception):
 #             llm = OCIModelDeploymentTGI(foo="bar")
