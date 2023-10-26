@@ -1,7 +1,8 @@
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-FROM ghcr.io/oracle/oraclelinux:7-slim
+# Used OL8 because miniconda required a higher version of glibc that was unavoidable
+FROM ghcr.io/oracle/oraclelinux:8-slim
 
 # Configure environment
 ENV DATASCIENCE_USER datascience
@@ -10,12 +11,14 @@ ENV HOME /home/$DATASCIENCE_USER
 ENV DATASCIENCE_INSTALL_DIR /etc/datascience
 
 ARG release=19
-ARG update=13
+ARG update=10
+
+RUN microdnf install yum yum-utils && yum clean all && rm -rf /var/cache/yum
 
 RUN \
-    yum -y -q install oracle-release-el7 && \
-    yum-config-manager --add-repo http://yum.oracle.com/repo/OracleLinux/OL7/developer_EPEL/x86_64 && \
-    yum-config-manager --enable ol7_optional_latest --enable ol7_addons --enable ol7_software_collections --enable ol7_oracle_instantclient > /dev/null && \
+    yum -y -q install \
+    oracle-release-el8 && \
+    yum-config-manager --enable ol8_addons --enable ol8_oracle_instantclient > /dev/null && \
     yum groupinstall -y -q 'Development Tools' && \
     yum update -y && \
     yum install -y --setopt=skip_missing_names_on_install=False \
@@ -25,7 +28,7 @@ RUN \
     gcc-gfortran \
     libcurl-devel \
     libxml2-devel \
-    oracle-instantclient${release}.${update}-basic \
+    oracle-instantclient${release}.${update}-basic  \
     oracle-instantclient${release}.${update}-sqlplus \
     openssl \
     openssl-devel \
@@ -62,8 +65,9 @@ RUN chown -R $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
+# Note in order to run sudo commands as a non root user, you must specify --credential yes if using qemu static to build the image
 ARG MINICONDA_VERSION=23.5.2-0
-RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-x86_64.sh -O /home/datascience/Miniconda3.sh \
+RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VERSION}-Linux-aarch64.sh -O /home/datascience/Miniconda3.sh \
     && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
     && rm /home/datascience/Miniconda3.sh \
     && /opt/conda/bin/conda clean -yaf

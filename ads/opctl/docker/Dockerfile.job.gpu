@@ -107,9 +107,10 @@ RUN chown -R $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
-RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /home/datascience/miniconda.sh \
-    && /bin/bash /home/datascience/miniconda.sh -f -b -p /opt/conda \
-    && rm /home/datascience/miniconda.sh \
+ARG MINICONDA_VERSION=23.5.2-0
+RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-x86_64.sh -O /home/datascience/Miniconda3.sh \
+    && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
+    && rm /home/datascience/Miniconda3.sh \
     && /opt/conda/bin/conda clean -yaf
 
 WORKDIR /
@@ -132,16 +133,14 @@ WORKDIR /
 
 RUN conda list
 
-USER root
-
-ARG PIP_INDEX_URL
-
 ############# Setup Conda environment tools ###########################
+USER root
 ARG RAND=1
 
 ARG RUN_WORKING_DIR="/home/datascience"
 WORKDIR $RUN_WORKING_DIR
 
+# For CUDA - required to support older gpu conda packs
 RUN ln -s /opt/conda/lib/libnvrtc.so.10.0.130 /opt/conda/lib/libnvrtc.so.10 && \
 ln -s /opt/conda/lib/libnvrtc-builtins.so.10.0.130 /opt/conda/lib/libnvrtc-builtins.so.10 && \
 ln -s /opt/conda/lib/libnvgraph.so.10.0.130 /opt/conda/lib/libnvgraph.so.10 && \
