@@ -10,13 +10,12 @@ from typing import Any, Dict, List, Optional, Mapping
 import requests
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 from ads.llm.langchain.plugins.base import BaseLLM
-
+from ads.llm.langchain.plugins.contant import (
+    DEFAULT_CONTENT_TYPE_JSON,
+    DEFAULT_TIME_OUT,
+)
 
 logger = logging.getLogger(__name__)
-
-
-DEFAULT_TIME_OUT = 300
-DEFAULT_CONTENT_TYPE_JSON = "application/json"
 
 
 class OCIModelDeployment(BaseLLM):
@@ -92,9 +91,7 @@ class OCIModelDeployment(BaseLLM):
 
         Raises
         ------
-        NotAuthorizedError:
-            Raise when the provided ``auth`` is not valid.
-        ValueError:
+        Exception:
             Raise when invoking fails.
 
         Returns
@@ -139,9 +136,9 @@ class ModelDeploymentTGI(OCIModelDeployment):
 
         .. code-block:: python
 
-            from ads.llm import GenerativeAI
+            from ads.llm import ModelDeploymentTGI
 
-            oci_md = OCIModelDeploymentTGI(endpoint="<url_of_model_deployment_endpoint>")
+            oci_md = ModelDeploymentTGI(endpoint="<url_of_model_deployment_endpoint>")
 
     """
 

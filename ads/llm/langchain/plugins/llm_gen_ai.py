@@ -8,41 +8,10 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-from ads.llm.langchain.plugins.base import StrEnum, BaseLLM, GenerativeAiClientModel
-
+from ads.llm.langchain.plugins.base import BaseLLM, GenerativeAiClientModel
+from ads.llm.langchain.plugins.contant import *
 
 logger = logging.getLogger(__name__)
-
-
-# Move to constant.py
-class Task(StrEnum):
-    TEXT_GENERATION = "text_generation"
-    SUMMARY_TEXT = "summary_text"
-
-
-class LengthParamOptions:
-    SHORT = "SHORT"
-    MEDIUM = "MEDIUM"
-    LONG = "LONG"
-    AUTO = "AUTO"
-
-
-class FormatParamOptions:
-    PARAGRAPH = "PARAGRAPH"
-    BULLETS = "BULLETS"
-    AUTO = "AUTO"
-
-
-class ExtractivenessParamOptions:
-    LOW = "LOW"
-    MEDIUM = "MEDIUM"
-    HIGH = "HIGH"
-    AUTO = "AUTO"
-
-
-class OCIGenerativeAIModelOptions:
-    COHERE_COMMAND = "cohere.command"
-    COHERE_COMMAND_LIGHT = "cohere.command-light"
 
 
 class GenerativeAI(GenerativeAiClientModel, BaseLLM):
@@ -64,7 +33,7 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
     task: Task = Task.TEXT_GENERATION
     """Indicates the task."""
 
-    model: Optional[str] = OCIGenerativeAIModelOptions.COHERE_COMMAND
+    model: Optional[str] = OCIGenerativeAIModel.COHERE_COMMAND
     """Model name to use."""
 
     frequency_penalty: float = None
@@ -76,13 +45,13 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
     truncate: Optional[str] = None
     """Specify how the client handles inputs longer than the maximum token."""
 
-    length: str = LengthParamOptions.AUTO
+    length: str = LengthParam.AUTO
     """Indicates the approximate length of the summary. """
 
-    format: str = FormatParamOptions.PARAGRAPH
+    format: str = FormatParam.PARAGRAPH
     """Indicates the style in which the summary will be delivered - in a free form paragraph or in bullet points."""
 
-    extractiveness: str = ExtractivenessParamOptions.AUTO
+    extractiveness: str = ExtractivenessParam.AUTO
     """Controls how close to the original text the summary is. High extractiveness summaries will lean towards reusing sentences verbatim, while low extractiveness summaries will tend to paraphrase more."""
 
     additional_command: str = ""
@@ -159,8 +128,10 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
 
         Parameters
         ----------
-        prompt: The prompt to pass into the model.
-        stop: Optional list of stop words to use when generating.
+        prompt (str):
+            The prompt to pass into the model.
+        stop (List[str], Optional):
+            List of stop words to use when generating.
 
         Returns
         -------

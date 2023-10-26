@@ -8,3 +8,5 @@
 from ads.llm.langchain.plugins.llm_gen_ai import GenerativeAI
 from ads.llm.langchain.plugins.llm_md import ModelDeploymentTGI
 from ads.llm.langchain.plugins.embeddings import GenerativeAIEmbeddings
+
+# from ads.llm.langchain.plugins import ModelDeploymentVLLM
