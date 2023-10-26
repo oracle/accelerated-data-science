@@ -45,9 +45,6 @@ class OCIGenerativeAIModelOptions:
     COHERE_COMMAND_LIGHT = "cohere.command-light"
 
 
-
-
-
 class GenerativeAI(GenerativeAiClientModel, BaseLLM):
     """GenerativeAI Service.
 
@@ -90,12 +87,6 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
 
     additional_command: str = ""
     """A free-form instruction for modifying how the summaries get generated. """
-
-    endpoint_kwargs: Dict[str, Any] = {}
-    """Optional attributes passed to the generate_text/summarize_text function."""
-
-    client_kwargs: Dict[str, Any] = {}
-    """Holds any client parametes for creating GenerativeAiClient"""
 
     @property
     def _identifying_params(self) -> Dict[str, Any]:
@@ -185,11 +176,21 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
 
         params = self._invocation_params(stop, **kwargs)
 
-        response = (
-            self.completion_with_retry(prompts=[prompt], **params)
-            if self.task == Task.TEXT_GENERATION
-            else self.completion_with_retry(input=prompt, **params)
-        )
+        try:
+            response = (
+                self.completion_with_retry(prompts=[prompt], **params)
+                if self.task == Task.TEXT_GENERATION
+                else self.completion_with_retry(input=prompt, **params)
+            )
+        except Exception:
+            logger.error(
+                "Error occur when invoking oci service api."
+                "DEBUG INTO: task=%s, params=%s, prompt=%s",
+                self.task,
+                params,
+                prompt,
+            )
+            raise
 
         return self._process_response(response, params.get("num_generations", 1))
 
