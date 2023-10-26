@@ -7,7 +7,8 @@ from enum import Enum
 from typing import Any, Dict, List, Optional
 
 from langchain.llms.base import LLM
-from pydantic import BaseModel, root_validator, Field
+from pydantic import BaseModel
+from langchain.pydantic_v1 import Field, root_validator
 from ads.common.auth import default_signer
 from ads.config import COMPARTMENT_OCID
 
