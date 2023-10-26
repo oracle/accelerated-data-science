@@ -8,4 +8,4 @@
 from ads.llm.langchain.plugins.llm_gen_ai import GenerativeAI
 from ads.llm.langchain.plugins.llm_md import ModelDeploymentTGI
 
-# from ads.llm.langchain.plugins import OCIModelDeploymentVLLM
+# from ads.llm.langchain.plugins import ModelDeploymentVLLM
