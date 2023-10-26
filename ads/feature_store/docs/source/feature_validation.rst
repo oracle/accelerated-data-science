@@ -3,17 +3,18 @@
 Feature Validation
 ******************
 
-Feature validation is the process of checking the quality and accuracy of the features used in a machine learning model. This is important because features that are not accurate or reliable can lead to poor model performance.
-Feature store allows you to define expectation on the data which is being materialized into feature group and dataset. This is achieved using open source library Great Expectations.
+Feature validation is the process of checking the quality and accuracy of the features used in a machine learning model. This is important because features that aren't accurate or reliable can lead to poor model performance. Feature store allows you to define expectation on the data that is being materialized into feature groups and datasets. The Great Expectations open source library is used to define expectations.
 
 .. note::
-  `Great Expectations <https://docs.greatexpectations.io/docs/0.15.50/>`_ is a Python-based open-source library for validating, documenting, and profiling your data. It helps you to maintain data quality and improve communication about data between teams. Software developers have long known that automated testing is essential for managing complex codebases. Great Expectations empowers you to define and enforce your data expectations when handling and processing data, allowing for swift detection of data anomalies. In essence, Expectations serve as the equivalent of unit tests for your data, enabling you to rapidly identify and address data-related problems. Beyond this, Great Expectations offers the added benefit of generating comprehensive data documentation and quality reports based on these Expectations.
+  `Great Expectations <https://docs.greatexpectations.io/docs/0.15.50/>`_  is an open source Python-based library that validates, documents, and profiles data. It automates testing, which is essential for managing complex code bases.
 
 .. image:: figures/data_validation.png
 
 Expectations
 ============
-An Expectation is a verifiable assertion about your data. You can define expectation as below:
+An expectation is a verifiable assertion about your data.
+
+The following example defines an expectation:
 
 .. code-block:: python3
 
@@ -46,7 +47,9 @@ An Expectation is a verifiable assertion about your data. You can define expecta
 Expectations Suite
 ===================
 
-Expectation Suite is a collection of verifiable assertions i.e. expectations about your data. You can define expectation suite as below:
+An expectation suite is a collection of verifiable assertions. For example, expectations about your data.
+
+The following example defines an expectation suite:
 
 .. code-block:: python3
 
