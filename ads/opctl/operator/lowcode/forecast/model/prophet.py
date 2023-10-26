@@ -22,7 +22,7 @@ def _add_unit(num, unit):
 def _fit_model(data, params, additional_regressors):
     from prophet import Prophet
 
-    model = Prophet(**params) # ({k:v for k,v in params.items() if k not in ["explain_model"]})
+    model = Prophet(**params)
     for add_reg in additional_regressors:
         model.add_regressor(add_reg)
     model.fit(data)
@@ -304,6 +304,47 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             sec5 = dp.DataTable(all_model_states)
             all_sections = all_sections + [sec5_text, sec5]
 
+        if self.spec.explain:
+            # If the key is present, call the "explain_model" method
+            self.explain_model()
+
+            # Create a markdown text block for the global explanation section
+            global_explanation_text = dp.Text(
+                f"## Global Explanation of Models \n "
+                "The following tables provide the feature attribution for the global explainability."
+            )
+
+            # Convert the global explanation data to a DataFrame
+            global_explanation_df = pd.DataFrame(self.global_explanation)
+
+            # Create a markdown section for the global explainability
+            global_explanation_section = dp.Blocks(
+                "### Global Explainability ",
+                dp.Table(
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                ),
+            )
+
+            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+            blocks = [
+                dp.Table(
+                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                    label=s_id,
+                )
+                for s_id, local_ex_df in self.local_explanation.items()
+            ]
+            local_explanation_section = (
+                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            )
+
+            # Append the global explanation text and section to the "all_sections" list
+            all_sections = all_sections + [
+                global_explanation_text,
+                global_explanation_section,
+                local_explanation_text,
+                local_explanation_section,
+            ]
+
         model_description = dp.Text(
             "Prophet is a procedure for forecasting time series data based on an additive "
             "model where non-linear trends are fit with yearly, weekly, and daily seasonality, "
@@ -318,8 +359,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         ds_forecast_col = self.outputs[0]["ds"]
         ci_col_names = ["yhat_lower", "yhat_upper"]
 
-        self.explain_model()
-
         return (
             model_description,
             other_sections,
@@ -331,13 +370,13 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         )
 
     def _custom_predict_prophet(self, data):
-
-        return self.models[self.target_columns.index(self.series_id)].predict(data.reset_index())['yhat']
+        return self.models[self.target_columns.index(self.series_id)].predict(
+            data.reset_index()
+        )["yhat"]
 
     def explain_model(self) -> dict:
-        
         from shap import KernelExplainer
-        
+
         for series_id in self.target_columns:
             self.series_id = series_id
             self.dataset_cols = (
@@ -349,16 +388,16 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             kernel_explnr = KernelExplainer(
                 model=self._custom_predict_prophet,
-                data=self.full_data_dict.get(self.series_id).set_index(
-                    "ds"
-                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                data=self.full_data_dict.get(self.series_id).set_index("ds")[
+                    : -self.spec.horizon.periods
+                ][list(self.dataset_cols)],
                 keep_index=True,
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(
-                self.full_data_dict.get(self.series_id).set_index(
-                    "ds"
-                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                self.full_data_dict.get(self.series_id).set_index("ds")[
+                    : -self.spec.horizon.periods
+                ][list(self.dataset_cols)],
                 nsamples=50,
             )
 
@@ -370,7 +409,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             self.local_explainer(kernel_explnr)
-
 
     def local_explainer(self, kernel_explainer) -> None:
         """
