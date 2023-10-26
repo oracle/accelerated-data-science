@@ -78,9 +78,9 @@ if __name__ == "__main__":
         prog="Prepare conda archive",
         description="Uses conda_pack library to pack the conda environment.",
     )
-    parser.add_argument("conda-path", type=str, help="Path to the conda environment")
+    parser.add_argument("--conda-path", type=str, help="Path to the conda environment")
     parser.add_argument(
-        "manifest-location", type=str, default=None, help="Path to manifest location"
+        "--manifest-location", type=str, default=None, help="Path to manifest location"
     )
     args = parser.parse_args()
 
