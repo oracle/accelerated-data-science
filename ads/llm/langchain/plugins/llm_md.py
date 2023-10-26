@@ -9,7 +9,7 @@ from typing import Any, Dict, List, Optional, Mapping
 
 import requests
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-from pydantic import root_validator
+from langchain.pydantic_v1 import root_validator
 from ads.common.auth import default_signer
 from ads.llm.langchain.plugins.base import BaseLLM
 
