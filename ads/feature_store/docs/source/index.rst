@@ -44,6 +44,7 @@ Feature Store
 
     statistics
     feature_validation
+    data_versioning
     ui
 
 .. toctree::
@@ -59,3 +60,15 @@ Feature Store
     :caption: Release notes:
 
     release_notes
+
+.. toctree::
+    :hidden:
+    :maxdepth: 5
+    :caption: Classes:
+
+    module
+
+License
++++++++
+
+Copyright (c) 2020, 2022 Oracle and/or its affiliates. Licensed under the `Universal Permissive License v1.0 <https://oss.oracle.com/licenses/upl/>`_
