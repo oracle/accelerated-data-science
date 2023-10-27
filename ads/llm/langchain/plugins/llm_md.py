@@ -5,7 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-from typing import Any, Dict, List, Optional, Mapping
+from typing import Any, Dict, List, Optional
 
 import requests
 from langchain.callbacks.manager import CallbackManagerForLLMRun
@@ -18,17 +18,25 @@ from ads.llm.langchain.plugins.contant import (
 logger = logging.getLogger(__name__)
 
 
-class OCIModelDeployment(BaseLLM):
-    """Base class for OCI Model Deployment Endpoint model."""
+class ModelDeploymentLLM(BaseLLM):
+    """Base class for LLM deployed on OCI Model Deployment."""
 
-    endpoint: str = None
+    endpoint: str
     """The uri of the endpoint from the deployed Model Deployment model."""
 
     best_of: int = 1
-    """Generates best_of completions server-side and returns the "best" (the one with the highest log probability per token). """
+    """Generates best_of completions server-side and returns the "best" 
+    (the one with the highest log probability per token). 
+    """
+    def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
+        raise NotImplementedError()
 
     @property
-    def _identifying_params(self) -> Mapping[str, Any]:
+    def _default_params(self) -> Dict[str, Any]:
+        raise NotImplementedError()
+
+    @property
+    def _identifying_params(self) -> Dict[str, Any]:
         """Get the identifying parameters."""
         return {
             **{"endpoint": self.endpoint},
@@ -128,7 +136,7 @@ class OCIModelDeployment(BaseLLM):
         raise NotImplementedError
 
 
-class ModelDeploymentTGI(OCIModelDeployment):
+class ModelDeploymentTGI(ModelDeploymentLLM):
     """OCI Data Science Model Deployment TGI Endpoint.
 
     Example
