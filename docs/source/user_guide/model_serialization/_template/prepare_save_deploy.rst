@@ -27,7 +27,7 @@ The ``.prepare_save_deploy()`` method is a shortcut for the functions ``.prepare
     Namespace of region. Use this parameter to identify the service pack region
     when you pass a slug to ``inference_conda_env`` and ``training_conda_env``.
 * ``use_case_type``: str
-    The use case type of the model. Assign a value using the``UseCaseType`` class or provide a string in ``UseCaseType``. For
+    The use case type of the model. Assign a value using the ``UseCaseType`` class or provide a string in ``UseCaseType``. For
     example, use_case_type=UseCaseType.BINARY_CLASSIFICATION or use_case_type="binary_classification". Check
     the ``UseCaseType`` class to see supported types.
 * ``X_sample``: Union[list, tuple, pd.Series, np.ndarray, pd.DataFrame]. Defaults to None.
@@ -60,7 +60,7 @@ The ``.prepare_save_deploy()`` method is a shortcut for the functions ``.prepare
     The name of the model.
 * ``description``: (str, optional). Defaults to None.
     The description of the model.
-* ``deployment_instance_shape``: (str, optional). Default to ``VM.Standard2.1``.
+* ``deployment_instance_shape``: (str, optional).
     The shape of the instance used for deployment.
 * ``deployment_instance_count``: (int, optional). Defaults to 1.
     The number of instances used for deployment.

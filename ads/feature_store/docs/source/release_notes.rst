@@ -32,14 +32,14 @@ Release notes: September 22, 2023
 
 * [FEATURE] Addition of ``featurestore_dataset``  as optional parameter in GenericModel ``save`` function.
 * [FEATURE] Addition of ``transformation_kwargs`` in ``Transformation`` entity.
-* [FEATURE] Addition of partition keys in ``FeatureGroup`` and ``Dataset``
-* [FEATURE] as_of interface for time travel
-* [FEATURE] Manual association of feature groups in ``Dataset`` construct and support for complex queries
-* [FEATURE] Simplify the ads init experience without users need to specify the feature store endpoint
-* [FEATURE] Visualisation of feature statistics with ``to_viz`` in ``Statistics`` entity
-* [FIX] Validation of model ids when associated with ``Dataset``
-* [UI] Stats visualisation of feature group and dataset.
-* [UI] Transformation listing in the transformation tab
+* [FEATURE] Addition of partition keys in ``FeatureGroup`` and ``Dataset``.
+* [FEATURE] Addition of the as_of interface for time travel.
+* [FEATURE] Manual association of feature groups in the ``Dataset`` construct and support for complex queries.
+* [FEATURE] Simplify the ``ads init`` experience so you don't have to specify the feature store endpoint.
+* [FEATURE] Visualisation of feature statistics with ``to_viz`` in ``Statistics`` entity.
+* [FIX] Validation of model IDs when associated with ``Dataset``.
+* [UI] Statistics visualisation of feature group and dataset.
+* [UI] Transformation listing in the transformation tab.
 * [UI] Global search for feature store entities.
 * [UI] Addition of onboarding page for feature store.
 * [UI] Redirection of entities within the lineage tab of feature group and dataset.
@@ -66,12 +66,12 @@ Release notes: September 22, 2023
 
 Release notes: July 18, 2023
 
-* [FEATURE] Supporting for deployment in ``us-ashburn`` and ``uk-london`` region.
-* [FEATURE] For ``ValidationOutput`` instance, addition of ``to_summary()`` method  for validation summary details.
-* [FEATURE] For ``ValidationOutput`` instance, addition of ``to_pandas()`` method  for validation detailed report.
+* [FEATURE] Support for deployment in the ``us-ashburn`` and ``uk-london`` regions.
+* [FEATURE] For a ``ValidationOutput`` instance, the addition of the ``to_summary()`` method for validation summary details.
+* [FEATURE] For a ``ValidationOutput`` instance, the addition of the ``to_pandas()`` method for validation detailed report.
 * [FIX] Fixed unit test integration to support the merging of ADS into the main branch.
-* [DOCS] For ``ValidationOutput`` instance, addition of ``to_summary()`` method  for validation summary details.
-* [DOCS] For ``ValidationOutput`` instance, addition of ``to_pandas()`` method  for validation detailed report.
+* [DOCS] For ``ValidationOutput`` instance, the addition of the ``to_summary()`` method for validation summary details.
+* [DOCS] For ``ValidationOutput`` instance, the addition of the ``to_pandas()`` method for validation detailed report.
 
 1.0.1
 -----

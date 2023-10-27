@@ -19,7 +19,7 @@ The ``properties`` is an instance of the ``ModelProperties`` class and has the f
 By default, ``properties`` is populated from the appropriate environment variables if it's
 not specified. For example, in a notebook session, the environment variables
 for project id and compartment id are preset and stored in ``PROJECT_OCID`` and
-``NB_SESSION_COMPARTMENT_OCID`` by default. So ``properties`` populates these variables 
+``NB_SESSION_COMPARTMENT_OCID`` by default. So ``properties`` populates these variables
 from the environment variables and uses the values in methods such as ``.save()`` and ``.deploy()``.
 However, you can explicitly pass in values to overwrite the defaults.
 When you use a method that includes an instance of  ``properties``, then ``properties`` records the values that you pass in.

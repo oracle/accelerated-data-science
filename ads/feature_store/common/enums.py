@@ -49,7 +49,20 @@ class DatasetIngestionMode(Enum):
     SQL = "SQL"
 
 
-class IngestionMode(Enum):
+class IngestionType(Enum):
+    """
+    The type of ingestion that can be performed.
+
+    Possible values:
+        * STREAMING: The data is ingested in real time.
+        * BATCH: The data is ingested in batches.
+    """
+
+    STREAMING = "STREAMING"
+    BATCH = "BATCH"
+
+
+class BatchIngestionMode(Enum):
     """
     An enumeration that represents the supported Ingestion Mode in feature store.
 
@@ -66,6 +79,20 @@ class IngestionMode(Enum):
     APPEND = "APPEND"
     DEFAULT = "DEFAULT"
     UPSERT = "UPSERT"
+
+
+class StreamingIngestionMode(Enum):
+    """
+    Enumeration for stream ingestion modes.
+
+    - `COMPLETE`: Represents complete stream ingestion where the entire dataset is replaced.
+    - `APPEND`: Represents appending new data to the existing dataset.
+    - `UPDATE`: Represents updating existing data in the dataset.
+    """
+
+    COMPLETE = "COMPLETE"
+    APPEND = "APPEND"
+    UPDATE = "UPDATE"
 
 
 class JoinType(Enum):
@@ -214,6 +241,7 @@ class TransformationMode(Enum):
 
     SQL = "sql"
     PANDAS = "pandas"
+    SPARK = "spark"
 
 
 class FilterOperators(Enum):

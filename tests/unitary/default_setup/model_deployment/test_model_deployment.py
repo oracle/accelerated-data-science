@@ -14,13 +14,17 @@ from ads.model.deployment.model_deployment import (
     ModelDeployment,
     ModelDeploymentProperties,
 )
+from ads.model.deployment.model_deployment_infrastructure import ModelDeploymentInfrastructure
+from ads.model.deployment.model_deployment_runtime import ModelDeploymentCondaRuntime
 
 
 class ModelDeploymentTestCase(unittest.TestCase):
     MODEL_ID = "<MODEL_OCID>"
     with patch.object(oci_client, "OCIClientFactory"):
         test_model_deployment = ModelDeployment(
-            model_deployment_id="test_model_deployment_id", properties={}
+            model_deployment_id="test_model_deployment_id", properties={},
+            infrastructure=ModelDeploymentInfrastructure(),
+            runtime=ModelDeploymentCondaRuntime()
         )
 
     @patch("requests.post")

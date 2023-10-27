@@ -1,3 +1,4 @@
+=====================
 Load Registered Model
 =====================
 
@@ -43,7 +44,7 @@ Alternatively the ``.from_id()`` method can be used to load a model. In future r
 
 
 Load Deployed Model
-===================
+-------------------
 
 Load and recreate :doc:`framework specific wrapper <framework_specific_instruction>` objects using the ``ocid`` value of your OCI Model Deployment instance.
 
@@ -82,7 +83,7 @@ Alternatively the ``.from_id()`` method can be used to load a model from the Mod
     )
 
 Load Model From Object Storage
-==============================
+------------------------------
 
 Load and recreate :doc:`framework specific wrapper <framework_specific_instruction>` objects from the existing model artifact archive.
 
@@ -107,7 +108,7 @@ A model loaded from an artifact archive can be registered and deployed.
 
 
 Large Model Artifacts
-=====================
+---------------------
 
 .. versionadded:: 2.6.4
 
