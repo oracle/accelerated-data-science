@@ -81,7 +81,7 @@ class GenerativeAiClientModel(BaseModel):
         # Users may choose to initialize the OCI client by themselves and pass it into this model.
         if not values.get("client"):
             auth = values.get("auth", {})
-            client_kwargs = auth.get("client_kwargs", {})
+            client_kwargs = auth.get("client_kwargs") or {}
             client_kwargs.update(values["client_kwargs"])
             values["client"] = GenerativeAiClient(**auth, **client_kwargs)
         # Set default compartment ID
