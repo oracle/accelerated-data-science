@@ -48,7 +48,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         outputs_legacy = []
         selected_models = dict()
         date_column = self.spec.datetime_column.name
-        horizon = self.spec.horizon.periods
+        horizon = self.spec.horizon
 
         # Clean up kwargs for pass through
         model_kwargs_cleaned = self.spec.model_kwargs.copy()
