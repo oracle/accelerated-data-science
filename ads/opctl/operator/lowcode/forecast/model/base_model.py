@@ -242,6 +242,10 @@ class ForecastOperatorBaseModel(ABC):
             columns=self.spec.historical_data.columns,
         )
         self.original_user_data = raw_data.copy()
+        date_column = self.spec.datetime_column.name
+        freq = pd.infer_freq(raw_data[date_column].drop_duplicates().tail(5))
+        self.spec.freq = freq
+        utils.evaluate_model_compatibility(raw_data, self.spec)
         data = Transformations(raw_data, self.spec).run()
         self.original_total_data = data
         additional_data = None
@@ -263,7 +267,7 @@ class ForecastOperatorBaseModel(ABC):
             data=data,
             target_column=self.spec.target_column,
             datetime_column=self.spec.datetime_column.name,
-            horizon=self.spec.horizon.periods,
+            horizon=self.spec.horizon,
             target_category_columns=self.spec.target_category_columns,
             additional_data=additional_data,
         )

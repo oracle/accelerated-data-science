@@ -45,7 +45,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         # Initialize the AutoTS model with specified parameters
         model = AutoTS(
-            forecast_length=self.spec.horizon.periods,
+            forecast_length=self.spec.horizon,
             frequency="infer",
             prediction_interval=self.spec.confidence_interval_width,
             max_generations=self.spec.model_kwargs.get(
