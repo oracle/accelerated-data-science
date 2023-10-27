@@ -188,7 +188,7 @@ def build_image(
             command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
         if os.environ.get(CONTAINER_NETWORK):
             command += ["--network", os.environ[CONTAINER_NETWORK]]
-        command += [os.path.join(os.path.abspath(curr_dir), "docker")]
+        command += [os.path.abspath(curr_dir)]
         logger.info("Build image with command %s", command)
         proc = run_command(command)
     if proc.returncode != 0:
