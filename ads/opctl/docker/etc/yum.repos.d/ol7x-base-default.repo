@@ -1,8 +1,0 @@
-[ol7-yum]
-name=ol7-yum
-baseurl=https://artifactory.oci.oraclecorp.com/ol7-yum/
-enabled=1
-gpgcheck=0
-repo_gpgcheck=1
-gpgkey=https://artifactory.oci.oraclecorp.com/ol7-yum/repodata/repomd.xml.key
-assumeyes=1

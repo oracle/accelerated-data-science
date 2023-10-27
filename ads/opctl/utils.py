@@ -197,7 +197,7 @@ def build_image(
 
 def _get_image_name_dockerfile_target(type: str, gpu: bool, arch: str) -> str:
     look_up = {
-        ("job-local", False, "arm"): (ML_JOB_IMAGE, "Dockerfile_arm.job", None),
+        ("job-local", False, "arm"): (ML_JOB_IMAGE, "Dockerfile.job.arm", None),
         ("job-local", False, "other"): (ML_JOB_IMAGE, "Dockerfile.job", None),
         ("job-local", True, "other"): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
         ("ads-ops-base", False, "other"): (OPS_IMAGE_BASE, "Dockerfile", "base"),
