@@ -8,16 +8,16 @@ import datetime
 import pandas as pd
 from ads.common import utils
 
-import oci
-from oci.feature_store.models import (
+from feature_store_client.feature_store.models import (
     CreateFeatureGroupDetails,
     UpdateFeatureGroupDetails,
+    FeatureGroup,
 )
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
 
 
-class OCIFeatureGroup(OCIFeatureStoreMixin, oci.feature_store.models.FeatureGroup):
+class OCIFeatureGroup(OCIFeatureStoreMixin, FeatureGroup):
     """Represents an OCI Data Science feature group.
     This class contains all attributes of the `oci.data_science.models.FeatureDefinition`.
     The main purpose of this class is to link the `oci.data_science.models.FeatureDefinition`

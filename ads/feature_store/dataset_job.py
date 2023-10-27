@@ -5,13 +5,17 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
 from copy import deepcopy
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Union
 
 import pandas
 
 from ads.common import utils
+from ads.feature_store.common.enums import (
+    JobConfigurationType,
+    BatchIngestionMode,
+    StreamingIngestionMode,
+)
 from ads.feature_store.feature_option_details import FeatureOptionDetails
-from ads.feature_store.common.enums import IngestionMode, JobConfigurationType
 from ads.feature_store.service.oci_dataset_job import OCIDatasetJob
 from ads.jobs.builders.base import Builder
 
@@ -113,7 +117,7 @@ class DatasetJob(Builder):
 
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.DatasetJob` accepts.
+            Can be any attribute that `feature_store.models.DatasetJob` accepts.
 
         Returns
         -------
@@ -225,10 +229,14 @@ class DatasetJob(Builder):
         return self.get_spec(self.CONST_INGESTION_MODE)
 
     @ingestion_mode.setter
-    def ingestion_mode(self, ingestion_mode: IngestionMode) -> "DatasetJob":
+    def ingestion_mode(
+        self, ingestion_mode: Union[BatchIngestionMode, StreamingIngestionMode]
+    ) -> "DatasetJob":
         return self.with_ingestion_mode(ingestion_mode)
 
-    def with_ingestion_mode(self, ingestion_mode: IngestionMode) -> "DatasetJob":
+    def with_ingestion_mode(
+        self, ingestion_mode: Union[BatchIngestionMode, StreamingIngestionMode]
+    ) -> "DatasetJob":
         """Sets the mode of the dataset ingestion mode.
 
         Parameters
@@ -337,7 +345,7 @@ class DatasetJob(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.DatasetJob` accepts.
+            Can be any attribute that `feature_store.models.DatasetJob` accepts.
 
         Returns
         -------
@@ -370,7 +378,7 @@ class DatasetJob(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.DatasetJob` accepts.
+            Can be any attribute that `feature_store.models.DatasetJob` accepts.
 
         Returns
         -------

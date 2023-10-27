@@ -519,6 +519,19 @@ class PipelineStep(Job):
             dict_details["spec"][self.CONST_JOB_ID] = self.job_id
         if self.description:
             dict_details["spec"][self.CONST_DESCRIPTION] = self.description
+        if self.kind == "ML_JOB":
+            if self.environment_variable:
+                dict_details["spec"][self.CONST_ENVIRONMENT_VARIABLES] = (
+                    self.environment_variable
+                )
+            if self.argument:
+                dict_details["spec"][self.CONST_COMMAND_LINE_ARGUMENTS] = (
+                    self.argument
+                )
+            if self.maximum_runtime_in_minutes:
+                dict_details["spec"][self.CONST_MAXIMUM_RUNTIME_IN_MINUTES] = (
+                    self.maximum_runtime_in_minutes
+                )
 
         dict_details["spec"].pop(self.CONST_DEPENDS_ON, None)
 

@@ -374,7 +374,7 @@ def delete(**kwargs) -> None:
     ):
         kwargs["id"] = kwargs.pop("ocid")
     else:
-        raise ValueError(f"{kwargs['ocid']} is valid or supported.")
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
 
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.delete()
@@ -388,13 +388,24 @@ def cancel(**kwargs) -> None:
     ----------
     kwargs: dict
         keyword argument, stores command line args
+    
     Returns
     -------
     None
     """
-    kwargs["run_id"] = kwargs.pop("ocid")
-    if not kwargs.get("backend"):
-        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    kwargs["backend"] = _get_backend_from_ocid(kwargs["ocid"])
+    if (
+        DataScienceResourceRun.JOB_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.DATAFLOW_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
+    ):
+        kwargs["run_id"] = kwargs.pop("ocid")
+    elif (
+        DataScienceResource.JOB in kwargs["ocid"]
+    ):
+        kwargs["id"] = kwargs.pop("ocid")
+    else:
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.cancel()
 

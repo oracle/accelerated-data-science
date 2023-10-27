@@ -8,8 +8,11 @@ import datetime
 import logging
 import time
 
-import oci.feature_store
-from oci.feature_store.models import CreateDatasetJobDetails, CompleteDatasetJobDetails
+from feature_store_client.feature_store.models import (
+    CreateDatasetJobDetails,
+    CompleteDatasetJobDetails,
+    DatasetJob,
+)
 
 from ads.feature_store.mixin.oci_feature_store import OCIFeatureStoreMixin
 
@@ -18,7 +21,7 @@ logger = logging.getLogger(__name__)
 SLEEP_INTERVAL = 3
 
 
-class OCIDatasetJob(OCIFeatureStoreMixin, oci.feature_store.models.DatasetJob):
+class OCIDatasetJob(OCIFeatureStoreMixin, DatasetJob):
     """Represents an OCI Data Science DatasetJob.
     This class contains all attributes of the `oci.data_science.models.DatasetJob`.
     The main purpose of this class is to link the `oci.data_science.models.DatasetJob`
@@ -62,8 +65,8 @@ class OCIDatasetJob(OCIFeatureStoreMixin, oci.feature_store.models.DatasetJob):
     """
 
     TERMINAL_STATES = [
-        oci.feature_store.models.DatasetJob.LIFECYCLE_STATE_SUCCEEDED,
-        oci.feature_store.models.DatasetJob.LIFECYCLE_STATE_FAILED,
+        DatasetJob.LIFECYCLE_STATE_SUCCEEDED,
+        DatasetJob.LIFECYCLE_STATE_FAILED,
     ]
 
     def __init__(self, **kwargs) -> None:
@@ -72,7 +75,7 @@ class OCIDatasetJob(OCIFeatureStoreMixin, oci.feature_store.models.DatasetJob):
         Parameters
         ----------
         kwargs:
-            Same as kwargs in oci.feature_store.models.OCIDatasetJob.
+            Same as kwargs in feature_store.models.OCIDatasetJob.
             Keyword arguments are passed into OCI feature group job model to initialize the properties.
 
         """

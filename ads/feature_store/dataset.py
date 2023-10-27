@@ -10,7 +10,7 @@ import pandas as pd
 from great_expectations.core import ExpectationSuite
 
 from ads import deprecated
-from oci.feature_store.models import (
+from feature_store_client.feature_store.models import (
     DatasetFeatureGroupCollection,
     DatasetFeatureGroupSummary,
 )
@@ -21,6 +21,7 @@ from ads.feature_store.common.enums import (
     ExecutionEngine,
     ExpectationType,
     EntityType,
+    BatchIngestionMode,
 )
 from ads.feature_store.common.exceptions import NotMaterializedError
 from ads.feature_store.common.utils.utility import (
@@ -28,7 +29,7 @@ from ads.feature_store.common.utils.utility import (
     validate_delta_format_parameters,
     convert_expectation_suite_to_expectation,
 )
-from ads.feature_store.dataset_job import DatasetJob, IngestionMode
+from ads.feature_store.dataset_job import DatasetJob
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 from ads.feature_store.execution_strategy.execution_strategy_provider import (
     OciExecutionStrategyProvider,
@@ -720,7 +721,7 @@ class Dataset(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Dataset` accepts.
+            Can be any attribute that `feature_store.models.Dataset` accepts.
         validate_sql:
             Boolean value indicating whether to validate sql before creating dataset
 
@@ -779,7 +780,7 @@ class Dataset(Builder):
         None
         """
         # Create DataSet Job and persist it
-        dataset_job = self._build_dataset_job(IngestionMode.DEFAULT)
+        dataset_job = self._build_dataset_job(BatchIngestionMode.DEFAULT)
 
         # Create the Job
         dataset_job.create()
@@ -821,7 +822,7 @@ class Dataset(Builder):
         ----------
         kwargs
             Additional kwargs arguments.
-            Can be any attribute that `oci.feature_store.models.Dataset` accepts.
+            Can be any attribute that `feature_store.models.Dataset` accepts.
 
         Returns
         -------
@@ -874,7 +875,7 @@ class Dataset(Builder):
 
     def materialise(
         self,
-        ingestion_mode: IngestionMode = IngestionMode.OVERWRITE,
+        ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
         feature_option_details: FeatureOptionDetails = None,
     ):
         """Creates a dataset job.
