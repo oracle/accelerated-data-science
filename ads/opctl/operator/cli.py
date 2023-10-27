@@ -207,7 +207,16 @@ def create(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @with_auth
 def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
     """Verifies the operator config."""
-    with fsspec.open(kwargs["file"], "r", **authutil.default_signer()) as f:
+
+    with fsspec.open(
+        kwargs["file"],
+        "r",
+        **(
+            authutil.default_signer()
+            if ObjectStorageDetails.is_oci_path(kwargs["file"])
+            else {}
+        ),
+    ) as f:
         operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(cmd_verify)(operator_spec, **kwargs)
@@ -305,15 +314,27 @@ def run(debug: bool, **kwargs: Dict[str, Any]) -> None:
     operator_spec = {}
     backend = kwargs.pop("backend")
 
-    auth = {}
-    if any(ObjectStorageDetails.is_oci_path(uri) for uri in (kwargs["file"], backend)):
-        auth = authutil.default_signer()
-
-    with fsspec.open(kwargs["file"], "r", **auth) as f:
+    with fsspec.open(
+        kwargs["file"],
+        "r",
+        **(
+            authutil.default_signer()
+            if ObjectStorageDetails.is_oci_path(kwargs["file"])
+            else {}
+        ),
+    ) as f:
         operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     if backend and backend.lower().endswith((".yaml", ".yml")):
-        with fsspec.open(backend, "r", **auth) as f:
+        with fsspec.open(
+            backend,
+            "r",
+            **(
+                authutil.default_signer()
+                if ObjectStorageDetails.is_oci_path(backend)
+                else {}
+            ),
+        ) as f:
             backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
 
     suppress_traceback(debug)(cmd_run)(config=operator_spec, backend=backend, **kwargs)
