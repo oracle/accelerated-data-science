@@ -1,6 +1,6 @@
-===================================
+=====================================
 Terraform: Setting Up a Feature Store
-===================================
+=====================================
 
 The following shows a terraform stack deployment of the feature store resources.
 
@@ -12,7 +12,7 @@ Blue-green deployment is a strategy for releasing new versions of an application
 .. _User Policies:
 
 Required Policies for a Terraform Stack
-=============================
+=======================================
 
 Feature store requires the following policy statements to deploy the feature store in a Terraform stack:
 
@@ -200,7 +200,7 @@ The following Terraform variables used in this stack are:
 
 
 User VCN Deployment
-===============================
+===================
 Bring your own database (BYODB) is not supported by feature store because it doesn't support private access using a private endpoint and private access gateway for ATP instances.
 
 You can specify VCN details for the feature store to use an existing VCN. A Terraform stack feature store has the following Terraform VCN variables:
@@ -249,7 +249,7 @@ You can specify VCN details for the feature store to use an existing VCN. A Terr
 
 
     Onboarding a Database
-    ##########
+    #####################
 
     Specify the following details to onboard database instancesL
 

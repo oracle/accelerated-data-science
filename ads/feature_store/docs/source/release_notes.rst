@@ -105,7 +105,7 @@ Release notes: July 5, 2023
 * [DOCS] Updated terraform default version as 1.1.x
 
 1.0.0
-----
+-----
 
 .. note::
 
