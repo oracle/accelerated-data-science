@@ -179,9 +179,10 @@ def init(
             ) as f:
                 f.write(yaml.dump(operator_config))
     except Exception as ex:
-        logger.info(
+        logger.warning(
             "The operator's specification was not generated "
-            f"because it is not supported by the `{operator_info.type}` operator."
+            f"because it is not supported by the `{operator_info.type}` operator. "
+            "Use --debug option to see the error details."
         )
         logger.debug(ex)
 
