@@ -592,7 +592,7 @@ class MLJobOperatorBackend(MLJobBackend):
         self.operator_version = self.operator_config.get("version", "unknown")
 
         # registering supported runtime adjusters
-        self._RUNTIME_ADJUSTER_MAP = {
+        self._RUNTIME_MAP = {
             ContainerRuntime().type: self._adjust_container_runtime,
             PythonRuntime().type: self._adjust_python_runtime,
         }
@@ -680,7 +680,7 @@ class MLJobOperatorBackend(MLJobBackend):
         self._adjust_common_information()
 
         # adjust runtime information
-        self._RUNTIME_ADJUSTER_MAP.get(self.job.runtime.type, lambda: None)()
+        self._RUNTIME_MAP.get(self.job.runtime.type, lambda: None)()
 
         # run the job if only it is not a dry run mode
         if not self.config["execution"].get("dry_run"):
