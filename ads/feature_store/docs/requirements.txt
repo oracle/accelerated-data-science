@@ -6,7 +6,7 @@ sphinx_copybutton
 sphinx_code_tabs
 sphinx-autobuild
 sphinx-autorun
-oracle_ads
+oracle_ads==2.9.0rc0
 furo
 IPython
 pandoc

@@ -99,7 +99,7 @@ The following example queries a feature store using SQL:
   df = feature_store.sql(sql)
 
 Create an Entity
-=============
+================
 Use the ``create_entity()`` method of the ``FeatureStore`` instance to create an ``Entity``.
 
 .. code-block:: python3
@@ -108,7 +108,7 @@ Use the ``create_entity()`` method of the ``FeatureStore`` instance to create an
   feature_store.create_entity(name="<ENTITY_NAME>")
 
 Create a Transformation
-=====================
+=======================
 Transformations in a feature store are the operations and processes applied to raw data to create, modify, or derive new features for use as inputs for machine learning models. These transformations are necessary for improving the quality, relevance, and usefulness of features that then enhance the performance of models.
 You can call the ``create_transformation()`` method of the FeatureStore instance to create a ``Transformation``.
 

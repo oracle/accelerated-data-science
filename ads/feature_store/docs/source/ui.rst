@@ -34,7 +34,7 @@ Statistical analysis of features helps uncover insights about their distribution
 .. image:: figures/stats_fg.png
 
 Dataset
-======
+=======
 Datasets also support iterative experimentation, allowing data scientists to create various dataset configurations with different feature combinations and transformations, which facilites the discovery of the most valuable features for model training.
 
 .. image:: figures/dataset.gif

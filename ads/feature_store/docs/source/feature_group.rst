@@ -220,6 +220,7 @@ Use the ``get_validation_output()`` method of the ``FeatureGroup`` instance to f
 The ``get_validation_output()`` method has the following optional parameter:
 
 - ``job_id: string``. ID of the feature group job.
+
 ``get_validation_output().to_pandas()`` Outputs  the validation results for each expectation as Pandas dataframe.
 
 .. image:: figures/validation_results.png
