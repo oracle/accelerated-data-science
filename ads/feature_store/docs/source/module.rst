@@ -2,6 +2,11 @@
 Class Documentation
 ===================
 
+.. toctree::
+   :maxdepth: 2
+
+   feature_store_class
+
 ads.feature_store package
 =========================
 
@@ -57,27 +62,6 @@ ads.feature_store package
 
 
 .. automodule:: ads.feature_store.feature_group_expectation
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-ads.feature_store.query package
-===============================
-
-Submodules
-----------
-
-ads.feature_store.query.filter
-------------------------------
-
-.. automodule:: ads.feature_store.query.filter
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-ads.feature_store.query.join
-------------------------------
-.. automodule:: ads.feature_store.query.join
    :members:
    :undoc-members:
    :show-inheritance:
