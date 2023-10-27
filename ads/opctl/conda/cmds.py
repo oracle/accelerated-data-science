@@ -616,7 +616,7 @@ def _publish(
     pack_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pack.py")
     if not skip_archive:
         if is_in_notebook_session() or NO_CONTAINER:
-            command = f"python {pack_script} {pack_folder_path}"
+            command = f"python {pack_script} --conda-path {pack_folder_path}"
             run_command(command, shell=True)
         else:
             volumes = {
@@ -625,7 +625,7 @@ def _publish(
                 },
                 pack_script: {"bind": os.path.join(DEFAULT_IMAGE_HOME_DIR, "pack.py")},
             }
-            command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} {os.path.join(DEFAULT_IMAGE_HOME_DIR, conda_slug)}"
+            command = f"python {os.path.join(DEFAULT_IMAGE_HOME_DIR, 'pack.py')} --conda-path {os.path.join(DEFAULT_IMAGE_HOME_DIR, conda_slug)}"
             gpu = env["manifest"]["arch_type"] == "GPU"
             _check_job_image_exists(gpu)
             if gpu:
