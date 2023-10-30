@@ -168,7 +168,7 @@ spec:
           type: dict
       type: dict
 
-    report_file_name:
+    report_filename:
       required: false
       type: string
       default: report.html

@@ -110,7 +110,7 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
         spec.forecast_filename = "forecast"
         spec.metrics_filename = "metrics"
         spec.test_metrics_filename = "test_metrics"
-        spec.report_file_name = "report"
+        spec.report_filename = "report"
 
         config = Mock(spec=ForecastOperatorConfig)
         config.spec = spec

@@ -409,7 +409,7 @@ class ForecastOperatorBaseModel(ABC):
                 dp.save_report(report_sections, report_local_path)
                 with open(report_local_path) as f1:
                     with fsspec.open(
-                        os.path.join(output_dir, self.spec.report_file_name),
+                        os.path.join(output_dir, self.spec.report_filename),
                         "w",
                         **default_signer(),
                     ) as f2:

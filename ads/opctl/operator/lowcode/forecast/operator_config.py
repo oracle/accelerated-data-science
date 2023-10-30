@@ -82,7 +82,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     additional_data: InputData = field(default_factory=InputData)
     test_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
-    report_file_name: str = None
+    report_filename: str = None
     report_title: str = None
     report_theme: str = None
     metrics_filename: str = None
@@ -106,7 +106,7 @@ class ForecastOperatorSpec(DataClassSerializable):
         """Adjusts the specification details."""
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
         self.confidence_interval_width = self.confidence_interval_width or 0.80
-        self.report_file_name = self.report_file_name or "report.html"
+        self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (
             self.preprocessing if self.preprocessing is not None else True
         )
