@@ -184,12 +184,24 @@ spec:
       allowed:
         - light
         - dark
-    report_metrics_name:
+    metrics_filename:
       required: false
       type: string
-      default: report.csv
+      default: metrics.csv
       meta:
-        description: "Placed into output_directory location. Defaults to report.csv"
+        description: "Placed into output_directory location. Defaults to metrics.csv"
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+    forecast_filename:
+      required: false
+      type: string
+      default: forecast.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to forecast.csv"
 
     target_column:
       type: string
