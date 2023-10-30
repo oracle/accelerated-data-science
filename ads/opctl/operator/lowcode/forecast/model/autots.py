@@ -47,10 +47,14 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         model = AutoTS(
             forecast_length=self.spec.horizon.periods,
             frequency=self.spec.model_kwargs.get("frequency", "infer"),
+            forecast_length=self.spec.horizon.periods,
+            frequency=self.spec.model_kwargs.get("frequency", "infer"),
             prediction_interval=self.spec.confidence_interval_width,
             max_generations=self.spec.model_kwargs.get(
                 "max_generations", AUTOTS_MAX_GENERATION
             ),
+            no_negatives=self.spec.model_kwargs.get("no_negatives", False),
+            constraint=self.spec.model_kwargs.get("constraint", None),
             no_negatives=self.spec.model_kwargs.get("no_negatives", False),
             constraint=self.spec.model_kwargs.get("constraint", None),
             ensemble=self.spec.model_kwargs.get("ensemble", "auto"),
@@ -58,7 +62,15 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 "initial_template", "General+Random"
             ),
             random_seed=self.spec.model_kwargs.get("random_seed", 2022),
+            random_seed=self.spec.model_kwargs.get("random_seed", 2022),
             holiday_country=self.spec.model_kwargs.get("holiday_country", "US"),
+            subset=self.spec.model_kwargs.get("subset", None),
+            aggfunc=self.spec.model_kwargs.get("aggfunc", "first"),
+            na_tolerance=self.spec.model_kwargs.get("na_tolerance", 1),
+            drop_most_recent=self.spec.model_kwargs.get("drop_most_recent", 0),
+            drop_data_older_than_periods=self.spec.model_kwargs.get(
+                "drop_data_older_than_periods", None
+            ),
             subset=self.spec.model_kwargs.get("subset", None),
             aggfunc=self.spec.model_kwargs.get("aggfunc", "first"),
             na_tolerance=self.spec.model_kwargs.get("na_tolerance", 1),
@@ -77,6 +89,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 "models_to_validate", AUTOTS_MODELS_TO_VALIDATE
             ),
             max_per_model_class=self.spec.model_kwargs.get("max_per_model_class", None),
+            max_per_model_class=self.spec.model_kwargs.get("max_per_model_class", None),
             validation_method=self.spec.model_kwargs.get(
                 "validation_method", "backwards"
             ),
@@ -84,14 +97,14 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 "min_allowed_train_percent", 0.5
             ),
             remove_leading_zeroes=self.spec.model_kwargs.get(
-                "remove_leading_zeroes", False
+                "remove_leading_zeros", False
             ),
             prefill_na=self.spec.model_kwargs.get("prefill_na", None),
             introduce_na=self.spec.model_kwargs.get("introduce_na", None),
             preclean=self.spec.model_kwargs.get("preclean", None),
             model_interrupt=self.spec.model_kwargs.get("model_interrupt", True),
             generation_timeout=self.spec.model_kwargs.get("generation_timeout", None),
-            current_model_file=self.spec.model_kwargs.get("current_model_file", None),
+            current_model_file=self.spec.model_kwargs.get("current_model_life", None),
             verbose=self.spec.model_kwargs.get("verbose", 1),
             n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
         )
@@ -230,7 +243,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             ),
             target_columns=self.target_columns,
         )
-
+        print("-------------------------------------------------")
+        print(self.models)
+        print("-------------------------------------------------")
         # Section 2: AutoTS Model Parameters
         sec2_text = dp.Text(f"## AutoTS Model Parameters")
         # TODO: ODSC-47612 Format the parameters better for display in report.
