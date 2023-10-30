@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl.operator.lowcode.forecast.const import AUTOMLX_METRIC_MAP
-from sktime.forecasting.model_selection import temporal_train_test_split
 from ads.opctl import logger
 
 from .. import utils
@@ -36,8 +35,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
         ),
     )
+    @runtime_dependency(
+        module="sktime",
+        err_msg=(
+            "Please run `pip3 install sktime` to install the required dependencies for automlx."
+        ),
+    )
     def _build_model(self) -> pd.DataFrame:
         from automl import init
+        from sktime.forecasting.model_selection import temporal_train_test_split
 
         init(engine="local", check_deprecation_warnings=False)
 

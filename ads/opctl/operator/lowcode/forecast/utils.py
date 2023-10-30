@@ -136,11 +136,16 @@ def _load_data(filename, format, storage_options, columns, **kwargs):
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         read_fn = getattr(pd, f"read_{format}")
         data = _call_pandas_fsspec(read_fn, filename, storage_options=storage_options)
-        if columns:
-            # keep only these columns, done after load because only CSV supports stream filtering
-            data = data[columns]
-        return data
-    raise ForecastInputDataError(f"Unrecognized format: {format}")
+    elif format in ["tsv"]:
+        data = _call_pandas_fsspec(
+            pd.read_csv, filename, storage_options=storage_options, sep="\t"
+        )
+    else:
+        raise ForecastInputDataError(f"Unrecognized format: {format}")
+    if columns:
+        # keep only these columns, done after load because only CSV supports stream filtering
+        data = data[columns]
+    return data
 
 
 def _write_data(data, filename, format, storage_options, index=False, **kwargs):
