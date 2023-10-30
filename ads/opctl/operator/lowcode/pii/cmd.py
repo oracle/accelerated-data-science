@@ -32,12 +32,6 @@ def init(**kwargs: Dict) -> str:
     """
     logger.info("==== PII related options ====")
 
-    model_type = click.prompt(
-        "Provide a model type:",
-        type=click.Choice(SupportedModels.values()),
-        default=SupportedModels.Prophet,
-    )
-
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example_dict(values={"model": model_type, "type": kwargs.get("type")})
+    ).generate_example_dict(values={"type": kwargs.get("type")})

@@ -6,3 +6,5 @@ dependencies:
   - pip
   - pip:
       - datapane
+      - scrubadub
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/ads_pii_operator#egg=oracle-ads"
