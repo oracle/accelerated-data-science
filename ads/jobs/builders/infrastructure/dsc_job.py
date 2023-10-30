@@ -741,8 +741,8 @@ class DataScienceJobRun(
         self.client.cancel_job_run(self.id)
         if wait_for_completion:
             while (
-                self.lifecycle_state != 
-                oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELED
+                self.lifecycle_state
+                != oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELED
             ):
                 self.sync()
                 time.sleep(SLEEP_INTERVAL)
@@ -1480,9 +1480,7 @@ class DataScienceJob(Infrastructure):
             ] = JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_STANDALONE
 
         if self.storage_mount:
-            if not hasattr(
-                oci.data_science.models, "StorageMountConfigurationDetails"
-            ):
+            if not hasattr(oci.data_science.models, "StorageMountConfigurationDetails"):
                 raise EnvironmentError(
                     "Storage mount hasn't been supported in the current OCI SDK installed."
                 )
@@ -1494,6 +1492,12 @@ class DataScienceJob(Infrastructure):
 
     def build(self) -> DataScienceJob:
         self.dsc_job.load_defaults()
+
+        try:
+            self.dsc_job.load_defaults()
+        except Exception:
+            logger.exception("Failed to load default properties.")
+
         self._update_from_dsc_model(self.dsc_job, overwrite=False)
         return self
 
