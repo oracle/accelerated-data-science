@@ -27,8 +27,8 @@ from ads.opctl import logger
 from .const import MAX_COLUMNS_AUTOMLX, SupportedMetrics, SupportedModels
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 import re
-from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorSpec
-from ads.opctl.operator.lowcode.forecast.const import SupportedModels
+from .operator_config import ForecastOperatorSpec
+from .const import SupportedModels
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -518,6 +518,6 @@ def to_timedelta(freq: str):
     """
     # Add '1' in case freq doesn't have any digit
     if not bool(re.search(r'\d', freq)):
-        freq = '1{}'.format(freq)
+        freq = f"1{freq}"
     # Convert to datetime.timedelta
     return pd.to_timedelta(freq)
