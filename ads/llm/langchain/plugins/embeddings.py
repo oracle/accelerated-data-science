@@ -11,8 +11,7 @@ from ads.llm.langchain.plugins.base import GenerativeAiClientModel
 
 
 class GenerativeAIEmbeddings(GenerativeAiClientModel, Embeddings):
-    """OCI Generative AI embedding models.
-    """
+    """OCI Generative AI embedding models."""
 
     model: str = "cohere.embed-english-light-v2.0"
     """Model name to use."""

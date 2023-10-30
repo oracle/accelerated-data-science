@@ -28,11 +28,10 @@ class ModelDeploymentLLM(BaseLLM):
     """Generates best_of completions server-side and returns the "best" 
     (the one with the highest log probability per token). 
     """
-    def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
-        raise NotImplementedError()
 
     @property
     def _default_params(self) -> Dict[str, Any]:
+        """Default parameters for the model."""
         raise NotImplementedError()
 
     @property
@@ -42,6 +41,28 @@ class ModelDeploymentLLM(BaseLLM):
             **{"endpoint": self.endpoint},
             **self._default_params,
         }
+
+    def _construct_json_body(self, prompt, params):
+        """Constructs the request body as a dictionary (JSON)."""
+        raise NotImplementedError
+
+    def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
+        """Combines the invocation parameters with default parameters."""
+        params = self._default_params
+        if self.stop is not None and stop is not None:
+            raise ValueError("`stop` found in both the input and default params.")
+        elif self.stop is not None:
+            params["stop"] = self.stop
+        elif stop is not None:
+            params["stop"] = stop
+        else:
+            # Don't set "stop" in param as None. It should be a list.
+            params["stop"] = []
+
+        return {**params, **kwargs}
+
+    def _process_response(self, response_json: dict):
+        return response_json
 
     def _call(
         self,
@@ -73,11 +94,8 @@ class ModelDeploymentLLM(BaseLLM):
         """
         params = self._invocation_params(stop, **kwargs)
         body = self._construct_json_body(prompt, params)
-        response = self.send_request(
-            data=body, endpoint=self.endpoint, timeout=DEFAULT_TIME_OUT
-        )
-
-        return str(response.get("generated_text", response))
+        response = self.send_request(data=body, endpoint=self.endpoint)
+        return self._process_response(response)
 
     def send_request(
         self,
@@ -115,25 +133,25 @@ class ModelDeploymentLLM(BaseLLM):
         request_kwargs = {"json": data}
         request_kwargs["headers"] = header
         request_kwargs["auth"] = self.auth.get("signer")
+        timeout = kwargs.pop("timeout", DEFAULT_TIME_OUT)
+        response = requests.post(
+            endpoint, timeout=timeout, **request_kwargs, **kwargs
+        )
 
         try:
-            response = requests.post(endpoint, **request_kwargs, **kwargs)
+            response.raise_for_status()
             response_json = response.json()
 
         except Exception:
-            response = requests.post(endpoint, **request_kwargs, **kwargs)
             logger.error(
-                f"DEBUG INFO: request_kwargs={request_kwargs},"
-                f"status_code={response.status_code}, "
-                f"content={response._content}"
+                "DEBUG INFO: request_kwargs=%s, status_code=%s, content=%s",
+                request_kwargs,
+                response.status_code,
+                response.content,
             )
             raise
 
         return response_json
-
-    def _construct_json_body(self, prompt, params):
-        """Needs to be implemented in different framework."""
-        raise NotImplementedError
 
 
 class ModelDeploymentTGI(ModelDeploymentLLM):
@@ -151,7 +169,9 @@ class ModelDeploymentTGI(ModelDeploymentLLM):
     """
 
     do_sample: bool = True
-    """if set to True, this parameter enables decoding strategies such as multinomial sampling, beam-search multinomial sampling, Top-K sampling and Top-p sampling. """
+    """if set to True, this parameter enables decoding strategies such as
+    multi-nominal sampling, beam-search multi-nominal sampling, Top-K sampling and Top-p sampling.
+    """
 
     watermark = True
 
@@ -178,26 +198,72 @@ class ModelDeploymentTGI(ModelDeploymentLLM):
             "watermark": self.watermark,
         }
 
-    def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
-        params = self._default_params
-        if self.stop is not None and stop is not None:
-            raise ValueError("`stop` found in both the input and default params.")
-        elif self.stop is not None:
-            params["stop"] = self.stop
-        elif stop is not None:
-            params["stop"] = stop
-        else:  # don't set stop in param as None. TGI not accept stop=null.
-            pass
-        return {**params, **kwargs}
-
     def _construct_json_body(self, prompt, params):
         return {
             "inputs": prompt,
             "parameters": params,
         }
 
+    def _process_response(self, response_json: dict):
+        return str(response_json.get("generated_text", response_json))
 
-class ModelDeploymentvLLM(OCIModelDeployment):
-    """Not support yet."""
 
-    pass
+class ModelDeploymentVLLM(ModelDeploymentLLM):
+    """VLLM deployed on OCI Model Deployment"""
+
+    model: str
+
+    n: int = 1
+    """Number of output sequences to return for the given prompt."""
+
+    k: int = -1
+    """Number of most likely tokens to consider at each step."""
+
+    frequency_penalty: float = 0.0
+    """Penalizes repeated tokens according to frequency. Between 0 and 1."""
+
+    presence_penalty: float = 0.0
+    """Penalizes repeated tokens. Between 0 and 1."""
+
+    use_beam_search: bool = False
+    """Whether to use beam search instead of sampling."""
+
+    ignore_eos: bool = False
+    """Whether to ignore the EOS token and continue generating tokens after 
+    the EOS token is generated."""
+
+    logprobs: Optional[int] = None
+    """Number of log probabilities to return per output token."""
+
+    @property
+    def _llm_type(self) -> str:
+        """Return type of llm."""
+        return "oci_model_deployment_vllm_endpoint"
+
+    @property
+    def _default_params(self) -> Dict[str, Any]:
+        """Get the default parameters for calling vllm."""
+        return {
+            "n": self.n,
+            "best_of": self.best_of,
+            "max_tokens": self.max_tokens,
+            "top_k": self.k,
+            "top_p": self.p,
+            "temperature": self.temperature,
+            "presence_penalty": self.presence_penalty,
+            "frequency_penalty": self.frequency_penalty,
+            "stop": self.stop,
+            "ignore_eos": self.ignore_eos,
+            "use_beam_search": self.use_beam_search,
+            "logprobs": self.logprobs,
+            "model": self.model,
+        }
+
+    def _construct_json_body(self, prompt, params):
+        return {
+            "prompt": prompt,
+            **params,
+        }
+
+    def _process_response(self, response_json: dict):
+        return response_json["choices"][0]["text"]

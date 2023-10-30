@@ -32,13 +32,13 @@ class BaseLLM(LLM):
     max_tokens: int = 256
     """Denotes the number of tokens to predict per generation."""
 
-    temperature: float = 0.1
+    temperature: float = 0.2
     """A non-negative float that tunes the degree of randomness in generation."""
 
     k: int = 0
     """Number of most likely tokens to consider at each step."""
 
-    p: int = 0.9
+    p: int = 0.75
     """Total probability mass of tokens to consider at each step."""
 
     stop: Optional[List[str]] = None
