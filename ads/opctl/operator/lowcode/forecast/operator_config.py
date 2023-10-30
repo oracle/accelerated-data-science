@@ -110,12 +110,15 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.preprocessing = (
             self.preprocessing if self.preprocessing is not None else True
         )
+        # For Report Generation. When user doesn't specify defaults to True
         self.generate_report = (
             self.generate_report if self.generate_report is not None else True
         )
+        # For Metrics files Generation. When user doesn't specify defaults to True
         self.generate_metrics = (
             self.generate_metrics if self.generate_metrics is not None else True
         )
+        # For Explanations Generation. When user doesn't specify defaults to False
         self.generate_explanations = (
             self.generate_explanations
             if self.generate_explanations is not None
