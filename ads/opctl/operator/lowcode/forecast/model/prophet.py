@@ -12,6 +12,7 @@ from ads.opctl import logger
 from ..const import DEFAULT_TRIALS
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 
 
 def _add_unit(num, unit):
@@ -30,6 +31,11 @@ def _fit_model(data, params, additional_regressors):
 
 class ProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing Prophet operator model."""
+
+    def __init__(self, config: ForecastOperatorConfig):
+        super().__init__(config)
+        self.train_metrics = True
+        self.forecast_col_name = "yhat"
 
     def _build_model(self) -> pd.DataFrame:
         from prophet import Prophet
@@ -306,8 +312,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "data and shifts in the trend, and typically handles outliers well."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = True
         ds_column_series = self.data["ds"]
         ds_forecast_col = self.outputs[0]["ds"]
         ci_col_names = ["yhat_lower", "yhat_upper"]
@@ -315,8 +319,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,

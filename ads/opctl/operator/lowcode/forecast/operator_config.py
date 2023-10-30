@@ -86,13 +86,16 @@ class ForecastOperatorSpec(DataClassSerializable):
     report_title: str = None
     report_theme: str = None
     metrics_filename: str = None
+    test_metrics_filename: str = None
     forecast_filename: str = None
     target_column: str = None
     preprocessing: bool = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
     horizon: Horizon = field(default_factory=Horizon)
-    explain: bool = None
+    generate_report: bool = None
+    generate_metrics: bool = None
+    generate_explanations: bool = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
     confidence_interval_width: float = None
@@ -107,9 +110,20 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.preprocessing = (
             self.preprocessing if self.preprocessing is not None else True
         )
-        self.explain = self.explain if self.explain is not None else False
+        self.generate_report = (
+            self.generate_report if self.generate_report is not None else True
+        )
+        self.generate_metrics = (
+            self.generate_metrics if self.generate_metrics is not None else True
+        )
+        self.generate_explanations = (
+            self.generate_explanations
+            if self.generate_explanations is not None
+            else False
+        )
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
+        self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"
         self.forecast_filename = self.forecast_filename or "forecast.csv"
         self.target_column = self.target_column or "Sales"
         self.model_kwargs = self.model_kwargs or dict()
