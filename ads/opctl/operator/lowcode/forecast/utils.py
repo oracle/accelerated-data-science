@@ -5,8 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-from typing import List
-
+from ads.opctl import logger
 import fsspec
 import numpy as np
 import pandas as pd
@@ -18,13 +17,11 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
+from typing import List
+from .const import SupportedMetrics
 
-from ads.common import auth as authutil
-from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
-from ads.opctl import logger
-
-from .const import MAX_COLUMNS_AUTOMLX, SupportedMetrics, SupportedModels
+from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 
 
@@ -129,15 +126,10 @@ def _build_metrics_per_horizon(
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":
         return pd_fn(filename, **kwargs)
-
-    storage_options = storage_options or (
-        authutil.default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
-    )
-
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
-def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
+def _load_data(filename, format, storage_options, columns, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]

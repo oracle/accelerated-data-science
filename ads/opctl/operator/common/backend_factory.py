@@ -190,13 +190,7 @@ class BackendFactory:
             backends = cls._init_backend_config(
                 operator_info=operator_info, backend_kind=backend_kind, **kwargs
             )
-
-            backend = backends.get(cls.BACKEND_RUNTIME_MAP[backend_kind][runtime_type])
-            if not backend:
-                raise RuntimeError(
-                    "An error occurred while attempting to load the "
-                    f"configuration for the `{backend_kind}.{runtime_type}` backend."
-                )
+            backend = backends[cls.BACKEND_RUNTIME_MAP[backend_kind][runtime_type]]
 
         p_backend = ConfigProcessor(
             {**backend, **{"execution": {"backend": backend_kind}}}
@@ -406,35 +400,24 @@ class BackendFactory:
             supported_backends = (backend_kind,)
 
         for resource_type in supported_backends:
-            try:
-                for runtime_type_item in RUNTIME_TYPE_MAP.get(
-                    resource_type.lower(), []
-                ):
-                    runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
+            for runtime_type_item in RUNTIME_TYPE_MAP.get(resource_type.lower(), []):
+                runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
 
-                    # get config info from ini files
-                    p = ConfigProcessor(
-                        {**runtime_kwargs, **{"execution": {"backend": resource_type}}}
-                    ).step(
-                        ConfigMerger,
-                        ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
-                        **kwargs,
-                    )
-
-                    # generate YAML specification template
-                    result[
-                        (resource_type.lower(), runtime_type.value.lower())
-                    ] = yaml.load(
-                        _BackendFactory(p.config).backend.init(
-                            runtime_type=runtime_type.value,
-                            **{**kwargs, **runtime_kwargs},
-                        ),
-                        Loader=yaml.FullLoader,
-                    )
-            except Exception as ex:
-                logger.warning(
-                    f"Unable to generate the configuration for the `{resource_type}` backend. "
-                    f"{ex}"
+                # get config info from ini files
+                p = ConfigProcessor(
+                    {**runtime_kwargs, **{"execution": {"backend": resource_type}}}
+                ).step(
+                    ConfigMerger,
+                    ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
+                    **kwargs,
                 )
 
+                # generate YAML specification template
+                result[(resource_type.lower(), runtime_type.value.lower())] = yaml.load(
+                    _BackendFactory(p.config).backend.init(
+                        runtime_type=runtime_type.value,
+                        **{**kwargs, **runtime_kwargs},
+                    ),
+                    Loader=yaml.FullLoader,
+                )
         return result

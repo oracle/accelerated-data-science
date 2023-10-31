@@ -15,11 +15,10 @@ import numpy as np
 import pandas as pd
 
 from ads.common.auth import default_signer
-from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 
 from .. import utils
-from ..const import SUMMARY_METRICS_HORIZON_LIMIT, SupportedMetrics, SupportedModels
+from ..const import SupportedModels, SupportedMetrics, SUMMARY_METRICS_HORIZON_LIMIT
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .transformations import Transformations
 
@@ -239,6 +238,7 @@ class ForecastOperatorBaseModel(ABC):
         raw_data = utils._load_data(
             filename=self.spec.historical_data.url,
             format=self.spec.historical_data.format,
+            storage_options=default_signer(),
             columns=self.spec.historical_data.columns,
         )
         self.original_user_data = raw_data.copy()
@@ -249,6 +249,7 @@ class ForecastOperatorBaseModel(ABC):
             additional_data = utils._load_data(
                 filename=self.spec.additional_data.url,
                 format=self.spec.additional_data.format,
+                storage_options=default_signer(),
                 columns=self.spec.additional_data.columns,
             )
 
@@ -275,6 +276,7 @@ class ForecastOperatorBaseModel(ABC):
         data = utils._load_data(
             filename=test_filename,
             format=self.spec.test_data.format,
+            storage_options=default_signer(),
             columns=self.spec.test_data.columns,
         )
 
@@ -390,17 +392,11 @@ class ForecastOperatorBaseModel(ABC):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             dp.save_report(report_sections, report_local_path)
-
-            report_path = os.path.join(output_dir, self.spec.report_file_name)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                    report_path,
+                    os.path.join(output_dir, self.spec.report_file_name),
                     "w",
-                    **(
-                        default_signer()
-                        if ObjectStorageDetails.is_oci_path(report_path)
-                        else {}
-                    ),
+                    **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
 
@@ -409,6 +405,7 @@ class ForecastOperatorBaseModel(ABC):
             data=result_df,
             filename=os.path.join(output_dir, self.spec.forecast_filename),
             format="csv",
+            storage_options=default_signer(),
         )
 
         # metrics csv report
@@ -417,6 +414,7 @@ class ForecastOperatorBaseModel(ABC):
                 data=metrics_df.rename_axis("metrics").reset_index(),
                 filename=os.path.join(output_dir, self.spec.metrics_filename),
                 format="csv",
+                storage_options=default_signer(),
                 index=False,
             )
 
