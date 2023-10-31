@@ -9,7 +9,6 @@ import pandas as pd
 import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl.operator.lowcode.forecast.const import AUTOMLX_METRIC_MAP
-from sktime.forecasting.model_selection import temporal_train_test_split
 from ads.opctl import logger
 
 from .. import utils
@@ -38,8 +37,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             "Please run `pip3 install oracle-automlx==23.2.3` to install the required dependencies for automlx."
         ),
     )
+    @runtime_dependency(
+        module="sktime",
+        err_msg=(
+            "Please run `pip3 install sktime` to install the required dependencies for automlx."
+        ),
+    )
     def _build_model(self) -> pd.DataFrame:
         from automl import init
+        from sktime.forecasting.model_selection import temporal_train_test_split
 
         init(engine="local", check_deprecation_warnings=False)
 
@@ -50,7 +56,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         outputs_legacy = []
         selected_models = dict()
         date_column = self.spec.datetime_column.name
-        horizon = self.spec.horizon.periods
+        horizon = self.spec.horizon
 
         # Clean up kwargs for pass through
         model_kwargs_cleaned = self.spec.model_kwargs.copy()
@@ -323,13 +329,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 model=self._custom_predict_automlx,
                 data=self.full_data_dict.get(self.series_id).set_index(
                     self.spec.datetime_column.name
-                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                )[: -self.spec.horizon][list(self.dataset_cols)],
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(
                 self.full_data_dict.get(self.series_id).set_index(
                     self.spec.datetime_column.name
-                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                )[: -self.spec.horizon][list(self.dataset_cols)],
                 nsamples=50,
             )
 
@@ -355,7 +361,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         data = self.full_data_dict.get(self.series_id).set_index(
             self.spec.datetime_column.name
         )
-        data = data[-self.spec.horizon.periods :][list(self.dataset_cols)]
+        data = data[-self.spec.horizon :][list(self.dataset_cols)]
 
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)

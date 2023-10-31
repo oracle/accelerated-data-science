@@ -257,28 +257,7 @@ spec:
 
     horizon:
       required: true
-      schema:
-        periods:
-          type: integer
-          default: 3
-          required: true
-        interval:
-          type: integer
-          required: false
-        interval_unit:
-          required: true
-          type: string
-          default: M
-          allowed:
-            - S
-            - M
-            - H
-            - D
-            - W
-            - Mo
-            - Q
-            - Y
-      type: dict
+      type: integer
 
     model:
       type: string

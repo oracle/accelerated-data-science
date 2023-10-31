@@ -51,25 +51,27 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         # Initialize the AutoTS model with specified parameters
         model = AutoTS(
-            forecast_length=self.spec.horizon.periods,
-            frequency="infer",
+            forecast_length=self.spec.horizon,
+            frequency=self.spec.model_kwargs.get("frequency", "infer"),
             prediction_interval=self.spec.confidence_interval_width,
             max_generations=self.spec.model_kwargs.get(
                 "max_generations", AUTOTS_MAX_GENERATION
             ),
-            no_negatives=False,
-            constraint=None,
+            no_negatives=self.spec.model_kwargs.get("no_negatives", False),
+            constraint=self.spec.model_kwargs.get("constraint", None),
             ensemble=self.spec.model_kwargs.get("ensemble", "auto"),
             initial_template=self.spec.model_kwargs.get(
                 "initial_template", "General+Random"
             ),
-            random_seed=2022,
+            random_seed=self.spec.model_kwargs.get("random_seed", 2022),
             holiday_country=self.spec.model_kwargs.get("holiday_country", "US"),
-            subset=None,
-            aggfunc="first",
-            na_tolerance=1,
-            drop_most_recent=0,
-            drop_data_older_than_periods=None,
+            subset=self.spec.model_kwargs.get("subset", None),
+            aggfunc=self.spec.model_kwargs.get("aggfunc", "first"),
+            na_tolerance=self.spec.model_kwargs.get("na_tolerance", 1),
+            drop_most_recent=self.spec.model_kwargs.get("drop_most_recent", 0),
+            drop_data_older_than_periods=self.spec.model_kwargs.get(
+                "drop_data_older_than_periods", None
+            ),
             model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
             transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
             transformer_max_depth=self.spec.model_kwargs.get(
@@ -80,22 +82,24 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             models_to_validate=self.spec.model_kwargs.get(
                 "models_to_validate", AUTOTS_MODELS_TO_VALIDATE
             ),
-            max_per_model_class=None,
+            max_per_model_class=self.spec.model_kwargs.get("max_per_model_class", None),
             validation_method=self.spec.model_kwargs.get(
                 "validation_method", "backwards"
             ),
             min_allowed_train_percent=self.spec.model_kwargs.get(
                 "min_allowed_train_percent", 0.5
             ),
-            remove_leading_zeroes=False,
-            prefill_na=None,
-            introduce_na=None,
-            preclean=None,
-            model_interrupt=True,
-            generation_timeout=None,
-            current_model_file=None,
-            verbose=1,
-            n_jobs=-1,
+            remove_leading_zeroes=self.spec.model_kwargs.get(
+                "remove_leading_zeroes", False
+            ),
+            prefill_na=self.spec.model_kwargs.get("prefill_na", None),
+            introduce_na=self.spec.model_kwargs.get("introduce_na", None),
+            preclean=self.spec.model_kwargs.get("preclean", None),
+            model_interrupt=self.spec.model_kwargs.get("model_interrupt", True),
+            generation_timeout=self.spec.model_kwargs.get("generation_timeout", None),
+            current_model_file=self.spec.model_kwargs.get("current_model_file", None),
+            verbose=self.spec.model_kwargs.get("verbose", 1),
+            n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
         )
 
         # Prepare the data for model training
@@ -236,16 +240,23 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         # Section 2: AutoTS Model Parameters
         sec2_text = dp.Text(f"## AutoTS Model Parameters")
         # TODO: ODSC-47612 Format the parameters better for display in report.
-        blocks = [
-            dp.HTML(
-                pd.DataFrame(
-                    [self.models.best_model_params["models"][x]["ModelParameters"]]
-                ).to_html(),
-                label=self.original_target_column + "_model_" + str(i),
-            )
-            for i, x in enumerate(list(self.models.best_model_params["models"].keys()))
-        ]
-        sec2 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+        try:
+            blocks = [
+                dp.DataTable(
+                    pd.DataFrame(
+                        [self.models.best_model_params["models"][x]["ModelParameters"]]
+                    ),
+                    label=self.original_target_column + "_model_" + str(i),
+                )
+                for i, x in enumerate(
+                    list(self.models.best_model_params["models"].keys())
+                )
+            ]
+            sec2 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+
+        except KeyError as ke:
+            logger.warn(f"Issue generating Model Parameters Table Section. Skipping")
+            sec2 = dp.Text(f"Error generating model parameters.")
         all_sections = [sec1_text, sec_1, sec2_text, sec2]
 
         # Model Description
