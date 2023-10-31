@@ -427,6 +427,7 @@ class ForecastOperatorBaseModel(ABC):
         utils._write_data(
             data=result_df,
             filename=os.path.join(output_dir, self.spec.forecast_filename),
+            storage_options=default_signer(),
             format="csv",
         )
 
@@ -436,6 +437,7 @@ class ForecastOperatorBaseModel(ABC):
                 data=metrics_df.rename_axis("metrics").reset_index(),
                 filename=os.path.join(output_dir, self.spec.metrics_filename),
                 format="csv",
+                storage_options=default_signer(),
                 index=False,
             )
 
