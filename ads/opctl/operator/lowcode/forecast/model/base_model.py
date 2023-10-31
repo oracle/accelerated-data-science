@@ -242,8 +242,16 @@ class ForecastOperatorBaseModel(ABC):
         )
         self.original_user_data = raw_data.copy()
         date_column = self.spec.datetime_column.name
-        freq = pd.infer_freq(raw_data[date_column].drop_duplicates().tail(5))
-        self.spec.freq = freq
+        try:
+            self.spec.freq = pd.infer_freq(
+                raw_data[date_column].drop_duplicates().tail(5)
+            )
+        except TypeError as e:
+            logger.warn(
+                f"Error determining frequency: {e.args}. Setting Frequency to None"
+            )
+            logger.debug(f"Full traceback: {e}")
+            self.spec.freq = None
         utils.evaluate_model_compatibility(raw_data, self.spec)
         data = Transformations(raw_data, self.spec).run()
         self.original_total_data = data
@@ -390,6 +398,11 @@ class ForecastOperatorBaseModel(ABC):
                 )
             )
         # datapane html report
+        if ObjectStorageDetails.is_oci_path(output_dir):
+            storage_options = default_signer()
+        else:
+            storage_options = dict()
+
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             dp.save_report(report_sections, report_local_path)
@@ -399,11 +412,7 @@ class ForecastOperatorBaseModel(ABC):
                 with fsspec.open(
                     report_path,
                     "w",
-                    **(
-                        default_signer()
-                        if ObjectStorageDetails.is_oci_path(report_path)
-                        else {}
-                    ),
+                    **storage_options,
                 ) as f2:
                     f2.write(f1.read())
 
@@ -412,6 +421,7 @@ class ForecastOperatorBaseModel(ABC):
             data=result_df,
             filename=os.path.join(output_dir, self.spec.forecast_filename),
             format="csv",
+            storage_options=storage_options,
         )
 
         # metrics csv report
@@ -420,6 +430,7 @@ class ForecastOperatorBaseModel(ABC):
                 data=metrics_df.rename_axis("metrics").reset_index(),
                 filename=os.path.join(output_dir, self.spec.metrics_filename),
                 format="csv",
+                storage_options=storage_options,
                 index=False,
             )
 
