@@ -486,9 +486,7 @@ def select_auto_model(columns: List[str]) -> str:
     return SupportedModels.AutoMLX
 
 
-def evaluate_model_compatibility(
-    data: pd.DataFrame, dataset_info: ForecastOperatorSpec
-):
+def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
     """
     Function checks if the data is compatible with the model selected
 
@@ -503,9 +501,13 @@ def evaluate_model_compatibility(
     None
 
     """
+    date_column = dataset_info.datetime_column.name
+    freq = pd.DatetimeIndex(
+        pd.to_datetime(data[date_column].drop_duplicates())
+    ).inferred_freq
     if dataset_info.model == SupportedModels.AutoMLX:
-        date_column = dataset_info.datetime_column.name
-        freq = pd.infer_freq(data[date_column].drop_duplicates().tail(5))
+        # freq = data[date_column].drop_duplicates().diff().min()
+        # freq = pd.infer_freq(data[date_column].drop_duplicates().tail(5))
         freq_in_secs = to_timedelta(freq) / to_timedelta("sec")
         if freq_in_secs < 3600:
             message = (
@@ -513,6 +515,7 @@ def evaluate_model_compatibility(
                 " or select the 'auto' option.".format(SupportedModels.AutoMLX, freq)
             )
             raise Exception(message)
+    return freq
 
 
 def to_timedelta(freq: str):
