@@ -44,6 +44,26 @@ class BaseLLM(LLM):
     stop: Optional[List[str]] = None
     """Stop words to use when generating. Model output is cut off at the first occurrence of any of these substrings."""
 
+    verbose: int = 0
+    """Verbose level for debugging purpose.
+    The LLM implementation should print out debugging information base on the verbose level:
+    0 - No debugging information
+    1 - Print prompt and response(completion) from LLM
+    2 - In addition to prompt and response(completion) from LLM, also print the parameters (payloads).
+    """
+
+    def _print_request(self, prompt, params):
+        if self.verbose >= 1:
+            print(f"LLM API Request:\n{prompt}")
+        elif self.verbose == 2:
+            print(f"LLM API Parameters:\n{params}")
+
+    def _print_response(self, completion, response):
+        if self.verbose == 1:
+            print(f"LLM API Completion:\n{completion}")
+        elif self.verbose == 2:
+            print(f"LLM API Response:\n{response}")
+
 
 class GenerativeAiClientModel(BaseModel):
     client: Any  #: :meta private:

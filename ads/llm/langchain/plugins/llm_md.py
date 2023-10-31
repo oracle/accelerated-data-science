@@ -94,8 +94,11 @@ class ModelDeploymentLLM(BaseLLM):
         """
         params = self._invocation_params(stop, **kwargs)
         body = self._construct_json_body(prompt, params)
+        self._print_request(prompt, params)
         response = self.send_request(data=body, endpoint=self.endpoint)
-        return self._process_response(response)
+        completion = self._process_response(response)
+        self._print_response(completion, response)
+        return completion
 
     def send_request(
         self,
@@ -134,9 +137,7 @@ class ModelDeploymentLLM(BaseLLM):
         request_kwargs["headers"] = header
         request_kwargs["auth"] = self.auth.get("signer")
         timeout = kwargs.pop("timeout", DEFAULT_TIME_OUT)
-        response = requests.post(
-            endpoint, timeout=timeout, **request_kwargs, **kwargs
-        )
+        response = requests.post(endpoint, timeout=timeout, **request_kwargs, **kwargs)
 
         try:
             response.raise_for_status()
@@ -205,7 +206,7 @@ class ModelDeploymentTGI(ModelDeploymentLLM):
         }
 
     def _process_response(self, response_json: dict):
-        return str(response_json.get("generated_text", response_json))
+        return str(response_json.get("generated_text", response_json)) + "\n"
 
 
 class ModelDeploymentVLLM(ModelDeploymentLLM):

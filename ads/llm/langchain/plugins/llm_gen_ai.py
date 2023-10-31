@@ -146,6 +146,7 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
         """
 
         params = self._invocation_params(stop, **kwargs)
+        self._print_request(prompt, params)
 
         try:
             response = (
@@ -163,7 +164,9 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
             )
             raise
 
-        return self._process_response(response, params.get("num_generations", 1))
+        completion = self._process_response(response, params.get("num_generations", 1))
+        self._print_response(completion, response)
+        return completion
 
     def _process_response(self, response: Any, num_generations: int = 1) -> str:
         if self.task == Task.SUMMARY_TEXT:
