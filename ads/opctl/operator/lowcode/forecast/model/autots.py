@@ -84,14 +84,14 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 "min_allowed_train_percent", 0.5
             ),
             remove_leading_zeroes=self.spec.model_kwargs.get(
-                "remove_leading_zeros", False
+                "remove_leading_zeroes", False
             ),
             prefill_na=self.spec.model_kwargs.get("prefill_na", None),
             introduce_na=self.spec.model_kwargs.get("introduce_na", None),
             preclean=self.spec.model_kwargs.get("preclean", None),
             model_interrupt=self.spec.model_kwargs.get("model_interrupt", True),
             generation_timeout=self.spec.model_kwargs.get("generation_timeout", None),
-            current_model_file=self.spec.model_kwargs.get("current_model_life", None),
+            current_model_file=self.spec.model_kwargs.get("current_model_file", None),
             verbose=self.spec.model_kwargs.get("verbose", 1),
             n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
         )
