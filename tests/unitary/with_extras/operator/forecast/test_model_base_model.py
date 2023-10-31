@@ -20,7 +20,6 @@ from ads.opctl.operator.lowcode.forecast.operator_config import (
     ForecastOperatorSpec,
     TestData,
     DateTimeColumn,
-    Horizon,
     OutputDirectory,
 )
 from ads.opctl.operator.lowcode.forecast.const import SupportedMetrics
@@ -102,8 +101,7 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
         spec.datetime_column = Mock(spec=DateTimeColumn)
         spec.datetime_column.name = self.datetime_column_name
         spec.datetime_column.format = None
-        spec.horizon = Mock(spec=Horizon)
-        spec.horizon.periods = 3
+        spec.horizon = 3
         spec.tuning = None
         spec.output_directory = Mock(spec=OutputDirectory)
         spec.output_directory.url = "URL"

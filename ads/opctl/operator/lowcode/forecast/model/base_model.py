@@ -410,7 +410,7 @@ class ForecastOperatorBaseModel(ABC):
                 report_local_path = os.path.join(temp_dir, "___report.html")
                 dp.save_report(report_sections, report_local_path)
 
-                report_path = os.path.join(output_dir, self.spec.report_file_name)
+                report_path = os.path.join(output_dir, self.spec.report_filename)
                 with open(report_local_path) as f1:
                     with fsspec.open(
                         report_path,
