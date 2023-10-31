@@ -97,8 +97,8 @@ def _build_metrics_per_horizon(
         ]
     )
 
-    for y_true, y_pred in zip(
-        actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)
+    for i, (y_true, y_pred) in enumerate(
+        zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False))
     ):
         y_true, y_pred = np.array(y_true), np.array(y_pred)
 
@@ -122,7 +122,10 @@ def _build_metrics_per_horizon(
             SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes),
         }
 
-        metrics_df = metrics_df.append(metrics_row, ignore_index=True)
+        metrics_df = pd.concat(
+            [metrics_df, pd.DataFrame(metrics_row, index=[data["ds"][i]])],
+            ignore_index=True,
+        )
 
     metrics_df.set_index(data["ds"], inplace=True)
 
@@ -483,7 +486,9 @@ def select_auto_model(columns: List[str]) -> str:
     return SupportedModels.AutoMLX
 
 
-def evaluate_model_compatibility(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
+def evaluate_model_compatibility(
+    data: pd.DataFrame, dataset_info: ForecastOperatorSpec
+):
     """
     Function checks if the data is compatible with the model selected
 
@@ -498,14 +503,16 @@ def evaluate_model_compatibility(data: pd.DataFrame, dataset_info: ForecastOpera
     None
 
     """
-    date_column = dataset_info.datetime_column.name
-    freq = pd.infer_freq(data[date_column].drop_duplicates().tail(5))
-    freq_in_secs = to_timedelta(freq) / to_timedelta("sec")
-    if freq_in_secs < 3600 and dataset_info.model == SupportedModels.AutoMLX:
-        message = "{} requires data with a frequency of at least one hour. Please try using a different model," \
-                  " or select the 'auto' option.".format(
-            SupportedModels.AutoMLX, freq)
-        raise Exception(message)
+    if dataset_info.model == SupportedModels.AutoMLX:
+        date_column = dataset_info.datetime_column.name
+        freq = pd.infer_freq(data[date_column].drop_duplicates().tail(5))
+        freq_in_secs = to_timedelta(freq) / to_timedelta("sec")
+        if freq_in_secs < 3600:
+            message = (
+                "{} requires data with a frequency of at least one hour. Please try using a different model,"
+                " or select the 'auto' option.".format(SupportedModels.AutoMLX, freq)
+            )
+            raise Exception(message)
 
 
 def to_timedelta(freq: str):
@@ -522,7 +529,7 @@ def to_timedelta(freq: str):
     timedelta
     """
     # Add '1' in case freq doesn't have any digit
-    if not bool(re.search(r'\d', freq)):
+    if not bool(re.search(r"\d", freq)):
         freq = f"1{freq}"
     # Convert to datetime.timedelta
     return pd.to_timedelta(freq)
