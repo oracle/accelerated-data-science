@@ -325,13 +325,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 model=self._custom_predict_automlx,
                 data=self.full_data_dict.get(self.series_id).set_index(
                     self.spec.datetime_column.name
-                )[: -self.spec.horizon][list(self.dataset_cols)],
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(
                 self.full_data_dict.get(self.series_id).set_index(
                     self.spec.datetime_column.name
-                )[: -self.spec.horizon][list(self.dataset_cols)],
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
                 nsamples=50,
             )
 
@@ -357,7 +357,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         data = self.full_data_dict.get(self.series_id).set_index(
             self.spec.datetime_column.name
         )
-        data = data[-self.spec.horizon :][list(self.dataset_cols)]
+        data = data[-self.spec.horizon.periods :][list(self.dataset_cols)]
 
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)

@@ -343,15 +343,15 @@ class ForecastOperatorBaseModel(ABC):
         """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
         if horizon <= 10."""
         target_columns_in_output = set(target_columns).intersection(data.columns)
-        if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT and len(outputs) == len(
-            target_columns_in_output
-        ):
+        if self.spec.horizon.periods <= SUMMARY_METRICS_HORIZON_LIMIT and len(
+            outputs
+        ) == len(target_columns_in_output):
             metrics_per_horizon = utils._build_metrics_per_horizon(
                 data=data,
                 outputs=outputs,
                 target_columns=target_columns,
                 target_col=target_col,
-                horizon_periods=self.spec.horizon,
+                horizon_periods=self.spec.horizon.periods,
             )
 
             summary_metrics = summary_metrics.append(metrics_per_horizon)
