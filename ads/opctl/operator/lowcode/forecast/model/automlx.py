@@ -28,7 +28,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config)
         self.global_explanation = {}
         self.local_explanation = {}
-        self.forecast_col_name = "yhat"
 
     @runtime_dependency(
         module="automl",

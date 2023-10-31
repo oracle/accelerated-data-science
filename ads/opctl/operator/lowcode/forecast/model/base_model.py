@@ -58,6 +58,7 @@ class ForecastOperatorBaseModel(ABC):
             None  # This will become [target__category1__category2 ...]
         )
         self.train_metrics = False
+        self.forecast_col_name = "yhat"
         self.perform_tuning = self.spec.tuning != None
 
     def generate_report(self):

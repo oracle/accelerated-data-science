@@ -23,10 +23,6 @@ AUTOTS_MODELS_TO_VALIDATE = 0.15
 class AutoTSOperatorModel(ForecastOperatorBaseModel):
     """Class representing AutoTS operator model."""
 
-    def __init__(self, config: ForecastOperatorConfig):
-        super().__init__(config)
-        self.forecast_col_name = "yhat"
-
     @runtime_dependency(
         module="autots",
         err_msg="Please run `pip3 install autots` to install the required dependencies for autots.",

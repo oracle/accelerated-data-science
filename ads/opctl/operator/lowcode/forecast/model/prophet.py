@@ -35,7 +35,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
     def __init__(self, config: ForecastOperatorConfig):
         super().__init__(config)
         self.train_metrics = True
-        self.forecast_col_name = "yhat"
 
     def _build_model(self) -> pd.DataFrame:
         from prophet import Prophet
@@ -110,9 +109,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     elif unit == "Y":
                         unit = "D"
                         interval = interval * 365.25
-                    horizon = _add_unit(
-                        int(self.spec.horizon * interval), unit=unit
-                    )
+                    horizon = _add_unit(int(self.spec.horizon * interval), unit=unit)
                     initial = _add_unit((data_i.shape[0] * interval) // 2, unit=unit)
                     period = _add_unit((data_i.shape[0] * interval) // 4, unit=unit)
 
@@ -209,32 +206,22 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i.iloc[
                 : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (
-                outputs[f"{col}_{cat}"]["yhat"]
-                .iloc[: -self.spec.horizon]
-                .values
-            )
+            ] = (outputs[f"{col}_{cat}"]["yhat"].iloc[: -self.spec.horizon].values)
             output_i.iloc[
                 -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
             ] = (
-                outputs[f"{col}_{cat}"]["yhat"]
-                .iloc[-self.spec.horizon :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
                 -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
             ] = (
-                outputs[f"{col}_{cat}"]["yhat_upper"]
-                .iloc[-self.spec.horizon :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat_upper"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
                 -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
             ] = (
-                outputs[f"{col}_{cat}"]["yhat_lower"]
-                .iloc[-self.spec.horizon :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat_lower"].iloc[-self.spec.horizon :].values
             )
             output_col = pd.concat([output_col, output_i])
 
