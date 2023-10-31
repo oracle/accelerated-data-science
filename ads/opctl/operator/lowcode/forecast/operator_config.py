@@ -58,6 +58,15 @@ class DateTimeColumn(DataClassSerializable):
 
 
 @dataclass(repr=True)
+class Horizon(DataClassSerializable):
+    """Class representing operator specification horizon details."""
+
+    periods: int = None
+    interval: int = None
+    interval_unit: str = None
+
+
+@dataclass(repr=True)
 class Tuning(DataClassSerializable):
     """Class representing operator specification tuning details."""
 
@@ -82,8 +91,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     preprocessing: bool = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
-    horizon: int = None
-    freq: str = None
+    horizon: Horizon = field(default_factory=Horizon)
     explain: bool = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)

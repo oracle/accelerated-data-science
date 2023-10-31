@@ -62,13 +62,17 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             # Build future dataframe
             start_date = y.index.values[-1]
-            n_periods = self.spec.horizon
+            n_periods = self.spec.horizon.periods
+            interval_unit = self.spec.horizon.interval_unit
+            interval = int(self.spec.horizon.interval or 1)
             if len(additional_regressors):
                 X = df_clean[df_clean[target].isnull()].drop(target, axis=1)
             else:
                 X = pd.date_range(
-                    start=start_date, periods=n_periods, freq=self.spec.freq
+                    start=start_date, periods=n_periods, freq=interval_unit
                 )
+                # AttributeError: 'DatetimeIndex' object has no attribute 'iloc'
+                # X = X.iloc[::interval, :]
 
             # Predict and format forecast
             yhat, conf_int = model.predict(

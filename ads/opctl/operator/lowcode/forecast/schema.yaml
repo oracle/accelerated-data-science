@@ -231,7 +231,28 @@ spec:
 
     horizon:
       required: true
-      type: integer
+      schema:
+        periods:
+          type: integer
+          default: 3
+          required: true
+        interval:
+          type: integer
+          required: false
+        interval_unit:
+          required: true
+          type: string
+          default: M
+          allowed:
+            - S
+            - M
+            - H
+            - D
+            - W
+            - Mo
+            - Q
+            - Y
+      type: dict
 
     model:
       type: string
