@@ -235,6 +235,7 @@ class ForecastOperatorBaseModel(ABC):
 
     def _load_data(self):
         """Loads forecasting input data."""
+
         raw_data = utils._load_data(
             filename=self.spec.historical_data.url,
             format=self.spec.historical_data.format,
