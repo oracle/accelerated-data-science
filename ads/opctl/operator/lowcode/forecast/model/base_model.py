@@ -57,7 +57,7 @@ class ForecastOperatorBaseModel(ABC):
         self.target_columns = (
             None  # This will become [target__category1__category2 ...]
         )
-
+        self.train_metrics = False
         self.perform_tuning = self.spec.tuning != None
 
     def generate_report(self):
@@ -408,11 +408,11 @@ class ForecastOperatorBaseModel(ABC):
             with tempfile.TemporaryDirectory() as temp_dir:
                 report_local_path = os.path.join(temp_dir, "___report.html")
                 dp.save_report(report_sections, report_local_path)
-              
+
                 report_path = os.path.join(output_dir, self.spec.report_file_name)
                 with open(report_local_path) as f1:
                     with fsspec.open(
-                        report_path
+                        report_path,
                         "w",
                         **(
                             default_signer()

@@ -19,7 +19,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
     def __init__(self, config: ForecastOperatorConfig):
         super().__init__(config)
-        self.train_metrics = False
         self.forecast_col_name = "yhat"
 
     def _build_model(self) -> pd.DataFrame:
