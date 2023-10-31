@@ -5,7 +5,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-from ads.opctl import logger
+from typing import List
+
 import fsspec
 import numpy as np
 import pandas as pd
@@ -17,12 +18,17 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
-from typing import List
-from .const import SupportedMetrics
 
+from ads.common import auth as authutil
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
-from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
+from ads.opctl import logger
+
+from .const import MAX_COLUMNS_AUTOMLX, SupportedMetrics, SupportedModels
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
+import re
+from .operator_config import ForecastOperatorSpec
+from .const import SupportedModels
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -126,21 +132,31 @@ def _build_metrics_per_horizon(
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":
         return pd_fn(filename, **kwargs)
+
+    storage_options = storage_options or (
+        authutil.default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
+    )
+
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
-def _load_data(filename, format, storage_options, columns, **kwargs):
+def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         read_fn = getattr(pd, f"read_{format}")
         data = _call_pandas_fsspec(read_fn, filename, storage_options=storage_options)
-        if columns:
-            # keep only these columns, done after load because only CSV supports stream filtering
-            data = data[columns]
-        return data
-    raise ForecastInputDataError(f"Unrecognized format: {format}")
+    elif format in ["tsv"]:
+        data = _call_pandas_fsspec(
+            pd.read_csv, filename, storage_options=storage_options, sep="\t"
+        )
+    else:
+        raise ForecastInputDataError(f"Unrecognized format: {format}")
+    if columns:
+        # keep only these columns, done after load because only CSV supports stream filtering
+        data = data[columns]
+    return data
 
 
 def _write_data(data, filename, format, storage_options, index=False, **kwargs):
@@ -382,7 +398,7 @@ def get_forecast_plots(
                         y=outputs[idx][ci_col_names[1]],
                         mode="lines",
                         line_color="rgba(0,0,0,0)",
-                        name=f"{ci_interval_width*100}% confidence interval",
+                        name=f"{ci_interval_width * 100}% confidence interval",
                         fill="tonexty",
                         fillcolor="rgba(211, 211, 211, 0.5)",
                     ),
@@ -465,3 +481,48 @@ def select_auto_model(columns: List[str]) -> str:
     if columns != None and len(columns) > MAX_COLUMNS_AUTOMLX:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX
+
+
+def evaluate_model_compatibility(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
+    """
+    Function checks if the data is compatible with the model selected
+
+    Parameters
+    ------------
+    data:  pd.DataFrame
+            primary dataset
+    dataset_info:  ForecastOperatorSpec
+
+    Returns
+    --------
+    None
+
+    """
+    date_column = dataset_info.datetime_column.name
+    freq = pd.infer_freq(data[date_column].drop_duplicates().tail(5))
+    freq_in_secs = to_timedelta(freq) / to_timedelta("sec")
+    if freq_in_secs < 3600 and dataset_info.model == SupportedModels.AutoMLX:
+        message = "{} requires data with a frequency of at least one hour. Please try using a different model," \
+                  " or select the 'auto' option.".format(
+            SupportedModels.AutoMLX, freq)
+        raise Exception(message)
+
+
+def to_timedelta(freq: str):
+    """
+    Converts freq sting to time delta.
+
+    Parameters
+    ------------
+    freq:  str
+        freq e.g. T, 5T, 5H, Y
+
+    Returns
+    --------
+    timedelta
+    """
+    # Add '1' in case freq doesn't have any digit
+    if not bool(re.search(r'\d', freq)):
+        freq = f"1{freq}"
+    # Convert to datetime.timedelta
+    return pd.to_timedelta(freq)
