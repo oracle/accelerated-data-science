@@ -231,7 +231,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             target_columns=self.target_columns,
         )
 
-        # Section 2: AutoTS Model Parametersprint
+        # Section 2: AutoTS Model Parameters
         sec2_text = dp.Text(f"## AutoTS Model Parameters")
         # TODO: ODSC-47612 Format the parameters better for display in report.
         blocks = [
