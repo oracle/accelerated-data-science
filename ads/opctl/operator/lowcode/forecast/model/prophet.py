@@ -14,6 +14,7 @@ from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperator
 from ..const import DEFAULT_TRIALS, PROPHET_INTERNAL_DATE_COL
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 
 
 def _add_unit(num, unit):
@@ -35,6 +36,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
     def __init__(self, config: ForecastOperatorConfig):
         super().__init__(config)
+        self.train_metrics = True
         self.global_explanation = {}
         self.local_explanation = {}
 
@@ -111,9 +113,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     elif unit == "Y":
                         unit = "D"
                         interval = interval * 365.25
-                    horizon = _add_unit(
-                        int(self.spec.horizon * interval), unit=unit
-                    )
+                    horizon = _add_unit(int(self.spec.horizon * interval), unit=unit)
                     initial = _add_unit((data_i.shape[0] * interval) // 2, unit=unit)
                     period = _add_unit((data_i.shape[0] * interval) // 4, unit=unit)
 
@@ -210,32 +210,22 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i.iloc[
                 : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (
-                outputs[f"{col}_{cat}"]["yhat"]
-                .iloc[: -self.spec.horizon]
-                .values
-            )
+            ] = (outputs[f"{col}_{cat}"]["yhat"].iloc[: -self.spec.horizon].values)
             output_i.iloc[
                 -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
             ] = (
-                outputs[f"{col}_{cat}"]["yhat"]
-                .iloc[-self.spec.horizon :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
                 -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
             ] = (
-                outputs[f"{col}_{cat}"]["yhat_upper"]
-                .iloc[-self.spec.horizon :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat_upper"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
                 -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
             ] = (
-                outputs[f"{col}_{cat}"]["yhat_lower"]
-                .iloc[-self.spec.horizon :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat_lower"].iloc[-self.spec.horizon :].values
             )
             output_col = pd.concat([output_col, output_i])
 
@@ -354,8 +344,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "data and shifts in the trend, and typically handles outliers well."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = True
         ds_column_series = self.data["ds"]
         ds_forecast_col = self.outputs[0]["ds"]
         ci_col_names = ["yhat_lower", "yhat_upper"]
@@ -363,8 +351,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,

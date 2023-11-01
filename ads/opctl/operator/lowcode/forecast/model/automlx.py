@@ -217,7 +217,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         all_sections = [selected_models_text, selected_models_section]
 
-        if self.spec.explain:
+        if self.spec.generate_explanations:
             # If the key is present, call the "explain_model" method
             self.explain_model()
 
@@ -263,8 +263,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             "high-quality features in your dataset, which are then provided for further processing."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = False
         ds_column_series = self.data[self.spec.datetime_column.name]
         ds_forecast_col = self.outputs[0]["ds"]
         ci_col_names = ["yhat_lower", "yhat_upper"]
@@ -272,8 +270,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,

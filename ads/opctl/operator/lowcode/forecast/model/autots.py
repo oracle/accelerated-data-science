@@ -12,6 +12,7 @@ from ads.opctl.operator.lowcode.forecast import utils
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 from ads.common.decorator.runtime_dependency import runtime_dependency
 
 
@@ -261,8 +262,6 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         )
 
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = False
 
         ds_column_series = pd.to_datetime(self.data[self.spec.datetime_column.name])
         ds_forecast_col = self.outputs[0].index
@@ -271,8 +270,6 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,

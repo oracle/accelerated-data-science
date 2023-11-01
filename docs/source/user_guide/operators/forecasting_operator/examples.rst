@@ -63,7 +63,7 @@ The yaml can also be maximally stated as follows:
         model: automlx
         model_kwargs: 
         preprocessing: true
-        report_file_name: report.html
+        report_filename: report.html
         report_theme: light
         report_title: report
         tuning: 

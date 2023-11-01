@@ -57,7 +57,8 @@ class ForecastOperatorBaseModel(ABC):
         self.target_columns = (
             None  # This will become [target__category1__category2 ...]
         )
-
+        self.train_metrics = False
+        self.forecast_col_name = "yhat"
         self.perform_tuning = self.spec.tuning != None
 
     def generate_report(self):
@@ -70,167 +71,176 @@ class ForecastOperatorBaseModel(ABC):
         result_df = self._build_model()
         elapsed_time = time.time() - start_time
 
-        # build the report
-        (
-            model_description,
-            other_sections,
-            forecast_col_name,
-            train_metrics,
-            ds_column_series,
-            ds_forecast_col,
-            ci_col_names,
-        ) = self._generate_report()
+        # Generate metrics
+        summary_metrics = None
+        test_data = None
+        self.eval_metrics = None
 
+        if self.spec.generate_report or self.spec.generate_metrics:
+            if self.train_metrics:
+                self.eval_metrics = utils.evaluate_metrics(
+                    self.target_columns,
+                    self.data,
+                    self.outputs,
+                    target_col=self.forecast_col_name,
+                )
+            if self.spec.test_data:
+                (
+                    self.test_eval_metrics,
+                    summary_metrics,
+                    test_data,
+                ) = self._test_evaluate_metrics(
+                    target_columns=self.target_columns,
+                    test_filename=self.spec.test_data.url,
+                    outputs=self.outputs,
+                    target_col=self.forecast_col_name,
+                    elapsed_time=elapsed_time,
+                )
         report_sections = []
-        title_text = dp.Text("# Forecast Report")
 
-        md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
-        first_10_rows_blocks = [
-            dp.DataTable(
-                df.head(10).rename({col: self.spec.target_column}, axis=1),
-                caption="Start",
-                label=col,
-            )
-            for col, df in self.full_data_dict.items()
-        ]
+        if self.spec.generate_report:
+            # build the report
+            (
+                model_description,
+                other_sections,
+                ds_column_series,
+                ds_forecast_col,
+                ci_col_names,
+            ) = self._generate_report()
 
-        last_10_rows_blocks = [
-            dp.DataTable(
-                df.tail(10).rename({col: self.spec.target_column}, axis=1),
-                caption="End",
-                label=col,
-            )
-            for col, df in self.full_data_dict.items()
-        ]
+            title_text = dp.Text("# Forecast Report")
 
-        data_summary_blocks = [
-            dp.DataTable(
-                df.rename({col: self.spec.target_column}, axis=1).describe(),
-                caption="Summary Statistics",
-                label=col,
-            )
-            for col, df in self.full_data_dict.items()
-        ]
-        summary = dp.Blocks(
-            dp.Select(
-                blocks=[
-                    dp.Group(
-                        dp.Text(f"You selected the **`{self.spec.model}`** model."),
-                        model_description,
-                        dp.Text(
-                            "Based on your dataset, you could have also selected "
-                            f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                        ),
+            md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
+            first_10_rows_blocks = [
+                dp.DataTable(
+                    df.head(10).rename({col: self.spec.target_column}, axis=1),
+                    caption="Start",
+                    label=col,
+                )
+                for col, df in self.full_data_dict.items()
+            ]
+
+            last_10_rows_blocks = [
+                dp.DataTable(
+                    df.tail(10).rename({col: self.spec.target_column}, axis=1),
+                    caption="End",
+                    label=col,
+                )
+                for col, df in self.full_data_dict.items()
+            ]
+
+            data_summary_blocks = [
+                dp.DataTable(
+                    df.rename({col: self.spec.target_column}, axis=1).describe(),
+                    caption="Summary Statistics",
+                    label=col,
+                )
+                for col, df in self.full_data_dict.items()
+            ]
+            summary = dp.Blocks(
+                dp.Select(
+                    blocks=[
                         dp.Group(
-                            dp.BigNumber(
-                                heading="Analysis was completed in ",
-                                value=utils.human_time_friendly(elapsed_time),
+                            dp.Text(f"You selected the **`{self.spec.model}`** model."),
+                            model_description,
+                            dp.Text(
+                                "Based on your dataset, you could have also selected "
+                                f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
                             ),
-                            dp.BigNumber(
-                                heading="Starting time index",
-                                value=ds_column_series.min().strftime(
-                                    "%B %d, %Y"
-                                ),  # "%r" # TODO: Figure out a smarter way to format
+                            dp.Group(
+                                dp.BigNumber(
+                                    heading="Analysis was completed in ",
+                                    value=utils.human_time_friendly(elapsed_time),
+                                ),
+                                dp.BigNumber(
+                                    heading="Starting time index",
+                                    value=ds_column_series.min().strftime(
+                                        "%B %d, %Y"
+                                    ),  # "%r" # TODO: Figure out a smarter way to format
+                                ),
+                                dp.BigNumber(
+                                    heading="Ending time index",
+                                    value=ds_column_series.max().strftime(
+                                        "%B %d, %Y"
+                                    ),  # "%r" # TODO: Figure out a smarter way to format
+                                ),
+                                dp.BigNumber(
+                                    heading="Num series", value=len(self.target_columns)
+                                ),
+                                columns=4,
                             ),
-                            dp.BigNumber(
-                                heading="Ending time index",
-                                value=ds_column_series.max().strftime(
-                                    "%B %d, %Y"
-                                ),  # "%r" # TODO: Figure out a smarter way to format
-                            ),
-                            dp.BigNumber(
-                                heading="Num series", value=len(self.target_columns)
-                            ),
-                            columns=4,
+                            dp.Text("### First 10 Rows of Data"),
+                            dp.Select(blocks=first_10_rows_blocks)
+                            if len(first_10_rows_blocks) > 1
+                            else first_10_rows_blocks[0],
+                            dp.Text("----"),
+                            dp.Text("### Last 10 Rows of Data"),
+                            dp.Select(blocks=last_10_rows_blocks)
+                            if len(last_10_rows_blocks) > 1
+                            else last_10_rows_blocks[0],
+                            dp.Text("### Data Summary Statistics"),
+                            dp.Select(blocks=data_summary_blocks)
+                            if len(data_summary_blocks) > 1
+                            else data_summary_blocks[0],
+                            label="Summary",
                         ),
-                        dp.Text("### First 10 Rows of Data"),
-                        dp.Select(blocks=first_10_rows_blocks)
-                        if len(first_10_rows_blocks) > 1
-                        else first_10_rows_blocks[0],
-                        dp.Text("----"),
-                        dp.Text("### Last 10 Rows of Data"),
-                        dp.Select(blocks=last_10_rows_blocks)
-                        if len(last_10_rows_blocks) > 1
-                        else last_10_rows_blocks[0],
-                        dp.Text("### Data Summary Statistics"),
-                        dp.Select(blocks=data_summary_blocks)
-                        if len(data_summary_blocks) > 1
-                        else data_summary_blocks[0],
-                        label="Summary",
-                    ),
-                    dp.Text(
-                        "The following report compares a variety of metrics and plots "
-                        f"for your target columns: \n {md_columns}.\n",
-                        label="Target Columns",
-                    ),
-                ]
-            ),
-        )
+                        dp.Text(
+                            "The following report compares a variety of metrics and plots "
+                            f"for your target columns: \n {md_columns}.\n",
+                            label="Target Columns",
+                        ),
+                    ]
+                ),
+            )
 
-        train_metric_sections = []
-        if train_metrics:
-            self.eval_metrics = utils.evaluate_metrics(
-                self.target_columns,
+            train_metric_sections = []
+            if self.train_metrics:
+                sec6_text = dp.Text(f"## Historical Data Evaluation Metrics")
+                sec6 = dp.DataTable(self.eval_metrics)
+                train_metric_sections = [sec6_text, sec6]
+
+            test_eval_metrics = []
+            test_data = None
+            if self.spec.test_data:
+                sec7_text = dp.Text(f"## Holdout Data Evaluation Metrics")
+                sec7 = dp.DataTable(self.test_eval_metrics)
+
+                sec8_text = dp.Text(f"## Holdout Data Summary Metrics")
+                sec8 = dp.DataTable(summary_metrics)
+
+                test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
+
+            forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
+            forecast_sec = utils.get_forecast_plots(
                 self.data,
                 self.outputs,
-                target_col=forecast_col_name,
+                self.target_columns,
+                test_data=test_data,
+                forecast_col_name=self.forecast_col_name,
+                ds_col=ds_column_series,
+                ds_forecast_col=ds_forecast_col,
+                ci_col_names=ci_col_names,
+                ci_interval_width=self.spec.confidence_interval_width,
             )
-            sec6_text = dp.Text(f"## Historical Data Evaluation Metrics")
-            sec6 = dp.DataTable(self.eval_metrics)
-            train_metric_sections = [sec6_text, sec6]
+            forecast_plots = [forecast_text, forecast_sec]
 
-        test_eval_metrics = []
-        test_data = None
-        if self.spec.test_data:
-            (
-                self.test_eval_metrics,
-                summary_metrics,
-                test_data,
-            ) = self._test_evaluate_metrics(
-                target_columns=self.target_columns,
-                test_filename=self.spec.test_data.url,
-                outputs=self.outputs,
-                target_col=forecast_col_name,
-                elapsed_time=elapsed_time,
+            yaml_appendix_title = dp.Text(f"## Reference: YAML File")
+            yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
+            report_sections = (
+                [title_text, summary]
+                + forecast_plots
+                + other_sections
+                + test_eval_metrics
+                + train_metric_sections
+                + [yaml_appendix_title, yaml_appendix]
             )
-            sec7_text = dp.Text(f"## Holdout Data Evaluation Metrics")
-            sec7 = dp.DataTable(self.test_eval_metrics)
-
-            sec8_text = dp.Text(f"## Holdout Data Summary Metrics")
-            sec8 = dp.DataTable(summary_metrics)
-
-            test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
-
-        forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
-        forecast_sec = utils.get_forecast_plots(
-            self.data,
-            self.outputs,
-            self.target_columns,
-            test_data=test_data,
-            forecast_col_name=forecast_col_name,
-            ds_col=ds_column_series,
-            ds_forecast_col=ds_forecast_col,
-            ci_col_names=ci_col_names,
-            ci_interval_width=self.spec.confidence_interval_width,
-        )
-        forecast_plots = [forecast_text, forecast_sec]
-
-        yaml_appendix_title = dp.Text(f"## Reference: YAML File")
-        yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
-        report_sections = (
-            [title_text, summary]
-            + forecast_plots
-            + other_sections
-            + test_eval_metrics
-            + train_metric_sections
-            + [yaml_appendix_title, yaml_appendix]
-        )
 
         # save the report and result CSV
         self._save_report(
             report_sections=report_sections,
             result_df=result_df,
-            metrics_df=self.test_eval_metrics,
+            metrics_df=self.eval_metrics,
+            test_metrics_df=self.test_eval_metrics,
         )
 
     def _load_data(self):
@@ -381,7 +391,11 @@ class ForecastOperatorBaseModel(ABC):
         return total_metrics, summary_metrics, data
 
     def _save_report(
-        self, report_sections: Tuple, result_df: pd.DataFrame, metrics_df: pd.DataFrame
+        self,
+        report_sections: Tuple,
+        result_df: pd.DataFrame,
+        metrics_df: pd.DataFrame,
+        test_metrics_df: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
         import datapane as dp
@@ -395,24 +409,27 @@ class ForecastOperatorBaseModel(ABC):
                     output_dir
                 )
             )
-        # datapane html report
+        
         if ObjectStorageDetails.is_oci_path(output_dir):
             storage_options = default_signer()
         else:
             storage_options = dict()
+            
+        # datapane html report
+        if self.spec.generate_report:
+            # datapane html report
+            with tempfile.TemporaryDirectory() as temp_dir:
+                report_local_path = os.path.join(temp_dir, "___report.html")
+                dp.save_report(report_sections, report_local_path)
 
-        with tempfile.TemporaryDirectory() as temp_dir:
-            report_local_path = os.path.join(temp_dir, "___report.html")
-            dp.save_report(report_sections, report_local_path)
-
-            report_path = os.path.join(output_dir, self.spec.report_file_name)
-            with open(report_local_path) as f1:
-                with fsspec.open(
-                    report_path,
-                    "w",
-                    **storage_options,
-                ) as f2:
-                    f2.write(f1.read())
+                report_path = os.path.join(output_dir, self.spec.report_filename)
+                with open(report_local_path) as f1:
+                    with fsspec.open(
+                        report_path,
+                        "w",
+                        **storage_options,
+                    ) as f2:
+                        f2.write(f1.read())
 
         # forecast csv report
         utils._write_data(
@@ -423,7 +440,7 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         # metrics csv report
-        if metrics_df is not None:
+        if self.spec.generate_metrics and metrics_df is not None:
             utils._write_data(
                 data=metrics_df.rename_axis("metrics").reset_index(),
                 filename=os.path.join(output_dir, self.spec.metrics_filename),
@@ -432,8 +449,18 @@ class ForecastOperatorBaseModel(ABC):
                 index=False,
             )
 
+        # test_metrics csv report
+        if self.spec.generate_metrics and test_metrics_df is not None:
+            utils._write_data(
+                data=test_metrics_df.rename_axis("metrics").reset_index(),
+                filename=os.path.join(output_dir, self.spec.test_metrics_filename),
+                format="csv",
+                storage_options=storage_options,
+                index=False,
+            )
+
         logger.warn(
-            f"The report has been successfully "
+            f"The outputs have been successfully "
             f"generated and placed to the: {output_dir}."
         )
 

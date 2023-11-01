@@ -168,7 +168,7 @@ spec:
           type: dict
       type: dict
 
-    report_file_name:
+    report_filename:
       required: false
       type: string
       default: report.html
@@ -184,12 +184,24 @@ spec:
       allowed:
         - light
         - dark
-    report_metrics_name:
+    metrics_filename:
       required: false
       type: string
-      default: report.csv
+      default: metrics.csv
       meta:
-        description: "Placed into output_directory location. Defaults to report.csv"
+        description: "Placed into output_directory location. Defaults to metrics.csv"
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+    forecast_filename:
+      required: false
+      type: string
+      default: forecast.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to forecast.csv"
 
     target_column:
       type: string
@@ -203,12 +215,26 @@ spec:
       meta:
         description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
-    explain:
+    generate_explanations:
       type: boolean
       required: false
       default: false
       meta:
         description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
+
+    generate_report:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Report file generation can be enabled using this flag. Defaults to true."
+
+    generate_metrics:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Metrics files generation can be enabled using this flag. Defaults to true."
 
     datetime_column:
       type: dict

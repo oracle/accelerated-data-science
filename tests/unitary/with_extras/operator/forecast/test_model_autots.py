@@ -21,7 +21,6 @@ from ads.opctl.operator.lowcode.forecast.operator_config import (
     ForecastOperatorSpec,
     TestData,
     DateTimeColumn,
-    Horizon,
     OutputDirectory,
 )
 from ads.opctl.operator.lowcode.forecast.const import SupportedMetrics
@@ -36,8 +35,7 @@ class TestAutoTSOperatorModel(unittest.TestCase):
         spec = Mock(spec=ForecastOperatorSpec)
         spec.datetime_column = Mock(spec=DateTimeColumn)
         spec.datetime_column.name = "last_day_of_week"
-        spec.horizon = Mock(spec=Horizon)
-        spec.horizon.periods = 3
+        spec.horizon = 3
         spec.tuning = None
         spec.model_kwargs = {}
         spec.confidence_interval_width = 0.7
@@ -58,7 +56,7 @@ class TestAutoTSOperatorModel(unittest.TestCase):
 
         # When model_kwargs does not have anything, defaults should be sent as parameters.
         mock_autots.assert_called_once_with(
-            forecast_length=self.spec.horizon.periods,
+            forecast_length=self.spec.horizon,
             frequency="infer",
             prediction_interval=self.spec.confidence_interval_width,
             max_generations=AUTOTS_MAX_GENERATION,
@@ -135,7 +133,7 @@ class TestAutoTSOperatorModel(unittest.TestCase):
 
         # All parameters in model_kwargs should be passed to autots
         mock_autots.assert_called_once_with(
-            forecast_length=self.spec.horizon.periods,
+            forecast_length=self.spec.horizon,
             frequency=self.spec.model_kwargs.get("frequency"),
             prediction_interval=self.spec.confidence_interval_width,
             max_generations=self.spec.model_kwargs.get("max_generations"),

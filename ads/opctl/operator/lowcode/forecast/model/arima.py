@@ -11,6 +11,7 @@ from ads.opctl import logger
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -149,8 +150,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             "it predicts future values based on past values."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = False
         ds_column_series = self.data[self.spec.datetime_column.name]
         ds_forecast_col = self.outputs[0].index
         ci_col_names = ["yhat_lower", "yhat_upper"]
@@ -158,8 +157,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,
