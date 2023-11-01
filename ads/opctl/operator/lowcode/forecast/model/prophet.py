@@ -392,14 +392,14 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 model=self._custom_predict_prophet,
                 data=self.full_data_dict.get(self.series_id).set_index(
                     PROPHET_INTERNAL_DATE_COL
-                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                )[: -self.spec.horizon][list(self.dataset_cols)],
                 keep_index=True,
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(
                 self.full_data_dict.get(self.series_id).set_index(
                     PROPHET_INTERNAL_DATE_COL
-                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                )[: -self.spec.horizon][list(self.dataset_cols)],
                 nsamples=50,
             )
 
@@ -424,7 +424,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         data = self.full_data_dict.get(self.series_id).set_index(
             PROPHET_INTERNAL_DATE_COL
         )
-        data = data[-self.spec.horizon.periods :][list(self.dataset_cols)]
+        data = data[-self.spec.horizon :][list(self.dataset_cols)]
 
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)

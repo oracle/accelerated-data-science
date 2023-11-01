@@ -84,6 +84,7 @@ class ForecastOperatorBaseModel(ABC):
                     self.outputs,
                     target_col=self.forecast_col_name,
                 )
+
             if self.spec.test_data:
                 (
                     self.test_eval_metrics,
@@ -193,59 +194,47 @@ class ForecastOperatorBaseModel(ABC):
                 ),
             )
 
-        test_eval_metrics = []
-        test_data = None
-        if self.spec.test_data:
-            (
-                self.test_eval_metrics,
-                summary_metrics,
-                test_data,
-            ) = self._test_evaluate_metrics(
-                target_columns=self.target_columns,
-                test_filename=self.spec.test_data.url,
-                outputs=self.outputs,
-                target_col=forecast_col_name,
-                elapsed_time=elapsed_time,
-            )
-            sec7_text = dp.Text(f"## Holdout Data Evaluation Metrics")
-            sec7 = (
-                dp.DataTable(self.test_eval_metrics)
-                if not self.test_eval_metrics.empty
-                else dp.Table(self.test_eval_metrics)
-            )
-            sec8_text = dp.Text(f"## Holdout Data Summary Metrics")
-            sec8 = (
-                dp.DataTable(summary_metrics)
-                if not summary_metrics.empty
-                else dp.Table(summary_metrics)
-            )
+            test_metrics_sections = []
+            if self.test_eval_metrics is not None and not self.test_eval_metrics.empty:
+                sec7_text = dp.Text(f"## Test Data Evaluation Metrics")
+                sec7 = dp.DataTable(self.test_eval_metrics)
+                test_metrics_sections = test_metrics_sections + [sec7_text, sec7]
 
-            test_eval_metrics = [sec7_text, sec7, sec8_text, sec8]
+            if summary_metrics is not None and not summary_metrics.empty:
+                sec8_text = dp.Text(f"## Test Data Summary Metrics")
+                sec8 = dp.DataTable(summary_metrics)
+                test_metrics_sections = test_metrics_sections + [sec8_text, sec8]
 
-        forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
-        forecast_sec = utils.get_forecast_plots(
-            self.data,
-            self.outputs,
-            self.target_columns,
-            test_data=test_data,
-            forecast_col_name=self.forecast_col_name,
-            ds_col=ds_column_series,
-            ds_forecast_col=ds_forecast_col,
-            ci_col_names=ci_col_names,
-            ci_interval_width=self.spec.confidence_interval_width,
-        )
-        forecast_plots = [forecast_text, forecast_sec]
+            train_metrics_sections = []
+            if self.eval_metrics is not None and not self.eval_metrics.empty:
+                sec9_text = dp.Text(f"## Training Data Metrics")
+                sec9 = dp.DataTable(self.eval_metrics)
+                train_metrics_sections = [sec9_text, sec9]
 
-        yaml_appendix_title = dp.Text(f"## Reference: YAML File")
-        yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
-        report_sections = (
-            [title_text, summary]
-            + forecast_plots
-            + other_sections
-            + test_eval_metrics
-            + train_metric_sections
-            + [yaml_appendix_title, yaml_appendix]
-        )
+            forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
+            forecast_sec = utils.get_forecast_plots(
+                self.data,
+                self.outputs,
+                self.target_columns,
+                test_data=test_data,
+                forecast_col_name=self.forecast_col_name,
+                ds_col=ds_column_series,
+                ds_forecast_col=ds_forecast_col,
+                ci_col_names=ci_col_names,
+                ci_interval_width=self.spec.confidence_interval_width,
+            )
+            forecast_plots = [forecast_text, forecast_sec]
+
+            yaml_appendix_title = dp.Text(f"## Reference: YAML File")
+            yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
+            report_sections = (
+                [title_text, summary]
+                + forecast_plots
+                + other_sections
+                + test_metrics_sections
+                + train_metrics_sections
+                + [yaml_appendix_title, yaml_appendix]
+            )
 
         # save the report and result CSV
         self._save_report(
@@ -305,7 +294,11 @@ class ForecastOperatorBaseModel(ABC):
         summary_metrics = pd.DataFrame()
         data = None
         try:
-            storage_options = default_signer() if ObjectStorageDetails.is_oci_path(test_filename) else {}
+            storage_options = (
+                default_signer()
+                if ObjectStorageDetails.is_oci_path(test_filename)
+                else {}
+            )
             data = utils._load_data(
                 filename=test_filename,
                 format=self.spec.test_data.format,
@@ -330,9 +323,11 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         for idx, col in enumerate(target_columns):
-            # Only columns present in test file will be used to generate holdout error
+            # Only columns present in test file will be used to generate test error
             if col in data:
                 # Assuming that predictions have all forecast values
+                print(f"outputs!!!!!!/n/n/n{outputs[idx]}/n/n/n")
+                print(f"data!!!!!!/n/n/n{data}/n/n/n")
                 dates = outputs[idx]["ds"]
                 # Filling zeros for any date missing in test data to maintain consistency in metric calculation as in all other missing values cases it comes as 0
                 y_true = [
@@ -391,7 +386,7 @@ class ForecastOperatorBaseModel(ABC):
             """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
             if horizon <= 10."""
             target_columns_in_output = set(target_columns).intersection(data.columns)
-            if self.spec.horizon.periods <= SUMMARY_METRICS_HORIZON_LIMIT and len(
+            if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT and len(
                 outputs
             ) == len(target_columns_in_output):
                 metrics_per_horizon = utils._build_metrics_per_horizon(
@@ -399,7 +394,7 @@ class ForecastOperatorBaseModel(ABC):
                     outputs=outputs,
                     target_columns=target_columns,
                     target_col=target_col,
-                    horizon_periods=self.spec.horizon.periods,
+                    horizon_periods=self.spec.horizon,
                 )
 
                 summary_metrics = summary_metrics.append(metrics_per_horizon)
@@ -442,12 +437,12 @@ class ForecastOperatorBaseModel(ABC):
                     output_dir
                 )
             )
-        
+
         if ObjectStorageDetails.is_oci_path(output_dir):
             storage_options = default_signer()
         else:
             storage_options = dict()
-            
+
         # datapane html report
         if self.spec.generate_report:
             # datapane html report
@@ -473,24 +468,33 @@ class ForecastOperatorBaseModel(ABC):
         )
 
         # metrics csv report
-        if self.spec.generate_metrics and metrics_df is not None:
-            utils._write_data(
-                data=metrics_df.rename_axis("metrics").reset_index(),
-                filename=os.path.join(output_dir, self.spec.metrics_filename),
-                format="csv",
-                storage_options=storage_options,
-                index=False,
-            )
+        if self.spec.generate_metrics:
+            if metrics_df is not None:
+                utils._write_data(
+                    data=metrics_df.rename_axis("metrics").reset_index(),
+                    filename=os.path.join(output_dir, self.spec.metrics_filename),
+                    format="csv",
+                    storage_options=storage_options,
+                    index=False,
+                )
+            else:
+                logger.warn(
+                    f"Attempted to generated {self.spec.metrics_filename} file with the training metrics, however the training metrics could not be properly generated."
+                )
 
-        # test_metrics csv report
-        if self.spec.generate_metrics and test_metrics_df is not None:
-            utils._write_data(
-                data=test_metrics_df.rename_axis("metrics").reset_index(),
-                filename=os.path.join(output_dir, self.spec.test_metrics_filename),
-                format="csv",
-                storage_options=storage_options,
-                index=False,
-            )
+            # test_metrics csv report
+            if self.spec.generate_metrics and test_metrics_df is not None:
+                utils._write_data(
+                    data=test_metrics_df.rename_axis("metrics").reset_index(),
+                    filename=os.path.join(output_dir, self.spec.test_metrics_filename),
+                    format="csv",
+                    storage_options=storage_options,
+                    index=False,
+                )
+            else:
+                logger.warn(
+                    f"Attempted to generated {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
+                )
 
         logger.warn(
             f"The outputs have been successfully "

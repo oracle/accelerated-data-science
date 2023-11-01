@@ -88,7 +88,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             # Collect all outputs
             models.append(model)
-            outputs_legacy.append(forecast)
+            outputs_legacy.append(
+                forecast.reset_index().rename(columns={"index": "ds"})
+            )
             outputs[target] = forecast
 
         self.models = models

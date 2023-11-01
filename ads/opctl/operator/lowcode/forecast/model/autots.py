@@ -121,7 +121,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         self.models = model
         logger.info("===========Forecast Generated===========")
         self.prediction = model.predict()
-        outputs
+        outputs = dict()
 
         # Process the forecasts for each target series
         for series_idx, series in enumerate(self.target_columns):
@@ -133,7 +133,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                             ["index", self.target_columns[series_idx]]
                         ].rename(
                             columns={
-                                "index": self.spec.datetime_column.name,
+                                "index": "ds",
                                 self.target_columns[series_idx]: "yhat",
                             }
                         ),
@@ -141,7 +141,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                             ["index", self.target_columns[series_idx]]
                         ].rename(
                             columns={
-                                "index": self.spec.datetime_column.name,
+                                "index": "ds",
                                 self.target_columns[series_idx]: "yhat_lower",
                             }
                         ),
@@ -149,7 +149,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                             ["index", self.target_columns[series_idx]]
                         ].rename(
                             columns={
-                                "index": self.spec.datetime_column.name,
+                                "index": "ds",
                                 self.target_columns[series_idx]: "yhat_upper",
                             }
                         ),
@@ -166,7 +166,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         # Re-merge historical datas for processing
         data_merged = pd.concat(
             [
-                v[v[k].notna()].set_index(date_column)
+                v[v[k].notna()].set_index(self.spec.datetime_column.name)
                 for k, v in self.full_data_dict.items()
             ],
             axis=1,
@@ -184,7 +184,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         for cat in self.categories:
             output_i = pd.DataFrame()
 
-            output_i["Date"] = outputs[f"{col}_{cat}"][self.spec.datetime_column.name]
+            output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
             output_i["Series"] = cat
             output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
             if "yhat_upper" in outputs[f"{col}_{cat}"].columns:
