@@ -243,18 +243,16 @@ class ForecastOperatorBaseModel(ABC):
         self.original_user_data = raw_data.copy()
         date_column = self.spec.datetime_column.name
         try:
-            self.spec.freq = pd.infer_freq(
-                raw_data[date_column].drop_duplicates().tail(5)
-            )
+            self.spec.freq = utils.get_frequency_of_datetime(raw_data, self.spec)
         except TypeError as e:
             logger.warn(
                 f"Error determining frequency: {e.args}. Setting Frequency to None"
             )
             logger.debug(f"Full traceback: {e}")
             self.spec.freq = None
-        utils.evaluate_model_compatibility(raw_data, self.spec)
         data = Transformations(raw_data, self.spec).run()
         self.original_total_data = data
+
         additional_data = None
         if self.spec.additional_data is not None:
             additional_data = utils._load_data(
