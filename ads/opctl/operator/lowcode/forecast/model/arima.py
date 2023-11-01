@@ -11,6 +11,7 @@ from ads.opctl import logger
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -62,17 +63,13 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             # Build future dataframe
             start_date = y.index.values[-1]
-            n_periods = self.spec.horizon.periods
-            interval_unit = self.spec.horizon.interval_unit
-            interval = int(self.spec.horizon.interval or 1)
+            n_periods = self.spec.horizon
             if len(additional_regressors):
                 X = df_clean[df_clean[target].isnull()].drop(target, axis=1)
             else:
                 X = pd.date_range(
-                    start=start_date, periods=n_periods, freq=interval_unit
+                    start=start_date, periods=n_periods, freq=self.spec.freq
                 )
-                # AttributeError: 'DatetimeIndex' object has no attribute 'iloc'
-                # X = X.iloc[::interval, :]
 
             # Predict and format forecast
             yhat, conf_int = model.predict(
@@ -153,8 +150,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             "it predicts future values based on past values."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = False
         ds_column_series = self.data[self.spec.datetime_column.name]
         ds_forecast_col = self.outputs[0].index
         ci_col_names = ["yhat_lower", "yhat_upper"]
@@ -162,8 +157,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,

@@ -5,7 +5,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
-from ads.opctl import logger
+from typing import List
+
 import fsspec
 import numpy as np
 import pandas as pd
@@ -17,12 +18,17 @@ from sklearn.metrics import (
     mean_squared_error,
     r2_score,
 )
-from typing import List
-from .const import SupportedMetrics
 
+from ads.common import auth as authutil
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
-from .const import SupportedModels, MAX_COLUMNS_AUTOMLX
+from ads.opctl import logger
+
+from .const import MAX_COLUMNS_AUTOMLX, SupportedMetrics, SupportedModels
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
+import re
+from .operator_config import ForecastOperatorSpec
+from .const import SupportedModels
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -91,8 +97,8 @@ def _build_metrics_per_horizon(
         ]
     )
 
-    for y_true, y_pred in zip(
-        actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False)
+    for i, (y_true, y_pred) in enumerate(
+        zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False))
     ):
         y_true, y_pred = np.array(y_true), np.array(y_pred)
 
@@ -116,7 +122,10 @@ def _build_metrics_per_horizon(
             SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes),
         }
 
-        metrics_df = metrics_df.append(metrics_row, ignore_index=True)
+        metrics_df = pd.concat(
+            [metrics_df, pd.DataFrame(metrics_row, index=[data["ds"][i]])],
+            ignore_index=True,
+        )
 
     metrics_df.set_index(data["ds"], inplace=True)
 
@@ -126,21 +135,31 @@ def _build_metrics_per_horizon(
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":
         return pd_fn(filename, **kwargs)
+
+    storage_options = storage_options or (
+        authutil.default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
+    )
+
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
-def _load_data(filename, format, storage_options, columns, **kwargs):
+def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         read_fn = getattr(pd, f"read_{format}")
         data = _call_pandas_fsspec(read_fn, filename, storage_options=storage_options)
-        if columns:
-            # keep only these columns, done after load because only CSV supports stream filtering
-            data = data[columns]
-        return data
-    raise ForecastInputDataError(f"Unrecognized format: {format}")
+    elif format in ["tsv"]:
+        data = _call_pandas_fsspec(
+            pd.read_csv, filename, storage_options=storage_options, sep="\t"
+        )
+    else:
+        raise ForecastInputDataError(f"Unrecognized format: {format}")
+    if columns:
+        # keep only these columns, done after load because only CSV supports stream filtering
+        data = data[columns]
+    return data
 
 
 def _write_data(data, filename, format, storage_options, index=False, **kwargs):
@@ -383,7 +402,7 @@ def get_forecast_plots(
                         y=outputs[idx][ci_col_names[1]],
                         mode="lines",
                         line_color="rgba(0,0,0,0)",
-                        name=f"{ci_interval_width*100}% confidence interval",
+                        name=f"{ci_interval_width * 100}% confidence interval",
                         fill="tonexty",
                         fillcolor="rgba(211, 211, 211, 0.5)",
                     ),
@@ -466,3 +485,32 @@ def select_auto_model(columns: List[str]) -> str:
     if columns != None and len(columns) > MAX_COLUMNS_AUTOMLX:
         return SupportedModels.Arima
     return SupportedModels.AutoMLX
+
+
+def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
+    """
+    Function checks if the data is compatible with the model selected
+
+    Parameters
+    ------------
+    data:  pd.DataFrame
+            primary dataset
+    dataset_info:  ForecastOperatorSpec
+
+    Returns
+    --------
+    None
+
+    """
+    date_column = dataset_info.datetime_column.name
+    datetimes = pd.to_datetime(data[date_column].drop_duplicates())
+    freq = pd.DatetimeIndex(datetimes).inferred_freq
+    if dataset_info.model == SupportedModels.AutoMLX:
+        freq_in_secs = datetimes.tail().diff().min().total_seconds()
+        if freq_in_secs < 3600:
+            message = (
+                "{} requires data with a frequency of at least one hour. Please try using a different model,"
+                " or select the 'auto' option.".format(SupportedModels.AutoMLX, freq)
+            )
+            raise Exception(message)
+    return freq

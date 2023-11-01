@@ -25,6 +25,7 @@ from ads.opctl import logger
 from ..const import DEFAULT_TRIALS
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 
 
 def _get_np_metrics_dict(selected_metric):
@@ -62,6 +63,11 @@ def _fit_model(data, params, additional_regressors, select_metric):
 
 class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing NeuralProphet operator model."""
+
+    def __init__(self, config: ForecastOperatorConfig):
+        super().__init__(config)
+        self.train_metrics = True
+        self.forecast_col_name = "yhat1"
 
     def _build_model(self) -> pd.DataFrame:
         from neuralprophet import NeuralProphet
@@ -227,34 +233,34 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             output_i[f"p{int(quantiles[0]*100)}"] = float("nan")
 
             output_i.iloc[
-                : -self.spec.horizon.periods, output_i.columns.get_loc(f"fitted_value")
+                : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
             ] = (
                 outputs[f"{col}_{cat}"]["yhat1"]
-                .iloc[: -self.spec.horizon.periods]
+                .iloc[: -self.spec.horizon]
                 .values
             )
             output_i.iloc[
-                -self.spec.horizon.periods :,
+                -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
             ] = (
                 outputs[f"{col}_{cat}"]["yhat1"]
-                .iloc[-self.spec.horizon.periods :]
+                .iloc[-self.spec.horizon :]
                 .values
             )
             output_i.iloc[
-                -self.spec.horizon.periods :,
+                -self.spec.horizon :,
                 output_i.columns.get_loc(f"p{int(quantiles[1]*100)}"),
             ] = (
                 outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1]*100}%"]
-                .iloc[-self.spec.horizon.periods :]
+                .iloc[-self.spec.horizon :]
                 .values
             )
             output_i.iloc[
-                -self.spec.horizon.periods :,
+                -self.spec.horizon :,
                 output_i.columns.get_loc(f"p{int(quantiles[0]*100)}"),
             ] = (
                 outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0]*100}%"]
-                .iloc[-self.spec.horizon.periods :]
+                .iloc[-self.spec.horizon :]
                 .values
             )
             output_col = pd.concat([output_col, output_i])
@@ -327,8 +333,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             "Facebook Prophet and AR-Net."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat1"
-        train_metrics = True
         ds_column_series = self.data["ds"]
         ds_forecast_col = self.outputs[0]["ds"]
         ci_col_names = None
@@ -336,8 +340,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,

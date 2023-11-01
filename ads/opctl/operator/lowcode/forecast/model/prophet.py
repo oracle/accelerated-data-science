@@ -7,11 +7,14 @@
 import numpy as np
 import optuna
 import pandas as pd
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 
-from ..const import DEFAULT_TRIALS
+from ..const import DEFAULT_TRIALS, PROPHET_INTERNAL_DATE_COL
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 
 
 def _add_unit(num, unit):
@@ -30,6 +33,12 @@ def _fit_model(data, params, additional_regressors):
 
 class ProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing Prophet operator model."""
+
+    def __init__(self, config: ForecastOperatorConfig):
+        super().__init__(config)
+        self.train_metrics = True
+        self.global_explanation = {}
+        self.local_explanation = {}
 
     def _build_model(self) -> pd.DataFrame:
         from prophet import Prophet
@@ -104,9 +113,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     elif unit == "Y":
                         unit = "D"
                         interval = interval * 365.25
-                    horizon = _add_unit(
-                        int(self.spec.horizon.periods * interval), unit=unit
-                    )
+                    horizon = _add_unit(int(self.spec.horizon * interval), unit=unit)
                     initial = _add_unit((data_i.shape[0] * interval) // 2, unit=unit)
                     period = _add_unit((data_i.shape[0] * interval) // 4, unit=unit)
 
@@ -164,8 +171,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 future = df_clean.drop(target, axis=1)
             else:
                 future = model.make_future_dataframe(
-                    periods=self.spec.horizon.periods,
-                    freq=self.spec.horizon.interval_unit,
+                    periods=self.spec.horizon,
+                    freq=self.spec.freq,
                 )
             # Make Prediction
             forecast = model.predict(future)
@@ -202,33 +209,23 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             output_i[yhat_lower_name] = float("nan")
 
             output_i.iloc[
-                : -self.spec.horizon.periods, output_i.columns.get_loc(f"fitted_value")
-            ] = (
-                outputs[f"{col}_{cat}"]["yhat"]
-                .iloc[: -self.spec.horizon.periods]
-                .values
-            )
+                : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
+            ] = (outputs[f"{col}_{cat}"]["yhat"].iloc[: -self.spec.horizon].values)
             output_i.iloc[
-                -self.spec.horizon.periods :,
+                -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
             ] = (
-                outputs[f"{col}_{cat}"]["yhat"]
-                .iloc[-self.spec.horizon.periods :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
-                -self.spec.horizon.periods :, output_i.columns.get_loc(yhat_upper_name)
+                -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
             ] = (
-                outputs[f"{col}_{cat}"]["yhat_upper"]
-                .iloc[-self.spec.horizon.periods :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat_upper"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
-                -self.spec.horizon.periods :, output_i.columns.get_loc(yhat_lower_name)
+                -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
             ] = (
-                outputs[f"{col}_{cat}"]["yhat_lower"]
-                .iloc[-self.spec.horizon.periods :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat_lower"].iloc[-self.spec.horizon :].values
             )
             output_col = pd.concat([output_col, output_i])
 
@@ -298,6 +295,47 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             sec5 = dp.DataTable(all_model_states)
             all_sections = all_sections + [sec5_text, sec5]
 
+        if self.spec.explain:
+            # If the key is present, call the "explain_model" method
+            self.explain_model()
+
+            # Create a markdown text block for the global explanation section
+            global_explanation_text = dp.Text(
+                f"## Global Explanation of Models \n "
+                "The following tables provide the feature attribution for the global explainability."
+            )
+
+            # Convert the global explanation data to a DataFrame
+            global_explanation_df = pd.DataFrame(self.global_explanation)
+
+            # Create a markdown section for the global explainability
+            global_explanation_section = dp.Blocks(
+                "### Global Explainability ",
+                dp.Table(
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                ),
+            )
+
+            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+            blocks = [
+                dp.Table(
+                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                    label=s_id,
+                )
+                for s_id, local_ex_df in self.local_explanation.items()
+            ]
+            local_explanation_section = (
+                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            )
+
+            # Append the global explanation text and section to the "all_sections" list
+            all_sections = all_sections + [
+                global_explanation_text,
+                global_explanation_section,
+                local_explanation_text,
+                local_explanation_section,
+            ]
+
         model_description = dp.Text(
             "Prophet is a procedure for forecasting time series data based on an additive "
             "model where non-linear trends are fit with yearly, weekly, and daily seasonality, "
@@ -306,8 +344,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "data and shifts in the trend, and typically handles outliers well."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = True
         ds_column_series = self.data["ds"]
         ds_forecast_col = self.outputs[0]["ds"]
         ci_col_names = ["yhat_lower", "yhat_upper"]
@@ -315,12 +351,90 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
             ds_column_series,
             ds_forecast_col,
             ci_col_names,
         )
 
+    def _custom_predict_prophet(self, data):
+        return self.models[self.target_columns.index(self.series_id)].predict(
+            data.reset_index()
+        )["yhat"]
+
+    @runtime_dependency(
+        module="shap",
+        err_msg=(
+            "Please run `pip3 install shap` to install the required dependencies for model explanation."
+        ),
+    )
     def explain_model(self) -> dict:
-        pass
+        """
+        Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
+        This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
+
+        Returns
+        -------
+            dict: A dictionary containing the global explanation for each feature in the dataset.
+                    The keys are the feature names and the values are the average absolute SHAP values.
+        """
+        from shap import KernelExplainer
+
+        for series_id in self.target_columns:
+            self.series_id = series_id
+            self.dataset_cols = (
+                self.full_data_dict.get(self.series_id)
+                .set_index(PROPHET_INTERNAL_DATE_COL)
+                .drop(self.series_id, axis=1)
+                .columns
+            )
+
+            kernel_explnr = KernelExplainer(
+                model=self._custom_predict_prophet,
+                data=self.full_data_dict.get(self.series_id).set_index(
+                    PROPHET_INTERNAL_DATE_COL
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                keep_index=True,
+            )
+
+            kernel_explnr_vals = kernel_explnr.shap_values(
+                self.full_data_dict.get(self.series_id).set_index(
+                    PROPHET_INTERNAL_DATE_COL
+                )[: -self.spec.horizon.periods][list(self.dataset_cols)],
+                nsamples=50,
+            )
+
+            self.global_explanation[self.series_id] = dict(
+                zip(
+                    self.dataset_cols,
+                    np.average(np.absolute(kernel_explnr_vals), axis=0),
+                )
+            )
+
+            self.local_explainer(kernel_explnr)
+
+    def local_explainer(self, kernel_explainer) -> None:
+        """
+        Generate local explanations using a kernel explainer.
+
+        Parameters
+        ----------
+            kernel_explainer: The kernel explainer object to use for generating explanations.
+        """
+        # Get the data for the series ID and select the relevant columns
+        data = self.full_data_dict.get(self.series_id).set_index(
+            PROPHET_INTERNAL_DATE_COL
+        )
+        data = data[-self.spec.horizon.periods :][list(self.dataset_cols)]
+
+        # Generate local SHAP values using the kernel explainer
+        local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
+
+        # Convert the SHAP values into a DataFrame
+        local_kernel_explnr_df = pd.DataFrame(
+            local_kernel_explnr_vals, columns=self.dataset_cols
+        )
+
+        # set the index of the DataFrame to the datetime column
+        local_kernel_explnr_df.index = data.index
+
+        self.local_explanation[self.series_id] = local_kernel_explnr_df
