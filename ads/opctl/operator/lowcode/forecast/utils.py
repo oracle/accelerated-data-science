@@ -502,13 +502,10 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
 
     """
     date_column = dataset_info.datetime_column.name
-    freq = pd.DatetimeIndex(
-        pd.to_datetime(data[date_column].drop_duplicates())
-    ).inferred_freq
+    datetimes = pd.to_datetime(data[date_column].drop_duplicates())
+    freq = pd.DatetimeIndex(datetimes).inferred_freq
     if dataset_info.model == SupportedModels.AutoMLX:
-        # freq = data[date_column].drop_duplicates().diff().min()
-        # freq = pd.infer_freq(data[date_column].drop_duplicates().tail(5))
-        freq_in_secs = to_timedelta(freq) / to_timedelta("sec")
+        freq_in_secs = datetimes.tail().diff().min().total_seconds()
         if freq_in_secs < 3600:
             message = (
                 "{} requires data with a frequency of at least one hour. Please try using a different model,"
