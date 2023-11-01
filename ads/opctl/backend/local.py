@@ -873,7 +873,7 @@ class LocalOperatorBackend(Backend):
         }
         self.operator_type = self.operator_config.get("type")
 
-        self._RUNTIME_RUN_MAP = {
+        self._RUNTIME_MAP = {
             operator_runtime.ContainerRuntime.type: self._run_with_container,
             operator_runtime.PythonRuntime.type: self._run_with_python,
         }
@@ -898,8 +898,8 @@ class LocalOperatorBackend(Backend):
         operator_spec = json.dumps(self.operator_config)
         sys.argv = [self.operator_info.type, "--spec", operator_spec]
 
-        print(f"{'*' * 50} Runtime Config {'*' * 50}")
-        print(runtime.to_yaml())
+        logger.info(f"{'*' * 50} Runtime Config {'*' * 50}")
+        logger.info(runtime.to_yaml())
 
         try:
             runpy.run_module(self.operator_info.type, run_name="__main__")
@@ -955,10 +955,10 @@ class LocalOperatorBackend(Backend):
             "type", operator_runtime.OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON
         )
 
-        if runtime_type not in self._RUNTIME_RUN_MAP:
+        if runtime_type not in self._RUNTIME_MAP:
             raise RuntimeError(
                 f"Not supported runtime - {runtime_type} for local backend. "
-                f"Supported values: {self._RUNTIME_RUN_MAP.keys()}"
+                f"Supported values: {self._RUNTIME_MAP.keys()}"
             )
 
         if not self.operator_info:
@@ -971,7 +971,7 @@ class LocalOperatorBackend(Backend):
             )
 
         # run operator with provided runtime
-        exit_code = self._RUNTIME_RUN_MAP.get(runtime_type, lambda: None)(**kwargs)
+        exit_code = self._RUNTIME_MAP.get(runtime_type, lambda: None)(**kwargs)
 
         if exit_code != 0:
             raise RuntimeError(
