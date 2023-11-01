@@ -337,7 +337,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 nsamples=50,
             )
 
-            print(kernel_explnr)
             self.global_explanation[self.series_id] = dict(
                 zip(
                     self.dataset_cols,

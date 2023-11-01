@@ -326,8 +326,6 @@ class ForecastOperatorBaseModel(ABC):
             # Only columns present in test file will be used to generate test error
             if col in data:
                 # Assuming that predictions have all forecast values
-                print(f"outputs!!!!!!/n/n/n{outputs[idx]}/n/n/n")
-                print(f"data!!!!!!/n/n/n{data}/n/n/n")
                 dates = outputs[idx]["ds"]
                 # Filling zeros for any date missing in test data to maintain consistency in metric calculation as in all other missing values cases it comes as 0
                 y_true = [
