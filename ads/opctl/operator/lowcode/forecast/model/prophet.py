@@ -295,7 +295,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             sec5 = dp.DataTable(all_model_states)
             all_sections = all_sections + [sec5_text, sec5]
 
-        if self.spec.explain:
+        if self.spec.generate_explanations:
             # If the key is present, call the "explain_model" method
             self.explain_model()
 
