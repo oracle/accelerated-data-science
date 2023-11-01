@@ -486,9 +486,7 @@ def select_auto_model(columns: List[str]) -> str:
     return SupportedModels.AutoMLX
 
 
-def evaluate_model_compatibility(
-    data: pd.DataFrame, dataset_info: ForecastOperatorSpec
-):
+def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
     """
     Function checks if the data is compatible with the model selected
 
@@ -503,33 +501,15 @@ def evaluate_model_compatibility(
     None
 
     """
+    date_column = dataset_info.datetime_column.name
+    datetimes = pd.to_datetime(data[date_column].drop_duplicates())
+    freq = pd.DatetimeIndex(datetimes).inferred_freq
     if dataset_info.model == SupportedModels.AutoMLX:
-        date_column = dataset_info.datetime_column.name
-        freq = pd.infer_freq(data[date_column].drop_duplicates().tail(5))
-        freq_in_secs = to_timedelta(freq) / to_timedelta("sec")
+        freq_in_secs = datetimes.tail().diff().min().total_seconds()
         if freq_in_secs < 3600:
             message = (
                 "{} requires data with a frequency of at least one hour. Please try using a different model,"
                 " or select the 'auto' option.".format(SupportedModels.AutoMLX, freq)
             )
             raise Exception(message)
-
-
-def to_timedelta(freq: str):
-    """
-    Converts freq sting to time delta.
-
-    Parameters
-    ------------
-    freq:  str
-        freq e.g. T, 5T, 5H, Y
-
-    Returns
-    --------
-    timedelta
-    """
-    # Add '1' in case freq doesn't have any digit
-    if not bool(re.search(r"\d", freq)):
-        freq = f"1{freq}"
-    # Convert to datetime.timedelta
-    return pd.to_timedelta(freq)
+    return freq
