@@ -513,23 +513,3 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
             )
             raise Exception(message)
     return freq
-
-
-def to_timedelta(freq: str):
-    """
-    Converts freq sting to time delta.
-
-    Parameters
-    ------------
-    freq:  str
-        freq e.g. T, 5T, 5H, Y
-
-    Returns
-    --------
-    timedelta
-    """
-    # Add '1' in case freq doesn't have any digit
-    if not bool(re.search(r"\d", freq)):
-        freq = f"1{freq}"
-    # Convert to datetime.timedelta
-    return pd.to_timedelta(freq)
