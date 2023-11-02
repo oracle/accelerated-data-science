@@ -145,7 +145,7 @@ def _load_yaml_from_string(doc: str, **kwargs) -> Dict:
     )
 
 
-def _load_yaml_from_uri(uri: str, **kwargs) -> str:
+def _load_yaml_from_uri(uri: str, **kwargs) -> dict:
     """Loads YAML from the URI path. Can be Object Storage path."""
     with fsspec.open(uri) as f:
         return _load_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)

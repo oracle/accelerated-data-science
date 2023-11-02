@@ -1,0 +1,19 @@
+ame: Forecast
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+      - prophet
+      - neuralprophet
+      - pmdarima
+      - statsmodels
+      - datapane
+      - cerberus
+      - sktime
+      - shap
+      - autots[additional]
+      - optuna==2.9.0
+      - oracle-automlx==23.2.3
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"

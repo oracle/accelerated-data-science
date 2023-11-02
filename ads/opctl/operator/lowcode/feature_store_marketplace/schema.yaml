@@ -1,0 +1,71 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+
+type:
+  required: true
+  type: string
+  default: feature_store_marketplace
+  meta:
+    description: "Type should always be `feature_store_marketplace` when using a feature_store_marketplace operator"
+
+spec:
+  required: true
+  schema:
+    helm_values:
+      required: true
+      type: dict
+      meta:
+        description: "Values being provided to helm chart"
+      schema:
+        dockerRegistrySecretName:
+          type: string
+          required: true
+          default: "ocir-secret"
+        mysqlDBConfig:
+          type: dict
+          required: false
+          meta:
+            description: "Configuration details on how to connect to MySQL DB"
+          schema:
+            vaultOCID:
+              type: string
+              required: true
+            secretName:
+              type: string
+              required: true
+            jdbcConnectionUrl:
+              type: string
+              required: true
+        atpDBConfig:
+          type: dict
+          required: false
+          schema:
+            vaultOCID:
+              type: string
+              required: true
+            dbURL:
+              type: string
+              required: true
+        configuredDB:
+          type: string
+          required: true
+          default: MYSQL
+          allowed:
+            - MYSQL
+            - ATP
+  type: dict

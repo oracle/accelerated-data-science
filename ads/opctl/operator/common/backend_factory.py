@@ -18,7 +18,10 @@ from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowOperatorBackend
 from ads.opctl.backend.ads_ml_job import MLJobOperatorBackend
 from ads.opctl.backend.base import Backend
-from ads.opctl.backend.local import LocalOperatorBackend
+from ads.opctl.backend.local import (
+    LocalOperatorBackend,
+    LocalMarketplaceOperatorBackend,
+)
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import (
@@ -74,6 +77,12 @@ class BackendFactory:
                 RUNTIME_TYPE.CONTAINER.value.lower(),
             ),
         },
+        BACKEND_NAME.MARKETPLACE.value.lower(): {
+            RUNTIME_TYPE.PYTHON.value.lower(): (
+                BACKEND_NAME.MARKETPLACE.value.lower(),
+                RUNTIME_TYPE.PYTHON.value.lower(),
+            )
+        },
     }
 
     BACKEND_MAP = {
@@ -81,6 +90,7 @@ class BackendFactory:
         BACKEND_NAME.DATAFLOW.value.lower(): DataFlowOperatorBackend,
         BACKEND_NAME.OPERATOR_LOCAL.value.lower(): LocalOperatorBackend,
         BACKEND_NAME.LOCAL.value.lower(): LocalOperatorBackend,
+        BACKEND_NAME.MARKETPLACE.value.lower(): LocalMarketplaceOperatorBackend,
     }
 
     @classmethod
