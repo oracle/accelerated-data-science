@@ -26,16 +26,12 @@ type:
 spec:
   required: true
   schema:
-    helm_values:
+    helmValues:
       required: true
       type: dict
       meta:
         description: "Values being provided to helm chart"
       schema:
-        dockerRegistrySecretName:
-          type: string
-          required: true
-          default: "ocir-secret"
         mysqlDBConfig:
           type: dict
           required: false
@@ -68,4 +64,24 @@ spec:
           allowed:
             - MYSQL
             - ATP
+    clusterDetails:
+      required: true
+      type: dict
+      schema:
+        namespace:
+          type: string
+          required: true
+          default: "default"
+          description: "Namespace where we want to deploy the cluster to. Eg: 'default'"
+        dockerRegistrySecretName:
+          type: string
+          required: true
+          default: "ocir-secret"
+          description: "The name of the secret in namespace having docker credentials"
+    ocirRepo:
+      type: string
+      required: true
+      default: "iad.ocir.io"
+      description: "The ocir repo to clone the marketplace listing to"
+
   type: dict

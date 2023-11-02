@@ -13,6 +13,7 @@ import os
 from typing import Dict, List, Tuple, Union
 
 import yaml
+from ads.opctl.backend.local_marketplace import LocalMarketplaceOperatorBackend
 
 from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowOperatorBackend
@@ -20,7 +21,6 @@ from ads.opctl.backend.ads_ml_job import MLJobOperatorBackend
 from ads.opctl.backend.base import Backend
 from ads.opctl.backend.local import (
     LocalOperatorBackend,
-    LocalMarketplaceOperatorBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
@@ -78,9 +78,9 @@ class BackendFactory:
             ),
         },
         BACKEND_NAME.MARKETPLACE.value.lower(): {
-            RUNTIME_TYPE.PYTHON.value.lower(): (
+            RUNTIME_TYPE.MARKETPLACEPYTHON.value.lower(): (
                 BACKEND_NAME.MARKETPLACE.value.lower(),
-                RUNTIME_TYPE.PYTHON.value.lower(),
+                RUNTIME_TYPE.MARKETPLACEPYTHON.value.lower(),
             )
         },
     }
@@ -145,14 +145,7 @@ class BackendFactory:
         operator_info = OperatorLoader.from_uri(uri=operator_type).load()
 
         supported_backends = tuple(
-            set(cls.BACKENDS + cls.LOCAL_BACKENDS)
-            & set(
-                operator_info.backends
-                + [
-                    BACKEND_NAME.OPERATOR_LOCAL.value,
-                    BACKEND_NAME.LOCAL.value,
-                ]
-            )
+            set(cls.BACKENDS + cls.LOCAL_BACKENDS) & set(operator_info.backends)
         )
 
         runtime_type = None
@@ -395,17 +388,19 @@ class BackendFactory:
                     }
                 },
             ],
+            BACKEND_NAME.MARKETPLACE.value: [
+                {
+                    RUNTIME_TYPE.PYTHON: {
+                        "kind": "marketplace",
+                        "type": operator_info.type,
+                        "version": operator_info.version,
+                    }
+                }
+            ],
         }
 
         supported_backends = tuple(
-            set(RUNTIME_TYPE_MAP.keys())
-            & set(
-                operator_info.backends
-                + [
-                    BACKEND_NAME.OPERATOR_LOCAL.value,
-                    BACKEND_NAME.LOCAL.value,
-                ]
-            )
+            set(RUNTIME_TYPE_MAP.keys()) & set(operator_info.backends)
         )
 
         if backend_kind:

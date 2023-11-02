@@ -11,6 +11,7 @@ from typing import Dict, List, Union
 import click
 import fsspec
 import yaml
+from ads.opctl.backend.local_marketplace import LocalMarketplaceOperatorBackend
 
 import ads
 from ads.common.auth import AuthContext, AuthType
@@ -102,6 +103,7 @@ class _BackendFactory:
         BACKEND_NAME.PIPELINE.value: PipelineBackend,
         BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
         BACKEND_NAME.OPERATOR_LOCAL.value: LocalOperatorBackend,
+        BACKEND_NAME.MARKETPLACE.value: LocalMarketplaceOperatorBackend,
     }
 
     LOCAL_BACKENDS_MAP = {

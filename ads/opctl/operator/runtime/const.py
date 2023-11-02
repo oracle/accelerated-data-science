@@ -6,8 +6,10 @@
 
 
 from .runtime import ContainerRuntime, PythonRuntime
+from .marketplace_runtime import MarketplacePythonRuntime
 
 RUNTIME_TYPE_MAP = {
     ContainerRuntime.type: ContainerRuntime,
     PythonRuntime.type: PythonRuntime,
+    MarketplacePythonRuntime.type: MarketplacePythonRuntime,
 }

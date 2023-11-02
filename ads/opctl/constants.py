@@ -36,6 +36,7 @@ OPERATOR_IMAGE_WORK_DIR = "/etc/operator"
 
 class RUNTIME_TYPE(ExtendedEnum):
     PYTHON = "python"
+    MARKETPLACEPYTHON = "marketplacePython"
     CONTAINER = "container"
     NOTEBOOK = "notebook"
     GITPYTHON = "gitPython"
@@ -51,6 +52,7 @@ class RESOURCE_TYPE(ExtendedEnum):
     DATAFLOW = "dataflow"
     PIPELINE = "pipeline"
     MODEL_DEPLOYMENT = "deployment"
+    MARKETPLACE = "marketplace"
     OPERATOR = "operator"
 
 
