@@ -638,8 +638,10 @@ def _publish(
                 )
             except Exception:
                 raise RuntimeError(f"Could not pack environment {conda_slug}.")
-    if "/" in conda_slug:
-        raise ValueError("Invalid conda_slug. found `/` in slug name. Please use a different slug name.")
+    NOT_ALLOWED_CHARS = "@#$%^&*/"
+
+    if any(chr in conda_slug for chr in NOT_ALLOWED_CHARS):
+        raise ValueError(f"Invalid conda_slug. Found {NOT_ALLOWED_CHARS} in slug name. Please use a different slug name.")
     pack_file = os.path.join(pack_folder_path, f"{conda_slug}.tar.gz")
     if not os.path.exists(pack_file):
         raise RuntimeError(f"Pack {pack_file} was not created.")
