@@ -1,6 +1,6 @@
 kind:
   allowed:
-    - operator.local_marketplace
+    - operator.marketplace
   required: true
   type: string
   meta:
@@ -14,7 +14,7 @@ version:
     description: "Operator local runtime may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
 type:
   allowed:
-    - marketplace_python
+    - python
   required: true
   type: string
   meta:

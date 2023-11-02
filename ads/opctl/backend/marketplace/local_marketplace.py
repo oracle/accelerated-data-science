@@ -3,9 +3,11 @@ import runpy
 import sys
 from typing import Optional, Dict, Union
 
+from ads import logger
+
 from ads.common.auth import AuthContext
 
-from ads.opctl.operator.common.operator_loader import OperatorInfo
+from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.operator.runtime import const as operator_runtime_const
 from ads.opctl.operator.runtime import marketplace_runtime as operator_runtime
 from ads.opctl.backend.base import Backend
@@ -148,10 +150,10 @@ class LocalMarketplaceOperatorBackend(Backend):
             `None` otherwise.
         """
         runtime_type = runtime_type or operator_runtime.MarketplacePythonRuntime.type
-        if runtime_type not in operator_runtime_const.RUNTIME_TYPE_MAP:
+        if runtime_type not in operator_runtime_const.MARKETPLACE_RUNTIME_MAP:
             raise ValueError(
                 f"Not supported runtime type {runtime_type}. "
-                f"Supported values: {operator_runtime_const.RUNTIME_TYPE_MAP.keys()}"
+                f"Supported values: {operator_runtime_const.MARKETPLACE_RUNTIME_MAP.keys()}"
             )
 
         RUNTIME_KWARGS_MAP = {
@@ -168,7 +170,7 @@ class LocalMarketplaceOperatorBackend(Backend):
             )
 
             return (
-                operator_runtime_const.RUNTIME_TYPE_MAP[runtime_type]
+                operator_runtime_const.MARKETPLACE_RUNTIME_MAP[runtime_type]
                 .init(**RUNTIME_KWARGS_MAP[runtime_type])
                 .to_yaml(
                     uri=uri,

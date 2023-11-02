@@ -11,7 +11,9 @@ from typing import Dict, List, Union
 import click
 import fsspec
 import yaml
-from ads.opctl.backend.local_marketplace import LocalMarketplaceOperatorBackend
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
+)
 
 import ads
 from ads.common.auth import AuthContext, AuthType

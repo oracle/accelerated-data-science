@@ -11,5 +11,7 @@ from .marketplace_runtime import MarketplacePythonRuntime
 RUNTIME_TYPE_MAP = {
     ContainerRuntime.type: ContainerRuntime,
     PythonRuntime.type: PythonRuntime,
+}
+MARKETPLACE_RUNTIME_MAP = {
     MarketplacePythonRuntime.type: MarketplacePythonRuntime,
 }

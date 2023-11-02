@@ -9,11 +9,12 @@ The module contains the factory method to create the backend object for the oper
 The factory validates the backend type and runtime type before creating the backend object.
 """
 
-import os
 from typing import Dict, List, Tuple, Union
 
 import yaml
-from ads.opctl.backend.local_marketplace import LocalMarketplaceOperatorBackend
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
+)
 
 from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowOperatorBackend
@@ -43,6 +44,7 @@ class BackendFactory:
     BACKENDS = (
         BACKEND_NAME.JOB.value,
         BACKEND_NAME.DATAFLOW.value,
+        BACKEND_NAME.MARKETPLACE.value,
     )
 
     LOCAL_BACKENDS = (
@@ -78,9 +80,9 @@ class BackendFactory:
             ),
         },
         BACKEND_NAME.MARKETPLACE.value.lower(): {
-            RUNTIME_TYPE.MARKETPLACEPYTHON.value.lower(): (
+            RUNTIME_TYPE.PYTHON.value.lower(): (
                 BACKEND_NAME.MARKETPLACE.value.lower(),
-                RUNTIME_TYPE.MARKETPLACEPYTHON.value.lower(),
+                RUNTIME_TYPE.PYTHON.value.lower(),
             )
         },
     }
