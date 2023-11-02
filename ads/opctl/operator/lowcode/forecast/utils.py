@@ -28,8 +28,6 @@ from .const import MAX_COLUMNS_AUTOMLX, SupportedMetrics, SupportedModels
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 import re
 from .operator_config import ForecastOperatorSpec
-from .const import SupportedModels
-
 
 def _label_encode_dataframe(df, no_encode=set()):
     df_to_encode = df[list(set(df.columns) - no_encode)]
