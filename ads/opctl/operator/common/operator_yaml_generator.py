@@ -76,7 +76,7 @@ class YamlGenerator:
         Returns
         -------
         bool
-            True if the condition fulfils, false otherwise.
+            True if the condition fulfills, false otherwise.
         """
         for key, value in condition.items():
             if key not in example or example[key] != value:
@@ -104,7 +104,7 @@ class YamlGenerator:
         """
         example = {}
         for key, value in schema.items():
-            # only generate values fro required fields
+            # only generate values for required fields
             if (
                 value.get("required", False)
                 or value.get("dependencies", False)
