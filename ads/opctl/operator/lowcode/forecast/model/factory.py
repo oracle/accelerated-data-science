@@ -62,7 +62,7 @@ class ForecastOperatorModelFactory:
         """
         model_type = operator_config.spec.model
         if model_type == "auto":
-            model_type = select_auto_model(operator_config.spec.historical_data.columns)
+            model_type = select_auto_model(datasets, operator_config)
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config, datasets=datasets)

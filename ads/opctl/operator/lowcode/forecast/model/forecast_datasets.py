@@ -11,6 +11,7 @@ from ads.common.auth import default_signer
 from .transformations import Transformations
 from ads.opctl import logger
 
+
 class ForecastDatasets:
     def __init__(self, config: ForecastOperatorConfig):
         """Instantiates the DataIO instance.
