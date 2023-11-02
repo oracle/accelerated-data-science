@@ -61,6 +61,112 @@ class ForecastOperatorBaseModel(ABC):
         self.forecast_col_name = "yhat"
         self.perform_tuning = self.spec.tuning != None
 
+    def _get_start_end(self, ds_column_series):
+        import datapane as dp
+
+        # Due to automlx support of int64 as a datetime column
+        if ds_column_series.dtype == "int64":
+            start_time = dp.BigNumber(
+                heading="Starting time index",
+                value=ds_column_series.min(),
+            )
+            end_time = dp.BigNumber(
+                heading="Ending time index",
+                value=ds_column_series.max(),
+            )
+        else:
+            start_time = dp.BigNumber(
+                heading="Starting time index",
+                value=ds_column_series.min().strftime("%B %d, %Y"),
+            )
+            end_time = dp.BigNumber(
+                heading="Ending time index",
+                value=ds_column_series.max().strftime("%B %d, %Y"),
+            )
+        return (start_time, end_time)
+
+    def _get_summary_header(self, model_description, ds_column_series, elapsed_time):
+        import datapane as dp
+
+        md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
+        first_10_rows_blocks = [
+            dp.DataTable(
+                df.head(10).rename({col: self.spec.target_column}, axis=1),
+                caption="Start",
+                label=col,
+            )
+            for col, df in self.full_data_dict.items()
+        ]
+
+        last_10_rows_blocks = [
+            dp.DataTable(
+                df.tail(10).rename({col: self.spec.target_column}, axis=1),
+                caption="End",
+                label=col,
+            )
+            for col, df in self.full_data_dict.items()
+        ]
+
+        data_summary_blocks = [
+            dp.DataTable(
+                df.rename({col: self.spec.target_column}, axis=1).describe(),
+                caption="Summary Statistics",
+                label=col,
+            )
+            for col, df in self.full_data_dict.items()
+        ]
+
+        (start_time_block, end_time_block) = self._get_start_end(
+            ds_column_series=ds_column_series
+        )
+
+        summary = dp.Blocks(
+            dp.Select(
+                blocks=[
+                    dp.Group(
+                        dp.Text(f"You selected the **`{self.spec.model}`** model."),
+                        model_description,
+                        dp.Text(
+                            "Based on your dataset, you could have also selected "
+                            f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                        ),
+                        dp.Group(
+                            dp.BigNumber(
+                                heading="Analysis was completed in ",
+                                value=utils.human_time_friendly(elapsed_time),
+                            ),
+                            start_time_block,
+                            end_time_block,
+                            dp.BigNumber(
+                                heading="Num series", value=len(self.target_columns)
+                            ),
+                            columns=4,
+                        ),
+                        dp.Text("### First 10 Rows of Data"),
+                        dp.Select(blocks=first_10_rows_blocks)
+                        if len(first_10_rows_blocks) > 1
+                        else first_10_rows_blocks[0],
+                        dp.Text("----"),
+                        dp.Text("### Last 10 Rows of Data"),
+                        dp.Select(blocks=last_10_rows_blocks)
+                        if len(last_10_rows_blocks) > 1
+                        else last_10_rows_blocks[0],
+                        dp.Text("### Data Summary Statistics"),
+                        dp.Select(blocks=data_summary_blocks)
+                        if len(data_summary_blocks) > 1
+                        else data_summary_blocks[0],
+                        label="Summary",
+                    ),
+                    dp.Text(
+                        "The following report compares a variety of metrics and plots "
+                        f"for your target columns: \n {md_columns}.\n",
+                        label="Target Columns",
+                    ),
+                ]
+            ),
+        )
+        return summary
+
     def generate_report(self):
         """Generates the forecasting report."""
         import datapane as dp
@@ -110,88 +216,10 @@ class ForecastOperatorBaseModel(ABC):
             ) = self._generate_report()
 
             title_text = dp.Text("# Forecast Report")
-
-            md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
-            first_10_rows_blocks = [
-                dp.DataTable(
-                    df.head(10).rename({col: self.spec.target_column}, axis=1),
-                    caption="Start",
-                    label=col,
-                )
-                for col, df in self.full_data_dict.items()
-            ]
-
-            last_10_rows_blocks = [
-                dp.DataTable(
-                    df.tail(10).rename({col: self.spec.target_column}, axis=1),
-                    caption="End",
-                    label=col,
-                )
-                for col, df in self.full_data_dict.items()
-            ]
-
-            data_summary_blocks = [
-                dp.DataTable(
-                    df.rename({col: self.spec.target_column}, axis=1).describe(),
-                    caption="Summary Statistics",
-                    label=col,
-                )
-                for col, df in self.full_data_dict.items()
-            ]
-            summary = dp.Blocks(
-                dp.Select(
-                    blocks=[
-                        dp.Group(
-                            dp.Text(f"You selected the **`{self.spec.model}`** model."),
-                            model_description,
-                            dp.Text(
-                                "Based on your dataset, you could have also selected "
-                                f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                            ),
-                            dp.Group(
-                                dp.BigNumber(
-                                    heading="Analysis was completed in ",
-                                    value=utils.human_time_friendly(elapsed_time),
-                                ),
-                                dp.BigNumber(
-                                    heading="Starting time index",
-                                    value=ds_column_series.min().strftime(
-                                        "%B %d, %Y"
-                                    ),  # "%r" # TODO: Figure out a smarter way to format
-                                ),
-                                dp.BigNumber(
-                                    heading="Ending time index",
-                                    value=ds_column_series.max().strftime(
-                                        "%B %d, %Y"
-                                    ),  # "%r" # TODO: Figure out a smarter way to format
-                                ),
-                                dp.BigNumber(
-                                    heading="Num series", value=len(self.target_columns)
-                                ),
-                                columns=4,
-                            ),
-                            dp.Text("### First 10 Rows of Data"),
-                            dp.Select(blocks=first_10_rows_blocks)
-                            if len(first_10_rows_blocks) > 1
-                            else first_10_rows_blocks[0],
-                            dp.Text("----"),
-                            dp.Text("### Last 10 Rows of Data"),
-                            dp.Select(blocks=last_10_rows_blocks)
-                            if len(last_10_rows_blocks) > 1
-                            else last_10_rows_blocks[0],
-                            dp.Text("### Data Summary Statistics"),
-                            dp.Select(blocks=data_summary_blocks)
-                            if len(data_summary_blocks) > 1
-                            else data_summary_blocks[0],
-                            label="Summary",
-                        ),
-                        dp.Text(
-                            "The following report compares a variety of metrics and plots "
-                            f"for your target columns: \n {md_columns}.\n",
-                            label="Target Columns",
-                        ),
-                    ]
-                ),
+            summary = self._get_summary_header(
+                model_description=model_description,
+                ds_column_series=ds_column_series,
+                elapsed_time=elapsed_time,
             )
 
             test_metrics_sections = []

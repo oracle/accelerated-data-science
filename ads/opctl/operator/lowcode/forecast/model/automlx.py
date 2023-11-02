@@ -77,6 +77,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             # drop NaNs for the time period where data wasn't recorded
             series_values.dropna(inplace=True)
             df[date_column] = pd.to_datetime(df[date_column])
+
+            # if datetime index is < 1hour, convert to int64index
+            if df[date_column].tail().diff().min().total_seconds() < 3600:
+                df[date_column] = df[date_column].astype("int64")
+
             df = df.set_index(date_column)
             if len(df.columns) > 1:
                 # when additional columns are present
