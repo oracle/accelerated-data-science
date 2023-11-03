@@ -24,6 +24,10 @@ class MarketplacePythonRuntime(Runtime):
     type: str = OPERATOR_MARKETPLACE_LOCAL_RUNTIME_TYPE.PYTHON.value
     version: str = "v1"
 
+    def __init__(self, **kwargs):
+        kwargs.update(kind=MARKETPLACE_OPERATOR_LOCAL_KIND)
+        super().__init__(**kwargs)
+
     @classmethod
     def init(cls, **kwargs: Dict) -> "MarketplacePythonRuntime":
         """Initializes a starter specification for the runtime.
@@ -34,5 +38,4 @@ class MarketplacePythonRuntime(Runtime):
             The runtime instance.
         """
         instance = cls()
-        instance.kind = MARKETPLACE_OPERATOR_LOCAL_KIND
         return instance

@@ -1,6 +1,6 @@
 kind:
   allowed:
-    - operator.marketplace
+    - marketplace.local
   required: true
   type: string
   meta:

@@ -17,6 +17,7 @@ from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.errors import OperatorSchemaYamlError
 
+
 class OPERATOR_LOCAL_RUNTIME_TYPE(ExtendedEnum):
     PYTHON = "python"
     CONTAINER = "container"
@@ -30,10 +31,13 @@ class Runtime(DataClassSerializable):
     """Base class for the operator's runtimes."""
 
     _schema: ClassVar[str] = ""
-    kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     type: str = None
     version: str = None
     spec: Any = None
+    kind: str = None
+
+    def __init__(self, kind: str = OPERATOR_LOCAL_RUNTIME_KIND, **kwargs):
+        self.kind = kind
 
     @classmethod
     def _validate_dict(cls, obj_dict: Dict) -> bool:

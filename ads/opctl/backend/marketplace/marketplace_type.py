@@ -1,19 +1,25 @@
 from abc import ABC
 
-from ads.common.serializer import Serializable
+from ads.common.serializer import Serializable, DataClassSerializable
 
 
-class MarketplaceListingDetails(Serializable, ABC):
+class MarketplaceListingDetails(DataClassSerializable, ABC):
     def __init__(self, listing_id: str):
         self.listing_id = listing_id
         pass
 
 
-class HelmMarketplaceListingDetails(ABC):
+class HelmMarketplaceListingDetails(MarketplaceListingDetails):
     def __init__(
-        self, listing_id: str, cluster_id: str, namespace: str, ocir_repo: str
+        self,
+        listing_id: str,
+        cluster_id: str,
+        namespace: str,
+        ocir_repo: str,
+        helm_values,
     ):
-        self.listing_id = listing_id
+        super().__init__(listing_id)
         self.cluster_id = cluster_id
         self.namespace = namespace
         self.ocir_repo = ocir_repo
+        self.helm_values = helm_values

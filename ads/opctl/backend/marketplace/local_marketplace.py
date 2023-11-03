@@ -1,7 +1,14 @@
 import json
-import runpy
-import sys
 from typing import Optional, Dict, Union
+
+from ads.opctl.backend.marketplace.marketplace_type import (
+    HelmMarketplaceListingDetails,
+    MarketplaceListingDetails,
+)
+
+from ads.opctl.backend.marketplace.marketplace_backend_runner import (
+    MarketplaceBackendRunner,
+)
 
 from ads import logger
 
@@ -79,17 +86,16 @@ class LocalMarketplaceOperatorBackend(Backend):
 
         # run operator
         operator_spec = json.dumps(self.operator_config)
-        sys.argv = [self.operator_info.type, "--spec", operator_spec]
+        operator = MarketplaceBackendRunner(
+            module_name=self.operator_info.type,
+        )
+        listing_details: MarketplaceListingDetails = operator.get_listing_details(
+            operator_spec
+        )
 
-        print(f"{'*' * 50} Runtime Config {'*' * 50}")
-        print(runtime.to_yaml())
+        ##Perform backend logic##
 
-        try:
-            runpy.run_module(self.operator_info.type, run_name="__main__")
-        except SystemExit as exception:
-            return exception.code
-        else:
-            return 0
+        return 0
 
     def run(self, **kwargs: Dict) -> None:
         """Runs the operator."""
