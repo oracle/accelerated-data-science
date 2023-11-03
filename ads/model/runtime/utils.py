@@ -111,7 +111,7 @@ def _get_index_json_through_bucket(
     bucketname: str
         The Object Storage bucketname.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
@@ -147,7 +147,7 @@ def get_service_packs(
     bucketname: str
         bucketname of the service pack.
     auth: (Dict, optional). Defaults to None.
-        The default authetication is set using `ads.set_auth` API. If you need to override the
+        The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
 
