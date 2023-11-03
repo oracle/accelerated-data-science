@@ -41,8 +41,12 @@ This documentation will explore these concepts in greater depth, demonstrating h
   :hidden:
   :maxdepth: 1
 
+  ./use_cases
+  ./install
   ./getting_started
-  ./yaml_schema
+  ./forecast
+  ./interpret_results
   ./examples
   ./advanced_use_cases
+  ./yaml_schema
   ./faq
