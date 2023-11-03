@@ -17,7 +17,6 @@ from ads.opctl.operator.lowcode.forecast.operator_config import (
     ForecastOperatorSpec,
     TestData,
     DateTimeColumn,
-    Horizon,
 )
 from ads.opctl.operator.lowcode.forecast.const import SupportedMetrics
 
@@ -40,8 +39,10 @@ from ads.opctl.operator.lowcode.forecast.operator_config import (
 )
 from ads.opctl.operator.lowcode.forecast.const import SupportedMetrics
 
+
 class TestForecastOperatorBaseModel(unittest.TestCase):
     """Tests the base class for the forecasting models"""
+
     def setUp(self):
         self.target_columns = ["Sales_Product Group 107", "Sales_Product Group 108"]
         self.target_category_columns = ["PPG_Code"]
@@ -98,9 +99,13 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
                 }
             ),
         ]
+        self.data = pd.DataFrame({"last_day_of_week": ["2020-10-31", "2020-11-07"]})
         self.target_col = "yhat"
         self.datetime_column_name = "last_day_of_week"
         self.original_target_column = "Sales"
+        self.eval_metrics = pd.DataFrame(
+            {"Sales_Product Group 107": [25.07]}, index=["sMAPE"]
+        )
         self.evaluation_metrics = [
             SupportedMetrics.SMAPE,
             SupportedMetrics.MAPE,
@@ -297,8 +302,7 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
         # All metrics should be present
         self.assertEquals(total_metrics.index.to_list(), self.evaluation_metrics)
         self.assertEquals(summary_metrics.columns.to_list(), self.summary_metrics)
-        
-        
+
     @patch("datapane.save_report")
     @patch("ads.opctl.operator.lowcode.forecast.utils.get_forecast_plots")
     @patch("ads.opctl.operator.lowcode.forecast.utils.evaluate_metrics")
