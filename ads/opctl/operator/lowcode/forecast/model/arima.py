@@ -5,9 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
+import numpy as np
 import pmdarima as pm
 
 from ads.opctl import logger
+from ads.common.decorator.runtime_dependency import runtime_dependency
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
@@ -16,6 +18,11 @@ from ..operator_config import ForecastOperatorConfig
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
     """Class representing ARIMA operator model."""
+
+    def __init__(self, config: ForecastOperatorConfig):
+        super().__init__(config)
+        self.global_explanation = {}
+        self.local_explanation = {}
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.full_data_dict
@@ -145,6 +152,47 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
         all_sections = [sec5_text, sec5]
 
+        if self.spec.generate_explanations:
+            # If the key is present, call the "explain_model" method
+            self.explain_model()
+
+            # Create a markdown text block for the global explanation section
+            global_explanation_text = dp.Text(
+                f"## Global Explanation of Models \n "
+                "The following tables provide the feature attribution for the global explainability."
+            )
+
+            # Convert the global explanation data to a DataFrame
+            global_explanation_df = pd.DataFrame(self.global_explanation)
+
+            # Create a markdown section for the global explainability
+            global_explanation_section = dp.Blocks(
+                "### Global Explainability ",
+                dp.Table(
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                ),
+            )
+
+            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+            blocks = [
+                dp.Table(
+                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                    label=s_id,
+                )
+                for s_id, local_ex_df in self.local_explanation.items()
+            ]
+            local_explanation_section = (
+                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            )
+
+            # Append the global explanation text and section to the "all_sections" list
+            all_sections = all_sections + [
+                global_explanation_text,
+                global_explanation_section,
+                local_explanation_text,
+                local_explanation_section,
+            ]
+
         model_description = dp.Text(
             "An autoregressive integrated moving average, or ARIMA, is a statistical "
             "analysis model that uses time series data to either better understand the "
@@ -164,5 +212,101 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             ci_col_names,
         )
 
+    def _custom_predict_arima(self, data):
+        """
+        Custom prediction function for ARIMA models.
+
+        Parameters
+        ----------
+            data (array-like): The input data to be predicted.
+
+        Returns
+        -------
+            array-like: The predicted values.
+
+        """
+        # Get the index of the current series id
+        series_index = self.target_columns.index(self.series_id)
+
+        # Use the ARIMA model to predict the values
+        predictions = self.models[series_index].predict(X=data, n_periods=len(data))
+
+        return predictions
+
+    @runtime_dependency(
+        module="shap",
+        err_msg=(
+            "Please run `pip3 install shap` to install the required dependencies for model explanation."
+        ),
+    )
     def explain_model(self) -> dict:
-        pass
+        """
+        Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
+        This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
+
+        Returns
+        -------
+            dict: A dictionary containing the global explanation for each feature in the dataset.
+                    The keys are the feature names and the values are the average absolute SHAP values.
+        """
+        from shap import KernelExplainer
+
+        for series_id in self.target_columns:
+            self.series_id = series_id
+            self.dataset_cols = (
+                self.full_data_dict.get(self.series_id)
+                .set_index(self.spec.datetime_column.name)
+                .drop(self.series_id, axis=1)
+                .columns
+            )
+
+            kernel_explnr = KernelExplainer(
+                model=self._custom_predict_arima,
+                data=self.full_data_dict.get(self.series_id).set_index(
+                    self.spec.datetime_column.name
+                )[: -self.spec.horizon][list(self.dataset_cols)],
+                keep_index=True,
+            )
+
+            kernel_explnr_vals = kernel_explnr.shap_values(
+                self.full_data_dict.get(self.series_id).set_index(
+                    self.spec.datetime_column.name
+                )[: -self.spec.horizon][list(self.dataset_cols)],
+                nsamples=50,
+            )
+
+            self.global_explanation[self.series_id] = dict(
+                zip(
+                    self.dataset_cols,
+                    np.average(np.absolute(kernel_explnr_vals), axis=0),
+                )
+            )
+
+            self.local_explainer(kernel_explnr)
+
+    def local_explainer(self, kernel_explainer) -> None:
+        """
+        Generate local explanations using a kernel explainer.
+
+        Parameters
+        ----------
+            kernel_explainer: The kernel explainer object to use for generating explanations.
+        """
+        # Get the data for the series ID and select the relevant columns
+        data = self.full_data_dict.get(self.series_id).set_index(
+            self.spec.datetime_column.name
+        )
+        data = data[-self.spec.horizon :][list(self.dataset_cols)]
+
+        # Generate local SHAP values using the kernel explainer
+        local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
+
+        # Convert the SHAP values into a DataFrame
+        local_kernel_explnr_df = pd.DataFrame(
+            local_kernel_explnr_vals, columns=self.dataset_cols
+        )
+
+        # set the index of the DataFrame to the datetime column
+        local_kernel_explnr_df.index = data.index
+
+        self.local_explanation[self.series_id] = local_kernel_explnr_df
