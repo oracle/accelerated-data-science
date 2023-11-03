@@ -27,8 +27,6 @@ class ForecastDatasets:
         self.full_data_dict = None
         self.target_columns = None
         self.categories = None
-        # self.test_eval_metrics = None
-        # self.original_target_column = spec.target_column
         self._load_data(config.spec)
 
     def _load_data(self, spec):
