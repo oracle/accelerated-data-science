@@ -76,7 +76,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             series_values = df[df[target].notna()]
             # drop NaNs for the time period where data wasn't recorded
             series_values.dropna(inplace=True)
-            df[date_column] = pd.to_datetime(df[date_column])
+            df[date_column] = pd.to_datetime(
+                df[date_column], format=self.spec.datetime_column.format
+            )
             df = df.set_index(date_column)
             if len(df.columns) > 1:
                 # when additional columns are present

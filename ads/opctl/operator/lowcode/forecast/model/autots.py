@@ -263,7 +263,10 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         other_sections = all_sections
 
-        ds_column_series = pd.to_datetime(self.data[self.spec.datetime_column.name])
+        ds_column_series = pd.to_datetime(
+            self.data[self.spec.datetime_column.name],
+            format=self.spec.datetime_column.format,
+        )
         ds_forecast_col = self.outputs[0].index
         ci_col_names = ["yhat_lower", "yhat_upper"]
 

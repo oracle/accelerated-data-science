@@ -503,7 +503,9 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
 
     """
     date_column = dataset_info.datetime_column.name
-    datetimes = pd.to_datetime(data[date_column].drop_duplicates())
+    datetimes = pd.to_datetime(
+        data[date_column].drop_duplicates(), format=dataset_info.datetime_column.format
+    )
     freq = pd.DatetimeIndex(datetimes).inferred_freq
     if dataset_info.model == SupportedModels.AutoMLX:
         freq_in_secs = datetimes.tail().diff().min().total_seconds()
