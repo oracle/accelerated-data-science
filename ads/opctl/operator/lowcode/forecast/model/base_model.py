@@ -271,7 +271,9 @@ class ForecastOperatorBaseModel(ABC):
                 format=self.spec.additional_data.format,
                 columns=self.spec.additional_data.columns,
             )
-
+            additional_data = Transformations(
+                raw_data, self.spec
+            )._sort_by_datetime_col(additional_data)
             self.original_additional_data = additional_data.copy()
             self.original_total_data = pd.concat([data, additional_data], axis=1)
         (
