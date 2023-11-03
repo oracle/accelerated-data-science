@@ -27,7 +27,6 @@ from ads.opctl import logger
 from .const import SupportedMetrics, SupportedModels
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
-from .model.forecast_datasets import ForecastDatasets
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -464,7 +463,9 @@ def human_time_friendly(seconds):
     return ", ".join(accumulator)
 
 
-def select_auto_model(datasets: ForecastDatasets, operator_config: ForecastOperatorConfig) -> str:
+def select_auto_model(
+    datasets: "ForecastDatasets", operator_config: ForecastOperatorConfig
+) -> str:
     """
     Selects AutoMLX or Arima model based on column count.
 
@@ -487,10 +488,10 @@ def select_auto_model(datasets: ForecastDatasets, operator_config: ForecastOpera
     if num_of_additional_cols < 15 and row_count < 10000 and number_of_series < 10:
         return SupportedModels.AutoMLX
     elif row_count < 10000 and number_of_series > 10:
-        operator_config.spec.model_kwargs['model_list'] = "fast_parallel"
+        operator_config.spec.model_kwargs["model_list"] = "fast_parallel"
         return SupportedModels.AutoTS
     elif row_count < 20000 and number_of_series > 10:
-        operator_config.spec.model_kwargs['model_list'] = "superfast"
+        operator_config.spec.model_kwargs["model_list"] = "superfast"
         return SupportedModels.AutoTS
     elif row_count > 20000:
         return SupportedModels.NeuralProphet
