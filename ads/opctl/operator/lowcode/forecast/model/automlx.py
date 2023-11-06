@@ -86,9 +86,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 y_train = df
                 forecast_x = None
             logger.info(
-                "Time Index is",
-                "" if y_train.index.is_monotonic else "NOT",
-                "monotonic.",
+                "Time Index is" + ""
+                if y_train.index.is_monotonic
+                else "NOT" + "monotonic."
             )
             model = automl.Pipeline(
                 task="forecasting",

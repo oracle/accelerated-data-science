@@ -482,7 +482,10 @@ def select_auto_model(
     str
         The type of the model.
     """
-    num_of_additional_cols = len(datasets.original_additional_data.columns) - 2
+    if datasets.original_additional_data is not None:
+        num_of_additional_cols = len(datasets.original_additional_data.columns) - 2
+    else:
+        num_of_additional_cols = 0
     row_count = len(datasets.original_user_data.index)
     number_of_series = len(datasets.categories)
     if num_of_additional_cols < 15 and row_count < 10000 and number_of_series < 10:
