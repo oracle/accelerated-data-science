@@ -4,7 +4,7 @@ import sys
 import json
 from functools import lru_cache
 from langchain.chains import LLMChain
-from ads.llm.chain import ADSChain
+from ads.llm.chain import ADSChainDeployment
 
 
 """
@@ -25,7 +25,7 @@ def load_model():
         os.path.dirname(os.path.abspath(__file__)),
         "chain.yaml"
     )
-    return ADSChain.load_chain(chain_yaml_path)
+    return ADSChainDeployment.load_chain(chain_yaml_path)
 
 @lru_cache(maxsize=1)
 def fetch_data_type_from_schema(input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):

@@ -1,4 +1,5 @@
 from datetime import datetime
+from functools import wraps
 import importlib
 import importlib.util
 import json
@@ -9,7 +10,7 @@ import sys
 import yaml
 from copy import deepcopy
 import tempfile
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, List, Optional, Union
 import fsspec
 from jinja2 import Environment, PackageLoader
 
@@ -321,60 +322,32 @@ class GuardrailSequence(RunnableSequence):
         return chain
 
 
-class ADSChain:
+class ADSChainDeployment(GenericModel):
 
-    def __init__(self, chain):
+    def __init__(self, chain, **kwargs):
         self.chain = chain
-        self.generic_model = None
+        super().__init__(**kwargs)
 
-    def deploy(
-        self,
-        compartment_id: str,
-        project_id: str,
-        **kwargs
-    ):
-        artifact_dir = tempfile.mkdtemp()
-        chain_yaml_uri = os.path.join(artifact_dir, "chain.yaml")
-        self.chain.save(chain_yaml_uri)
+    def prepare(self, **kwargs) -> GenericModel:
+        chain_yaml_uri = os.path.join(self.artifact_dir, "chain.yaml")
+        self.chain.save(chain_yaml_uri, kwargs.pop("overwrite", False))
+
+        if "score_py_uri" not in kwargs:
+            score_py_uri = os.path.join(tempfile.mkdtemp(), "score.py")
+            env = Environment(loader=PackageLoader("ads", "llm/templates"))
+            score_template = env.get_template("score_chain.jinja2")
+            time_suffix = datetime.today().strftime("%Y%m%d_%H%M%S")
+
+            context = {
+                "SCORE_VERSION": SCORE_VERSION,
+                "ADS_VERSION": ADS_VERSION,
+                "time_created": time_suffix,
+            }
+            with fsspec.open(score_py_uri, "w") as f:
+                f.write(score_template.render(context))
+            kwargs["score_py_uri"] = score_py_uri
         
-        generic_model = GenericModel(
-            estimator=None, 
-            artifact_dir=artifact_dir
-        )
-
-        generic_model.prepare(
-            score_py_uri=self._generate_score_py(),
-            **kwargs
-        )
-
-        generic_model.save(
-            compartment_id=compartment_id,
-            project_id=project_id,
-            **kwargs
-        )
-
-        generic_model.deploy(**kwargs)
-
-        self.generic_model = generic_model
-
-        return self
-    
-    def _generate_score_py(self) -> str:
-        temp_dir = tempfile.mkdtemp()
-        score_py_uri = os.path.join(temp_dir, "score.py")
-        env = Environment(loader=PackageLoader("ads", "llm/templates"))
-        score_template = env.get_template("score_chain.jinja2")
-        time_suffix = datetime.today().strftime("%Y%m%d_%H%M%S")
-
-        context = {
-            "SCORE_VERSION": SCORE_VERSION,
-            "ADS_VERSION": ADS_VERSION,
-            "time_created": time_suffix,
-        }
-        with fsspec.open(score_py_uri, "w") as f:
-            f.write(score_template.render(context))
-
-        return score_py_uri
+        return super().prepare(**kwargs)
     
     @classmethod
     def load_chain(cls, yaml_uri: str) -> Union["GuardrailSequence", LLMChain]:
@@ -387,25 +360,3 @@ class ADSChain:
             return llm_load_chain(yaml_uri)
         elif chain_type == "ads_guardrail_sequence":
             return GuardrailSequence.load(chain_dict)
-
-    def predict(
-        self,
-        data: Any = None,
-        auto_serialize_data: bool = False,
-        local: bool = False,
-        **kwargs,
-    ) -> Dict[str, Any]:
-        
-        if not self.generic_model:
-            raise ValueError(
-                "Error invoking the remote endpoint as the chain is not "
-                "deployed yet or the endpoint information is not available. "
-                "Use `deploy()` method to start chain deployment. "
-            )
-        
-        return self.generic_model.predict(
-            data=data,
-            auto_serialize_data=auto_serialize_data,
-            local=local,
-            **kwargs
-        )
