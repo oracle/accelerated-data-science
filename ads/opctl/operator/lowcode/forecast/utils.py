@@ -77,12 +77,35 @@ def _build_metrics_per_horizon(
     Pandas Dataframe
         Dataframe with Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
     """
-    actuals_df = data[target_columns]
+    """
+    Assumptions:
+    data and outputs have all the target columns.
+    yhats in outputs are in the same order as in target_columns.
+    Test data might not have sorted dates and the order of series also might differ.
+    """
+
+    # Select the data with correct order of target_columns.
+    actuals_df = data[["ds"] + target_columns]
+
+    # Concat the yhats in outputs and include only dates that are in test data
     forecasts_df = pd.concat(
-        [df[target_col].iloc[-horizon_periods:] for df in outputs], axis=1
+        [
+            (df[df["ds"].isin(actuals_df["ds"])][["ds", target_col]]).set_index("ds")
+            for df in outputs
+        ],
+        axis=1,
     )
+
+    # Remove dates that are not there in outputs
+    actuals_df = actuals_df[actuals_df["ds"].isin(forecasts_df.index.values)]
+
+    if actuals_df.empty or forecasts_df.empty:
+        return pd.DataFrame()
+
     totals = actuals_df.sum()
     wmape_weights = np.array((totals / totals.sum()).values)
+
+    actuals_df = actuals_df.set_index("ds")
 
     metrics_df = pd.DataFrame(
         columns=[
@@ -121,11 +144,8 @@ def _build_metrics_per_horizon(
         }
 
         metrics_df = pd.concat(
-            [metrics_df, pd.DataFrame(metrics_row, index=[data["ds"][i]])],
-            ignore_index=True,
+            [metrics_df, pd.DataFrame(metrics_row, index=[actuals_df.index[i]])],
         )
-
-    metrics_df.set_index(data["ds"], inplace=True)
 
     return metrics_df
 
@@ -487,7 +507,9 @@ def select_auto_model(
         The type of the model.
     """
     date_column = operator_config.spec.datetime_column.name
-    datetimes = pd.to_datetime(datasets.original_user_data[date_column].drop_duplicates())
+    datetimes = pd.to_datetime(
+        datasets.original_user_data[date_column].drop_duplicates()
+    )
     freq_in_secs = datetimes.tail().diff().min().total_seconds()
     if datasets.original_additional_data is not None:
         num_of_additional_cols = len(datasets.original_additional_data.columns) - 2
@@ -495,7 +517,12 @@ def select_auto_model(
         num_of_additional_cols = 0
     row_count = len(datasets.original_user_data.index)
     number_of_series = len(datasets.categories)
-    if num_of_additional_cols < 15 and row_count < 10000 and number_of_series < 10 and freq_in_secs > 3600:
+    if (
+        num_of_additional_cols < 15
+        and row_count < 10000
+        and number_of_series < 10
+        and freq_in_secs > 3600
+    ):
         return SupportedModels.AutoMLX
     elif row_count < 10000 and number_of_series > 10:
         operator_config.spec.model_kwargs["model_list"] = "fast_parallel"
