@@ -13,7 +13,7 @@ from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_config import OperatorConfig
 
 from .const import SupportedMetrics
-
+from .const import SupportedModels
 
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
@@ -99,6 +99,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     def __post_init__(self):
         """Adjusts the specification details."""
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
+        self.model = (self.model or SupportedModels.Auto)
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (

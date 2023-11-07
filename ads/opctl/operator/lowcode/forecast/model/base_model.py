@@ -23,12 +23,12 @@ from ..const import SUMMARY_METRICS_HORIZON_LIMIT, SupportedMetrics, SupportedMo
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .transformations import Transformations
 from ads.common.decorator.runtime_dependency import runtime_dependency
-
+from .forecast_datasets import ForecastDatasets
 
 class ForecastOperatorBaseModel(ABC):
     """The base class for the forecast operator models."""
 
-    def __init__(self, config: ForecastOperatorConfig):
+    def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         """Instantiates the ForecastOperatorBaseModel instance.
 
         Properties
@@ -40,13 +40,13 @@ class ForecastOperatorBaseModel(ABC):
         self.config: ForecastOperatorConfig = config
         self.spec: ForecastOperatorSpec = config.spec
 
-        # these fields are populated in the _load_data() method
-        self.original_user_data = None
-        self.original_total_data = None
-        self.original_additional_data = None
-        self.full_data_dict = None
-        self.target_columns = None
-        self.categories = None
+        self.original_user_data = datasets.original_user_data
+        self.original_total_data = datasets.original_total_data
+        self.original_additional_data = datasets.original_additional_data
+        self.full_data_dict = datasets.full_data_dict
+        self.target_columns = datasets.target_columns
+        self.categories = datasets.categories
+
         self.test_eval_metrics = None
         self.original_target_column = self.spec.target_column
 
@@ -55,9 +55,6 @@ class ForecastOperatorBaseModel(ABC):
         self.models = None
         self.outputs = None
 
-        self.target_columns = (
-            None  # This will become [target__category1__category2 ...]
-        )
         self.train_metrics = False
         self.forecast_col_name = "yhat"
         self.perform_tuning = self.spec.tuning != None
@@ -68,7 +65,6 @@ class ForecastOperatorBaseModel(ABC):
 
         # load data and build models
         start_time = time.time()
-        self._load_data()
         result_df = self._build_model()
         elapsed_time = time.time() - start_time
 
@@ -83,6 +79,7 @@ class ForecastOperatorBaseModel(ABC):
                     self.target_columns,
                     self.data,
                     self.outputs,
+                    self.spec.datetime_column.name,
                     target_col=self.forecast_col_name,
                 )
 
@@ -244,55 +241,6 @@ class ForecastOperatorBaseModel(ABC):
             metrics_df=self.eval_metrics,
             test_metrics_df=self.test_eval_metrics,
         )
-
-    def _load_data(self):
-        """Loads forecasting input data."""
-        raw_data = utils._load_data(
-            filename=self.spec.historical_data.url,
-            format=self.spec.historical_data.format,
-            columns=self.spec.historical_data.columns,
-        )
-        self.original_user_data = raw_data.copy()
-        date_column = self.spec.datetime_column.name
-        try:
-            self.spec.freq = utils.get_frequency_of_datetime(raw_data, self.spec)
-        except TypeError as e:
-            logger.warn(
-                f"Error determining frequency: {e.args}. Setting Frequency to None"
-            )
-            logger.debug(f"Full traceback: {e}")
-            self.spec.freq = None
-        data = Transformations(raw_data, self.spec).run()
-        self.original_total_data = data
-
-        additional_data = None
-        if self.spec.additional_data is not None:
-            additional_data = utils._load_data(
-                filename=self.spec.additional_data.url,
-                format=self.spec.additional_data.format,
-                columns=self.spec.additional_data.columns,
-            )
-
-            self.original_additional_data = additional_data.copy()
-            self.original_total_data = pd.concat([data, additional_data], axis=1)
-        (
-            self.full_data_dict,
-            self.target_columns,
-            self.categories,
-        ) = utils._build_indexed_datasets(
-            data=data,
-            target_column=self.spec.target_column,
-            datetime_column=self.spec.datetime_column.name,
-            horizon=self.spec.horizon,
-            target_category_columns=self.spec.target_category_columns,
-            additional_data=additional_data,
-        )
-        if self.spec.generate_explanations:
-            if self.spec.additional_data is None:
-                logger.warn(
-                    f"Unable to generate explanations as there is no additional data passed in. Either set generate_explanations to False, or pass in additional data."
-                )
-                self.spec.generate_explanations = False
 
     def _test_evaluate_metrics(
         self, target_columns, test_filename, outputs, target_col="yhat", elapsed_time=0

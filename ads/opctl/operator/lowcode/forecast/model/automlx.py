@@ -14,7 +14,7 @@ from ads.opctl import logger
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
-
+from .forecast_datasets import ForecastDatasets
 
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
@@ -24,8 +24,8 @@ AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     """Class representing AutoMLX operator model."""
 
-    def __init__(self, config: ForecastOperatorConfig):
-        super().__init__(config)
+    def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
+        super().__init__(config, datasets)
         self.global_explanation = {}
         self.local_explanation = {}
 
@@ -76,7 +76,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             series_values = df[df[target].notna()]
             # drop NaNs for the time period where data wasn't recorded
             series_values.dropna(inplace=True)
-            df[date_column] = pd.to_datetime(df[date_column])
+            df[date_column] = pd.to_datetime(
+                df[date_column], format=self.spec.datetime_column.format
+            )
             df = df.set_index(date_column)
             if len(df.columns) > 1:
                 # when additional columns are present
@@ -86,9 +88,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 y_train = df
                 forecast_x = None
             logger.info(
-                "Time Index is",
-                "" if y_train.index.is_monotonic else "NOT",
-                "monotonic.",
+                "Time Index is" + ""
+                if y_train.index.is_monotonic
+                else "NOT" + "monotonic."
             )
             model = automl.Pipeline(
                 task="forecasting",

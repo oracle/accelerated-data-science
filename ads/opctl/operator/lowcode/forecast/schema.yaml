@@ -273,8 +273,8 @@ spec:
 
     model:
       type: string
-      required: true
-      default: automlx
+      required: false
+      default: auto
       allowed:
         - prophet
         - arima

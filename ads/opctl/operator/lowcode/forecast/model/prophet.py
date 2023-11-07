@@ -15,6 +15,7 @@ from ..const import DEFAULT_TRIALS, PROPHET_INTERNAL_DATE_COL
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
+from .forecast_datasets import ForecastDatasets
 
 
 def _add_unit(num, unit):
@@ -34,8 +35,8 @@ def _fit_model(data, params, additional_regressors):
 class ProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing Prophet operator model."""
 
-    def __init__(self, config: ForecastOperatorConfig):
-        super().__init__(config)
+    def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
+        super().__init__(config=config, datasets=datasets)
         self.train_metrics = True
         self.global_explanation = {}
         self.local_explanation = {}

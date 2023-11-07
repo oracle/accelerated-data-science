@@ -24,11 +24,9 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.opctl import logger
 
-from .const import MAX_COLUMNS_AUTOMLX, SupportedMetrics, SupportedModels
+from .const import SupportedMetrics, SupportedModels
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
-import re
-from .operator_config import ForecastOperatorSpec
-from .const import SupportedModels
+from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -286,6 +284,9 @@ def _build_indexed_datasets(
     data["__Series__"] = _merge_category_columns(data, target_category_columns)
     unique_categories = data["__Series__"].unique()
     invalid_categories = []
+    if additional_data is not None and target_column in additional_data.columns:
+        logger.warn(f"Dropping column '{target_column}' from additional_data")
+        additional_data.drop(target_column, axis=1, inplace=True)
     for cat in unique_categories:
         data_by_cat = data[data["__Series__"] == cat].rename(
             {target_column: f"{target_column}_{cat}"}, axis=1
@@ -340,12 +341,13 @@ def _build_metrics_df(y_true, y_pred, column_name):
     return pd.DataFrame.from_dict(metrics, orient="index", columns=[column_name])
 
 
-def evaluate_metrics(target_columns, data, outputs, target_col="yhat"):
+def evaluate_metrics(target_columns, data, outputs, datetime_col, target_col="yhat"):
     total_metrics = pd.DataFrame()
     for idx, col in enumerate(target_columns):
         try:
-            y_true = np.asarray(data[col])
-            y_pred = np.asarray(outputs[idx][target_col][: len(y_true)])
+            dates = np.intersect1d(data[datetime_col], outputs[idx]["ds"])
+            y_true = np.asarray(data[col][data[datetime_col].isin(dates)])
+            y_pred = outputs[idx][outputs[idx]["ds"].isin(dates)][target_col]
 
             metrics_df = _build_metrics_df(
                 y_true=y_true, y_pred=y_pred, column_name=col
@@ -465,7 +467,9 @@ def human_time_friendly(seconds):
     return ", ".join(accumulator)
 
 
-def select_auto_model(columns: List[str]) -> str:
+def select_auto_model(
+    datasets: "ForecastDatasets", operator_config: ForecastOperatorConfig
+) -> str:
     """
     Selects AutoMLX or Arima model based on column count.
 
@@ -474,17 +478,35 @@ def select_auto_model(columns: List[str]) -> str:
 
     Parameters
     ------------
-    columns:  List
-            The list of columns.
+    datasets:  ForecastDatasets
+            Datasets for predictions
 
     Returns
     --------
     str
         The type of the model.
     """
-    if columns != None and len(columns) > MAX_COLUMNS_AUTOMLX:
-        return SupportedModels.Arima
-    return SupportedModels.AutoMLX
+    date_column = operator_config.spec.datetime_column.name
+    datetimes = pd.to_datetime(datasets.original_user_data[date_column].drop_duplicates())
+    freq_in_secs = datetimes.tail().diff().min().total_seconds()
+    if datasets.original_additional_data is not None:
+        num_of_additional_cols = len(datasets.original_additional_data.columns) - 2
+    else:
+        num_of_additional_cols = 0
+    row_count = len(datasets.original_user_data.index)
+    number_of_series = len(datasets.categories)
+    if num_of_additional_cols < 15 and row_count < 10000 and number_of_series < 10 and freq_in_secs > 3600:
+        return SupportedModels.AutoMLX
+    elif row_count < 10000 and number_of_series > 10:
+        operator_config.spec.model_kwargs["model_list"] = "fast_parallel"
+        return SupportedModels.AutoTS
+    elif row_count < 20000 and number_of_series > 10:
+        operator_config.spec.model_kwargs["model_list"] = "superfast"
+        return SupportedModels.AutoTS
+    elif row_count > 20000:
+        return SupportedModels.NeuralProphet
+    else:
+        return SupportedModels.NeuralProphet
 
 
 def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
@@ -503,7 +525,9 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
 
     """
     date_column = dataset_info.datetime_column.name
-    datetimes = pd.to_datetime(data[date_column].drop_duplicates())
+    datetimes = pd.to_datetime(
+        data[date_column].drop_duplicates(), format=dataset_info.datetime_column.format
+    )
     freq = pd.DatetimeIndex(datetimes).inferred_freq
     if dataset_info.model == SupportedModels.AutoMLX:
         freq_in_secs = datetimes.tail().diff().min().total_seconds()
