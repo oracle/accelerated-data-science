@@ -1,5 +1,15 @@
 import json
-from typing import Optional, Dict, Union
+import os
+import subprocess
+import tempfile
+import time
+from subprocess import CompletedProcess
+from typing import Optional, Dict, Union, Any
+
+import fsspec
+import yaml
+from kubernetes import config, client
+from kubernetes.watch import watch
 
 from ads.opctl.backend.marketplace.marketplace_type import (
     HelmMarketplaceListingDetails,
@@ -40,7 +50,7 @@ class LocalMarketplaceOperatorBackend(Backend):
     """
 
     def __init__(
-        self, config: Optional[Dict], operator_info: OperatorInfo = None
+            self, config: Optional[Dict], operator_info: OperatorInfo = None
     ) -> None:
         """
         Instantiates the operator backend.
@@ -70,8 +80,62 @@ class LocalMarketplaceOperatorBackend(Backend):
 
         self.operator_info = operator_info
 
+    def _set_kubernete_env(self) -> None:
+        os.environ["OCI_CLI_AUTH"] = 'security_token'
+        os.environ["OCI_CLI_PROFILE"] = 'SESSION_PROFILE'
+
+    def _run_helm_install(self, name, chart, **kwargs) -> CompletedProcess:
+        self._set_kubernete_env()
+        flags = []
+        for key, value in kwargs.items():
+            flags.extend([f"--{key}", f"{value}"])
+
+        helm_cmd = ["helm", "install", name, chart, *flags]
+        print("Running Command:", " ".join(helm_cmd))
+        return subprocess.run(helm_cmd)
+
+    def _save_helm_value_to_yaml(self, helm_values: Dict[str, Any]) -> str:
+        override_value_path = os.path.join(tempfile.TemporaryDirectory().name, f"values.yaml")
+        with fsspec.open(override_value_path, mode="w") as f:
+            f.write(yaml.dump(helm_values))
+        return override_value_path
+
+    def _delete_temp_file(self, temp_file) -> bool:
+        if os.path.exists(temp_file):
+            os.remove(temp_file)
+            return True
+
+        return False
+
+    def _wait_for_pod_ready(self, namespace, pod_name):
+        # Configs can be set in Configuration class directly or using helper utility
+        self._set_kubernete_env()
+        config.load_kube_config()
+        v1 = client.CoreV1Api()
+
+        def is_pod_ready(pod):
+            for condition in pod.status.conditions:
+                if condition.type == "Ready":
+                    return condition.status == 'True'
+            return False
+
+        start_time = time.time()
+        timeout_seconds = 10 * 60
+        sleep_time = 20
+        while True:
+            pod = v1.list_namespaced_pod(namespace=namespace, label_selector=f"app.kubernetes.io/instance={pod_name}").items[0]
+            if is_pod_ready(pod):
+                return 0
+            if time.time() - start_time >= timeout_seconds:
+                print("Timed out waiting for pad to get ready.")
+                break
+            print(f"Waiting for pod {pod_name} to be ready...")
+            time.sleep(sleep_time)
+        return -1
+
     def _run_with_python(self, **kwargs: Dict) -> int:
-        """Runs the operator within a local python environment.
+        """
+        Runs the operator within a local python environment.
 
         Returns
         -------
@@ -92,10 +156,28 @@ class LocalMarketplaceOperatorBackend(Backend):
         listing_details: MarketplaceListingDetails = operator.get_listing_details(
             operator_spec
         )
-
+        # operator_spec = self.operator_config['spec']
+        # helm_values = operator_spec['helmValues']
         ##Perform backend logic##
+        # name = 'fs-dp-api-test'
+        # chart = 'oci://iad.ocir.io/idogsu2ylimg/feature-store-dataplane-api/helm-chart/feature-store-dp-api'
+        if isinstance(listing_details, HelmMarketplaceListingDetails):
+            override_value_path = self._save_helm_value_to_yaml(listing_details.helm_values)
+            helm_install_status = self._run_helm_install(
+                name=listing_details.name,
+                chart=listing_details.chart,
+                **{
+                    "version": listing_details.version,
+                    "namespace": listing_details.namespace,
+                    "values": override_value_path
+                }
+            )
 
-        return 0
+            self._delete_temp_file(override_value_path)
+            if helm_install_status.returncode == 0:
+                return self._wait_for_pod_ready(listing_details.namespace, listing_details.name)
+            else:
+                return -1
 
     def run(self, **kwargs: Dict) -> None:
         """Runs the operator."""
@@ -130,11 +212,11 @@ class LocalMarketplaceOperatorBackend(Backend):
             )
 
     def init(
-        self,
-        uri: Union[str, None] = None,
-        overwrite: bool = False,
-        runtime_type: Union[str, None] = None,
-        **kwargs: Dict,
+            self,
+            uri: Union[str, None] = None,
+            overwrite: bool = False,
+            runtime_type: Union[str, None] = None,
+            **kwargs: Dict,
     ) -> Union[str, None]:
         """Generates a starter YAML specification for the operator local runtime.
 
@@ -177,8 +259,8 @@ class LocalMarketplaceOperatorBackend(Backend):
 
             return (
                 operator_runtime_const.MARKETPLACE_RUNTIME_MAP[runtime_type]
-                .init(**RUNTIME_KWARGS_MAP[runtime_type])
-                .to_yaml(
+                    .init(**RUNTIME_KWARGS_MAP[runtime_type])
+                    .to_yaml(
                     uri=uri,
                     overwrite=overwrite,
                     note=note,
