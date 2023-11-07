@@ -482,13 +482,16 @@ def select_auto_model(
     str
         The type of the model.
     """
+    date_column = operator_config.spec.datetime_column.name
+    datetimes = pd.to_datetime(datasets.original_user_data[date_column].drop_duplicates())
+    freq_in_secs = datetimes.tail().diff().min().total_seconds()
     if datasets.original_additional_data is not None:
         num_of_additional_cols = len(datasets.original_additional_data.columns) - 2
     else:
         num_of_additional_cols = 0
     row_count = len(datasets.original_user_data.index)
     number_of_series = len(datasets.categories)
-    if num_of_additional_cols < 15 and row_count < 10000 and number_of_series < 10:
+    if num_of_additional_cols < 15 and row_count < 10000 and number_of_series < 10 and freq_in_secs > 3600:
         return SupportedModels.AutoMLX
     elif row_count < 10000 and number_of_series > 10:
         operator_config.spec.model_kwargs["model_list"] = "fast_parallel"
@@ -499,7 +502,7 @@ def select_auto_model(
     elif row_count > 20000:
         return SupportedModels.NeuralProphet
     else:
-        return SupportedModels.AutoMLX
+        return SupportedModels.NeuralProphet
 
 
 def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
