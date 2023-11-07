@@ -9,7 +9,7 @@ import tempfile
 from zipfile import ZipFile
 
 import fsspec
-
+from ads.common.auth import default_signer
 from tests.integration.config import secrets
 from tests.integration.jobs.test_dsc_job import DSCJobTestCaseWithCleanUp
 from tests.integration.jobs.test_jobs_notebook import NotebookDriverRunTest
@@ -19,7 +19,9 @@ from ads.jobs.builders.infrastructure.dsc_job_runtime import NotebookRuntimeHand
 
 
 class NotebookRuntimeTest(DSCJobTestCaseWithCleanUp):
-    NOTEBOOK_PATH = os.path.join(os.path.dirname(__file__), "../fixtures/ads_check.ipynb")
+    NOTEBOOK_PATH = os.path.join(
+        os.path.dirname(__file__), "../fixtures/ads_check.ipynb"
+    )
     NOTEBOOK_PATH_EXCLUDE = os.path.join(
         os.path.dirname(__file__), "../fixtures/exclude_check.ipynb"
     )
@@ -89,7 +91,9 @@ class NotebookDriverIntegrationTest(NotebookDriverRunTest):
     def test_notebook_driver_with_outputs(self):
         """Tests run the notebook driver with a notebook plotting and saving data."""
         # Notebook to be executed
-        notebook_path = os.path.join(os.path.dirname(__file__), "../fixtures/plot.ipynb")
+        notebook_path = os.path.join(
+            os.path.dirname(__file__), "../fixtures/plot.ipynb"
+        )
         # Object storage output location
         output_uri = f"oci://{secrets.jobs.BUCKET_B}@{secrets.common.NAMESPACE}/notebook_driver_int_test/plot/"
         # Run the notebook with driver and check the logs
@@ -100,7 +104,7 @@ class NotebookDriverIntegrationTest(NotebookDriverRunTest):
         # Check the notebook saved to object storage.
         with fsspec.open(
             os.path.join(output_uri, os.path.basename(notebook_path)),
-            config=os.path.expanduser("~/.oci/config"),
+            **default_signer(),
         ) as f:
             outputs = [cell.get("outputs") for cell in json.load(f).get("cells")]
             # There should be 7 cells in the notebook
@@ -113,7 +117,7 @@ class NotebookDriverIntegrationTest(NotebookDriverRunTest):
         # Check the JSON output file from the notebook
         with fsspec.open(
             os.path.join(output_uri, "data.json"),
-            config=os.path.expanduser("~/.oci/config"),
+            **default_signer(),
         ) as f:
             data = json.load(f)
             # There should be 10 data points
