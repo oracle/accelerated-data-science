@@ -15,6 +15,7 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     NeuralProphet = "neuralprophet"
     AutoMLX = "automlx"
     AutoTS = "autots"
+    Auto = "auto"
 
 
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):

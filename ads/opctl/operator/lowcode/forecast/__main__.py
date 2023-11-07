@@ -16,13 +16,13 @@ from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
 from .operator_config import ForecastOperatorConfig
-
+from .model.forecast_datasets import ForecastDatasets
 
 def operate(operator_config: ForecastOperatorConfig) -> None:
     """Runs the forecasting operator."""
     from .model.factory import ForecastOperatorModelFactory
-
-    ForecastOperatorModelFactory.get_model(operator_config).generate_report()
+    datasets = ForecastDatasets(operator_config)
+    ForecastOperatorModelFactory.get_model(operator_config, datasets).generate_report()
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:

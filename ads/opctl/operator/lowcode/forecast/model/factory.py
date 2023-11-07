@@ -13,7 +13,7 @@ from .base_model import ForecastOperatorBaseModel
 from .neuralprophet import NeuralProphetOperatorModel
 from .prophet import ProphetOperatorModel
 from ..utils import select_auto_model
-
+from .forecast_datasets import ForecastDatasets
 
 class UnSupportedModelError(Exception):
     def __init__(self, model_type: str):
@@ -38,7 +38,7 @@ class ForecastOperatorModelFactory:
 
     @classmethod
     def get_model(
-        cls, operator_config: ForecastOperatorConfig
+        cls, operator_config: ForecastOperatorConfig, datasets: ForecastDatasets
     ) -> ForecastOperatorBaseModel:
         """
         Gets the forecasting operator model based on the model type.
@@ -47,6 +47,8 @@ class ForecastOperatorModelFactory:
         ----------
         operator_config: ForecastOperatorConfig
             The forecasting operator config.
+        datasets: ForecastDatasets
+            Datasets for predictions
 
         Returns
         -------
@@ -60,7 +62,7 @@ class ForecastOperatorModelFactory:
         """
         model_type = operator_config.spec.model
         if model_type == "auto":
-            model_type = select_auto_model(operator_config.spec.historical_data.columns)
+            model_type = select_auto_model(datasets, operator_config)
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
-        return cls._MAP[model_type](config=operator_config)
+        return cls._MAP[model_type](config=operator_config, datasets=datasets)
