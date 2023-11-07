@@ -4,6 +4,43 @@
 Release Notes
 =============
 
+1.0.4
+-----
+.. note::
+
+    .. list-table::
+      :header-rows: 1
+
+      * - Package Name
+        - Latest Version
+        - Notes
+      * - Conda pack
+        - `fs_pyspark32_p38_cpu_v2`
+        -
+      * - SERVICE_VERSION
+        - 0.1.256.master
+        -
+      * - ADS_VERSION
+        - oracle-ads==2.9.0rc0
+        - `https://github.com/oracle/accelerated-data-science/releases/tag/v2.9.0rc0`
+      * - Terraform Stack
+        - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__
+        -
+
+
+Release notes: November 15, 2023
+
+* [FEATURE] Streaming data-frame support in ``FeatureGroup`` and ``Dataset`` construct
+* [FEATURE] Support for custom spark transformations using ``Transformation``  construct
+* [MAINTENANCE] Decouple feature store client with oci client
+* [MAINTENANCE] Upgrade of ``mlm`` version to 1.0.2
+* [MAINTENANCE] Upgrade of ``great-expectations`` version to 0.17.19
+* [UI] Addition of dataset jobs UI tab
+* [UI] Addition of feature group jobs UI tab
+* [UI] Addition of feature store landing page
+* [DOCS] Addition of class documentation for feature store
+* [CONDA] Release of feature store v2 conda pack ``fspyspark32_p38_cpu_v2``
+
 1.0.3
 -----
 .. note::
