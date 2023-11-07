@@ -74,7 +74,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             data_i.rename({target: "y"}, axis=1, inplace=True)
 
             # Assume that all columns passed in should be used as additional data
-            additional_regressors = set(data_i.columns) - {"y", "ds"}
+            additional_regressors = set(data_i.columns) - {
+                "y",
+                PROPHET_INTERNAL_DATE_COL,
+            }
 
             if self.perform_tuning:
 
@@ -177,7 +180,11 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             # Make Prediction
             forecast = model.predict(future)
             logger.info(f"-----------------Model {i}----------------------")
-            logger.info(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail())
+            logger.info(
+                forecast[
+                    [PROPHET_INTERNAL_DATE_COL, "yhat", "yhat_lower", "yhat_upper"]
+                ].tail()
+            )
 
             # Collect Outputs
             models.append(model)
@@ -199,7 +206,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         for cat in self.categories:  # Note: add [:2] to restrict
             output_i = pd.DataFrame()
 
-            output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
+            output_i["Date"] = outputs[f"{col}_{cat}"][PROPHET_INTERNAL_DATE_COL]
             output_i["Series"] = cat
             output_i["input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
 
@@ -235,7 +242,11 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
         # Re-merge historical data for processing
         data_merged = pd.concat(
-            [v[v[k].notna()].set_index("ds") for k, v in full_data_dict.items()], axis=1
+            [
+                v[v[k].notna()].set_index(PROPHET_INTERNAL_DATE_COL)
+                for k, v in full_data_dict.items()
+            ],
+            axis=1,
         ).reset_index()
 
         self.data = data_merged
@@ -363,8 +374,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "data and shifts in the trend, and typically handles outliers well."
         )
         other_sections = all_sections
-        ds_column_series = self.data["ds"]
-        ds_forecast_col = self.outputs[0]["ds"]
+        ds_column_series = self.data[PROPHET_INTERNAL_DATE_COL]
+        ds_forecast_col = self.outputs[0][PROPHET_INTERNAL_DATE_COL]
         ci_col_names = ["yhat_lower", "yhat_upper"]
 
         return (
