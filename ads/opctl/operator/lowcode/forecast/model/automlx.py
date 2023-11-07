@@ -246,7 +246,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     local_ex_df_copy = local_ex_df.copy()
                     local_ex_df_copy["Series"] = s_id
                     aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=1
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
                     )
                 self.formatted_local_explanation = aggregate_local_explanations
 
