@@ -286,6 +286,9 @@ def _build_indexed_datasets(
     data["__Series__"] = _merge_category_columns(data, target_category_columns)
     unique_categories = data["__Series__"].unique()
     invalid_categories = []
+    if additional_data is not None and target_column in additional_data.columns:
+        logger.warn(f"Dropping column '{target_column}' from additional_data")
+        additional_data.drop(target_column, axis=1, inplace=True)
     for cat in unique_categories:
         data_by_cat = data[data["__Series__"] == cat].rename(
             {target_column: f"{target_column}_{cat}"}, axis=1
