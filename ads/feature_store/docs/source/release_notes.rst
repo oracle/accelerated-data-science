@@ -33,8 +33,8 @@ Release notes: November 15, 2023
 * [FEATURE] Streaming data-frame support in ``FeatureGroup`` and ``Dataset`` construct
 * [FEATURE] Support for custom spark transformations using ``Transformation``  construct
 * [MAINTENANCE] Decouple feature store client with oci client
-* [MAINTENANCE] Upgrade of ``mlm`` version to 1.0.2
-* [MAINTENANCE] Upgrade of ``great-expectations`` version to 0.17.19
+* [MAINTENANCE] Upgrade of ``mlm`` version to ``1.0.2``
+* [MAINTENANCE] Upgrade of ``great-expectations`` version to ``0.17.19``
 * [UI] Addition of dataset jobs UI tab
 * [UI] Addition of feature group jobs UI tab
 * [UI] Addition of feature store landing page
