@@ -23,8 +23,8 @@ This section demonstrates how to run interactive Spark workloads on a long lasti
 
 **Notebook Examples:**
 
-* `Introduction to the Oracle Cloud Infrastructure Data Flow Studio <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/notebook_examples/pyspark-data_flow_studio-introduction.ipynb>`__
-* `Spark NLP within Oracle Cloud Infrastructure Data Flow Studio <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/master/notebook_examples/pyspark-data_flow_studio-spark_nlp.ipynb>`__
+* `Introduction to the Oracle Cloud Infrastructure Data Flow Studio <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/pyspark-data_flow_studio-introduction.ipynb>`_
+* `Spark NLP within Oracle Cloud Infrastructure Data Flow Studio <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/pyspark-data_flow_studio-spark_nlp.ipynb>`_
 
 Prerequisite
 ============
@@ -72,7 +72,7 @@ Data Flow Spark Magic is used for interactively working with remote Spark cluste
 
   %load_ext dataflow.magics
 
-Use the `%help` method to get a list of all the available commands, along with a list of their arguments and example calls.
+Use the ``%help`` method to get a list of all the available commands, along with a list of their arguments and example calls.
 
 .. code-block:: python
 
@@ -130,7 +130,7 @@ To help you save resources and reduce time on management, Spark `dynamic allocat
 
 **Example command with third-party libraries**
 
-The Data Flow Sessions support `custom dependencies <https://docs.oracle.com/iaas/data-flow/using/third-party-libraries.htm>`__ in the form of Python wheels or virtual environments. You might want to make native code or other assets available within your Spark runtime. The dependencies can be attached by using the `archiveUri` attribute.
+The Data Flow Sessions support `custom dependencies <https://docs.oracle.com/iaas/data-flow/using/third-party-libraries.htm>`__ in the form of Python wheels or virtual environments. You might want to make native code or other assets available within your Spark runtime. The dependencies can be attached by using the ``archiveUri`` attribute.
 
 .. code-block:: python
 
@@ -148,7 +148,7 @@ The Data Flow Sessions support `custom dependencies <https://docs.oracle.com/iaa
 
 **Example command with the Data Catalog Hive Metastore**
 
-The `Data Catalog Hive Metastore <https://docs.oracle.com/iaas/data-catalog/using/metastore.htm>`__  provides schema definitions for objects in structured and unstructured data assets. Use the `metastoreId` to access the Data Catalog Metastore.
+The `Data Catalog Hive Metastore <https://docs.oracle.com/iaas/data-catalog/using/metastore.htm>`__  provides schema definitions for objects in structured and unstructured data assets. Use the ``metastoreId`` to access the Data Catalog Metastore.
 
 .. code-block:: python
 
@@ -195,7 +195,7 @@ Example path : ``oci://<your-bucket>@<your-tenancy-namespace>/conda_environments
 
 .. versionadded:: 2.8.7
 
-The `Data Flow Pools <https://docs.oracle.com/en-us/iaas/data-flow/using/pools.htm>`__  achieve fast job startup, resource isolation, manage budgets, and prioritize your Spark workloads. Use the `poolId` to use the Pool resources.
+The `Data Flow Pools <https://docs.oracle.com/en-us/iaas/data-flow/using/pools.htm>`__  achieve fast job startup, resource isolation, manage budgets, and prioritize your Spark workloads. Use the ``poolId`` to use the Pool resources.
 
 .. code-block:: python
 
@@ -256,7 +256,7 @@ To re-activate the existing session, use the ``%activate_session`` magic command
 
 Use Existing Session
 ********************
-To connect to the existing session use the `%use_session` magic command.
+To connect to the existing session use the ``%use_session`` magic command.
 
 .. code-block:: python
 
