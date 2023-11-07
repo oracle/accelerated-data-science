@@ -78,6 +78,7 @@ class ForecastOperatorBaseModel(ABC):
                     self.target_columns,
                     self.data,
                     self.outputs,
+                    self.spec.datetime_column.name,
                     target_col=self.forecast_col_name,
                 )
 

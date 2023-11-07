@@ -341,12 +341,13 @@ def _build_metrics_df(y_true, y_pred, column_name):
     return pd.DataFrame.from_dict(metrics, orient="index", columns=[column_name])
 
 
-def evaluate_metrics(target_columns, data, outputs, target_col="yhat"):
+def evaluate_metrics(target_columns, data, outputs, datetime_col, target_col="yhat"):
     total_metrics = pd.DataFrame()
     for idx, col in enumerate(target_columns):
         try:
-            y_true = np.asarray(data[col])
-            y_pred = np.asarray(outputs[idx][target_col][: len(y_true)])
+            dates = np.intersect1d(data[datetime_col], outputs[idx]["ds"])
+            y_true = np.asarray(data[col][data[datetime_col].isin(dates)])
+            y_pred = outputs[idx][outputs[idx]["ds"].isin(dates)][target_col]
 
             metrics_df = _build_metrics_df(
                 y_true=y_true, y_pred=y_pred, column_name=col
@@ -524,7 +525,9 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
 
     """
     date_column = dataset_info.datetime_column.name
-    datetimes = pd.to_datetime(data[date_column].drop_duplicates())
+    datetimes = pd.to_datetime(
+        data[date_column].drop_duplicates(), format=dataset_info.datetime_column.format
+    )
     freq = pd.DatetimeIndex(datetimes).inferred_freq
     if dataset_info.model == SupportedModels.AutoMLX:
         freq_in_secs = datetimes.tail().diff().min().total_seconds()
