@@ -298,7 +298,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
-                self.explain_model()
+                self.explain_model(
+                    datetime_col_name=PROPHET_INTERNAL_DATE_COL,
+                    explain_predict_fn=self._custom_predict_prophet,
+                )
 
                 # Create a markdown text block for the global explanation section
                 global_explanation_text = dp.Text(
@@ -376,86 +379,3 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return self.models[self.target_columns.index(self.series_id)].predict(
             data.reset_index()
         )["yhat"]
-
-    @runtime_dependency(
-        module="shap",
-        err_msg=(
-            "Please run `pip3 install shap` to install the required dependencies for model explanation."
-        ),
-    )
-    def explain_model(self) -> dict:
-        """
-        Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
-        This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
-
-        Returns
-        -------
-            dict: A dictionary containing the global explanation for each feature in the dataset.
-                    The keys are the feature names and the values are the average absolute SHAP values.
-        """
-        from shap import KernelExplainer
-
-        for series_id in self.target_columns:
-            self.series_id = series_id
-            self.dataset_cols = (
-                self.full_data_dict.get(self.series_id)
-                .set_index(PROPHET_INTERNAL_DATE_COL)
-                .drop(self.series_id, axis=1)
-                .columns
-            )
-
-            kernel_explnr = KernelExplainer(
-                model=self._custom_predict_prophet,
-                data=self.full_data_dict.get(self.series_id).set_index(
-                    PROPHET_INTERNAL_DATE_COL
-                )[: -self.spec.horizon][list(self.dataset_cols)],
-                keep_index=True,
-            )
-
-            kernel_explnr_vals = kernel_explnr.shap_values(
-                self.full_data_dict.get(self.series_id).set_index(
-                    PROPHET_INTERNAL_DATE_COL
-                )[: -self.spec.horizon][list(self.dataset_cols)],
-                nsamples=50,
-            )
-
-            if not len(kernel_explnr_vals):
-                logger.warn(
-                    f"No explanations generated. Ensure that additional data has been provided."
-                )
-            else:
-                self.global_explanation[self.series_id] = dict(
-                    zip(
-                        self.dataset_cols,
-                        np.average(np.absolute(kernel_explnr_vals), axis=0),
-                    )
-                )
-
-            self.local_explainer(kernel_explnr)
-
-    def local_explainer(self, kernel_explainer) -> None:
-        """
-        Generate local explanations using a kernel explainer.
-
-        Parameters
-        ----------
-            kernel_explainer: The kernel explainer object to use for generating explanations.
-        """
-        # Get the data for the series ID and select the relevant columns
-        data = self.full_data_dict.get(self.series_id).set_index(
-            PROPHET_INTERNAL_DATE_COL
-        )
-        data = data[-self.spec.horizon :][list(self.dataset_cols)]
-
-        # Generate local SHAP values using the kernel explainer
-        local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
-
-        # Convert the SHAP values into a DataFrame
-        local_kernel_explnr_df = pd.DataFrame(
-            local_kernel_explnr_vals, columns=self.dataset_cols
-        )
-
-        # set the index of the DataFrame to the datetime column
-        local_kernel_explnr_df.index = data.index
-
-        self.local_explanation[self.series_id] = local_kernel_explnr_df
