@@ -14,6 +14,7 @@ from ads.common.decorator.runtime_dependency import runtime_dependency
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
+import traceback
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -153,45 +154,60 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         all_sections = [sec5_text, sec5]
 
         if self.spec.generate_explanations:
-            # If the key is present, call the "explain_model" method
-            self.explain_model()
+            try:
+                # If the key is present, call the "explain_model" method
+                self.explain_model()
 
-            # Create a markdown text block for the global explanation section
-            global_explanation_text = dp.Text(
-                f"## Global Explanation of Models \n "
-                "The following tables provide the feature attribution for the global explainability."
-            )
-
-            # Convert the global explanation data to a DataFrame
-            global_explanation_df = pd.DataFrame(self.global_explanation)
-
-            # Create a markdown section for the global explainability
-            global_explanation_section = dp.Blocks(
-                "### Global Explainability ",
-                dp.Table(
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                ),
-            )
-
-            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
-            blocks = [
-                dp.Table(
-                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                    label=s_id,
+                # Create a markdown text block for the global explanation section
+                global_explanation_text = dp.Text(
+                    f"## Global Explanation of Models \n "
+                    "The following tables provide the feature attribution for the global explainability."
                 )
-                for s_id, local_ex_df in self.local_explanation.items()
-            ]
-            local_explanation_section = (
-                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-            )
 
-            # Append the global explanation text and section to the "all_sections" list
-            all_sections = all_sections + [
-                global_explanation_text,
-                global_explanation_section,
-                local_explanation_text,
-                local_explanation_section,
-            ]
+                # Convert the global explanation data to a DataFrame
+                global_explanation_df = pd.DataFrame(self.global_explanation)
+
+                self.formatted_global_explanation = (
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                )
+
+                # Create a markdown section for the global explainability
+                global_explanation_section = dp.Blocks(
+                    "### Global Explainability ",
+                    dp.Table(self.formatted_global_explanation),
+                )
+
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=1
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+                blocks = [
+                    dp.Table(
+                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        label=s_id,
+                    )
+                    for s_id, local_ex_df in self.local_explanation.items()
+                ]
+                local_explanation_section = (
+                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                )
+
+                # Append the global explanation text and section to the "all_sections" list
+                all_sections = all_sections + [
+                    global_explanation_text,
+                    global_explanation_section,
+                    local_explanation_text,
+                    local_explanation_section,
+                ]
+            except Exception as e:
+                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = dp.Text(
             "An autoregressive integrated moving average, or ARIMA, is a statistical "
@@ -275,12 +291,17 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 nsamples=50,
             )
 
-            self.global_explanation[self.series_id] = dict(
-                zip(
-                    self.dataset_cols,
-                    np.average(np.absolute(kernel_explnr_vals), axis=0),
+            if not len(kernel_explnr_vals):
+                logger.warn(
+                    f"No explanations generated. Ensure that additional data has been provided."
                 )
-            )
+            else:
+                self.global_explanation[self.series_id] = dict(
+                    zip(
+                        self.dataset_cols,
+                        np.average(np.absolute(kernel_explnr_vals), axis=0),
+                    )
+                )
 
             self.local_explainer(kernel_explnr)
 

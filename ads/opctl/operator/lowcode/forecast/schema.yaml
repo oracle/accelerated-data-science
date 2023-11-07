@@ -202,6 +202,18 @@ spec:
       default: forecast.csv
       meta:
         description: "Placed into output_directory location. Defaults to forecast.csv"
+    global_explanation_filename:
+      required: false
+      type: string
+      default: global_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to global_explanations.csv"
+    local_explanation_filename:
+      required: false
+      type: string
+      default: local_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to local_explanations.csv"
 
     target_column:
       type: string

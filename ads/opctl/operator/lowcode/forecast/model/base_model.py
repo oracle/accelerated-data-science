@@ -493,6 +493,37 @@ class ForecastOperatorBaseModel(ABC):
                 logger.warn(
                     f"Attempted to generated {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
                 )
+        # explanations csv reports
+        if self.spec.generate_explanations:
+            if self.formatted_global_explanation is not None:
+                utils._write_data(
+                    data=pd.DataFrame(self.formatted_global_explanation),
+                    filename=os.path.join(
+                        output_dir, self.spec.global_explanation_filename
+                    ),
+                    format="csv",
+                    storage_options=storage_options,
+                    index=False,
+                )
+            else:
+                logger.warn(
+                    f"Attempted to generated {self.spec.global_explanation_filename} file with the training metrics, however the training metrics could not be properly generated."
+                )
+
+            if self.formatted_local_explanation is not None:
+                utils._write_data(
+                    data=self.formatted_local_explanation,
+                    filename=os.path.join(
+                        output_dir, self.spec.local_explanation_filename
+                    ),
+                    format="csv",
+                    storage_options=storage_options,
+                    index=False,
+                )
+            else:
+                logger.warn(
+                    f"Attempted to generated {self.spec.local_explanation_filename} file with the training metrics, however the training metrics could not be properly generated."
+                )
 
         logger.warn(
             f"The outputs have been successfully "

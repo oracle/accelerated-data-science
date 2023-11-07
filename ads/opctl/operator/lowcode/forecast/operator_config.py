@@ -79,6 +79,8 @@ class ForecastOperatorSpec(DataClassSerializable):
     metrics_filename: str = None
     test_metrics_filename: str = None
     forecast_filename: str = None
+    global_explanation_filename: str = None
+    local_explanation_filename: str = None
     target_column: str = None
     preprocessing: bool = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
@@ -120,6 +122,12 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.metrics_filename = self.metrics_filename or "metrics.csv"
         self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"
         self.forecast_filename = self.forecast_filename or "forecast.csv"
+        self.global_explanation_filename = (
+            self.global_explanation_filename or "global_explanation.csv"
+        )
+        self.local_explanation_filename = (
+            self.local_explanation_filename or "local_explanation.csv"
+        )
         self.target_column = self.target_column or "Sales"
         self.model_kwargs = self.model_kwargs or dict()
 
