@@ -57,6 +57,9 @@ class ForecastDatasets:
                 storage_options=default_signer(),
                 columns=spec.additional_data.columns,
             )
+            additional_data = Transformations(
+                raw_data, self.spec
+            )._sort_by_datetime_col(additional_data)
 
             self.original_additional_data = additional_data.copy()
             self.original_total_data = pd.concat([data, additional_data], axis=1)
@@ -72,4 +75,3 @@ class ForecastDatasets:
             target_category_columns=spec.target_category_columns,
             additional_data=additional_data,
         )
-
