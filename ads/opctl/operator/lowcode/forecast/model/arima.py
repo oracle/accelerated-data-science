@@ -14,13 +14,14 @@ from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 import traceback
+from .forecast_datasets import ForecastDatasets
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
     """Class representing ARIMA operator model."""
 
-    def __init__(self, config: ForecastOperatorConfig):
-        super().__init__(config)
+    def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
+        super().__init__(config, datasets=datasets)
         self.global_explanation = {}
         self.local_explanation = {}
 
