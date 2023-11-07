@@ -24,7 +24,7 @@ class AbsFeaturePlot(abc.ABC, AbsFeatureValue):
 
     @classmethod
     @abstractmethod
-    def __from_json__(cls, json_dict: dict):
+    def __from_json__(cls, json_dict: dict, version: int):
         pass
 
     @staticmethod

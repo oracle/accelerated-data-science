@@ -1441,7 +1441,10 @@ class FeatureGroup(Builder):
         feature_statistics = (
             output_details.get("featureStatistics") if output_details else None
         )
-        return Statistics(feature_statistics)
+        stat_version = output_details.get("version") if output_details else None
+        version = stat_version if stat_version is not None else 1
+
+        return Statistics(feature_statistics, version)
 
     def get_validation_output(self, job_id: str = None) -> "ValidationOutput":
         """Retrieve validation report for the job with job_id

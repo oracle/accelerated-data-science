@@ -234,6 +234,7 @@ class SparkExecutionEngine(Strategy):
         feature_statistics = None
         validation_output = None
         output_features = []
+        version = 2  # after MLM upgrade
 
         try:
             # Create database in hive metastore if not exist
@@ -338,6 +339,7 @@ class SparkExecutionEngine(Strategy):
             "validation_output": str(validation_output) if validation_output else None,
             "commit_id": "commit_id",
             "feature_statistics": feature_statistics,
+            "version": version,
         }
 
         self._update_job_and_parent_details(
@@ -409,6 +411,7 @@ class SparkExecutionEngine(Strategy):
         validation_output = None
         feature_statistics = None
         output_features = []
+        version = 2  # after MLM upgrade
         database = (
             dataset.entity_id
         )  # Get the database and table name using entity_id and name of the dataset.
@@ -477,6 +480,7 @@ class SparkExecutionEngine(Strategy):
             "validation_output": str(validation_output) if validation_output else None,
             "commit_id": "commit_id",
             "feature_statistics": feature_statistics,
+            "version": version,
         }
 
         self._update_job_and_parent_details(

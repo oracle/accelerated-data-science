@@ -35,7 +35,7 @@ class Statistics(ResponseBuilder):
         """
         if self.content is not None:
             [
-                FeatureStatistics.from_json(feature, stat).to_viz()
+                FeatureStatistics.from_json(feature, stat, self.version).to_viz()
                 for feature, stat in json.loads(self.content).items()
                 if (feature_list is None or feature in feature_list)
             ]

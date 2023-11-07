@@ -12,7 +12,7 @@ class ResponseBuilder(Builder):
 
     CONST_CONTENT = "content"
 
-    def __init__(self, content: str):
+    def __init__(self, content: str, version: int = 1):
         """
         Initializes a new instance of the validation output class.
 
@@ -21,6 +21,7 @@ class ResponseBuilder(Builder):
         content : str
             The validation output information as a JSON string.
         """
+        self.version = version
         super().__init__()
         self.set_spec(self.CONST_CONTENT, content)
 
