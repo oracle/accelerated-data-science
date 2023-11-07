@@ -558,7 +558,7 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
     freq = pd.DatetimeIndex(datetimes).inferred_freq
     if dataset_info.model == SupportedModels.AutoMLX:
         freq_in_secs = datetimes.tail().diff().min().total_seconds()
-        if freq_in_secs < 3600:
+        if abs(freq_in_secs) < 3600:
             message = (
                 "{} requires data with a frequency of at least one hour. Please try using a different model,"
                 " or select the 'auto' option.".format(SupportedModels.AutoMLX, freq)
