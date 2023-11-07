@@ -31,23 +31,23 @@ A typical operator yaml will usually have the following fields:
     type: forecast
     version: v1
     spec:
-    additional_data:
-        url: additional_data.csv
-    datetime_column:
-        name: time
-    generate_explanations: true
-    historical_data:
-        url: primary_data.csv
-    horizon: 5
-    metric: smape
-    model: "auto"
-    output_directory:
-        url: results
-    target_category_columns:
-        - Series
-    target_column: Total
-    test_data:
-        url: test_data.csv
+        additional_data:
+            url: additional_data.csv
+        datetime_column:
+            name: time
+        generate_explanations: true
+        historical_data:
+            url: primary_data.csv
+        horizon: 5
+        metric: smape
+        model: "auto"
+        output_directory:
+            url: results
+        target_category_columns:
+            - Series
+        target_column: Total
+        test_data:
+            url: test_data.csv
 
 
 **Complex Example**
@@ -73,7 +73,7 @@ The yaml can also be maximally stated as follows:
         target_column: Sales
         horizon: 5
         datetime_column:
-            format: "%d-%m-%y"
+            format: "%d/%m/%y"
             name: Date
         model: automlx
         model_kwargs:

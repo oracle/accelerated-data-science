@@ -9,7 +9,7 @@ As a low-code extensible framework, operators enable a wide range of use cases. 
 
 * First off, if you're unsure what model to use, we recommned using the "auto" setting, which is the default. "auto" will look at the parameters of your data and pick an algorithm that is likely to converge in a reasonable amount of time. Note, this may not always be the most performant algorithm! If you are in need of accuracy and do not care about cost or time, we recommend using all 5 frameworks and comparing across test datasets.
 * When under 5,000 rows, and 5 columns, all operators should be realtively quick, finishing in a couple minutes. If you include explainability, it may take longer.
-* Over 5,000 rows, different algorithms perform to different degrees. This varies on more than simplay the size of the dataset, but the service provides some recomendations in the next section, __Which Model is Right for You?__.
+* Over 5,000 rows, different algorithms perform to different degrees. This varies on more than simplay the size of the dataset, but the service provides some recomendations in the next section, *Which Model is Right for You?*.
 * For best results, the service recommends a minimum of 100 rows per category, however this is not a requirement, see "Cold Start Problem" below.
 * For best results, the service recommends fewer than 100 total categories. Increasing category count is expected to linearly increase the time to completion.
 
