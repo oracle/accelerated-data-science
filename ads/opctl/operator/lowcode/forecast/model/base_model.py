@@ -350,25 +350,25 @@ class ForecastOperatorBaseModel(ABC):
                     target_col=target_col,
                     horizon_periods=self.spec.horizon,
                 )
+                if not metrics_per_horizon.empty:
+                    summary_metrics = summary_metrics.append(metrics_per_horizon)
 
-                summary_metrics = summary_metrics.append(metrics_per_horizon)
-
-                new_column_order = [
-                    SupportedMetrics.MEAN_SMAPE,
-                    SupportedMetrics.MEDIAN_SMAPE,
-                    SupportedMetrics.MEAN_MAPE,
-                    SupportedMetrics.MEDIAN_MAPE,
-                    SupportedMetrics.MEAN_WMAPE,
-                    SupportedMetrics.MEDIAN_WMAPE,
-                    SupportedMetrics.MEAN_RMSE,
-                    SupportedMetrics.MEDIAN_RMSE,
-                    SupportedMetrics.MEAN_R2,
-                    SupportedMetrics.MEDIAN_R2,
-                    SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
-                    SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
-                    SupportedMetrics.ELAPSED_TIME,
-                ]
-                summary_metrics = summary_metrics[new_column_order]
+                    new_column_order = [
+                        SupportedMetrics.MEAN_SMAPE,
+                        SupportedMetrics.MEDIAN_SMAPE,
+                        SupportedMetrics.MEAN_MAPE,
+                        SupportedMetrics.MEDIAN_MAPE,
+                        SupportedMetrics.MEAN_WMAPE,
+                        SupportedMetrics.MEDIAN_WMAPE,
+                        SupportedMetrics.MEAN_RMSE,
+                        SupportedMetrics.MEDIAN_RMSE,
+                        SupportedMetrics.MEAN_R2,
+                        SupportedMetrics.MEDIAN_R2,
+                        SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
+                        SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
+                        SupportedMetrics.ELAPSED_TIME,
+                    ]
+                    summary_metrics = summary_metrics[new_column_order]
 
         return total_metrics, summary_metrics, data
 
