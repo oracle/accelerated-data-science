@@ -22,6 +22,7 @@ from .. import utils
 from ..const import SUMMARY_METRICS_HORIZON_LIMIT, SupportedMetrics, SupportedModels
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from .transformations import Transformations
+from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets
 
 class ForecastOperatorBaseModel(ABC):
@@ -447,6 +448,35 @@ class ForecastOperatorBaseModel(ABC):
                 logger.warn(
                     f"Attempted to generated {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
                 )
+        # explanations csv reports
+        if self.spec.generate_explanations:
+            if self.formatted_global_explanation is not None:
+                utils._write_data(
+                    data=pd.DataFrame(self.formatted_global_explanation),
+                    filename=os.path.join(
+                        output_dir, self.spec.global_explanation_filename
+                    ),
+                    format="csv",
+                    storage_options=storage_options,
+                )
+            else:
+                logger.warn(
+                    f"Attempted to generated {self.spec.global_explanation_filename} file with the training metrics, however the training metrics could not be properly generated."
+                )
+
+            if self.formatted_local_explanation is not None:
+                utils._write_data(
+                    data=self.formatted_local_explanation,
+                    filename=os.path.join(
+                        output_dir, self.spec.local_explanation_filename
+                    ),
+                    format="csv",
+                    storage_options=storage_options,
+                )
+            else:
+                logger.warn(
+                    f"Attempted to generated {self.spec.local_explanation_filename} file with the training metrics, however the training metrics could not be properly generated."
+                )
 
         logger.warn(
             f"The outputs have been successfully "
@@ -474,9 +504,83 @@ class ForecastOperatorBaseModel(ABC):
         The method that needs to be implemented on the particular model level.
         """
 
-    @abstractmethod
-    def explain_model(self) -> dict:
+    @runtime_dependency(
+        module="shap",
+        err_msg=(
+            "Please run `pip3 install shap` to install the required dependencies for model explanation."
+        ),
+    )
+    def explain_model(self, datetime_col_name, explain_predict_fn) -> dict:
         """
-        explain model using global & local explanations
+        Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
+        This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
+
+        Returns
+        -------
+            dict: A dictionary containing the global explanation for each feature in the dataset.
+                    The keys are the feature names and the values are the average absolute SHAP values.
         """
-        raise NotImplementedError()
+        from shap import KernelExplainer
+
+        for series_id in self.target_columns:
+            self.series_id = series_id
+            self.dataset_cols = (
+                self.full_data_dict.get(self.series_id)
+                .set_index(datetime_col_name)
+                .drop(self.series_id, axis=1)
+                .columns
+            )
+
+            kernel_explnr = KernelExplainer(
+                model=explain_predict_fn,
+                data=self.full_data_dict.get(self.series_id).set_index(
+                    datetime_col_name
+                )[: -self.spec.horizon][list(self.dataset_cols)],
+                keep_index=True,
+            )
+
+            kernel_explnr_vals = kernel_explnr.shap_values(
+                self.full_data_dict.get(self.series_id).set_index(datetime_col_name)[
+                    : -self.spec.horizon
+                ][list(self.dataset_cols)],
+                nsamples=50,
+            )
+
+            if not len(kernel_explnr_vals):
+                logger.warn(
+                    f"No explanations generated. Ensure that additional data has been provided."
+                )
+            else:
+                self.global_explanation[self.series_id] = dict(
+                    zip(
+                        self.dataset_cols,
+                        np.average(np.absolute(kernel_explnr_vals), axis=0),
+                    )
+                )
+
+            self.local_explainer(kernel_explnr, datetime_col_name=datetime_col_name)
+
+    def local_explainer(self, kernel_explainer, datetime_col_name) -> None:
+        """
+        Generate local explanations using a kernel explainer.
+
+        Parameters
+        ----------
+            kernel_explainer: The kernel explainer object to use for generating explanations.
+        """
+        # Get the data for the series ID and select the relevant columns
+        data = self.full_data_dict.get(self.series_id).set_index(datetime_col_name)
+        data = data[-self.spec.horizon :][list(self.dataset_cols)]
+
+        # Generate local SHAP values using the kernel explainer
+        local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
+
+        # Convert the SHAP values into a DataFrame
+        local_kernel_explnr_df = pd.DataFrame(
+            local_kernel_explnr_vals, columns=self.dataset_cols
+        )
+
+        # set the index of the DataFrame to the datetime column
+        local_kernel_explnr_df.index = data.index
+
+        self.local_explanation[self.series_id] = local_kernel_explnr_df

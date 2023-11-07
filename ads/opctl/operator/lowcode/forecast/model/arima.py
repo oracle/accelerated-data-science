@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
+import numpy as np
 import pmdarima as pm
 
 from ads.opctl import logger
@@ -12,10 +13,16 @@ from ads.opctl import logger
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
+import traceback
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
     """Class representing ARIMA operator model."""
+
+    def __init__(self, config: ForecastOperatorConfig):
+        super().__init__(config)
+        self.global_explanation = {}
+        self.local_explanation = {}
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.full_data_dict
@@ -145,6 +152,65 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
         all_sections = [sec5_text, sec5]
 
+        if self.spec.generate_explanations:
+            try:
+                # If the key is present, call the "explain_model" method
+                self.explain_model(
+                    datetime_col_name=self.spec.datetime_column.name,
+                    explain_predict_fn=self._custom_predict_arima,
+                )
+
+                # Create a markdown text block for the global explanation section
+                global_explanation_text = dp.Text(
+                    f"## Global Explanation of Models \n "
+                    "The following tables provide the feature attribution for the global explainability."
+                )
+
+                # Convert the global explanation data to a DataFrame
+                global_explanation_df = pd.DataFrame(self.global_explanation)
+
+                self.formatted_global_explanation = (
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                )
+
+                # Create a markdown section for the global explainability
+                global_explanation_section = dp.Blocks(
+                    "### Global Explainability ",
+                    dp.Table(self.formatted_global_explanation),
+                )
+
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+                blocks = [
+                    dp.Table(
+                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        label=s_id,
+                    )
+                    for s_id, local_ex_df in self.local_explanation.items()
+                ]
+                local_explanation_section = (
+                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                )
+
+                # Append the global explanation text and section to the "all_sections" list
+                all_sections = all_sections + [
+                    global_explanation_text,
+                    global_explanation_section,
+                    local_explanation_text,
+                    local_explanation_section,
+                ]
+            except Exception as e:
+                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")
+
         model_description = dp.Text(
             "An autoregressive integrated moving average, or ARIMA, is a statistical "
             "analysis model that uses time series data to either better understand the "
@@ -164,5 +230,23 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             ci_col_names,
         )
 
-    def explain_model(self) -> dict:
-        pass
+    def _custom_predict_arima(self, data):
+        """
+        Custom prediction function for ARIMA models.
+
+        Parameters
+        ----------
+            data (array-like): The input data to be predicted.
+
+        Returns
+        -------
+            array-like: The predicted values.
+
+        """
+        # Get the index of the current series id
+        series_index = self.target_columns.index(self.series_id)
+
+        # Use the ARIMA model to predict the values
+        predictions = self.models[series_index].predict(X=data, n_periods=len(data))
+
+        return predictions

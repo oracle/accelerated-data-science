@@ -75,7 +75,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             data_i.rename({target: "y"}, axis=1, inplace=True)
 
             # Assume that all columns passed in should be used as additional data
-            additional_regressors = set(data_i.columns) - {"y", "ds"}
+            additional_regressors = set(data_i.columns) - {
+                "y",
+                PROPHET_INTERNAL_DATE_COL,
+            }
 
             if self.perform_tuning:
 
@@ -178,7 +181,11 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             # Make Prediction
             forecast = model.predict(future)
             logger.info(f"-----------------Model {i}----------------------")
-            logger.info(forecast[["ds", "yhat", "yhat_lower", "yhat_upper"]].tail())
+            logger.info(
+                forecast[
+                    [PROPHET_INTERNAL_DATE_COL, "yhat", "yhat_lower", "yhat_upper"]
+                ].tail()
+            )
 
             # Collect Outputs
             models.append(model)
@@ -200,7 +207,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         for cat in self.categories:  # Note: add [:2] to restrict
             output_i = pd.DataFrame()
 
-            output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
+            output_i["Date"] = outputs[f"{col}_{cat}"][PROPHET_INTERNAL_DATE_COL]
             output_i["Series"] = cat
             output_i["input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
 
@@ -236,7 +243,11 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
         # Re-merge historical data for processing
         data_merged = pd.concat(
-            [v[v[k].notna()].set_index("ds") for k, v in full_data_dict.items()], axis=1
+            [
+                v[v[k].notna()].set_index(PROPHET_INTERNAL_DATE_COL)
+                for k, v in full_data_dict.items()
+            ],
+            axis=1,
         ).reset_index()
 
         self.data = data_merged
@@ -297,45 +308,64 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             all_sections = all_sections + [sec5_text, sec5]
 
         if self.spec.generate_explanations:
-            # If the key is present, call the "explain_model" method
-            self.explain_model()
-
-            # Create a markdown text block for the global explanation section
-            global_explanation_text = dp.Text(
-                f"## Global Explanation of Models \n "
-                "The following tables provide the feature attribution for the global explainability."
-            )
-
-            # Convert the global explanation data to a DataFrame
-            global_explanation_df = pd.DataFrame(self.global_explanation)
-
-            # Create a markdown section for the global explainability
-            global_explanation_section = dp.Blocks(
-                "### Global Explainability ",
-                dp.Table(
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                ),
-            )
-
-            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
-            blocks = [
-                dp.Table(
-                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                    label=s_id,
+            try:
+                # If the key is present, call the "explain_model" method
+                self.explain_model(
+                    datetime_col_name=PROPHET_INTERNAL_DATE_COL,
+                    explain_predict_fn=self._custom_predict_prophet,
                 )
-                for s_id, local_ex_df in self.local_explanation.items()
-            ]
-            local_explanation_section = (
-                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-            )
 
-            # Append the global explanation text and section to the "all_sections" list
-            all_sections = all_sections + [
-                global_explanation_text,
-                global_explanation_section,
-                local_explanation_text,
-                local_explanation_section,
-            ]
+                # Create a markdown text block for the global explanation section
+                global_explanation_text = dp.Text(
+                    f"## Global Explanation of Models \n "
+                    "The following tables provide the feature attribution for the global explainability."
+                )
+
+                # Convert the global explanation data to a DataFrame
+                global_explanation_df = pd.DataFrame(self.global_explanation)
+
+                self.formatted_global_explanation = (
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                )
+
+                # Create a markdown section for the global explainability
+                global_explanation_section = dp.Blocks(
+                    "### Global Explainability ",
+                    dp.Table(self.formatted_global_explanation),
+                )
+
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+                blocks = [
+                    dp.Table(
+                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        label=s_id,
+                    )
+                    for s_id, local_ex_df in self.local_explanation.items()
+                ]
+                local_explanation_section = (
+                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                )
+
+                # Append the global explanation text and section to the "all_sections" list
+                all_sections = all_sections + [
+                    global_explanation_text,
+                    global_explanation_section,
+                    local_explanation_text,
+                    local_explanation_section,
+                ]
+            except Exception as e:
+                # Do not fail the whole run due to explanations failure
+                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = dp.Text(
             "Prophet is a procedure for forecasting time series data based on an additive "
@@ -345,8 +375,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "data and shifts in the trend, and typically handles outliers well."
         )
         other_sections = all_sections
-        ds_column_series = self.data["ds"]
-        ds_forecast_col = self.outputs[0]["ds"]
+        ds_column_series = self.data[PROPHET_INTERNAL_DATE_COL]
+        ds_forecast_col = self.outputs[0][PROPHET_INTERNAL_DATE_COL]
         ci_col_names = ["yhat_lower", "yhat_upper"]
 
         return (
@@ -361,81 +391,3 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return self.models[self.target_columns.index(self.series_id)].predict(
             data.reset_index()
         )["yhat"]
-
-    @runtime_dependency(
-        module="shap",
-        err_msg=(
-            "Please run `pip3 install shap` to install the required dependencies for model explanation."
-        ),
-    )
-    def explain_model(self) -> dict:
-        """
-        Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
-        This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
-
-        Returns
-        -------
-            dict: A dictionary containing the global explanation for each feature in the dataset.
-                    The keys are the feature names and the values are the average absolute SHAP values.
-        """
-        from shap import KernelExplainer
-
-        for series_id in self.target_columns:
-            self.series_id = series_id
-            self.dataset_cols = (
-                self.full_data_dict.get(self.series_id)
-                .set_index(PROPHET_INTERNAL_DATE_COL)
-                .drop(self.series_id, axis=1)
-                .columns
-            )
-
-            kernel_explnr = KernelExplainer(
-                model=self._custom_predict_prophet,
-                data=self.full_data_dict.get(self.series_id).set_index(
-                    PROPHET_INTERNAL_DATE_COL
-                )[: -self.spec.horizon][list(self.dataset_cols)],
-                keep_index=True,
-            )
-
-            kernel_explnr_vals = kernel_explnr.shap_values(
-                self.full_data_dict.get(self.series_id).set_index(
-                    PROPHET_INTERNAL_DATE_COL
-                )[: -self.spec.horizon][list(self.dataset_cols)],
-                nsamples=50,
-            )
-
-            self.global_explanation[self.series_id] = dict(
-                zip(
-                    self.dataset_cols,
-                    np.average(np.absolute(kernel_explnr_vals), axis=0),
-                )
-            )
-
-            self.local_explainer(kernel_explnr)
-
-    def local_explainer(self, kernel_explainer) -> None:
-        """
-        Generate local explanations using a kernel explainer.
-
-        Parameters
-        ----------
-            kernel_explainer: The kernel explainer object to use for generating explanations.
-        """
-        # Get the data for the series ID and select the relevant columns
-        data = self.full_data_dict.get(self.series_id).set_index(
-            PROPHET_INTERNAL_DATE_COL
-        )
-        data = data[-self.spec.horizon :][list(self.dataset_cols)]
-
-        # Generate local SHAP values using the kernel explainer
-        local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
-
-        # Convert the SHAP values into a DataFrame
-        local_kernel_explnr_df = pd.DataFrame(
-            local_kernel_explnr_vals, columns=self.dataset_cols
-        )
-
-        # set the index of the DataFrame to the datetime column
-        local_kernel_explnr_df.index = data.index
-
-        self.local_explanation[self.series_id] = local_kernel_explnr_df

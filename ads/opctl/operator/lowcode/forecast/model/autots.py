@@ -282,4 +282,4 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         """
         explain model using global & local explanations
         """
-        return None
+        raise NotImplementedError()
