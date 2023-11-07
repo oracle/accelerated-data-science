@@ -537,7 +537,7 @@ class ForecastOperatorBaseModel(ABC):
                 data=self.full_data_dict.get(series_id).set_index(datetime_col_name)[
                     : -self.spec.horizon
                 ][list(self.dataset_cols)],
-                keep_index=True,
+                keep_index=False if self.spec.model==SupportedModels.AutoMLX else True,
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(
