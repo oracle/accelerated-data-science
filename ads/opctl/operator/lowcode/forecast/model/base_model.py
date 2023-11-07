@@ -287,6 +287,12 @@ class ForecastOperatorBaseModel(ABC):
             target_category_columns=self.spec.target_category_columns,
             additional_data=additional_data,
         )
+        if self.spec.generate_explanations:
+            if self.spec.additional_data is None:
+                logger.warn(
+                    f"Unable to generate explanations as there is no additional data passed in. Either set generate_explanations to False, or pass in additional data."
+                )
+                self.spec.generate_explanations = False
 
     def _test_evaluate_metrics(
         self, target_columns, test_filename, outputs, target_col="yhat", elapsed_time=0
