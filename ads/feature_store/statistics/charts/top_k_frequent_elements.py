@@ -44,7 +44,7 @@ class TopKFrequentElements(AbsFeaturePlot):
 
         @classmethod
         def __from_json__(
-            cls, json_dict: dict
+            cls, json_dict: dict, version: int = 1
         ) -> "TopKFrequentElements.TopKFrequentElement":
             return cls(
                 value=json_dict.get(cls.CONST_VALUE),
@@ -53,26 +53,43 @@ class TopKFrequentElements(AbsFeaturePlot):
                 upper_bound=json_dict.get(cls.CONST_UPPER_BOUND),
             )
 
-    def __init__(self, elements: List[TopKFrequentElement]):
-        self.elements = elements
+    def __init__(self, values: List, estimates: List):
+        self.values = values
+        self.estimates = estimates
         super().__init__()
 
     def __validate__(self):
-        assert type(self.elements) == list
-        assert len(self.elements) > 0
-        for element in self.elements:
-            assert element is not None
+        assert type(self.values) == list
+        assert type(self.estimates) == list
+        assert 0 < len(self.values) == len(self.estimates) > 0
 
     @classmethod
-    def __from_json__(cls, json_dict: dict) -> "TopKFrequentElements":
+    def __from_json__(cls, json_dict: dict, version: int = 1) -> "TopKFrequentElements":
+        if version == 2:
+            return cls.__from_json_v2__(json_dict)
         elements = json_dict.get(cls.CONST_VALUE)
-        return cls([cls.TopKFrequentElement.from_json(element) for element in elements])
+        top_k_frequent_elements = [
+            cls.TopKFrequentElement.__from_json__(element) for element in elements
+        ]
+        values = [element.value for element in top_k_frequent_elements]
+        estimates = [element.estimate for element in top_k_frequent_elements]
+        return cls(values, estimates)
+
+    @classmethod
+    def __from_json_v2__(cls, json_dict: dict) -> "TopKFrequentElements":
+        metric_data = json_dict.get(AbsFeatureValue.CONST_METRIC_DATA)
+        return cls(values=metric_data[0], estimates=metric_data[1])
 
     def add_to_figure(self, fig: Figure, xaxis: int, yaxis: int):
         xaxis_str, yaxis_str, x_str, y_str = self.get_x_y_str_axes(xaxis, yaxis)
-        if type(self.elements) == list and len(self.elements) > 0:
-            y_axis = [element.value for element in self.elements]
-            x_axis = [element.estimate for element in self.elements]
+        if (
+            type(self.values) == list
+            and len(self.values) > 0
+            and type(self.estimates) == list
+            and len(self.estimates) > 0
+        ):
+            y_axis = [value for value in self.values]
+            x_axis = [estimate for estimate in self.estimates]
             fig.add_bar(
                 x=x_axis, y=y_axis, xaxis=x_str, yaxis=y_str, name="", orientation="h"
             )

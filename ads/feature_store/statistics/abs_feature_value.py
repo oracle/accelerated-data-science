@@ -17,6 +17,8 @@ except ModuleNotFoundError:
 
 
 class AbsFeatureValue:
+    CONST_METRIC_DATA = "metric_data"
+
     def __init__(self):
         self.__validate__()
 
@@ -26,15 +28,20 @@ class AbsFeatureValue:
 
     @classmethod
     @abstractmethod
-    def __from_json__(cls, json_dict: dict):
+    def __from_json__(cls, json_dict: dict, version: int):
+        pass
+
+    @classmethod
+    @abstractmethod
+    def __from_json_v2__(cls, json_dict: dict):
         pass
 
     @classmethod
     def from_json(
-        cls, json_dict: dict, ignore_errors: bool = False
+        cls, json_dict: dict, version: int, ignore_errors: bool = False
     ) -> Union["AbsFeatureValue", None]:
         try:
-            return cls.__from_json__(json_dict=json_dict)
+            return cls.__from_json__(json_dict=json_dict, version=version)
         except Exception as e:
             if ignore_errors:
                 return None
