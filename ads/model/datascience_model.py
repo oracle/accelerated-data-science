@@ -11,6 +11,7 @@ from typing import Dict, List, Optional, Union
 
 import pandas
 from ads.common import utils
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
 from ads.feature_engineering.schema import Schema
 from ads.jobs.builders.base import Builder
@@ -548,6 +549,11 @@ class DataScienceModel(Builder):
                 The OCI Object Storage URI where model artifacts will be copied to.
                 The `bucket_uri` is only necessary for uploading large artifacts which
                 size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+
+                .. versionadded:: 2.8.10
+
+                    If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
+
             overwrite_existing_artifact: (bool, optional). Defaults to `True`.
                 Overwrite target bucket artifact if exists.
             remove_existing_artifact: (bool, optional). Defaults to `True`.
@@ -636,6 +642,11 @@ class DataScienceModel(Builder):
             The OCI Object Storage URI where model artifacts will be copied to.
             The `bucket_uri` is only necessary for uploading large artifacts which
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+
+            .. versionadded:: 2.8.10
+
+                If `artifact` is provided as an object storage path to a zip archive, `bucket_uri` will be ignored.
+
         auth: (Dict, optional). Defaults to `None`.
             The default authentication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys` or
@@ -667,6 +678,13 @@ class DataScienceModel(Builder):
                 **(self.dsc_model.__class__.kwargs or {}),
                 "timeout": timeout,
             }
+
+        if ObjectStorageDetails.is_oci_path(self.artifact):
+            if bucket_uri and bucket_uri != self.artifact:
+                logger.warn(
+                    "The `bucket_uri` will be ignored and the value of `self.artifact` will be used instead."
+                )
+            bucket_uri = self.artifact
 
         if bucket_uri or utils.folder_size(self.artifact) > _MAX_ARTIFACT_SIZE_IN_BYTES:
             if not bucket_uri:

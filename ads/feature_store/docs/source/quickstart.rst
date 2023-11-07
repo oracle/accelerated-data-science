@@ -1,21 +1,23 @@
 Quick start
 ************
-1. Create a `OCI notebook session <https://docs.oracle.com/en-us/iaas/data-science/using/create-notebook-sessions.htm>`__ to access jupyterlab interface.
+1. Create a `Data Science notebook session <https://docs.oracle.com/en-us/iaas/data-science/using/create-notebook-sessions.htm>`__ to access jupyterlab interface.
 
-2. Open the terminal in the notebook session and install the ``fspyspark32_p38_cpu_v1`` plugin
+2. Open a terminal in the notebook session, and then install the ``fspyspark32_p38_cpu_v1`` plugin:
 
   ..  code-block:: shell
 
      odsc conda install -s fspyspark32_p38_cpu_v1
-3. Download the notebooks from the example notebook section.
+
+3. Download the notebook examples from the example notebook section.
 
 .. seealso::
-   Refer :ref:`Notebook Examples` to check out more example for using feature store
+   Refer :ref:`Notebook Examples` contains more examples for using feature store.
 
-4. Upload the notebook in the notebook session and run the notebook after replacing the required variables.
+4. Upload the notebook in the notebook session, and then run the notebook after replacing the required variables.
 
 
-Background reading to understand the concepts of Feature Store and OCI Data Science:
+
+**Feature Store and Data Science Concepts:**
 
 - Getting started with  `OCI Data Science Jobs <https://docs.oracle.com/en-us/iaas/data-science/using/jobs-about.htm>`__
 - Getting started with  `Oracle Accelerated Data Science SDK <https://accelerated-data-science.readthedocs.io/en/latest/index.html>`__ to simplify `creating <https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/data_science_job.html#define-a-job>`__ and `running <https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/data_science_job.html#run-a-job-and-monitor-outputs>`__ Jobs
@@ -31,14 +33,14 @@ Background reading to understand the concepts of Feature Store and OCI Data Scie
 
 .. seealso::
 
-   Refer `Terraform section <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/index.html#document-terraform>`__ for setting up feature store server.
+   Review the `Terraform section <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/index.html#document-terraform>`__ for setting up feature store server.
 
 .. warning::
 
-   1. Initial implementation will not allow parallel execution of similar logical constructs. Creation will be sequential.
-   2. In case of failure , execution would stop and rollback would not happen. Retry/resume operation is also not supported in initial implementation.
-   3. There needs to be definition of exactly 1 feature store construct in the yaml. we will not allow creation of multiple feature store constructs via yaml and user cannot omit providing feature store definition completely.
-   4. In order to allow reference in the definition , name of the defined logical constructs in yaml should be unique.
+   1. Feature store doesn’t allow parallel execution of similar logical constructs. Creation is sequential..
+   2. If a failure occurs, processing stops, and rollback can’t happen. Retrying the operation isn’t supported.
+   3. Define exactly one feature store construct in the YAML file. Creation of multiple feature store constructs in the YAML file causes a failure.
+   4. To allow reference in the feature store definition,the name of the defined logical constructs in the YAML file must be unique.
 
 .. tabs::
 

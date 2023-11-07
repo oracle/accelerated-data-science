@@ -43,6 +43,19 @@ class Strategy(ABC):
         pass
 
     @abstractmethod
+    def ingest_feature_definition_stream(
+        self,
+        feature_group,
+        feature_group_job: FeatureGroupJob,
+        dataframe,
+        query_name,
+        await_termination,
+        timeout,
+        checkpoint_dir,
+    ):
+        pass
+
+    @abstractmethod
     def ingest_dataset(self, dataset, dataset_job: DatasetJob):
         """
         Ingests a dataset into the system.

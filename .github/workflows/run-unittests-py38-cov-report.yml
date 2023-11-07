@@ -1,18 +1,13 @@
-name: tests/unitary/**
+name: "[Py3.8][COV REPORT] tests/unitary/**"
 
 on:
   workflow_dispatch:
   pull_request:
-    branches:
-      - main
-      - "release/**"
-      - develop
     paths:
       - "ads/**"
       - pyproject.toml
       - "**requirements.txt"
-      - .github/workflows/run-unittests.yml
-      - .github/workflows/run-unittests-default_setup.yml
+      - ".github/workflows/run-unittests*.yml"
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -30,14 +25,13 @@ env:
 
 jobs:
   test:
-    name: python ${{ matrix.python-version }}, ${{ matrix.name }}
+    name: python 3.8, ${{ matrix.name }}
     runs-on: ubuntu-latest
     timeout-minutes: 90
 
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.8", "3.9", "3.10"]
         test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
         include:
           - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
@@ -45,43 +39,23 @@ jobs:
             name: "unitary"
           - test-path: "tests/unitary/with_extras/model"
             name: "model"
-          - python-version: "3.8"
-            cov-reports: --cov=ads --cov-report=xml --cov-report=html
 
     steps:
       - uses: actions/checkout@v3
 
-      # Caching python libraries installed with pip
-      # https://github.com/actions/cache/blob/main/examples.md#python---pip
-      - uses: actions/cache@v3
-        with:
-          path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/dev-requirements.txt') }}
-          restore-keys: |
-            ${{ runner.os }}-pip-
+      - uses: ./.github/workflows/create-more-space
+        name: "Create more disk space"
+
       - uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.8"
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+            "**requirements.txt"
 
-      - name: "Test config setup"
-        shell: bash
-        env:
-          HOME_RUNNER_DIR: /home/runner
-        run: |
-          set -x # print commands that are executed
-          mkdir -p "$HOME_RUNNER_DIR"/.oci
-          openssl genrsa -out $HOME_RUNNER_DIR/.oci/oci_ads_user.pem 2048
-          cat <<EOT >> "$HOME_RUNNER_DIR/.oci/config"
-          [DEFAULT]
-          user=ocid1.user.oc1..xxx
-          fingerprint=00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00
-          tenancy=ocid1.tenancy.oc1..xxx
-          region=test_region
-          key_file=$HOME_RUNNER_DIR/.oci/oci_ads_user.pem
-          EOT
-          ls -lha "$HOME_RUNNER_DIR"/.oci
-          echo "Test config file:"
-          cat $HOME_RUNNER_DIR/.oci/config
+      - uses: ./.github/workflows/set-dummy-conf
+        name: "Test config setup"
 
       - name: "Test env setup"
         timeout-minutes: 20
@@ -104,22 +78,19 @@ jobs:
           set -x # print commands that are executed
 
           # Setup project and tests folder for cov reports to not be overwritten by another parallel step
-          if [[ ! -z "${{ matrix.cov-reports }}" ]]; then
-            mkdir -p cov-${{ matrix.name }}
-            cd cov-${{ matrix.name }}
-            ln -s ../tests tests
-            ln -s ../ads ads
-            ln -s ../.coveragerc .coveragerc
-          fi
+          mkdir -p cov-${{ matrix.name }}
+          cd cov-${{ matrix.name }}
+          ln -s ../tests tests
+          ln -s ../ads ads
+          ln -s ../.coveragerc .coveragerc
 
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto --dist loadfile ${{ matrix.cov-reports }} \
+          -n auto --dist loadfile --cov=ads --cov-report=xml --cov-report=html \
           ${{ matrix.test-path }} ${{ matrix.ignore-path }}
 
       - name: "Save coverage files"
         uses: actions/upload-artifact@v3
-        if: ${{ matrix.cov-reports }}
         with:
           name: cov-reports-${{ matrix.name }}
           path: |
@@ -132,7 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: test
-    if: ${{ success() }} && ${{ github.event.issue.pull_request }}
+    if: ${{ success() }} && && github.event_name == 'pull_request'
     env:
       COMPARE_BRANCH: main
 

@@ -40,6 +40,16 @@ If you make changes to the ``score.py`` file, call the ``.verify()`` method to c
 
 The ``.save()`` method is then used to store the model in the model catalog. A call to the ``.deploy()`` method creates a load balancer and the instances needed to have an HTTPS access point to perform inference on the model. Using the ``.predict()`` method, you can send data to the model deployment endpoint and it will return the predictions.
 
+
+LLMs
+----
+
+.. toctree::
+  :maxdepth: 1
+
+  large_language_model
+
+
 Register
 --------
 
@@ -84,7 +94,3 @@ Frameworks
   :maxdepth: 1
 
   framework_specific_instruction
-
-
-
-

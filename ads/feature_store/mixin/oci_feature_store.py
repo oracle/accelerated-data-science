@@ -1,16 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
+from types import MethodType
+
 from ads.common.decorator.utils import class_or_instance_method
+from oci.signer import AbstractBaseSigner
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import email.utils
 import os
+import oci
+import feature_store_client.feature_store as fs
 
 logger = logging.getLogger(__name__)
 from ads.common.oci_mixin import OCIModelMixin
-import oci.feature_store
 import yaml
 
 
@@ -34,9 +39,7 @@ class OCIFeatureStoreMixin(OCIModelMixin):
     SERVICE_ENDPOINT = "service_endpoint"
 
     @classmethod
-    def init_client(
-        cls, **kwargs
-    ) -> oci.feature_store.feature_store_client.FeatureStoreClient:
+    def init_client(cls, **kwargs) -> fs.feature_store_client.FeatureStoreClient:
         default_kwargs: dict = cls._get_auth().get("client_kwargs", {})
 
         fs_service_endpoint = (
@@ -70,13 +73,15 @@ class OCIFeatureStoreMixin(OCIModelMixin):
         if fs_service_endpoint:
             kwargs[cls.SERVICE_ENDPOINT] = fs_service_endpoint
 
-        client = cls._init_client(
-            client=oci.feature_store.feature_store_client.FeatureStoreClient, **kwargs
+        client: fs.FeatureStoreClient = cls._init_client(
+            client=fs.FeatureStoreClient, **kwargs
         )
+        signer: oci.Signer = client.base_client.signer
+        signer.do_request_sign = MethodType(fs_do_request_sign, signer)
         return client
 
     @property
-    def client(self) -> oci.feature_store.feature_store_client.FeatureStoreClient:
+    def client(self) -> fs.feature_store_client.FeatureStoreClient:
         return super().client
 
     @class_or_instance_method
@@ -119,3 +124,22 @@ class OCIFeatureStoreMixin(OCIModelMixin):
                 **kwargs,
             ).data
         return [cls.from_oci_model(item) for item in items]
+
+
+def inject_missing_headers(request):
+    # Inject date, host, and content-type if missing
+    date = email.utils.formatdate(usegmt=True)
+    if request.path_url.startswith("/20230101"):
+        request.headers.setdefault("x-date", date)
+        request.headers.setdefault(
+            "path", request.method.lower() + " " + request.path_url
+        )
+    request.headers.setdefault("date", date)
+
+
+def fs_do_request_sign(self, request, enforce_content_headers=True):
+    inject_missing_headers(request)
+    do_request_sign = MethodType(AbstractBaseSigner.do_request_sign, self)
+    return do_request_sign(request, enforce_content_headers)
+
+    # inject_missing_headers_og(request, sign_body, enforce_content_headers)
