@@ -26,6 +26,7 @@ from ..const import DEFAULT_TRIALS
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
+from .forecast_datasets import ForecastDatasets
 
 
 def _get_np_metrics_dict(selected_metric):
@@ -64,8 +65,8 @@ def _fit_model(data, params, additional_regressors, select_metric):
 class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing NeuralProphet operator model."""
 
-    def __init__(self, config: ForecastOperatorConfig):
-        super().__init__(config)
+    def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
+        super().__init__(config=config, datasets=datasets)
         self.train_metrics = True
         self.forecast_col_name = "yhat1"
 
@@ -234,18 +235,12 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i.iloc[
                 : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (
-                outputs[f"{col}_{cat}"]["yhat1"]
-                .iloc[: -self.spec.horizon]
-                .values
-            )
+            ] = (outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values)
             output_i.iloc[
                 -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
             ] = (
-                outputs[f"{col}_{cat}"]["yhat1"]
-                .iloc[-self.spec.horizon :]
-                .values
+                outputs[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
                 -self.spec.horizon :,
