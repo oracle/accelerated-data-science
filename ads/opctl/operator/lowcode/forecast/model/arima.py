@@ -24,6 +24,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets=datasets)
         self.global_explanation = {}
         self.local_explanation = {}
+        self.formatted_global_explanation = None
+        self.formatted_local_explanation = None
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.full_data_dict

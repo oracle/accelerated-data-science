@@ -27,6 +27,7 @@ from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets
+import traceback
 
 
 def _get_np_metrics_dict(selected_metric):
@@ -321,6 +322,66 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             sec5,
         ]
 
+        if self.spec.generate_explanations:
+            try:
+                # If the key is present, call the "explain_model" method
+                self.explain_model(
+                    datetime_col_name="ds",
+                    explain_predict_fn=self._custom_predict_neuralprophet,
+                )
+
+                # Create a markdown text block for the global explanation section
+                global_explanation_text = dp.Text(
+                    f"## Global Explanation of Models \n "
+                    "The following tables provide the feature attribution for the global explainability."
+                )
+
+                # Convert the global explanation data to a DataFrame
+                global_explanation_df = pd.DataFrame(self.global_explanation)
+
+                self.formatted_global_explanation = (
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                )
+
+                # Create a markdown section for the global explainability
+                global_explanation_section = dp.Blocks(
+                    "### Global Explainability ",
+                    dp.Table(self.formatted_global_explanation),
+                )
+
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+                blocks = [
+                    dp.Table(
+                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        label=s_id,
+                    )
+                    for s_id, local_ex_df in self.local_explanation.items()
+                ]
+                local_explanation_section = (
+                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                )
+
+                # Append the global explanation text and section to the "all_sections" list
+                all_sections = all_sections + [
+                    global_explanation_text,
+                    global_explanation_section,
+                    local_explanation_text,
+                    local_explanation_section,
+                ]
+            except Exception as e:
+                # Do not fail the whole run due to explanations failure
+                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")
+
         model_description = dp.Text(
             "NeuralProphet is an easy to learn framework for interpretable time "
             "series forecasting. NeuralProphet is built on PyTorch and combines "
@@ -340,5 +401,5 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             ci_col_names,
         )
 
-    def explain_model(self) -> dict:
-        pass
+    def explain_model(self, datetime_col_name, explain_predict_fn) -> dict:
+        raise NotImplementedError()

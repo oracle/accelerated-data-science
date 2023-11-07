@@ -25,6 +25,7 @@ from .transformations import Transformations
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets
 
+
 class ForecastOperatorBaseModel(ABC):
     """The base class for the forecast operator models."""
 
@@ -525,22 +526,22 @@ class ForecastOperatorBaseModel(ABC):
         for series_id in self.target_columns:
             self.series_id = series_id
             self.dataset_cols = (
-                self.full_data_dict.get(self.series_id)
+                self.full_data_dict.get(series_id)
                 .set_index(datetime_col_name)
-                .drop(self.series_id, axis=1)
+                .drop(series_id, axis=1)
                 .columns
             )
 
             kernel_explnr = KernelExplainer(
                 model=explain_predict_fn,
-                data=self.full_data_dict.get(self.series_id).set_index(
-                    datetime_col_name
-                )[: -self.spec.horizon][list(self.dataset_cols)],
+                data=self.full_data_dict.get(series_id).set_index(datetime_col_name)[
+                    : -self.spec.horizon
+                ][list(self.dataset_cols)],
                 keep_index=True,
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(
-                self.full_data_dict.get(self.series_id).set_index(datetime_col_name)[
+                self.full_data_dict.get(series_id).set_index(datetime_col_name)[
                     : -self.spec.horizon
                 ][list(self.dataset_cols)],
                 nsamples=50,
@@ -551,16 +552,18 @@ class ForecastOperatorBaseModel(ABC):
                     f"No explanations generated. Ensure that additional data has been provided."
                 )
             else:
-                self.global_explanation[self.series_id] = dict(
+                self.global_explanation[series_id] = dict(
                     zip(
                         self.dataset_cols,
                         np.average(np.absolute(kernel_explnr_vals), axis=0),
                     )
                 )
 
-            self.local_explainer(kernel_explnr, datetime_col_name=datetime_col_name)
+            self.local_explainer(
+                kernel_explnr, series_id=series_id, datetime_col_name=datetime_col_name
+            )
 
-    def local_explainer(self, kernel_explainer, datetime_col_name) -> None:
+    def local_explainer(self, kernel_explainer, series_id, datetime_col_name) -> None:
         """
         Generate local explanations using a kernel explainer.
 
@@ -569,7 +572,7 @@ class ForecastOperatorBaseModel(ABC):
             kernel_explainer: The kernel explainer object to use for generating explanations.
         """
         # Get the data for the series ID and select the relevant columns
-        data = self.full_data_dict.get(self.series_id).set_index(datetime_col_name)
+        data = self.full_data_dict.get(series_id).set_index(datetime_col_name)
         data = data[-self.spec.horizon :][list(self.dataset_cols)]
 
         # Generate local SHAP values using the kernel explainer
@@ -583,4 +586,4 @@ class ForecastOperatorBaseModel(ABC):
         # set the index of the DataFrame to the datetime column
         local_kernel_explnr_df.index = data.index
 
-        self.local_explanation[self.series_id] = local_kernel_explnr_df
+        self.local_explanation[series_id] = local_kernel_explnr_df
