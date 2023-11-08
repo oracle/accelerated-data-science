@@ -13,7 +13,7 @@ from ads.jobs.cli import run, watch, delete
 
 class TestJobsCLI:
     # TeamCity will use Instance Principal, when running locally - set OCI_IAM_TYPE to security_token
-    auth = (os.environ.get("OCI_IAM_TYPE", AuthType.INSTANCE_PRINCIPAL),)
+    auth = os.environ.get("OCI_IAM_TYPE", AuthType.INSTANCE_PRINCIPAL)
 
     def test_create_watch_delete_job(self):
         curr_dir = os.path.dirname(os.path.abspath(__file__))
