@@ -18,11 +18,11 @@ Release Notes
         - `fs_pyspark32_p38_cpu_v2`
         -
       * - SERVICE_VERSION
-        - 0.1.256.master
+        - 0.1.295.master
         -
       * - ADS_VERSION
-        - oracle-ads==2.9.0rc0
-        - `https://github.com/oracle/accelerated-data-science/releases/tag/v2.9.0rc0`
+        - oracle-ads==2.9.0
+        - `https://github.com/oracle/accelerated-data-science/releases/tag/v2.9.0`
       * - Terraform Stack
         - `link <https://objectstorage.us-ashburn-1.oraclecloud.com/p/vZogtXWwHqbkGLeqyKiqBmVxdbR4MK4nyOBqDsJNVE4sHGUY5KFi4T3mOFGA3FOy/n/idogsu2ylimg/b/oci-feature-store/o/beta/terraform/feature-store-terraform.zip>`__
         -
@@ -142,7 +142,7 @@ Release notes: July 5, 2023
 * [DOCS] Updated terraform default version as 1.1.x
 
 1.0.0
-----
+-----
 
 .. note::
 
