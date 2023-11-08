@@ -70,4 +70,4 @@ As a low-code extensible framework, operators enable a wide range of use cases. 
 
 * Apart from ARIMA, it is not recommended to create features around "day of the week" or "holiday" as NeuralProphet, Prophet, AutoTS and AutoMLX can generate this information internally.
 * AutoMLX performs further feature engineering on your behalf. It will expand your features into lag, min, max, average, and more. When using automlx, it is recommended that you only pass in features that contain new information.
-* AutoTS performs some feature engineering, but not as extensive as AutoMLX.
+* AutoTS performs some feature engineering, but it is not as extensive as AutoMLX.
