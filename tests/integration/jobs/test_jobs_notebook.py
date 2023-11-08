@@ -63,7 +63,7 @@ class NotebookDriverRunTest(DriverRunTest):
             env_vars["JOB_RUN_NOTEBOOK"] = os.path.basename(notebook_path)
             # TeamCity will use Instance Principal, when running locally - set OCI_IAM_TYPE to security_token
             env_vars["OCI_IAM_TYPE"] = os.getenv(
-                "OCI_IAM_TYPE", AuthType.INSTANCE_PRINCIPAL
+                "OCI_IAM_TYPE", AuthType.RESOURCE_PRINCIPAL
             )
             if output_uri:
                 # Clear the files in output URI

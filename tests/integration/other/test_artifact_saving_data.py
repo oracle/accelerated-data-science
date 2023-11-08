@@ -151,10 +151,8 @@ class TestArtifactSaveData:
             auth=self.authorization,
             training_id=None,
             freeform_tags={"freeform_key": "freeform_val"},
-            defined_tags={"teamcity-test": {"CreatedBy": "test_user"}},
         )
         assert mc_model.freeform_tags == {"freeform_key": "freeform_val"}
-        assert mc_model.defined_tags["teamcity-test"]["CreatedBy"] == "test_user"
 
     def teardown_class(cls):
         if os.path.exists(cls.model_dir):

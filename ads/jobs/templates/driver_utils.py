@@ -39,7 +39,6 @@ CONST_ENV_INPUT_MAPPINGS = "OCI__INPUT_MAPPINGS"
 CONST_ENV_PIP_REQ = "OCI__PIP_REQUIREMENTS"
 CONST_ENV_PIP_PKG = "OCI__PIP_PKG"
 CONST_API_KEY = "api_key"
-CONST_INSTANCE_PRINCIPAL = "instance_principal"
 
 
 DEFAULT_CODE_DIR = os.path.join(
@@ -82,28 +81,17 @@ class OCIHelper:
 
     @staticmethod
     def init_oci_client(client_class):
-        """Initializes OCI client with API key, Resource Principal or Instance Principal.
+        """Initializes OCI client with API key or Resource Principal.
 
         Parameters
         ----------
         client_class :
             The class of OCI client to be initialized.
         """
-        if CONST_ENV_OCI_RP in os.environ:
-            logger.info(
-                "Initializing %s with Resource Principal...", client_class.__name__
-            )
-            client = client_class(
-                {}, signer=oci.auth.signers.get_resource_principals_signer()
-            )
-        elif os.environ.get(CONST_ENV_ADS_IAM).lower() == CONST_INSTANCE_PRINCIPAL:
-            logger.info(
-                "Initializing %s with Instance Principal...", {client_class.__name__}
-            )
-            client = client_class(
-                {}, signer=oci.auth.signers.InstancePrincipalsSecurityTokenSigner()
-            )
-        else:
+        if (
+            os.environ.get(CONST_ENV_ADS_IAM, "").lower() == CONST_API_KEY
+            or CONST_ENV_OCI_RP not in os.environ
+        ):
             logger.info("Initializing %s with API Key...", {client_class.__name__})
             client = client_class(
                 oci.config.from_file(
@@ -114,6 +102,13 @@ class OCIHelper:
                         "OCI_CONFIG_PROFILE", oci.config.DEFAULT_PROFILE
                     ),
                 )
+            )
+        else:
+            logger.info(
+                "Initializing %s with Resource Principal...", client_class.__name__
+            )
+            client = client_class(
+                {}, signer=oci.auth.signers.get_resource_principals_signer()
             )
         return client
 

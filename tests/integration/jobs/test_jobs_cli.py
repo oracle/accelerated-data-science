@@ -74,7 +74,13 @@ class TestJobsCLI:
         assert res2.exit_code == 0, res2.output
 
         res3 = runner.invoke(
-            run, args=["-f", os.path.join(curr_dir, "../yamls", "sample_dataflow.yaml")]
+            run,
+            args=[
+                "-f",
+                os.path.join(curr_dir, "../yamls", "sample_dataflow.yaml"),
+                "--auth",
+                self.auth,
+            ],
         )
         run_id2 = res3.output.split("\n")[1]
         res4 = runner.invoke(
