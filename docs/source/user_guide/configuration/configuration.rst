@@ -32,7 +32,7 @@ Within your notebook session, you can choose to use the resource principal to au
 **2. Authenticating Using API Keys**
 ---------------------------------------------------------------------------------------------
 
-This is the default method of authentication. You can also authenticate as your own personal IAM user by creating or uploading OCI configuration and API key files inside your notebook session environment. The OCI configuration file contains the necessary credentials to authenticate your user against the model catalog and other OCI services like Object Storage. The example notebook, `api_keys.ipynb` demonstrates how to create these files.
+This is the default method of authentication. You can also authenticate as your own personal IAM user by creating or uploading OCI configuration and API key files inside your notebook session environment. The OCI configuration file contains the necessary credentials to authenticate your user against the model catalog and other OCI services like Object Storage. To setup API Key refer to `Required Keys and OCIDs <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/apisigningkey.htm>`_ and `SDK and CLI Configuration File <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/sdkconfig.htm>`_.
 
 The ``getting-started.ipynb`` notebook in the home directory of the notebook session environment demonstrates all the steps needed to create the configuration file and the keys. Follow the steps in that notebook before importing and using ADS in your notebooks.
 
@@ -117,7 +117,7 @@ Use these steps to access Oracle ADB:
 
   METHOD_DATA = (DIRECTORY="<path_to_wallet_folder>")
 
-7. To find the location of the ``sqlnet.ora`` file, the ``TNS_ADMIN`` environment variable must point to that location. We suggest that you create a Python dictionary to store all of the connection information. In this example, this dictionary is called ``creds``. It is generally poor security practice to store credentials in your notebook. We recommend that you use the ``ads-examples/ADB_working_with.ipynb`` notebook example that demonstrates how to store them outside the notebook in a configuration file.
+7. To find the location of the ``sqlnet.ora`` file, the ``TNS_ADMIN`` environment variable must point to that location. We suggest that you create a Python dictionary to store all of the connection information. In this example, this dictionary is called ``creds``. It is generally poor security practice to store credentials in your notebook. We recommend that you use the `Bank Graph Example Notebook <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/graph_insight-autonomous_database.ipynb>`_ notebook example that demonstrates how to store them outside the notebook in a configuration file.
 
    The environment variable should be set in your notebooks. For example: 
 
@@ -440,11 +440,11 @@ dictionary. To store your secret, just modify the dictionary.
                   'password': 'MySecretPassword',
                   'database_type': 'oracle'}
 
-Note, to connect to an Oracle database the `database_name` value should be its 
+Note, to connect to an Oracle database the ``database_name`` value should be its
 connection identifier. You can find the connection identifier by extracting the 
-credential wallet zip file and opening the `tnsnames.ora` file 
+credential wallet zip file and opening the ``tnsnames.ora`` file
 (connection_identifier = (...)). Usually the connection identifier will 
-end with `_high`, `_medium` or `_low` i.e. `'MyDatabaseName_high'`.
+end with ``_high``, ``_medium`` or ``_low`` i.e. ``'MyDatabaseName_high'``.
 
 **Create a Vault**
 
