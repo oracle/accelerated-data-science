@@ -61,9 +61,6 @@ class NotebookDriverRunTest(DriverRunTest):
             )
             # Set envs for the driver
             env_vars["JOB_RUN_NOTEBOOK"] = os.path.basename(notebook_path)
-            # Set some value to OCI_RESOURCE_PRINCIPAL_VERSION to make driver_utils run with
-            # resource principal (api_key no longer an option for integration tests)
-            env_vars["OCI_RESOURCE_PRINCIPAL_VERSION"] = "set_some_value"
             if output_uri:
                 # Clear the files in output URI
                 try:

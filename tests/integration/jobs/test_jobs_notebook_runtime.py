@@ -4,6 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
+import pytest
 import os
 import tempfile
 from zipfile import ZipFile
@@ -88,6 +89,9 @@ class NotebookRuntimeTest(DSCJobTestCaseWithCleanUp):
 
 
 class NotebookDriverIntegrationTest(NotebookDriverRunTest):
+    @pytest.mark.skip(
+        reason="api_keys not an option anymore, this test is candidate to be removed"
+    )
     def test_notebook_driver_with_outputs(self):
         """Tests run the notebook driver with a notebook plotting and saving data."""
         # Notebook to be executed
