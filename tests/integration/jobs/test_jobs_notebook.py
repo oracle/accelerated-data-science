@@ -8,7 +8,7 @@ import shutil
 import tempfile
 
 import fsspec
-from ads.common.auth import default_signer
+from ads.common.auth import default_signer, AuthType
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     NotebookRuntimeHandler,
 )
@@ -61,6 +61,10 @@ class NotebookDriverRunTest(DriverRunTest):
             )
             # Set envs for the driver
             env_vars["JOB_RUN_NOTEBOOK"] = os.path.basename(notebook_path)
+            # TeamCity will use Instance Principal, when running locally - set OCI_IAM_TYPE to security_token
+            env_vars["OCI_IAM_TYPE"] = os.getenv(
+                "OCI_IAM_TYPE", AuthType.INSTANCE_PRINCIPAL
+            )
             if output_uri:
                 # Clear the files in output URI
                 try:

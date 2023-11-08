@@ -12,6 +12,9 @@ from ads.jobs.cli import run, watch, delete
 
 
 class TestJobsCLI:
+    # TeamCity will use Instance Principal, when running locally - set OCI_IAM_TYPE to security_token
+    auth = (os.environ.get("OCI_IAM_TYPE", AuthType.INSTANCE_PRINCIPAL),)
+
     def test_create_watch_delete_job(self):
         curr_dir = os.path.dirname(os.path.abspath(__file__))
         runner = CliRunner()
@@ -21,7 +24,7 @@ class TestJobsCLI:
                 "-f",
                 os.path.join(curr_dir, "../yamls", "sample_job.yaml"),
                 "--auth",
-                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                self.auth,
             ],
         )
         assert res.exit_code == 0, res.output
@@ -31,7 +34,7 @@ class TestJobsCLI:
             args=[
                 run_id,
                 "--auth",
-                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                self.auth,
             ],
         )
         assert res2.exit_code == 0, res2.output
@@ -41,7 +44,7 @@ class TestJobsCLI:
             args=[
                 run_id,
                 "--auth",
-                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                self.auth,
             ],
         )
         assert res3.exit_code == 0, res3.output
@@ -55,7 +58,7 @@ class TestJobsCLI:
                 "-f",
                 os.path.join(curr_dir, "../yamls", "sample_dataflow.yaml"),
                 "--auth",
-                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                self.auth,
             ],
         )
         assert res.exit_code == 0, res.output
@@ -65,7 +68,7 @@ class TestJobsCLI:
             args=[
                 run_id,
                 "--auth",
-                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                self.auth,
             ],
         )
         assert res2.exit_code == 0, res2.output
@@ -79,7 +82,7 @@ class TestJobsCLI:
             args=[
                 run_id2,
                 "--auth",
-                os.environ.get("OCI_IAM_TYPE", AuthType.SECURITY_TOKEN),
+                self.auth,
             ],
         )
         assert res4.exit_code == 0, res4.output
