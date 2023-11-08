@@ -182,7 +182,7 @@ class ConfigMerger(ConfigProcessor):
                 "conda_pack_os_prefix": parser["CONDA"].get("conda_pack_os_prefix"),
             }
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, 'config.ini')} does not exist. No config loaded."
             )
             return {}
@@ -205,7 +205,7 @@ class ConfigMerger(ConfigProcessor):
             if DEFAULT_PROFILE in parser:
                 return parser[DEFAULT_PROFILE]
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, config_file)} does not exist. No config loaded."
             )
         return {}
