@@ -19,6 +19,7 @@ from click.testing import CliRunner
 ADS_CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 # When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
 WORK_DIR = os.getenv("CHECKOUT_DIR", None)
+CONDA_PACK_FOLDER = f"'{WORK_DIR}/conda' " if WORK_DIR else "~/conda"
 
 
 class TestCondaRun:
@@ -33,6 +34,10 @@ class TestCondaRun:
                 "oci://service_conda_packs@ociodscdev/service_pack",
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--conda-pack-folder",
+                CONDA_PACK_FOLDER,
+                "--auth",
+                "instance_principal",
             ],
         )
         assert res.exit_code == 0, res.output
@@ -67,6 +72,7 @@ dependencies:
             overwrite=True,
             conda_pack_folder=os.path.join(td_name, "conda"),
             ads_config=ADS_CONFIG_DIR,
+            auth="instance_principal",
         )
 
         td = tempfile.TemporaryDirectory(dir=WORK_DIR)
@@ -76,6 +82,7 @@ dependencies:
             conda_pack_folder=os.path.join(td_name, "conda"),
             ads_config=ADS_CONFIG_DIR,
             overwrite=True,
+            auth="instance_principal",
         )
 
         assert os.path.exists(
@@ -132,6 +139,8 @@ dependencies:
                 os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--auth",
+                "instance_principal",
             ],
         )
         assert res.exit_code == 0, res.output
@@ -147,6 +156,8 @@ dependencies:
                 os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--auth",
+                "instance_principal",
             ],
             input="test2\no\n",
         )
@@ -161,6 +172,8 @@ dependencies:
                 os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--auth",
+                "instance_principal",
             ],
         )
         assert res.exit_code == 0, res.output

@@ -22,8 +22,9 @@ import fsspec
 class TestOpctlUtils:
     @pytest.fixture(scope="class")
     def oci_auth(self):
-        return create_signer(AuthType.API_KEY, DEFAULT_OCI_CONFIG_FILE, DEFAULT_PROFILE)
+        return create_signer(AuthType.INSTANCE_PRINCIPAL)
 
+    @pytest.mark.skip(reason="TODO: add policy for 'target_service': 'identity'")
     def test_get_regional_key(self, oci_auth):
         assert get_region_key(oci_auth) == "IAD"
 
