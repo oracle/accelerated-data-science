@@ -14,9 +14,13 @@ TESTS_FILES_DIR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "opctl_tests_files"
 )
 ADS_CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-# When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
-WORK_DIR = os.getenv("CHECKOUT_DIR", None)
-CONDA_PACK_FOLDER = f"'{WORK_DIR}/conda' " if WORK_DIR else "~/conda"
+
+if "TEAMCITY_VERSION" in os.environ:
+    # When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
+    WORK_DIR = os.getenv("CHECKOUT_DIR", None)
+    CONDA_PACK_FOLDER = f"{WORK_DIR}/conda"
+else:
+    CONDA_PACK_FOLDER = "~/conda"
 
 
 def _assert_run_command(cmd_str, expected_outputs: list = None):

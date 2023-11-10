@@ -6,7 +6,6 @@
 import tempfile
 import os
 
-from ads.opctl.constants import DEFAULT_OCI_CONFIG_FILE, DEFAULT_PROFILE
 from ads.opctl.utils import (
     get_region_key,
     get_namespace,
@@ -18,11 +17,16 @@ from tests.integration.config import secrets
 import pytest
 import fsspec
 
+if "TEAMCITY_VERSION" in os.environ:
+    AUTH = AuthType.INSTANCE_PRINCIPAL
+else:
+    AUTH = AuthType.SECURITY_TOKEN
+
 
 class TestOpctlUtils:
     @pytest.fixture(scope="class")
     def oci_auth(self):
-        return create_signer(AuthType.INSTANCE_PRINCIPAL)
+        return create_signer(AUTH)
 
     @pytest.mark.skip(reason="TODO: add policy for 'target_service': 'identity'")
     def test_get_regional_key(self, oci_auth):
