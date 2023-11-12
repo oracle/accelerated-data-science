@@ -14,7 +14,8 @@ from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 import traceback
-from .forecast_datasets import ForecastDatasets
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ..const import ForecastOutputColumns
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -24,11 +25,12 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets=datasets)
         self.global_explanation = {}
         self.local_explanation = {}
+        self.train_metrics = True
         self.formatted_global_explanation = None
         self.formatted_local_explanation = None
 
     def _build_model(self) -> pd.DataFrame:
-        full_data_dict = self.full_data_dict
+        full_data_dict = self.datasets.full_data_dict
 
         # Extract the Confidence Interval Width and convert to arima's equivalent - alpha
         if self.spec.confidence_interval_width is None:
@@ -37,10 +39,20 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             )
         model_kwargs = self.spec.model_kwargs
         model_kwargs["alpha"] = 1 - self.spec.confidence_interval_width
+        if "error_action" not in model_kwargs.keys():
+            model_kwargs["error_action"] = "ignore"
 
         models = []
+        self.datasets.datetime_col = self.spec.datetime_column.name
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width
+        )
+
         outputs = dict()
         outputs_legacy = []
+        fitted_values = dict()
+        actual_values = dict()
+        dt_columns = dict()
 
         for i, (target, df) in enumerate(full_data_dict.items()):
             # format the dataframe for this target. Dropping NA on target[df] will remove all future data
@@ -60,7 +72,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 target,
                 self.spec.datetime_column.name,
             }
-            logger.info(f"Additional Regressors Detected {list(additional_regressors)}")
+            logger.debug(
+                f"Additional Regressors Detected {list(additional_regressors)}"
+            )
 
             # Split data into X and y for arima tune method
             y = data_i[target]
@@ -70,6 +84,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             # Build and fit model
             model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
+
+            fitted_values[target] = model.predict_in_sample(X=X_in)
+            actual_values[target] = y
 
             # Build future dataframe
             start_date = y.index.values[-1]
@@ -89,12 +106,19 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 alpha=model_kwargs["alpha"],
             )
             yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
+
+            dt_columns[target] = pd.concat(
+                [
+                    df_encoded[self.spec.datetime_column.name],
+                    pd.Series(yhat_clean.index),
+                ]
+            )
             conf_int_clean = pd.DataFrame(
                 conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
             )
             forecast = pd.concat([yhat_clean, conf_int_clean], axis=1)
-            logger.info(f"-----------------Model {i}----------------------")
-            logger.info(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
+            logger.debug(f"-----------------Model {i}----------------------")
+            logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
 
             # Collect all outputs
             models.append(model)
@@ -104,44 +128,35 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             outputs[target] = forecast
 
         self.models = models
-        self.outputs = outputs_legacy
 
-        logger.info("===========Done===========")
-        outputs_merged = pd.DataFrame()
+        logger.debug("===========Done===========")
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
         output_col = pd.DataFrame()
-        yhat_upper_percentage = int(100 - model_kwargs["alpha"] * 100 / 2)
-        yhat_lower_name = "p" + str(int(100 - yhat_upper_percentage))
-        yhat_upper_name = "p" + str(yhat_upper_percentage)
+        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
+        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
         for cat in self.categories:
             output_i = pd.DataFrame()
-
-            output_i["Date"] = outputs[f"{col}_{cat}"].index
+            output_i["Date"] = dt_columns[f"{col}_{cat}"]
+            output_i = output_i.set_index("Date")
             output_i["Series"] = cat
-            output_i["input_value"] = float("nan")
-            output_i[f"fitted_value"] = float("nan")
-            output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"].values
-            output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"].values
-            output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"].values
+            output_i["input_value"] = actual_values[f"{col}_{cat}"]
+
+            output_i["fitted_value"] = fitted_values[f"{col}_{cat}"]
+            output_i["forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
+            output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
+            output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
+
+            output_i = output_i.reset_index(drop=False)
             output_col = pd.concat([output_col, output_i])
+            self.forecast_output.add_category(
+                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
+            )
 
-        # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
         output_col = output_col.reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
-        # Re-merge historical datas for processing
-        data_merged = pd.concat(
-            [
-                v[v[k].notna()].set_index(self.spec.datetime_column.name)
-                for k, v in full_data_dict.items()
-            ],
-            axis=1,
-        ).reset_index()
-
-        self.data = data_merged
-        return outputs_merged
+        return output_col
 
     def _generate_report(self):
         """The method that needs to be implemented on the particular model level."""
@@ -221,16 +236,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             "it predicts future values based on past values."
         )
         other_sections = all_sections
-        ds_column_series = self.data[self.spec.datetime_column.name]
-        ds_forecast_col = self.outputs[0].index
-        ci_col_names = ["yhat_lower", "yhat_upper"]
 
         return (
             model_description,
             other_sections,
-            ds_column_series,
-            ds_forecast_col,
-            ci_col_names,
         )
 
     def _custom_predict_arima(self, data):

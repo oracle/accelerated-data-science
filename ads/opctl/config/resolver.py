@@ -111,8 +111,6 @@ class ConfigResolver(ConfigProcessor):
         self._resolve_mounted_volumes()
         self._resolve_job_name()
 
-        logger.debug(f"Config: {self.config}")
-
         return self
 
     def _is_ads_operator(self) -> bool:

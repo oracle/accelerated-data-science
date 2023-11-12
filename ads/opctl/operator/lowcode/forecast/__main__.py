@@ -18,9 +18,11 @@ from ads.opctl.operator.common.utils import _parse_input_args
 from .operator_config import ForecastOperatorConfig
 from .model.forecast_datasets import ForecastDatasets
 
+
 def operate(operator_config: ForecastOperatorConfig) -> None:
     """Runs the forecasting operator."""
     from .model.factory import ForecastOperatorModelFactory
+
     datasets = ForecastDatasets(operator_config)
     ForecastOperatorModelFactory.get_model(operator_config, datasets).generate_report()
 
@@ -64,8 +66,6 @@ def main(raw_args: List[str]):
         uri=args.file,
         yaml_string=yaml_string,
     )
-
-    logger.info(operator_config.to_yaml())
 
     # run operator
     if args.verify:
