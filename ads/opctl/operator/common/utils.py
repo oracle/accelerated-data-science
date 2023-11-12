@@ -149,3 +149,10 @@ def _load_yaml_from_uri(uri: str, **kwargs) -> str:
     """Loads YAML from the URI path. Can be Object Storage path."""
     with fsspec.open(uri) as f:
         return _load_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)
+
+
+def default_signer(**kwargs):
+    os.environ["EXTRA_USER_AGENT_INFO"] = "Operator"
+    from ads.common.auth import default_signer
+
+    return default_signer(**kwargs)

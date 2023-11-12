@@ -39,7 +39,7 @@ class Transformations:
         if self.preprocessing:
             treated_df = self._outlier_treatment(sorted_df)
         else:
-            logger.info("Skipping outlier treatment as preprocessing is disabled")
+            logger.debug("Skipping outlier treatment as preprocessing is disabled")
             treated_df = imputed_df
         return treated_df
 
@@ -102,7 +102,7 @@ class Transformations:
             df[self.date_column], format=self.date_format
         )
         df = (
-            df.groupby(self.series_id_column)
+            df.groupby(self.series_id_column, group_keys=True)
             .apply(lambda x: x.sort_values(by="tmp_col_for_sorting", ascending=True))
             .reset_index(drop=True)
         )

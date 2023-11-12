@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+import sys
 from typing import List
 
 import fsspec
@@ -19,7 +20,6 @@ from sklearn.metrics import (
     r2_score,
 )
 
-from ads.common import auth as authutil
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.opctl import logger
@@ -42,16 +42,17 @@ def _inverse_transform_dataframe(le, df):
 def smape(actual, predicted) -> float:
     if not all([isinstance(actual, np.ndarray), isinstance(predicted, np.ndarray)]):
         actual, predicted = (np.array(actual), np.array(predicted))
-    return round(
-        np.mean(np.abs(actual - predicted) / (np.abs(actual) + np.abs(predicted)))
-        * 100,
-        2,
-    )
+    denominator = np.abs(actual) + np.abs(predicted)
+    numerator = np.abs(actual - predicted)
+    default_output = np.ones_like(numerator) * np.inf
+
+    abs_error = np.divide(numerator, denominator)
+    return round(np.mean(abs_error) * 100, 2)
 
 
 def _build_metrics_per_horizon(
     data: pd.DataFrame,
-    outputs: pd.DataFrame,
+    output: pd.DataFrame,
     target_columns: List[str],
     target_col: str,
     horizon_periods: int,
@@ -63,7 +64,7 @@ def _build_metrics_per_horizon(
     ------------
     data:  Pandas Dataframe
             Dataframe that has the actual data
-    outputs: Pandas Dataframe
+    output: Pandas Dataframe
             Dataframe that has the forecasted data
     target_columns: List
             List of target category columns
@@ -79,30 +80,28 @@ def _build_metrics_per_horizon(
     """
     """
     Assumptions:
-    data and outputs have all the target columns.
-    yhats in outputs are in the same order as in target_columns.
+    data and output have all the target columns.
+    yhats in output are in the same order as in target_columns.
     Test data might not have sorted dates and the order of series also might differ.
     """
 
     # Select the data with correct order of target_columns.
     actuals_df = data[["ds"] + target_columns]
 
-    # Concat the yhats in outputs and include only dates that are in test data
-    forecasts_df = pd.concat(
-        [
-            (df[df["ds"].isin(actuals_df["ds"])][["ds", target_col]]).set_index("ds")
-            for df in outputs
-        ],
-        axis=1,
-    )
+    # Concat the yhats in output and include only dates that are in test data
+    forecasts_df = pd.DataFrame()
+    for cat in output.list_categories():
+        forecast_i = output.get_category(cat)[["Date", "forecast_value"]]
+        forecast_i = forecast_i[forecast_i["Date"].isin(actuals_df["ds"])]
+        forecasts_df = pd.concat([forecasts_df, forecast_i.set_index("Date")], axis=1)
 
-    # Remove dates that are not there in outputs
+    # Remove dates that are not there in output
     actuals_df = actuals_df[actuals_df["ds"].isin(forecasts_df.index.values)]
 
     if actuals_df.empty or forecasts_df.empty:
         return pd.DataFrame()
 
-    totals = actuals_df.sum()
+    totals = actuals_df.sum(numeric_only=True)
     wmape_weights = np.array((totals / totals.sum()).values)
 
     actuals_df = actuals_df.set_index("ds")
@@ -155,7 +154,7 @@ def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
         return pd_fn(filename, **kwargs)
 
     storage_options = storage_options or (
-        authutil.default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
+        default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
     )
 
     return pd_fn(filename, storage_options=storage_options, **kwargs)
@@ -200,7 +199,6 @@ def _merge_category_columns(data, target_category_columns):
 
 
 def _clean_data(data, target_column, datetime_column, target_category_columns=None):
-    # Todo: KNN Imputer?
     if target_category_columns is not None:
         data["__Series__"] = _merge_category_columns(data, target_category_columns)
         unique_categories = data["__Series__"].unique()
@@ -304,6 +302,7 @@ def _build_indexed_datasets(
     data["__Series__"] = _merge_category_columns(data, target_category_columns)
     unique_categories = data["__Series__"].unique()
     invalid_categories = []
+
     if additional_data is not None and target_column in additional_data.columns:
         logger.warn(f"Dropping column '{target_column}' from additional_data")
         additional_data.drop(target_column, axis=1, inplace=True)
@@ -328,10 +327,10 @@ def _build_indexed_datasets(
                 .set_index(datetime_column)
                 .fillna(0)
             )
-
             valid_primary, valid_add = _validate_and_clean_data(
                 cat, horizon, data_by_cat_clean, data_add_by_cat_clean
             )
+
             if valid_primary is None:
                 invalid_categories.append(cat)
                 data_by_cat_clean = None
@@ -342,6 +341,7 @@ def _build_indexed_datasets(
 
     new_target_columns = list(df_by_target.keys())
     remaining_categories = set(unique_categories) - set(invalid_categories)
+
     if not len(remaining_categories):
         raise ForecastInputDataError(
             "Stopping forecast operator as there is no data that meets the validation criteria."
@@ -361,20 +361,27 @@ def _build_metrics_df(y_true, y_pred, column_name):
     return pd.DataFrame.from_dict(metrics, orient="index", columns=[column_name])
 
 
-def evaluate_metrics(target_columns, data, outputs, datetime_col, target_col="yhat"):
+def evaluate_train_metrics(
+    target_columns, datasets, output, datetime_col, target_col="yhat"
+):
+    """
+    Training metrics
+    """
     total_metrics = pd.DataFrame()
     for idx, col in enumerate(target_columns):
         try:
-            dates = np.intersect1d(data[datetime_col], outputs[idx]["ds"])
-            y_true = np.asarray(data[col][data[datetime_col].isin(dates)])
-            y_pred = outputs[idx][outputs[idx]["ds"].isin(dates)][target_col]
-
+            forecast_by_col = output.get_target_category(col)[
+                ["input_value", "Date", "fitted_value"]
+            ].dropna()
+            y_true = forecast_by_col["input_value"].values
+            y_pred = forecast_by_col["fitted_value"].values
             metrics_df = _build_metrics_df(
                 y_true=y_true, y_pred=y_pred, column_name=col
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
-        except:
+        except Exception as e:
             logger.warn(f"Failed to generate training metrics for target_series: {col}")
+            logger.debug(f"Recieved Error Statement: {e}")
     return total_metrics
 
 
@@ -390,38 +397,29 @@ def _add_unit(num, unit):
 
 
 def get_forecast_plots(
-    data,
-    outputs,
+    forecast_output,
     target_columns,
     test_data=None,
-    ds_col=None,
-    ds_forecast_col=None,
-    forecast_col_name="yhat",
-    ci_col_names=None,
     ci_interval_width=0.95,
 ):
-    if ds_forecast_col is None:
-        ds_forecast_col = ds_col
-
     def plot_forecast_plotly(idx, col):
         fig = go.Figure()
-        if (
-            (ci_col_names is not None)
-            and (ci_col_names[0] in outputs[idx].columns)
-            and (ci_col_names[1] in outputs[idx].columns)
-        ):
+        forecast_i = forecast_output.get_target_category(col)
+        upper_bound = forecast_output.upper_bound_name
+        lower_bound = forecast_output.lower_bound_name
+        if upper_bound is not None and lower_bound is not None:
             fig.add_traces(
                 [
                     go.Scatter(
-                        x=ds_forecast_col,
-                        y=outputs[idx][ci_col_names[0]],
+                        x=forecast_i["Date"],
+                        y=forecast_i[lower_bound],
                         mode="lines",
                         line_color="rgba(0,0,0,0)",
                         showlegend=False,
                     ),
                     go.Scatter(
-                        x=ds_forecast_col,
-                        y=outputs[idx][ci_col_names[1]],
+                        x=forecast_i["Date"],
+                        y=forecast_i[upper_bound],
                         mode="lines",
                         line_color="rgba(0,0,0,0)",
                         name=f"{ci_interval_width * 100}% confidence interval",
@@ -443,8 +441,8 @@ def get_forecast_plots(
 
         fig.add_trace(
             go.Scatter(
-                x=ds_col,
-                y=data[col],
+                x=forecast_i["Date"],
+                y=forecast_i["input_value"],
                 mode="markers",
                 marker_color="black",
                 name="Historical",
@@ -452,15 +450,27 @@ def get_forecast_plots(
         )
         fig.add_trace(
             go.Scatter(
-                x=ds_forecast_col,
-                y=outputs[idx][forecast_col_name],
+                x=forecast_i["Date"],
+                y=forecast_i["fitted_value"],
+                mode="lines+markers",
+                line_color="blue",
+                name="Fitted Values",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=forecast_i["Date"],
+                y=forecast_i["forecast_value"],
                 mode="lines+markers",
                 line_color="blue",
                 name="Forecast",
             )
         )
         fig.add_vline(
-            x=ds_col[-1:].values[0], line_width=1, line_dash="dash", line_color="gray"
+            x=forecast_i["Date"][-1:].values[0],
+            line_width=1,
+            line_dash="dash",
+            line_color="gray",
         )
         return fig
 
@@ -565,3 +575,20 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
             )
             raise Exception(message)
     return freq
+
+
+def default_signer(**kwargs):
+    os.environ["EXTRA_USER_AGENT_INFO"] = "Forecast-Operator"
+    from ads.common.auth import default_signer
+
+    return default_signer(**kwargs)
+
+
+# Disable
+def block_print():
+    sys.stdout = open(os.devnull, "w")
+
+
+# Restore
+def enable_print():
+    sys.stdout = sys.__stdout__
