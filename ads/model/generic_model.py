@@ -2324,13 +2324,13 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 max_wait_time=max_wait_time,
                 poll_interval=poll_interval,
             )
+        except Exception as ex:
+            raise ex
+        finally:
             self._summary_status.update_status(
                 detail="Deployed the model",
                 status=self.model_deployment.state.name.upper(),
             )
-        except Exception as ex:
-            raise ex
-        finally:
             return self.model_deployment
 
     def prepare_save_deploy(
