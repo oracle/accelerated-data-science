@@ -186,7 +186,7 @@ manifest:
             import ads
 
             mock_run_cmd.assert_called_with(
-                f"python {os.path.join(ads.__path__[0], 'opctl', 'conda', 'pack.py')} {os.path.join(td, 'conda', 'test')}",
+                f"python {os.path.join(ads.__path__[0], 'opctl', 'conda', 'pack.py')} --conda-path {os.path.join(td, 'conda', 'test')}",
                 shell=True,
             )
 
