@@ -7,9 +7,10 @@
 import os
 from dataclasses import dataclass, field
 from typing import Dict, List
+
 from ads.common.serializer import DataClassSerializable
-from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_config import OperatorConfig
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
 
 
 @dataclass(repr=True)
@@ -38,37 +39,28 @@ class Report(DataClassSerializable):
 
 
 @dataclass(repr=True)
-class Redactor(DataClassSerializable):
+class Detector(DataClassSerializable):
     """Class representing operator specification redactor directory details."""
 
-    detectors: List[str] = None
-    # TODO:
-    spacy_detectors: Dict = None
-    anonymization: List[str] = None
+    name: str = None
+    action: str = None
 
 
 @dataclass(repr=True)
 class PiiOperatorSpec(DataClassSerializable):
     """Class representing pii operator specification."""
 
-    name: str = None
     input_data: InputData = field(default_factory=InputData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
     report: Report = field(default_factory=Report)
     target_column: str = None
-    redactor: Redactor = field(default_factory=Redactor)
+    # TODO: adjust from_dict to accept List[Detector]
+    detectors: List[Dict] = field(default_factory=list)
 
     def __post_init__(self):
         """Adjusts the specification details."""
-        # self.report_file_name = self.report_file_name or "report.html"
+
         self.target_column = self.target_column or "target"
-        self.report.report_filename = self.report.report_filename or "report.html"
-        self.report.show_rows = self.report.show_rows or 25
-        self.report.show_sensitive_content = self.report.show_sensitive_content or False
-        self.output_directory.url = self.output_directory.url or "result/"
-        self.output_directory.name = self.output_directory.name or os.path.basename(
-            self.input_data.url
-        )
 
 
 @dataclass(repr=True)
@@ -80,7 +72,7 @@ class PiiOperatorConfig(OperatorConfig):
     kind: str
         The kind of the resource. For operators it is always - `operator`.
     type: str
-        The type of the operator. For pii operator it is always - `forecast`
+        The type of the operator. For pii operator it is always - `pii`
     version: str
         The version of the operator.
     spec: PiiOperatorSpec

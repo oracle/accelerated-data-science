@@ -1,0 +1,18 @@
+kind: operator
+spec:
+  detectors:
+  - action: anonymize
+    name: default.phone
+  - action: anonymize
+    name: spacy.en_core_web_trf.person
+  input_data:
+    url: data.csv
+  output_directory:
+    name: data-out.csv
+    url: result/
+  report:
+    report_filename: report.html
+    show_sensitive_content: false
+  target_column: target
+type: pii
+version: v1

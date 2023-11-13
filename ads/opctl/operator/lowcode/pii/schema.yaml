@@ -63,15 +63,19 @@ spec:
           type: string
           default: report.html
           meta:
-            description: "Placed into output_directory location. Defaults to report.html"
+            description: "Placed into `output_directory` location. Defaults to `report.html`"
         show_rows:
           required: false
           type: number
-          default: 25
+          default: 10
+          meta:
+            description: "The number of rows that shows in the report. Defaults to `10`"
         show_sensitive_content:
           required: true
           default: false
           type: boolean
+          meta:
+            description: "Whether to show sensitive content in the report. Defaults to `False`"
       type: dict
 
     target_column:
@@ -81,41 +85,25 @@ spec:
       meta:
         description: "Column with user data."
 
-    redactor:
-      type: dict
+    detectors:
+      type: list
       required: true
       schema:
-        detectors:
-          required: true
-          type: list
-          schema:
+        type: dict
+        schema:
+          name:
+            required: true
             type: string
-          default: ["phone", "social_security_number"]
-          meta:
-            description: "default detectors supported by scrubadub"
-
-        spacy_detectors:
-          type: dict
-          required: false
-          schema:
-            model:
-              type: string
-              required: true
-              default: en_core_web_trf
-            named_entities:
-              type: list
-              required: true
-              default: ["PERSON"]
-              schema:
-                type: string
-          meta:
-            description: "Apply spacy NER model to detect the target entities."
-
-        anonymization:
-          type: list
-          required: false
-          schema:
+            meta:
+              description: "The name of the detector. THe format is `<type>.<entity>`."
+          action:
+            required: true
             type: string
-          meta:
-            description: "Anonylze the selected entities."
+            default: mask
+            allowed:
+              - anonymize
+              - mask
+              - remove
+            meta:
+              description: "The way to process the detected entity. Default to `mask`."
   type: dict

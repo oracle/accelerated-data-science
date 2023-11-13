@@ -15,19 +15,14 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
+from .model.guardrails import PIIGuardrail
 from .operator_config import PiiOperatorConfig
 
 
 def operate(operator_config: PiiOperatorConfig) -> None:
     """Runs the PII operator."""
-    # import pdb
-
-    # pdb.set_trace()
-    print("The operator is running...")
-    # from pii.guardrails import PIIGuardrail
-
-    # guard = PIIGuardrail(config_uri="./responsibleai.yaml")
-    # guard.evaluate()
+    guard = PIIGuardrail(config=operator_config)
+    guard.evaluate()
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:

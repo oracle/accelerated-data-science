@@ -6,185 +6,120 @@
 
 
 import scrubadub
-import scrubadub_spacy
-import os
-import re
-import logging
-import uuid
 
-from ads.opctl.operator.lowcode.pii.model.utils import (
-    load_html,
-    SupportInputFormat,
-    from_yaml,
-    _safe_get_spec,
-    default_config,
-    _read_from_file,
-    load_rtf,
-    construct_filth_cls_name,
-    _write_to_file,
-    _process_pos,
-    ReportContextKey,
+from ads.opctl import logger
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
+from ads.opctl.operator.lowcode.pii.model.factory import PiiDetectorFactory
+from ads.opctl.operator.lowcode.pii.model.processor import (
+    POSTPROCESSOR_MAP,
+    SUPPORTED_REPLACER,
+    Remover,
 )
-from ads.opctl.operator.lowcode.pii.model.processor import POSTPROCESSOR_MAP
 
-DEFAULT_SPACY_NAMED_ENTITIES = ["DATE", "FAC", "GPE", "LOC", "ORG", "PER", "PERSON"]
-DEFAULT_SPACY_MODEL = "en_core_web_trf"
+SUPPORT_ACTIONS = ["mask", "remove", "anonymize"]
 
 
-def config_post_processor(spec: dict):
-    """Return class scrubadub.post_processors.base.PostProcessor."""
-    name = _safe_get_spec(spec, "name", "").lower()
-    if not name in POSTPROCESSOR_MAP.keys():
-        raise ValueError(
-            f"Unsupport post processor: {name}. Only support {POSTPROCESSOR_MAP.keys()}."
-        )
-    cls = POSTPROCESSOR_MAP.get(name)
-    if name == "number_replacer":
-        cls._ENTITIES = _safe_get_spec(spec, "entities", cls._ENTITIES)
-
-    return cls
+class DetectorType:
+    DEFAULT = "default"
 
 
-def config_spacy_detector(spec: dict):
-    """Return an instance of scrubadub_spacy.detectors.spacy.SpacyEntityDetector."""
-    model = _safe_get_spec(spec, "model", DEFAULT_SPACY_MODEL)
+class Scrubber:
+    def __init__(self, config: str or "PiiOperatorConfig" or dict):
+        logger.info(f"Loading config from {config}")
+        if isinstance(config, str):
+            config = _load_yaml_from_uri(config)
 
-    named_entities = [x.upper() for x in spec.get("named_entities", [])]
-    spacy_entity_detector = scrubadub_spacy.detectors.spacy.SpacyEntityDetector(
-        named_entities=named_entities,
-        name=f"spacy_{uuid.uuid4()}",
-        model=model,
-    )
-    for named_entity in named_entities:
-        # DEFAULT_SPACY_NAMED_ENTITIES has been registered in filth_cls_map already.
-        if named_entity in DEFAULT_SPACY_NAMED_ENTITIES:
-            continue
+        self.config = config
+        self.scrubber = scrubadub.Scrubber()
 
-        filth_cls = type(
-            construct_filth_cls_name(named_entity),
-            (scrubadub.filth.Filth,),
-            {"type": named_entity.upper()},
-        )
-        spacy_entity_detector.filth_cls_map[named_entity.upper()] = filth_cls
-    return spacy_entity_detector
+        self.detectors = []
+        self.spacy_model_detectors = []
+        self.post_processors = {}  # replacer_name -> replacer_obj
 
+        self._reset_scrubber()
 
-def config_scrubber(
-    config: str or dict = None,
-):
-    """
-    Returns an instance of srubadub.Scrubber.
+    def _reset_scrubber(self):
+        # Clean up default detectors
+        defautls_enable = self.scrubber._detectors.copy()
+        for d in defautls_enable:
+            self.scrubber.remove_detector(d)
 
-    Args:
-        config: A path to a yaml file or a dict.
-
-    Returns:
-        An instance of srubadub.Scrubber, which has been configured with the given config.
-    """
-    if not config:
-        config = default_config()
-    logging.info(f"Loading config from {config}")
-
-    if isinstance(config, str):
-        config = from_yaml(uri=config)
-
-    redact_spec_file = config["redactor"]
-
-    detector_list = []
-    scrubber = scrubadub.Scrubber()
-    scrubber.redact_spec_file = redact_spec_file
-
-    # Clean up default detectors
-    defautls_enable = scrubber._detectors.copy()
-    for d in defautls_enable:
-        scrubber.remove_detector(d)
-
-    # Add scrubber built-in detectors
-    for detector in _safe_get_spec(redact_spec_file, "detectors", []):
-        detector_list.append(detector)
-
-    # Add spacy detectors
-    for spec in _safe_get_spec(redact_spec_file, "spacy_detectors", []):
-        spacy_entity_detector = config_spacy_detector(spec=spec)
-        detector_list.append(spacy_entity_detector)
-
-    # Add custom detectors
-    for custom in _safe_get_spec(redact_spec_file, "custom_detectors", []):
-        patterns = custom.get("patterns", "")
-
-        class CustomFilth(scrubadub.filth.Filth):
-            type = custom.get("label", "").upper()
-
-        class CustomDetector(scrubadub.detectors.RegexDetector):
-            filth_cls = CustomFilth
-            regex = re.compile(
-                rf"{patterns}",
+    def _register(self, name, dtype, model, action, mask_with: str = None):
+        if action not in SUPPORT_ACTIONS:
+            raise ValueError(
+                f"Not supported `action`: {action}. Please select from {SUPPORT_ACTIONS}."
             )
-            name = custom.get("name")
 
-        detector_list.append(CustomDetector())
+        detector = PiiDetectorFactory.get_detector(
+            detector_type=dtype, entity=name, model=model
+        )
+        self.scrubber.add_detector(detector)
 
-    for detector in detector_list:
-        scrubber.add_detector(detector)
+        if action == "anonymize":
+            entity = (
+                detector
+                if isinstance(detector, str)
+                else detector.filth_cls_map[name.upper()].type
+            )
+            if entity in SUPPORTED_REPLACER.keys():
+                replacer_name = SUPPORTED_REPLACER.get(entity).name
+                replacer = self.post_processors.get(
+                    replacer_name, POSTPROCESSOR_MAP.get(replacer_name)()
+                )
+                if hasattr(replacer, "_ENTITIES"):
+                    replacer._ENTITIES.append(name)
+                self.post_processors[replacer_name] = replacer
+            else:
+                raise ValueError(
+                    f"Not supported `action` {action} for this entity {name}. Please try with other action."
+                )
 
-    # Add post-processor
-    for post_processor in _safe_get_spec(redact_spec_file, "anonymization", []):
-        scrubber.add_post_processor(config_post_processor(post_processor))
+        if action == "remove":
+            remover = self.post_processors.get("remover", Remover())
+            remover._ENTITIES.append(name)
+            self.post_processors["remover"] = remover
 
-    return scrubber
+    def config_scrubber(self):
+        """Returns an instance of srubadub.Scrubber."""
+        spec = (
+            self.config["spec"] if isinstance(self.config, dict) else self.config.spec
+        )
+        detectors = spec["detectors"] if isinstance(spec, dict) else spec.detector
+
+        self.scrubber.redact_spec_file = spec
+
+        for detector in detectors:
+            # example format for detector["name"]: default.phone or spacy.en_core_web_trf.person
+            d = detector["name"].split(".")
+            dtype = d[0]
+            dname = d[1] if len(d) == 2 else d[2]
+            model = None if len(d) == 2 else d[1]
+
+            action = detector.get("action", "mask")
+            # mask_with = detector.get("mask_with", None)
+            self._register(
+                name=dname,
+                dtype=dtype,
+                model=model,
+                action=action,
+                # mask_with=mask_with,
+            )
+
+        self._register_post_processor()
+        return self.scrubber
+
+    def _register_post_processor(self):
+        for _, v in self.post_processors.items():
+            self.scrubber.add_post_processor(v)
 
 
 def scrub(text, spec_file=None, scrubber=None):
     if not scrubber:
-        scrubber = config_scrubber(spec_file)
+        scrubber = Scrubber(config=spec_file).config_scrubber()
     return scrubber.clean(text)
 
 
 def detect(text, spec_file=None, scrubber=None):
     if not scrubber:
-        scrubber = config_scrubber(spec_file)
+        scrubber = Scrubber(config=spec_file).config_scrubber()
     return list(scrubber.iter_filth(text, document_name=None))
-
-
-def _get_report_(
-    input_path, output_path, scrubber=None, report_context=None, subdirectory=None
-) -> None:
-    filename_with_ext = os.path.basename(input_path)
-    file_name, file_ext = os.path.splitext(filename_with_ext)
-
-    report_text = ""
-    if file_ext == SupportInputFormat.PLAIN:
-        report_text = _read_from_file(input_path)
-    elif file_ext == SupportInputFormat.HTML:
-        report_text = load_html(uri=input_path)
-    elif file_ext == SupportInputFormat.RTF:
-        report_text = load_rtf(uri=input_path)
-    else:
-        raise ValueError(
-            f"Unsupport file format: {file_ext}. Only support {SupportInputFormat.get_support_list()}."
-        )
-
-    # preprocess src to remove **
-    report_text_ = report_text.replace("**", "")
-
-    scrubbed_text = scrub(text=report_text_, scrubber=scrubber)
-    dst_uri = os.path.join(output_path, file_name + ".txt")
-    _write_to_file(
-        uri=dst_uri,
-        s=scrubbed_text,
-        encoding="utf-8",
-    )
-
-    # Only generate report if report_context is not None
-    if report_context:
-        entities = detect(text=report_text_, scrubber=scrubber)
-        file_summary = {
-            ReportContextKey.INPUT_FILE_NAME: input_path,
-            ReportContextKey.OUTPUT_NAME: dst_uri,
-            ReportContextKey.TOTAL_TOKENS: len(entities),
-            ReportContextKey.ENTITIES: _process_pos(entities, report_text_),
-            ReportContextKey.FILE_NAME: file_name,
-        }
-        report_context.get(ReportContextKey.FILE_SUMMARY).get(subdirectory).append(
-            file_summary
-        )

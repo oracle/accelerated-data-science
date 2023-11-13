@@ -6,7 +6,10 @@ conda: pii_v1
 gpu: no
 keywords:
   - PII
+  - Spacy
 backends:
   - job
 description: |
-  PII operator.
+  PII operator, that detects detect and redact Personally Identifiable Information
+  (PII) data in datasets by combining pattern match and machine learning solution.
+  Use `ads operator info -t pii` to get more details about the pii operator."

@@ -4,16 +4,15 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
+import os
+import time
 import pandas as pd
-from ads.opctl.operator.lowcode.pii.model.utils import from_yaml
-from ads.opctl.operator.lowcode.pii.model.pii import config_scrubber, scrub, detect
+from ads.opctl import logger
+from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
+from ads.opctl.operator.lowcode.pii.model.pii import Scrubber, scrub, detect
 from ads.opctl.operator.lowcode.pii.model.report import PIIOperatorReport
 from ads.common import auth as authutil
 from datetime import datetime
-import os
-import time
-import datapane as dp
 
 
 def get_output_name(given_name, target_name=None):
@@ -26,52 +25,35 @@ def get_output_name(given_name, target_name=None):
 
 
 class PIIGuardrail:
-    def __init__(self, config_uri: str, auth: dict = None):
-        # load config.yaml for pii
-        self.spec = from_yaml(uri=config_uri).get("spec")
-        self.output_data_name = None
-        # config metric
-        for metric in self.spec.get("metrics", []):
-            # TODO: load other metric
-            # load pii metric
-            if metric.get("name", "") == "pii":
-                pii_load_args = metric.get("load_args")
-                self.scrubber = config_scrubber(**pii_load_args)
-                self.target_col = metric.get("target_col", "text")
-                self.output_data_name = metric.get("output_data_name", None)
-
-        # config spec
-        self.src_data_uri = self.spec.get("test_data").get("url")
-        self.dst_uri = None
-        self.data = None
-        self.report_uri = None
+    def __init__(self, config: PiiOperatorConfig, auth: dict = None):
+        self.spec = config.spec
+        self.data = None  # saving loaded data
         self.auth = auth or authutil.default_signer()
-        self.output_directory = self.spec.get("output_directory", {}).get("url", None)
-        if self.output_directory:
-            self.dst_uri = os.path.join(
-                self.output_directory,
-                get_output_name(
-                    target_name=self.output_data_name, given_name=self.src_data_uri
-                ),
-            )
+        self.scrubber = Scrubber(config=config).config_scrubber()
+        self.target_col = self.spec.target_column
+        self.output_data_name = self.spec.output_directory.name
+        # input attributes
+        self.src_data_uri = self.spec.input_data.url
 
-        self.report_spec = self.spec.get("report", {})
-        self.report_uri = (
-            os.path.join(
-                self.report_spec.get("url", "./"),
-                self.report_spec.get("report_file_name", "report.html"),
-            )
-            if self.report_spec
-            else None
+        # output attributes
+        self.output_directory = self.spec.output_directory.url
+        self.dst_uri = os.path.join(
+            self.output_directory,
+            get_output_name(
+                target_name=self.output_data_name, given_name=self.src_data_uri
+            ),
         )
-        self.show_rows = self.report_spec.get("show_rows", 25)
-        self.show_sensitive_content = self.report_spec.get(
-            "show_sensitive_content", False
+
+        # Report attributes
+        self.report_uri = os.path.join(
+            self.spec.output_directory.url,
+            self.spec.report.report_filename,
         )
+        self.show_rows = self.spec.report.show_rows or 25
+        self.show_sensitive_content = self.spec.report.show_sensitive_content or False
 
     def load_data(self, uri=None, storage_options={}):
-        # POC: Only csv support
-        # csv -> pandas.DataFrame
+        # TODO: Support more format of input data
         uri = uri or self.src_data_uri
         if uri.endswith(".csv"):
             if uri.startswith("oci://"):
@@ -101,8 +83,8 @@ class PIIGuardrail:
             data["entities_cols"] = data[self.target_col].apply(
                 lambda x: detect(text=x, scrubber=self.scrubber)
             )
-            from pii.utils import _safe_get_spec
-            from pii.pii import DEFAULT_SPACY_MODEL
+            from ads.opctl.operator.lowcode.pii.model.utils import _safe_get_spec
+            from ads.opctl.operator.lowcode.pii.model.pii import DEFAULT_SPACY_MODEL
 
             selected_spacy_model = []
             for spec in _safe_get_spec(
@@ -160,15 +142,13 @@ class PIIGuardrail:
         if dst_uri:
             self._save_output(data, ["id", "redacted_text"], dst_uri)
 
-        print("Mission completed!")
-
     def _generate_report(self, context, report_uri):
         report_ = PIIOperatorReport(context=context)
         report_sections = report_.make_view()
         report_.save_report(report_sections=report_sections, report_path=report_uri)
 
     def _save_output(self, df, target_col, dst_uri):
-        # Based on extension of dst_uri call to_csv or to_json.
+        # TODO: Based on extension of dst_uri call to_csv or to_json.
         data_out = df[target_col]
         data_out.to_csv(dst_uri)
         return dst_uri

@@ -5,15 +5,14 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-# helper function to make report
-import yaml
-import plotly.express as px
-import pandas as pd
-import datapane as dp
 import random
-import plotly.graph_objects as go
-import fsspec
 
+import datapane as dp
+import fsspec
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import yaml
 
 PII_REPORT_DESCRIPTION = (
     "This report will offer a comprehensive overview of the redaction of personal identifiable information (PII) from the provided data."
@@ -21,34 +20,6 @@ PII_REPORT_DESCRIPTION = (
     "The `Details` section will offer a more granular analysis of each row of data, including relevant statistics."
 )
 DETAILS_REPORT_DESCRIPTION = "The following report will show the details on each row. You can view the highlighted named entities and their labels in the text under `TEXT` tab."
-
-
-################
-# Others utils #
-################
-def compute_rate(elapsed_time, num_unit):
-    return elapsed_time / num_unit
-
-
-def human_time_friendly(seconds):
-    TIME_DURATION_UNITS = (
-        ("week", 60 * 60 * 24 * 7),
-        ("day", 60 * 60 * 24),
-        ("hour", 60 * 60),
-        ("min", 60),
-    )
-    if seconds == 0:
-        return "inf"
-    accumulator = []
-    for unit, div in TIME_DURATION_UNITS:
-        amount, seconds = divmod(float(seconds), div)
-        if amount > 0:
-            accumulator.append(
-                "{} {}{}".format(int(amount), unit, "" if amount == 1 else "s")
-            )
-    accumulator.append("{} secs".format(round(seconds, 2)))
-    return ", ".join(accumulator)
-
 
 FLAT_UI_COLORS = [
     "#1ABC9C",
@@ -75,10 +46,39 @@ FLAT_UI_COLORS = [
 LABEL_TO_COLOR_MAP = {}
 
 
-# all spacy model: https://huggingface.co/spacy
-# "en_core_web_trf": "https://huggingface.co/spacy/en_core_web_trf/raw/main/README.md",
+################
+# Report utils #
+################
+def compute_rate(elapsed_time, num_unit):
+    return elapsed_time / num_unit
+
+
+def human_time_friendly(seconds):
+    TIME_DURATION_UNITS = (
+        ("week", 60 * 60 * 24 * 7),
+        ("day", 60 * 60 * 24),
+        ("hour", 60 * 60),
+        ("min", 60),
+    )
+    if seconds == 0:
+        return "inf"
+    accumulator = []
+    for unit, div in TIME_DURATION_UNITS:
+        amount, seconds = divmod(float(seconds), div)
+        if amount > 0:
+            accumulator.append(
+                "{} {}{}".format(int(amount), unit, "" if amount == 1 else "s")
+            )
+    accumulator.append("{} secs".format(round(seconds, 2)))
+    return ", ".join(accumulator)
+
+
 def make_model_card(model_name="", readme_path=""):
-    """Make render model_readme.md as model card."""
+    """Make render model_readme.md as model_card tab.
+    All spacy model: https://huggingface.co/spacy
+    For example: "en_core_web_trf": "https://huggingface.co/spacy/en_core_web_trf/raw/main/README.md",
+
+    """
     readme_path = (
         f"https://huggingface.co/spacy/{model_name}/raw/main/README.md"
         if model_name
@@ -124,9 +124,6 @@ def make_model_card(model_name="", readme_path=""):
     )
 
 
-################
-# Report utils #
-################
 def map_label_to_color(labels):
     label_to_colors = {}
     for label in labels:
@@ -161,7 +158,6 @@ def plot_pie(count_map) -> dp.Plot:
 def build_entity_df(entites, id) -> pd.DataFrame:
     text = [ent.text for ent in entites]
     types = [ent.type for ent in entites]
-    # pos = [f"{ent.beg}" + ":" + f"{ent.end}" for ent in entites]
     replaced_values = [
         ent.replacement_string or "{{" + ent.placeholder + "}}" for ent in entites
     ]
@@ -170,7 +166,6 @@ def build_entity_df(entites, id) -> pd.DataFrame:
         "Entity (Original Text)": text,
         "Type": types,
         "Redacted To": replaced_values,
-        # "Beg: End": pos,
     }
     df = pd.DataFrame(data=d)
     if df.size == 0:
@@ -180,14 +175,12 @@ def build_entity_df(entites, id) -> pd.DataFrame:
             "Entity (Original Text)": "-",
             "Type": "-",
             "Redacted To": "-",
-            # "Begs: End": "-",
         }
         df = df.append(df2, ignore_index=True)
     return df
 
 
 class RowReportFields:
-    # TODO: rename class
     def __init__(self, context, show_sensitive_info: bool = True):
         self.total_tokens = context.get("total_tokens", "unknown")
         self.entites_cnt_map = context.get("statics", {})

@@ -5,31 +5,16 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-"""Contains post processors for scrubadub
-Usage:
-
-scrubber.add_post_processor(NameReplacer())
-scrubber.add_post_processor(NumberReplacer())
-
-To keep the same name replacement mappings across multiple documents,
-either use the same scrubber instance to clean all the documents,
-or use the same NameReplace() instance for all scrubbers.
-"""
-import datetime
-import random
-import re
-import string
 from typing import Sequence
 
-import scrubadub
 import gender_guesser.detector as gender_detector
-
 from faker import Faker
-from scrubadub.filth import Filth
 from nameparser import HumanName
+from scrubadub.filth import Filth
+from scrubadub.post_processors import PostProcessor
 
 
-class NameReplacer(scrubadub.post_processors.PostProcessor):
+class NameReplacer(PostProcessor):
     name = "name_replacer"
 
     def __init__(self, name: str = None, mapping: dict = None):
@@ -220,107 +205,3 @@ class NameReplacer(scrubadub.post_processors.PostProcessor):
         for filth in name_filths:
             filth.replacement_string = self.replace(filth.text)
         return filth_list
-
-
-class NumberReplacer(scrubadub.post_processors.PostProcessor):
-    name = "number_replacer"
-    _ENTITIES = [
-        "number",
-        "mrn",
-        "fin",
-        "phone",
-        "social_security_number",
-    ]
-
-    @staticmethod
-    def replace_digit(obj):
-        return random.choice("0123456789")
-
-    def match_entity_type(self, filth_types):
-        if list(set(self._ENTITIES) & set(filth_types)):
-            return True
-        return False
-
-    def replace_date(self, text):
-        date_formats = ["%m-%d-%Y", "%m-%d-%y", "%d-%m-%Y", "%d-%m-%y"]
-        for date_format in date_formats:
-            try:
-                date = datetime.datetime.strptime(text, date_format)
-            except ValueError:
-                continue
-            if date.year < 1900 or date.year > datetime.datetime.now().year:
-                continue
-            # Now the date is a valid data between 1900 and now
-            return text
-        return None
-
-    def replace(self, text):
-        # Check dates
-        date = self.replace_date(text)
-        if date:
-            return date
-        return re.sub(r"\d", self.replace_digit, text)
-
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
-        for filth in filth_list:
-            # Do not process it if it already has a replacement.
-            if filth.replacement_string:
-                continue
-            if filth.type.lower() in self._ENTITIES:
-                filth.replacement_string = self.replace(filth.text)
-            # Replace the numbers for merged filth
-            if filth.type.lower() == "unknown" and hasattr(filth, "filths"):
-                filth_types = set([f.type for f in filth.filths])
-                if self.match_entity_type(filth_types):
-                    filth.replacement_string = self.replace(filth.text)
-        return filth_list
-
-
-class EmailReplacer(scrubadub.post_processors.PostProcessor):
-    name = "email_replacer"
-
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
-        for filth in filth_list:
-            if filth.replacement_string:
-                continue
-            if filth.type.lower() != "email":
-                continue
-            filth.replacement_string = Faker().email()
-        return filth_list
-
-
-class HIBNReplacer(scrubadub.post_processors.PostProcessor):
-    name = "hibn_replacer"
-
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
-        # TODO: Add support for anomymizing Health insurance beneficiary number ~ Consecutive sequence of alphanumeric characters
-        pass
-
-
-class MBIReplacer(scrubadub.post_processors.PostProcessor):
-    name = "mbi_replacer"
-    CHAR_POOL = "ACDEFGHJKMNPQRTUVWXY"
-
-    def generate_mbi(self):
-        return "".join(random.choices(self.CHAR_POOL + string.digits, k=11))
-
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
-        for filth in filth_list:
-            if filth.replacement_string:
-                continue
-            if filth.type.lower() != "mbi":
-                continue
-            filth.replacement_string = self.generate_mbi()
-        return filth_list
-
-
-POSTPROCESSOR_MAP = {
-    item.name.lower(): item
-    for item in [
-        NameReplacer,
-        NumberReplacer,
-        EmailReplacer,
-        HIBNReplacer,
-        MBIReplacer,
-    ]
-}
