@@ -1574,7 +1574,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         current_state = model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
-            raise NotActiveDeploymentError(current_state)
+            logger.warning(
+                "Model deployment should be in `ACTIVE` state while being fetched. "
+                f"Current model deployment state: `{current_state}`"
+            )
 
         model = cls.from_model_catalog(
             model_id=model_deployment.properties.model_id,
