@@ -101,7 +101,6 @@ dependencies:
         mock_run_cmd,
         monkeypatch,
     ):
-
         with tempfile.TemporaryDirectory() as td:
             with pytest.raises(FileNotFoundError):
                 publish(
@@ -161,7 +160,7 @@ manifest:
                     ): {"bind": "/home/datascience/pack.py"},
                 },
                 env_vars={},
-                command="python /home/datascience/pack.py /home/datascience/test",
+                command="python /home/datascience/pack.py --conda-path /home/datascience/test",
             )
 
             mock_uploader.assert_called_with(
