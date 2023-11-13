@@ -2325,8 +2325,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 detail="Deployed the model",
                 status=self.model_deployment.state.name.upper(),
             )
-        except:
-            raise
+        except Exception as ex:
+            raise ex
         finally:
             return self.model_deployment
 
@@ -2815,8 +2815,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             logger.info(
                 f"Model deployment {self.model_deployment.model_deployment_id} has successfully been activated."
             )
-        except:
-            raise
+        except Exception as ex:
+            raise ex
         finally:
             return self.model_deployment
 

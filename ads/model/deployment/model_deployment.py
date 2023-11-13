@@ -621,8 +621,8 @@ class ModelDeployment(Builder):
                 max_wait_time=max_wait_time,
                 poll_interval=poll_interval,
             )
-        except:
-            raise
+        except Exception as ex:
+            raise ex
         finally:
             return self._update_from_oci_model(response)
 
@@ -656,8 +656,8 @@ class ModelDeployment(Builder):
                 max_wait_time=max_wait_time,
                 poll_interval=poll_interval,
             )
-        except:
-            raise
+        except Exception as ex:
+            raise ex
         finally:
             return self._update_from_oci_model(response)
 
@@ -722,8 +722,8 @@ class ModelDeployment(Builder):
                 max_wait_time=max_wait_time,
                 poll_interval=poll_interval,
             )
-        except:
-            raise
+        except Exception as ex:
+            raise ex
         finally:
             return self._update_from_oci_model(response)
 
@@ -995,8 +995,8 @@ class ModelDeployment(Builder):
                 max_wait_time=max_wait_time,
                 poll_interval=poll_interval,
             )
-        except:
-            raise
+        except Exception as ex:
+            raise ex
         finally:
             return self._update_from_oci_model(response)
 
@@ -1030,8 +1030,8 @@ class ModelDeployment(Builder):
                 max_wait_time=max_wait_time,
                 poll_interval=poll_interval,
             )
-        except:
-            raise
+        except Exception as ex:
+            raise ex
         finally:
             return self._update_from_oci_model(response)
 
