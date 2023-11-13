@@ -893,7 +893,7 @@ class ModelDeployment(Builder):
         current_state = self.sync().lifecycle_state
         if current_state != "ACTIVE":
             raise ModelDeploymentPredictError(
-                f"Predict() can't be called when model deployment is in {current_state} state. "
+                f"Predict() can't be called when model deployment is `{current_state}`. "
                 "Make sure model deployment is `ACTIVE` before calling predict."
             )
         endpoint = f"{self.url}/predict"
