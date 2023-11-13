@@ -103,6 +103,7 @@ class YamlGenerator:
             The result config.
         """
         example = {}
+
         for key, value in schema.items():
             # only generate values for required fields
             if (
@@ -125,7 +126,8 @@ class YamlGenerator:
                         example[key] = 1
                     elif data_type == "boolean":
                         example[key] = True
-                    elif data_type == "array":
+                    elif data_type == "list":
+                        # TODO: Handle list of dict
                         example[key] = ["item1", "item2"]
                     elif data_type == "dict":
                         example[key] = self._generate_example(
