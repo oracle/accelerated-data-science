@@ -8,6 +8,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
+from oci.util import to_dict
 from ads.llm.langchain.plugins.base import BaseLLM, GenerativeAiClientModel
 from ads.llm.langchain.plugins.contant import *
 
@@ -78,11 +79,11 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
     @property
     def _default_params(self) -> Dict[str, Any]:
         """Get the default parameters for calling OCIGenerativeAI API."""
-        from oci.generative_ai.models import OnDemandServingMode
+        # This property is used by _identifying_params(), which then used for serialization
+        # All parameters returning here should be JSON serializable.
 
         return (
             {
-                "serving_mode": OnDemandServingMode(model_id=self.model),
                 "compartment_id": self.compartment_id,
                 "temperature": self.temperature,
                 "max_tokens": self.max_tokens,
@@ -94,7 +95,6 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
             }
             if self.task == Task.TEXT_GENERATION
             else {
-                "serving_mode": OnDemandServingMode(model_id=self.model),
                 "compartment_id": self.compartment_id,
                 "temperature": self.temperature,
                 "length": self.length,
@@ -179,9 +179,16 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
         )
 
     def completion_with_retry(self, **kwargs: Any) -> Any:
-        # TODO: Add retry logic for OCI
-        from oci.generative_ai.models import GenerateTextDetails, SummarizeTextDetails
+        from oci.generative_ai.models import (
+            GenerateTextDetails,
+            SummarizeTextDetails,
+            OnDemandServingMode,
+        )
 
+        # TODO: Add retry logic for OCI
+        # Convert the ``model`` parameter to OCI ``ServingMode``
+        # Note that "ServingMode` is not JSON serializable.
+        kwargs["serving_mode"] = OnDemandServingMode(model_id=self.model)
         if self.task == Task.TEXT_GENERATION:
             return self.client.generate_text(
                 GenerateTextDetails(**kwargs), **self.endpoint_kwargs
