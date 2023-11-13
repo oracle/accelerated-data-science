@@ -6,13 +6,17 @@
 
 import pandas as pd
 import numpy as np
+import yaml
 
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast import utils
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ..const import ForecastOutputColumns
 
 
 AUTOTS_MAX_GENERATION = 10
@@ -39,31 +43,36 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         models = dict()
         outputs = dict()
         outputs_legacy = []
-
         # Get the name of the datetime column
         date_column = self.spec.datetime_column.name
+        self.datasets.datetime_col = date_column
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width
+        )
 
         # Initialize the AutoTS model with specified parameters
         model = AutoTS(
-            forecast_length=self.spec.horizon.periods,
-            frequency="infer",
+            forecast_length=self.spec.horizon,
+            frequency=self.spec.model_kwargs.get("frequency", "infer"),
             prediction_interval=self.spec.confidence_interval_width,
             max_generations=self.spec.model_kwargs.get(
                 "max_generations", AUTOTS_MAX_GENERATION
             ),
-            no_negatives=False,
-            constraint=None,
+            no_negatives=self.spec.model_kwargs.get("no_negatives", False),
+            constraint=self.spec.model_kwargs.get("constraint", None),
             ensemble=self.spec.model_kwargs.get("ensemble", "auto"),
             initial_template=self.spec.model_kwargs.get(
                 "initial_template", "General+Random"
             ),
-            random_seed=2022,
+            random_seed=self.spec.model_kwargs.get("random_seed", 2022),
             holiday_country=self.spec.model_kwargs.get("holiday_country", "US"),
-            subset=None,
-            aggfunc="first",
-            na_tolerance=1,
-            drop_most_recent=0,
-            drop_data_older_than_periods=None,
+            subset=self.spec.model_kwargs.get("subset", None),
+            aggfunc=self.spec.model_kwargs.get("aggfunc", "first"),
+            na_tolerance=self.spec.model_kwargs.get("na_tolerance", 1),
+            drop_most_recent=self.spec.model_kwargs.get("drop_most_recent", 0),
+            drop_data_older_than_periods=self.spec.model_kwargs.get(
+                "drop_data_older_than_periods", None
+            ),
             model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
             transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
             transformer_max_depth=self.spec.model_kwargs.get(
@@ -74,26 +83,29 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             models_to_validate=self.spec.model_kwargs.get(
                 "models_to_validate", AUTOTS_MODELS_TO_VALIDATE
             ),
-            max_per_model_class=None,
+            max_per_model_class=self.spec.model_kwargs.get("max_per_model_class", None),
             validation_method=self.spec.model_kwargs.get(
                 "validation_method", "backwards"
             ),
             min_allowed_train_percent=self.spec.model_kwargs.get(
                 "min_allowed_train_percent", 0.5
             ),
-            remove_leading_zeroes=False,
-            prefill_na=None,
-            introduce_na=None,
-            preclean=None,
-            model_interrupt=True,
-            generation_timeout=None,
-            current_model_file=None,
-            verbose=1,
-            n_jobs=-1,
+            remove_leading_zeroes=self.spec.model_kwargs.get(
+                "remove_leading_zeroes", False
+            ),
+            prefill_na=self.spec.model_kwargs.get("prefill_na", None),
+            introduce_na=self.spec.model_kwargs.get("introduce_na", None),
+            preclean=self.spec.model_kwargs.get("preclean", None),
+            model_interrupt=self.spec.model_kwargs.get("model_interrupt", True),
+            generation_timeout=self.spec.model_kwargs.get("generation_timeout", None),
+            current_model_file=self.spec.model_kwargs.get("current_model_file", None),
+            verbose=self.spec.model_kwargs.get("verbose", 1),
+            n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
         )
 
         # Prepare the data for model training
-        temp_list = [self.full_data_dict[i] for i in self.full_data_dict.keys()]
+        full_data_dict = self.datasets.full_data_dict
+        temp_list = [full_data_dict[i] for i in full_data_dict.keys()]
         melt_temp = [
             temp_list[i].melt(
                 temp_list[i].columns.difference(self.target_columns),
@@ -103,6 +115,10 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             for i in range(len(self.target_columns))
         ]
         full_data_long = pd.concat(melt_temp)
+        full_data_long[self.spec.datetime_column.name] = pd.to_datetime(
+            full_data_long[self.spec.datetime_column.name],
+            format=self.spec.datetime_column.format,
+        )
 
         # Fit the model to the training data
         model = model.fit(
@@ -114,86 +130,43 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         # Store the trained model and generate forecasts
         self.models = model
-        logger.info("===========Forecast Generated===========")
+        logger.debug("===========Forecast Generated===========")
         self.prediction = model.predict()
-        outputs
+        outputs = dict()
 
-        # Process the forecasts for each target series
-        for series_idx, series in enumerate(self.target_columns):
-            # Create a dictionary to store the forecasts for each series
-            outputs[series] = (
-                pd.concat(
-                    [
-                        self.prediction.forecast.reset_index()[
-                            ["index", self.target_columns[series_idx]]
-                        ].rename(
-                            columns={
-                                "index": self.spec.datetime_column.name,
-                                self.target_columns[series_idx]: "yhat",
-                            }
-                        ),
-                        self.prediction.lower_forecast.reset_index()[
-                            ["index", self.target_columns[series_idx]]
-                        ].rename(
-                            columns={
-                                "index": self.spec.datetime_column.name,
-                                self.target_columns[series_idx]: "yhat_lower",
-                            }
-                        ),
-                        self.prediction.upper_forecast.reset_index()[
-                            ["index", self.target_columns[series_idx]]
-                        ].rename(
-                            columns={
-                                "index": self.spec.datetime_column.name,
-                                self.target_columns[series_idx]: "yhat_upper",
-                            }
-                        ),
-                    ],
-                    axis=1,
-                )
-                .T.drop_duplicates()
-                .T
-            )
-
-        # Store the processed forecasts in a list
-        self.outputs = [fc for fc in outputs.values()]
-
-        # Re-merge historical datas for processing
-        data_merged = pd.concat(
-            [
-                v[v[k].notna()].set_index(date_column)
-                for k, v in self.full_data_dict.items()
-            ],
-            axis=1,
-        ).reset_index()
-        self.data = data_merged
-
-        outputs_merged = pd.DataFrame()
-
-        col = self.original_target_column
         output_col = pd.DataFrame()
-        yhat_lower_percentage = (100 - self.spec.confidence_interval_width * 100) // 2
-        yhat_upper_name = "p" + str(int(100 - yhat_lower_percentage))
-        yhat_lower_name = "p" + str(int(yhat_lower_percentage))
+        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
+        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
 
         for cat in self.categories:
             output_i = pd.DataFrame()
+            cat_target = f"{self.original_target_column}_{cat}"
+            input_data_i = full_data_dict[cat_target]
 
-            output_i["Date"] = outputs[f"{col}_{cat}"][self.spec.datetime_column.name]
+            output_i["Date"] = pd.to_datetime(
+                input_data_i[self.spec.datetime_column.name],
+                format=self.spec.datetime_column.format,
+            )
             output_i["Series"] = cat
-            output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
-            if "yhat_upper" in outputs[f"{col}_{cat}"].columns:
-                output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
-            if "yhat_lower" in outputs[f"{col}_{cat}"].columns:
-                output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
+            output_i["input_value"] = input_data_i[cat_target]
+            output_i["fitted_value"] = float("nan")
+            output_i = output_i.set_index("Date")
+
+            output_i["forecast_value"] = self.prediction.forecast[[cat_target]]
+            output_i[yhat_upper_name] = self.prediction.upper_forecast[[cat_target]]
+            output_i[yhat_lower_name] = self.prediction.lower_forecast[[cat_target]]
+
+            output_i = output_i.reset_index()
             output_col = pd.concat([output_col, output_i])
+            self.forecast_output.add_category(
+                category=cat, target_category_column=cat_target, forecast=output_i
+            )
 
         output_col = output_col.reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
-        logger.info("===========Done===========")
+        logger.debug("===========Done===========")
 
-        return outputs_merged
+        return output_col
 
     def _generate_report(self) -> tuple:
         """
@@ -229,17 +202,15 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         # Section 2: AutoTS Model Parameters
         sec2_text = dp.Text(f"## AutoTS Model Parameters")
-        # TODO: ODSC-47612 Format the parameters better for display in report.
-        blocks = [
-            dp.HTML(
-                pd.DataFrame(
-                    [self.models.best_model_params["models"][x]["ModelParameters"]]
-                ).to_html(),
-                label=self.original_target_column + "_model_" + str(i),
+        try:
+            sec2 = dp.Code(
+                code=yaml.dump(list(self.models.best_model.T.to_dict().values())[0]),
+                language="yaml",
             )
-            for i, x in enumerate(list(self.models.best_model_params["models"].keys()))
-        ]
-        sec2 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+
+        except KeyError as ke:
+            logger.warn(f"Issue generating Model Parameters Table Section. Skipping")
+            sec2 = dp.Text(f"Error generating model parameters.")
         all_sections = [sec1_text, sec_1, sec2_text, sec2]
 
         # Model Description
@@ -250,25 +221,32 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         )
 
         other_sections = all_sections
-        forecast_col_name = "yhat"
-        train_metrics = False
-
-        ds_column_series = pd.to_datetime(self.data[self.spec.datetime_column.name])
-        ds_forecast_col = self.outputs[0].index
-        ci_col_names = ["yhat_lower", "yhat_upper"]
 
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
-            ds_column_series,
-            ds_forecast_col,
-            ci_col_names,
         )
 
     def explain_model(self) -> dict:
         """
         explain model using global & local explanations
         """
-        return None
+        raise NotImplementedError()
+
+    def _generate_train_metrics(self) -> pd.DataFrame:
+        """
+        Generate Training Metrics when fitted data is not available.
+        The method that needs to be implemented on the particular model level.
+
+        metrics	Sales_Store 1
+        sMAPE	26.19
+        MAPE	2.96E+18
+        RMSE	2014.192531
+        r2	-4.60E-06
+        Explained Variance	0.002177087
+        """
+        mapes = pd.DataFrame(self.models.best_model_per_series_mape()).T
+        scores = pd.DataFrame(
+            self.models.best_model_per_series_score(), columns=["AutoTS Score"]
+        ).T
+        return pd.concat([mapes, scores])

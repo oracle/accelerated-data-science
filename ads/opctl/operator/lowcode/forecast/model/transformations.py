@@ -9,6 +9,7 @@ from ads.opctl import logger
 
 class Transformations:
     """A class which implements transformation for forecast operator"""
+
     def __init__(self, data, dataset_info):
         """
         Initializes the transformation.
@@ -22,6 +23,7 @@ class Transformations:
         self.series_id_column = dataset_info.target_category_columns
         self.target_variables = dataset_info.target_column
         self.date_column = dataset_info.datetime_column.name
+        self.date_format = dataset_info.datetime_column.format
         self.preprocessing = dataset_info.preprocessing
 
     def run(self):
@@ -33,10 +35,11 @@ class Transformations:
             A new Pandas DataFrame with treated / transformed target values.
         """
         imputed_df = self._missing_value_imputation(self.data)
+        sorted_df = self._sort_by_datetime_col(imputed_df)
         if self.preprocessing:
-            treated_df = self._outlier_treatment(imputed_df)
+            treated_df = self._outlier_treatment(sorted_df)
         else:
-            logger.info("Skipping outlier treatment as preprocessing is disabled")
+            logger.debug("Skipping outlier treatment as preprocessing is disabled")
             treated_df = imputed_df
         return treated_df
 
@@ -53,8 +56,9 @@ class Transformations:
             A new Pandas DataFrame without missing values.
         """
         # missing value imputation using linear interpolation
-        df[self.target_variables] = df.groupby(self.series_id_column)[self.target_variables].transform(
-            lambda x: x.interpolate(limit_direction='both'))
+        df[self.target_variables] = df.groupby(self.series_id_column)[
+            self.target_variables
+        ].transform(lambda x: x.interpolate(limit_direction="both"))
         return df
 
     def _outlier_treatment(self, df):
@@ -69,10 +73,39 @@ class Transformations:
         -------
             A new Pandas DataFrame with treated outliears.
         """
-        df['z_score'] = df.groupby(self.series_id_column)[self.target_variables].transform(
-            lambda x: (x - x.mean()) / x.std())
-        outliers_mask = df['z_score'].abs() > 3
-        df.loc[outliers_mask, self.target_variables] = df.groupby(self.series_id_column)[
-            self.target_variables].transform(lambda x: x.mean())
-        df.drop('z_score', axis=1, inplace=True)
+        df["z_score"] = df.groupby(self.series_id_column)[
+            self.target_variables
+        ].transform(lambda x: (x - x.mean()) / x.std())
+        outliers_mask = df["z_score"].abs() > 3
+        df.loc[outliers_mask, self.target_variables] = df.groupby(
+            self.series_id_column
+        )[self.target_variables].transform(lambda x: x.mean())
+        df.drop("z_score", axis=1, inplace=True)
+        return df
+
+    def _sort_by_datetime_col(self, df):
+        """
+        Function sorts by date
+
+        Parameters
+        ----------
+            df : The Pandas DataFrame.
+
+        Returns
+        -------
+            A new Pandas DataFrame with sorted dates for each category
+        """
+        import pandas as pd
+
+        # Temporary column for sorting
+        df["tmp_col_for_sorting"] = pd.to_datetime(
+            df[self.date_column], format=self.date_format
+        )
+        df = (
+            df.groupby(self.series_id_column, group_keys=True)
+            .apply(lambda x: x.sort_values(by="tmp_col_for_sorting", ascending=True))
+            .reset_index(drop=True)
+        )
+        # Drop the temporary column
+        df.drop(columns=["tmp_col_for_sorting"], inplace=True)
         return df
