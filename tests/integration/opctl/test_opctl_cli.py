@@ -17,7 +17,7 @@ ADS_CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
 if "TEAMCITY_VERSION" in os.environ:
     # When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
-    WORK_DIR = os.getenv("CHECKOUT_DIR", None)
+    WORK_DIR = os.getenv("CHECKOUT_DIR", "~")
     CONDA_PACK_FOLDER = f"{WORK_DIR}/conda"
 else:
     CONDA_PACK_FOLDER = "~/conda"

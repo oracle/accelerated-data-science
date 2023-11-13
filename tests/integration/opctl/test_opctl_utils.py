@@ -28,8 +28,8 @@ class TestOpctlUtils:
     def oci_auth(self):
         return create_signer(AUTH)
 
-    @pytest.mark.skip(reason="TODO: add policy for 'target_service': 'identity'")
     def test_get_regional_key(self, oci_auth):
+        # Using "ads_teamcity_test_policy" in ociodscdev(root) compartment
         assert get_region_key(oci_auth) == "IAD"
 
     def test_get_namespace(self, oci_auth):
