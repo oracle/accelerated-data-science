@@ -85,7 +85,7 @@ class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
 
-class ModelDeploymentFailedError(Exception):  # pragma: no cover
+class ModelDeploymentPredictError(Exception):  # pragma: no cover
     pass
 
 
@@ -607,11 +607,6 @@ class ModelDeployment(Builder):
         -------
         ModelDeployment
            The instance of ModelDeployment.
-
-        Raises
-        ------
-        ModelDeploymentFailedError
-            If model deployment fails to deploy
         """
         create_model_deployment_details = (
             self._build_model_deployment_details()
@@ -619,19 +614,17 @@ class ModelDeployment(Builder):
             else self.properties.build()
         )
 
-        response = self.dsc_model_deployment.create(
-            create_model_deployment_details=create_model_deployment_details,
-            wait_for_completion=wait_for_completion,
-            max_wait_time=max_wait_time,
-            poll_interval=poll_interval,
-        )
-
-        if response.lifecycle_state == State.FAILED.name:
-            raise ModelDeploymentFailedError(
-                f"Model deployment {response.id} failed to deploy: {response.lifecycle_details}"
+        try:
+            response = self.dsc_model_deployment.create(
+                create_model_deployment_details=create_model_deployment_details,
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
             )
-
-        return self._update_from_oci_model(response)
+        except:
+            raise
+        finally:
+            return self._update_from_oci_model(response)
 
     def delete(
         self,
@@ -657,12 +650,16 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
-        response = self.dsc_model_deployment.delete(
-            wait_for_completion=wait_for_completion,
-            max_wait_time=max_wait_time,
-            poll_interval=poll_interval,
-        )
-        return self._update_from_oci_model(response)
+        try:
+            response = self.dsc_model_deployment.delete(
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
+            )
+        except:
+            raise
+        finally:
+            return self._update_from_oci_model(response)
 
     def update(
         self,
@@ -718,14 +715,17 @@ class ModelDeployment(Builder):
             else self._update_model_deployment_details(**kwargs)
         )
 
-        response = self.dsc_model_deployment.update(
-            update_model_deployment_details=update_model_deployment_details,
-            wait_for_completion=wait_for_completion,
-            max_wait_time=max_wait_time,
-            poll_interval=poll_interval,
-        )
-
-        return self._update_from_oci_model(response)
+        try:
+            response = self.dsc_model_deployment.update(
+                update_model_deployment_details=update_model_deployment_details,
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
+            )
+        except:
+            raise
+        finally:
+            return self._update_from_oci_model(response)
 
     def watch(
         self,
@@ -890,6 +890,10 @@ class ModelDeployment(Builder):
             Prediction results.
 
         """
+        if self.sync().lifecycle_state != "ACTIVE":
+            raise ModelDeploymentPredictError(
+                "Model Deployment must be in `ACTIVE` state before predict can be called."
+            )
         endpoint = f"{self.url}/predict"
         signer = authutil.default_signer()["signer"]
         header = {
@@ -953,7 +957,7 @@ class ModelDeployment(Builder):
         except oci.exceptions.ServiceError as ex:
             # When bandwidth exceeds the allocated value, TooManyRequests error (429) will be raised by oci backend.
             if ex.status == 429:
-                bandwidth_mbps = self.infrastructure.bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
+                bandwidth_mbps = self.infrastructure.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS
                 utils.get_logger().warning(
                     f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
                     "To estimate the actual bandwidth, use formula: (payload size in KB) * (estimated requests per second) * 8 / 1024."
@@ -985,13 +989,16 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
-        response = self.dsc_model_deployment.activate(
-            wait_for_completion=wait_for_completion,
-            max_wait_time=max_wait_time,
-            poll_interval=poll_interval,
-        )
-
-        return self._update_from_oci_model(response)
+        try:
+            response = self.dsc_model_deployment.activate(
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
+            )
+        except:
+            raise
+        finally:
+            return self._update_from_oci_model(response)
 
     def deactivate(
         self,
@@ -1017,13 +1024,16 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
-        response = self.dsc_model_deployment.deactivate(
-            wait_for_completion=wait_for_completion,
-            max_wait_time=max_wait_time,
-            poll_interval=poll_interval,
-        )
-
-        return self._update_from_oci_model(response)
+        try:
+            response = self.dsc_model_deployment.deactivate(
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
+            )
+        except:
+            raise
+        finally:
+            return self._update_from_oci_model(response)
 
     def _log_details(self, log_type: str = ModelDeploymentLogType.ACCESS):
         """Gets log details for the provided `log_type`.

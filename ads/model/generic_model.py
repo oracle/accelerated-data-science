@@ -2315,16 +2315,20 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_runtime(runtime)
         )
 
-        self.model_deployment = model_deployment.deploy(
-            wait_for_completion=wait_for_completion,
-            max_wait_time=max_wait_time,
-            poll_interval=poll_interval,
-        )
-        self._summary_status.update_status(
-            detail="Deployed the model",
-            status=self.model_deployment.state.name.upper(),
-        )
-        return self.model_deployment
+        try:
+            self.model_deployment = model_deployment.deploy(
+                wait_for_completion=wait_for_completion,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval,
+            )
+            self._summary_status.update_status(
+                detail="Deployed the model",
+                status=self.model_deployment.state.name.upper(),
+            )
+        except:
+            raise
+        finally:
+            return self.model_deployment
 
     def prepare_save_deploy(
         self,
@@ -2792,25 +2796,29 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         """
         if not self.model_deployment:
             raise ValueError("Use `deploy()` method to start model deployment.")
-        logger.info(
-            f"Deactivating model deployment {self.model_deployment.model_deployment_id}."
-        )
-        self.model_deployment.deactivate(
-            max_wait_time=max_wait_time, poll_interval=poll_interval
-        )
-        logger.info(
-            f"Model deployment {self.model_deployment.model_deployment_id} has successfully been deactivated."
-        )
-        logger.info(
-            f"Activating model deployment {self.model_deployment.model_deployment_id}."
-        )
-        self.model_deployment.activate(
-            max_wait_time=max_wait_time, poll_interval=poll_interval
-        )
-        logger.info(
-            f"Model deployment {self.model_deployment.model_deployment_id} has successfully been activated."
-        )
-        return self.model_deployment
+        try:
+            logger.info(
+                f"Deactivating model deployment {self.model_deployment.model_deployment_id}."
+            )
+            self.model_deployment.deactivate(
+                max_wait_time=max_wait_time, poll_interval=poll_interval
+            )
+            logger.info(
+                f"Model deployment {self.model_deployment.model_deployment_id} has successfully been deactivated."
+            )
+            logger.info(
+                f"Activating model deployment {self.model_deployment.model_deployment_id}."
+            )
+            self.model_deployment.activate(
+                max_wait_time=max_wait_time, poll_interval=poll_interval
+            )
+            logger.info(
+                f"Model deployment {self.model_deployment.model_deployment_id} has successfully been activated."
+            )
+        except:
+            raise
+        finally:
+            return self.model_deployment
 
     @class_or_instance_method
     def delete(

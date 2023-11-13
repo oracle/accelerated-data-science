@@ -212,6 +212,8 @@ class OCIDataScienceModelDeployment(
                         f"Error while trying to activate model deployment: {self.id}"
                     )
                     raise e
+                finally:
+                    return self.sync()
 
             return self.sync()
         else:
@@ -264,6 +266,8 @@ class OCIDataScienceModelDeployment(
                     f"Error while trying to create model deployment: {self.id}"
                 )
                 raise e
+            finally:
+                return self.sync()
 
         return self.sync()
 
@@ -328,6 +332,8 @@ class OCIDataScienceModelDeployment(
                         f"Error while trying to deactivate model deployment: {self.id}"
                     )
                     raise e
+                finally:
+                    return self.sync()
 
             return self.sync()
         else:
@@ -399,6 +405,8 @@ class OCIDataScienceModelDeployment(
                     f"Error while trying to delete model deployment: {self.id}"
                 )
                 raise e
+            finally:
+                return self.sync()
 
         return self.sync()
 
@@ -454,8 +462,8 @@ class OCIDataScienceModelDeployment(
         except Exception as e:
             logger.error(f"Error while trying to update model deployment: {self.id}")
             raise e
-
-        return self.sync()
+        finally:
+            return self.sync()
 
     @classmethod
     def list(
