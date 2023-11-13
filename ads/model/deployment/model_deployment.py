@@ -890,9 +890,11 @@ class ModelDeployment(Builder):
             Prediction results.
 
         """
-        if self.sync().lifecycle_state != "ACTIVE":
+        current_state = self.sync().lifecycle_state
+        if current_state != "ACTIVE":
             raise ModelDeploymentPredictError(
-                "Model Deployment must be in `ACTIVE` state before predict can be called."
+                f"Predict() can't be called when model deployment is in {current_state} state. "
+                "Make sure model deployment is `ACTIVE` before calling predict."
             )
         endpoint = f"{self.url}/predict"
         signer = authutil.default_signer()["signer"]
