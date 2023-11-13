@@ -3,8 +3,8 @@ spec:
   detectors:
   - action: anonymize
     name: default.phone
-  - action: anonymize
-    name: spacy.en_core_web_trf.person
+  - action: mask
+    name: default.text_blob_name
   input_data:
     url: data.csv
   output_directory:

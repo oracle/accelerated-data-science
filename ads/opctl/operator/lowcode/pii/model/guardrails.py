@@ -6,81 +6,85 @@
 
 import os
 import time
-import pandas as pd
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
 from ads.opctl.operator.lowcode.pii.model.pii import Scrubber, scrub, detect
 from ads.opctl.operator.lowcode.pii.model.report import PIIOperatorReport
-from ads.common import auth as authutil
+
 from datetime import datetime
-
-
-def get_output_name(given_name, target_name=None):
-    """Add ``-out`` suffix to the src filename."""
-    if not target_name:
-        basename = os.path.basename(given_name)
-        fn, ext = os.path.splitext(basename)
-        target_name = fn + "_out" + ext
-    return target_name
+from ads.opctl.operator.lowcode.pii.model.utils import (
+    _load_data,
+    _write_data,
+    get_output_name,
+)
+from ads.opctl.operator.lowcode.pii.model.utils import default_signer
+from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class PIIGuardrail:
     def __init__(self, config: PiiOperatorConfig, auth: dict = None):
         self.spec = config.spec
-        self.data = None  # saving loaded data
-        self.auth = auth or authutil.default_signer()
         self.scrubber = Scrubber(config=config).config_scrubber()
-        self.target_col = self.spec.target_column
-        self.output_data_name = self.spec.output_directory.name
-        # input attributes
-        self.src_data_uri = self.spec.input_data.url
 
-        # output attributes
-        self.output_directory = self.spec.output_directory.url
         self.dst_uri = os.path.join(
-            self.output_directory,
+            self.spec.output_directory.url,
             get_output_name(
-                target_name=self.output_data_name, given_name=self.src_data_uri
+                target_name=self.spec.output_directory.name,
+                given_name=self.self.spec.input_data.url,
             ),
         )
 
-        # Report attributes
         self.report_uri = os.path.join(
             self.spec.output_directory.url,
             self.spec.report.report_filename,
         )
-        self.show_rows = self.spec.report.show_rows or 25
-        self.show_sensitive_content = self.spec.report.show_sensitive_content or False
 
-    def load_data(self, uri=None, storage_options={}):
-        # TODO: Support more format of input data
-        uri = uri or self.src_data_uri
-        if uri.endswith(".csv"):
-            if uri.startswith("oci://"):
-                storage_options = storage_options or self.auth
-                self.data = pd.read_csv(uri, storage_options=storage_options)
-            else:
-                self.data = pd.read_csv(uri)
-        return self.data
+        try:
+            self.datasets = self.load_data()
+        except Exception as e:
+            logger.warning(f"Failed to load data from `{self.spec.input_data.url}`.")
+            logger.debug(f"Full traceback: {e}")
 
-    def evaluate(self, data=None, dst_uri=None, report_uri=None, storage_options={}):
+    def load_data(self, uri=None, storage_options=None):
+        """Loads input data."""
+        input_data_uri = uri or self.spec.input_data.url
+        logger.info(f"Loading input data from `{input_data_uri}` ...")
+
+        self.datasets = _load_data(
+            filename=input_data_uri,
+            storage_options=storage_options or default_signer(),
+        )
+
+    def process(self, **kwargs):
+        """Process input data."""
         run_at = datetime.now()
         dt_string = run_at.strftime("%d/%m/%Y %H:%M:%S")
         start_time = time.time()
-        data = data or self.data
-        if data is None:
-            data = self.load_data(storage_options)
 
-        report_uri = report_uri or self.report_uri
-        dst_uri = dst_uri or self.dst_uri
+        data = kwargs.pop("input_data", None) or self.datasets
+        report_uri = kwargs.pop("report_uri", None) or self.report_uri
+        dst_uri = kwargs.pop("dst_uri", None) or self.dst_uri
 
-        data["redacted_text"] = data[self.target_col].apply(
+        # process user data
+        data["redacted_text"] = data[self.spec.target_column].apply(
             lambda x: scrub(x, scrubber=self.scrubber)
         )
         elapsed_time = time.time() - start_time
-        # generate pii report
+
+        if dst_uri:
+            logger.info(f"Saving data into `{dst_uri}` ...")
+
+            _write_data(
+                data=data.loc[:, data.columns != self.spec.target_column],
+                filename=dst_uri,
+                storage_options=default_signer()
+                if ObjectStorageDetails.is_oci_path(dst_uri)
+                else {},
+            )
+
+        # prepare pii report
         if report_uri:
-            data["entities_cols"] = data[self.target_col].apply(
+            data["entities_cols"] = data[self.spec.target_column].apply(
                 lambda x: detect(text=x, scrubber=self.scrubber)
             )
             from ads.opctl.operator.lowcode.pii.model.utils import _safe_get_spec
@@ -110,7 +114,7 @@ class PIIGuardrail:
             context = {
                 "run_summary": {
                     "total_tokens": 0,
-                    "src_uri": self.src_data_uri,
+                    "src_uri": self.spec.input_data.url,
                     "total_rows": len(data.index),
                     "config": self.spec,
                     "selected_detectors": list(self.scrubber._detectors.values()),
@@ -118,13 +122,13 @@ class PIIGuardrail:
                     "selected_spacy_model": selected_spacy_model,
                     "timestamp": dt_string,
                     "elapsed_time": elapsed_time,
-                    "show_rows": self.show_rows,
-                    "show_sensitive_info": self.show_sensitive_content,
+                    "show_rows": self.spec.report.show_rows,
+                    "show_sensitive_info": self.spec.report.show_sensitive_content,
                 },
                 "run_details": {"rows": []},
             }
             for ind in data.index:
-                text = data[self.target_col][ind]
+                text = data[self.spec.target_column][ind]
                 ent_col = data["entities_cols"][ind]
                 idx = data["id"][ind]
                 page = {
@@ -139,19 +143,10 @@ class PIIGuardrail:
             context = self._process_context(context)
             self._generate_report(context, report_uri)
 
-        if dst_uri:
-            self._save_output(data, ["id", "redacted_text"], dst_uri)
-
     def _generate_report(self, context, report_uri):
         report_ = PIIOperatorReport(context=context)
         report_sections = report_.make_view()
         report_.save_report(report_sections=report_sections, report_path=report_uri)
-
-    def _save_output(self, df, target_col, dst_uri):
-        # TODO: Based on extension of dst_uri call to_csv or to_json.
-        data_out = df[target_col]
-        data_out.to_csv(dst_uri)
-        return dst_uri
 
     def _process_context(self, context):
         """Count different type of filth."""

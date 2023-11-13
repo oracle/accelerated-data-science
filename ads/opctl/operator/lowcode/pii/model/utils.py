@@ -6,9 +6,72 @@
 
 
 import logging
+import os
+import pandas as pd
 from typing import Dict, List
 
 from .constant import YAML_KEYS
+from ads.common.object_storage_details import ObjectStorageDetails
+import fsspec
+from ..errors import PIIInputDataError
+
+
+def default_signer(**kwargs):
+    os.environ["EXTRA_USER_AGENT_INFO"] = "Pii-Operator"
+    from ads.common.auth import default_signer
+
+    return default_signer(**kwargs)
+
+
+def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
+    if fsspec.utils.get_protocol(filename) == "file":
+        return pd_fn(filename, **kwargs)
+
+    storage_options = storage_options or (
+        default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
+    )
+
+    return pd_fn(filename, storage_options=storage_options, **kwargs)
+
+
+def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
+    if not format:
+        _, format = os.path.splitext(filename)
+        format = format[1:]
+    if format in ["json", "csv"]:
+        read_fn = getattr(pd, f"read_{format}")
+        data = _call_pandas_fsspec(read_fn, filename, storage_options=storage_options)
+    elif format in ["tsv"]:
+        data = _call_pandas_fsspec(
+            pd.read_csv, filename, storage_options=storage_options, sep="\t"
+        )
+    else:
+        raise PIIInputDataError(f"Unrecognized format: {format}")
+    if columns:
+        # keep only these columns, done after load because only CSV supports stream filtering
+        data = data[columns]
+    return data
+
+
+def _write_data(data, filename, format, storage_options, index=False, **kwargs):
+    if not format:
+        _, format = os.path.splitext(filename)
+        format = format[1:]
+    if format in ["json", "csv"]:
+        write_fn = getattr(data, f"to_{format}")
+        return _call_pandas_fsspec(
+            write_fn, filename, index=index, storage_options=storage_options
+        )
+    raise PIIInputDataError(f"Unrecognized format: {format}")
+
+
+def get_output_name(given_name, target_name=None):
+    """Add ``-out`` suffix to the src filename."""
+    if not target_name:
+        basename = os.path.basename(given_name)
+        fn, ext = os.path.splitext(basename)
+        target_name = fn + "_out" + ext
+    return target_name
 
 
 class ReportContextKey:

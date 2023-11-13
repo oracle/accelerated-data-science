@@ -7,6 +7,7 @@
 
 import scrubadub
 
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl import logger
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.lowcode.pii.model.factory import PiiDetectorFactory
@@ -16,20 +17,31 @@ from ads.opctl.operator.lowcode.pii.model.processor import (
     Remover,
 )
 
-SUPPORT_ACTIONS = ["mask", "remove", "anonymize"]
+
+class SupportedAction(str, metaclass=ExtendedEnumMeta):
+    """Supported action to process detected entities."""
+
+    MASK = "mask"
+    REMOVE = "remove"
+    ANONYMIZE = "anonymize"
 
 
-class DetectorType:
-    DEFAULT = "default"
-
-
-class Scrubber:
-    def __init__(self, config: str or "PiiOperatorConfig" or dict):
+class PiiScrubber:
+    def __init__(self, config):
         logger.info(f"Loading config from {config}")
         if isinstance(config, str):
             config = _load_yaml_from_uri(config)
 
         self.config = config
+        self.spec = (
+            self.config["spec"] if isinstance(self.config, dict) else self.config.spec
+        )
+        self.detector_spec = (
+            self.spec["detectors"]
+            if isinstance(self.spec, dict)
+            else self.spec.detectors
+        )
+
         self.scrubber = scrubadub.Scrubber()
 
         self.detectors = []
@@ -45,9 +57,9 @@ class Scrubber:
             self.scrubber.remove_detector(d)
 
     def _register(self, name, dtype, model, action, mask_with: str = None):
-        if action not in SUPPORT_ACTIONS:
+        if action not in SupportedAction.values():
             raise ValueError(
-                f"Not supported `action`: {action}. Please select from {SUPPORT_ACTIONS}."
+                f"Not supported `action`: {action}. Please select from {SupportedAction.values()}."
             )
 
         detector = PiiDetectorFactory.get_detector(
@@ -71,7 +83,7 @@ class Scrubber:
                 self.post_processors[replacer_name] = replacer
             else:
                 raise ValueError(
-                    f"Not supported `action` {action} for this entity {name}. Please try with other action."
+                    f"Not supported `action` {action} for this entity `{name}`. Please try with other action."
                 )
 
         if action == "remove":
@@ -81,14 +93,10 @@ class Scrubber:
 
     def config_scrubber(self):
         """Returns an instance of srubadub.Scrubber."""
-        spec = (
-            self.config["spec"] if isinstance(self.config, dict) else self.config.spec
-        )
-        detectors = spec["detectors"] if isinstance(spec, dict) else spec.detector
 
-        self.scrubber.redact_spec_file = spec
+        self.scrubber.redact_spec_file = self.spec
 
-        for detector in detectors:
+        for detector in self.detector_spec:
             # example format for detector["name"]: default.phone or spacy.en_core_web_trf.person
             d = detector["name"].split(".")
             dtype = d[0]
@@ -113,13 +121,13 @@ class Scrubber:
             self.scrubber.add_post_processor(v)
 
 
-def scrub(text, spec_file=None, scrubber=None):
+def scrub(text, config=None, scrubber=None):
     if not scrubber:
-        scrubber = Scrubber(config=spec_file).config_scrubber()
+        scrubber = PiiScrubber(config=config).config_scrubber()
     return scrubber.clean(text)
 
 
-def detect(text, spec_file=None, scrubber=None):
+def detect(text, config=None, scrubber=None):
     if not scrubber:
-        scrubber = Scrubber(config=spec_file).config_scrubber()
+        scrubber = PiiScrubber(config=config).config_scrubber()
     return list(scrubber.iter_filth(text, document_name=None))

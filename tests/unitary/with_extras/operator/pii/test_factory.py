@@ -2,9 +2,7 @@
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import unittest
-
-from parameterized import parameterized
+import pytest
 from scrubadub_spacy.detectors.spacy import SpacyEntityDetector
 
 from ads.opctl.operator.lowcode.pii.model.factory import (
@@ -13,7 +11,7 @@ from ads.opctl.operator.lowcode.pii.model.factory import (
 )
 
 
-class TestPiiDetectorFactory(unittest.TestCase):
+class TestPiiDetectorFactory:
     def test_get_default_detector(self):
         detector_type = "default"
         entity = "phone"
@@ -24,11 +22,12 @@ class TestPiiDetectorFactory(unittest.TestCase):
         )
         assert detector == expected_result
 
-    @parameterized.expand(
+    @pytest.mark.parametrize(
+        "detector_type, entity, model",
         [
             ("spacy", "person", "en_core_web_trf"),
             ("spacy", "other", "en_core_web_trf"),
-        ]
+        ],
     )
     def test_get_spacy_detector(self, detector_type, entity, model):
         detector = PiiDetectorFactory.get_detector(
@@ -41,7 +40,7 @@ class TestPiiDetectorFactory(unittest.TestCase):
         detector_type = "unknow"
         entity = "myentity"
         model = None
-        with self.assertRaises(UnSupportedDetectorError):
+        with pytest.raises(UnSupportedDetectorError):
             PiiDetectorFactory.get_detector(
                 detector_type=detector_type, entity=entity, model=model
             )
