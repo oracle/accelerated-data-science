@@ -36,9 +36,9 @@ Some users know which modeling frameworks (this can be a specific model, such as
 
 This documentation will explore these concepts in greater depth, demonstrating how to leverage the flexibility and configurability of the Python library module to implement both multivariate and univariate forecasting models, as well as global and local approaches. By the end of this guide, users will have the knowledge and tools needed to make informed decisions when designing forecasting solutions tailored to their specific requirements.
 
+.. versionadded:: 2.9.0
 
 .. toctree::
-  :hidden:
   :maxdepth: 1
 
   ./use_cases

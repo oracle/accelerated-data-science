@@ -19,7 +19,7 @@ from urllib.parse import urlparse
 
 from yaml import SafeLoader as loader
 
-from ads.common import auth as authutil
+from ads.opctl.operator.common.utils import default_signer
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import copy_from_uri
@@ -461,9 +461,7 @@ class RemoteOperatorLoader(Loader):
         auth (Dict, optional)
             Default authentication settings.
         """
-        super().__init__(
-            uri=uri, uri_dst=uri_dst, auth=auth or authutil.default_signer()
-        )
+        super().__init__(uri=uri, uri_dst=uri_dst, auth=auth or default_signer())
 
     def _load(self, **kwargs: Dict) -> OperatorInfo:
         """Downloads the operator's source code to the local folder.

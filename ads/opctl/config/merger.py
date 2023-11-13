@@ -65,7 +65,6 @@ class ConfigMerger(ConfigProcessor):
 
         self._config_flex_shape_details()
 
-        logger.debug(f"Config: {self.config}")
         return self
 
     def _merge_config_with_cmd_args(self, cmd_args: Dict) -> None:
@@ -135,7 +134,6 @@ class ConfigMerger(ConfigProcessor):
             )
             self.config["execution"]["oci_profile"] = profile
         # loading config for corresponding profile
-        logger.debug(f"Loading service config for profile {profile}.")
         infra_config = self._get_service_config(profile, ads_config_path)
         if infra_config.get(
             "conda_pack_os_prefix"
