@@ -120,8 +120,8 @@ class BokehHeatMap(object):
             y_range=yrange,
             toolbar_location="below",
             toolbar_sticky=False,
-            plot_width=600,
-            plot_height=600,
+            width=600,
+            height=600,
         )
 
         p.rect(
@@ -196,8 +196,8 @@ class BokehHeatMap(object):
             y_range=(0, len(matrix["Y"]) + 1),
             toolbar_location="below",
             toolbar_sticky=False,
-            plot_width=600,
-            plot_height=600,
+            width=600,
+            height=600,
         )
 
         p.hbar(
