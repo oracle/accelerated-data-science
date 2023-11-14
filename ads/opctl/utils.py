@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -88,9 +88,8 @@ def get_namespace(auth: dict) -> str:
 
 
 def get_region_key(auth: dict) -> str:
-    if len(auth["config"]) > 0:
-        tenancy = auth["config"]["tenancy"]
-    else:
+    tenancy = auth["config"].get("tenancy")
+    if not tenancy:
         tenancy = auth["signer"].tenancy_id
     client = OCIClientFactory(**auth).identity
     return client.get_tenancy(tenancy).data.home_region_key

@@ -15,6 +15,13 @@ TESTS_FILES_DIR = os.path.join(
 )
 ADS_CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
 
+if "TEAMCITY_VERSION" in os.environ:
+    # When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
+    WORK_DIR = os.getenv("CHECKOUT_DIR", "~")
+    CONDA_PACK_FOLDER = f"{WORK_DIR}/conda"
+else:
+    CONDA_PACK_FOLDER = "~/conda"
+
 
 def _assert_run_command(cmd_str, expected_outputs: list = None):
     runner = CliRunner()
@@ -48,7 +55,7 @@ class TestLocalRunsWithConda:
     # For tests, we can always run the command in debug mode (-d)
     # By default, pytest only print the logs if the test is failed,
     # in which case we would like to see the debug logs.
-    CMD_OPTIONS = "-d -b local "
+    CMD_OPTIONS = f"-d -b local --conda-pack-folder {CONDA_PACK_FOLDER} "
 
     def test_hello_world(self):
         test_folder = os.path.join(TESTS_FILES_DIR, "hello_world_test")
@@ -79,6 +86,9 @@ class TestLocalRunsWithConda:
         ]
         _assert_run_command(cmd, expected_outputs)
 
+    @pytest.mark.skip(
+        reason="spark do not support instance principal - this test candidate to remove"
+    )
     def test_spark_run(self):
         test_folder = os.path.join(TESTS_FILES_DIR, "spark_test")
         cmd = (
