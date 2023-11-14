@@ -374,7 +374,7 @@ class ForecastOperatorBaseModel(ABC):
             if set(self.forecast_output.list_target_category_columns()) != set(
                 target_columns_in_output
             ):
-                raise ValueError(
+                logger.warn(
                     f"Column Mismatch between Forecast Output and Target Columns"
                 )
             metrics_per_horizon = utils._build_metrics_per_horizon(
