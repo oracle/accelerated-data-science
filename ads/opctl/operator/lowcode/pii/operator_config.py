@@ -9,69 +9,90 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
-from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_config import OperatorConfig
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
+from ads.opctl.operator.lowcode.pii.constant import (
+    DEFAULT_SHOW_ROWS,
+    DEFAULT_REPORT_FILENAME,
+    DEFAULT_TARGET_COLUMN,
+)
 
 
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
     """Class representing operator specification input data details."""
 
-    format: str = None
-    columns: List[str] = None
     url: str = None
-    options: Dict = None
-    limit: int = None
 
 
 @dataclass(repr=True)
 class OutputDirectory(DataClassSerializable):
     """Class representing operator specification output directory details."""
 
-    connect_args: Dict = None
-    format: str = None
     url: str = None
     name: str = None
-    options: Dict = None
 
 
 @dataclass(repr=True)
-class PIIOperatorSpec(DataClassSerializable):
-    """Class representing PII operator specification."""
+class Report(DataClassSerializable):
+    """Class representing operator specification report details."""
+
+    report_filename: str = None
+    show_rows: int = None
+    show_sensitive_content: bool = False
+
+
+@dataclass(repr=True)
+class Detector(DataClassSerializable):
+    """Class representing operator specification redactor directory details."""
 
     name: str = None
+    action: str = None
+
+
+@dataclass(repr=True)
+class PiiOperatorSpec(DataClassSerializable):
+    """Class representing pii operator specification."""
+
     input_data: InputData = field(default_factory=InputData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
-    report_file_name: str = None
-    report_title: str = None
-    report_theme: str = None
+    report: Report = field(default_factory=Report)
+    target_column: str = None
+    detectors: List[Dict] = field(default_factory=list)
 
     def __post_init__(self):
         """Adjusts the specification details."""
-        self.report_file_name = self.report_file_name or "report.html"
-        self.report_theme = self.report_theme or "light"
+
+        self.target_column = self.target_column or DEFAULT_TARGET_COLUMN
+        self.report = self.report or Report.from_dict(
+            {
+                "report_filename": DEFAULT_REPORT_FILENAME,
+                "show_rows": DEFAULT_SHOW_ROWS,
+                "show_sensitive_content": False,
+            }
+        )
 
 
 @dataclass(repr=True)
-class PIIOperatorConfig(OperatorConfig):
-    """Class representing PII operator config.
+class PiiOperatorConfig(OperatorConfig):
+    """Class representing pii operator config.
 
     Attributes
     ----------
     kind: str
         The kind of the resource. For operators it is always - `operator`.
     type: str
-        The type of the operator. For PII operator it is always - `PII`
+        The type of the operator. For pii operator it is always - `pii`
     version: str
         The version of the operator.
-    spec: PIIOperatorSpec
-        The PII operator specification.
+    spec: PiiOperatorSpec
+        The pii operator specification.
     """
 
     kind: str = "operator"
-    type: str = "PII"
+    type: str = "pii"
     version: str = "v1"
-    spec: PIIOperatorSpec = field(default_factory=PIIOperatorSpec)
+    spec: PiiOperatorSpec = field(default_factory=PiiOperatorSpec)
 
     @classmethod
     def _load_schema(cls) -> str:

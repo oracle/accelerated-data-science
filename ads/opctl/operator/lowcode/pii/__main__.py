@@ -15,18 +15,19 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-from .operator_config import PIIOperatorConfig
+from .model.guardrails import PIIGuardrail
+from .operator_config import PiiOperatorConfig
 
 
-def operate(operator_config: PIIOperatorConfig) -> None:
+def operate(operator_config: PiiOperatorConfig) -> None:
     """Runs the PII operator."""
-
-    print("The operator is running...")
+    guard = PIIGuardrail(config=operator_config)
+    guard.process()
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:
     """Verifies the PII operator config."""
-    operator = PIIOperatorConfig.from_dict(spec)
+    operator = PiiOperatorConfig.from_dict(spec)
     msg_header = (
         f"{'*' * 30} The operator config has been successfully verified {'*' * 30}"
     )
@@ -59,7 +60,7 @@ def main(raw_args: List[str]):
         except:
             yaml_string = operator_spec_str
 
-    operator_config = PIIOperatorConfig.from_yaml(
+    operator_config = PiiOperatorConfig.from_yaml(
         uri=args.file,
         yaml_string=yaml_string,
     )

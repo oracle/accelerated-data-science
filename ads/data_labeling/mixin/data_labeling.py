@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import Dict, List
@@ -188,6 +188,7 @@ class DataLabelingAccessMixin:
         content_column: str = "Content",
         annotations_column: str = "Annotations",
         limit: int = ROWS_TO_RENDER_LIMIT,
+        return_html: bool = False,
     ) -> None:
         """Renders NER dataset. Displays only first 50 rows.
 
@@ -223,6 +224,8 @@ class DataLabelingAccessMixin:
             annotations_column=annotations_column,
         )
         result_html = text_visualizer.render(items=items, options=options)
+        if return_html:
+            return result_html
 
         from IPython.core.display import HTML, Markdown, display
 

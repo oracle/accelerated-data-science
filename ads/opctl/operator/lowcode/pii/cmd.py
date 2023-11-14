@@ -6,11 +6,9 @@
 
 from typing import Dict
 
-import click
-
 from ads.opctl import logger
-from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
 
 
 def init(**kwargs: Dict) -> str:
@@ -32,6 +30,10 @@ def init(**kwargs: Dict) -> str:
     """
     logger.info("==== PII related options ====")
 
+    default_detector = [{"name": "<type>.<entity>", "action": "mask"}]
+
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example_dict(values={"type": kwargs.get("type")})
+    ).generate_example_dict(
+        values={"type": kwargs.get("type"), "detectors": default_detector}
+    )
