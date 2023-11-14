@@ -6,13 +6,9 @@ spec:
   - action: mask
     name: default.text_blob_name
   input_data:
-    url: data.csv
+    url: ./test_data.csv
   output_directory:
-    name: data-out.csv
-    url: result/
-  report:
-    report_filename: report.html
-    show_sensitive_content: false
-  target_column: target
+    url: ./test_result/
+  target_column: text
 type: pii
 version: v1
