@@ -6,7 +6,6 @@
 import tempfile
 import os
 
-from ads.opctl.constants import DEFAULT_OCI_CONFIG_FILE, DEFAULT_PROFILE
 from ads.opctl.utils import (
     get_region_key,
     get_namespace,
@@ -18,13 +17,19 @@ from tests.integration.config import secrets
 import pytest
 import fsspec
 
+if "TEAMCITY_VERSION" in os.environ:
+    AUTH = AuthType.INSTANCE_PRINCIPAL
+else:
+    AUTH = AuthType.SECURITY_TOKEN
+
 
 class TestOpctlUtils:
     @pytest.fixture(scope="class")
     def oci_auth(self):
-        return create_signer(AuthType.API_KEY, DEFAULT_OCI_CONFIG_FILE, DEFAULT_PROFILE)
+        return create_signer(AUTH)
 
     def test_get_regional_key(self, oci_auth):
+        # Using "ads_teamcity_test_policy" in ociodscdev(root) compartment
         assert get_region_key(oci_auth) == "IAD"
 
     def test_get_namespace(self, oci_auth):

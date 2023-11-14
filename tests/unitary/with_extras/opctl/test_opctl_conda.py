@@ -101,7 +101,6 @@ dependencies:
         mock_run_cmd,
         monkeypatch,
     ):
-
         with tempfile.TemporaryDirectory() as td:
             with pytest.raises(FileNotFoundError):
                 publish(
@@ -187,7 +186,7 @@ manifest:
             import ads
 
             mock_run_cmd.assert_called_with(
-                f"python {os.path.join(ads.__path__[0], 'opctl', 'conda', 'pack.py')} {os.path.join(td, 'conda', 'test')}",
+                f"python {os.path.join(ads.__path__[0], 'opctl', 'conda', 'pack.py')} --conda-path {os.path.join(td, 'conda', 'test')}",
                 shell=True,
             )
 

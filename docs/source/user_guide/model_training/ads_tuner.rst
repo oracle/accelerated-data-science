@@ -341,7 +341,7 @@ space is being used for your model class when ``strategy`` is
 ``perfunctory`` or ``detailed`` use the ``search_space()`` method to see
 the details.
 
-The ``adstuner_search_space_update.ipynb`` notebook has detailed
+The `Introduction to ADSTuner <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/hyperparameter_tuning.ipynb>`_ notebook has detailed
 examples about how to work with and update the search space.
 
 The next cell displaces the search strategy and the search space.
@@ -363,7 +363,7 @@ parameter. When it is set to ``False``, the tuning process runs
 asynchronously so it runs in the background and allows you to continue
 your work in the notebook. When ``synchronous`` is set to ``True``, the
 notebook is blocked until ``tune()`` finishes running. The
-``adntuner_sync_and_async.ipynb`` notebook illustrates this feature in a
+`Introduction to ADSTuner <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/hyperparameter_tuning.ipynb>`_ notebook illustrates this feature in a
 more detailed way.
 
 The ``ADSTuner`` object needs to know when to stop tuning. The
@@ -739,7 +739,7 @@ You can change the search space in the following three ways:
 hyperparameter or make any changes to a hyperparameter that is based on
 a categorical distribution. You need to initiate a new ``ADSTuner``
 object for those cases. For more detailed information, review the
-``adstuner_search_space_update.ipynb`` notebook.
+`Introduction to ADSTuner <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/hyperparameter_tuning.ipynb>`_ notebook.
 
 The next cell switches to a ``detailed`` strategy. All previous values
 set for ``C``, ``solver``, and ``max_iter`` are kept, and ``ADSTuner``

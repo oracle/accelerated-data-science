@@ -39,19 +39,12 @@ class TestArtifactSaveData:
         cls.authorization = auth.default_signer()
 
     def setup_method(self):
-        self.AUTH = "api_key"
         self.BUCKET_NAME = "ads_test"
         self.NAMESPACE = secrets.common.NAMESPACE
         self.OS_PREFIX = "unit_test"
-        profile = "DEFAULT"
         self.oci_path = f"oci://{self.BUCKET_NAME}@{self.NAMESPACE}/{self.OS_PREFIX}"
 
-        config_path = os.path.expanduser(os.path.join("~/.oci", "config"))
-        if os.path.exists(config_path):
-            self.config = oci.config.from_file(config_path, profile)
-            self.oci_client = ObjectStorageClient(self.config)
-        else:
-            raise Exception(f"OCI keys not found at {config_path}")
+        self.oci_client = ObjectStorageClient(**self.authorization)
 
     @patch.object(ModelIntrospect, "_reset")
     def test_modelartifact_save_with_introspection(self, mock_reset):
