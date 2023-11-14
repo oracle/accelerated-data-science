@@ -19,7 +19,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads"  # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.8.11"
+version = "2.9.0rc2"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -156,12 +156,21 @@ forecast = [
   "autots[additional]",
   "datapane",
   "neuralprophet",
-  "oracle_ads[optuna]",
   "oracle-automlx==23.2.3",
   "prophet",
   "pmdarima",
   "statsmodels",
   "sktime",
+  "optuna==2.9.0",
+  "oci-cli",
+  "shap",
+  "holidays==0.21.13",
+  "conda-pack",
+  "docker",
+  "inflection",
+  "nbconvert",
+  "nbformat",
+  "rich",
 ]
 
 [project.urls]

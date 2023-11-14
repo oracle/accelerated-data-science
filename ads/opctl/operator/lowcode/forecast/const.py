@@ -15,6 +15,7 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     NeuralProphet = "neuralprophet"
     AutoMLX = "automlx"
     AutoTS = "autots"
+    Auto = "auto"
 
 
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
@@ -44,6 +45,18 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     ELAPSED_TIME = "Elapsed Time"
 
 
+class ForecastOutputColumns(str, metaclass=ExtendedEnumMeta):
+    """The column names for the forecast.csv output file"""
+
+    DATE = "Date"
+    SERIES = "Series"
+    INPUT_VALUE = "input_value"
+    FITTED_VALUE = "fitted_value"
+    FORECAST_VALUE = "forecast_value"
+    UPPER_BOUND = "upper_bound"
+    LOWER_BOUND = "lower_bound"
+
+
 AUTOMLX_METRIC_MAP = {
     "smape": "neg_sym_mean_abs_percent_error",
     "mape": "neg_sym_mean_abs_percent_error",
@@ -56,3 +69,4 @@ AUTOMLX_METRIC_MAP = {
 MAX_COLUMNS_AUTOMLX = 15
 DEFAULT_TRIALS = 10
 SUMMARY_METRICS_HORIZON_LIMIT = 10
+PROPHET_INTERNAL_DATE_COL = "ds"
