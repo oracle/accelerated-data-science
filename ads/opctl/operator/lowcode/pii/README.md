@@ -69,7 +69,7 @@ ads operator build-image -t pii
 This will create a new `pii:v1` image, with `/etc/operator` as the designated working directory within the container.
 
 
-Check the `backend_operator_local_container_config.yaml` config file. By default, it should have a `volume` section with the `.oci` configs folder mounted.
+Check the `pii_operator_local_container.yaml` config file. By default, it should have a `volume` section with the `.oci` configs folder mounted.
 
 ```yaml
 volume:
@@ -101,7 +101,7 @@ version: v1
 Run the pii operator within a container using the command below:
 
 ```bash
-ads operator run -f ~/pii/pii.yaml --backend-config ~/pii/backend_operator_local_container_config.yaml
+ads operator run -f ~/pii/pii.yaml --backend-config ~/pii/pii_operator_local_container.yaml
 ```
 
 ## 5. Running pii in the Data Science job within container runtime
@@ -142,7 +142,7 @@ output_directory:
 Run the pii operator on the Data Science jobs using the command posted below:
 
 ```bash
-ads operator run -f ~/pii/pii.yaml --backend-config ~/pii/backend_job_container_config.yaml
+ads operator run -f ~/pii/pii.yaml --backend-config ~/pii/pii_job_container.yaml
 ```
 
 The logs can be monitored using the `ads opctl watch` command.
@@ -172,7 +172,7 @@ ads opctl conda publish pii_v1
 More details about configuring CLI can be found here - [Configuring CLI](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/opctl/configure.html)
 
 
-After the conda environment is published to Object Storage, it can be used within Data Science jobs service. Check the `backend_job_python_config.yaml` config file. It should contain pre-populated infrastructure and runtime sections. The runtime section should contain a `conda` section.
+After the conda environment is published to Object Storage, it can be used within Data Science jobs service. Check the `pii_job_python.yaml` config file. It should contain pre-populated infrastructure and runtime sections. The runtime section should contain a `conda` section.
 
 ```yaml
 conda:
@@ -194,7 +194,7 @@ output_directory:
 Run the pii on the Data Science jobs using the command posted below:
 
 ```bash
-ads operator run -f ~/pii/pii.yaml --backend-config ~/pii/backend_job_python_config.yaml
+ads operator run -f ~/pii/pii.yaml --backend-config ~/pii/pii_job_python.yaml
 ```
 
 The logs can be monitored using the `ads opctl watch` command.
