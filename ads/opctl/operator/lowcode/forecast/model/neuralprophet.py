@@ -395,5 +395,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             other_sections,
         )
 
-    def explain_model(self, datetime_col_name, explain_predict_fn) -> dict:
-        raise NotImplementedError()
+    def _custom_predict_neuralprophet(self, data):
+        raise NotImplementedError("NeuralProphet does not yet support explanations.")
+        # data_prepped = data.reset_index()
+        # data_prepped['y'] = None
+        # data_prepped['ds'] = pd.to_datetime(data_prepped['ds'])
+        # return self.models[self.target_columns.index(self.series_id)].predict(data_prepped)["yhat1"]

@@ -482,36 +482,40 @@ class ForecastOperatorBaseModel(ABC):
                 )
         # explanations csv reports
         if self.spec.generate_explanations:
-            if self.formatted_global_explanation is not None:
-                utils._write_data(
-                    data=self.formatted_global_explanation,
-                    filename=os.path.join(
-                        output_dir, self.spec.global_explanation_filename
-                    ),
-                    format="csv",
-                    storage_options=storage_options,
-                    index=True,
-                )
-            else:
-                logger.warn(
-                    f"Attempted to generate the {self.spec.global_explanation_filename} file with the training metrics, however the training metrics could not be properly generated."
-                )
+            try:
+                if self.formatted_global_explanation is not None:
+                    utils._write_data(
+                        data=self.formatted_global_explanation,
+                        filename=os.path.join(
+                            output_dir, self.spec.global_explanation_filename
+                        ),
+                        format="csv",
+                        storage_options=storage_options,
+                        index=True,
+                    )
+                else:
+                    logger.warn(
+                        f"Attempted to generate global explanations for the {self.spec.global_explanation_filename} file, but an issue occured in formatting the explanations."
+                    )
 
-            if self.formatted_local_explanation is not None:
-                utils._write_data(
-                    data=self.formatted_local_explanation,
-                    filename=os.path.join(
-                        output_dir, self.spec.local_explanation_filename
-                    ),
-                    format="csv",
-                    storage_options=storage_options,
-                    index=True,
-                )
-            else:
+                if self.formatted_local_explanation is not None:
+                    utils._write_data(
+                        data=self.formatted_local_explanation,
+                        filename=os.path.join(
+                            output_dir, self.spec.local_explanation_filename
+                        ),
+                        format="csv",
+                        storage_options=storage_options,
+                        index=True,
+                    )
+                else:
+                    logger.warn(
+                        f"Attempted to generate local explanations for the {self.spec.local_explanation_filename} file, but an issue occured in formatting the explanations."
+                    )
+            except AttributeError as e:
                 logger.warn(
-                    f"Attempted to generate the {self.spec.local_explanation_filename} file with the training metrics, however the training metrics could not be properly generated."
+                    "Unable to generate explanations for this model type or for this dataset."
                 )
-
         logger.info(
             f"The outputs have been successfully "
             f"generated and placed into the directory: {output_dir}."
