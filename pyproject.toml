@@ -165,12 +165,7 @@ forecast = [
   "oci-cli",
   "shap",
   "holidays==0.21.13",
-  "conda-pack",
-  "docker",
-  "inflection",
-  "nbconvert",
-  "nbformat",
-  "rich",
+  "oracle-ads[opctl]",
 ]
 
 [project.urls]
