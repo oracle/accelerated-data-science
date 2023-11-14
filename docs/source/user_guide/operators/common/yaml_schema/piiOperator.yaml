@@ -50,13 +50,13 @@ spec:
           meta:
             description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/`"
         name:
-          required: true
+          required: false
           type: string
           default: data-out.csv
       type: dict
 
     report:
-      required: true
+      required: false
       schema:
         report_filename:
           required: true
@@ -67,7 +67,6 @@ spec:
         show_rows:
           required: false
           type: number
-          default: 10
           meta:
             description: "The number of rows that shows in the report. Defaults to `10`"
         show_sensitive_content:

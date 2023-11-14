@@ -37,8 +37,7 @@ Here is an example pii.yaml with every parameter specified:
     * **detectors**: This list contains the details for each detector and action that will be taken.
         * **name**: The string specifies the name of the detector. The format should be ``<type>.<entity>``.
         * **action**: The string specifies the way to process the detected entity. Default to mask.
-
-    * **output_directory**: (optional) This dictionary contains the details for where to put the output artifacts. The directory need not exist, but must be accessible by the Operator during runtime.
+    * **output_directory**: This dictionary contains the details for where to put the output artifacts. The directory need not exist, but must be accessible by the Operator during runtime.
         * **url**: Insert the uri for the dataset if it's on object storage using the URI pattern ``oci://<bucket>@<namespace>/subfolder/``.
         * **name**: The string specifies the name of the processed data file.
 
