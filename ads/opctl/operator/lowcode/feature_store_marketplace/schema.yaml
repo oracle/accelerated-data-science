@@ -32,38 +32,56 @@ spec:
       meta:
         description: "Values being provided to helm chart"
       schema:
-        mysqlDBConfig:
+        db:
           type: dict
-          required: false
-          meta:
-            description: "Configuration details on how to connect to MySQL DB"
-          schema:
-            vaultOCID:
-              type: string
-              required: true
-            secretName:
-              type: string
-              required: true
-            jdbcConnectionUrl:
-              type: string
-              required: true
-        atpDBConfig:
-          type: dict
-          required: false
-          schema:
-            vaultOCID:
-              type: string
-              required: true
-            dbURL:
-              type: string
-              required: true
-        configuredDB:
-          type: string
           required: true
-          default: MYSQL
-          allowed:
-            - MYSQL
-            - ATP
+          description: "Feature store metadata database configuration"
+          schema:
+            configuredDB:
+              type: string
+              required: true
+              default: MYSQL
+              allowed:
+                - MYSQL
+                - ATP
+            mysql:
+              type: dict
+              required: false
+              description: "MySQL database configuration"
+              schema:
+                authType:
+                  type: string
+                  required: true
+                  default: VAULT
+                  allowed:
+                    - VAULT
+                    - BASIC
+                jdbcURL:
+                  type: string
+                  required: true
+                  description: "The JDBC connection url to the database"
+                basic:
+                  type: dict
+                  required: false
+                  description: Basic authentication details
+                  schema:
+                    password:
+                      type: string
+                      required: true
+                      description: "Plain-text password to the MySql database"
+                vault:
+                  type: dict
+                  required: false
+                  description: The details of vault to retrieve mysql secret from
+                  schema:
+                    vaultOcid:
+                      type: string
+                      required: true
+                      description: The OCID of the vault to retrieve the secret from
+                    secretName:
+                      type: string
+                      required: true
+                      description: The name of the secret inside the vault containing the password
     clusterDetails:
       required: true
       type: dict
@@ -81,7 +99,6 @@ spec:
     ocirRepo:
       type: string
       required: true
-      default: "iad.ocir.io"
+      default: "iad.ocir.io/<repository>"
       description: "The ocir repo to clone the marketplace listing to"
-
   type: dict
