@@ -4,16 +4,15 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
-import logging
 import os
-import pandas as pd
-from typing import Dict, List
+import sys
 
-from .constant import YAML_KEYS
-from ads.common.object_storage_details import ObjectStorageDetails
 import fsspec
-from ..errors import PIIInputDataError
+import pandas as pd
+
+from ads.common.object_storage_details import ObjectStorageDetails
+
+from .errors import PIIInputDataError
 
 
 def default_signer(**kwargs):
@@ -34,7 +33,7 @@ def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
-def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
+def _load_data(filename, format=None, storage_options=None, columns=None, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
@@ -53,7 +52,9 @@ def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
     return data
 
 
-def _write_data(data, filename, format, storage_options, index=False, **kwargs):
+def _write_data(
+    data, filename, format=None, storage_options=None, index=False, **kwargs
+):
     if not format:
         _, format = os.path.splitext(filename)
         format = format[1:]
@@ -74,33 +75,6 @@ def get_output_name(given_name, target_name=None):
     return target_name
 
 
-class ReportContextKey:
-    RUN_SUMMARY = "run_summary"
-    FILE_SUMMARY = "file_summary"
-    REPORT_NAME = "report_name"
-    TOTAL_FILES = "total_files"
-    ELAPSED_TIME = "elapsed_time"
-    DATE = "date"
-    OUTPUT_DIR = "output_dir"
-    INPUT_DIR = "input_dir"
-    INPUT = "input"
-    TOTAL_T = "total_tokens"
-    INPUT_FILE_NAME = "input_file_name"
-    OUTPUT_NAME = "output_name"
-    ENTITIES = "entities"
-    FILE_NAME = "filename"
-    INPUT_BASE = "input_base"
-
-
-def _safe_get_spec(spec_file, key, default):
-    try:
-        return spec_file[key]
-    except KeyError as e:
-        if not key in YAML_KEYS:
-            logging.warning(f"key: `{key}` is not supported.")
-        return default
-
-
 def construct_filth_cls_name(name: str) -> str:
     """Constructs the filth class name from the given name.
     For example, "name" -> "NameFilth".
@@ -114,45 +88,38 @@ def construct_filth_cls_name(name: str) -> str:
     return "".join([s.capitalize() for s in name.split("_")]) + "Filth"
 
 
-def _write_to_file(s: str, uri: str, **kwargs) -> None:
-    """Writes the given string to the given uri.
-
-    Args:
-        s (str): The string to be written.
-        uri (str): The uri of the file to be written.
-        kwargs (dict ): keyword arguments to be passed into open().
-    """
-    with open(uri, "w", **kwargs) as f:
-        f.write(s)
+################
+# Report utils #
+################
+def compute_rate(elapsed_time, num_unit):
+    return elapsed_time / num_unit
 
 
-def _count_tokens(file_summary):
-    """Counts the total number of tokens in the given file summary.
-
-    Args:
-        file_summary (dict): file summary.
-        e.g. {
-            "root1": [
-                {..., "total_t": 10, ...},
-                {..., "total_t": 3, ...},
-            ],
-            ...
-            }
-
-    Returns:
-        int: total number of tokens.
-    """
-    total_tokens = 0
-    for _, files in file_summary.items():
-        for file in files:
-            total_tokens += file.get("total_tokens")
-    return total_tokens
+def human_time_friendly(seconds):
+    TIME_DURATION_UNITS = (
+        ("week", 60 * 60 * 24 * 7),
+        ("day", 60 * 60 * 24),
+        ("hour", 60 * 60),
+        ("min", 60),
+    )
+    if seconds == 0:
+        return "inf"
+    accumulator = []
+    for unit, div in TIME_DURATION_UNITS:
+        amount, seconds = divmod(float(seconds), div)
+        if amount > 0:
+            accumulator.append(
+                "{} {}{}".format(int(amount), unit, "" if amount == 1 else "s")
+            )
+    accumulator.append("{} secs".format(round(seconds, 2)))
+    return ", ".join(accumulator)
 
 
-def _process_pos(entities, text) -> List:
-    """Processes the position of the given entities."""
-    for entity in entities:
-        count_line_delimiter = text[: entity.beg].split("\n")
-        entity.pos = len(count_line_delimiter)
-        entity.line_beg = len(count_line_delimiter[-1])
-    return entities
+# Disable
+def block_print():
+    sys.stdout = open(os.devnull, "w")
+
+
+# Restore
+def enable_print():
+    sys.stdout = sys.__stdout__

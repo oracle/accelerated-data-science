@@ -5,18 +5,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import uuid
+
 import scrubadub
 from scrubadub_spacy.detectors.spacy import SpacyEntityDetector
 
-from ads.common.extended_enum import ExtendedEnumMeta
-from ads.opctl.operator.lowcode.pii.model.utils import construct_filth_cls_name
-
-
-class SupportedDetector(str, metaclass=ExtendedEnumMeta):
-    """Supported pii detectors."""
-
-    Default = "default"
-    Spacy = "spacy"
+from ads.opctl.operator.lowcode.pii.constant import SupportedDetector
+from ads.opctl.operator.lowcode.pii.utils import construct_filth_cls_name
 
 
 class UnSupportedDetectorError(Exception):
@@ -66,8 +60,8 @@ class PiiDetectorFactory:
     """
 
     _MAP = {
-        SupportedDetector.Default: BuiltInDetector,
-        SupportedDetector.Spacy: SpacyDetector,
+        SupportedDetector.DEFAULT: BuiltInDetector,
+        SupportedDetector.SPACY: SpacyDetector,
     }
 
     @classmethod

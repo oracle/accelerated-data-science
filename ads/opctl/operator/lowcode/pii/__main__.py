@@ -22,7 +22,7 @@ from .operator_config import PiiOperatorConfig
 def operate(operator_config: PiiOperatorConfig) -> None:
     """Runs the PII operator."""
     guard = PIIGuardrail(config=operator_config)
-    guard.evaluate()
+    guard.process()
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:

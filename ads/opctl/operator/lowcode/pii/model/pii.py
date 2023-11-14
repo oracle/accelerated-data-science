@@ -7,10 +7,13 @@
 
 import scrubadub
 
-from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl import logger
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.lowcode.pii.model.factory import PiiDetectorFactory
+from ads.opctl.operator.lowcode.pii.constant import (
+    SupportedAction,
+    SupportedDetector,
+)
 from ads.opctl.operator.lowcode.pii.model.processor import (
     POSTPROCESSOR_MAP,
     SUPPORTED_REPLACER,
@@ -18,15 +21,9 @@ from ads.opctl.operator.lowcode.pii.model.processor import (
 )
 
 
-class SupportedAction(str, metaclass=ExtendedEnumMeta):
-    """Supported action to process detected entities."""
-
-    MASK = "mask"
-    REMOVE = "remove"
-    ANONYMIZE = "anonymize"
-
-
 class PiiScrubber:
+    """Class used for config scrubber and count the detectors in use."""
+
     def __init__(self, config):
         logger.info(f"Loading config from {config}")
         if isinstance(config, str):
@@ -45,8 +42,9 @@ class PiiScrubber:
         self.scrubber = scrubadub.Scrubber()
 
         self.detectors = []
+        self.entities = []
         self.spacy_model_detectors = []
-        self.post_processors = {}  # replacer_name -> replacer_obj
+        self.post_processors = {}
 
         self._reset_scrubber()
 
@@ -66,8 +64,9 @@ class PiiScrubber:
             detector_type=dtype, entity=name, model=model
         )
         self.scrubber.add_detector(detector)
+        self.entities.append(name)
 
-        if action == "anonymize":
+        if action == SupportedAction.ANONYMIZE:
             entity = (
                 detector
                 if isinstance(detector, str)
@@ -86,7 +85,7 @@ class PiiScrubber:
                     f"Not supported `action` {action} for this entity `{name}`. Please try with other action."
                 )
 
-        if action == "remove":
+        if action == SupportedAction.REMOVE:
             remover = self.post_processors.get("remover", Remover())
             remover._ENTITIES.append(name)
             self.post_processors["remover"] = remover
@@ -103,17 +102,28 @@ class PiiScrubber:
             dname = d[1] if len(d) == 2 else d[2]
             model = None if len(d) == 2 else d[1]
 
-            action = detector.get("action", "mask")
-            # mask_with = detector.get("mask_with", None)
+            action = detector.get("action", SupportedAction.MASK)
             self._register(
                 name=dname,
                 dtype=dtype,
                 model=model,
                 action=action,
-                # mask_with=mask_with,
             )
+            if dtype == SupportedDetector.SPACY:
+                exist = False
+                for spacy_detectors in self.spacy_model_detectors:
+                    if spacy_detectors["model"] == model:
+                        spacy_detectors["spacy_entites"].append(dname)
+                        exist = True
+                        break
+                if not exist:
+                    self.spacy_model_detectors.append(
+                        {"model": model, "spacy_entites": [dname]}
+                    )
 
         self._register_post_processor()
+
+        self.detectors = list(self.scrubber._detectors.values())
         return self.scrubber
 
     def _register_post_processor(self):

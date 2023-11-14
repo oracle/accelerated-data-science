@@ -2,7 +2,7 @@ name: pii
 channels:
   - conda-forge
 dependencies:
-  - python=3.8
+  - python=3.9
   - pip
   - pip:
       - datapane
@@ -10,4 +10,7 @@ dependencies:
       - gender_guesser
       - nameparser
       - scrubadub_spacy
+      - requests
+      - aiohttp
+      - ploty
       - "git+https://github.com/oracle/accelerated-data-science.git@feature/ads_pii_operator#egg=oracle-ads"

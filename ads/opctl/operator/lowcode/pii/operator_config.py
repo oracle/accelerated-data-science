@@ -11,13 +11,17 @@ from typing import Dict, List
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.operator_config import OperatorConfig
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
+from ads.opctl.operator.lowcode.pii.constant import (
+    DEFAULT_SHOW_ROWS,
+    DEFAULT_REPORT_FILENAME,
+    DEFAULT_TARGET_COLUMN,
+)
 
 
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
     """Class representing operator specification input data details."""
 
-    format: str = None
     url: str = None
 
 
@@ -34,7 +38,7 @@ class Report(DataClassSerializable):
     """Class representing operator specification report details."""
 
     report_filename: str = None
-    show_rows: int = 25
+    show_rows: int = None
     show_sensitive_content: bool = False
 
 
@@ -54,13 +58,19 @@ class PiiOperatorSpec(DataClassSerializable):
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
     report: Report = field(default_factory=Report)
     target_column: str = None
-    # TODO: adjust from_dict to accept List[Detector]
     detectors: List[Dict] = field(default_factory=list)
 
     def __post_init__(self):
         """Adjusts the specification details."""
 
-        self.target_column = self.target_column or "target"
+        self.target_column = self.target_column or DEFAULT_TARGET_COLUMN
+        self.report = self.report or Report.from_dict(
+            {
+                "report_filename": DEFAULT_REPORT_FILENAME,
+                "show_rows": DEFAULT_SHOW_ROWS,
+                "show_sensitive_content": False,
+            }
+        )
 
 
 @dataclass(repr=True)

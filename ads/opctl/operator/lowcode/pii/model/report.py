@@ -5,79 +5,90 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
+import os
 import random
+import tempfile
+from dataclasses import dataclass, field
+from typing import Dict, List
 
 import datapane as dp
 import fsspec
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+import requests
 import yaml
 
-PII_REPORT_DESCRIPTION = (
-    "This report will offer a comprehensive overview of the redaction of personal identifiable information (PII) from the provided data."
-    "The `Summary` section will provide an executive summary of this process, including key statistics, configuration, and model usage."
-    "The `Details` section will offer a more granular analysis of each row of data, including relevant statistics."
+from ads.common.serializer import DataClassSerializable
+from ads.opctl import logger
+from ads.opctl.operator.lowcode.pii.constant import (
+    DEFAULT_SHOW_ROWS,
+    DEFAULT_TIME_OUT,
+    DETAILS_REPORT_DESCRIPTION,
+    FLAT_UI_COLORS,
+    PII_REPORT_DESCRIPTION,
+    DEFAULT_COLOR,
 )
-DETAILS_REPORT_DESCRIPTION = "The following report will show the details on each row. You can view the highlighted named entities and their labels in the text under `TEXT` tab."
+from ads.opctl.operator.lowcode.pii.utils import (
+    block_print,
+    compute_rate,
+    enable_print,
+    human_time_friendly,
+)
+from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
 
-FLAT_UI_COLORS = [
-    "#1ABC9C",
-    "#2ECC71",
-    "#3498DB",
-    "#9B59B6",
-    "#34495E",
-    "#16A085",
-    "#27AE60",
-    "#2980B9",
-    "#8E44AD",
-    "#2C3E50",
-    "#F1C40F",
-    "#E67E22",
-    "#E74C3C",
-    "#ECF0F1",
-    "#95A5A6",
-    "#F39C12",
-    "#D35400",
-    "#C0392B",
-    "#BDC3C7",
-    "#7F8C8D",
-]
+
+@dataclass(repr=True)
+class PiiReportPageSpec(DataClassSerializable):
+    """Class representing each page under Run Details in pii operator report."""
+
+    entities: list = field(default_factory=list)
+    id: int = None
+    raw_text: str = None
+    statics: dict = field(default_factory=dict)
+    total_tokens: int = None
+
+
+@dataclass(repr=True)
+class RunDetails(DataClassSerializable):
+    """Class representing Run Details Page in pii operator report."""
+
+    rows: list = field(default_factory=list)
+
+
+@dataclass(repr=True)
+class RunSummary(DataClassSerializable):
+    """Class representing Run Summary Page in pii operator report."""
+
+    config: PiiOperatorConfig = None
+    elapsed_time: str = None
+    selected_detectors: list = field(default_factory=list)
+    selected_entities: List[str] = field(default_factory=list)
+    selected_spacy_model: List[Dict] = field(default_factory=list)
+    show_rows: int = None
+    show_sensitive_info: bool = False
+    src_uri: str = None
+    statics: dict = None
+    timestamp: str = None
+    total_rows: int = None
+    total_tokens: int = None
+
+
+@dataclass(repr=True)
+class PiiReportSpec(DataClassSerializable):
+    """Class representing pii operator report."""
+
+    run_details: RunDetails = field(default_factory=RunDetails)
+    run_summary: RunSummary = field(default_factory=RunSummary)
+
+
 LABEL_TO_COLOR_MAP = {}
-
-
-################
-# Report utils #
-################
-def compute_rate(elapsed_time, num_unit):
-    return elapsed_time / num_unit
-
-
-def human_time_friendly(seconds):
-    TIME_DURATION_UNITS = (
-        ("week", 60 * 60 * 24 * 7),
-        ("day", 60 * 60 * 24),
-        ("hour", 60 * 60),
-        ("min", 60),
-    )
-    if seconds == 0:
-        return "inf"
-    accumulator = []
-    for unit, div in TIME_DURATION_UNITS:
-        amount, seconds = divmod(float(seconds), div)
-        if amount > 0:
-            accumulator.append(
-                "{} {}{}".format(int(amount), unit, "" if amount == 1 else "s")
-            )
-    accumulator.append("{} secs".format(round(seconds, 2)))
-    return ", ".join(accumulator)
 
 
 def make_model_card(model_name="", readme_path=""):
     """Make render model_readme.md as model_card tab.
     All spacy model: https://huggingface.co/spacy
-    For example: "en_core_web_trf": "https://huggingface.co/spacy/en_core_web_trf/raw/main/README.md",
-
+    For example: "en_core_web_trf": "https://huggingface.co/spacy/en_core_web_trf/raw/main/README.md".
     """
     readme_path = (
         f"https://huggingface.co/spacy/{model_name}/raw/main/README.md"
@@ -87,10 +98,20 @@ def make_model_card(model_name="", readme_path=""):
     if not readme_path:
         raise NotImplementedError("Does not support other spacy model so far.")
 
-    with fsspec.open(readme_path, "r") as file:
-        content = file.read()
-        _, front_matter, text = content.split("---", 2)
-        data = yaml.safe_load(front_matter)
+    try:
+        requests.get(readme_path, timeout=DEFAULT_TIME_OUT)
+        with fsspec.open(readme_path, "r") as file:
+            content = file.read()
+            _, front_matter, text = content.split("---", 2)
+            data = yaml.safe_load(front_matter)
+    except requests.ConnectionError:
+        logger.warning(
+            "You don't have internet connection. Therefore, we are not able to generate model card."
+        )
+        return dp.Group(
+            dp.Text("-"),
+            columns=1,
+        )
 
     try:
         eval_res = data["model-index"][0]["results"]
@@ -113,7 +134,7 @@ def make_model_card(model_name="", readme_path=""):
         eval_res_tb = dp.Plot(data=fig, caption="Evaluation Results")
     except:
         eval_res_tb = dp.Text("-")
-        print(
+        logger.warning(
             "The given readme.md doesn't have correct template for Evaluation Results."
         )
 
@@ -125,6 +146,7 @@ def make_model_card(model_name="", readme_path=""):
 
 
 def map_label_to_color(labels):
+    """Pair label with corresponding color."""
     label_to_colors = {}
     for label in labels:
         label = label.lower()
@@ -162,7 +184,7 @@ def build_entity_df(entites, id) -> pd.DataFrame:
         ent.replacement_string or "{{" + ent.placeholder + "}}" for ent in entites
     ]
     d = {
-        "rowID": id,
+        "Row ID": id,
         "Entity (Original Text)": text,
         "Type": types,
         "Redacted To": replaced_values,
@@ -171,7 +193,7 @@ def build_entity_df(entites, id) -> pd.DataFrame:
     if df.size == 0:
         # Datapane does not support empty dataframe, append a dummy row
         df2 = {
-            "rowID": id,
+            "Row ID": id,
             "Entity (Original Text)": "-",
             "Type": "-",
             "Redacted To": "-",
@@ -181,13 +203,9 @@ def build_entity_df(entites, id) -> pd.DataFrame:
 
 
 class RowReportFields:
-    def __init__(self, context, show_sensitive_info: bool = True):
-        self.total_tokens = context.get("total_tokens", "unknown")
-        self.entites_cnt_map = context.get("statics", {})
-        self.raw_text = context.get("raw_text", "")
-        self.id = context.get("id", "")
+    def __init__(self, row_spec: PiiReportPageSpec, show_sensitive_info: bool = True):
+        self.spec = row_spec
         self.show_sensitive_info = show_sensitive_info
-        self.entities = context.get("entities")
 
     def build_report(self) -> dp.Group:
         return dp.Group(
@@ -198,7 +216,7 @@ class RowReportFields:
                 ],
                 type=dp.SelectType.TABS,
             ),
-            label="rowId: " + str(self.id),
+            label="Row Id: " + str(self.spec.id),
         )
 
     def _make_stats_card(self):
@@ -206,16 +224,16 @@ class RowReportFields:
             dp.Text("## Row Summary Statistics"),
             dp.BigNumber(
                 heading="Total No. Of Entites Proceed",
-                value=self.total_tokens,
+                value=self.spec.total_tokens or 0,
             ),
             dp.Text(f"### Entities Distribution"),
-            plot_pie(self.entites_cnt_map),
+            plot_pie(self.spec.statics),
         ]
         if self.show_sensitive_info:
             stats.append(dp.Text(f"### Resolved Entities"))
             stats.append(
                 dp.DataTable(
-                    build_entity_df(self.entities, id=self.id),
+                    build_entity_df(self.spec.entities, id=self.spec.id),
                     label="Resolved Entities",
                 )
             )
@@ -224,16 +242,18 @@ class RowReportFields:
     def _make_text_card(self):
         annotations = []
         labels = set()
-        for ent in self.entities:
+        for ent in self.spec.entities:
             annotations.append((ent.beg, ent.end, ent.type))
             labels.add(ent.type)
 
-        d = {"Content": [self.raw_text], "Annotations": [annotations]}
-        df = pd.DataFrame(data=d)
+        if len(annotations) == 0:
+            annotations.append((0, 0, "No entity detected"))
 
+        d = {"Content": [self.spec.raw_text], "Annotations": [annotations]}
+        df = pd.DataFrame(data=d)
         render_html = df.ads.render_ner(
             options={
-                "default_color": "#D6D3D1",
+                "default_color": DEFAULT_COLOR,
                 "colors": map_label_to_color(labels),
             },
             return_html=True,
@@ -242,38 +262,25 @@ class RowReportFields:
 
 
 class PIIOperatorReport:
-    def __init__(self, context: dict):
+    def __init__(self, report_spec: PiiReportSpec, report_uri: str):
         # set useful field for generating report from context
-        summary_context = context.get("run_summary", {})
-        self.config = summary_context.get("config", {})  # for generate yaml
-        self.show_sensitive_info = summary_context.get("show_sensitive_info", True)
-        self.show_rows = summary_context.get("show_rows", 25)
-        self.total_rows = summary_context.get("total_rows", "unknown")
-        self.total_tokens = summary_context.get("total_tokens", "unknown")
-        self.elapsed_time = summary_context.get("elapsed_time", 0)
-        self.entites_cnt_map = summary_context.get("statics", {})
-        self.selected_entities = summary_context.get("selected_entities", [])
-        self.spacy_detectors = summary_context.get("selected_spacy_model", [])
-        self.run_at = summary_context.get("timestamp", "today")
+        self.report_spec = report_spec
+        self.show_rows = report_spec.run_summary.show_rows or DEFAULT_SHOW_ROWS
 
-        rows = context.get("run_details", {}).get("rows", [])
+        rows = report_spec.run_details.rows
         rows = rows[0 : self.show_rows]
         self.rows_details = [
-            RowReportFields(r, self.show_sensitive_info) for r in rows
-        ]  # List[RowReportFields], len=show_rows
+            RowReportFields(r, report_spec.run_summary.show_sensitive_info)
+            for r in rows
+        ]
 
-        self._validate_fields()
-
-    def _validate_fields(self):
-        """Check if any fields are empty."""
-        # TODO
-        pass
+        self.report_uri = report_uri
 
     def make_view(self):
         title_text = dp.Text("# Personally Identifiable Information Operator Report")
         time_proceed = dp.BigNumber(
             heading="Ran at",
-            value=self.run_at,
+            value=self.report_spec.run_summary.timestamp or "today",
         )
         report_description = dp.Text(PII_REPORT_DESCRIPTION)
 
@@ -293,15 +300,27 @@ class PIIOperatorReport:
             )
         )
         self.report_sections = [title_text, report_description, time_proceed, structure]
-        return self.report_sections
+        return self
 
-    def save_report(self, report_sections, report_path):
-        dp.save_report(
-            report_sections or self.report_sections,
-            path=report_path,
-            open=False,
-        )
-        return report_path
+    def save_report(self, report_sections=None, report_uri=None, storage_options={}):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            report_local_path = os.path.join(temp_dir, "___report.html")
+            block_print()
+            dp.save_report(
+                report_sections or self.report_sections,
+                path=report_local_path,
+                open=False,
+            )
+            enable_print()
+
+            report_uri = report_uri or self.report_uri
+            with open(report_local_path) as f1:
+                with fsspec.open(
+                    report_uri,
+                    "w",
+                    **storage_options,
+                ) as f2:
+                    f2.write(f1.read())
 
     def _build_summary_page(self):
         summary = dp.Blocks(
@@ -342,51 +361,69 @@ class PIIOperatorReport:
         4. entities distribution
         5. resolved Entities in sample data - optional
         """
+        try:
+            process_rate = compute_rate(
+                self.report_spec.run_summary.elapsed_time,
+                self.report_spec.run_summary.total_rows,
+            )
+        except Exception as e:
+            logger.warning("Failed to compute processing rate.")
+            logger.debug(f"Full traceback: {e}")
+            process_rate = "-"
+
         summary_stats = [
             dp.Text("## Summary Statistics"),
             dp.Group(
                 dp.BigNumber(
                     heading="Total No. Of Rows",
-                    value=self.total_rows,
+                    value=self.report_spec.run_summary.total_rows or "unknown",
                 ),
                 dp.BigNumber(
                     heading="Total No. Of Entites Proceed",
-                    value=self.total_tokens,
+                    value=self.report_spec.run_summary.total_tokens,
                 ),
                 dp.BigNumber(
                     heading="Rows per second processed",
-                    value=compute_rate(self.elapsed_time, self.total_rows),
+                    value=process_rate,
                 ),
                 dp.BigNumber(
                     heading="Total Time Spent",
-                    value=human_time_friendly(self.elapsed_time),
+                    value=human_time_friendly(
+                        self.report_spec.run_summary.elapsed_time
+                    ),
                 ),
                 columns=2,
             ),
             dp.Text(f"### Entities Distribution"),
-            plot_pie(self.entites_cnt_map),
+            plot_pie(self.report_spec.run_summary.statics),
         ]
-        if self.show_sensitive_info:
+        if self.report_spec.run_summary.show_sensitive_info:
             entites_df = self._build_total_entity_df()
             summary_stats.append(dp.Text(f"### Resolved Entities"))
             summary_stats.append(dp.DataTable(entites_df))
         return dp.Group(blocks=summary_stats, label="STATS")
 
     def _make_yaml_card(self) -> dp.Group:
-        # show pii config yaml
-        yaml_string = yaml.dump(self.config, Dumper=yaml.SafeDumper)
+        """Shows the full pii config yaml."""
+        yaml_string = self.report_spec.run_summary.config.to_yaml()
         yaml_appendix_title = dp.Text(f"## Reference: YAML File")
         yaml_appendix = dp.Code(code=yaml_string, language="yaml")
         return dp.Group(blocks=[yaml_appendix_title, yaml_appendix], label="YAML")
 
     def _make_model_card(self) -> dp.Group:
-        # show each model card
+        """Generates model card."""
+        if len(self.report_spec.run_summary.selected_spacy_model) == 0:
+            return dp.Group(
+                dp.Text("No model used."),
+                label="MODEL CARD",
+            )
+
         model_cards = [
             dp.Group(
                 make_model_card(model_name=x.get("model")),
                 label=x.get("model"),
             )
-            for x in self.spacy_detectors
+            for x in self.report_spec.run_summary.selected_spacy_model
         ]
 
         if len(model_cards) <= 1:
@@ -405,16 +442,18 @@ class PIIOperatorReport:
     def _build_total_entity_df(self) -> pd.DataFrame:
         frames = []
         for row in self.rows_details:  # RowReportFields
-            frames.append(build_entity_df(entites=row.entities, id=row.id))
+            frames.append(build_entity_df(entites=row.spec.entities, id=row.spec.id))
 
         result = pd.concat(frames)
         return result
 
     def _get_summary_desc(self) -> str:
-        entities_mark_down = ["**" + ent + "**" for ent in self.selected_entities]
+        entities_mark_down = [
+            "**" + ent + "**" for ent in self.report_spec.run_summary.selected_entities
+        ]
 
         model_description = ""
-        for spacy_model in self.spacy_detectors:
+        for spacy_model in self.report_spec.run_summary.selected_spacy_model:
             model_description = (
                 model_description
                 + f"You chose the **{spacy_model.get('model', 'unknown model')}** model for **{spacy_model.get('spacy_entites', 'unknown entities')}** detection."

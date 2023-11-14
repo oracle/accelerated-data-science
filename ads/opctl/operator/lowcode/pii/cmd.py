@@ -30,7 +30,7 @@ def init(**kwargs: Dict) -> str:
     """
     logger.info("==== PII related options ====")
 
-    default_detector = [{"name": "default.phone", "action": "anonymize"}]
+    default_detector = [{"name": "<type>.<entity>", "action": "mask"}]
 
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))

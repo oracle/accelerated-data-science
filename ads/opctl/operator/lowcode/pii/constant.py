@@ -3,6 +3,39 @@
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from ads.common.extended_enum import ExtendedEnumMeta
+
+DEFAULT_SHOW_ROWS = 25
+DEFAULT_TIME_OUT = 5
+DEFAULT_COLOR = "#D6D3D1"
+DEFAULT_REPORT_FILENAME = "report.html"
+DEFAULT_TARGET_COLUMN = "target"
+
+
+class SupportedAction(str, metaclass=ExtendedEnumMeta):
+    """Supported action to process detected entities."""
+
+    MASK = "mask"
+    REMOVE = "remove"
+    ANONYMIZE = "anonymize"
+
+
+class SupportedDetector(str, metaclass=ExtendedEnumMeta):
+    """Supported pii detectors."""
+
+    DEFAULT = "default"
+    SPACY = "spacy"
+
+
+class DataFrameColumn(str, metaclass=ExtendedEnumMeta):
+    REDACTED_TEXT: str = "redacted_text"
+    ENTITIES: str = "entities_cols"
+
+
+class YamlKey(str, metaclass=ExtendedEnumMeta):
+    """Yaml key used in pii.yaml."""
+
+    pass
 
 
 YAML_KEYS = [
