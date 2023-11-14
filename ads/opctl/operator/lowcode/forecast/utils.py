@@ -86,6 +86,8 @@ def _build_metrics_per_horizon(
     """
 
     # Select the data with correct order of target_columns.
+    target_columns = list(set.intersection(set(target_columns), set(data.columns)))
+
     actuals_df = data[["ds"] + target_columns]
 
     # Concat the yhats in output and include only dates that are in test data

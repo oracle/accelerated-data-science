@@ -12,11 +12,9 @@ import fsspec
 import yaml
 from ads.common.auth import default_signer
 
+# Special type to represent the current enclosed class.
+# This type is used by factory class method or when a method returns ``self``.
 Self = TypeVar("Self", bound="Serializable")
-"""Special type to represent the current enclosed class.
-
-This type is used by factory class method or when a method returns ``self``.
-"""
 
 
 class Serializable(ABC):
@@ -72,6 +70,14 @@ class Serializable(ABC):
                     "if you wish to overwrite."
                 )
 
+        # Add default signer if the uri is an object storage uri, and
+        # the user does not specify config or signer.
+        if (
+            uri.startswith("oci://")
+            and "config" not in kwargs
+            and "signer" not in kwargs
+        ):
+            kwargs.update(default_signer())
         with fsspec.open(uri, "w", **kwargs) as f:
             f.write(s)
 
