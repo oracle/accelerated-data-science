@@ -88,13 +88,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 df[date_column], format=self.spec.datetime_column.format
             )
             df = df.set_index(date_column)
-            if len(df.columns) > 1:
-                # when additional columns are present
-                y_train, y_test = temporal_train_test_split(df, test_size=horizon)
-                forecast_x = y_test.drop(target, axis=1)
-            else:
-                y_train = df
-                forecast_x = None
+            # if len(df.columns) > 1:
+            # when additional columns are present
+            y_train, y_test = temporal_train_test_split(df, test_size=horizon)
+            forecast_x = y_test.drop(target, axis=1)
+            # else:
+            #     y_train = df
+            #     forecast_x = None
             logger.debug(
                 "Time Index is" + ""
                 if y_train.index.is_monotonic
