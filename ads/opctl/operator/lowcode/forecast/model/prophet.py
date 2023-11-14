@@ -178,13 +178,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             # Make future df for prediction
-            if len(additional_regressors):
-                future = df_clean.drop(target, axis=1)
-            else:
-                future = model.make_future_dataframe(
-                    periods=self.spec.horizon,
-                    freq=self.spec.freq,
-                )
+            future = df_clean.drop(target, axis=1)
+
             # Make Prediction
             forecast = model.predict(future)
             logger.debug(f"-----------------Model {i}----------------------")

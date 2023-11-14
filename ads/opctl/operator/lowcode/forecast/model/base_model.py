@@ -234,6 +234,7 @@ class ForecastOperatorBaseModel(ABC):
                 forecast_sec = utils.get_forecast_plots(
                     self.forecast_output,
                     self.target_columns,
+                    horizon=self.spec.horizon,
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
                 )
@@ -468,7 +469,7 @@ class ForecastOperatorBaseModel(ABC):
                 )
 
             # test_metrics csv report
-            if self.spec.generate_metrics and test_metrics_df is not None:
+            if self.spec.test_data and test_metrics_df is not None:
                 utils._write_data(
                     data=test_metrics_df.rename_axis("metrics").reset_index(),
                     filename=os.path.join(output_dir, self.spec.test_metrics_filename),

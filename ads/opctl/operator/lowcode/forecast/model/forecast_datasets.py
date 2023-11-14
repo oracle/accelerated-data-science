@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pandas as pd
+import itertools
 from ..operator_config import ForecastOperatorConfig
 from .. import utils
 from ads.opctl.operator.lowcode.forecast.utils import default_signer
@@ -117,21 +118,30 @@ class ForecastDatasets:
                 )
 
             additional_data = pd.DataFrame()
-
+            all_target_cat_col = []
             for cat_col in spec.target_category_columns:
-                for cat in additional_data_small[cat_col].unique():
-                    add_data_i = additional_data_small[
-                        additional_data_small[cat_col] == cat
+                all_target_cat_col.append(additional_data_small[cat_col].unique())
+
+            for cat_tuple in itertools.product(*all_target_cat_col):
+                add_data_by_cat_col = pd.DataFrame()
+                add_data_historic = additional_data_small
+                for cat_col, cat in zip(spec.target_category_columns, cat_tuple):
+                    add_data_historic = add_data_historic[
+                        add_data_historic[cat_col] == cat
                     ]
                     horizon_df_i = pd.DataFrame([], index=horizon_index)
                     horizon_df_i[cat_col] = cat
+                    add_data_by_cat_col = pd.concat(
+                        [add_data_by_cat_col, horizon_df_i], axis=1
+                    )  # Horizontal Stack category columns into a future df
+                if not add_data_historic.empty:
                     additional_data = pd.concat(
-                        [additional_data, add_data_i, horizon_df_i]
-                    )
+                        [additional_data, add_data_historic, add_data_by_cat_col]
+                    )  # Vertical Stack future dfs together
+
             additional_data = additional_data.reset_index().rename(
                 {"index": spec.datetime_column.name}, axis=1
             )
-
             self.original_total_data = pd.concat([data, additional_data], axis=1)
 
         (
@@ -204,6 +214,9 @@ class ForecastOutput:
 
     def get_target_category(self, target_category_column):
         target_category_columns = self.list_target_category_columns()
+        assert target_category_column in list(
+            self.category_to_target.values()
+        ), f"The name passed in: {target_category_column}, is not a recognized target_category_column."
         category = self.list_categories()[
             list(self.category_to_target.values()).index(target_category_column)
         ]
