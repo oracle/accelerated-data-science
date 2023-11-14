@@ -484,12 +484,13 @@ class ForecastOperatorBaseModel(ABC):
         if self.spec.generate_explanations:
             if self.formatted_global_explanation is not None:
                 utils._write_data(
-                    data=pd.DataFrame(self.formatted_global_explanation),
+                    data=self.formatted_global_explanation,
                     filename=os.path.join(
                         output_dir, self.spec.global_explanation_filename
                     ),
                     format="csv",
                     storage_options=storage_options,
+                    index=True,
                 )
             else:
                 logger.warn(
@@ -504,6 +505,7 @@ class ForecastOperatorBaseModel(ABC):
                     ),
                     format="csv",
                     storage_options=storage_options,
+                    index=True,
                 )
             else:
                 logger.warn(
@@ -590,7 +592,9 @@ class ForecastOperatorBaseModel(ABC):
 
             kernel_explnr = KernelExplainer(
                 model=explain_predict_fn,
-                data=self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][list(self.dataset_cols)],
+                data=self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][
+                    list(self.dataset_cols)
+                ],
                 keep_index=False
                 if self.spec.model == SupportedModels.AutoMLX
                 else True,

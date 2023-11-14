@@ -12,10 +12,7 @@ import yaml
 
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast import utils
-
-from .. import utils
 from .base_model import ForecastOperatorBaseModel
-from .forecast_datasets import ForecastDatasets
 from ..operator_config import ForecastOperatorConfig
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -134,7 +131,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             df_temp[self.spec.datetime_column.name] = pd.to_datetime(
                 df_temp[self.spec.datetime_column.name]
             )
-            r_tr, r_ts = create_regressor(
+            r_tr, _ = create_regressor(
                 df_temp.pivot(
                     [self.spec.datetime_column.name],
                     columns="series_id",
@@ -152,7 +149,6 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
             self.future_regressor_train = r_tr.copy()
 
-
         # Fit the model to the training data
         model = model.fit(
             self.full_data_long.groupby("series_id")
@@ -168,7 +164,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         # Store the trained model and generate forecasts
         self.models = copy.deepcopy(model)
-        logger.info("===========Forecast Generated===========")
+        logger.debug("===========Forecast Generated===========")
         self.prediction = model.predict(
             future_regressor=r_tr.tail(self.spec.horizon)
             if self.spec.additional_data
@@ -385,5 +381,3 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             self.models.best_model_per_series_score(), columns=["AutoTS Score"]
         ).T
         return pd.concat([mapes, scores])
-
-      
