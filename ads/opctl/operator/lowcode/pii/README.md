@@ -20,10 +20,10 @@ ads operator init -t pii --overwrite --output ~/pii/
 The most important files expected to be generated are:
 
 - `pii.yaml`: Contains pii-related configuration.
-- `backend_operator_local_python_config.yaml`: This includes a local backend configuration for running pii operator in a local environment. The environment should be set up manually before running the operator.
-- `backend_operator_local_container_config.yaml`: This includes a local backend configuration for running pii operator within a local container. The container should be built before running the operator. Please refer to the instructions below for details on how to accomplish this.
-- `backend_job_container_config.yaml`: Contains Data Science job-related config to run pii operator in a Data Science job within a container (BYOC) runtime. The container should be built and published before running the operator. Please refer to the instructions below for details on how to accomplish this.
-- `backend_job_python_config.yaml`: Contains Data Science job-related config to run pii operator in a Data Science job within a conda runtime. The conda should be built and published before running the operator.
+- `pii_operator_local_python.yaml`: This includes a local backend configuration for running pii operator in a local environment. The environment should be set up manually before running the operator.
+- `pii_operator_local_container.yaml`: This includes a local backend configuration for running pii operator within a local container. The container should be built before running the operator. Please refer to the instructions below for details on how to accomplish this.
+- `pii_job_container.yaml`: Contains Data Science job-related config to run pii operator in a Data Science job within a container (BYOC) runtime. The container should be built and published before running the operator. Please refer to the instructions below for details on how to accomplish this.
+- `pii_job_python.yaml`: Contains Data Science job-related config to run pii operator in a Data Science job within a conda runtime. The conda should be built and published before running the operator.
 
 All generated configurations should be ready to use without the need for any additional adjustments. However, they are provided as starter kit configurations that can be customized as needed.
 
