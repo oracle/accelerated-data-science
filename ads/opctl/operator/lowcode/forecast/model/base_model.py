@@ -485,12 +485,13 @@ class ForecastOperatorBaseModel(ABC):
             try:
                 if self.formatted_global_explanation is not None:
                     utils._write_data(
-                        data=pd.DataFrame(self.formatted_global_explanation),
+                        data=self.formatted_global_explanation,
                         filename=os.path.join(
                             output_dir, self.spec.global_explanation_filename
                         ),
                         format="csv",
                         storage_options=storage_options,
+                        index=True,
                     )
                 else:
                     logger.warn(
@@ -505,6 +506,7 @@ class ForecastOperatorBaseModel(ABC):
                         ),
                         format="csv",
                         storage_options=storage_options,
+                        index=True,
                     )
                 else:
                     logger.warn(
@@ -514,7 +516,6 @@ class ForecastOperatorBaseModel(ABC):
                 logger.warn(
                     "Unable to generate explanations for this model type or for this dataset."
                 )
-
         logger.info(
             f"The outputs have been successfully "
             f"generated and placed into the directory: {output_dir}."
@@ -568,27 +569,43 @@ class ForecastOperatorBaseModel(ABC):
 
         for series_id in self.target_columns:
             self.series_id = series_id
-            self.dataset_cols = (
-                self.full_data_dict.get(series_id)
-                .set_index(datetime_col_name)
-                .drop(series_id, axis=1)
-                .columns
-            )
+            if self.spec.model == SupportedModels.AutoTS:
+                self.dataset_cols = (
+                    self.full_data_long.loc[
+                        self.full_data_long.series_id == self.series_id
+                    ]
+                    .set_index(datetime_col_name)
+                    .columns
+                )
+
+                self.bg_data = self.full_data_long.loc[
+                    self.full_data_long.series_id == self.series_id
+                ].set_index(datetime_col_name)
+
+            else:
+                self.dataset_cols = (
+                    self.full_data_dict.get(series_id)
+                    .set_index(datetime_col_name)
+                    .drop(series_id, axis=1)
+                    .columns
+                )
+
+                self.bg_data = self.full_data_dict.get(series_id).set_index(
+                    datetime_col_name
+                )
 
             kernel_explnr = KernelExplainer(
                 model=explain_predict_fn,
-                data=self.full_data_dict.get(series_id).set_index(datetime_col_name)[
-                    : -self.spec.horizon
-                ][list(self.dataset_cols)],
+                data=self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][
+                    list(self.dataset_cols)
+                ],
                 keep_index=False
                 if self.spec.model == SupportedModels.AutoMLX
                 else True,
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(
-                self.full_data_dict.get(series_id).set_index(datetime_col_name)[
-                    : -self.spec.horizon
-                ][list(self.dataset_cols)],
+                self.bg_data[: -self.spec.horizon][list(self.dataset_cols)],
                 nsamples=50,
             )
 
@@ -617,8 +634,8 @@ class ForecastOperatorBaseModel(ABC):
             kernel_explainer: The kernel explainer object to use for generating explanations.
         """
         # Get the data for the series ID and select the relevant columns
-        data = self.full_data_dict.get(series_id).set_index(datetime_col_name)
-        data = data[-self.spec.horizon :][list(self.dataset_cols)]
+        # data = self.full_data_dict.get(series_id).set_index(datetime_col_name)
+        data = self.bg_data[-self.spec.horizon :][list(self.dataset_cols)]
 
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
@@ -630,5 +647,10 @@ class ForecastOperatorBaseModel(ABC):
 
         # set the index of the DataFrame to the datetime column
         local_kernel_explnr_df.index = data.index
+
+        if self.spec.model == SupportedModels.AutoTS:
+            local_kernel_explnr_df.drop(
+                ["series_id", self.spec.target_column], axis=1, inplace=True
+            )
 
         self.local_explanation[series_id] = local_kernel_explnr_df
