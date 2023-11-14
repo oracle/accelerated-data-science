@@ -163,6 +163,9 @@ forecast = [
   "statsmodels",
   "sktime",
 ]
+pii = [
+  "datapane",
+]
 
 [project.urls]
 "Github" = "https://github.com/oracle/accelerated-data-science"
