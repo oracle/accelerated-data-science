@@ -1575,7 +1575,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         current_state = model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
             logger.warning(
-                "Model deployment should be in `ACTIVE` state while being fetched. "
+                "This model deployment is not in active state, you will not be able to use predict end point. "
                 f"Current model deployment state: `{current_state}`"
             )
 
@@ -2318,20 +2318,16 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             .with_runtime(runtime)
         )
 
-        try:
-            self.model_deployment = model_deployment.deploy(
-                wait_for_completion=wait_for_completion,
-                max_wait_time=max_wait_time,
-                poll_interval=poll_interval,
-            )
-        except Exception as ex:
-            raise ex
-        finally:
-            self._summary_status.update_status(
-                detail="Deployed the model",
-                status=self.model_deployment.state.name.upper(),
-            )
-            return self.model_deployment
+        self.model_deployment = model_deployment.deploy(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+        self._summary_status.update_status(
+            detail="Deployed the model",
+            status=self.model_deployment.state.name.upper(),
+        )
+        return self.model_deployment
 
     def prepare_save_deploy(
         self,
@@ -2799,29 +2795,25 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         """
         if not self.model_deployment:
             raise ValueError("Use `deploy()` method to start model deployment.")
-        try:
-            logger.info(
-                f"Deactivating model deployment {self.model_deployment.model_deployment_id}."
-            )
-            self.model_deployment.deactivate(
-                max_wait_time=max_wait_time, poll_interval=poll_interval
-            )
-            logger.info(
-                f"Model deployment {self.model_deployment.model_deployment_id} has successfully been deactivated."
-            )
-            logger.info(
-                f"Activating model deployment {self.model_deployment.model_deployment_id}."
-            )
-            self.model_deployment.activate(
-                max_wait_time=max_wait_time, poll_interval=poll_interval
-            )
-            logger.info(
-                f"Model deployment {self.model_deployment.model_deployment_id} has successfully been activated."
-            )
-        except Exception as ex:
-            raise ex
-        finally:
-            return self.model_deployment
+        logger.info(
+            f"Deactivating model deployment {self.model_deployment.model_deployment_id}."
+        )
+        self.model_deployment.deactivate(
+            max_wait_time=max_wait_time, poll_interval=poll_interval
+        )
+        logger.info(
+            f"Model deployment {self.model_deployment.model_deployment_id} has successfully been deactivated."
+        )
+        logger.info(
+            f"Activating model deployment {self.model_deployment.model_deployment_id}."
+        )
+        self.model_deployment.activate(
+            max_wait_time=max_wait_time, poll_interval=poll_interval
+        )
+        logger.info(
+            f"Model deployment {self.model_deployment.model_deployment_id} has successfully been activated."
+        )
+        return self.model_deployment
 
     @class_or_instance_method
     def delete(

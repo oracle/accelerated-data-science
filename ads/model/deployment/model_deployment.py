@@ -614,17 +614,14 @@ class ModelDeployment(Builder):
             else self.properties.build()
         )
 
-        try:
-            response = self.dsc_model_deployment.create(
-                create_model_deployment_details=create_model_deployment_details,
-                wait_for_completion=wait_for_completion,
-                max_wait_time=max_wait_time,
-                poll_interval=poll_interval,
-            )
-        except Exception as ex:
-            raise ex
-        finally:
-            return self._update_from_oci_model(response)
+        response = self.dsc_model_deployment.create(
+            create_model_deployment_details=create_model_deployment_details,
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+
+        return self._update_from_oci_model(response)
 
     def delete(
         self,
@@ -650,16 +647,13 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
-        try:
-            response = self.dsc_model_deployment.delete(
-                wait_for_completion=wait_for_completion,
-                max_wait_time=max_wait_time,
-                poll_interval=poll_interval,
-            )
-        except Exception as ex:
-            raise ex
-        finally:
-            return self._update_from_oci_model(response)
+        response = self.dsc_model_deployment.delete(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+
+        return self._update_from_oci_model(response)
 
     def update(
         self,
@@ -715,17 +709,14 @@ class ModelDeployment(Builder):
             else self._update_model_deployment_details(**kwargs)
         )
 
-        try:
-            response = self.dsc_model_deployment.update(
-                update_model_deployment_details=update_model_deployment_details,
-                wait_for_completion=wait_for_completion,
-                max_wait_time=max_wait_time,
-                poll_interval=poll_interval,
-            )
-        except Exception as ex:
-            raise ex
-        finally:
-            return self._update_from_oci_model(response)
+        response = self.dsc_model_deployment.update(
+            update_model_deployment_details=update_model_deployment_details,
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+
+        return self._update_from_oci_model(response)
 
     def watch(
         self,
@@ -891,10 +882,10 @@ class ModelDeployment(Builder):
 
         """
         current_state = self.sync().lifecycle_state
-        if current_state != "ACTIVE":
+        if current_state != State.ACTIVE.name:
             raise ModelDeploymentPredictError(
-                f"Predict() can't be called when model deployment is `{current_state}`. "
-                "Make sure model deployment is `ACTIVE` before calling predict."
+                "This model deployment is not in active state, you will not be able to use predict end point. "
+                f"Current model deployment state: {current_state} "
             )
         endpoint = f"{self.url}/predict"
         signer = authutil.default_signer()["signer"]
@@ -991,16 +982,13 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
-        try:
-            response = self.dsc_model_deployment.activate(
-                wait_for_completion=wait_for_completion,
-                max_wait_time=max_wait_time,
-                poll_interval=poll_interval,
-            )
-        except Exception as ex:
-            raise ex
-        finally:
-            return self._update_from_oci_model(response)
+        response = self.dsc_model_deployment.activate(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+
+        return self._update_from_oci_model(response)
 
     def deactivate(
         self,
@@ -1026,16 +1014,13 @@ class ModelDeployment(Builder):
         ModelDeployment
             The instance of ModelDeployment.
         """
-        try:
-            response = self.dsc_model_deployment.deactivate(
-                wait_for_completion=wait_for_completion,
-                max_wait_time=max_wait_time,
-                poll_interval=poll_interval,
-            )
-        except Exception as ex:
-            raise ex
-        finally:
-            return self._update_from_oci_model(response)
+        response = self.dsc_model_deployment.deactivate(
+            wait_for_completion=wait_for_completion,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval,
+        )
+
+        return self._update_from_oci_model(response)
 
     def _log_details(self, log_type: str = ModelDeploymentLogType.ACCESS):
         """Gets log details for the provided `log_type`.

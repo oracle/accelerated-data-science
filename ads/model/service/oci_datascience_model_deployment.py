@@ -209,11 +209,8 @@ class OCIDataScienceModelDeployment(
                     )
                 except Exception as e:
                     logger.error(
-                        f"Error while trying to activate model deployment: {self.id}"
+                        "Error while trying to activate model deployment: " + str(e)
                     )
-                    raise e
-                finally:
-                    return self.sync()
 
             return self.sync()
         else:
@@ -263,11 +260,8 @@ class OCIDataScienceModelDeployment(
                 )
             except Exception as e:
                 logger.error(
-                    f"Error while trying to create model deployment: {self.id}"
+                    "Error while trying to create model deployment: " + str(e)
                 )
-                raise e
-            finally:
-                return self.sync()
 
         return self.sync()
 
@@ -329,11 +323,8 @@ class OCIDataScienceModelDeployment(
                     )
                 except Exception as e:
                     logger.error(
-                        f"Error while trying to deactivate model deployment: {self.id}"
+                        "Error while trying to deactivate model deployment: " + str(e)
                     )
-                    raise e
-                finally:
-                    return self.sync()
 
             return self.sync()
         else:
@@ -402,11 +393,8 @@ class OCIDataScienceModelDeployment(
                 )
             except Exception as e:
                 logger.error(
-                    f"Error while trying to delete model deployment: {self.id}"
+                    "Error while trying to delete model deployment: " + str(e)
                 )
-                raise e
-            finally:
-                return self.sync()
 
         return self.sync()
 
@@ -460,10 +448,11 @@ class OCIDataScienceModelDeployment(
             )
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
         except Exception as e:
-            logger.error(f"Error while trying to update model deployment: {self.id}")
-            raise e
-        finally:
-            return self.sync()
+            logger.error(
+                "Error while trying to update model deployment: " + str(e)
+            )
+
+        return self.sync()
 
     @classmethod
     def list(
