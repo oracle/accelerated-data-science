@@ -33,7 +33,7 @@ Use these steps to access Oracle ADB:
 
   METHOD_DATA = (DIRECTORY="<path_to_wallet_folder>")
 
-7. To find the location of the ``sqlnet.ora`` file, the ``TNS_ADMIN`` environment variable must point to that location. We suggest that you create a Python dictionary to store all of the connection information. In this example, this dictionary is called ``creds``. It is generally poor security practice to store credentials in your notebook. We recommend that you use the ``ads-examples/ADB_working_with.ipynb`` notebook example that demonstrates how to store them outside the notebook in a configuration file.
+7. To find the location of the ``sqlnet.ora`` file, the ``TNS_ADMIN`` environment variable must point to that location. We suggest that you create a Python dictionary to store all of the connection information. In this example, this dictionary is called ``creds``. It is generally poor security practice to store credentials in your notebook. We recommend that you use the `Bank Graph Example Notebook <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/graph_insight-autonomous_database.ipynb>`_ notebook example that demonstrates how to store them outside the notebook in a configuration file.
 
    The environment variable should be set in your notebooks. For example: 
 
@@ -72,4 +72,3 @@ Messages similar to the following display if the connection is successful:
      :align: center
 
 An introduction to loading data from ADB into ADS using ``cx_Oracle`` and ``SQLAlchemy`` is in :ref:`Loading Data <loading-data-10>`.
-
