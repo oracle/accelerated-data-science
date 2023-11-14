@@ -84,9 +84,8 @@ def get_namespace(auth: dict) -> str:
 
 
 def get_region_key(auth: dict) -> str:
-    if len(auth["config"]) > 0:
-        tenancy = auth["config"]["tenancy"]
-    else:
+    tenancy = auth["config"].get("tenancy")
+    if not tenancy:
         tenancy = auth["signer"].tenancy_id
     client = OCIClientFactory(**auth).identity
     return client.get_tenancy(tenancy).data.home_region_key

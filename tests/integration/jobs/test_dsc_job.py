@@ -222,11 +222,10 @@ class DSCJobTestCase(unittest.TestCase):
         random.seed(threading.get_ident() + os.getpid())
         random_suffix = "".join(random.choices(string.ascii_uppercase, k=6))
         yaml_uri = f"oci://{self.BUCKET}@{self.NAMESPACE}/tests/{timestamp}/example_job_{random_suffix}.yaml"
-        config_path = "~/.oci/config"
-        job.to_yaml(uri=yaml_uri, config=config_path)
+        job.to_yaml(uri=yaml_uri)
         print(f"Job YAML saved to {yaml_uri}")
         try:
-            job = Job.from_yaml(uri=yaml_uri, config=config_path)
+            job = Job.from_yaml(uri=yaml_uri)
         except Exception:
             self.fail(f"Failed to load job from YAML\n{traceback.format_exc()}")
 
