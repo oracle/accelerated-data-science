@@ -65,6 +65,7 @@ class OptionalDependency:
     SPARK = "oracle-ads[spark]"
     HUGGINGFACE = "oracle-ads[huggingface]"
     FORECAST = "oracle-ads[forecast]"
+    PII = "oracle-ads[pii]"
 
 
 def runtime_dependency(

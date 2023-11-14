@@ -7,13 +7,19 @@
 import datetime
 import random
 import re
-from typing import Sequence
 
-from scrubadub.filth import Filth
-from scrubadub.post_processors import PostProcessor
+from ads.common.decorator.runtime_dependency import OptionalDependency
+
+try:
+    import scrubadub
+except ImportError:
+    raise ModuleNotFoundError(
+        f"`scrubadub` module was not found. Please run "
+        f"`pip install {OptionalDependency.PII}`."
+    )
 
 
-class NumberReplacer(PostProcessor):
+class NumberReplacer(scrubadub.post_processors.PostProcessor):
     name = "number_replacer"
     _ENTITIES = [
         "number",
@@ -52,7 +58,7 @@ class NumberReplacer(PostProcessor):
             return date
         return re.sub(r"\d", self.replace_digit, text)
 
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
+    def process_filth(self, filth_list):
         for filth in filth_list:
             # Do not process it if it already has a replacement.
             if filth.replacement_string:

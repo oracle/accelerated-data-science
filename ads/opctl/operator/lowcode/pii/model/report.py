@@ -11,31 +11,40 @@ import tempfile
 from dataclasses import dataclass, field
 from typing import Dict, List
 
-import datapane as dp
 import fsspec
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 import requests
 import yaml
 
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.common.serializer import DataClassSerializable
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.pii.constant import (
+    DEFAULT_COLOR,
     DEFAULT_SHOW_ROWS,
     DEFAULT_TIME_OUT,
     DETAILS_REPORT_DESCRIPTION,
     FLAT_UI_COLORS,
     PII_REPORT_DESCRIPTION,
-    DEFAULT_COLOR,
 )
+from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
 from ads.opctl.operator.lowcode.pii.utils import (
     block_print,
     compute_rate,
     enable_print,
     human_time_friendly,
 )
-from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
+
+try:
+    import datapane as dp
+except ImportError:
+    raise ModuleNotFoundError(
+        f"`datapane` module was not found. Please run "
+        f"`pip install {OptionalDependency.PII}`."
+    )
 
 
 @dataclass(repr=True)
@@ -85,11 +94,13 @@ class PiiReportSpec(DataClassSerializable):
 LABEL_TO_COLOR_MAP = {}
 
 
+@runtime_dependency(module="plotly", install_from=OptionalDependency.PII)
 def make_model_card(model_name="", readme_path=""):
     """Make render model_readme.md as model_card tab.
     All spacy model: https://huggingface.co/spacy
     For example: "en_core_web_trf": "https://huggingface.co/spacy/en_core_web_trf/raw/main/README.md".
     """
+
     readme_path = (
         f"https://huggingface.co/spacy/{model_name}/raw/main/README.md"
         if model_name
@@ -114,6 +125,8 @@ def make_model_card(model_name="", readme_path=""):
         )
 
     try:
+        import plotly.graph_objects as go
+
         eval_res = data["model-index"][0]["results"]
         metrics = []
         values = []
@@ -158,7 +171,10 @@ def map_label_to_color(labels):
     return label_to_colors
 
 
+@runtime_dependency(module="plotly", install_from=OptionalDependency.PII)
 def plot_pie(count_map) -> dp.Plot:
+    import plotly.express as px
+
     cols = count_map.keys()
     cnts = count_map.values()
     ent_col_name = "EntityName"

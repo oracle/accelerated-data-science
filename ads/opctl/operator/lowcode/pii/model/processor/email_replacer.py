@@ -4,17 +4,27 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Sequence
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 
-from faker import Faker
-from scrubadub.filth import Filth
-from scrubadub.post_processors import PostProcessor
+try:
+    import scrubadub
+except ImportError:
+    raise ModuleNotFoundError(
+        f"`scrubadub` module was not found. Please run "
+        f"`pip install {OptionalDependency.PII}`."
+    )
 
 
-class EmailReplacer(PostProcessor):
+class EmailReplacer(scrubadub.post_processors.PostProcessor):
     name = "email_replacer"
 
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
+    @runtime_dependency(module="faker", install_from=OptionalDependency.PII)
+    def process_filth(self, filth_list):
+        from faker import Faker
+
         for filth in filth_list:
             if filth.replacement_string:
                 continue

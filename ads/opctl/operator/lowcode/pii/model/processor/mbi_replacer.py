@@ -6,20 +6,26 @@
 
 import random
 import string
-from typing import Sequence
 
-from scrubadub.filth import Filth
-from scrubadub.post_processors import PostProcessor
+from ads.common.decorator.runtime_dependency import OptionalDependency
+
+try:
+    import scrubadub
+except ImportError:
+    raise ModuleNotFoundError(
+        f"`scrubadub` module was not found. Please run "
+        f"`pip install {OptionalDependency.PII}`."
+    )
 
 
-class MBIReplacer(PostProcessor):
+class MBIReplacer(scrubadub.post_processors.PostProcessor):
     name = "mbi_replacer"
     CHAR_POOL = "ACDEFGHJKMNPQRTUVWXY"
 
     def generate_mbi(self):
         return "".join(random.choices(self.CHAR_POOL + string.digits, k=11))
 
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
+    def process_filth(self, filth_list):
         for filth in filth_list:
             if filth.replacement_string:
                 continue

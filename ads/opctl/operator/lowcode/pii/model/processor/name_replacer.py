@@ -5,19 +5,29 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from typing import Sequence
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 
-import gender_guesser.detector as gender_detector
-from faker import Faker
-from nameparser import HumanName
-from scrubadub.filth import Filth
-from scrubadub.post_processors import PostProcessor
+try:
+    import scrubadub
+except ImportError:
+    raise ModuleNotFoundError(
+        f"`scrubadub` module was not found. Please run "
+        f"`pip install {OptionalDependency.PII}`."
+    )
 
 
-class NameReplacer(PostProcessor):
+class NameReplacer(scrubadub.post_processors.PostProcessor):
     name = "name_replacer"
 
+    @runtime_dependency(module="faker", install_from=OptionalDependency.PII)
+    @runtime_dependency(module="gender_guesser", install_from=OptionalDependency.PII)
     def __init__(self, name: str = None, mapping: dict = None):
+        import gender_guesser.detector as gender_detector
+        from faker import Faker
+
         if mapping:
             self.mapping = mapping
         else:
@@ -65,14 +75,14 @@ class NameReplacer(PostProcessor):
         return processed
 
     @staticmethod
-    def has_initial(name: HumanName) -> bool:
+    def has_initial(name: "nameparser.HumanName") -> bool:
         for attr in ["first", "middle", "last"]:
             if len(str(getattr(name, attr)).strip(".")) == 1:
                 return True
         return False
 
     @staticmethod
-    def has_non_initial(name: HumanName) -> bool:
+    def has_non_initial(name: "nameparser.HumanName") -> bool:
         for attr in ["first", "middle", "last"]:
             if len(str(getattr(name, attr)).strip(".")) > 1:
                 return True
@@ -87,7 +97,9 @@ class NameReplacer(PostProcessor):
                 fake_component += "."
         return fake_component
 
-    def save_name_mapping(self, name: HumanName, fake_name: HumanName):
+    def save_name_mapping(
+        self, name: "nameparser.HumanName", fake_name: "nameparser.HumanName"
+    ):
         """Saves the names with initials to the mapping so that a new name will not be generated.
         For example, if name is "John Richard Doe", this method will save the following keys to the mapping:
         - J Doe
@@ -124,6 +136,7 @@ class NameReplacer(PostProcessor):
                 f"{name.first} {name.middle[0]} {name.last}"
             ] = f"{fake_name.first} {fake_name.middle[0]} {fake_name.last}"
 
+    @runtime_dependency(module="nameparser", install_from=OptionalDependency.PII)
     def replace(self, text):
         """Replaces a name with fake name.
 
@@ -138,6 +151,8 @@ class NameReplacer(PostProcessor):
         str
             The replaced name as text.
         """
+        from nameparser import HumanName
+
         if isinstance(text, HumanName):
             name = text
         else:
@@ -187,7 +202,10 @@ class NameReplacer(PostProcessor):
         self.save_name_mapping(original_name, name)
         return str(name)
 
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
+    @runtime_dependency(module="nameparser", install_from=OptionalDependency.PII)
+    def process_filth(self, filth_list):
+        from nameparser import HumanName
+
         filth_list = self.unwrap_filth(filth_list)
 
         name_filths = []

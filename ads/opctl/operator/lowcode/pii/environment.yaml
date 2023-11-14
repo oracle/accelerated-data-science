@@ -5,12 +5,11 @@ dependencies:
   - python=3.9
   - pip
   - pip:
+      - aiohttp
       - datapane
-      - scrubadub
       - gender_guesser
       - nameparser
+      - plotly
+      - scrubadub
       - scrubadub_spacy
-      - requests
-      - aiohttp
-      - ploty
       - "git+https://github.com/oracle/accelerated-data-science.git@feature/ads_pii_operator#egg=oracle-ads"

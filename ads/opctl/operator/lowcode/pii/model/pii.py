@@ -4,9 +4,10 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
-import scrubadub
-
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.opctl import logger
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.lowcode.pii.model.factory import PiiDetectorFactory
@@ -24,6 +25,7 @@ from ads.opctl.operator.lowcode.pii.model.processor import (
 class PiiScrubber:
     """Class used for config scrubber and count the detectors in use."""
 
+    @runtime_dependency(module="scrubadub", install_from=OptionalDependency.PII)
     def __init__(self, config):
         logger.info(f"Loading config from {config}")
         if isinstance(config, str):

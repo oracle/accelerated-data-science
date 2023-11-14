@@ -6,9 +6,10 @@
 
 import uuid
 
-import scrubadub
-from scrubadub_spacy.detectors.spacy import SpacyEntityDetector
-
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
 from ads.opctl.operator.lowcode.pii.constant import SupportedDetector
 from ads.opctl.operator.lowcode.pii.utils import construct_filth_cls_name
 
@@ -38,8 +39,10 @@ class SpacyDetector(PiiBaseDetector):
     DEFAULT_SPACY_MODEL = "en_core_web_trf"
 
     @classmethod
+    @runtime_dependency(module="scrubadub", install_from=OptionalDependency.PII)
+    @runtime_dependency(module="scrubadub_spacy", install_from=OptionalDependency.PII)
     def construct(cls, entity, model, **kwargs):
-        spacy_entity_detector = SpacyEntityDetector(
+        spacy_entity_detector = scrubadub_spacy.detectors.spacy.SpacyEntityDetector(
             named_entities=[entity],
             name=f"spacy_{uuid.uuid4()}",
             model=model,

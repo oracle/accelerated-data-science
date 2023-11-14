@@ -3,18 +3,22 @@
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from ads.common.decorator.runtime_dependency import OptionalDependency
 
-from typing import Sequence
+try:
+    import scrubadub
+except ImportError:
+    raise ModuleNotFoundError(
+        f"`scrubadub` module was not found. Please run "
+        f"`pip install {OptionalDependency.PII}`."
+    )
 
-from scrubadub.filth import Filth
-from scrubadub.post_processors import PostProcessor
 
-
-class Remover(PostProcessor):
+class Remover(scrubadub.post_processors.PostProcessor):
     name = "remover"
     _ENTITIES = []
 
-    def process_filth(self, filth_list: Sequence[Filth]) -> Sequence[Filth]:
+    def process_filth(self, filth_list):
         for filth in filth_list:
             if filth.type.lower() in self._ENTITIES:
                 filth.replacement_string = ""
