@@ -27,9 +27,9 @@ The most important files expected to be generated are:
 
 All generated configurations should be ready to use without the need for any additional adjustments. However, they are provided as starter kit configurations that can be customized as needed.
 
-## 3. Running pii on the local conda environment
+## 3. Running Pii on the local conda environment
 
-To run forecasting locally, create and activate a new conda environment (`ads-pii`). Install all the required libraries listed in the `environment.yaml` file.
+To run pii operator locally, create and activate a new conda environment (`ads-pii`). Install all the required libraries listed in the `environment.yaml` file.
 
 ```yaml
 - datapane
@@ -48,7 +48,7 @@ Use the command below to verify the pii config.
 ads operator verify -f ~/pii/pii.yaml
 ```
 
-Use the following command to run the forecasting within the `ads-pii` conda environment.
+Use the following command to run the pii operator within the `ads-pii` conda environment.
 
 ```bash
 ads operator run -f ~/pii/pii.yaml -b local
@@ -76,7 +76,7 @@ volume:
   - "/Users/<user>/.oci:/root/.oci"
 ```
 
-Mounting the OCI configs folder is only required if an OCI Object Storage bucket will be used to store the input forecasting data or output forecasting result. The input/output folders can also be mounted to the container.
+Mounting the OCI configs folder is only required if an OCI Object Storage bucket will be used to store the input data or output result. The input/output folders can also be mounted to the container.
 
 ```yaml
 volume:
@@ -130,7 +130,7 @@ ads operator publish-image pii:v1 --registry <iad.ocir.io/tenancy/>
 
 After the container is published to OCR, it can be used within Data Science jobs service. Check the `backend_job_container_config.yaml` config file. It should contain pre-populated infrastructure and runtime sections. The runtime section should contain an image property, something like `image: iad.ocir.io/<tenancy>/pii:v1`. More details about supported options can be found in the ADS Jobs documentation - [Run a Container](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/run_container.html).
 
-Adjust the `pii.yaml` config with proper input/output folders. When the forecasting is run in the Data Science job, it will not have access to local folders. Therefore, input data and output folders should be placed in the Object Storage bucket. Open the `pii.yaml` and adjust the following fields:
+Adjust the `pii.yaml` config with proper input/output folders. When the operator is run in the Data Science job, it will not have access to local folders. Therefore, input data and output folders should be placed in the Object Storage bucket. Open the `pii.yaml` and adjust the following fields:
 
 ```yaml
 input_data:
