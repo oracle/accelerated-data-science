@@ -9,6 +9,7 @@ import tempfile
 import time
 from abc import ABC, abstractmethod
 from typing import Tuple
+import traceback
 
 import fsspec
 import numpy as np
@@ -100,17 +101,21 @@ class ForecastOperatorBaseModel(ABC):
                         )
 
                 if self.spec.test_data:
-                    (
-                        self.test_eval_metrics,
-                        summary_metrics,
-                        test_data,
-                    ) = self._test_evaluate_metrics(
-                        target_columns=self.target_columns,
-                        test_filename=self.spec.test_data.url,
-                        output=self.forecast_output,
-                        target_col=self.forecast_col_name,
-                        elapsed_time=elapsed_time,
-                    )
+                    try:
+                        (
+                            self.test_eval_metrics,
+                            summary_metrics,
+                            test_data,
+                        ) = self._test_evaluate_metrics(
+                            target_columns=self.target_columns,
+                            test_filename=self.spec.test_data.url,
+                            output=self.forecast_output,
+                            target_col=self.forecast_col_name,
+                            elapsed_time=elapsed_time,
+                        )
+                    except Exception as e:
+                        logger.warn("Unable to generate Test Metrics.")
+                        logger.debug(f"Full Traceback: {traceback.format_exc()}")
             report_sections = []
 
             if self.spec.generate_report:
@@ -369,7 +374,7 @@ class ForecastOperatorBaseModel(ABC):
             if set(self.forecast_output.list_target_category_columns()) != set(
                 target_columns_in_output
             ):
-                raise ValueError(
+                logger.warn(
                     f"Column Mismatch between Forecast Output and Target Columns"
                 )
             metrics_per_horizon = utils._build_metrics_per_horizon(
@@ -468,7 +473,7 @@ class ForecastOperatorBaseModel(ABC):
                 )
 
             # test_metrics csv report
-            if self.spec.generate_metrics and test_metrics_df is not None:
+            if self.spec.test_data and test_metrics_df is not None:
                 utils._write_data(
                     data=test_metrics_df.rename_axis("metrics").reset_index(),
                     filename=os.path.join(output_dir, self.spec.test_metrics_filename),

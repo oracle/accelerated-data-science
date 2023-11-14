@@ -4,12 +4,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+from ads.common.auth import AuthType
 from ads.opctl.conda.cmds import create, install, publish
 from ads.opctl.conda.cli import create as cli_create
 from ads.opctl.conda.cli import install as cli_install
 from ads.opctl.conda.cli import publish as cli_publish
 from tests.integration.config import secrets
-import shutil
 
 import tempfile
 import yaml
@@ -17,8 +17,15 @@ import yaml
 from click.testing import CliRunner
 
 ADS_CONFIG_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
-# When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
-WORK_DIR = os.getenv("CHECKOUT_DIR", None)
+
+if "TEAMCITY_VERSION" in os.environ:
+    # When running in TeamCity we specify dir, which is CHECKOUT_DIR="%teamcity.build.checkoutDir%"
+    WORK_DIR = os.getenv("CHECKOUT_DIR", "~")
+    CONDA_PACK_FOLDER = f"{WORK_DIR}/conda"
+    AUTH = AuthType.INSTANCE_PRINCIPAL
+else:
+    CONDA_PACK_FOLDER = "~/conda"
+    AUTH = AuthType.SECURITY_TOKEN
 
 
 class TestCondaRun:
@@ -33,6 +40,10 @@ class TestCondaRun:
                 "oci://service_conda_packs@ociodscdev/service_pack",
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--conda-pack-folder",
+                CONDA_PACK_FOLDER,
+                "--auth",
+                AUTH,
             ],
         )
         assert res.exit_code == 0, res.output
@@ -67,6 +78,7 @@ dependencies:
             overwrite=True,
             conda_pack_folder=os.path.join(td_name, "conda"),
             ads_config=ADS_CONFIG_DIR,
+            auth=AUTH,
         )
 
         td = tempfile.TemporaryDirectory(dir=WORK_DIR)
@@ -76,6 +88,7 @@ dependencies:
             conda_pack_folder=os.path.join(td_name, "conda"),
             ads_config=ADS_CONFIG_DIR,
             overwrite=True,
+            auth=AUTH,
         )
 
         assert os.path.exists(
@@ -132,6 +145,8 @@ dependencies:
                 os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--auth",
+                AUTH,
             ],
         )
         assert res.exit_code == 0, res.output
@@ -147,6 +162,8 @@ dependencies:
                 os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--auth",
+                AUTH,
             ],
             input="test2\no\n",
         )
@@ -161,6 +178,8 @@ dependencies:
                 os.path.join(td_name, "conda"),
                 "--ads-config",
                 ADS_CONFIG_DIR,
+                "--auth",
+                AUTH,
             ],
         )
         assert res.exit_code == 0, res.output
