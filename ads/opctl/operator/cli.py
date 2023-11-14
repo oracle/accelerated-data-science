@@ -9,8 +9,7 @@ from typing import Any, Dict
 import click
 import fsspec
 import yaml
-
-from ads.common import auth as authutil
+from ads.opctl.operator.common.utils import default_signer
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl.constants import BACKEND_NAME, RUNTIME_TYPE
@@ -212,9 +211,7 @@ def verify(debug: bool, **kwargs: Dict[str, Any]) -> None:
         kwargs["file"],
         "r",
         **(
-            authutil.default_signer()
-            if ObjectStorageDetails.is_oci_path(kwargs["file"])
-            else {}
+            default_signer() if ObjectStorageDetails.is_oci_path(kwargs["file"]) else {}
         ),
     ) as f:
         operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
@@ -318,9 +315,7 @@ def run(debug: bool, **kwargs: Dict[str, Any]) -> None:
         kwargs["file"],
         "r",
         **(
-            authutil.default_signer()
-            if ObjectStorageDetails.is_oci_path(kwargs["file"])
-            else {}
+            default_signer() if ObjectStorageDetails.is_oci_path(kwargs["file"]) else {}
         ),
     ) as f:
         operator_spec = suppress_traceback(debug)(yaml.safe_load)(f.read())
@@ -329,11 +324,7 @@ def run(debug: bool, **kwargs: Dict[str, Any]) -> None:
         with fsspec.open(
             backend,
             "r",
-            **(
-                authutil.default_signer()
-                if ObjectStorageDetails.is_oci_path(backend)
-                else {}
-            ),
+            **(default_signer() if ObjectStorageDetails.is_oci_path(backend) else {}),
         ) as f:
             backend = suppress_traceback(debug)(yaml.safe_load)(f.read())
 

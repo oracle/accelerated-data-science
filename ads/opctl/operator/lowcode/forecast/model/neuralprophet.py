@@ -22,11 +22,11 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.opctl import logger
 
-from ..const import DEFAULT_TRIALS
+from ..const import DEFAULT_TRIALS, ForecastOutputColumns
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
-from .forecast_datasets import ForecastDatasets
+from .forecast_datasets import ForecastDatasets, ForecastOutput
 import traceback
 
 
@@ -74,7 +74,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         from neuralprophet import NeuralProphet
 
-        full_data_dict = self.full_data_dict
+        full_data_dict = self.datasets.full_data_dict
         models = []
         outputs = dict()
         outputs_legacy = []
@@ -93,6 +93,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
 
         model_kwargs["quantiles"] = quantiles
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width
+        )
 
         for i, (target, df) in enumerate(full_data_dict.items()):
             le, df_encoded = utils._label_encode_dataframe(
@@ -156,7 +159,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                             .item()
                         )
                         test_metrics_total_i.append(fold_metric_i)
-                    logger.info(
+                    logger.debug(
                         f"----------------------{np.asarray(test_metrics_total_i).mean()}----------------------"
                     )
                     return np.asarray(test_metrics_total_i).mean()
@@ -192,10 +195,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 additional_regressors=additional_regressors,
                 select_metric=self.spec.metric,
             )
-            logger.info(
+            logger.debug(
                 f"Found the following additional data columns: {additional_regressors}"
             )
-            logger.info(
+            logger.debug(
                 f"While fitting the model, some additional data may have been "
                 f"discarded. Only using the columns: {accepted_regressors}"
             )
@@ -207,8 +210,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             # Forecast model and collect outputs
             forecast = model.predict(future)
-            logger.info(f"-----------------Model {i}----------------------")
-            logger.info(forecast.tail())
+            logger.debug(f"-----------------Model {i}----------------------")
+            logger.debug(forecast.tail())
             models.append(model)
             outputs[target] = forecast
             outputs_legacy.append(forecast)
@@ -216,13 +219,14 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.models = models
         self.outputs = outputs_legacy
 
-        logger.info("===========Done===========")
-        outputs_merged = pd.DataFrame()
+        logger.debug("===========Done===========")
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
         output_col = pd.DataFrame()
-        for cat in self.categories:  # Note: to restrict columns, set this to [:2]
+        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
+        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
+        for cat in self.categories:
             output_i = pd.DataFrame()
 
             output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
@@ -231,8 +235,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i[f"fitted_value"] = float("nan")
             output_i[f"forecast_value"] = float("nan")
-            output_i[f"p{int(quantiles[1]*100)}"] = float("nan")
-            output_i[f"p{int(quantiles[0]*100)}"] = float("nan")
+            output_i[yhat_lower_name] = float("nan")
+            output_i[yhat_upper_name] = float("nan")
 
             output_i.iloc[
                 : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
@@ -245,7 +249,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             )
             output_i.iloc[
                 -self.spec.horizon :,
-                output_i.columns.get_loc(f"p{int(quantiles[1]*100)}"),
+                output_i.columns.get_loc(yhat_upper_name),
             ] = (
                 outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1]*100}%"]
                 .iloc[-self.spec.horizon :]
@@ -253,7 +257,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             )
             output_i.iloc[
                 -self.spec.horizon :,
-                output_i.columns.get_loc(f"p{int(quantiles[0]*100)}"),
+                output_i.columns.get_loc(yhat_lower_name),
             ] = (
                 outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0]*100}%"]
                 .iloc[-self.spec.horizon :]
@@ -261,17 +265,13 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             )
             output_col = pd.concat([output_col, output_i])
 
-        # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
+            self.forecast_output.add_category(
+                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
+            )
+
         output_col = output_col.reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
-        # Re-merge historical data for processing
-        data_merged = pd.concat(
-            [v[v[k].notna()].set_index("ds") for k, v in full_data_dict.items()], axis=1
-        ).reset_index()
-
-        self.data = data_merged
-        return outputs_merged
+        return output_col
 
     def _generate_report(self):
         import datapane as dp
@@ -279,7 +279,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         sec1_text = dp.Text(
             "## Forecast Overview \nThese plots show your "
             "forecast in the context of historical data."
-        )  # TODO add confidence intervals
+        )
         sec1 = utils._select_plot_list(
             lambda idx, *args: self.models[idx].plot(self.outputs[idx]),
             target_columns=self.target_columns,
@@ -389,17 +389,15 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             "Facebook Prophet and AR-Net."
         )
         other_sections = all_sections
-        ds_column_series = self.data["ds"]
-        ds_forecast_col = self.outputs[0]["ds"]
-        ci_col_names = None
 
         return (
             model_description,
             other_sections,
-            ds_column_series,
-            ds_forecast_col,
-            ci_col_names,
         )
 
-    def explain_model(self, datetime_col_name, explain_predict_fn) -> dict:
-        raise NotImplementedError()
+    def _custom_predict_neuralprophet(self, data):
+        raise NotImplementedError("NeuralProphet does not yet support explanations.")
+        # data_prepped = data.reset_index()
+        # data_prepped['y'] = None
+        # data_prepped['ds'] = pd.to_datetime(data_prepped['ds'])
+        # return self.models[self.target_columns.index(self.series_id)].predict(data_prepped)["yhat1"]

@@ -64,6 +64,5 @@ class ConfigVersioner(ConfigProcessor):
         # - user runs ADS operator -> name/YAML
 
         # TODO: build this out
-        logger.debug(f"Config: {self.config}")
 
         return self

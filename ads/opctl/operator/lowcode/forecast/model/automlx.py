@@ -8,19 +8,21 @@ import traceback
 import pandas as pd
 import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
-from ads.opctl.operator.lowcode.forecast.const import AUTOMLX_METRIC_MAP
+from ads.opctl.operator.lowcode.forecast.const import (
+    AUTOMLX_METRIC_MAP,
+    ForecastOutputColumns,
+)
 from ads.opctl import logger
 
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
-from .forecast_datasets import ForecastDatasets
+from .forecast_datasets import ForecastDatasets, ForecastOutput
 
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
 
 
-# TODO: ODSC-44785 Fix the error message, before GA.
 class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     """Class representing AutoMLX operator model."""
 
@@ -28,6 +30,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets)
         self.global_explanation = {}
         self.local_explanation = {}
+        self.train_metrics = True
 
     @runtime_dependency(
         module="automl",
@@ -47,14 +50,19 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         init(engine="local", check_deprecation_warnings=False)
 
-        full_data_dict = self.full_data_dict
+        full_data_dict = self.datasets.full_data_dict
 
         models = dict()
         outputs = dict()
-        outputs_legacy = []
+        outputs_legacy = dict()
         selected_models = dict()
         date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon
+        self.datasets.datetime_col = date_column
+        self.spec.confidence_interval_width = self.spec.confidence_interval_width or 0.8
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width
+        )
 
         # Clean up kwargs for pass through
         model_kwargs_cleaned = self.spec.model_kwargs.copy()
@@ -72,7 +80,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
 
         for i, (target, df) in enumerate(full_data_dict.items()):
-            logger.info("Running automl for {} at position {}".format(target, i))
+            logger.debug("Running automl for {} at position {}".format(target, i))
             series_values = df[df[target].notna()]
             # drop NaNs for the time period where data wasn't recorded
             series_values.dropna(inplace=True)
@@ -80,14 +88,14 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 df[date_column], format=self.spec.datetime_column.format
             )
             df = df.set_index(date_column)
-            if len(df.columns) > 1:
-                # when additional columns are present
-                y_train, y_test = temporal_train_test_split(df, test_size=horizon)
-                forecast_x = y_test.drop(target, axis=1)
-            else:
-                y_train = df
-                forecast_x = None
-            logger.info(
+            # if len(df.columns) > 1:
+            # when additional columns are present
+            y_train, y_test = temporal_train_test_split(df, test_size=horizon)
+            forecast_x = y_test.drop(target, axis=1)
+            # else:
+            #     y_train = df
+            #     forecast_x = None
+            logger.debug(
                 "Time Index is" + ""
                 if y_train.index.is_monotonic
                 else "NOT" + "monotonic."
@@ -101,15 +109,31 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 y=pd.DataFrame(y_train[target]),
                 time_budget=time_budget,
             )
-            logger.info("Selected model: {}".format(model.selected_model_))
-            logger.info(
+            logger.debug("Selected model: {}".format(model.selected_model_))
+            logger.debug(
                 "Selected model params: {}".format(model.selected_model_params_)
             )
             summary_frame = model.forecast(
                 X=forecast_x,
                 periods=horizon,
-                alpha=1 - ((self.spec.confidence_interval_width or 0.5) / 100),
+                alpha=1 - (self.spec.confidence_interval_width / 100),
             )
+            input_values = pd.Series(
+                y_train[target].values,
+                name="input_value",
+                index=y_train.index,
+            )
+            fitted_values_raw = model.predict(y_train.drop(target, axis=1))
+            fitted_values = pd.Series(
+                fitted_values_raw[target].values,
+                name="fitted_value",
+                index=y_train.index,
+            )
+
+            summary_frame = pd.concat(
+                [input_values, fitted_values, summary_frame], axis=1
+            )
+
             # Collect Outputs
             selected_models[target] = {
                 "series_id": target,
@@ -130,43 +154,35 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 summary_frame["yhat_upper"] = np.NAN
                 summary_frame["yhat_lower"] = np.NAN
             outputs[target] = summary_frame
-            outputs_legacy.append(summary_frame)
+            # outputs_legacy[target] = summary_frame
 
-        logger.info("===========Forecast Generated===========")
+        logger.debug("===========Forecast Generated===========")
         outputs_merged = pd.DataFrame()
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
-        output_col = pd.DataFrame()
-        yhat_lower_percentage = (
-            100 - (self.spec.confidence_interval_width or 0.5) * 100
-        ) // 2
-        yhat_upper_name = "p" + str(int(100 - yhat_lower_percentage))
-        yhat_lower_name = "p" + str(int(yhat_lower_percentage))
+        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
+        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
         for cat in self.categories:  # Note: add [:2] to restrict
             output_i = pd.DataFrame()
             output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
             output_i["Series"] = cat
-            output_i["input_value"] = float("nan")
-            output_i[f"fitted_value"] = float("nan")
+            output_i["input_value"] = outputs[f"{col}_{cat}"]["input_value"]
+            output_i[f"fitted_value"] = outputs[f"{col}_{cat}"]["fitted_value"]
             output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
             output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
             output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
-            output_col = pd.concat([output_col, output_i])
+            outputs_merged = pd.concat([outputs_merged, output_i])
+            outputs_legacy[f"{col}_{cat}"] = output_i
+            self.forecast_output.add_category(
+                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
+            )
 
         # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
-        output_col = output_col.reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
-
-        # Re-merge historical datas for processing
-        data_merged = pd.concat(
-            [v[v[k].notna()].set_index(date_column) for k, v in full_data_dict.items()],
-            axis=1,
-        ).reset_index()
+        # output_col = output_col.reset_index(drop=True)
+        # outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
         self.models = models
-        self.outputs = outputs_legacy
-        self.data = data_merged
         return outputs_merged
 
     @runtime_dependency(
@@ -214,7 +230,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         selected_df = selected_models_df["best_selected_model"].apply(pd.Series)
         selected_models_section = dp.Blocks(
-            "### Best Selected model ", dp.Table(selected_df)
+            "### Best Selected Model", dp.Table(selected_df)
         )
 
         all_sections = [selected_models_text, selected_models_section]
@@ -283,16 +299,10 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             "high-quality features in your dataset, which are then provided for further processing."
         )
         other_sections = all_sections
-        ds_column_series = self.data[self.spec.datetime_column.name]
-        ds_forecast_col = self.outputs[0]["ds"]
-        ci_col_names = ["yhat_lower", "yhat_upper"]
 
         return (
             model_description,
             other_sections,
-            ds_column_series,
-            ds_forecast_col,
-            ci_col_names,
         )
 
     def _custom_predict_automlx(self, data):

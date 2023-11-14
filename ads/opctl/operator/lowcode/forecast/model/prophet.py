@@ -11,12 +11,15 @@ from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 
-from ..const import DEFAULT_TRIALS, PROPHET_INTERNAL_DATE_COL
+from ..const import DEFAULT_TRIALS, PROPHET_INTERNAL_DATE_COL, ForecastOutputColumns
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
-from .forecast_datasets import ForecastDatasets
+from .forecast_datasets import ForecastDatasets, ForecastOutput
 import traceback
+import matplotlib as mpl
+
+mpl.rcParams["figure.max_open_warning"] = 100
 
 
 def _add_unit(num, unit):
@@ -46,7 +49,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         from prophet import Prophet
         from prophet.diagnostics import cross_validation, performance_metrics
 
-        full_data_dict = self.full_data_dict
+        full_data_dict = self.datasets.full_data_dict
         models = []
         outputs = dict()
         outputs_legacy = []
@@ -59,6 +62,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
         model_kwargs = self.spec.model_kwargs
         model_kwargs["interval_width"] = self.spec.confidence_interval_width
+
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width
+        )
 
         for i, (target, df) in enumerate(full_data_dict.items()):
             le, df_encoded = utils._label_encode_dataframe(
@@ -122,7 +129,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     initial = _add_unit((data_i.shape[0] * interval) // 2, unit=unit)
                     period = _add_unit((data_i.shape[0] * interval) // 4, unit=unit)
 
-                    logger.info(
+                    logger.debug(
                         f"using: horizon: {horizon}. initial:{initial}, period: {period}"
                     )
 
@@ -172,7 +179,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             # Make future df for prediction
             if len(additional_regressors):
-                # TOOD: this will use the period/range of the additional data
                 future = df_clean.drop(target, axis=1)
             else:
                 future = model.make_future_dataframe(
@@ -181,8 +187,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 )
             # Make Prediction
             forecast = model.predict(future)
-            logger.info(f"-----------------Model {i}----------------------")
-            logger.info(
+            logger.debug(f"-----------------Model {i}----------------------")
+            logger.debug(
                 forecast[
                     [PROPHET_INTERNAL_DATE_COL, "yhat", "yhat_lower", "yhat_upper"]
                 ].tail()
@@ -196,16 +202,14 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         self.models = models
         self.outputs = outputs_legacy
 
-        logger.info("===========Done===========")
-        outputs_merged = pd.DataFrame()
+        logger.debug("===========Done===========")
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
         output_col = pd.DataFrame()
-        yhat_lower_percentage = (100 - model_kwargs["interval_width"] * 100) // 2
-        yhat_upper_name = "p" + str(int(100 - yhat_lower_percentage))
-        yhat_lower_name = "p" + str(int(yhat_lower_percentage))
-        for cat in self.categories:  # Note: add [:2] to restrict
+        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
+        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
+        for cat in self.categories:
             output_i = pd.DataFrame()
 
             output_i["Date"] = outputs[f"{col}_{cat}"][PROPHET_INTERNAL_DATE_COL]
@@ -237,22 +241,13 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 outputs[f"{col}_{cat}"]["yhat_lower"].iloc[-self.spec.horizon :].values
             )
             output_col = pd.concat([output_col, output_i])
+            self.forecast_output.add_category(
+                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
+            )
 
-        # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
         output_col = output_col.reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
-        # Re-merge historical data for processing
-        data_merged = pd.concat(
-            [
-                v[v[k].notna()].set_index(PROPHET_INTERNAL_DATE_COL)
-                for k, v in full_data_dict.items()
-            ],
-            axis=1,
-        ).reset_index()
-
-        self.data = data_merged
-        return outputs_merged
+        return output_col
 
     def _generate_report(self):
         import datapane as dp
@@ -376,16 +371,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "data and shifts in the trend, and typically handles outliers well."
         )
         other_sections = all_sections
-        ds_column_series = self.data[PROPHET_INTERNAL_DATE_COL]
-        ds_forecast_col = self.outputs[0][PROPHET_INTERNAL_DATE_COL]
-        ci_col_names = ["yhat_lower", "yhat_upper"]
 
         return (
             model_description,
             other_sections,
-            ds_column_series,
-            ds_forecast_col,
-            ci_col_names,
         )
 
     def _custom_predict_prophet(self, data):

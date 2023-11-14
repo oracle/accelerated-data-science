@@ -39,7 +39,7 @@ Here is an example forecast.yaml wit every parameter specified:
         * **url**: Insert the uri for the dataset if it's on object storage or Data Lake using the URI pattern ``oci://<bucket>@<namespace>/path/to/data.csv``.
         * **kwargs**: Insert any other args for pandas to load the data (``format``, ``options``, etc.) See full list in ``YAML Schema`` section.
     * **output_directory**: (optional) This dictionary contains the details for where to put the output artifacts. The directory need not exist, but must be accessible by the Operator during runtime.
-        * **url**: Insert the uri for the dataset if it's on object storage or Data Lake using the URI pattern ``oci://<bucket>@<namespace>/path/to/data.csv``.
+        * **url**: Insert the uri for the dataset if it's on object storage or Data Lake using the URI pattern ``oci://<bucket>@<namespace>/subfolder/``.
         * **kwargs**: Insert any other args for pandas to load the data (``format``, ``options``, etc.) See full list in ``YAML Schema`` section.
     * **model**: (optional) The name of the model framework you want to use. Defaults to "auto". Other options are: ``arima``, ``automlx``, ``prophet``, ``neuralprophet``, ``autots``, and ``auto``.
     * **model_kwargs**: (optional) This kwargs dict passes straight through to the model framework.
