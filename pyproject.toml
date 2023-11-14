@@ -156,12 +156,16 @@ forecast = [
   "autots[additional]",
   "datapane",
   "neuralprophet",
-  "oracle_ads[optuna]",
   "oracle-automlx==23.2.3",
   "prophet",
   "pmdarima",
   "statsmodels",
   "sktime",
+  "optuna==2.9.0",
+  "oci",
+  "oci-cli",
+  "shap",
+  "holidays==0.21.13",
 ]
 
 [project.urls]
