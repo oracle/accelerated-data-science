@@ -37,7 +37,7 @@ To run forecasting locally, create and activate a new conda environment (`ads-pi
 - gender_guesser
 - nameparser
 - scrubadub_spacy
-- "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"
+- "git+https://github.com/oracle/accelerated-data-science.git@feature/ads_pii_operator#egg=oracle-ads"
 ```
 
 Please review the previously generated `pii.yaml` file using the `init` command, and make any necessary adjustments to the input and output file locations. By default, it assumes that the files should be located in the same folder from which the `init` command was executed.
