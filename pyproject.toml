@@ -153,10 +153,7 @@ viz = [
   "seaborn>=0.11.0",
 ]
 forecast = [
-  "autots[additional]",
   "datapane",
-  "neuralprophet",
-  "oracle-automlx==23.2.3",
   "prophet",
   "pmdarima",
   "statsmodels",
@@ -164,8 +161,12 @@ forecast = [
   "optuna==2.9.0",
   "oci-cli",
   "shap",
+  "numpy",
   "holidays==0.21.13",
   "oracle-ads[opctl]",
+  "oracle-automlx==23.2.3",
+  "autots[additional]",
+  "neuralprophet",
 ]
 
 [project.urls]
