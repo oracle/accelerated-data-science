@@ -1,0 +1,45 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+apiVersion: 20230101
+kind: featureStore
+spec:
+  displayName: '{feature_store_name}'
+  offlineConfig:
+    metastoreId: '{metastore_id}'
+
+  entity: &entity
+    - kind: entity
+      spec:
+        displayName: '{entity_name}'
+
+  # we can pass sql query in case of spark based sql transformations by passing query inline in transformationQueryInput
+  transformation: &transformation
+    - kind: transformation
+      spec:
+        displayName: '{transformation_name}'
+        transformationMode: '{transformation_mode}'
+        sourceCode: '{source_code}'
+
+  featureGroup:
+    - kind: featureGroup
+      spec:
+        displayName: '{feature_group_name}'
+        transformation: *transformation
+        entity: *entity
+        primaryKeys: '{fg_primary_key}'
+        inputFeatureDetails:
+          - name: '{feature_name}'
+            featureType: '{feature_type}'
+            orderNumber: 1
+
+  dataset:
+    - kind: dataset
+      spec:
+        displayName: '{dataset_name}'
+        entity: *entity
+        datasetIngestionMode: '{ingestion_mode}'
+        query: '{query_statement}'

@@ -41,7 +41,7 @@ class MergeStrategy(Enum):
     MERGE = "merge"
 
 
-class OCIModelNotExists(Exception):   # pragma: no cover
+class OCIModelNotExists(Exception):  # pragma: no cover
     pass
 
 
@@ -383,7 +383,7 @@ class OCIModelMixin(OCISerializableMixin):
     """
 
     # Regex pattern matching the module name of an OCI model.
-    OCI_MODEL_PATTERN = r"oci.[^.]+\.models[\..*]?"
+    OCI_MODEL_PATTERN = r"(oci|feature_store_client).[^.]+\.models[\..*]?"
     # Constants
     CONS_COMPARTMENT_ID = "compartment_id"
 
@@ -937,11 +937,11 @@ class OCIWorkRequestMixin:
         return work_request_response
 
     def wait_for_progress(
-        self, 
-        work_request_id: str, 
-        num_steps: int = DEFAULT_WORKFLOW_STEPS, 
-        max_wait_time: int = DEFAULT_WAIT_TIME, 
-        poll_interval: int = DEFAULT_POLL_INTERVAL
+        self,
+        work_request_id: str,
+        num_steps: int = DEFAULT_WORKFLOW_STEPS,
+        max_wait_time: int = DEFAULT_WAIT_TIME,
+        poll_interval: int = DEFAULT_POLL_INTERVAL,
     ):
         """Waits for the work request progress bar to be completed.
 
@@ -969,10 +969,10 @@ class OCIWorkRequestMixin:
             seconds_since = time.time() - start_time
             exceed_max_time = max_wait_time > 0 and seconds_since >= max_wait_time
             if exceed_max_time:
-                logger.error(
-                    f"Max wait time ({max_wait_time} seconds) exceeded."
-                )
-            while not exceed_max_time and (not work_request_logs or len(work_request_logs) < num_steps):
+                logger.error(f"Max wait time ({max_wait_time} seconds) exceeded.")
+            while not exceed_max_time and (
+                not work_request_logs or len(work_request_logs) < num_steps
+            ):
                 time.sleep(poll_interval)
                 new_work_request_logs = []
 
