@@ -12,7 +12,6 @@ keywords:
   - LSTM
 backends:
   - job
-  - dataflow
 description: |
   Forecasting operator, that leverages historical time series data to generate accurate
   forecasts for future trends. Use `ads operator info -t forecast` to get more details about
