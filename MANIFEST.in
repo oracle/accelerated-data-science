@@ -1,0 +1,9 @@
+# Manifest.in file used by setuptools, which we are not using anymore.
+# Do not add anything to this file, unless revert back to setuptools, which is not recommended. See why here:
+# https://blog.ganssle.io/articles/2021/10/setup-py-deprecated.html.
+
+# Instead flit-core used as backend to build ADS - see section [build-system] in pyproject.toml.
+# For flit-core we can specify files and folders, which needs to be included or excluded in build using
+# [tool.flit.sdist] section of pyproject.toml. See: https://flit.pypa.io/en/latest/pyproject_toml.html#sdist-section
+# If build-system library will change, make changed to list of included/excluded to build files accordingly
+# as it will be suggested by new build-system library.
