@@ -21,7 +21,7 @@ from sklearn.ensemble import AdaBoostClassifier
 from sklearn.model_selection import train_test_split
 from xgboost import XGBClassifier
 import sys, mock, pytest
-from ads.common import auth as authutil
+from ads.common import auth
 from ads.common import oci_client as oc
 from tests.integration.config import secrets
 
@@ -36,9 +36,7 @@ class TestADSTunerTunerArtifact:
         n_samples=10000, n_features=10, n_informative=2, random_state=42
     )
 
-    auth = authutil.api_keys(
-        oci_config="~/.oci/config", client_kwargs={"timeout": 6000}
-    )
+    auth = auth.default_signer(client_kwargs={"timeout": 6000})
     client = oc.OCIClientFactory(**auth).object_storage
     bucket_name = secrets.other.BUCKET_3
     name_space = secrets.common.NAMESPACE

@@ -791,7 +791,7 @@ You can work with different compression formats within Data Flow. For example, s
 
 Other compression formats that Data Flow supports include snappy Parquet, and Gzip on both CSV and Parquet.
 
-You might have query that you want to run in Data Flow from previous explorations, review the `dataflow.ipynb` notebook example that shows you how to submit a job to Data Flow.
+You might have query that you want to run in Data Flow from previous explorations.
 
 .. code-block:: python3
 
@@ -1025,12 +1025,11 @@ The required variables to set up are:
    that the secret is the credential needed to access a database. This
    notebook is designed so that any secret can be stored as long as it
    is in the form of a dictionary. To store your secret, just modify the
-   dictionary, see the ``vault.ipynb`` example notebook for detailed
-   steps to generate this OCID.
+   dictionary.
 2. ``tnsname``: A TNS name valid for the database.
 3. ``wallet_path``: The local path to your wallet ZIP file, see the
-   ``autonomous_database.ipynb`` example notebook for instructions on
-   accessing the wallet file.
+   `Loading Data from Different Sources Using Pandas and Dask <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/load_data-object_storage-hive-autonomous-database.ipynb>`_
+   example notebook for instructions on accessing the wallet file.
 
 .. code-block:: python3
 
@@ -1137,4 +1136,3 @@ This notebook creates a table in your database with the name specified with ``ta
         )
     else:
         print("Skipping as it appears that you do not have tnsname specified.")
-

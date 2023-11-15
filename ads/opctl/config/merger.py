@@ -117,7 +117,7 @@ class ConfigMerger(ConfigProcessor):
             else:
                 self.config["execution"]["auth"] = AuthType.API_KEY
         # determine profile
-        if self.config["execution"]["auth"] == AuthType.RESOURCE_PRINCIPAL:
+        if self.config["execution"]["auth"] != AuthType.API_KEY:
             profile = self.config["execution"]["auth"].upper()
             exec_config.pop("oci_profile", None)
             self.config["execution"]["oci_profile"] = None
@@ -202,12 +202,15 @@ class ConfigMerger(ConfigProcessor):
     def _config_flex_shape_details(self):
         infrastructure = self.config["infrastructure"]
         backend = self.config["execution"].get("backend", None)
-        if backend == BACKEND_NAME.JOB.value or backend == BACKEND_NAME.MODEL_DEPLOYMENT.value:
+        if (
+            backend == BACKEND_NAME.JOB.value
+            or backend == BACKEND_NAME.MODEL_DEPLOYMENT.value
+        ):
             shape_name = infrastructure.get("shape_name", "")
             if shape_name.endswith(".Flex"):
                 if (
-                    "ocpus" not in infrastructure or 
-                    "memory_in_gbs" not in infrastructure
+                    "ocpus" not in infrastructure
+                    or "memory_in_gbs" not in infrastructure
                 ):
                     raise ValueError(
                         "Parameters `ocpus` and `memory_in_gbs` must be provided for using flex shape. "
@@ -215,7 +218,7 @@ class ConfigMerger(ConfigProcessor):
                     )
                 infrastructure["shape_config_details"] = {
                     "ocpus": infrastructure.pop("ocpus"),
-                    "memory_in_gbs": infrastructure.pop("memory_in_gbs")
+                    "memory_in_gbs": infrastructure.pop("memory_in_gbs"),
                 }
         elif backend == BACKEND_NAME.DATAFLOW.value:
             executor_shape = infrastructure.get("executor_shape", "")
@@ -224,7 +227,7 @@ class ConfigMerger(ConfigProcessor):
                 "driver_shape_memory_in_gbs",
                 "driver_shape_ocpus",
                 "executor_shape_memory_in_gbs",
-                "executor_shape_ocpus"
+                "executor_shape_ocpus",
             ]
             # executor_shape and driver_shape must be the same shape family
             if executor_shape.endswith(".Flex") or driver_shape.endswith(".Flex"):
@@ -236,9 +239,9 @@ class ConfigMerger(ConfigProcessor):
                         )
                 infrastructure["driver_shape_config"] = {
                     "ocpus": infrastructure.pop("driver_shape_ocpus"),
-                    "memory_in_gbs": infrastructure.pop("driver_shape_memory_in_gbs")
+                    "memory_in_gbs": infrastructure.pop("driver_shape_memory_in_gbs"),
                 }
                 infrastructure["executor_shape_config"] = {
                     "ocpus": infrastructure.pop("executor_shape_ocpus"),
-                    "memory_in_gbs": infrastructure.pop("executor_shape_memory_in_gbs")
+                    "memory_in_gbs": infrastructure.pop("executor_shape_memory_in_gbs"),
                 }

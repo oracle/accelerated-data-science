@@ -58,17 +58,9 @@ jobs:
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
-      - name: "Test env setup"
+      - uses: ./.github/workflows/test-env-setup
+        name: "Test env setup"
         timeout-minutes: 20
-        shell: bash
-        run: |
-          set -x # print commands that are executed
-
-          sudo apt-get install libkrb5-dev graphviz
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-
-          pip install -r dev-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60

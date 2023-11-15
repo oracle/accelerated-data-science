@@ -15,6 +15,7 @@ import oci
 import pandas as pd
 import pytest
 from ads.catalog.model import ModelCatalog
+from ads.common import auth
 from ads.common.model import ADSModel
 from ads.common.model_export_util import prepare_generic_model
 from ads.model.model_metadata import Framework, UseCaseType
@@ -220,14 +221,11 @@ class TestModelArtifactPrepareGenericArtifact(TestCase):
 
     def setUp(self) -> None:
         """Sets up the test case."""
-        AUTH = "api_key"
         BUCKET_NAME = secrets.other.BUCKET_3
         NAMESPACE = secrets.common.NAMESPACE
         OS_PREFIX = "unit_test"
-        profile = "DEFAULT"
         self.oci_path = f"oci://{BUCKET_NAME}@{NAMESPACE}/{OS_PREFIX}"
-        config_path = os.path.expanduser(os.path.join("~/.oci", "config"))
-        self.storage_options = {"config": oci.config.from_file(config_path)}
+        self.storage_options = auth.default_signer()
 
         file_name = "vor_house_price.csv"
         self.file_path = os.path.join(
