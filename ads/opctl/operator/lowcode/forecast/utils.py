@@ -154,6 +154,8 @@ def _build_metrics_per_horizon(
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":
         return pd_fn(filename, **kwargs)
+    elif fsspec.utils.get_protocol(filename) in ["http", "https"]:
+        return pd_fn(filename, **kwargs)
 
     storage_options = storage_options or (
         default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
