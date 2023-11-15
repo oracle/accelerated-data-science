@@ -10,6 +10,7 @@ dependencies:
       - gender_guesser
       - nameparser
       - plotly
+      - spacy_transformers
       - scrubadub
       - scrubadub_spacy
-      - "git+https://github.com/oracle/accelerated-data-science.git@feature/ads_pii_operator#egg=oracle-ads"
+      - oracle_ads[opctl]

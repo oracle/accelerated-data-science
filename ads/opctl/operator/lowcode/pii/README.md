@@ -32,12 +32,15 @@ All generated configurations should be ready to use without the need for any add
 To run pii operator locally, create and activate a new conda environment (`ads-pii`). Install all the required libraries listed in the `environment.yaml` file.
 
 ```yaml
+- aiohttp
 - datapane
-- scrubadub
 - gender_guesser
 - nameparser
+- plotly
+- spacy_transformers
+- scrubadub
 - scrubadub_spacy
-- "git+https://github.com/oracle/accelerated-data-science.git@feature/ads_pii_operator#egg=oracle-ads"
+- oracle_ads[opctl]
 ```
 
 Please review the previously generated `pii.yaml` file using the `init` command, and make any necessary adjustments to the input and output file locations. By default, it assumes that the files should be located in the same folder from which the `init` command was executed.
