@@ -175,7 +175,7 @@ pii = [
   "nameparser",
   "oracle_ads[opctl]",
   "plotly",
-  "spacy_transformers,
+  "spacy_transformers",
   "scrubadub",
   "scrubadub_spacy",
 ]
