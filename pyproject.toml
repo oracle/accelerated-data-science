@@ -124,6 +124,7 @@ opctl = [
   "nbformat",
   "oci-cli",
   "rich",
+  "py-cpuinfo",
 ]
 optuna = [
   "optuna==2.9.0",
