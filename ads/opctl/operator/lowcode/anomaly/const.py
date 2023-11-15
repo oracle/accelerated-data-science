@@ -11,3 +11,5 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported anomaly models."""
 
     AutoMLX = "automlx"
+    AutoTS = "autots"
+    TODS = "tods"

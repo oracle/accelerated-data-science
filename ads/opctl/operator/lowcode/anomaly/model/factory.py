@@ -7,6 +7,8 @@
 from ..const import SupportedModels
 from ..operator_config import AnomalyOperatorConfig
 from .automlx import AutoMLXOperatorModel
+from .autots import AutoTSOperatorModel
+from .tods import TODSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 
 
@@ -25,6 +27,8 @@ class AnomalyOperatorModelFactory:
 
     _MAP = {
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
+        SupportedModels.TODS: TODSOperatorModel,
+        SupportedModels.AutoTS: AutoTSOperatorModel,
     }
 
     @classmethod
