@@ -4,7 +4,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 import click
 
@@ -12,32 +12,21 @@ from ads.opctl import logger
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
 
-from .const import SupportedDatabases
+from .const import DBType
 
-VAULT_OCID_PLACEHOLDER = '<VAULT_OCID>'
-SECRET_NAME_PLACEHOLDER = '<SECRET_NAME>'
-JDBC_CONNECTION_URL_PLACEHOLDER = '<JDBC_CONNECTION_URL>'
-DB_URL_PLACEHOLDER = '<DB_URL>'
+VAULT_OCID_PLACEHOLDER = "<VAULT_OCID>"
+SECRET_NAME_PLACEHOLDER = "<SECRET_NAME>"
+JDBC_CONNECTION_URL_PLACEHOLDER = "<JDBC_CONNECTION_URL>"
+DB_URL_PLACEHOLDER = "<DB_URL>"
 
 
-def __get_db_config(db_type: str) -> Dict[str, Any]:
-    if db_type == SupportedDatabases.MySQL:
-        return {
-            "mysqlDBConfig": {
-                "vaultOCID": VAULT_OCID_PLACEHOLDER,
-                "secretName": SECRET_NAME_PLACEHOLDER,
-                "jdbcConnectionUrl": JDBC_CONNECTION_URL_PLACEHOLDER,
-            }
-        }
-    elif db_type == SupportedDatabases.ATP:
-        return {
-            "atpDBConfig": {
-                "vaultOCID": JDBC_CONNECTION_URL_PLACEHOLDER,
-                "dbURL": DB_URL_PLACEHOLDER
-            }
-        }
+def _get_required_keys_(db_type: DBType) -> List[str]:
+    if db_type == DBType.MySQL:
+        return ["mysql", "mysql.vault"]
+    elif db_type == DBType.ATP:
+        return ["atp"]
     else:
-        return {}
+        return []
 
 
 def init(**kwargs: Dict) -> dict:
@@ -61,10 +50,11 @@ def init(**kwargs: Dict) -> dict:
 
     db_type = click.prompt(
         "Provide a database type:",
-        type=click.Choice(SupportedDatabases.values()),
-        default=SupportedDatabases.MySQL,
+        type=click.Choice(DBType.values()),
+        default=DBType.MySQL,
     )
-    selected_db_config = __get_db_config(db_type)
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example_dict(values={"configuredDB": db_type, **selected_db_config})
+    ).generate_example_dict(
+        values={"configuredDB": db_type}, required_keys=["mysql", "mysql.vault"]
+    )

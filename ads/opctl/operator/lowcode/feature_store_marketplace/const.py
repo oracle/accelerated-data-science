@@ -7,7 +7,7 @@
 from ads.common.extended_enum import ExtendedEnumMeta
 
 
-class SupportedDatabases(str, metaclass=ExtendedEnumMeta):
+class DBType(str, metaclass=ExtendedEnumMeta):
     """Supported forecast models."""
 
     MySQL = "MYSQL"

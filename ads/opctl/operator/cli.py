@@ -29,7 +29,7 @@ from .cmd import publish_image as cmd_publish_image
 from .cmd import verify as cmd_verify
 
 DEBUG_OPTION = (
-    click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=False),
+    click.option("--debug", "-d", help="Set debug mode.", is_flag=True, default=True),
 )
 
 ADS_CONFIG_OPTION = (

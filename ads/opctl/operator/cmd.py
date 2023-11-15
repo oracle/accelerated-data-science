@@ -9,7 +9,7 @@ import re
 import runpy
 import shutil
 import tempfile
-from typing import Any, Dict, Union
+from typing import Any, Dict, Union         
 
 import fsspec
 import yaml
@@ -217,6 +217,7 @@ def init(
     logger.info("#" * 100)
     logger.info(f"The auto-generated configs have been placed in: {output}")
     logger.info("#" * 100)
+
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
