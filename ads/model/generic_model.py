@@ -1575,7 +1575,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         current_state = model_deployment.state.name.upper()
         if current_state != ModelDeploymentState.ACTIVE.name:
-            raise NotActiveDeploymentError(current_state)
+            logger.warning(
+                "This model deployment is not in active state, you will not be able to use predict end point. "
+                f"Current model deployment state: `{current_state}`"
+            )
 
         model = cls.from_model_catalog(
             model_id=model_deployment.properties.model_id,

@@ -117,7 +117,7 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
     @staticmethod
     def list_objects(uri: str) -> list:
         """Lists objects on OCI object storage."""
-        oci_os = fsspec.filesystem("oci", config=oci.config.from_file())
+        oci_os = fsspec.filesystem("oci", **default_signer())
         if uri.startswith("oci://"):
             uri = uri[len("oci://") :]
         items = oci_os.ls(uri, detail=False, refresh=True)
@@ -126,7 +126,7 @@ class DSCJobRunTestCase(DSCJobTestCaseWithCleanUp):
     @staticmethod
     def remove_objects(uri: str):
         """Removes objects from OCI object storage."""
-        oci_os = fsspec.filesystem("oci", config=oci.config.from_file())
+        oci_os = fsspec.filesystem("oci", **default_signer())
         try:
             oci_os.rm(uri, recursive=True)
         except FileNotFoundError:

@@ -3,6 +3,7 @@
 # Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from ads.common import auth
 from ads.dataset.factory import DatasetFactory
 from sklearn.datasets import make_classification
 from tests.integration.config import secrets
@@ -22,7 +23,7 @@ class TestDatasetFactoryOpen:
         X_small, y_small = make_classification(n_samples=600, n_features=200)
         cls.df_small = pd.concat([pd.DataFrame(X_small), pd.DataFrame(y_small)], axis=0)
 
-        cls.storage_options = {"config": "~/.oci/config", "profile": "DEFAULT"}
+        cls.storage_options = auth.default_signer()
 
     def test_small_data(self):
         ds = DatasetFactory.open(self.df_small)

@@ -156,6 +156,10 @@ class TestDataFlow:
         assert dfr2.id in ids
         assert dfr3.id in ids
 
+    @pytest.mark.skip(
+        reason="Error observed - 'Rest call to get region from metadata service failed' "
+        "after tests moved to run from TeamCity Runner Instance, might be policies required."
+    )
     def test_create_from_id(self, df):
         df2 = DataFlow.from_id(df.id)
         dfr = df2.run(args=["run-4", "-v", "-l", "5"], wait=True)
