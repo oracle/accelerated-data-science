@@ -20,7 +20,9 @@ class Transformations:
             dataset_info : ForecastOperatorConfig
         """
         self.data = data
-        self.series_id_column = dataset_info.target_category_columns
+        self.dataset_info = dataset_info
+        self._set_series_id_column()
+        self.series_id_column = self.dataset_info.target_category_columns
         self.target_variables = dataset_info.target_column
         self.date_column = dataset_info.datetime_column.name
         self.date_format = dataset_info.datetime_column.format
@@ -36,12 +38,24 @@ class Transformations:
         """
         imputed_df = self._missing_value_imputation(self.data)
         sorted_df = self._sort_by_datetime_col(imputed_df)
+        clean_strs_df = self._remove_trailing_whitespace(sorted_df)
         if self.preprocessing:
-            treated_df = self._outlier_treatment(sorted_df)
+            treated_df = self._outlier_treatment(clean_strs_df)
         else:
             logger.debug("Skipping outlier treatment as preprocessing is disabled")
             treated_df = imputed_df
         return treated_df
+
+    def _set_series_id_column(self):
+        if (
+            self.dataset_info.target_category_columns is None
+            or len(self.dataset_info.target_category_columns) == 0
+        ):
+            self.data["__Series"] = ""
+            self.dataset_info.target_category_columns = ["__Series"]
+
+    def _remove_trailing_whitespace(self, df):
+        return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
 
     def _missing_value_imputation(self, df):
         """

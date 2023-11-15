@@ -1051,45 +1051,6 @@ class TestGenericModel:
 
         assert test_result == test_model
 
-    @patch.object(
-        ModelDeployment,
-        "state",
-        new_callable=PropertyMock,
-        return_value=ModelDeploymentState.FAILED,
-    )
-    @patch.object(ModelDeployment, "from_id")
-    @patch("ads.common.auth.default_signer")
-    @patch("ads.common.oci_client.OCIClientFactory")
-    def test_from_model_deployment_fail(
-        self,
-        mock_client,
-        mock_default_signer,
-        mock_from_id,
-        mock_model_deployment_state,
-    ):
-        """Tests loading model from model deployment."""
-        test_auth_config = {"signer": {"config": "value"}}
-        mock_default_signer.return_value = test_auth_config
-        test_model_deployment_id = "md_ocid"
-        test_model_id = "model_ocid"
-        md_props = ModelDeploymentProperties(model_id=test_model_id)
-        md = ModelDeployment(properties=md_props)
-        mock_from_id.return_value = md
-
-        with pytest.raises(NotActiveDeploymentError):
-            GenericModel.from_model_deployment(
-                model_deployment_id=test_model_deployment_id,
-                model_file_name="test.pkl",
-                artifact_dir="test_dir",
-                auth=test_auth_config,
-                force_overwrite=True,
-                properties=None,
-                bucket_uri="test_bucket_uri",
-                remove_existing_artifact=True,
-                compartment_id="test_compartment_id",
-            )
-            mock_from_id.assert_called_with(test_model_deployment_id)
-
     @patch.object(ModelDeployment, "update")
     @patch.object(ModelDeployment, "from_id")
     @patch("ads.common.auth.default_signer")

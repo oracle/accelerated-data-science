@@ -15,6 +15,7 @@ import urllib.parse
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union, List, Tuple, Dict
 import yaml
+import re
 
 import ads
 from ads.common.oci_client import OCIClientFactory
@@ -140,39 +141,55 @@ def build_image(image_type: str, gpu: bool = False) -> None:
     None
     """
     curr_dir = os.path.dirname(os.path.abspath(__file__))
-    image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu)
-    command = [
-        "docker",
-        "build",
-        "-t",
-        image,
-        "-f",
-        os.path.join(curr_dir, "docker", dockerfile),
-    ]
-    if target:
-        command += ["--target", target]
-    if os.environ.get("no_proxy"):
-        command += ["--build-arg", f"no_proxy={os.environ['no_proxy']}"]
-    if os.environ.get("http_proxy"):
-        command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
-    if os.environ.get("https_proxy"):
-        command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
-    if os.environ.get(CONTAINER_NETWORK):
-        command += ["--network", os.environ[CONTAINER_NETWORK]]
-    command += [os.path.abspath(curr_dir)]
-    logger.info("Build image with command %s", command)
-    proc = run_command(command)
-
+    if image_type == "ads-ops-custom":
+        if not source_folder or not dst_image:
+            raise ValueError(
+                "Please provide both source_folder and image_name to build a image for custom operator."
+            )
+        proc = _build_custom_operator_image(gpu, source_folder, dst_image)
+    else:
+        # https://stackoverflow.com/questions/66842004/get-the-processor-type-using-python-for-apple-m1-processor-gives-me-an-intel-pro
+        import cpuinfo
+        # Just get the manufacturer of the processors
+        manufacturer = cpuinfo.get_cpu_info().get('brand_raw')
+        arch = 'arm' if re.search("apple m\d ", manufacturer, re.IGNORECASE) else 'other'
+        print(f"The local machine's platform is {arch}.")
+        image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu, arch)
+        print(f"dockerfile used is {dockerfile}")
+        command = [
+            "docker",
+            "build",
+            "-t",
+            image,
+            "-f",
+            os.path.join(curr_dir, "docker", dockerfile),
+        ]
+        if target:
+            command += ["--target", target]
+        if os.environ.get("no_proxy"):
+            command += ["--build-arg", f"no_proxy={os.environ['no_proxy']}"]
+        if os.environ.get("http_proxy"):
+            command += ["--build-arg", f"http_proxy={os.environ['http_proxy']}"]
+        if os.environ.get("https_proxy"):
+            command += ["--build-arg", f"https_proxy={os.environ['https_proxy']}"]
+        if os.environ.get(CONTAINER_NETWORK):
+            command += ["--network", os.environ[CONTAINER_NETWORK]]
+        command += [os.path.abspath(curr_dir)]
+        logger.info("Build image with command %s", command)
+        proc = run_command(command)
     if proc.returncode != 0:
         raise RuntimeError("Docker build failed.")
 
 
-def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
+def _get_image_name_dockerfile_target(type: str, gpu: bool, arch: str) -> str:
     look_up = {
-        ("job-local", False): (ML_JOB_IMAGE, "Dockerfile.job", None),
-        ("job-local", True): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
+        ("job-local", False, "arm"): (ML_JOB_IMAGE, "Dockerfile.job.arm", None),
+        ("job-local", False, "other"): (ML_JOB_IMAGE, "Dockerfile.job", None),
+        ("job-local", True, "other"): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
+        ("ads-ops-base", False, "other"): (OPS_IMAGE_BASE, "Dockerfile", "base"),
+        ("ads-ops-base", True, "other"): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
     }
-    return look_up[(type, gpu)]
+    return look_up[(type, gpu, arch)]
 
 
 def run_command(

@@ -327,7 +327,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 # Create a markdown section for the global explainability
                 global_explanation_section = dp.Blocks(
                     "### Global Explainability ",
-                    dp.Table(self.formatted_global_explanation),
+                    dp.DataTable(self.formatted_global_explanation),
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -341,7 +341,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                 local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
                 blocks = [
-                    dp.Table(
+                    dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
                     )

@@ -239,6 +239,7 @@ class ForecastOperatorBaseModel(ABC):
                 forecast_sec = utils.get_forecast_plots(
                     self.forecast_output,
                     self.target_columns,
+                    horizon=self.spec.horizon,
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
                 )
@@ -473,18 +474,21 @@ class ForecastOperatorBaseModel(ABC):
                 )
 
             # test_metrics csv report
-            if self.spec.test_data and test_metrics_df is not None:
-                utils._write_data(
-                    data=test_metrics_df.rename_axis("metrics").reset_index(),
-                    filename=os.path.join(output_dir, self.spec.test_metrics_filename),
-                    format="csv",
-                    storage_options=storage_options,
-                    index=False,
-                )
-            else:
-                logger.warn(
-                    f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
-                )
+            if self.spec.test_data is not None:
+                if test_metrics_df is not None:
+                    utils._write_data(
+                        data=test_metrics_df.rename_axis("metrics").reset_index(),
+                        filename=os.path.join(
+                            output_dir, self.spec.test_metrics_filename
+                        ),
+                        format="csv",
+                        storage_options=storage_options,
+                        index=False,
+                    )
+                else:
+                    logger.warn(
+                        f"Attempted to generate the {self.spec.test_metrics_filename} file with the test metrics, however the test metrics could not be properly generated."
+                    )
         # explanations csv reports
         if self.spec.generate_explanations:
             try:
