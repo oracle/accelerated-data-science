@@ -230,7 +230,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         selected_df = selected_models_df["best_selected_model"].apply(pd.Series)
         selected_models_section = dp.Blocks(
-            "### Best Selected Model", dp.Table(selected_df)
+            "### Best Selected Model", dp.DataTable(selected_df)
         )
 
         all_sections = [selected_models_text, selected_models_section]
@@ -259,7 +259,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 # Create a markdown section for the global explainability
                 global_explanation_section = dp.Blocks(
                     "### Global Explainability ",
-                    dp.Table(self.formatted_global_explanation),
+                    dp.DataTable(self.formatted_global_explanation),
                 )
 
                 aggregate_local_explanations = pd.DataFrame()
@@ -273,7 +273,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
                 local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
                 blocks = [
-                    dp.Table(
+                    dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
                     )
