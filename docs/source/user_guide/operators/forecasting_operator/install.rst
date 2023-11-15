@@ -7,11 +7,11 @@ The Forecast Operator can be installed in 2 primary ways: PyPi and Conda Packs.
 
 **Installing Through PyPi**
 
-If you are running the operator from outside of a Notebook Session, you may download ``oracle_ads[forecast]`` from pypi. 
+If you are running the operator from outside of a Notebook Session, you may download ``oracle_ads[forecast]`` from pypi.
 
 .. code-block:: bash
 
-    python3 -m pip install oracle_ads[forecast]==2.9.0rc1
+    python3 -m pip install oracle_ads[forecast]==2.9.0
 
 
 After that, the Operator is ready to go!

@@ -32,7 +32,7 @@ You have various options when installing ADS.
 To use the AI Forecast Operator, install the "forecast" dependencies using the following command:
 
 ```bash
-  python3 -m pip install 'oracle_ads[forecast]==2.9.0rc1'
+  python3 -m pip install 'oracle_ads[forecast]==2.9.0'
 ```
 
 ### Installing extras libraries
