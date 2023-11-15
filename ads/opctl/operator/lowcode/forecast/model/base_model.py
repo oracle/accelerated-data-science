@@ -239,6 +239,7 @@ class ForecastOperatorBaseModel(ABC):
                 forecast_sec = utils.get_forecast_plots(
                     self.forecast_output,
                     self.target_columns,
+                    horizon=self.spec.horizon,
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
                 )

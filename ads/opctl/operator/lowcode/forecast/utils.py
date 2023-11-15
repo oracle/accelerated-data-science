@@ -254,7 +254,7 @@ def _validate_and_clean_data(
     additional_surplus = data_add_row_count - horizon - data_row_count
     if additional_surplus < 0:
         logger.warn(
-            "Forecast for {} will not be generated since additional data has less values({}) than"
+            "Forecast for {} will not be generated since additional data has fewer values({}) than"
             " horizon({}) + primary data({})".format(
                 cat, data_add_row_count, horizon, data_row_count
             )
@@ -401,6 +401,7 @@ def _add_unit(num, unit):
 def get_forecast_plots(
     forecast_output,
     target_columns,
+    horizon,
     test_data=None,
     ci_interval_width=0.95,
 ):
@@ -469,7 +470,7 @@ def get_forecast_plots(
             )
         )
         fig.add_vline(
-            x=forecast_i["Date"][-1:].values[0],
+            x=forecast_i["Date"][-(horizon + 1) :].values[0],
             line_width=1,
             line_dash="dash",
             line_color="gray",

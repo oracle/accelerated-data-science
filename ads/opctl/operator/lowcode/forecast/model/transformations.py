@@ -36,12 +36,16 @@ class Transformations:
         """
         imputed_df = self._missing_value_imputation(self.data)
         sorted_df = self._sort_by_datetime_col(imputed_df)
+        clean_strs_df = self._remove_trailing_whitespace(sorted_df)
         if self.preprocessing:
-            treated_df = self._outlier_treatment(sorted_df)
+            treated_df = self._outlier_treatment(clean_strs_df)
         else:
             logger.debug("Skipping outlier treatment as preprocessing is disabled")
             treated_df = imputed_df
         return treated_df
+
+    def _remove_trailing_whitespace(self, df):
+        return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
 
     def _missing_value_imputation(self, df):
         """
