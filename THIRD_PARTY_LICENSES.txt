@@ -229,6 +229,12 @@ pandavro
 * Source code: https://github.com/ynqa/pandavro
 * Project home: https://github.com/ynqa/pandavro
 
+plotly
+* Copyright (c) 2016-2018 Plotly, Inc
+* License: MIT License
+* Source code: https://github.com/plotly/plotly.py
+* Project home: https://plotly.com/
+
 protobuf
 * Copyright 2008 Google Inc.  All rights reserved.
 * License: Google Protobuf License
@@ -252,6 +258,12 @@ pyspark
 * License: Apache-2.0 LICENSE
 * Source code: https://github.com/apache/spark/tree/master/python
 * Project home: https://spark.apache.org/
+
+pyarrow
+* Copyright 2004 and onwards The Apache Software Foundation.
+* License: Apache-2.0 LICENSE
+* Source code: https://github.com/apache/arrow/tree/main/python
+* Project home: https://arrow.apache.org/
 
 python_jsonschema_objects
 * Copyright (c) 2014 Chris Wacek
@@ -368,6 +380,18 @@ xgboost
 * License: Apache-2.0 license
 * Source code: https://github.com/dmlc/xgboost
 * Project home: https://xgboost.ai/
+
+great-expectations
+* No listed copyright holder
+* License: Apache License 2.0
+* Source code: https://github.com/great-expectations/great_expectations
+* Project home: https://greatexpectations.io/
+
+delta
+* Copyright (2021) The Delta Lake Project Authors.  All rights reserved.
+* License: Apache License 2.0
+* Source code: https://github.com/delta-io/delta/
+* Project home: https://delta.io/
 
 =============================== Licenses ===============================
 ------------------------------------------------------------------------

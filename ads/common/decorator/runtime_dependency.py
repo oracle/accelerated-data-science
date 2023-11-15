@@ -66,6 +66,9 @@ class OptionalDependency:
     HUGGINGFACE = "oracle-ads[huggingface]"
     FORECAST = "oracle-ads[forecast]"
     PII = "oracle-ads[pii]"
+    FEATURE_STORE = "oracle-ads[feature-store]"
+    GRAPHVIZ = "oracle-ads[graphviz]"
+    MLM_INSIGHTS = "oracle-ads[mlm_insights]"
 
 
 def runtime_dependency(
