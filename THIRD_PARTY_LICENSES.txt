@@ -241,6 +241,12 @@ psutil
 * Source code: https://github.com/giampaolo/psutil
 * Project home: https://github.com/giampaolo/psutil
 
+py-cpuinfo
+* Copyright (c) 2014-2022 Matthew Brennan Jones <matthew.brennan.jones@gmail.com>
+* License: The MIT License (MIT)
+* Source code: https://github.com/workhorsy/py-cpuinfo
+* Project home: https://github.com/workhorsy/py-cpuinfo
+
 pyspark
 * Copyright 2014 and onwards The Apache Software Foundation.
 * License: Apache-2.0 LICENSE
