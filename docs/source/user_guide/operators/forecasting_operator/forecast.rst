@@ -4,7 +4,7 @@ Configure Forecast
 
 Let's explore each line of the forecast.yaml so we can better understand options for extending and customizing the operator to our use case.
 
-Here is an example forecast.yaml wit every parameter specified:
+Here is an example forecast.yaml with every parameter specified:
 
 .. code-block:: yaml
 
@@ -42,7 +42,7 @@ Here is an example forecast.yaml wit every parameter specified:
         * **url**: Insert the uri for the dataset if it's on object storage or Data Lake using the URI pattern ``oci://<bucket>@<namespace>/subfolder/``.
         * **kwargs**: Insert any other args for pandas to load the data (``format``, ``options``, etc.) See full list in ``YAML Schema`` section.
     * **model**: (optional) The name of the model framework you want to use. Defaults to "auto". Other options are: ``arima``, ``automlx``, ``prophet``, ``neuralprophet``, ``autots``, and ``auto``.
-    * **model_kwargs**: (optional) This kwargs dict passes straight through to the model framework.
+    * **model_kwargs**: (optional) This kwargs dict passes straight through to the model framework. If you want to take direct control of the modeling, this is the best way.
     * **test_data**: (optional) This dictionary contains the details for how to read the test data. Test data must be formatted identically to historical data and contain values for every period in the forecast horizon.
         * **url**: Insert the uri for the dataset if it's on object storage or Data Lake using the URI pattern ``oci://<bucket>@<namespace>/path/to/data.csv``.
         * **kwargs**: Insert any other args for pandas to load the data (``format``, ``options``, etc.) See full list in ``YAML Schema`` section.
