@@ -119,17 +119,28 @@ class CondaRuntime(Runtime):
     def init(self, **kwargs) -> "CondaRuntime":
         """Initializes a starter specification for the runtime.
 
+        Parameters
+        ----------
+        **kwargs: Dict
+            - conda_slug: str
+                The conda environment slug.
+                If it contains '/', then the assumption that this is a custom conda environment.
+
         Returns
         -------
         CondaRuntime
             The runtime instance.
         """
         super().init(**kwargs)
+
+        conda_slug = kwargs.get("conda_slug", "")
+
+        if "/" not in conda_slug:
+            return self.with_service_conda(conda_slug)
+
         return self.with_custom_conda(
-            kwargs.get(
-                "conda_slug",
-                "{Path to the custom conda environment. Example: oci://bucket@namespace/prefix",
-            )
+            conda_slug
+            or "{Path to the custom conda environment. Example: oci://bucket@namespace/prefix}"
         )
 
 

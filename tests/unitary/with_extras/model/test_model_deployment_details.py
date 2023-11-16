@@ -5,6 +5,7 @@
 
 import os
 from unittest import TestCase
+from unittest.mock import patch
 
 import yaml
 from ads.model.runtime.model_deployment_details import ModelDeploymentDetails
@@ -27,7 +28,18 @@ class TestModelDeploymentDetails(TestCase):
         with open(os.path.join(curr_dir, "runtime_fail.yaml"), encoding="utf-8") as rt:
             cls.runtime_dict_fail = yaml.load(rt, loader)
 
-    def test_from_dict(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_dict(self, mock_get_service_packs):
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        inference_python_version = "3.6"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env: ("mlcpuv1", inference_python_version),
+            },
+            {
+                "mlcpuv1": (inference_conda_env, inference_python_version),
+            },
+        )
         model_deployment = ModelDeploymentDetails.from_dict(
             self.runtime_dict["MODEL_DEPLOYMENT"]
         )

@@ -10,9 +10,10 @@ from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.operator_config import OperatorConfig
+from ads.opctl.operator.common.operator_config import OperatorConfig
 
 from .const import SupportedMetrics
+from .const import SupportedModels
 
 
 @dataclass(repr=True)
@@ -58,15 +59,6 @@ class DateTimeColumn(DataClassSerializable):
 
 
 @dataclass(repr=True)
-class Horizon(DataClassSerializable):
-    """Class representing operator specification horizon details."""
-
-    periods: int = None
-    interval: int = None
-    interval_unit: str = None
-
-
-@dataclass(repr=True)
 class Tuning(DataClassSerializable):
     """Class representing operator specification tuning details."""
 
@@ -82,15 +74,23 @@ class ForecastOperatorSpec(DataClassSerializable):
     additional_data: InputData = field(default_factory=InputData)
     test_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
-    report_file_name: str = None
+    report_filename: str = None
     report_title: str = None
     report_theme: str = None
     metrics_filename: str = None
+    test_metrics_filename: str = None
     forecast_filename: str = None
+    global_explanation_filename: str = None
+    local_explanation_filename: str = None
     target_column: str = None
+    preprocessing: bool = None
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     target_category_columns: List[str] = field(default_factory=list)
-    horizon: Horizon = field(default_factory=Horizon)
+    generate_report: bool = None
+    generate_metrics: bool = None
+    generate_explanations: bool = None
+    horizon: int = None
+    freq: str = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
     confidence_interval_width: float = None
@@ -99,12 +99,37 @@ class ForecastOperatorSpec(DataClassSerializable):
 
     def __post_init__(self):
         """Adjusts the specification details."""
-        self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE
+        self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
+        self.model = self.model or SupportedModels.Auto
         self.confidence_interval_width = self.confidence_interval_width or 0.80
-        self.report_file_name = self.report_file_name or "report.html"
+        self.report_filename = self.report_filename or "report.html"
+        self.preprocessing = (
+            self.preprocessing if self.preprocessing is not None else True
+        )
+        # For Report Generation. When user doesn't specify defaults to True
+        self.generate_report = (
+            self.generate_report if self.generate_report is not None else True
+        )
+        # For Metrics files Generation. When user doesn't specify defaults to True
+        self.generate_metrics = (
+            self.generate_metrics if self.generate_metrics is not None else True
+        )
+        # For Explanations Generation. When user doesn't specify defaults to False
+        self.generate_explanations = (
+            self.generate_explanations
+            if self.generate_explanations is not None
+            else False
+        )
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
+        self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"
         self.forecast_filename = self.forecast_filename or "forecast.csv"
+        self.global_explanation_filename = (
+            self.global_explanation_filename or "global_explanation.csv"
+        )
+        self.local_explanation_filename = (
+            self.local_explanation_filename or "local_explanation.csv"
+        )
         self.target_column = self.target_column or "Sales"
         self.model_kwargs = self.model_kwargs or dict()
 

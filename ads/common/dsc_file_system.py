@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import ads
 import oci
+import os
 import ipaddress
 
 from dataclasses import dataclass
@@ -15,11 +16,11 @@ OBJECT_STORAGE_TYPE = "OBJECT_STORAGE"
 
 @dataclass
 class DSCFileSystem:
-
     src: str = None
     dest: str = None
     storage_type: str = None
     destination_directory_name: str = None
+    destination_path: str = None
 
     def update_to_dsc_model(self) -> dict:
         """Updates arguments to dsc model.
@@ -47,15 +48,38 @@ class DSCFileSystem:
         """
         pass
 
+    @staticmethod
+    def get_destination_path_and_name(dest: str) -> (str, str):
+        """Gets the destination path and destination directory name from dest.
+        Example:
+            dir - "fss" & path - "/opc" : mount happens under "/opc/fss"
+            dir - "fss" & path - "/" : mount happens under "/fss"
+            dir - "fss" & path - omitted : mount happens under "/mnt/fss" (for backward compatibility)
+
+        Parameters
+        ----------
+        dest: str
+            The dest path to which to mount the file system.
+
+        Returns
+        -------
+        tuple
+            A tuple of destination path and destination directory name.
+        """
+        return (
+            os.path.dirname(dest.rstrip("/"))
+            or None,  # when destination path is omitted, oci api requires it to be None
+            os.path.basename(dest.rstrip("/")),
+        )
+
 
 @dataclass
 class OCIFileStorage(DSCFileSystem):
-
     mount_target_id: str = None
     mount_target: str = None
     export_id: str = None
     export_path: str = None
-    storage_type: str = FILE_STORAGE_TYPE        
+    storage_type: str = FILE_STORAGE_TYPE
 
     def update_to_dsc_model(self) -> dict:
         """Updates arguments to dsc model.
@@ -65,11 +89,13 @@ class OCIFileStorage(DSCFileSystem):
         dict:
             A dictionary of arguments.
         """
+        path, directory_name = self.get_destination_path_and_name(self.dest)
         arguments = {
-            "destinationDirectoryName" : self.dest,
-            "storageType" : self.storage_type
+            "destinationDirectoryName": directory_name,
+            "destinationPath": path,
+            "storageType": self.storage_type,
         }
-        
+
         self._get_mount_target_and_export_ids(arguments)
 
         return arguments
@@ -82,7 +108,9 @@ class OCIFileStorage(DSCFileSystem):
         arguments: dict
             A dictionary of arguments.
         """
-        resource_client = oci.resource_search.ResourceSearchClient(**ads.auth.default_signer())
+        resource_client = oci.resource_search.ResourceSearchClient(
+            **ads.auth.default_signer()
+        )
         src_list = self.src.split(":")
         first_segment = src_list[0]
         second_segment = src_list[1]
@@ -92,20 +120,22 @@ class OCIFileStorage(DSCFileSystem):
         else:
             ip_resource = resource_client.search_resources(
                 search_details=oci.resource_search.models.FreeTextSearchDetails(
-                    text=first_segment,
-                    matching_context_type="NONE"
+                    text=first_segment, matching_context_type="NONE"
                 )
             ).data.items
 
-            ip_resource = sorted(ip_resource, key=lambda resource_summary: resource_summary.time_created)
+            ip_resource = sorted(
+                ip_resource, key=lambda resource_summary: resource_summary.time_created
+            )
 
             if not ip_resource or not hasattr(ip_resource[-1], "identifier"):
-                raise ValueError(f"Can't find the identifier from ip {first_segment}. Specify a valid `src`.")
+                raise ValueError(
+                    f"Can't find the identifier from ip {first_segment}. Specify a valid `src`."
+                )
 
             mount_target_resource = resource_client.search_resources(
                 search_details=oci.resource_search.models.FreeTextSearchDetails(
-                    text=ip_resource[-1].identifier,
-                    matching_context_type="NONE"
+                    text=ip_resource[-1].identifier, matching_context_type="NONE"
                 )
             ).data.items
 
@@ -124,14 +154,13 @@ class OCIFileStorage(DSCFileSystem):
                 )
 
             arguments["mountTargetId"] = mount_targets[0]
-        
+
         if second_segment.startswith("ocid") and "export" in second_segment:
             arguments["exportId"] = second_segment
         else:
             export_resource = resource_client.search_resources(
                 search_details=oci.resource_search.models.FreeTextSearchDetails(
-                    text=second_segment,
-                    matching_context_type="NONE"
+                    text=second_segment, matching_context_type="NONE"
                 )
             ).data.items
 
@@ -178,20 +207,26 @@ class OCIFileStorage(DSCFileSystem):
                 "Missing parameter `destination_directory_name` from service. Check service log to see the error."
             )
 
+        dest = dsc_model.destination_directory_name
+        if dsc_model.destination_path:
+            dest = f"{dsc_model.destination_path.rstrip('/')}/{dsc_model.destination_directory_name}"
+
         return {
-            "src" : f"{dsc_model.mount_target_id}:{dsc_model.export_id}",
-            "dest" : dsc_model.destination_directory_name
+            "src": f"{dsc_model.mount_target_id}:{dsc_model.export_id}",
+            "dest": dest,
         }
+
 
 @dataclass
 class OCIObjectStorage(DSCFileSystem):
-
     storage_type: str = OBJECT_STORAGE_TYPE
 
     def update_to_dsc_model(self) -> dict:
+        path, directory_name = self.get_destination_path_and_name(self.dest)
         arguments = {
-            "destinationDirectoryName" : self.dest,
-            "storageType" : self.storage_type
+            "destinationDirectoryName": directory_name,
+            "destinationPath": path,
+            "storageType": self.storage_type,
         }
         src_list = self.src.split("@")
         bucket_segment = src_list[0]
@@ -200,7 +235,7 @@ class OCIObjectStorage(DSCFileSystem):
         if "/" in namespace_segment:
             first_slash_index = namespace_segment.index("/")
             arguments["namespace"] = namespace_segment[:first_slash_index]
-            arguments["prefix"] = namespace_segment[first_slash_index+1:]
+            arguments["prefix"] = namespace_segment[first_slash_index + 1 :]
         else:
             arguments["namespace"] = namespace_segment
         return arguments
@@ -220,14 +255,17 @@ class OCIObjectStorage(DSCFileSystem):
                 "Missing parameter `destination_directory_name` from service. Check service log to see the error."
             )
 
+        dest = dsc_model.destination_directory_name
+        if dsc_model.destination_path:
+            dest = f"{dsc_model.destination_path.rstrip('/')}/{dsc_model.destination_directory_name}"
+
         return {
-            "src" : f"oci://{dsc_model.bucket}@{dsc_model.namespace}/{dsc_model.prefix or ''}",
-            "dest" : dsc_model.destination_directory_name
+            "src": f"oci://{dsc_model.bucket}@{dsc_model.namespace}/{dsc_model.prefix or ''}",
+            "dest": dest,
         }
 
 
 class DSCFileSystemManager:
-
     storage_mount_dest = set()
 
     @classmethod

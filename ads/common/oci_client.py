@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
 
 from oci.ai_language import AIServiceLanguageClient
+from oci.data_catalog import DataCatalogClient
 from oci.data_flow import DataFlowClient
 from oci.data_labeling_service import DataLabelingManagementClient
 from oci.data_labeling_service_dataplane import DataLabelingClient
 from oci.data_science import DataScienceClient
 from oci.identity import IdentityClient
 from oci.object_storage import ObjectStorageClient
+from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
 
@@ -62,7 +64,16 @@ class OCIClientFactory:
             "ai_language": AIServiceLanguageClient,
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
+            "resource_search": ResourceSearchClient,
+            "data_catalog": DataCatalogClient,
         }
+        try:
+            from oci.feature_store import FeatureStoreClient
+
+            client_map["feature_store"] = FeatureStoreClient
+        except ImportError:
+            logger.warning("OCI SDK with feature store support is not installed")
+            pass
 
         assert (
             client in client_map
@@ -125,5 +136,17 @@ class OCIClientFactory:
         return self.create_client("data_labeling_cp")
 
     @property
+    def feature_store(self):
+        return self.create_client("feature_store")
+
+    @property
     def data_labeling_dp(self):
         return self.create_client("data_labeling_dp")
+
+    @property
+    def resource_search(self):
+        return self.create_client("resource_search")
+
+    @property
+    def data_catalog(self):
+        return self.create_client("data_catalog")

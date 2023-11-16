@@ -16,13 +16,8 @@ import ads
 from ads.common.auth import AuthContext, AuthType
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.oci_datascience import DSCNotebookSession
-from ads.opctl import logger
-from ads.opctl.backend.ads_dataflow import DataFlowBackend, DataFlowOperatorBackend
-from ads.opctl.backend.ads_ml_job import (
-    MLJobBackend,
-    MLJobDistributedBackend,
-    MLJobOperatorBackend,
-)
+from ads.opctl.backend.ads_dataflow import DataFlowBackend
+from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
 from ads.opctl.backend.ads_model_deployment import ModelDeploymentBackend
 from ads.opctl.backend.local import (
@@ -51,7 +46,6 @@ from ads.opctl.constants import (
     DEFAULT_OCI_CONFIG_FILE,
     DEFAULT_PROFILE,
     RESOURCE_TYPE,
-    RUNTIME_TYPE,
 )
 from ads.opctl.distributed.cmds import (
     docker_build_cmd,
@@ -60,6 +54,9 @@ from ads.opctl.distributed.cmds import (
     update_image,
     update_ini,
     verify_and_publish_image,
+)
+from ads.opctl.operator.common.backend_factory import (
+    BackendFactory as OperatorBackendFactory,
 )
 from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
@@ -180,6 +177,19 @@ def run(config: Dict, **kwargs) -> Dict:
     """
     if config:
         p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
+        try:
+            return OperatorBackendFactory.backend(
+                config=p,
+                backend=p.config["execution"].get("backend"),
+                **{
+                    key: value
+                    for key, value in kwargs.items()
+                    if key not in ("backend", "config")
+                },
+            ).run(**kwargs)
+        except RuntimeError:
+            pass
+
         if (
             p.config["kind"] != BACKEND_NAME.LOCAL.value
             and p.config["kind"] != "distributed"
@@ -332,31 +342,6 @@ def _update_env_vars(config, env_vars: List):
     return config
 
 
-def init_operator(**kwargs) -> str:
-    """
-    Initialize the resources for an operator
-
-    Parameters
-    ----------
-    kwargs: dict
-        keyword argument, stores command line args
-    Returns
-    -------
-    folder_path: str
-        a path to the folder with all of the resources
-    """
-    # TODO: confirm that operator slug is in the set of valid operator slugs
-    assert kwargs["operator_slug"] == "dask_cluster"
-
-    if kwargs.get("folder_path"):
-        kwargs["operator_folder_path"] = kwargs.pop("folder_path")[0]
-    else:
-        kwargs["operator_folder_path"] = kwargs["operator_slug"]
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-    print(f"config check: {p.config}")
-    return _BackendFactory(p.config).backend.init_operator()
-
-
 def delete(**kwargs) -> None:
     """
     Delete a MLJob/DataFlow run.
@@ -385,7 +370,7 @@ def delete(**kwargs) -> None:
     ):
         kwargs["id"] = kwargs.pop("ocid")
     else:
-        raise ValueError(f"{kwargs['ocid']} is valid or supported.")
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
 
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.delete()
@@ -399,13 +384,22 @@ def cancel(**kwargs) -> None:
     ----------
     kwargs: dict
         keyword argument, stores command line args
+
     Returns
     -------
     None
     """
-    kwargs["run_id"] = kwargs.pop("ocid")
-    if not kwargs.get("backend"):
-        kwargs["backend"] = _get_backend_from_run_id(kwargs["run_id"])
+    kwargs["backend"] = _get_backend_from_ocid(kwargs["ocid"])
+    if (
+        DataScienceResourceRun.JOB_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.DATAFLOW_RUN in kwargs["ocid"]
+        or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
+    ):
+        kwargs["run_id"] = kwargs.pop("ocid")
+    elif DataScienceResource.JOB in kwargs["ocid"]:
+        kwargs["id"] = kwargs.pop("ocid")
+    else:
+        raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
     p = ConfigProcessor().step(ConfigMerger, **kwargs)
     return _BackendFactory(p.config).backend.cancel()
 
@@ -543,6 +537,12 @@ def configure() -> None:
     if "CONDA" not in config_parser:
         config_parser["CONDA"] = {}
 
+    oci_auth = click.prompt(
+        text="Default OCI authentication type:",
+        type=click.Choice(AuthType.values()),
+        default=None,
+    )
+
     oci_config_path = click.prompt(
         "OCI config path:",
         default=config_parser["OCI"].get("oci_config", DEFAULT_OCI_CONFIG_FILE),
@@ -558,6 +558,7 @@ def configure() -> None:
     config_parser["OCI"] = {
         "oci_config": oci_config_path,
         "oci_profile": oci_profile,
+        "auth": oci_auth,
     }
     conda_pack_path = click.prompt(
         "Conda pack install folder:",
@@ -866,120 +867,3 @@ def init(
         print(spec_yaml)
     else:
         print(output)
-
-
-def apply(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
-    """
-    Runs the operator with the given specification on the targeted backend.
-
-    Parameters
-    ----------
-    config: Dict
-        The operator's config.
-    backend: (Union[Dict, str], optional)
-        The backend config or backend name to run the operator.
-    kwargs: (Dict, optional)
-        Optional key value arguments to run the operator.
-    """
-    p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
-
-    if p.config.get("kind", "").lower() == "operator":
-        from ads.opctl.operator import OperatorNotFoundError, __operators__
-        from ads.opctl.operator import cmd as operator_cmd
-        from ads.opctl.operator.common.utils import OperatorInfo, _operator_info
-
-        operator_type = p.config.get("type", "").lower()
-
-        if not (operator_type and operator_type in __operators__):
-            raise OperatorNotFoundError(operator_type or "unknown")
-
-        supported_backends = (
-            BACKEND_NAME.JOB.value,
-            BACKEND_NAME.DATAFLOW.value,
-            BACKEND_NAME.OPERATOR_LOCAL.value,
-        )
-
-        backend_runtime_map = {
-            BACKEND_NAME.JOB.value.lower(): (
-                BACKEND_NAME.JOB.value.lower(),
-                RUNTIME_TYPE.PYTHON.value.lower(),
-            ),
-            BACKEND_NAME.DATAFLOW.value.lower(): (
-                BACKEND_NAME.DATAFLOW.value.lower(),
-                RUNTIME_TYPE.DATAFLOW.value.lower(),
-            ),
-            BACKEND_NAME.OPERATOR_LOCAL.value.lower(): (
-                BACKEND_NAME.OPERATOR_LOCAL.value.lower(),
-                RUNTIME_TYPE.PYTHON.value.lower(),
-            ),
-        }
-
-        if not backend:
-            logger.info(
-                f"Backend config is not provided, the {BACKEND_NAME.OPERATOR_LOCAL.value} "
-                "will be used by default. "
-            )
-            backend = {"kind": BACKEND_NAME.OPERATOR_LOCAL.value}
-
-        if isinstance(backend, str):
-            backend = {"kind": backend}
-
-        backend_kind = backend.get("kind").lower() or "unknown"
-
-        # If backend kind is Job, then it is necessary to check the infrastructure kind.
-        # This is necessary, because Jobs and DataFlow have similar kind,
-        # The only difference would be in the infrastructure kind.
-        # This is a temporary solution, the logic needs to be placed in the ConfigMerger instead.
-        if backend_kind == BACKEND_NAME.JOB.value:
-            if (
-                backend.get("spec", {})
-                .get("infrastructure", {})
-                .get("type", "")
-                .lower()
-                == BACKEND_NAME.DATAFLOW.value
-            ):
-                backend_kind = BACKEND_NAME.DATAFLOW.value
-
-        if backend_kind not in supported_backends:
-            raise RuntimeError(
-                f"Not supported backend - {backend_kind}. Supported backends: {supported_backends}"
-            )
-
-        # generate backend specification in case if it is not provided
-        if not backend.get("spec"):
-            # get operator physical location
-            operator_path = os.path.join(
-                os.path.dirname(__file__), "operator", "lowcode", operator_type
-            )
-            # load operator info
-            operator_info: OperatorInfo = _operator_info(operator_path)
-
-            backends = operator_cmd._init_backend_config(
-                operator_info=operator_info, **kwargs
-            )
-            backend = backends[backend_runtime_map[backend_kind]]
-
-        p_backend = ConfigProcessor(
-            {**backend, **{"execution": {"backend": backend_kind}}}
-        ).step(ConfigMerger, **kwargs)
-
-        p.config["runtime"] = backend
-        p.config["infrastructure"] = p_backend.config["infrastructure"]
-        p.config["execution"] = p_backend.config["execution"]
-
-        if (
-            p_backend.config["execution"]["backend"]
-            == BACKEND_NAME.OPERATOR_LOCAL.value
-        ):
-            if kwargs.get("dry_run"):
-                logger.info(
-                    "The dry run option is not supported for "
-                    "the local backend and will be ignored."
-                )
-            LocalOperatorBackend(config=p.config).run()
-        elif p_backend.config["execution"]["backend"] == BACKEND_NAME.JOB.value:
-            MLJobOperatorBackend(config=p.config).run()
-        elif p_backend.config["execution"]["backend"] == BACKEND_NAME.DATAFLOW.value:
-            DataFlowOperatorBackend(config=p.config).run()
-    else:
-        raise RuntimeError("Not supported operator.")

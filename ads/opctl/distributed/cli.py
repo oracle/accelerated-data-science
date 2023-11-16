@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
 
@@ -21,6 +21,7 @@ from configparser import ConfigParser
 @click.group("distributed-training")
 @click.help_option("--help", "-h")
 def commands():
+    "The CLI to assist in the management of the distributed training."
     pass
 
 
@@ -30,7 +31,14 @@ def commands():
     "-f",
     help="Distributed training framework type",
     type=click.Choice(
-        ["dask", "horovod-tensorflow", "horovod-pytorch", "pytorch", "tensorflow"]
+        [
+            "dask",
+            "horovod-tensorflow",
+            "horovod-pytorch",
+            "pytorch",
+            "tensorflow",
+            "ray",
+        ]
     ),
     default=None,
     required=True,

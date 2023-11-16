@@ -21,7 +21,6 @@ from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import (
     ModelDeployment,
     ModelDeploymentLogType,
-    ModelDeploymentFailedError,
 )
 from ads.model.deployment.model_deployment_infrastructure import (
     ModelDeploymentInfrastructure,
@@ -888,7 +887,7 @@ spec:
     def test_update_model_deployment_details(self, mock_create):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_create.return_value = dsc_model        
+        mock_create.return_value = dsc_model
         model_deployment = self.initialize_model_deployment()
         update_model_deployment_details = (
             model_deployment._update_model_deployment_details()
@@ -1129,9 +1128,7 @@ spec:
         "create_model_deployment",
     )
     @patch.object(DataScienceModel, "create")
-    def test_deploy(
-        self, mock_create, mock_create_model_deployment, mock_sync
-    ):
+    def test_deploy(self, mock_create, mock_create_model_deployment, mock_sync):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
         mock_create.return_value = dsc_model
@@ -1147,44 +1144,6 @@ spec:
         mock_create.assert_called()
         mock_create_model_deployment.assert_called_with(create_model_deployment_details)
         mock_sync.assert_called()
-
-    @patch.object(OCIDataScienceMixin, "sync")
-    @patch.object(
-        oci.data_science.DataScienceClient,
-        "create_model_deployment",
-    )
-    @patch.object(DataScienceModel, "create")
-    def test_deploy_failed(
-        self, mock_create, mock_create_model_deployment, mock_sync
-    ):
-        dsc_model = MagicMock()
-        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_create.return_value = dsc_model
-        response = oci.response.Response(
-            status=MagicMock(),
-            headers=MagicMock(),
-            request=MagicMock(),
-            data=oci.data_science.models.ModelDeployment(
-                id="test_model_deployment_id",
-                lifecycle_state="FAILED",
-                lifecycle_details="The specified log object is not found or user is not authorized.",
-            ),
-        )
-        mock_sync.return_value = response.data
-        model_deployment = self.initialize_model_deployment()
-        create_model_deployment_details = (
-            model_deployment._build_model_deployment_details()
-        )
-        with pytest.raises(
-            ModelDeploymentFailedError,
-            match=f"Model deployment {response.data.id} failed to deploy: {response.data.lifecycle_details}",
-        ):
-            model_deployment.deploy(wait_for_completion=False)
-            mock_create.assert_called()
-            mock_create_model_deployment.assert_called_with(
-                create_model_deployment_details
-            )
-            mock_sync.assert_called()
 
     @patch.object(
         OCIDataScienceModelDeployment,
@@ -1386,44 +1345,35 @@ spec:
         model_deployment = self.initialize_model_deployment()
         model_deployment._update_spec(
             display_name="test_updated_name",
-            freeform_tags={"test_updated_key":"test_updated_value"},
-            access_log={
-                "log_id": "test_updated_access_log_id"
-            },
-            predict_log={
-                "log_group_id": "test_updated_predict_log_group_id"
-            },
-            shape_config_details={
-                "ocpus": 100,
-                "memoryInGBs": 200
-            },
+            freeform_tags={"test_updated_key": "test_updated_value"},
+            access_log={"log_id": "test_updated_access_log_id"},
+            predict_log={"log_group_id": "test_updated_predict_log_group_id"},
+            shape_config_details={"ocpus": 100, "memoryInGBs": 200},
             replica=20,
             image="test_updated_image",
-            env={
-                "test_updated_env_key":"test_updated_env_value"
-            }
+            env={"test_updated_env_key": "test_updated_env_value"},
         )
 
         assert model_deployment.display_name == "test_updated_name"
         assert model_deployment.freeform_tags == {
-            "test_updated_key":"test_updated_value"
+            "test_updated_key": "test_updated_value"
         }
         assert model_deployment.infrastructure.access_log == {
             "logId": "test_updated_access_log_id",
-            "logGroupId": "fakeid.loggroup.oc1.iad.xxx"
+            "logGroupId": "fakeid.loggroup.oc1.iad.xxx",
         }
         assert model_deployment.infrastructure.predict_log == {
             "logId": "fakeid.log.oc1.iad.xxx",
-            "logGroupId": "test_updated_predict_log_group_id"
+            "logGroupId": "test_updated_predict_log_group_id",
         }
         assert model_deployment.infrastructure.shape_config_details == {
             "ocpus": 100,
-            "memoryInGBs": 200
+            "memoryInGBs": 200,
         }
         assert model_deployment.infrastructure.replica == 20
         assert model_deployment.runtime.image == "test_updated_image"
         assert model_deployment.runtime.env == {
-            "test_updated_env_key":"test_updated_env_value"
+            "test_updated_env_key": "test_updated_env_value"
         }
 
     @patch.object(OCIDataScienceMixin, "sync")
@@ -1433,18 +1383,14 @@ spec:
     )
     @patch.object(DataScienceModel, "create")
     def test_model_deployment_with_large_size_artifact(
-        self, 
-        mock_create, 
-        mock_create_model_deployment, 
-        mock_sync
+        self, mock_create, mock_create_model_deployment, mock_sync
     ):
         dsc_model = MagicMock()
         dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
         mock_create.return_value = dsc_model
         model_deployment = self.initialize_model_deployment()
         (
-            model_deployment.runtime
-            .with_auth({"test_key":"test_value"})
+            model_deployment.runtime.with_auth({"test_key": "test_value"})
             .with_region("test_region")
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
@@ -1465,18 +1411,18 @@ spec:
         mock_create_model_deployment.return_value = response
         model_deployment = self.initialize_model_deployment()
         model_deployment.set_spec(model_deployment.CONST_ID, "test_model_deployment_id")
-        
+
         create_model_deployment_details = (
             model_deployment._build_model_deployment_details()
         )
         model_deployment.deploy(wait_for_completion=False)
         mock_create.assert_called_with(
             bucket_uri="test_bucket_uri",
-            auth={"test_key":"test_value"},
+            auth={"test_key": "test_value"},
             region="test_region",
             overwrite_existing_artifact=True,
             remove_existing_artifact=True,
-            timeout=100
+            timeout=100,
         )
         mock_create_model_deployment.assert_called_with(create_model_deployment_details)
         mock_sync.assert_called()

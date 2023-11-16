@@ -4,8 +4,6 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
-import datapane as dp
 import numpy as np
 import optuna
 import pandas as pd
@@ -24,8 +22,12 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.opctl import logger
 
+from ..const import DEFAULT_TRIALS, ForecastOutputColumns
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
+from ..operator_config import ForecastOperatorConfig
+from .forecast_datasets import ForecastDatasets, ForecastOutput
+import traceback
 
 
 def _get_np_metrics_dict(selected_metric):
@@ -64,8 +66,15 @@ def _fit_model(data, params, additional_regressors, select_metric):
 class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
     """Class representing NeuralProphet operator model."""
 
+    def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
+        super().__init__(config=config, datasets=datasets)
+        self.train_metrics = True
+        self.forecast_col_name = "yhat1"
+
     def _build_model(self) -> pd.DataFrame:
-        full_data_dict = self.full_data_dict
+        from neuralprophet import NeuralProphet
+
+        full_data_dict = self.datasets.full_data_dict
         models = []
         outputs = dict()
         outputs_legacy = []
@@ -84,6 +93,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
 
         model_kwargs["quantiles"] = quantiles
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width
+        )
 
         for i, (target, df) in enumerate(full_data_dict.items()):
             le, df_encoded = utils._label_encode_dataframe(
@@ -147,7 +159,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                             .item()
                         )
                         test_metrics_total_i.append(fold_metric_i)
-                    logger.info(
+                    logger.debug(
                         f"----------------------{np.asarray(test_metrics_total_i).mean()}----------------------"
                     )
                     return np.asarray(test_metrics_total_i).mean()
@@ -166,7 +178,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 )
                 study.optimize(
                     objective,
-                    n_trials=self.spec.tuning.n_trials if self.spec.tunning else 10,
+                    n_trials=self.spec.tuning.n_trials
+                    if self.spec.tuning
+                    else DEFAULT_TRIALS,
                     n_jobs=-1,
                 )
 
@@ -181,10 +195,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 additional_regressors=additional_regressors,
                 select_metric=self.spec.metric,
             )
-            logger.info(
+            logger.debug(
                 f"Found the following additional data columns: {additional_regressors}"
             )
-            logger.info(
+            logger.debug(
                 f"While fitting the model, some additional data may have been "
                 f"discarded. Only using the columns: {accepted_regressors}"
             )
@@ -196,8 +210,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             # Forecast model and collect outputs
             forecast = model.predict(future)
-            logger.info(f"-----------------Model {i}----------------------")
-            logger.info(forecast.tail())
+            logger.debug(f"-----------------Model {i}----------------------")
+            logger.debug(forecast.tail())
             models.append(model)
             outputs[target] = forecast
             outputs_legacy.append(forecast)
@@ -205,42 +219,67 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.models = models
         self.outputs = outputs_legacy
 
-        logger.info("===========Done===========")
-        outputs_merged = pd.DataFrame()
+        logger.debug("===========Done===========")
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
         output_col = pd.DataFrame()
-        for cat in self.categories:  # Note: to restrict columns, set this to [:2]
+        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
+        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
+        for cat in self.categories:
             output_i = pd.DataFrame()
 
             output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
             output_i["Series"] = cat
-            output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat1"]
-            output_i[f"p{int(quantiles[1]*100)}"] = outputs[f"{col}_{cat}"][
-                f"yhat1 {quantiles[1]*100}%"
-            ]
-            output_i[f"p{int(quantiles[0]*100)}"] = outputs[f"{col}_{cat}"][
-                f"yhat1 {quantiles[0]*100}%"
-            ]
+            output_i[f"input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
+
+            output_i[f"fitted_value"] = float("nan")
+            output_i[f"forecast_value"] = float("nan")
+            output_i[yhat_lower_name] = float("nan")
+            output_i[yhat_upper_name] = float("nan")
+
+            output_i.iloc[
+                : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
+            ] = (outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values)
+            output_i.iloc[
+                -self.spec.horizon :,
+                output_i.columns.get_loc(f"forecast_value"),
+            ] = (
+                outputs[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon :].values
+            )
+            output_i.iloc[
+                -self.spec.horizon :,
+                output_i.columns.get_loc(yhat_upper_name),
+            ] = (
+                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1]*100}%"]
+                .iloc[-self.spec.horizon :]
+                .values
+            )
+            output_i.iloc[
+                -self.spec.horizon :,
+                output_i.columns.get_loc(yhat_lower_name),
+            ] = (
+                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0]*100}%"]
+                .iloc[-self.spec.horizon :]
+                .values
+            )
             output_col = pd.concat([output_col, output_i])
-        # output_col = output_col.sort_values(operator.ds_column).reset_index(drop=True)
+
+            self.forecast_output.add_category(
+                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
+            )
+
         output_col = output_col.reset_index(drop=True)
-        outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
 
-        # Re-merge historical data for processing
-        data_merged = pd.concat(
-            [v[v[k].notna()].set_index("ds") for k, v in full_data_dict.items()], axis=1
-        ).reset_index()
-
-        self.data = data_merged
-        return outputs_merged
+        return output_col
 
     def _generate_report(self):
+        import datapane as dp
+
         sec1_text = dp.Text(
             "## Forecast Overview \nThese plots show your "
             "forecast in the context of historical data."
-        )  # TODO add confidence intervals
+        )
         sec1 = utils._select_plot_list(
             lambda idx, *args: self.models[idx].plot(self.outputs[idx]),
             target_columns=self.target_columns,
@@ -283,6 +322,66 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             sec5,
         ]
 
+        if self.spec.generate_explanations:
+            try:
+                # If the key is present, call the "explain_model" method
+                self.explain_model(
+                    datetime_col_name="ds",
+                    explain_predict_fn=self._custom_predict_neuralprophet,
+                )
+
+                # Create a markdown text block for the global explanation section
+                global_explanation_text = dp.Text(
+                    f"## Global Explanation of Models \n "
+                    "The following tables provide the feature attribution for the global explainability."
+                )
+
+                # Convert the global explanation data to a DataFrame
+                global_explanation_df = pd.DataFrame(self.global_explanation)
+
+                self.formatted_global_explanation = (
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                )
+
+                # Create a markdown section for the global explainability
+                global_explanation_section = dp.Blocks(
+                    "### Global Explainability ",
+                    dp.DataTable(self.formatted_global_explanation),
+                )
+
+                aggregate_local_explanations = pd.DataFrame()
+                for s_id, local_ex_df in self.local_explanation.items():
+                    local_ex_df_copy = local_ex_df.copy()
+                    local_ex_df_copy["Series"] = s_id
+                    aggregate_local_explanations = pd.concat(
+                        [aggregate_local_explanations, local_ex_df_copy], axis=0
+                    )
+                self.formatted_local_explanation = aggregate_local_explanations
+
+                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+                blocks = [
+                    dp.DataTable(
+                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        label=s_id,
+                    )
+                    for s_id, local_ex_df in self.local_explanation.items()
+                ]
+                local_explanation_section = (
+                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                )
+
+                # Append the global explanation text and section to the "all_sections" list
+                all_sections = all_sections + [
+                    global_explanation_text,
+                    global_explanation_section,
+                    local_explanation_text,
+                    local_explanation_section,
+                ]
+            except Exception as e:
+                # Do not fail the whole run due to explanations failure
+                logger.warn(f"Failed to generate Explanations with error: {e}.")
+                logger.debug(f"Full Traceback: {traceback.format_exc()}")
+
         model_description = dp.Text(
             "NeuralProphet is an easy to learn framework for interpretable time "
             "series forecasting. NeuralProphet is built on PyTorch and combines "
@@ -290,18 +389,15 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             "Facebook Prophet and AR-Net."
         )
         other_sections = all_sections
-        forecast_col_name = "yhat1"
-        train_metrics = True
-        ds_column_series = self.data["ds"]
-        ds_forecast_col = self.outputs[0]["ds"]
-        ci_col_names = None
 
         return (
             model_description,
             other_sections,
-            forecast_col_name,
-            train_metrics,
-            ds_column_series,
-            ds_forecast_col,
-            ci_col_names,
         )
+
+    def _custom_predict_neuralprophet(self, data):
+        raise NotImplementedError("NeuralProphet does not yet support explanations.")
+        # data_prepped = data.reset_index()
+        # data_prepped['y'] = None
+        # data_prepped['ds'] = pd.to_datetime(data_prepped['ds'])
+        # return self.models[self.target_columns.index(self.series_id)].predict(data_prepped)["yhat1"]

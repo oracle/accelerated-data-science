@@ -17,7 +17,7 @@ Follow the [CLI Configuration](https://accelerated-data-science.readthedocs.io/e
 To generate starter configs, run the command below. This will create a list of YAML configs and place them in the `output` folder.
 
 ```bash
-ads opctl operator init -n forecast --overwrite --output ~/forecast/
+ads operator init -t forecast --overwrite --output ~/forecast/
 ```
 
 The most important files expected to be generated are:
@@ -41,11 +41,10 @@ To run forecasting locally, create and activate a new conda environment (`ads-fo
 - statsmodels
 - datapane
 - cerberus
-- json2table
 - sktime
 - optuna==2.9.0
-- automlx-23.2.1-py38-none-any.whl
-- oracle_ads-2.8.7b0-py3-none-any.whl
+- oracle-automlx==23.2.3
+- oracle-ads>=2.9.0
 ```
 
 Please review the previously generated `forecast.yaml` file using the `init` command, and make any necessary adjustments to the input and output file locations. By default, it assumes that the files should be located in the same folder from which the `init` command was executed.
@@ -53,13 +52,13 @@ Please review the previously generated `forecast.yaml` file using the `init` com
 Use the command below to verify the forecasting config.
 
 ```bash
-ads opctl operator verify -f ~/forecast/forecast.yaml
+ads operator verify -f ~/forecast/forecast.yaml
 ```
 
 Use the following command to run the forecasting within the `ads-forecasting` conda environment.
 
 ```bash
-ads opctl apply -f ~/forecast/forecast.yaml -b local.operator
+ads operator run -f ~/forecast/forecast.yaml -b local
 ```
 
 The operator will run in your local environment without requiring any additional modifications.
@@ -71,7 +70,7 @@ To run the forecasting operator within a local container, follow these steps:
 Use the command below to build the forecast container.
 
 ```bash
-ads opctl operator build-image -n forecast
+ads operator build-image -t forecast
 ```
 
 This will create a new `forecast:v1` image, with `/etc/operator` as the designated working directory within the container.
@@ -109,7 +108,7 @@ version: v1
 Run the forecasting within a container using the command below:
 
 ```bash
-ads opctl apply -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_operator_local_container_config.yaml
+ads operator run -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_operator_local_container_config.yaml
 ```
 
 ## 5. Running forecasting in the Data Science job within container runtime
@@ -119,7 +118,7 @@ To execute the forecasting operator within a Data Science job using container ru
 You can use the following command to build the forecast container. This step can be skipped if you have already done this for running the operator within a local container.
 
 ```bash
-ads opctl operator build-image -n forecast
+ads operator build-image -t forecast
 ```
 
 This will create a new `forecast:v1` image, with `/etc/operator` as the designated working directory within the container.
@@ -133,7 +132,7 @@ Publish the `forecast:v1` container to the [Oracle Container Registry](https://d
 To publish `forecast:v1` to OCR, use the command posted below:
 
 ```bash
-ads opctl operator publish-image forecast:v1 --registry <iad.ocir.io/tenancy/>
+ads operator publish-image forecast:v1 --registry <iad.ocir.io/tenancy/>
 ```
 
 After the container is published to OCR, it can be used within Data Science jobs service. Check the `backend_job_container_config.yaml` config file. It should contain pre-populated infrastructure and runtime sections. The runtime section should contain an image property, something like `image: iad.ocir.io/<tenancy>/forecast:v1`. More details about supported options can be found in the ADS Jobs documentation - [Run a Container](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/jobs/run_container.html).
@@ -152,7 +151,7 @@ test_data:
 Run the forecasting on the Data Science jobs using the command posted below:
 
 ```bash
-ads opctl apply -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_job_container_config.yaml
+ads operator run -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_job_container_config.yaml
 ```
 
 The logs can be monitored using the `ads opctl watch` command.
@@ -168,7 +167,7 @@ To execute the forecasting operator within a Data Science job using conda runtim
 You can use the following command to build the forecast conda environment.
 
 ```bash
-ads opctl operator build-conda -n forecast
+ads operator build-conda -t forecast
 ```
 
 This will create a new `forecast_v1` conda environment and place it in the folder specified within `ads opctl configure` command.
@@ -205,7 +204,7 @@ test_data:
 Run the forecasting on the Data Science jobs using the command posted below:
 
 ```bash
-ads opctl apply -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_job_python_config.yaml
+ads operator run -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_job_python_config.yaml
 ```
 
 The logs can be monitored using the `ads opctl watch` command.

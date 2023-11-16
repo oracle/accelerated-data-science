@@ -38,6 +38,9 @@ class DataSciencePipelineStepBaseTest(unittest.TestCase):
         PipelineStep("TestUpstreamPipelineStepOne")
         .with_description("Test upstream pipeline step description one")
         .with_job_id("TestJobIdOne")
+        .with_environment_variable(**{"test_key": "test_value"})
+        .with_maximum_runtime_in_minutes(20)
+        .with_argument("--key val path/to/file")
     )
 
     upstream_pipeline_step_two = (
@@ -85,6 +88,9 @@ class DataSciencePipelineStepBaseTest(unittest.TestCase):
                 "name": "TestUpstreamPipelineStepOne",
                 "jobId": "TestJobIdOne",
                 "description": "Test upstream pipeline step description one",
+                "environmentVariables": {"test_key": "test_value"},
+                "commandLineArguments": "--key val path/to/file",
+                "maximumRuntimeInMinutes": 20,
             },
         }
 

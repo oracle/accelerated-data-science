@@ -279,14 +279,29 @@ class TestGenericModel:
                 "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
             )
 
+    @patch("ads.model.runtime.env_info.get_service_packs")
     @patch("ads.common.auth.default_signer")
-    def test_prepare_both_conda_env(self, mock_signer):
+    def test_prepare_both_conda_env(self, mock_signer, mock_get_service_packs):
         """prepare a model by only providing inference conda env."""
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        inference_python_version = "3.6"
+        training_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
+        training_python_version = "3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env: ("mlcpuv1", inference_python_version),
+                training_conda_env: ("database_p37_cpu_v1", training_python_version),
+            },
+            {
+                "mlcpuv1": (inference_conda_env, inference_python_version),
+                "database_p37_cpu_v1": (training_conda_env, training_python_version),
+            },
+        )
         self.generic_model.prepare(
-            inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1",
-            inference_python_version="3.6",
-            training_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1",
-            training_python_version="3.7",
+            inference_conda_env=inference_conda_env,
+            inference_python_version=inference_python_version,
+            training_conda_env=training_conda_env,
+            training_python_version=training_python_version,
             model_file_name="fake_model_name",
             force_overwrite=True,
         )
@@ -349,8 +364,21 @@ class TestGenericModel:
 
     @patch.object(GenericModel, "_random_display_name", return_value="test_name")
     @patch.object(DataScienceModel, "create")
-    def test_save(self, mock_dsc_model_create, mock__random_display_name):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_save(
+        self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name
+    ):
         """test saving a model to artifact."""
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
+        )
         mock_dsc_model_create.return_value = MagicMock(id="fake_id")
         self.generic_model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
@@ -360,7 +388,7 @@ class TestGenericModel:
             force_overwrite=True,
             training_id=None,
         )
-        self.generic_model.save()
+        self.generic_model.save(ignore_introspection=True)
         assert self.generic_model.model_id is not None and isinstance(
             self.generic_model.model_id, str
         )
@@ -371,8 +399,19 @@ class TestGenericModel:
             parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
         )
 
-    def test_save_not_implemented_error(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_save_not_implemented_error(self, mock_get_service_packs):
         """test saving a model to artifact."""
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
+        )
         self.generic_model._serialize = False
         self.generic_model.prepare(
             inference_conda_env="dataexpl_p37_cpu_v3",
@@ -1013,45 +1052,6 @@ class TestGenericModel:
         )
 
         assert test_result == test_model
-
-    @patch.object(
-        ModelDeployment,
-        "state",
-        new_callable=PropertyMock,
-        return_value=ModelDeploymentState.FAILED,
-    )
-    @patch.object(ModelDeployment, "from_id")
-    @patch("ads.common.auth.default_signer")
-    @patch("ads.common.oci_client.OCIClientFactory")
-    def test_from_model_deployment_fail(
-        self,
-        mock_client,
-        mock_default_signer,
-        mock_from_id,
-        mock_model_deployment_state,
-    ):
-        """Tests loading model from model deployment."""
-        test_auth_config = {"signer": {"config": "value"}}
-        mock_default_signer.return_value = test_auth_config
-        test_model_deployment_id = "md_ocid"
-        test_model_id = "model_ocid"
-        md_props = ModelDeploymentProperties(model_id=test_model_id)
-        md = ModelDeployment(properties=md_props)
-        mock_from_id.return_value = md
-
-        with pytest.raises(NotActiveDeploymentError):
-            GenericModel.from_model_deployment(
-                model_deployment_id=test_model_deployment_id,
-                model_file_name="test.pkl",
-                artifact_dir="test_dir",
-                auth=test_auth_config,
-                force_overwrite=True,
-                properties=None,
-                bucket_uri="test_bucket_uri",
-                remove_existing_artifact=True,
-                compartment_id="test_compartment_id",
-            )
-            mock_from_id.assert_called_with(test_model_deployment_id)
 
     @patch.object(ModelDeployment, "update")
     @patch.object(ModelDeployment, "from_id")

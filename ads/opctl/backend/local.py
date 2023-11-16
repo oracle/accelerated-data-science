@@ -39,13 +39,12 @@ from ads.opctl.constants import (
     DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
     ML_JOB_GPU_IMAGE,
     ML_JOB_IMAGE,
-    OPERATOR_MODULE_PATH,
 )
 from ads.opctl.distributed.cmds import load_ini, local_run
 from ads.opctl.model.cmds import _download_model
 from ads.opctl.operator import __operators__
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
-from ads.opctl.operator.common.errors import OperatorNotFoundError
+from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.operator.runtime import const as operator_runtime_const
 from ads.opctl.operator.runtime import runtime as operator_runtime
 from ads.opctl.spark.cmds import (
@@ -830,9 +829,38 @@ class LocalModelDeploymentBackend(LocalBackend):
 
 
 class LocalOperatorBackend(Backend):
-    """Class representing local operator backend."""
+    """
+    The local operator backend to execute operator in the local environment.
+    Currently supported two scenarios:
+        * Running operator within local conda environment.
+        * Running operator within local container.
 
-    def __init__(self, config: Optional[Dict]) -> None:
+    Attributes
+    ----------
+    runtime_config: (Dict)
+        The runtime config for the operator.
+    operator_config: (Dict)
+        The operator specification config.
+    operator_type: str
+        The type of the operator.
+    operator_info: OperatorInfo
+        The detailed information about the operator.
+    """
+
+    def __init__(
+        self, config: Optional[Dict], operator_info: OperatorInfo = None
+    ) -> None:
+        """
+        Instantiates the operator backend.
+
+        Parameters
+        ----------
+        config: (Dict)
+            The configuration file containing operator's specification details and execution section.
+        operator_info: (OperatorInfo, optional)
+            The operator's detailed information extracted from the operator.__init__ file.
+            Will be extracted from the operator type in case if not provided.
+        """
         super().__init__(config=config or {})
 
         self.runtime_config = self.config.get("runtime", {})
@@ -845,12 +873,14 @@ class LocalOperatorBackend(Backend):
         }
         self.operator_type = self.operator_config.get("type")
 
-        self._RUNTIME_RUN_MAP = {
+        self._RUNTIME_MAP = {
             operator_runtime.ContainerRuntime.type: self._run_with_container,
             operator_runtime.PythonRuntime.type: self._run_with_python,
         }
 
-    def _run_with_python(self) -> int:
+        self.operator_info = operator_info
+
+    def _run_with_python(self, **kwargs: Dict) -> int:
         """Runs the operator within a local python environment.
 
         Returns
@@ -865,21 +895,20 @@ class LocalOperatorBackend(Backend):
         )
 
         # run operator
-        operator_module = f"{OPERATOR_MODULE_PATH}.{self.operator_type}"
         operator_spec = json.dumps(self.operator_config)
-        sys.argv = [operator_module, "--spec", operator_spec]
+        sys.argv = [self.operator_info.type, "--spec", operator_spec]
 
-        print(f"{'*' * 50} Runtime Config {'*' * 50}")
-        print(runtime.to_yaml())
+        logger.info(f"{'*' * 50} Runtime Config {'*' * 50}")
+        logger.info(runtime.to_yaml())
 
         try:
-            runpy.run_module(operator_module, run_name="__main__")
+            runpy.run_module(self.operator_info.type, run_name="__main__")
         except SystemExit as exception:
             return exception.code
         else:
             return 0
 
-    def _run_with_container(self) -> int:
+    def _run_with_container(self, **kwargs: Dict) -> int:
         """Runs the operator within a container.
 
         Returns
@@ -915,7 +944,7 @@ class LocalOperatorBackend(Backend):
             image=runtime.spec.image,
             bind_volumes=bind_volumes,
             env_vars=env_vars,
-            command=f"'python3 -m {self.operator_type}'",
+            command=f"'python3 -m {self.operator_info.type}'",
         )
 
     def run(self, **kwargs: Dict) -> Dict:
@@ -925,18 +954,24 @@ class LocalOperatorBackend(Backend):
         runtime_type = self.runtime_config.get(
             "type", operator_runtime.OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON
         )
-        if runtime_type not in self._RUNTIME_RUN_MAP:
+
+        if runtime_type not in self._RUNTIME_MAP:
             raise RuntimeError(
                 f"Not supported runtime - {runtime_type} for local backend. "
-                f"Supported values: {self._RUNTIME_RUN_MAP.keys()}"
+                f"Supported values: {self._RUNTIME_MAP.keys()}"
             )
 
-        # check if operator exists
-        if self.operator_type not in __operators__:
-            raise OperatorNotFoundError(self.operator_type)
+        if not self.operator_info:
+            self.operator_info = OperatorLoader.from_uri(self.operator_type).load()
+
+        if self.config.get("dry_run"):
+            logger.info(
+                "The dry run option is not supported for "
+                "the local backends and will be ignored."
+            )
 
         # run operator with provided runtime
-        exit_code = self._RUNTIME_RUN_MAP.get(runtime_type, lambda: None)(**kwargs)
+        exit_code = self._RUNTIME_MAP.get(runtime_type, lambda: None)(**kwargs)
 
         if exit_code != 0:
             raise RuntimeError(
@@ -1000,7 +1035,7 @@ class LocalOperatorBackend(Backend):
         with AuthContext(auth=self.auth_type, profile=self.profile):
             note = (
                 "# This YAML specification was auto generated by the "
-                "`ads opctl operator init` command.\n"
+                "`ads operator init` command.\n"
                 "# The more details about the operator's runtime YAML "
                 "specification can be found in the ADS documentation:\n"
                 "# https://accelerated-data-science.readthedocs.io/en/latest \n\n"

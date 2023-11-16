@@ -1,3 +1,4 @@
+=====================
 Load Registered Model
 =====================
 
@@ -43,7 +44,7 @@ Alternatively the ``.from_id()`` method can be used to load a model. In future r
 
 
 Load Deployed Model
-===================
+-------------------
 
 Load and recreate :doc:`framework specific wrapper <framework_specific_instruction>` objects using the ``ocid`` value of your OCI Model Deployment instance.
 
@@ -82,7 +83,7 @@ Alternatively the ``.from_id()`` method can be used to load a model from the Mod
     )
 
 Load Model From Object Storage
-==============================
+------------------------------
 
 Load and recreate :doc:`framework specific wrapper <framework_specific_instruction>` objects from the existing model artifact archive.
 
@@ -107,7 +108,7 @@ A model loaded from an artifact archive can be registered and deployed.
 
 
 Large Model Artifacts
-=====================
+---------------------
 
 .. versionadded:: 2.6.4
 
@@ -119,7 +120,7 @@ If you don't have an Object Storage bucket, create one using the OCI SDK or the 
 
         Allow service datascience to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
-        Allow service objectstorage to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
+        Allow service objectstorage-<region> to manage object-family in compartment <compartment> where ALL {target.bucket.name='<bucket_name>'}
 
 The following example loads a model using the large model artifact approach. The ``bucket_uri`` has the following syntax: ``oci://<bucket_name>@<namespace>/<path>/`` See `API documentation <../../ads.model.html#id4>`__ for more details.
 

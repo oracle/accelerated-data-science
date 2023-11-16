@@ -14,18 +14,27 @@ from ads.model.deployment.model_deployment import (
     ModelDeployment,
     ModelDeploymentProperties,
 )
+from ads.model.deployment.model_deployment_infrastructure import (
+    ModelDeploymentInfrastructure,
+)
+from ads.model.deployment.model_deployment_runtime import ModelDeploymentCondaRuntime
 
 
 class ModelDeploymentTestCase(unittest.TestCase):
     MODEL_ID = "<MODEL_OCID>"
     with patch.object(oci_client, "OCIClientFactory"):
         test_model_deployment = ModelDeployment(
-            model_deployment_id="test_model_deployment_id", properties={}
+            model_deployment_id="test_model_deployment_id",
+            properties={},
+            infrastructure=ModelDeploymentInfrastructure(),
+            runtime=ModelDeploymentCondaRuntime(),
         )
 
     @patch("requests.post")
-    def test_predict(self, mock_post):
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.sync")
+    def test_predict(self, mock_sync, mock_post):
         """Ensures predict model passes with valid input parameters."""
+        mock_sync.return_value = Mock(lifecycle_state="ACTIVE")
         mock_post.return_value = Mock(
             status_code=200, json=lambda: {"result": "result"}
         )
@@ -46,8 +55,10 @@ class ModelDeploymentTestCase(unittest.TestCase):
             self.test_model_deployment.predict(data=np.array([1, 2, 3]))
 
     @patch("requests.post")
-    def test_predict_with_bytes(self, mock_post):
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.sync")
+    def test_predict_with_bytes(self, mock_sync, mock_post):
         """Ensures predict model passes with bytes input."""
+        mock_sync.return_value = Mock(lifecycle_state="ACTIVE")
         byte_data = b"[[1,2,3,4]]"
         with patch.object(authutil, "default_signer") as mock_auth:
             auth = MagicMock()
@@ -62,8 +73,10 @@ class ModelDeploymentTestCase(unittest.TestCase):
             )
 
     @patch("requests.post")
-    def test_predict_with_auto_serialize_data(self, mock_post):
+    @patch("ads.model.deployment.model_deployment.ModelDeployment.sync")
+    def test_predict_with_auto_serialize_data(self, mock_sync, mock_post):
         """Ensures predict model passes with valid input parameters."""
+        mock_sync.return_value = Mock(lifecycle_state="ACTIVE")
         mock_post.return_value = Mock(
             status_code=200, json=lambda: {"result": "result"}
         )

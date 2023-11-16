@@ -16,9 +16,9 @@ This page shows an example of fine-tuning the `Llama 2 <https://ai.meta.com/llam
   In this example, internet access is needed to download the source code and the pre-trained model.
 
 The `llama-recipes <llama-recipes>`_ repository contains example code to fine-tune llama2 model.
-The example `fine-tuning script <https://github.com/facebookresearch/llama-recipes/blob/main/llama_finetuning.py>`_ support full parameter fine-tuning
+The example `fine-tuning script <https://github.com/facebookresearch/llama-recipes/blob/1aecd00924738239f8d86f342b36bacad180d2b3/examples/finetuning.py>`_ supports both full parameter fine-tuning
 and `Parameter-Efficient Fine-Tuning (PEFT) <https://huggingface.co/blog/peft>`_.
-With ADS, you can start the training job by taking the source code directly from Github.
+With ADS, you can start the training job by taking the source code directly from Github with no code change.
 
 Access the Pre-Trained Model
 ============================
@@ -49,13 +49,15 @@ The job run will:
 
 Note that in the training command, there is no need specify the number of nodes, or the number of GPUs. ADS will automatically configure that base on the ``replica`` and ``shape`` you specified.
 
-The fine-tuning runs on the `samsum <https://huggingface.co/datasets/samsum>`_ dataset by default. You can also `add your custom datasets <https://github.com/facebookresearch/llama-recipes/blob/main/docs/Dataset.md#adding-custom-datasets>`_.
+The fine-tuning runs on the `samsum <https://huggingface.co/datasets/samsum>`_ dataset by default. You can also `add your custom datasets <https://github.com/facebookresearch/llama-recipes/blob/1aecd00924738239f8d86f342b36bacad180d2b3/docs/Dataset.md>`_.
 
-The same training script also support Parameter-Efficient Fine-Tuning (PEFT). You can change the ``command`` to the following for PEFT with `LoRA <https://huggingface.co/docs/peft/conceptual_guides/lora>`_
+Once the fine-tuning is finished, the checkpoints will be saved into OCI object storage bucket as specified.
+You can `load the FSDP checkpoints for inferencing <https://github.com/facebookresearch/llama-recipes/blob/main/docs/inference.md#loading-back-fsdp-checkpoints>`_.
+
+The same training script also support Parameter-Efficient Fine-Tuning (PEFT). You can change the ``command`` to the following for PEFT with `LoRA <https://huggingface.co/docs/peft/conceptual_guides/lora>`_. Note that for PEFT, the fine-tuned weights are stored in the location specified by ``--output_dir``, while for full parameter fine-tuning, the checkpoints are stored in the location specified by ``--dist_checkpoint_root_folder`` and ``--dist_checkpoint_folder``
 
 .. code-block:: bash
 
     torchrun llama_finetuning.py --enable_fsdp --use_peft --peft_method lora \
-    --pure_bf16 --batch_size_training 1 --micro_batch_size 1 \
-    --model_name /home/datascience/llama --output_dir /home/datascience/outputs
-
+    --pure_bf16 --batch_size_training 1 \
+    --model_name meta-llama/Llama-2-7b-hf --output_dir /home/datascience/outputs

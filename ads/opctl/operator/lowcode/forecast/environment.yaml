@@ -5,15 +5,15 @@ dependencies:
   - python=3.8
   - pip
   - pip:
+      - oracle-ads>=2.9.0
       - prophet
       - neuralprophet
       - pmdarima
       - statsmodels
       - datapane
       - cerberus
-      - json2table
       - sktime
+      - shap
+      - autots[additional]
       - optuna==2.9.0
-      # - https://objectstorage.us-ashburn-1.oraclecloud.com/p/YTUkGbX6_IJzGEh0uHfI-6LbiBqW-8OYgq44wJdRabF6B3vbHKJYpaU_rAdoPakH/n/ociodscdev/b/ads_preview_sdk/o/Forecasting/wheels/oracle_ads-2.8.8b0-py3-none-any.whl
-      - ./oracle_ads-2.8.7b0-py3-none-any.whl
-      - ./automlx-23.2.1-py38-none-any.whl
+      - oracle-automlx==23.2.3

@@ -27,6 +27,14 @@ You have various options when installing ADS.
   python3 -m pip install oracle-ads
 ```
 
+### Installing OCI AI Operators
+
+To use the AI Forecast Operator, install the "forecast" dependencies using the following command:
+
+```bash
+  python3 -m pip install 'oracle_ads[forecast]==2.9.0'
+```
+
 ### Installing extras libraries
 
 To work with gradient boosting models, install the `boosted` module. This module includes XGBoost and LightGBM model classes.

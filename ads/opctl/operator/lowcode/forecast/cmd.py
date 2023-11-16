@@ -9,7 +9,8 @@ from typing import Dict
 import click
 
 from ads.opctl import logger
-from ads.opctl.operator.common.utils import YamlGenerator, _load_yaml_from_uri
+from ads.opctl.operator.common.utils import _load_yaml_from_uri
+from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
 
 from .const import SupportedModels
 
@@ -23,6 +24,9 @@ def init(**kwargs: Dict) -> str:
     kwargs: (Dict, optional).
         Additional key value arguments.
 
+        - type: str
+            The type of the operator.
+
     Returns
     -------
     str
@@ -33,9 +37,9 @@ def init(**kwargs: Dict) -> str:
     model_type = click.prompt(
         "Provide a model type:",
         type=click.Choice(SupportedModels.values()),
-        default=SupportedModels.Prophet,
+        default=SupportedModels.Auto,
     )
 
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example(values={"model": model_type})
+    ).generate_example_dict(values={"model": model_type, "type": kwargs.get("type")})

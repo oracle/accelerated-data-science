@@ -58,7 +58,7 @@ Open the destination folder where you want to clone ADS library, and install dep
     python3 -m pip install -e .
 ```
 
-To which packages were installed and their version numbers, run:
+To view which packages were installed and their version numbers, run:
 
 ```bash
     python3 -m pip freeze

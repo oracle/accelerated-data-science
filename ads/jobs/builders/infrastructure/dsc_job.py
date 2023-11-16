@@ -724,9 +724,14 @@ class DataScienceJobRun(
 
         return self
 
-    def cancel(self) -> DataScienceJobRun:
+    def cancel(self, wait_for_completion: bool = True) -> DataScienceJobRun:
         """Cancels a job run
-        This method will wait for the job run to be canceled before returning.
+
+        Parameters
+        ----------
+        wait_for_completion: bool
+            Whether to wait for job run to be cancelled before proceeding.
+            Defaults to True.
 
         Returns
         -------
@@ -734,9 +739,13 @@ class DataScienceJobRun(
             The job run instance.
         """
         self.client.cancel_job_run(self.id)
-        while self.lifecycle_state != "CANCELED":
-            self.sync()
-            time.sleep(SLEEP_INTERVAL)
+        if wait_for_completion:
+            while (
+                self.lifecycle_state
+                != oci.data_science.models.JobRun.LIFECYCLE_STATE_CANCELED
+            ):
+                self.sync()
+                time.sleep(SLEEP_INTERVAL)
         return self
 
     def __repr__(self) -> str:
@@ -1471,9 +1480,7 @@ class DataScienceJob(Infrastructure):
             ] = JobInfrastructureConfigurationDetails.JOB_INFRASTRUCTURE_TYPE_STANDALONE
 
         if self.storage_mount:
-            if not hasattr(
-                oci.data_science.models, "JobStorageMountConfigurationDetails"
-            ):
+            if not hasattr(oci.data_science.models, "StorageMountConfigurationDetails"):
                 raise EnvironmentError(
                     "Storage mount hasn't been supported in the current OCI SDK installed."
                 )
@@ -1485,6 +1492,12 @@ class DataScienceJob(Infrastructure):
 
     def build(self) -> DataScienceJob:
         self.dsc_job.load_defaults()
+
+        try:
+            self.dsc_job.load_defaults()
+        except Exception:
+            logger.exception("Failed to load default properties.")
+
         self._update_from_dsc_model(self.dsc_job, overwrite=False)
         return self
 

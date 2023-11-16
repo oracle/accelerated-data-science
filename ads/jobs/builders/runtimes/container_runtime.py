@@ -136,5 +136,5 @@ class ContainerRuntime(Runtime):
         return self.with_image(
             image=kwargs.get("image", "iad.ocir.io/namespace/image:tag"),
             entrypoint=["bash", "--login", "-c"],
-            cmd="{Container CMD. For MLFlow and Operator will be auto generated}",
+            cmd="{Container CMD. For MLflow and Operator will be auto generated}",
         )

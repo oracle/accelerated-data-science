@@ -36,7 +36,18 @@ class TestRuntimeInfo:
         with pytest.raises(AssertionError):
             RuntimeInfo._validate_dict(self.runtime_dict_fail)
 
-    def test_from_yaml(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_yaml(self, mock_get_service_packs):
+        conda_env = "oci://service_conda_packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        python_version = "3.6"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env: ("mlcpuv1", python_version),
+            },
+            {
+                "mlcpuv1": (conda_env, python_version),
+            },
+        )
         runtime_info = RuntimeInfo.from_yaml(
             uri=os.path.join(self.curr_dir, "runtime.yaml")
         )
@@ -95,7 +106,20 @@ class TestRuntimeInfo:
 
     @patch.object(InferenceEnvInfo, "_validate", side_effect=DocumentError)
     @patch.object(TrainingEnvInfo, "_validate", side_effect=DocumentError)
-    def test_from_yaml_fail(self, mock_inference, mock_training):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_yaml_fail(
+        self, mock_get_service_packs, mock_inference, mock_training
+    ):
+        conda_env = "oci://service_conda_packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        python_version = "3.6"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env: ("mlcpuv1", python_version),
+            },
+            {
+                "mlcpuv1": (conda_env, python_version),
+            },
+        )
         with pytest.raises(DocumentError):
             RuntimeInfo.from_yaml(uri=os.path.join(self.curr_dir, "runtime_fail.yaml"))
 
@@ -119,7 +143,18 @@ class TestRuntimeInfo:
         with pytest.raises(FileNotFoundError):
             RuntimeInfo.from_yaml(uri=os.path.join(self.curr_dir, "fake.yaml"))
 
-    def test_from_and_to_yaml_file(self):
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    def test_from_and_to_yaml_file(self, mock_get_service_packs):
+        conda_env = "oci://service_conda_packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        python_version = "3.6"
+        mock_get_service_packs.return_value = (
+            {
+                conda_env: ("mlcpuv1", python_version),
+            },
+            {
+                "mlcpuv1": (conda_env, python_version),
+            },
+        )
         runtime = RuntimeInfo.from_yaml(uri=os.path.join(self.curr_dir, "runtime.yaml"))
         runtime.to_yaml(uri=os.path.join(self.curr_dir, "runtime_copy.yaml"))
         runtime_copy = RuntimeInfo.from_yaml(

@@ -17,8 +17,6 @@ version:
     description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
 
 type:
-  allowed:
-    - forecast
   required: true
   type: string
   default: forecast
@@ -170,8 +168,8 @@ spec:
           type: dict
       type: dict
 
-    report_file_name:
-      required: true
+    report_filename:
+      required: false
       type: string
       default: report.html
       meta:
@@ -186,17 +184,69 @@ spec:
       allowed:
         - light
         - dark
-    report_metrics_name:
+    metrics_filename:
       required: false
       type: string
-      default: report.csv
+      default: metrics.csv
       meta:
-        description: "Placed into output_directory location. Defaults to report.csv"
+        description: "Placed into output_directory location. Defaults to metrics.csv"
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+    forecast_filename:
+      required: false
+      type: string
+      default: forecast.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to forecast.csv"
+    global_explanation_filename:
+      required: false
+      type: string
+      default: global_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to global_explanations.csv"
+    local_explanation_filename:
+      required: false
+      type: string
+      default: local_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to local_explanations.csv"
 
     target_column:
       type: string
       required: true
-      default: "Sales"
+      default: target
+
+    preprocessing:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+
+    generate_explanations:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
+
+    generate_report:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Report file generation can be enabled using this flag. Defaults to true."
+
+    generate_metrics:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Metrics files generation can be enabled using this flag. Defaults to true."
 
     datetime_column:
       type: dict
@@ -205,50 +255,32 @@ spec:
         name:
           type: string
           required: true
-          default: last_day_of_week
+          default: Date
         format:
           type: string
           required: false
 
     target_category_columns:
       type: list
-      required: false
+      required: true
       schema:
         type: string
+      default: ["Column1"]
 
     horizon:
-      required: false
-      schema:
-        periods:
-          type: integer
-          required: false
-        interval:
-          type: integer
-          required: false
-        interval_unit:
-          required: false
-          type: string
-          default: auto
-          allowed:
-            - S
-            - M
-            - H
-            - D
-            - W
-            - Mo
-            - Q
-            - Y
-      type: dict
+      required: true
+      type: integer
 
     model:
       type: string
-      required: true
-      default: automlx
+      required: false
+      default: auto
       allowed:
         - prophet
         - arima
         - neuralprophet
         - automlx
+        - autots
         - auto
 
     model_kwargs:

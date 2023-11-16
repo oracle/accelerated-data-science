@@ -21,6 +21,10 @@ spec:
   runtime:
     kind: runtime
     spec:
+      args: []
+      conda:
+        type: published
+        uri: oci://bucket@namespace/conda_environments/test/conda/slug
       condaAuthType: resource_principal
       configuration:
         spark.driverEnv.env_key: env_value
