@@ -7,7 +7,7 @@ import string
 import pandas as pd
 import pytest
 
-from ads.feature_store.common.enums import IngestionMode
+from ads.feature_store.common.enums import BatchIngestionMode
 from ads.feature_store.common.exceptions import NotMaterializedError
 from ads.feature_store.dataset import Dataset
 from ads.feature_store.feature_option_details import FeatureOptionDetails
@@ -163,7 +163,7 @@ class TestAsOfForFeatureGroupAndDataset(FeatureStoreTestCase):
         fg.materialise(
             input_dataframe=df,
             feature_option_details=feature_option_write_config_details,
-            ingestion_mode=IngestionMode.OVERWRITE,
+            ingestion_mode=BatchIngestionMode.OVERWRITE,
         )
         df = fg.as_of(version_number=0)
 
