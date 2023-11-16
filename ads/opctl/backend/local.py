@@ -1,25 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
 import json
 import os
+import runpy
+import sys
 import tempfile
 from concurrent.futures import Future, ThreadPoolExecutor
 from time import sleep
-from typing import Dict, List
+from typing import Dict, List, Optional, Union
 
 from oci.data_science.models import PipelineStepRun
 
-from ads.common.auth import create_signer
+from ads.common.auth import AuthContext, create_signer
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
-
+from ads.common.oci_client import OCIClientFactory
+from ads.config import NO_CONTAINER
 from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.runtime.runtime_info import RuntimeInfo
 from ads.opctl import logger
@@ -30,15 +33,20 @@ from ads.opctl.constants import (
     DEFAULT_IMAGE_CONDA_DIR,
     DEFAULT_IMAGE_HOME_DIR,
     DEFAULT_IMAGE_SCRIPT_DIR,
+    DEFAULT_MODEL_DEPLOYMENT_FOLDER,
     DEFAULT_MODEL_FOLDER,
     DEFAULT_NOTEBOOK_SESSION_CONDA_DIR,
     DEFAULT_NOTEBOOK_SESSION_SPARK_CONF_DIR,
     ML_JOB_GPU_IMAGE,
     ML_JOB_IMAGE,
-    DEFAULT_MODEL_DEPLOYMENT_FOLDER,
 )
 from ads.opctl.distributed.cmds import load_ini, local_run
 from ads.opctl.model.cmds import _download_model
+from ads.opctl.operator import __operators__
+from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
+from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
+from ads.opctl.operator.runtime import const as operator_runtime_const
+from ads.opctl.operator.runtime import runtime as operator_runtime
 from ads.opctl.spark.cmds import (
     generate_core_site_properties,
     generate_core_site_properties_str,
@@ -51,8 +59,6 @@ from ads.opctl.utils import (
     run_container,
 )
 from ads.pipeline.ads_pipeline import Pipeline, PipelineStep
-from ads.common.oci_client import OCIClientFactory
-from ads.config import NO_CONTAINER
 
 
 class CondaPackNotFound(Exception):  # pragma: no cover
@@ -413,6 +419,8 @@ class LocalBackend(Backend):
     def _activate_conda_env_and_run(
         image: str, slug: str, command: List[str], bind_volumes: Dict, env_vars: Dict
     ) -> int:
+        import docker
+
         try:
             client = get_docker_client()
             client.api.inspect_image(image)
@@ -818,3 +826,228 @@ class LocalModelDeploymentBackend(LocalBackend):
             runtime_info.model_deployment.inference_conda_env.inference_env_path
         )
         return conda_slug, conda_path
+
+
+class LocalOperatorBackend(Backend):
+    """
+    The local operator backend to execute operator in the local environment.
+    Currently supported two scenarios:
+        * Running operator within local conda environment.
+        * Running operator within local container.
+
+    Attributes
+    ----------
+    runtime_config: (Dict)
+        The runtime config for the operator.
+    operator_config: (Dict)
+        The operator specification config.
+    operator_type: str
+        The type of the operator.
+    operator_info: OperatorInfo
+        The detailed information about the operator.
+    """
+
+    def __init__(
+        self, config: Optional[Dict], operator_info: OperatorInfo = None
+    ) -> None:
+        """
+        Instantiates the operator backend.
+
+        Parameters
+        ----------
+        config: (Dict)
+            The configuration file containing operator's specification details and execution section.
+        operator_info: (OperatorInfo, optional)
+            The operator's detailed information extracted from the operator.__init__ file.
+            Will be extracted from the operator type in case if not provided.
+        """
+        super().__init__(config=config or {})
+
+        self.runtime_config = self.config.get("runtime", {})
+        self.operator_config = {
+            **{
+                key: value
+                for key, value in self.config.items()
+                if key not in ("runtime", "infrastructure", "execution")
+            }
+        }
+        self.operator_type = self.operator_config.get("type")
+
+        self._RUNTIME_MAP = {
+            operator_runtime.ContainerRuntime.type: self._run_with_container,
+            operator_runtime.PythonRuntime.type: self._run_with_python,
+        }
+
+        self.operator_info = operator_info
+
+    def _run_with_python(self, **kwargs: Dict) -> int:
+        """Runs the operator within a local python environment.
+
+        Returns
+        -------
+        int
+            The operator's run exit code.
+        """
+
+        # build runtime object
+        runtime = operator_runtime.PythonRuntime.from_dict(
+            self.runtime_config, ignore_unknown=True
+        )
+
+        # run operator
+        operator_spec = json.dumps(self.operator_config)
+        sys.argv = [self.operator_info.type, "--spec", operator_spec]
+
+        logger.info(f"{'*' * 50} Runtime Config {'*' * 50}")
+        logger.info(runtime.to_yaml())
+
+        try:
+            runpy.run_module(self.operator_info.type, run_name="__main__")
+        except SystemExit as exception:
+            return exception.code
+        else:
+            return 0
+
+    def _run_with_container(self, **kwargs: Dict) -> int:
+        """Runs the operator within a container.
+
+        Returns
+        -------
+        int
+            The operator's run exit code.
+        """
+
+        # build runtime object
+        runtime: operator_runtime.ContainerRuntime = (
+            operator_runtime.ContainerRuntime.from_dict(
+                self.runtime_config, ignore_unknown=True
+            )
+        )
+        # prepare environment variables
+        env_vars = {
+            **{env["name"]: env["value"] for env in runtime.spec.env},
+            ENV_OPERATOR_ARGS: json.dumps(self.operator_config),
+        }
+
+        # prepare container volumes
+        bind_volumes = {}
+        for volume in runtime.spec.volume:
+            host_path, container_path = volume.split(":")
+            bind_volumes[host_path.lstrip().rstrip()] = {
+                "bind": container_path.lstrip().rstrip()
+            }
+
+        logger.info(f"{'*' * 50} Runtime Config {'*' * 50}")
+        logger.info(runtime.to_yaml())
+
+        return run_container(
+            image=runtime.spec.image,
+            bind_volumes=bind_volumes,
+            env_vars=env_vars,
+            command=f"'python3 -m {self.operator_info.type}'",
+        )
+
+    def run(self, **kwargs: Dict) -> Dict:
+        """Runs the operator."""
+
+        # extract runtime
+        runtime_type = self.runtime_config.get(
+            "type", operator_runtime.OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON
+        )
+
+        if runtime_type not in self._RUNTIME_MAP:
+            raise RuntimeError(
+                f"Not supported runtime - {runtime_type} for local backend. "
+                f"Supported values: {self._RUNTIME_MAP.keys()}"
+            )
+
+        if not self.operator_info:
+            self.operator_info = OperatorLoader.from_uri(self.operator_type).load()
+
+        if self.config.get("dry_run"):
+            logger.info(
+                "The dry run option is not supported for "
+                "the local backends and will be ignored."
+            )
+
+        # run operator with provided runtime
+        exit_code = self._RUNTIME_MAP.get(runtime_type, lambda: None)(**kwargs)
+
+        if exit_code != 0:
+            raise RuntimeError(
+                f"Operation did not complete successfully. Exit code: {exit_code}. "
+                f"Run with the --debug argument to view logs."
+            )
+
+    def init(
+        self,
+        uri: Union[str, None] = None,
+        overwrite: bool = False,
+        runtime_type: Union[str, None] = None,
+        **kwargs: Dict,
+    ) -> Union[str, None]:
+        """Generates a starter YAML specification for the operator local runtime.
+
+        Parameters
+        ----------
+        overwrite: (bool, optional). Defaults to False.
+            Overwrites the result specification YAML if exists.
+        uri: (str, optional), Defaults to None.
+            The filename to save the resulting specification template YAML.
+        runtime_type: (str, optional). Defaults to None.
+                The resource runtime type.
+        **kwargs: Dict
+            The optional arguments.
+
+        Returns
+        -------
+        Union[str, None]
+            The YAML specification for the given resource if `uri` was not provided.
+            `None` otherwise.
+        """
+        runtime_type = runtime_type or operator_runtime.ContainerRuntime.type
+        if runtime_type not in operator_runtime_const.RUNTIME_TYPE_MAP:
+            raise ValueError(
+                f"Not supported runtime type {runtime_type}. "
+                f"Supported values: {operator_runtime_const.RUNTIME_TYPE_MAP.keys()}"
+            )
+
+        RUNTIME_KWARGS_MAP = {
+            operator_runtime.ContainerRuntime.type: {
+                "image": f"{self.operator_config['type']}:{self.operator_config['version']}",
+                "volume": [
+                    os.path.expanduser(
+                        os.path.dirname(self.config["execution"]["oci_config"])
+                    )
+                    + ":"
+                    + "/root/.oci"
+                ],
+                "env": [
+                    {
+                        "name": "operator",
+                        "value": f"{self.operator_config['type']}:{self.operator_config['version']}",
+                    }
+                ],
+            },
+            operator_runtime.PythonRuntime.type: {},
+        }
+
+        with AuthContext(auth=self.auth_type, profile=self.profile):
+            note = (
+                "# This YAML specification was auto generated by the "
+                "`ads operator init` command.\n"
+                "# The more details about the operator's runtime YAML "
+                "specification can be found in the ADS documentation:\n"
+                "# https://accelerated-data-science.readthedocs.io/en/latest \n\n"
+            )
+
+            return (
+                operator_runtime_const.RUNTIME_TYPE_MAP[runtime_type]
+                .init(**RUNTIME_KWARGS_MAP[runtime_type])
+                .to_yaml(
+                    uri=uri,
+                    overwrite=overwrite,
+                    note=note,
+                    **kwargs,
+                )
+            )

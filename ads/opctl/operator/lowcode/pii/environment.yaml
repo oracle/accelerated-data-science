@@ -1,0 +1,17 @@
+name: pii
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+      - aiohttp
+      - datapane
+      - gender_guesser
+      - nameparser
+      - oracle_ads[opctl]
+      - plotly
+      - scrubadub
+      - scrubadub_spacy
+      - spacy-transformers==1.2.5
+      - spacy==3.6.1
