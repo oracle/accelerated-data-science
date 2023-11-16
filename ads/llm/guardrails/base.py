@@ -10,8 +10,8 @@ import functools
 import operator
 from typing import Any, List
 from langchain.schema.prompt import PromptValue
-from langchain.tools import BaseTool
-from pydantic import BaseModel
+from langchain.tools.base import BaseTool, ToolException
+from langchain.pydantic_v1 import BaseModel, root_validator
 
 
 class RunInfo(BaseModel):
@@ -78,7 +78,7 @@ class GuardrailIO(BaseModel):
         return "\n".join(steps)
 
 
-class BlockedByGuardrail(Exception):
+class BlockedByGuardrail(ToolException):
     """Exception when the content is blocked by a guardrail."""
 
     def __init__(self, message: str = None, info: RunInfo = None) -> None:
@@ -172,8 +172,9 @@ class Guardrail(BaseTool):
     name: str = ""
     description: str = "Guardrail"
 
-    custom_msg: str = "The content is blocked by guardrail."
+    custom_msg: str = "Content blocked by guardrail."
     raise_exception: bool = True
+    return_metrics: bool = False
 
     _SELECT_OPERATOR = {"min": min, "max": max}
     _FILTER_OPERATOR = {
@@ -200,10 +201,12 @@ class Guardrail(BaseTool):
     This is used by the ``apply_filter()`` method.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if not self.name:
-            self.name = self.__class__.__name__
+    @root_validator
+    def default_name(cls, values):
+        """Sets the default name of the guardrail."""
+        if not values.get("name"):
+            values["name"] = cls.__name__
+        return values
 
     @classmethod
     def is_lc_serializable(cls) -> bool:
@@ -271,6 +274,9 @@ class Guardrail(BaseTool):
             guardrail_io.data = output
             guardrail_io.info.append(info)
             return guardrail_io
+
+        if self.return_metrics:
+            return {"output": output, "metrics": info.metrics}
         return output
 
     def load(self) -> None:

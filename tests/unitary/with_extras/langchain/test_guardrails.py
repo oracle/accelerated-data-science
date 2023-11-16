@@ -68,3 +68,12 @@ class ToxicityGuardrailTests(TestCase):
         chain = self.FAKE_LLM | toxicity
         output = chain.invoke(self.TOXIC_CONTENT)
         self.assertEqual(output, toxicity.custom_msg)
+
+    def test_toxicity_return_metrics(self):
+        """Return the toxicity metrics"""
+        toxicity = HuggingFaceEvaluation(path="toxicity", return_metrics=True)
+        chain = self.FAKE_LLM | toxicity
+        output = chain.invoke(self.TOXIC_CONTENT)
+        self.assertIsInstance(output, dict)
+        self.assertEqual(output["output"], self.TOXIC_CONTENT)
+        self.assertGreater(output["metrics"]["toxicity"][0], 0.2)
