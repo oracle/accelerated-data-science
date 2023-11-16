@@ -61,6 +61,12 @@ jobs:
         name: "Test env setup"
         timeout-minutes: 20
 
+      # Installing forecast deps for python3.8 test setup only, it will not work with python3.9/3.10, because
+      # automlx do not support py3.9 and some versions of py3.10. This step omitted in -py39-py30.yml workflow
+      - name: "Install Forecasting dependencies"
+        run: |
+          pip install -e ".ads[forecast]"
+
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
         shell: bash
