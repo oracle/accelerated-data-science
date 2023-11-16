@@ -11,6 +11,7 @@ import pandas as pd
 import datapane as dp
 import autots
 from ads.opctl.operator.common.utils import _build_image, _parse_input_args
+from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import ForecastDatasets
 from ads.opctl.operator.lowcode.forecast.model.autots import (
     AutoTSOperatorModel,
     AUTOTS_MAX_GENERATION,
@@ -39,19 +40,26 @@ class TestAutoTSOperatorModel(unittest.TestCase):
         spec.tuning = None
         spec.model_kwargs = {}
         spec.confidence_interval_width = 0.7
+        spec.additional_data = None
         self.spec = spec
 
         config = Mock(spec=ForecastOperatorConfig)
         config.spec = self.spec
         self.config = config
 
+        datasets = Mock(spec=ForecastDatasets)
+        datasets.original_user_data = None
+        datasets.original_total_data = None
+        datasets.original_additional_data = None
+        datasets.full_data_dict = {}
+        datasets.target_columns = []
+        datasets.categories = []
+        self.datasets = datasets
+
     @patch("autots.AutoTS")
     @patch("pandas.concat")
     def test_autots_parameter_passthrough(self, mock_concat, mock_autots):
-        autots = AutoTSOperatorModel(self.config)
-        autots.full_data_dict = {}
-        autots.target_columns = []
-        autots.categories = []
+        autots = AutoTSOperatorModel(self.config, self.datasets)
         autots._build_model()
 
         # When model_kwargs does not have anything, defaults should be sent as parameters.

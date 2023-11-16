@@ -7,6 +7,8 @@
 import unittest
 from unittest.mock import patch, Mock
 import pandas as pd
+import numpy as np
+from datetime import datetime
 from ads.opctl.operator.common.utils import _build_image, _parse_input_args
 from ads.opctl.operator.lowcode.forecast.model.prophet import ProphetOperatorModel
 from ads.opctl.operator.lowcode.forecast.model.base_model import (
@@ -17,6 +19,7 @@ from ads.opctl.operator.lowcode.forecast.operator_config import (
     ForecastOperatorSpec,
     TestData,
     DateTimeColumn,
+    InputData,
 )
 from ads.opctl.operator.lowcode.forecast.const import SupportedMetrics
 
@@ -38,6 +41,10 @@ from ads.opctl.operator.lowcode.forecast.operator_config import (
     OutputDirectory,
 )
 from ads.opctl.operator.lowcode.forecast.const import SupportedMetrics
+from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import (
+    ForecastDatasets,
+    ForecastOutput,
+)
 
 
 class TestForecastOperatorBaseModel(unittest.TestCase):
@@ -61,44 +68,7 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
                 }
             ),
         }
-        self.outputs = [
-            pd.DataFrame(
-                {
-                    "ds": [
-                        "2020-10-31",
-                        "2020-11-07",
-                        "2020-11-14",
-                        "2020-11-21",
-                        "2020-11-28",
-                    ],
-                    "yhat": [
-                        1569.536030,
-                        1568.052261,
-                        1566.568493,
-                        1565.084725,
-                        1563.600957,
-                    ],
-                }
-            ),
-            pd.DataFrame(
-                {
-                    "ds": [
-                        "2020-10-31",
-                        "2020-11-07",
-                        "2020-11-14",
-                        "2020-11-21",
-                        "2020-11-28",
-                    ],
-                    "yhat": [
-                        1284.534104,
-                        1269.692458,
-                        1254.850813,
-                        1240.009167,
-                        1225.167521,
-                    ],
-                }
-            ),
-        ]
+
         self.data = pd.DataFrame({"last_day_of_week": ["2020-10-31", "2020-11-07"]})
         self.target_col = "yhat"
         self.datetime_column_name = "last_day_of_week"
@@ -149,6 +119,10 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
         spec.datetime_column = Mock(spec=DateTimeColumn)
         spec.datetime_column.name = self.datetime_column_name
         spec.datetime_column.format = None
+        spec.historical_data = Mock(spec="InputData")
+        spec.historical_data.url = "primary.csv"
+        spec.historical_data.format = None
+        spec.historical_data.columns = None
         spec.horizon = 3
         spec.tuning = None
         spec.output_directory = Mock(spec=OutputDirectory)
@@ -163,18 +137,131 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
 
         self.config = config
 
+        self.datasets = Mock(spec=ForecastDatasets)
+        self.datasets.original_user_data = None
+        self.datasets.original_total_data = None
+        self.datasets.original_additional_data = None
+        self.datasets.full_data_dict = None
+        self.datasets.target_columns = None
+        self.datasets.categories = None
+
+        def get_longest_datetime_column_mock():
+            return pd.Series(
+                [
+                    datetime.strptime("2020-10-31", "%Y-%m-%d"),
+                    datetime.strptime("2020-11-07", "%Y-%m-%d"),
+                    datetime.strptime("2020-11-14", "%Y-%m-%d"),
+                    datetime.strptime("2020-11-21", "%Y-%m-%d"),
+                    datetime.strptime("2020-11-28", "%Y-%m-%d"),
+                ]
+            )
+
+        self.datasets.get_longest_datetime_column.side_effect = (
+            get_longest_datetime_column_mock
+        )
+
+        self.output = ForecastOutput(confidence_interval_width=0.7)
+        self.output.add_category(
+            "Product Group 107",
+            "Sales_Product Group 107",
+            pd.DataFrame(
+                {
+                    "Date": [
+                        datetime.strptime("2020-10-31", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-07", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-14", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-21", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-28", "%Y-%m-%d"),
+                    ],
+                    "Series": [
+                        "Product Group 107",
+                        "Product Group 107",
+                        "Product Group 107",
+                        "Product Group 107",
+                        "Product Group 107",
+                    ],
+                    "input_value": [1569.536030, 1568.052261, np.nan, np.nan, np.nan],
+                    "fitted_value": [1569.536030, 1568.052261, np.nan, np.nan, np.nan],
+                    "forecast_value": [
+                        np.nan,
+                        np.nan,
+                        1566.568493,
+                        1565.084725,
+                        1563.600957,
+                    ],
+                    "upper_bound": [
+                        np.nan,
+                        np.nan,
+                        1566.568493,
+                        1565.084725,
+                        1563.600957,
+                    ],
+                    "lower_bound": [
+                        np.nan,
+                        np.nan,
+                        1566.568493,
+                        1565.084725,
+                        1563.600957,
+                    ],
+                }
+            ),
+        )
+        self.output.add_category(
+            "Product Group 108",
+            "Sales_Product Group 108",
+            pd.DataFrame(
+                {
+                    "Date": [
+                        datetime.strptime("2020-10-31", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-07", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-14", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-21", "%Y-%m-%d"),
+                        datetime.strptime("2020-11-28", "%Y-%m-%d"),
+                    ],
+                    "Series": [
+                        "Product Group 108",
+                        "Product Group 107",
+                        "Product Group 108",
+                        "Product Group 108",
+                        "Product Group 108",
+                    ],
+                    "input_value": [1569.536030, 1568.052261, np.nan, np.nan, np.nan],
+                    "fitted_value": [1569.536030, 1568.052261, np.nan, np.nan, np.nan],
+                    "forecast_value": [
+                        np.nan,
+                        np.nan,
+                        1254.850813,
+                        1240.009167,
+                        1225.167521,
+                    ],
+                    "upper_bound": [
+                        np.nan,
+                        np.nan,
+                        1254.850813,
+                        1240.009167,
+                        1225.167521,
+                    ],
+                    "lower_bound": [
+                        np.nan,
+                        np.nan,
+                        1254.850813,
+                        1240.009167,
+                        1225.167521,
+                    ],
+                }
+            ),
+        )
+
     @patch("ads.opctl.operator.lowcode.forecast.utils._load_data")
     def test_empty_testdata_file(self, mock__load_data):
         # When test file is empty
 
         mock__load_data.side_effect = pd.errors.EmptyDataError()
-
-        prophet = ProphetOperatorModel(self.config)
-
+        prophet = ProphetOperatorModel(self.config, self.datasets)
         total_metrics, summary_metrics, data = prophet._test_evaluate_metrics(
             target_columns=self.target_columns,
             test_filename=self.test_filename,
-            outputs=self.outputs,
+            output=self.output,
             target_col=self.target_col,
             elapsed_time=0,
         )
@@ -191,12 +278,12 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
             columns=["PPG_Code", "last_day_of_week", "Sales"]
         )
 
-        prophet = ProphetOperatorModel(self.config)
-
+        prophet = ProphetOperatorModel(self.config, self.datasets)
+        prophet.forecast_output = self.output
         total_metrics, summary_metrics, data = prophet._test_evaluate_metrics(
             target_columns=self.target_columns,
             test_filename=self.test_filename,
-            outputs=self.outputs,
+            output=self.output,
             target_col=self.target_col,
             elapsed_time=0,
         )
@@ -220,12 +307,12 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
             }
         )
 
-        prophet = ProphetOperatorModel(self.config)
-
+        prophet = ProphetOperatorModel(self.config, self.datasets)
+        prophet.forecast_output = self.output
         total_metrics, summary_metrics, data = prophet._test_evaluate_metrics(
             target_columns=self.target_columns,
             test_filename=self.test_filename,
-            outputs=self.outputs,
+            output=self.output,
             target_col=self.target_col,
             elapsed_time=0,
         )
@@ -236,14 +323,18 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
         # Missing series should not be there in evaluation metrics
         self.assertEquals(total_metrics.columns.to_list(), ["Sales_Product Group 107"])
 
-        # Since one entire series is not there, summary metrics per horizon should not calculated
-        self.assertEquals(summary_metrics.index.to_list(), ["All Targets"])
+        # one entire series is not there, summary metrics per horizon will be calculated and all horizons should be there
+        self.assertEqual(
+            [
+                timestamp.strftime("%Y-%m-%d")
+                for timestamp in summary_metrics.index.values[1:]
+            ],
+            ["2020-11-14", "2020-11-28"],
+        )
 
         # All metrics should be present
         self.assertEquals(total_metrics.index.to_list(), self.evaluation_metrics)
-        self.assertEquals(
-            summary_metrics.columns.to_list(), self.summary_metrics_all_targets
-        )
+        self.assertEquals(summary_metrics.columns.to_list(), self.summary_metrics)
 
     @patch("ads.opctl.operator.lowcode.forecast.utils._load_data")
     def test_missing_rows_testdata_file(self, mock__load_data):
@@ -275,12 +366,12 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
             }
         )
 
-        prophet = ProphetOperatorModel(self.config)
-
+        prophet = ProphetOperatorModel(self.config, self.datasets)
+        prophet.forecast_output = self.output
         total_metrics, summary_metrics, data = prophet._test_evaluate_metrics(
             target_columns=self.target_columns,
             test_filename=self.test_filename,
-            outputs=self.outputs,
+            output=self.output,
             target_col=self.target_col,
             elapsed_time=0,
         )
@@ -305,13 +396,10 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
 
     @patch("datapane.save_report")
     @patch("ads.opctl.operator.lowcode.forecast.utils.get_forecast_plots")
-    @patch("ads.opctl.operator.lowcode.forecast.utils.evaluate_metrics")
+    @patch("ads.opctl.operator.lowcode.forecast.utils.evaluate_train_metrics")
     @patch("ads.opctl.operator.lowcode.forecast.utils._write_data")
     @patch(
         "ads.opctl.operator.lowcode.forecast.model.base_model.ForecastOperatorBaseModel._test_evaluate_metrics"
-    )
-    @patch(
-        "ads.opctl.operator.lowcode.forecast.model.base_model.ForecastOperatorBaseModel._load_data"
     )
     @patch(
         "ads.opctl.operator.lowcode.forecast.model.prophet.ProphetOperatorModel._build_model"
@@ -327,10 +415,9 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
         mock_open,
         mock__generate_report,
         mock__build_model,
-        mock__load_data,
         mock__test_evaluate_metrics,
         mock__write_data,
-        mock_evaluate_metrics,
+        mock_evaluate_train_metrics,
         mock_get_forecast_plots,
         mock_save_report,
     ):
@@ -338,32 +425,29 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
         mock__generate_report.return_value = (
             dp.Text("Description"),
             [dp.Text("Other Sections")],
-            pd.to_datetime(self.data["last_day_of_week"]),
-            None,
-            None,
         )
-        mock__load_data.return_value = None
         mock__build_model.return_value = pd.DataFrame()
-        mock_evaluate_metrics.return_value = self.eval_metrics
+        mock_evaluate_train_metrics.return_value = self.eval_metrics
         mock_get_forecast_plots = dp.Text("Random Text")
 
         self.config.spec.generate_metrics = True
         self.config.spec.generate_report = False
 
-        prophet = ProphetOperatorModel(self.config)
+        prophet = ProphetOperatorModel(self.config, self.datasets)
         prophet.target_columns = self.target_columns
         prophet.full_data_dict = self.full_data_dict
+        prophet.forecast_output = self.output
 
         prophet.generate_report()
 
         # Metrics are generated, Report is not generated
         mock__test_evaluate_metrics.assert_called_once()
-        mock_evaluate_metrics.assert_called_once()
+        mock_evaluate_train_metrics.assert_called_once()
         self.assertTrue(mock_save_report.call_count == 0)
         self.assertTrue(mock__write_data.call_count == 3)
 
         mock__test_evaluate_metrics.reset_mock()
-        mock_evaluate_metrics.reset_mock()
+        mock_evaluate_train_metrics.reset_mock()
         mock__write_data.reset_mock()
         mock_save_report.reset_mock()
 
@@ -373,7 +457,7 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
 
         # Metrics are generated to be included in report but not saved, Report is generated
         mock__test_evaluate_metrics.assert_called_once()
-        mock_evaluate_metrics.assert_called_once()
+        mock_evaluate_train_metrics.assert_called_once()
         self.assertTrue(mock_save_report.call_count == 1)
         self.assertTrue(mock__write_data.call_count == 1)
 
@@ -383,8 +467,8 @@ class TestForecastOperatorBaseModel(unittest.TestCase):
     def test_boolean_disable_explanations(self, mock_explain_model):
         self.config.spec.generate_explanations = False
 
-        automlx = AutoMLXOperatorModel(self.config)
-        automlx.outputs = self.outputs
+        automlx = AutoMLXOperatorModel(self.config, self.datasets)
+        automlx.output = self.output
         automlx.full_data_dict = {}
         automlx.data = self.data
         automlx.local_explanation = {"dummy": pd.DataFrame({"pt1": [1, 2, 3]})}
