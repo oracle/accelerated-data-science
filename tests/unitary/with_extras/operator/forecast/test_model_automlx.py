@@ -9,6 +9,7 @@ from unittest.mock import patch, Mock
 import pandas as pd
 import datapane as dp
 from ads.opctl.operator.lowcode.forecast.model.automlx import AutoMLXOperatorModel
+from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import ForecastDatasets
 
 from ads.opctl.operator.lowcode.forecast.operator_config import (
     ForecastOperatorConfig,
@@ -137,9 +138,9 @@ class TestAutoMLXOperatorModel(unittest.TestCase):
             if filename == "primary.csv"
             else self.additional_data
         )
-        automlx = AutoMLXOperatorModel(self.config)
+        datasets = ForecastDatasets(self.config)
+        automlx = AutoMLXOperatorModel(self.config, datasets)
 
-        automlx._load_data()
         outputs = automlx._build_model()
         self.assertFalse(outputs.empty)
 
