@@ -26,7 +26,7 @@ def main(pack_folder_path, manifest_file=None):
     )
     with open(manifest_path) as f:
         env = yaml.safe_load(f.read())
-
+    
     with tempfile.TemporaryDirectory() as td:
         process = subprocess.Popen(
             ["conda", "env", "export", "--prefix", pack_folder_path],
@@ -34,7 +34,8 @@ def main(pack_folder_path, manifest_file=None):
             stderr=subprocess.PIPE,
         )
         stdout, stderr = process.communicate()
-        if stderr:
+        
+        if process.returncode and stderr:
             print(stderr)
             raise Exception(
                 f"Error export environment information from {pack_folder_path}"
