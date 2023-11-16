@@ -65,7 +65,6 @@ class ConfigMerger(ConfigProcessor):
 
         self._config_flex_shape_details()
 
-        logger.debug(f"Config: {self.config}")
         return self
 
     def _merge_config_with_cmd_args(self, cmd_args: Dict) -> None:
@@ -125,7 +124,7 @@ class ConfigMerger(ConfigProcessor):
                     exec_config.get("auth") or AuthType.API_KEY
                 )
         # determine profile
-        if self.config["execution"]["auth"] == AuthType.RESOURCE_PRINCIPAL:
+        if self.config["execution"]["auth"] != AuthType.API_KEY:
             profile = self.config["execution"]["auth"].upper()
             exec_config.pop("oci_profile", None)
             self.config["execution"]["oci_profile"] = None
@@ -135,7 +134,6 @@ class ConfigMerger(ConfigProcessor):
             )
             self.config["execution"]["oci_profile"] = profile
         # loading config for corresponding profile
-        logger.debug(f"Loading service config for profile {profile}.")
         infra_config = self._get_service_config(profile, ads_config_path)
         if infra_config.get(
             "conda_pack_os_prefix"
@@ -182,7 +180,7 @@ class ConfigMerger(ConfigProcessor):
                 "conda_pack_os_prefix": parser["CONDA"].get("conda_pack_os_prefix"),
             }
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, 'config.ini')} does not exist. No config loaded."
             )
             return {}
@@ -205,7 +203,7 @@ class ConfigMerger(ConfigProcessor):
             if DEFAULT_PROFILE in parser:
                 return parser[DEFAULT_PROFILE]
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, config_file)} does not exist. No config loaded."
             )
         return {}

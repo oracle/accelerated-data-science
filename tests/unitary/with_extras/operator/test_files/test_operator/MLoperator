@@ -1,0 +1,13 @@
+type: example
+version: v1
+name: Example Operator
+conda_type: published
+conda: example_v1
+gpu: no
+keywords:
+  - Example Operator
+backends:
+  - job
+  - dataflow
+description: |
+  Description for the operator

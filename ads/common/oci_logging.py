@@ -533,7 +533,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         time_end: datetime.datetime = None,
         limit: int = LOG_RECORDS_LIMIT,
         sort_by: str = "datetime",
-        sort_order: str = SortOrder.DESC,
+        sort_order: str = SortOrder.ASC,
         log_filter: str = None,
     ):
         """Returns the formatted log records.
@@ -550,7 +550,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             Maximum number of records to be returned.
         sort_by: (str, optional). Defaults to "datetime"
             The field for sorting the logs.
-        sort_order: (str, optional). Defaults to "DESC".
+        sort_order: (str, optional). Defaults to "ASC".
             The sort order for the log records. Can be "ASC" or "DESC".
         log_filter : (str, optional). Defaults to None.
             Expression for filtering the logs.
@@ -574,8 +574,8 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
             sort_order=sort_order,
             log_filter=log_filter,
         )
-        logs = sorted((log.data for log in logs), key=lambda x: x.get("datetime"))
-        logs = [log.get("logContent", {}) for log in logs]
+
+        logs = [log.data.get("logContent", {}) for log in logs]
         return [
             {
                 "id": log.get("id"),
@@ -617,7 +617,7 @@ class OCILog(OCILoggingModelMixin, oci.logging.models.Log):
         return self._search_and_format(
             source=source,
             limit=limit,
-            sort_order=SortOrder.DESC,
+            sort_order=SortOrder.ASC,
             time_start=time_start,
             log_filter=log_filter,
         )
@@ -808,7 +808,7 @@ class ConsolidatedLog:
                 logs = self._search_and_format(
                     source=source,
                     limit=None,
-                    sort_order=SortOrder.DESC,
+                    sort_order=SortOrder.ASC,
                     time_start=time_start,
                     log_filter=log_filter,
                 )
@@ -858,7 +858,7 @@ class ConsolidatedLog:
             self._search_and_format(
                 source=source,
                 limit=limit,
-                sort_order=SortOrder.DESC,
+                sort_order=SortOrder.ASC,
                 time_start=time_start,
                 log_filter=log_filter,
             )
@@ -927,7 +927,7 @@ class ConsolidatedLog:
         time_end: datetime.datetime = None,
         limit: int = None,
         sort_by: str = "datetime",
-        sort_order: str = SortOrder.DESC,
+        sort_order: str = SortOrder.ASC,
         log_filter: str = None,
     ) -> List[oci.loggingsearch.models.SearchResult]:
         """Searches raw logs.
@@ -951,7 +951,7 @@ class ConsolidatedLog:
             Defaults to "datetime"
         sort_order : str, optional.
             The sort order for the log records. Can be "ASC" or "DESC".
-            Defaults to "DESC".
+            Defaults to "ASC".
         log_filter : str, optional
             Expression for filtering the logs. This will be the WHERE clause of the query.
             Defaults to None.
@@ -979,7 +979,7 @@ class ConsolidatedLog:
         time_end: datetime.datetime = None,
         limit: int = LOG_RECORDS_LIMIT,
         sort_by: str = "datetime",
-        sort_order: str = SortOrder.DESC,
+        sort_order: str = SortOrder.ASC,
         log_filter: str = None,
         need_format: bool = True,
     ) -> List[Union[oci.loggingsearch.models.SearchResult, dict]]:
@@ -1005,7 +1005,7 @@ class ConsolidatedLog:
             Defaults to "datetime"
         sort_order : str, optional.
             The sort order for the log records. Can be "ASC" or "DESC".
-            Defaults to "DESC".
+            Defaults to "ASC".
         log_filter : str, optional
             Expression for filtering the logs. This will be the WHERE clause of the query.
             Defaults to None.
@@ -1039,12 +1039,6 @@ class ConsolidatedLog:
                 )
             )
 
-        # _collect_logs returns a list of either dict or oci.loggingsearch.models.SearchResult
-        # objects based on `need_format` parameter, so below there are two cases for log sorting.
-        if need_format:
-            batch_logs.sort(key=lambda x: x.get("datetime"))
-        else:
-            batch_logs.sort(key=lambda x: x.data.get("datetime"))
         if limit and len(batch_logs) > limit:
             batch_logs = batch_logs[:limit]
         return batch_logs
@@ -1057,7 +1051,7 @@ class ConsolidatedLog:
         time_end: datetime.datetime = None,
         limit: int = LOG_RECORDS_LIMIT,
         sort_by: str = "datetime",
-        sort_order: str = SortOrder.DESC,
+        sort_order: str = SortOrder.ASC,
         log_filter: str = None,
         need_format: bool = True,
     ) -> List[Union[oci.loggingsearch.models.SearchResult, dict]]:
@@ -1085,7 +1079,7 @@ class ConsolidatedLog:
             Defaults to "datetime"
         sort_order : str, optional.
             The sort order for the log records. Can be "ASC" or "DESC".
-            Defaults to "DESC".
+            Defaults to "ASC".
         log_filter : str, optional
             Expression for filtering the logs. This will be the WHERE clause of the query.
             Defaults to None.

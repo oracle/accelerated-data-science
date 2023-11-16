@@ -37,7 +37,7 @@ def init(**kwargs: Dict) -> str:
     model_type = click.prompt(
         "Provide a model type:",
         type=click.Choice(SupportedModels.values()),
-        default=SupportedModels.Prophet,
+        default=SupportedModels.Auto,
     )
 
     return YamlGenerator(

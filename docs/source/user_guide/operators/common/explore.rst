@@ -113,20 +113,41 @@ Now let's explore the ``init`` command.
 .. figure:: figures/operator_init.png
    :align: center
 
-To create starter configuration files, execute the following command.
+To set up your initial configuration files, execute the following command in your terminal:
 
 .. code-block:: bash
 
    ads operator init --type <operator-type> --overwrite --output ~/<operator-type>
 
+By default, this command will generate separate configuration files for the operator and supported backends. This separation allows you to maintain a single configuration for the operator while having multiple configurations for different backend environments. This design enables running the same operator in various environments without altering the operator's configuration.
+
+The following flags are available for customization:
+
+- ``--overwrite``: This flag is used to overwrite existing files in the ``~/<operator-type>/config`` folder.
+
+- ``--output``: Use this flag to specify the output folder where the configuration files will be generated.
+
+- ``--type``: This flag is mandatory and is used to specify the operator type.
+
+Upon executing the command, a list of configuration files will be created in the ``~/<operator-type>`` folder.
+
+If you need to merge the operator's configuration file with the backend configuration files into a single configuration file, use the following command:
+
+.. code-block:: bash
+
+   ads operator init --type <operator-type> --overwrite --output ~/<operator-type> --merge-config
+
+This command will combine the operator and backend configurations into one cohesive file, simplifying running the operator with one configuration file.
+
+
 **The essential files generated include:**
 
-- **<operator-type>.yaml**: Contains configuration related to particular operator.
-- **backend_operator_local_python_config.yaml**: This file includes local backend configuration for running operator in a local environment. You must manually set up the environment before executing the operator.
-- **backend_operator_local_container_config.yaml**: This file contains local backend configuration for running operator within a local container. You should build the container before running the operator, following the instructions below.
-- **backend_job_container_config.yaml**: Contains Data Science job-related configuration for running operator in a container (BYOC) runtime. The container must be built and published before executing the operator, as detailed below. For comprehensive details about the supported configuration options, including the schema and available settings, please refer to the :doc:`OCI Data Science Jobs<../../jobs/yaml_schema>` documentation.
-- **backend_job_python_config.yaml**: Contains Data Science job-related configuration to run operator in a Data Science job within a conda runtime. The conda environment should be built and published before running the operator. For comprehensive details about the supported configuration options, including the schema and available settings, please refer to the :doc:`OCI Data Science Jobs YAML Schema<../../jobs/yaml_schema>` documentation.
-- **backend_dataflow_dataflow_config.yaml**: Contains Data Flow application-related configuration to run operator in a Data Flow application. The conda environment should be built and published before running the operator. For comprehensive details about the supported configuration options, including the schema and available settings, please refer to the :doc:`Data Flow Application YAML Schema<../../apachespark/datafloe>` documentation.
+- **<operator-type>.yaml**: Contains configuration related to particular operator. Will only be generated if ``--merge-config`` flag is not used.
+- **<operator-type>_operator_local_python.yaml**: This file includes local backend configuration for running operator in a local environment. You must manually set up the environment before executing the operator.
+- **<operator-type>_local_container.yaml**: This file contains local backend configuration for running operator within a local container. You should build the container before running the operator, following the instructions below.
+- **<operator-type>_job_container.yaml**: Contains Data Science job-related configuration for running operator in a container (BYOC) runtime. The container must be built and published before executing the operator, as detailed below. For comprehensive details about the supported configuration options, including the schema and available settings, please refer to the :doc:`OCI Data Science Jobs<../../jobs/yaml_schema>` documentation.
+- **<operator-type>_job_python.yaml**: Contains Data Science job-related configuration to run operator in a Data Science job within a conda runtime. The conda environment should be built and published before running the operator. For comprehensive details about the supported configuration options, including the schema and available settings, please refer to the :doc:`OCI Data Science Jobs YAML Schema<../../jobs/yaml_schema>` documentation.
+- **b<operator-type>_dataflow_dataflow.yaml**: Contains Data Flow application-related configuration to run operator in a Data Flow application. The conda environment should be built and published before running the operator. For comprehensive details about the supported configuration options, including the schema and available settings, please refer to the :doc:`Data Flow Application YAML Schema<../../apachespark/datafloe>` documentation.
 
 These generated configurations are designed to be ready for use without additional adjustments. However, they are provided as starter kit configurations that can be customized as needed.
 
@@ -157,7 +178,7 @@ Verification helps you catch any errors or inconsistencies in the operator's con
 
 .. code-block:: bash
 
-   ads operator verify -f ~/<operator-type>/config/<operator-type>.yaml
+   ads operator verify -f ~/<operator-type>/<operator-config>.yaml
 
 .. figure:: figures/operator_config_verify_result.png
    :align: center
@@ -197,7 +218,7 @@ After successfully building the operator's image, the next step is to publish it
 .. figure:: figures/publish_operator_image.png
    :align: center
 
-The only mandatory parameter for this command is the image name that you wish to publish.
+The only mandatory parameter for this command is the operator type that you wish to publish.
 
 .. code-block:: bash
 
