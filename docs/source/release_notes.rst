@@ -2,6 +2,15 @@
 Release Notes
 =============
 
+2.9.0
+-----
+Release date: November 16, 2023
+
+* Introducing AI Forecast Operator. Learn more about Operators in the "Operators" section of the :doc:`docs <./user_guide/operators/index>`.
+* Fixed a bug with the ``opctl conda create`` and ``opctl conda publish`` commands to ensure functionality on M1 and M2 local machines.
+* Fixed a bug with failed model deployment return value.
+* Fixed a bug when sorting logs for jobs and model deployment.
+
 2.8.11
 ------
 Release date: October 18, 2023
