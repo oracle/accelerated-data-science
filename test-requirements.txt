@@ -7,5 +7,5 @@ pip
 pytest
 pytest-codecov
 pytest-xdist
-darts
-docker
+# darts
+# docker
