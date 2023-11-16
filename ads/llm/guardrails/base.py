@@ -8,7 +8,7 @@
 import datetime
 import functools
 import operator
-from typing import Any, List
+from typing import Any, List, Dict, Tuple
 from langchain.schema.prompt import PromptValue
 from langchain.tools.base import BaseTool, ToolException
 from langchain.pydantic_v1 import BaseModel, root_validator
@@ -217,6 +217,12 @@ class Guardrail(BaseTool):
             return input.to_string()
         return str(input)
 
+    def _to_args_and_kwargs(self, tool_input: Any) -> Tuple[Tuple, Dict]:
+        if isinstance(tool_input, dict):
+            return (), tool_input
+        else:
+            return (tool_input,), {}
+
     def _run(self, query: Any, run_manager=None) -> Any:
         """Runs the guardrail.
 
@@ -247,7 +253,11 @@ class Guardrail(BaseTool):
             # containing the ``kwargs`` used to initialize the object.
             # The ``kwargs`` does not contain the defaults.
             # Here the ``dict()`` method is used to return a dictionary containing the defaults.
-            info.parameters = self.dict()
+            info.parameters = {
+                "class": self.__class__.__name__,
+                "path": self.__module__,
+                "spec": self.dict(),
+            }
             info.metrics = self.compute(data, **kwargs)
             info.output = self.moderate(info.metrics, data, **kwargs)
 
