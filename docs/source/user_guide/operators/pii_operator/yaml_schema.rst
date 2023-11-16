@@ -1,3 +1,5 @@
+.. _pii-yaml-schema:
+
 ===========
 YAML Schema
 ===========
