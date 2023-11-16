@@ -36,11 +36,12 @@ To run pii operator locally, create and activate a new conda environment (`ads-p
 - datapane
 - gender_guesser
 - nameparser
+- oracle_ads[opctl]
 - plotly
-- spacy_transformers
 - scrubadub
 - scrubadub_spacy
-- oracle_ads[opctl]
+- spacy-transformers==1.2.5
+- spacy==3.6.1
 ```
 
 Please review the previously generated `pii.yaml` file using the `init` command, and make any necessary adjustments to the input and output file locations. By default, it assumes that the files should be located in the same folder from which the `init` command was executed.

@@ -9,8 +9,9 @@ dependencies:
       - datapane
       - gender_guesser
       - nameparser
+      - oracle_ads[opctl]
       - plotly
-      - spacy_transformers
       - scrubadub
       - scrubadub_spacy
-      - oracle_ads[opctl]
+      - spacy-transformers==1.2.5
+      - spacy==3.6.1

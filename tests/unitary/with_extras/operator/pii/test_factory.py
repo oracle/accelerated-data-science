@@ -25,8 +25,11 @@ class TestPiiDetectorFactory:
     @pytest.mark.parametrize(
         "detector_type, entity, model",
         [
-            ("spacy", "person", "en_core_web_trf"),
-            ("spacy", "other", "en_core_web_trf"),
+            ("spacy", "person", "en_core_web_sm"),
+            ("spacy", "other", "en_core_web_sm"),
+            # ("spacy", "org", "en_core_web_trf"),
+            # ("spacy", "loc", "en_core_web_md"),
+            # ("spacy", "date", "en_core_web_lg"),
         ],
     )
     def test_get_spacy_detector(self, detector_type, entity, model):

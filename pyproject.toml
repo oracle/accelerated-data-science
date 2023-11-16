@@ -123,8 +123,8 @@ opctl = [
   "nbconvert",
   "nbformat",
   "oci-cli",
-  "rich",
   "py-cpuinfo",
+  "rich",
 ]
 optuna = [
   "optuna==2.9.0",
@@ -154,20 +154,20 @@ viz = [
   "seaborn>=0.11.0",
 ]
 forecast = [
+  "autots[additional]",
   "datapane",
-  "prophet",
-  "pmdarima",
-  "statsmodels",
-  "sktime",
-  "optuna==2.9.0",
-  "oci-cli",
-  "shap",
-  "numpy",
   "holidays==0.21.13",
+  "neuralprophet",
+  "numpy",
+  "oci-cli",
+  "optuna==2.9.0",
   "oracle-ads[opctl]",
   "oracle-automlx==23.2.3",
-  "autots[additional]",
-  "neuralprophet",
+  "pmdarima",
+  "prophet",
+  "shap",
+  "sktime",
+  "statsmodels",
 ]
 pii = [
   "aiohttp",
@@ -176,9 +176,10 @@ pii = [
   "nameparser",
   "oracle_ads[opctl]",
   "plotly",
-  "spacy_transformers",
-  "scrubadub",
+  "scrubadub==2.0.1",
   "scrubadub_spacy",
+  "spacy-transformers==1.2.5",
+  "spacy==3.6.1",
 ]
 
 [project.urls]
