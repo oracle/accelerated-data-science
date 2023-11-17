@@ -15,7 +15,7 @@ Release Notes
         - Latest Version
         - Notes
       * - Conda pack
-        - `fs_pyspark32_p38_cpu_v2`
+        - `fspyspark32_p38_cpu_v2`
         -
       * - SERVICE_VERSION
         - 0.1.295.master
@@ -52,7 +52,7 @@ Release notes: November 15, 2023
         - Latest Version
         - Notes
       * - Conda pack
-        - `fs_pyspark32_p38_cpu_v1`
+        - `fspyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.256.master
@@ -92,7 +92,7 @@ Release notes: September 22, 2023
         - Latest Version
         - Notes
       * - Conda pack
-        - `fs_pyspark32_p38_cpu_v1`
+        - `fspyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.225.master
@@ -122,7 +122,7 @@ Release notes: July 18, 2023
         - Latest Version
         - Notes
       * - Conda pack
-        - `fs_pyspark32_p38_cpu_v1`
+        - `fspyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.218.master
@@ -153,7 +153,7 @@ Release notes: July 5, 2023
         - Latest Version
         - Notes
       * - Conda pack
-        - `fs_pyspark32_p38_cpu_v1`
+        - `fspyspark32_p38_cpu_v1`
         -
       * - SERVICE_VERSION
         - 0.1.209.master
