@@ -15,16 +15,15 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-
-from .operator import operate, verify
+from .model.anomaly_dataset import AnomalyDatasets
 from .operator_config import AnomalyOperatorConfig
 
 
 def operate(operator_config: AnomalyOperatorConfig) -> None:
     """Runs the anomaly detection operator."""
     from .model.factory import AnomalyOperatorModelFactory
-
-    AnomalyOperatorModelFactory.get_model(operator_config).generate_report()
+    datasets = AnomalyDatasets(operator_config)
+    AnomalyOperatorModelFactory.get_model(operator_config, datasets).generate_report()
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:

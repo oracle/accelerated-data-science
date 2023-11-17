@@ -7,7 +7,7 @@
 import os
 import pandas as pd
 import fsspec
-
+from .operator_config import AnomalyOperatorSpec
 
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":
@@ -39,3 +39,26 @@ def _write_data(data, filename, format, storage_options, index=False, **kwargs):
             write_fn, filename, index=index, storage_options=storage_options
         )
     raise ValueError(f"Unrecognized format: {format}")
+
+
+def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: AnomalyOperatorSpec):
+    """
+    Function finds the inferred freq from date time column
+
+    Parameters
+    ------------
+    data:  pd.DataFrame
+            primary dataset
+    dataset_info:  AnomalyOperatorSpec
+
+    Returns
+    --------
+    None
+
+    """
+    date_column = dataset_info.datetime_column.name
+    datetimes = pd.to_datetime(
+        data[date_column].drop_duplicates(), format=dataset_info.datetime_column.format
+    )
+    freq = pd.DatetimeIndex(datetimes).inferred_freq
+    return freq

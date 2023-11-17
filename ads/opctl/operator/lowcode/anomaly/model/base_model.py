@@ -18,12 +18,12 @@ from ads.opctl import logger
 
 from .. import utils
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
-
+from .anomaly_dataset import AnomalyDatasets
 
 class AnomalyOperatorBaseModel(ABC):
     """The base class for the anomaly detection operator models."""
 
-    def __init__(self, config: AnomalyOperatorConfig):
+    def __init__(self, config: AnomalyOperatorConfig, datasets: AnomalyDatasets):
         """Instantiates the AnomalyOperatorBaseModel instance.
 
         Properties
@@ -34,6 +34,7 @@ class AnomalyOperatorBaseModel(ABC):
 
         self.config: AnomalyOperatorConfig = config
         self.spec: AnomalyOperatorSpec = config.spec
+        self.datasets = datasets
 
     def generate_report(self):
         """Generates the report."""
