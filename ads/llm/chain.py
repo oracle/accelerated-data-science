@@ -330,7 +330,7 @@ class ADSChainDeployment(GenericModel):
 
     def prepare(self, **kwargs) -> GenericModel:
         chain_yaml_uri = os.path.join(self.artifact_dir, "chain.yaml")
-        self.chain.save(chain_yaml_uri, kwargs.pop("overwrite", False))
+        self.chain.save(chain_yaml_uri)
 
         if "score_py_uri" not in kwargs:
             score_py_uri = os.path.join(tempfile.mkdtemp(), "score.py")
