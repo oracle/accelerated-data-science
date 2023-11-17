@@ -14,7 +14,6 @@ import pytest
 
 from ads.feature_store.dataset_job import (
     DatasetJob,
-    IngestionMode,
     JobConfigurationType,
 )
 from ads.feature_store.service.oci_dataset_job import OCIDatasetJob
@@ -85,7 +84,7 @@ class TestDatasetJob:
         dsc_dataset_job = (
             DatasetJob()
             .with_compartment_id(self.payload["compartmentId"])
-            .with_ingestion_mode(IngestionMode.OVERWRITE)
+            .with_ingestion_mode(BatchIngestionMode.OVERWRITE)
             .with_dataset_id(self.payload["datasetId"])
             .with_job_configuration_details(JobConfigurationType.SPARK_BATCH_AUTOMATIC)
         )
