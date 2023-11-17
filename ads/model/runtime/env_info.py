@@ -226,9 +226,9 @@ class TrainingEnvInfo(EnvInfo, DataClassSerializable):
             training_python_version=python_version,
         )
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
-        """Validate the content in the ditionary format from the yaml file.
+    @classmethod
+    def _validate_dict(cls,obj_dict: Dict) -> bool:
+        """Validate the content in the dictionary format from the yaml file.
 
         Parameters
         ----------
@@ -283,9 +283,9 @@ class InferenceEnvInfo(EnvInfo, DataClassSerializable):
             inference_python_version=python_version,
         )
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
-        """Validate the content in the ditionary format from the yaml file.
+    @classmethod
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
+        """Validate the content in the dictionary format from the yaml file.
 
         Parameters
         ----------

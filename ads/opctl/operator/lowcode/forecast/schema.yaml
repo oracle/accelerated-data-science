@@ -1,0 +1,313 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+
+type:
+  required: true
+  type: string
+  default: forecast
+  meta:
+    description: "Type should always be `forecast` when using a forecast operator"
+
+spec:
+  required: true
+  schema:
+    historical_data:
+      required: true
+      type: dict
+      meta:
+        description: "This should be indexed by date and target category (optionally). It should include all targets and endogeneous data."
+      schema:
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - hdf
+            - feather
+            - load_files
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        url:
+          required: true
+          type: string
+          default: data.csv
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+
+    additional_data:
+      required: false
+      type: dict
+      meta:
+        description: "Additional datasets must be indexed by the same targets and target categories as the historical data. Also is must have datapoints for each date/category for your horizon. This must be exogeneous data."
+      schema:
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - hdf
+            - feather
+            - load_files
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+
+    test_data:
+      required: false
+      meta:
+        description: "Optional, only if evaluation is needed."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          required: false
+          type: string
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - hdf
+            - sql
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        url:
+          required: true
+          type: string
+          default: test.csv
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        name:
+          required: false
+          type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+      type: dict
+
+    output_directory:
+      required: false
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          required: false
+          type: string
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - hdf
+            - sql
+        url:
+          required: true
+          type: string
+          default: result/
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/`"
+        name:
+          required: false
+          type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+      type: dict
+
+    report_filename:
+      required: false
+      type: string
+      default: report.html
+      meta:
+        description: "Placed into output_directory location. Defaults to report.html"
+    report_title:
+      required: false
+      type: string
+    report_theme:
+      required: false
+      type: string
+      default: light
+      allowed:
+        - light
+        - dark
+    metrics_filename:
+      required: false
+      type: string
+      default: metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to metrics.csv"
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+    forecast_filename:
+      required: false
+      type: string
+      default: forecast.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to forecast.csv"
+    global_explanation_filename:
+      required: false
+      type: string
+      default: global_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to global_explanations.csv"
+    local_explanation_filename:
+      required: false
+      type: string
+      default: local_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to local_explanations.csv"
+
+    target_column:
+      type: string
+      required: true
+      default: target
+
+    preprocessing:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+
+    generate_explanations:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
+
+    generate_report:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Report file generation can be enabled using this flag. Defaults to true."
+
+    generate_metrics:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Metrics files generation can be enabled using this flag. Defaults to true."
+
+    datetime_column:
+      type: dict
+      required: true
+      schema:
+        name:
+          type: string
+          required: true
+          default: Date
+        format:
+          type: string
+          required: false
+
+    target_category_columns:
+      type: list
+      required: true
+      schema:
+        type: string
+      default: ["Column1"]
+
+    horizon:
+      required: true
+      type: integer
+
+    model:
+      type: string
+      required: false
+      default: auto
+      allowed:
+        - prophet
+        - arima
+        - neuralprophet
+        - automlx
+        - autots
+        - auto
+
+    model_kwargs:
+      type: dict
+      required: false
+
+    confidence_interval_width:
+      type: float
+      required: false
+      default: 0.80
+
+    tuning:
+      type: dict
+      required: false
+      schema:
+        n_trials:
+          type: integer
+          required: false
+          default: 10
+
+    metric:
+      type: string
+      required: false
+      default: MAPE
+      allowed:
+        - MAPE
+        - RMSE
+        - MSE
+        - SMAPE
+  type: dict
