@@ -38,6 +38,7 @@ key_file = ~/.oci/oci_api_key.pem
             prompt.side_effect = (
                 [
                     os.path.join(td, "ads_ops"),
+                    "api_key",
                     os.path.join(td, "oci_config"),
                     "DEFAULT",
                     ".",
@@ -109,6 +110,7 @@ key_file = ~/.oci/oci_api_key.pem
                 prompt.side_effect = (
                     [
                         os.path.join(td, "ads_ops"),
+                        "api_key",
                         os.path.join(td, "oci_config"),
                         "DEFAULT",
                         ".",

@@ -233,10 +233,9 @@ class ModelDeploymentInfrastructure(Builder):
                 )
                 logger.debug(traceback.format_exc())
 
-            nb_config = (
-                getattr(nb_session, "notebook_session_config_details", None)
-                or getattr(nb_session, "notebook_session_configuration_details", None)
-            )
+            nb_config = getattr(
+                nb_session, "notebook_session_config_details", None
+            ) or getattr(nb_session, "notebook_session_configuration_details", None)
             if nb_config:
                 defaults[self.CONST_SHAPE_NAME] = nb_config.shape
 
@@ -616,7 +615,7 @@ class ModelDeploymentInfrastructure(Builder):
         """
         return self.get_spec(self.CONST_SUBNET_ID, None)
 
-    def init(self) -> "ModelDeploymentInfrastructure":
+    def init(self, **kwargs) -> "ModelDeploymentInfrastructure":
         """Initializes a starter specification for the ModelDeploymentInfrastructure.
 
         Returns
@@ -634,6 +633,8 @@ class ModelDeploymentInfrastructure(Builder):
             .with_shape_name(self.shape_name or DEFAULT_SHAPE_NAME)
             .with_shape_config_details(
                 ocpus=self.shape_config_details.get(self.CONST_OCPUS, DEFAULT_OCPUS),
-                memory_in_gbs=self.shape_config_details.get(self.CONST_MEMORY_IN_GBS, DEFAULT_MEMORY_IN_GBS)
+                memory_in_gbs=self.shape_config_details.get(
+                    self.CONST_MEMORY_IN_GBS, DEFAULT_MEMORY_IN_GBS
+                ),
             )
         )

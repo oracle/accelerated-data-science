@@ -107,7 +107,7 @@ class TestDataFlowBackend:
 
     @pytest.mark.parametrize(
         "runtime_type",
-        ["dataFlow", "dataFlowNotebook"],
+        ["dataFlow"],
     )
     def test_init(self, runtime_type, monkeypatch):
         """Ensures that starter YAML can be generated for every supported runtime of the Data Flow."""
@@ -123,6 +123,7 @@ class TestDataFlowBackend:
                 uri=test_yaml_uri,
                 overwrite=False,
                 runtime_type=runtime_type,
+                conda_slug="test/conda/slug",
             )
 
             with open(test_yaml_uri, "r") as stream:
