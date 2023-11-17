@@ -16,7 +16,6 @@ import fsspec
 import yaml
 from jinja2 import Environment, PackageLoader
 
-from langchain.chains import load_chain as llm_load_chain
 from ads.model.artifact import ADS_VERSION, SCORE_VERSION
 from ads.model.generic_model import GenericModel
 from ads.llm.serialize import dump, load
