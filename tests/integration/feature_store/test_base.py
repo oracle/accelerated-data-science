@@ -23,7 +23,7 @@ from ads.feature_store.statistics_config import StatisticsConfig
 
 client_kwargs = dict(
     retry_strategy=oci.retry.NoneRetryStrategy(),
-    fs_service_endpoint=os.getenv("service_endpoint"),
+    fs_service_endpoint="https://fnk6p6iswuttzxwffxq6uwpj2u.apigateway.us-ashburn-1.oci.customer-oci.com/20230101",
 )
 ads.set_auth(client_kwargs=client_kwargs)
 
@@ -59,7 +59,7 @@ class FeatureStoreTestCase:
     )
     TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
     COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
+    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxya2ipeqjr2m7npnn3kboq4s27erl3ts56wggl6ls6gpn3q"
     INPUT_FEATURE_DETAILS = [
         FeatureDetail("flower")
         .with_feature_type(FeatureType.STRING)
