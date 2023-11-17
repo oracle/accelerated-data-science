@@ -47,7 +47,7 @@ DATAFLOW_SHAPE_FAMILY = [
     "Standard.E4",
     "Standard3",
     "Standard.A1",
-    "Standard2"
+    "Standard2",
 ]
 
 
@@ -935,7 +935,7 @@ class DataFlow(Infrastructure):
         self.df_app = DataFlowApp(**payload).create()
         self.with_id(self.df_app.id)
         return self
-    
+
     @staticmethod
     def _validate_shapes(payload: Dict):
         if "executor_shape" not in payload:
@@ -955,9 +955,8 @@ class DataFlow(Infrastructure):
             raise ValueError(
                 "`executor_shape` and `driver_shape` must be from the same shape family."
             )
-        if (
-            (not executor_shape.endswith("Flex") and executor_shape_config) 
-            or (not driver_shape.endswith("Flex") and driver_shape_config)
+        if (not executor_shape.endswith("Flex") and executor_shape_config) or (
+            not driver_shape.endswith("Flex") and driver_shape_config
         ):
             raise ValueError(
                 "Shape config is not required for non flex shape from user end."
@@ -1234,7 +1233,7 @@ class DataFlow(Infrastructure):
         """
         return yaml.safe_dump(self.to_dict(**kwargs))
 
-    def init(self) -> "DataFlow":
+    def init(self, **kwargs) -> "DataFlow":
         """Initializes a starter specification for the DataFlow.
 
         Returns

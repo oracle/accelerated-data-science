@@ -2,6 +2,16 @@
 Release Notes
 =============
 
+2.9.0
+-----
+Release date: November 16, 2023
+
+* Introducing AI Forecast Operator. Learn more about Operators in the "Operators" section of the :doc:`docs <./user_guide/operators/index>`.
+* Introducing PII Operator which aims to detect and redact Personal Identifiable Information in data.
+* Fixed a bug with the ``opctl conda create`` and ``opctl conda publish`` commands to ensure functionality on M1 and M2 local machines.
+* Fixed a bug with failed model deployment return value.
+* Fixed a bug when sorting logs for jobs and model deployment.
+
 2.8.11
 ------
 Release date: October 18, 2023
@@ -138,7 +148,7 @@ Release date: January 25, 2023
 
 2.7.3
 -----
-Release date: January 18, 2023 
+Release date: January 18, 2023
 
 * Added support for the :doc:`model version set <./user_guide/model_registration/model_version_set>` feature.
 * Added ``--job-info`` option to ``ads opctl run`` CLI to save job run information to a YAML file.

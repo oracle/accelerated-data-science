@@ -1,0 +1,2 @@
+FROM baseImage
+RUN echo "This is a message"

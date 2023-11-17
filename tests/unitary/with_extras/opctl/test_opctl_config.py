@@ -182,7 +182,7 @@ conda_pack_os_prefix: oci://bucket@namespace/path3
             "infrastructure": {
                 "compartment_id": "oci.compartmentid.abcd",
                 "project_id": "oci.projectid.abcd",
-                "shape_name": "VM.Standard.E2.4"
+                "shape_name": "VM.Standard.E2.4",
             },
         }
 
@@ -201,19 +201,19 @@ conda_pack_os_prefix: oci://bucket@namespace/path3
             "infrastructure": {
                 "compartment_id": "oci.compartmentid.abcd",
                 "project_id": "oci.projectid.abcd",
-                "shape_name": "VM.Standard.E2.4"
+                "shape_name": "VM.Standard.E2.4",
             },
         }
-        
+
         config_one["infrastructure"]["shape_name"] = "VM.Standard.E3.Flex"
         m = ConfigMerger(config_one)
 
         with pytest.raises(
-            ValueError, 
+            ValueError,
             match="Parameters `ocpus` and `memory_in_gbs` must be provided for using flex shape. "
-                    "Call `ads opctl config` to specify."
+            "Call `ads opctl configure` to specify.",
         ):
-            m._config_flex_shape_details()    
+            m._config_flex_shape_details()
 
         config_one["infrastructure"]["ocpus"] = 2
         config_one["infrastructure"]["memory_in_gbs"] = 24
@@ -233,10 +233,7 @@ conda_pack_os_prefix: oci://bucket@namespace/path3
                 "compartment_id": "oci.compartmentid.abcd",
                 "project_id": "oci.projectid.abcd",
                 "shape_name": "VM.Standard.E3.Flex",
-                "shape_config_details": {
-                    "ocpus": 2,
-                    "memory_in_gbs": 24
-                }
+                "shape_config_details": {"ocpus": 2, "memory_in_gbs": 24},
             },
         }
 
@@ -253,19 +250,18 @@ conda_pack_os_prefix: oci://bucket@namespace/path3
                 "compartment_id": "oci.compartmentid.abcd",
                 "project_id": "oci.projectid.abcd",
                 "executor_shape": "VM.Standard.E3.Flex",
-                "driver_shape": "VM.Standard.E3.Flex"
+                "driver_shape": "VM.Standard.E3.Flex",
             },
         }
 
         m = ConfigMerger(config_two)
 
         with pytest.raises(
-            ValueError, 
+            ValueError,
             match="Parameters driver_shape_memory_in_gbs must be provided for using flex shape. "
-                    "Call `ads opctl config` to specify."
+            "Call `ads opctl configure` to specify.",
         ):
             m._config_flex_shape_details()
-
 
         config_two["infrastructure"]["driver_shape_memory_in_gbs"] = 36
         config_two["infrastructure"]["driver_shape_ocpus"] = 4
@@ -287,17 +283,12 @@ conda_pack_os_prefix: oci://bucket@namespace/path3
                 "compartment_id": "oci.compartmentid.abcd",
                 "project_id": "oci.projectid.abcd",
                 "executor_shape": "VM.Standard.E3.Flex",
-                "executor_shape_config": {
-                    "ocpus": 5,
-                    "memory_in_gbs": 48
-                },
+                "executor_shape_config": {"ocpus": 5, "memory_in_gbs": 48},
                 "driver_shape": "VM.Standard.E3.Flex",
-                "driver_shape_config": {
-                    "ocpus": 4,
-                    "memory_in_gbs": 36
-                }
+                "driver_shape_config": {"ocpus": 4, "memory_in_gbs": 36},
             },
         }
+
 
 class TestConfigResolver:
     def test_resolve_operator_name(self):
