@@ -18,7 +18,7 @@ from jinja2 import Environment, PackageLoader
 
 from ads.model.artifact import ADS_VERSION, SCORE_VERSION
 from ads.model.generic_model import GenericModel
-from ads.llm.serialize import dump, load
+from ads.llm.serialize import dump, load_from_yaml
 
 
 class ChainDeployment(GenericModel):
@@ -50,8 +50,4 @@ class ChainDeployment(GenericModel):
 
     @classmethod
     def load_chain(cls, yaml_uri: str) -> Any:
-        chain_dict = {}
-        with open(yaml_uri, "r", encoding="utf-8") as file:
-            chain_dict = yaml.safe_load(file)
-
-        return load(chain_dict)
+        return load_from_yaml(yaml_uri)
