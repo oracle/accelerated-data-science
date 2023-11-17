@@ -4,6 +4,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from datetime import datetime
 import importlib
 import importlib.util
 import json
@@ -13,7 +14,14 @@ import pathlib
 import sys
 import yaml
 from copy import deepcopy
-from typing import Any, List, Optional
+import tempfile
+from typing import Any, Callable, List, Optional, Union
+import fsspec
+from jinja2 import Environment, PackageLoader
+
+import yaml
+from ads.model.artifact import ADS_VERSION, SCORE_VERSION
+from ads.model.generic_model import GenericModel
 from langchain.chains.loading import load_chain_from_config, type_to_loader_dict
 from langchain.llms.base import LLM
 from langchain.schema.runnable import (
@@ -21,6 +29,8 @@ from langchain.schema.runnable import (
     RunnableConfig,
     RunnableSequence,
 )
+from langchain.chains import load_chain as llm_load_chain
+from langchain.chains import LLMChain
 from . import guardrails
 from .guardrails.base import GuardrailIO, Guardrail, RunInfo
 
@@ -318,3 +328,43 @@ class GuardrailSequence(RunnableSequence):
             # Chain the guardrail
             chain |= guardrail
         return chain
+
+
+class ADSChainDeployment(GenericModel):
+
+    def __init__(self, chain, **kwargs):
+        self.chain = chain
+        super().__init__(**kwargs)
+
+    def prepare(self, **kwargs) -> GenericModel:
+        chain_yaml_uri = os.path.join(self.artifact_dir, "chain.yaml")
+        self.chain.save(chain_yaml_uri, kwargs.pop("overwrite", False))
+
+        if "score_py_uri" not in kwargs:
+            score_py_uri = os.path.join(tempfile.mkdtemp(), "score.py")
+            env = Environment(loader=PackageLoader("ads", "llm/templates"))
+            score_template = env.get_template("score_chain.jinja2")
+            time_suffix = datetime.today().strftime("%Y%m%d_%H%M%S")
+
+            context = {
+                "SCORE_VERSION": SCORE_VERSION,
+                "ADS_VERSION": ADS_VERSION,
+                "time_created": time_suffix,
+            }
+            with fsspec.open(score_py_uri, "w") as f:
+                f.write(score_template.render(context))
+            kwargs["score_py_uri"] = score_py_uri
+        
+        return super().prepare(**kwargs)
+    
+    @classmethod
+    def load_chain(cls, yaml_uri: str) -> Union["GuardrailSequence", LLMChain]:
+        chain_dict = {}
+        with open(yaml_uri, 'r') as file:
+            chain_dict = yaml.safe_load(file)
+        
+        chain_type = chain_dict.get(SPEC_CHAIN_TYPE, None)
+        if chain_type == "llm_chain":
+            return llm_load_chain(yaml_uri)
+        elif chain_type == "ads_guardrail_sequence":
+            return GuardrailSequence.load(chain_dict)
