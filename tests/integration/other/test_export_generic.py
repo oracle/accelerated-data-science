@@ -27,24 +27,15 @@ class TestPrepare:
     train_X = [[1, 2], [2, 3], [3, 4], [4, 3]]
     train_y = [19, 26, 33, 30]
     gamma_reg_model = linear_model.GammaRegressor()
-    AUTH = "api_key"
     BUCKET_NAME = secrets.other.BUCKET_3
     NAMESPACE = secrets.common.NAMESPACE
     OS_PREFIX = "unit_test"
-    profile = "DEFAULT"
     oci_path = f"oci://{BUCKET_NAME}@{NAMESPACE}/{OS_PREFIX}"
     config_path = os.path.expanduser(os.path.join("~/.oci", "config"))
 
     compartment_id = secrets.common.COMPARTMENT_ID
     project_id = secrets.common.PROJECT_OCID
     authorization = auth.default_signer()
-
-    if os.path.exists(config_path):
-        config = oci.config.from_file(config_path, profile)
-        # oci_client = ObjectStorageClient(config)
-    else:
-        raise Exception(f"OCI keys not found at {config_path}")
-    storage_options = {"config": config}
 
     def setup_method(self):
         if not os.path.exists(self.tmp_model_dir):
@@ -80,7 +71,7 @@ class TestPrepare:
                 [pd.DataFrame(self.train_X), pd.DataFrame(self.train_y)], axis=1
             ),
             train_data_name="training_data.csv",
-            storage_options=self.storage_options,
+            storage_options=self.authorization,
         )
         print(os.listdir(self.tmp_model_dir))
         assert len(os.listdir(self.tmp_model_dir)) > 0, "No files created"
@@ -115,7 +106,7 @@ class TestPrepare:
             display_name="advanced-ds-test",
             description="A sample gamma regression classifier",
             ignore_pending_changes=True,
-            auth=auth.default_signer(),
+            auth=self.authorization,
             training_id=None,
         )
 

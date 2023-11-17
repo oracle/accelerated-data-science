@@ -85,7 +85,7 @@ class LogNotConfiguredError(Exception):  # pragma: no cover
     pass
 
 
-class ModelDeploymentFailedError(Exception):  # pragma: no cover
+class ModelDeploymentPredictError(Exception):  # pragma: no cover
     pass
 
 
@@ -607,11 +607,6 @@ class ModelDeployment(Builder):
         -------
         ModelDeployment
            The instance of ModelDeployment.
-
-        Raises
-        ------
-        ModelDeploymentFailedError
-            If model deployment fails to deploy
         """
         create_model_deployment_details = (
             self._build_model_deployment_details()
@@ -625,11 +620,6 @@ class ModelDeployment(Builder):
             max_wait_time=max_wait_time,
             poll_interval=poll_interval,
         )
-
-        if response.lifecycle_state == State.FAILED.name:
-            raise ModelDeploymentFailedError(
-                f"Model deployment {response.id} failed to deploy: {response.lifecycle_details}"
-            )
 
         return self._update_from_oci_model(response)
 
@@ -662,6 +652,7 @@ class ModelDeployment(Builder):
             max_wait_time=max_wait_time,
             poll_interval=poll_interval,
         )
+
         return self._update_from_oci_model(response)
 
     def update(
@@ -890,6 +881,12 @@ class ModelDeployment(Builder):
             Prediction results.
 
         """
+        current_state = self.sync().lifecycle_state
+        if current_state != State.ACTIVE.name:
+            raise ModelDeploymentPredictError(
+                "This model deployment is not in active state, you will not be able to use predict end point. "
+                f"Current model deployment state: {current_state} "
+            )
         endpoint = f"{self.url}/predict"
         signer = authutil.default_signer()["signer"]
         header = {
@@ -953,7 +950,7 @@ class ModelDeployment(Builder):
         except oci.exceptions.ServiceError as ex:
             # When bandwidth exceeds the allocated value, TooManyRequests error (429) will be raised by oci backend.
             if ex.status == 429:
-                bandwidth_mbps = self.infrastructure.bandwidth_mbps or MODEL_DEPLOYMENT_BANDWIDTH_MBPS
+                bandwidth_mbps = self.infrastructure.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS
                 utils.get_logger().warning(
                     f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
                     "To estimate the actual bandwidth, use formula: (payload size in KB) * (estimated requests per second) * 8 / 1024."

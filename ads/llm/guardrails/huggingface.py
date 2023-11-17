@@ -6,32 +6,35 @@
 
 
 import evaluate
+from langchain.pydantic_v1 import root_validator
 from .base import Guardrail
 
 
 class HuggingFaceEvaluation(Guardrail):
-
     path: str = ""
     load_args: dict = {}
     _evaluator: evaluate.EvaluationModule = ""
 
-    def __init__(self, **kwargs):
-        if "name" not in kwargs and "path" in kwargs:
-            kwargs["name"] = kwargs["path"]
-        super().__init__(**kwargs)
-        self._evaluator = None
-        # Load evaluator only if user did not specified one in constructor.
-        if not self._evaluator:
-            self.load()
-
-    def load(self) -> None:
-        if not self.path and "path" not in self.load_args:
+    @root_validator(skip_on_failure=True)
+    def load_model(cls, values):
+        if values.get("path"):
+            path = values["path"]
+        else:
+            path = values["load_args"].get("path")
+            values["path"] = path
+        if not path:
             raise NotImplementedError("Please provide path in load_args.")
-        load_args = {"path": self.path}
-        load_args.update(self.load_args)
-        self._evaluator = evaluate.load(**load_args)
+
+        if not values.get("name"):
+            values["name"] = path
+
+        return values
 
     def compute(self, data=None, **kwargs):
+        if not self._evaluator:
+            load_args = {"path": self.path}
+            load_args.update(self.load_args)
+            self._evaluator = evaluate.load(**load_args)
         return self._evaluator.compute(predictions=data, **kwargs)
 
     @property

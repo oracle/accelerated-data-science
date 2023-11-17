@@ -8,6 +8,7 @@ import shutil
 import tempfile
 
 import fsspec
+from ads.common.auth import default_signer, AuthType
 from ads.jobs.builders.infrastructure.dsc_job_runtime import (
     NotebookRuntimeHandler,
 )
@@ -64,9 +65,7 @@ class NotebookDriverRunTest(DriverRunTest):
                 # Clear the files in output URI
                 try:
                     # Ignore the error for unit tests.
-                    fs = fsspec.filesystem(
-                        "oci", config=os.path.expanduser("~/.oci/config")
-                    )
+                    fs = fsspec.filesystem("oci", **default_signer())
                     if fs.find(output_uri):
                         fs.rm(output_uri, recursive=True)
                 except:
