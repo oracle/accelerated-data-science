@@ -4,7 +4,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from datetime import datetime
+
 import importlib
 import importlib.util
 import json
@@ -12,16 +12,16 @@ import logging
 import os
 import pathlib
 import sys
-import yaml
-from copy import deepcopy
 import tempfile
+import yaml
+from datetime import datetime
+from copy import deepcopy
 from typing import Any, Callable, List, Optional, Union
 import fsspec
 from jinja2 import Environment, PackageLoader
 
-import yaml
-from ads.model.artifact import ADS_VERSION, SCORE_VERSION
-from ads.model.generic_model import GenericModel
+
+
 from langchain.chains.loading import load_chain_from_config, type_to_loader_dict
 from langchain.llms.base import LLM
 from langchain.schema.runnable import (
@@ -31,6 +31,8 @@ from langchain.schema.runnable import (
 )
 from langchain.chains import load_chain as llm_load_chain
 from langchain.chains import LLMChain
+from ads.model.artifact import ADS_VERSION, SCORE_VERSION
+from ads.model.generic_model import GenericModel
 from . import guardrails
 from .guardrails.base import GuardrailIO, Guardrail, RunInfo
 
@@ -338,7 +340,7 @@ class ADSChainDeployment(GenericModel):
 
     def prepare(self, **kwargs) -> GenericModel:
         chain_yaml_uri = os.path.join(self.artifact_dir, "chain.yaml")
-        self.chain.save(chain_yaml_uri, kwargs.pop("overwrite", False))
+        self.chain.save(chain_yaml_uri)
 
         if "score_py_uri" not in kwargs:
             score_py_uri = os.path.join(tempfile.mkdtemp(), "score.py")
