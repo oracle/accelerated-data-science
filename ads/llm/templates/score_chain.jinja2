@@ -4,7 +4,7 @@ import sys
 import json
 from functools import lru_cache
 from langchain.chains import LLMChain
-from ads.llm.chain import ADSChainDeployment
+from ads.llm.chain import ChainDeployment
 
 
 """
@@ -25,7 +25,7 @@ def load_model():
         os.path.dirname(os.path.abspath(__file__)),
         "chain.yaml"
     )
-    return ADSChainDeployment.load_chain(chain_yaml_path)
+    return ChainDeployment.load_chain(chain_yaml_path)
 
 @lru_cache(maxsize=1)
 def fetch_data_type_from_schema(input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):
@@ -156,8 +156,5 @@ def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dir
 
     """
     features = pre_inference(data, input_schema_path)
-    yhat = post_inference(
-        model.run(features) if isinstance(model, LLMChain)
-        else model.run(features).data 
-    )
+    yhat = post_inference(model.run(features))
     return {'prediction': yhat}
