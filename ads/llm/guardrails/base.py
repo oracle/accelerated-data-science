@@ -210,6 +210,7 @@ class Guardrail(BaseTool):
 
     @classmethod
     def is_lc_serializable(cls) -> bool:
+        """This class is LangChain serializable."""
         return True
 
     def _preprocess(self, input: Any) -> str:
