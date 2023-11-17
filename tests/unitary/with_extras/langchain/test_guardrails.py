@@ -11,11 +11,10 @@ from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.llms.base import LLM
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnableMap, RunnablePassthrough
-from langchain.load import dumpd
 from ads.llm.guardrails import HuggingFaceEvaluation
 from ads.llm.guardrails.base import BlockedByGuardrail, GuardrailIO
 from ads.llm.chain import GuardrailSequence
-from ads.llm.load import load
+from ads.llm.serialize import load, dump
 
 
 class FakeLLM(LLM):
@@ -64,7 +63,7 @@ class ToxicityGuardrailTests(GuardrailTestsBase):
         chain = self.FAKE_LLM | toxicity
         output = chain.invoke(self.TOXIC_CONTENT)
         self.assertEqual(output, self.TOXIC_CONTENT)
-        serialized = dumpd(chain)
+        serialized = dump(chain)
         chain = load(serialized, valid_namespaces=["tests"])
         output = chain.invoke(self.TOXIC_CONTENT)
         self.assertEqual(output, self.TOXIC_CONTENT)
@@ -77,7 +76,7 @@ class ToxicityGuardrailTests(GuardrailTestsBase):
         chain = self.FAKE_LLM | toxicity
         with self.assertRaises(BlockedByGuardrail):
             chain.invoke(self.TOXIC_CONTENT)
-        serialized = dumpd(chain)
+        serialized = dump(chain)
         chain = load(serialized, valid_namespaces=["tests"])
         with self.assertRaises(BlockedByGuardrail):
             chain.invoke(self.TOXIC_CONTENT)
@@ -94,7 +93,7 @@ class ToxicityGuardrailTests(GuardrailTestsBase):
         chain = self.FAKE_LLM | toxicity
         output = chain.invoke(self.TOXIC_CONTENT)
         self.assertEqual(output, toxicity.custom_msg)
-        serialized = dumpd(chain)
+        serialized = dump(chain)
         chain = load(serialized, valid_namespaces=["tests"])
         output = chain.invoke(self.TOXIC_CONTENT)
         self.assertEqual(output, toxicity.custom_msg)
@@ -109,7 +108,7 @@ class ToxicityGuardrailTests(GuardrailTestsBase):
         self.assertIsInstance(output, dict)
         self.assertEqual(output["output"], self.TOXIC_CONTENT)
         self.assertGreater(output["metrics"]["toxicity"][0], 0.2)
-        serialized = dumpd(chain)
+        serialized = dump(chain)
         chain = load(serialized, valid_namespaces=["tests"])
         output = chain.invoke(self.TOXIC_CONTENT)
         self.assertIsInstance(output, dict)
@@ -123,9 +122,11 @@ class GuardrailSequenceTests(GuardrailTestsBase):
     def test_guardrail_sequence_with_template_and_toxicity(self):
         template = PromptTemplate.from_template("Tell me a joke about {subject}")
         map_input = RunnableMap(subject=RunnablePassthrough())
-        toxicity = HuggingFaceEvaluation(path="toxicity", load_args=self.LOAD_ARGS)
+        toxicity = HuggingFaceEvaluation(
+            path="toxicity", load_args=self.LOAD_ARGS, select=min
+        )
         chain = GuardrailSequence.from_sequence(
             map_input | template | self.FAKE_LLM | toxicity
         )
-        output = chain.run("cats")
+        output = chain.run("cats", num_generations=5)
         self.assertIsInstance(output, GuardrailIO)

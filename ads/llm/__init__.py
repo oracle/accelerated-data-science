@@ -9,4 +9,4 @@ from ads.llm.langchain.plugins.llm_gen_ai import GenerativeAI
 from ads.llm.langchain.plugins.llm_md import ModelDeploymentTGI
 from ads.llm.langchain.plugins.llm_md import ModelDeploymentVLLM
 from ads.llm.langchain.plugins.embeddings import GenerativeAIEmbeddings
-from ads.llm.load import load
+from ads.llm.serialize import load
