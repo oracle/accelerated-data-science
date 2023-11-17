@@ -8,14 +8,10 @@
 import datetime
 import functools
 import operator
-from typing import Any, List
-from langchain.load.serializable import Serializable
+from typing import Any, List, Dict, Tuple
 from langchain.schema.prompt import PromptValue
-from langchain.schema.runnable import (
-    Runnable,
-    RunnableConfig,
-)
-from pydantic import BaseModel
+from langchain.tools.base import BaseTool, ToolException
+from langchain.pydantic_v1 import BaseModel, root_validator
 
 
 class RunInfo(BaseModel):
@@ -82,9 +78,25 @@ class GuardrailIO(BaseModel):
         return "\n".join(steps)
 
 
+class BlockedByGuardrail(ToolException):
+    """Exception when the content is blocked by a guardrail."""
+
+    def __init__(self, message: str = None, info: RunInfo = None) -> None:
+        self.message = message
+        self.info = info
+
+
 class SingleMetric:
+    """Class containing decorator for checking if the metrics is compatible
+    with methods designed to work with single metric.
+    """
+
     @staticmethod
     def check(func):
+        """Checks if the metrics argument in the method call is compatible
+        with methods designed to work with single metric.
+        """
+
         @functools.wraps(func)
         def wrapper(self: "Guardrail", metrics: dict, data: list, *args, **kwargs):
             if self.metric_key not in metrics:
@@ -104,7 +116,7 @@ class SingleMetric:
         return wrapper
 
 
-class Guardrail(Serializable, Runnable):
+class Guardrail(BaseTool):
     """Base class for guardrails.
 
     Each Guardrail should be compatible with the LangChain Serializable and Runnable interface.
@@ -158,7 +170,11 @@ class Guardrail(Serializable, Runnable):
         underscore_attrs_are_private = True
 
     name: str = ""
-    custom_msg: str = None
+    description: str = "Guardrail"
+
+    custom_msg: str = "Content blocked by guardrail."
+    raise_exception: bool = True
+    return_metrics: bool = False
 
     _SELECT_OPERATOR = {"min": min, "max": max}
     _FILTER_OPERATOR = {
@@ -185,63 +201,94 @@ class Guardrail(Serializable, Runnable):
     This is used by the ``apply_filter()`` method.
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        if not self.name:
-            self.name = self.__class__.__name__
-
-    def __or__(self, other):
-        from ..chain import GuardrailSequence
-
-        return GuardrailSequence.from_sequence(super().__or__(other))
-
-    def __ror__(self, other):
-        from ..chain import GuardrailSequence
-
-        return GuardrailSequence.from_sequence(super().__ror__(other))
+    @root_validator
+    def default_name(cls, values):
+        """Sets the default name of the guardrail."""
+        if not values.get("name"):
+            values["name"] = cls.__name__
+        return values
 
     @classmethod
     def is_lc_serializable(cls) -> bool:
+        """This class is LangChain serializable."""
         return True
 
-    def save(self) -> dict:
-        return {
-            "class": self.__class__.__name__,
-            "path": self.__module__,
-            "spec": self.dict(),
-        }
-
-    def preprocess(self, input: Any) -> GuardrailIO:
-        if isinstance(input, GuardrailIO):
-            return input
-        if isinstance(input, str):
-            input = [input]
+    def _preprocess(self, input: Any) -> str:
         if isinstance(input, PromptValue):
-            input = [input.to_string()]
-        return GuardrailIO(data=input)
+            return input.to_string()
+        return str(input)
 
-    def invoke(self, input: Any, config: RunnableConfig = None) -> Any:
-        obj = self.preprocess(input)
-        with RunInfo(name=self.name, input=obj.data) as info:
+    def _to_args_and_kwargs(self, tool_input: Any) -> Tuple[Tuple, Dict]:
+        if isinstance(tool_input, dict):
+            return (), tool_input
+        else:
+            return (tool_input,), {}
+
+    def _run(self, query: Any, run_manager=None) -> Any:
+        """Runs the guardrail.
+
+        The parameters and metrics of running the guardrail are stored in a RunInfo object.
+        If the ``query`` (input) is a GuardrailIO object, the RunInfo object is saved into it.
+        Otherwise the RunInfo object is discarded.
+
+        """
+        if isinstance(query, GuardrailIO):
+            guardrail_io = query
+        else:
+            guardrail_io = None
+        # In this default implementation, we convert all input to list.
+        # You may want to override the logic here for your customized guardrail.
+
+        if isinstance(query, list):
+            data = [self._preprocess(q) for q in query]
+            kwargs = {}
+        elif isinstance(query, dict):
+            data = None
+            kwargs = query
+        else:
+            data = [self._preprocess(query)]
+            kwargs = {}
+
+        with RunInfo(name=self.name, input=query) as info:
             # Runnable has the to_json() method to return a dictionary
             # containing the ``kwargs`` used to initialize the object.
             # The ``kwargs`` does not contain the defaults.
             # Here the ``dict()`` method is used to return a dictionary containing the defaults.
-            info.parameters = self.save()
-            # Here the data in GuardrailIO is extracted and passed into compute.
-            # You may need to override invoke() method
-            # and extra the data for your customized guardrail.
-            if isinstance(obj.data, dict):
-                data = None
-                kwargs = data
-            else:
-                data = obj.data
-                kwargs = {}
+            info.parameters = {
+                "class": self.__class__.__name__,
+                "path": self.__module__,
+                "spec": self.dict(),
+            }
             info.metrics = self.compute(data, **kwargs)
             info.output = self.moderate(info.metrics, data, **kwargs)
-        obj.info.append(info)
-        obj.data = info.output
-        return obj
+
+        # Raise exception if there is no output after moderation (the content is blocked by guardrail).
+        if not info.output:
+            if self.raise_exception:
+                raise BlockedByGuardrail(self.custom_msg, info=info)
+            else:
+                info.output = [self.custom_msg]
+
+        # Return the element instead of a list if the input is not list/dict
+        if (
+            not isinstance(query, list)
+            and not isinstance(query, dict)
+            and isinstance(info.output, list)
+            and len(info.output) == 1
+        ):
+            output = info.output[0]
+        else:
+            output = info.output
+
+        # Return GuardrailIO with RunInfo appended if the input is GuardrailIO.
+        if guardrail_io is not None:
+            guardrail_io.data = output
+            guardrail_io.info.append(info)
+            return guardrail_io
+
+        if self.return_metrics:
+            return {"output": output, "metrics": info.metrics}
+        return output
 
     def load(self) -> None:
         """Loads the models and configs needed for the guardrail."""
@@ -353,6 +400,7 @@ class Guardrail(Serializable, Runnable):
         return self.apply_select(filtered_data, filtered_metrics)
 
     def single_metric_moderate(self, metrics: dict, data=None, **kwargs) -> List[str]:
+        """Applies moderation (filter and/or select) using the metrics."""
         if self.select and self.threshold is not None:
             return self.filter_and_select(metrics, data)
         elif self.select:

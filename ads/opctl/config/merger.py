@@ -43,6 +43,10 @@ class ConfigMerger(ConfigProcessor):
     def process(self, **kwargs) -> None:
         config_string = Template(json.dumps(self.config)).safe_substitute(os.environ)
         self.config = json.loads(config_string)
+
+        if "runtime" not in self.config:
+            self.config["runtime"] = {}
+
         # 1. merge and overwrite values from command line args
         self._merge_config_with_cmd_args(kwargs)
         # 1.5 merge environment variables
@@ -61,7 +65,6 @@ class ConfigMerger(ConfigProcessor):
 
         self._config_flex_shape_details()
 
-        logger.debug(f"Config: {self.config}")
         return self
 
     def _merge_config_with_cmd_args(self, cmd_args: Dict) -> None:
@@ -113,11 +116,15 @@ class ConfigMerger(ConfigProcessor):
         # set default auth
         if not self.config["execution"].get("auth", None):
             if is_in_notebook_session():
-                self.config["execution"]["auth"] = AuthType.RESOURCE_PRINCIPAL
+                self.config["execution"]["auth"] = (
+                    exec_config.get("auth") or AuthType.RESOURCE_PRINCIPAL
+                )
             else:
-                self.config["execution"]["auth"] = AuthType.API_KEY
+                self.config["execution"]["auth"] = (
+                    exec_config.get("auth") or AuthType.API_KEY
+                )
         # determine profile
-        if self.config["execution"]["auth"] == AuthType.RESOURCE_PRINCIPAL:
+        if self.config["execution"]["auth"] != AuthType.API_KEY:
             profile = self.config["execution"]["auth"].upper()
             exec_config.pop("oci_profile", None)
             self.config["execution"]["oci_profile"] = None
@@ -127,7 +134,6 @@ class ConfigMerger(ConfigProcessor):
             )
             self.config["execution"]["oci_profile"] = profile
         # loading config for corresponding profile
-        logger.info(f"Loading service config for profile {profile}.")
         infra_config = self._get_service_config(profile, ads_config_path)
         if infra_config.get(
             "conda_pack_os_prefix"
@@ -169,11 +175,12 @@ class ConfigMerger(ConfigProcessor):
             return {
                 "oci_config": parser["OCI"].get("oci_config"),
                 "oci_profile": parser["OCI"].get("oci_profile"),
+                "auth": parser["OCI"].get("auth"),
                 "conda_pack_folder": parser["CONDA"].get("conda_pack_folder"),
                 "conda_pack_os_prefix": parser["CONDA"].get("conda_pack_os_prefix"),
             }
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, 'config.ini')} does not exist. No config loaded."
             )
             return {}
@@ -193,8 +200,10 @@ class ConfigMerger(ConfigProcessor):
             parser = read_from_ini(os.path.join(ads_config_folder, config_file))
             if oci_profile in parser:
                 return parser[oci_profile]
+            if DEFAULT_PROFILE in parser:
+                return parser[DEFAULT_PROFILE]
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, config_file)} does not exist. No config loaded."
             )
         return {}
@@ -202,20 +211,23 @@ class ConfigMerger(ConfigProcessor):
     def _config_flex_shape_details(self):
         infrastructure = self.config["infrastructure"]
         backend = self.config["execution"].get("backend", None)
-        if backend == BACKEND_NAME.JOB.value or backend == BACKEND_NAME.MODEL_DEPLOYMENT.value:
+        if (
+            backend == BACKEND_NAME.JOB.value
+            or backend == BACKEND_NAME.MODEL_DEPLOYMENT.value
+        ):
             shape_name = infrastructure.get("shape_name", "")
             if shape_name.endswith(".Flex"):
                 if (
-                    "ocpus" not in infrastructure or 
-                    "memory_in_gbs" not in infrastructure
+                    "ocpus" not in infrastructure
+                    or "memory_in_gbs" not in infrastructure
                 ):
                     raise ValueError(
                         "Parameters `ocpus` and `memory_in_gbs` must be provided for using flex shape. "
-                        "Call `ads opctl config` to specify."
+                        "Call `ads opctl configure` to specify."
                     )
                 infrastructure["shape_config_details"] = {
                     "ocpus": infrastructure.pop("ocpus"),
-                    "memory_in_gbs": infrastructure.pop("memory_in_gbs")
+                    "memory_in_gbs": infrastructure.pop("memory_in_gbs"),
                 }
         elif backend == BACKEND_NAME.DATAFLOW.value:
             executor_shape = infrastructure.get("executor_shape", "")
@@ -224,7 +236,7 @@ class ConfigMerger(ConfigProcessor):
                 "driver_shape_memory_in_gbs",
                 "driver_shape_ocpus",
                 "executor_shape_memory_in_gbs",
-                "executor_shape_ocpus"
+                "executor_shape_ocpus",
             ]
             # executor_shape and driver_shape must be the same shape family
             if executor_shape.endswith(".Flex") or driver_shape.endswith(".Flex"):
@@ -232,13 +244,13 @@ class ConfigMerger(ConfigProcessor):
                     if parameter not in infrastructure:
                         raise ValueError(
                             f"Parameters {parameter} must be provided for using flex shape. "
-                            "Call `ads opctl config` to specify."
+                            "Call `ads opctl configure` to specify."
                         )
                 infrastructure["driver_shape_config"] = {
                     "ocpus": infrastructure.pop("driver_shape_ocpus"),
-                    "memory_in_gbs": infrastructure.pop("driver_shape_memory_in_gbs")
+                    "memory_in_gbs": infrastructure.pop("driver_shape_memory_in_gbs"),
                 }
                 infrastructure["executor_shape_config"] = {
                     "ocpus": infrastructure.pop("executor_shape_ocpus"),
-                    "memory_in_gbs": infrastructure.pop("executor_shape_memory_in_gbs")
+                    "memory_in_gbs": infrastructure.pop("executor_shape_memory_in_gbs"),
                 }

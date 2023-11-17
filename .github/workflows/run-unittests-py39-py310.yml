@@ -36,7 +36,7 @@ jobs:
         test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
         include:
           - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
-            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store"
+            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store --ignore tests/unitary/with_extras/operator/forecast"
             name: "unitary"
           - test-path: "tests/unitary/with_extras/model"
             name: "model"
@@ -58,17 +58,9 @@ jobs:
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
-      - name: "Test env setup"
+      - uses: ./.github/workflows/test-env-setup
+        name: "Test env setup"
         timeout-minutes: 20
-        shell: bash
-        run: |
-          set -x # print commands that are executed
-
-          sudo apt-get install libkrb5-dev graphviz
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-
-          pip install -r dev-requirements.txt
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60

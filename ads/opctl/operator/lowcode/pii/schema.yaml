@@ -1,0 +1,108 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+
+type:
+  required: true
+  type: string
+  default: pii
+  meta:
+    description: "Type should always be `pii` when using a pii operator"
+
+
+spec:
+  required: true
+  schema:
+    input_data:
+      required: true
+      type: dict
+      meta:
+        description: "This should be indexed by target column."
+      schema:
+        url:
+          required: true
+          type: string
+          default: data.csv
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+
+    output_directory:
+      required: true
+      schema:
+        url:
+          required: true
+          type: string
+          default: result/
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/`"
+        name:
+          required: false
+          type: string
+          default: data-out.csv
+      type: dict
+
+    report:
+      required: false
+      schema:
+        report_filename:
+          required: true
+          type: string
+          default: report.html
+          meta:
+            description: "Placed into `output_directory` location. Defaults to `report.html`"
+        show_rows:
+          required: false
+          type: number
+          meta:
+            description: "The number of rows that shows in the report. Defaults to `10`"
+        show_sensitive_content:
+          required: true
+          default: false
+          type: boolean
+          meta:
+            description: "Whether to show sensitive content in the report. Defaults to `False`"
+      type: dict
+
+    target_column:
+      type: string
+      required: true
+      default: target
+      meta:
+        description: "Column with user data."
+
+    detectors:
+      type: list
+      required: true
+      schema:
+        type: dict
+        schema:
+          name:
+            required: true
+            type: string
+            meta:
+              description: "The name of the detector. THe format is `<type>.<entity>`."
+          action:
+            required: true
+            type: string
+            default: mask
+            allowed:
+              - anonymize
+              - mask
+              - remove
+            meta:
+              description: "The way to process the detected entity. Default to `mask`."
+  type: dict

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from logging import getLogger
@@ -42,7 +42,6 @@ class YamlSpecParser:
 
     @classmethod
     def parse_content(cls, file):
-        logger.debug(f"Config filename is {file}")
         yaml_spec = {}
         if isinstance(file, dict):
             yaml_spec = file
@@ -53,10 +52,7 @@ class YamlSpecParser:
         parsed_output = None
         if kind:
             className = f"{kind[0].upper()}{kind[1:]}SpecParser"
-            logger.debug(f"kind: {kind}")
-            logger.debug(f"Parser Class name: {className}")
             m = importlib.import_module("ads.opctl.config.yaml_parsers")
             parser = getattr(m, className)
             parsed_output = parser(yaml_spec).parse()
-            logger.debug(f"Parsed Output: {parsed_output}")
         return parsed_output

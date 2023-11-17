@@ -8,7 +8,6 @@ ENV DATASCIENCE_USER datascience
 ENV DATASCIENCE_UID 1000
 ENV HOME /home/$DATASCIENCE_USER
 ENV DATASCIENCE_INSTALL_DIR /etc/datascience
-ENV LOGS_DIRECTORY /logs
 
 ARG release=19
 ARG update=13
@@ -47,9 +46,7 @@ RUN \
   chown -R $DATASCIENCE_USER /home/$DATASCIENCE_USER && \
   chown -R $DATASCIENCE_USER:users /usr/local/ && \
   touch /etc/sudoers.d/$DATASCIENCE_USER && echo "$DATASCIENCE_USER ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$DATASCIENCE_USER && \
-  mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR && \
-  mkdir -p $LOGS_DIRECTORY && chown -R $DATASCIENCE_USER:users $LOGS_DIRECTORY && \
-  mkdir -p $LOGS_DIRECTORY/harness && chown -R $DATASCIENCE_USER:users $LOGS_DIRECTORY/harness
+  mkdir -p $DATASCIENCE_INSTALL_DIR && chown $DATASCIENCE_USER $DATASCIENCE_INSTALL_DIR
 
 RUN mkdir -p /etc/datascience/build
 RUN mkdir -p $DATASCIENCE_INSTALL_DIR/{pre-build-ds,post-build-ds,pre-run-ds,pre-run-user}
@@ -65,9 +62,10 @@ RUN chown -R $DATASCIENCE_USER /opt
 
 USER $DATASCIENCE_USER
 WORKDIR /home/datascience
-RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /home/datascience/miniconda.sh \
-    && /bin/bash /home/datascience/miniconda.sh -f -b -p /opt/conda \
-    && rm /home/datascience/miniconda.sh \
+ARG MINICONDA_VER=23.5.2-0
+RUN wget -nv https://repo.anaconda.com/miniconda/Miniconda3-py38_${MINICONDA_VER}-Linux-x86_64.sh -O /home/datascience/Miniconda3.sh \
+    && /bin/bash /home/datascience/Miniconda3.sh -f -b -p /opt/conda \
+    && rm /home/datascience/Miniconda3.sh \
     && /opt/conda/bin/conda clean -yaf
 
 WORKDIR /
@@ -90,11 +88,8 @@ WORKDIR /
 
 RUN conda list
 
-USER root
-
-ARG PIP_INDEX_URL
-
 ############# Setup Conda environment tools ###########################
+USER root
 ARG RAND=1
 
 ARG RUN_WORKING_DIR="/home/datascience"

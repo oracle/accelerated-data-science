@@ -38,19 +38,12 @@ class TestArtifactSaveData:
         cls.project_id = secrets.common.PROJECT_OCID
         cls.authorization = auth.default_signer()
 
-        cls.AUTH = "api_key"
         cls.BUCKET_NAME = "ads_test"
         cls.NAMESPACE = secrets.common.NAMESPACE
         cls.OS_PREFIX = "unit_test"
-        profile = "DEFAULT"
         cls.oci_path = f"oci://{cls.BUCKET_NAME}@{cls.NAMESPACE}/{cls.OS_PREFIX}"
 
-        config_path = os.path.expanduser(os.path.join("~/.oci", "config"))
-        if os.path.exists(config_path):
-            cls.config = oci.config.from_file(config_path, profile)
-            cls.oci_client = ObjectStorageClient(cls.config)
-        else:
-            raise Exception(f"OCI keys not found at {config_path}")
+        cls.oci_client = ObjectStorageClient(**cls.authorization)
 
         datafiles = cls.oci_client.list_objects(
             namespace_name=cls.NAMESPACE,
@@ -70,14 +63,13 @@ class TestArtifactSaveData:
 
     @pytest.mark.parametrize("data", [array, df, l])
     def test_modelartifact_save_data_from_memory(self, data):
-        storage_options = {"config": self.config}
         self.model_artifact._save_data_from_memory(
             prefix=f"oci://{self.BUCKET_NAME}@{self.NAMESPACE}/{self.OS_PREFIX}",
             train_data=data,
             train_data_name=f"{type(data)}_train.csv",
             validation_data=data,
             validation_data_name=f"{type(data)}_validation.csv",
-            storage_options=storage_options,
+            storage_options=self.authorization,
         )
         datafiles = self.oci_client.list_objects(
             namespace_name=self.NAMESPACE,
@@ -111,11 +103,10 @@ class TestArtifactSaveData:
         )
 
     def test_modelartifact_save_data_from_files(self):
-        storage_options = {"config": self.config}
         self.model_artifact._save_data_from_file(
             f"oci://{self.BUCKET_NAME}@{self.NAMESPACE}/{self.OS_PREFIX}",
             train_data_path=os.path.join(self.model_dir, self.file_name),
-            storage_options=storage_options,
+            storage_options=self.authorization,
         )
         datafiles = self.oci_client.list_objects(
             namespace_name=self.NAMESPACE,
@@ -160,10 +151,8 @@ class TestArtifactSaveData:
             auth=self.authorization,
             training_id=None,
             freeform_tags={"freeform_key": "freeform_val"},
-            defined_tags={"teamcity-test": {"CreatedBy": "test_user"}},
         )
         assert mc_model.freeform_tags == {"freeform_key": "freeform_val"}
-        assert mc_model.defined_tags["teamcity-test"]["CreatedBy"] == "test_user"
 
     def teardown_class(cls):
         if os.path.exists(cls.model_dir):

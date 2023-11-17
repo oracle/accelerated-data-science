@@ -1,3 +1,8 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from datetime import datetime
 from functools import wraps
 import importlib
@@ -208,7 +213,10 @@ class GuardrailSequence(RunnableSequence):
                 path = getattr(step, "path", None)
             else:
                 path = step.__module__
-            logger.debug("class: %s | path: %s", class_name, path)
+
+            logger.debug("class: %s | module: %s", class_name, path)
+            if not hasattr(step, "dict"):
+                raise NotImplementedError(f"{class_name} is not serializable.")
             chain_spec.append(
                 {SPEC_CLASS: class_name, SPEC_PATH: path, SPEC_SPEC: step.dict()}
             )

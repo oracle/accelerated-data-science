@@ -57,17 +57,15 @@ jobs:
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
-      - name: "Test env setup"
+      - uses: ./.github/workflows/test-env-setup
+        name: "Test env setup"
         timeout-minutes: 20
-        shell: bash
+
+      # Installing forecast deps for python3.8 test setup only, it will not work with python3.9/3.10, because
+      # automlx do not support py3.9 and some versions of py3.10. This step omitted in -py39-py30.yml workflow
+      - name: "Install Forecasting dependencies"
         run: |
-          set -x # print commands that are executed
-
-          sudo apt-get install libkrb5-dev graphviz
-          $CONDA/bin/conda init
-          source /home/runner/.bashrc
-
-          pip install -r dev-requirements.txt
+          pip install -e ".[forecast]"
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 60
