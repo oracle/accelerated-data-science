@@ -26,11 +26,11 @@ type:
 spec:
   required: true
   schema:
-    historical_data:
+    input_data:
       required: true
       type: dict
       meta:
-        description: "The should be indexed by date and target category, currently supports long format of data."
+        description: "The input data."
       schema:
         format:
           allowed:
