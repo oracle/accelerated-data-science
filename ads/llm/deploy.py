@@ -55,5 +55,5 @@ class ChainDeployment(GenericModel):
                 os.unlink(score_py.name)
 
     @classmethod
-    def load_chain(cls, yaml_uri: str) -> Any:
-        return load_from_yaml(yaml_uri)
+    def load_chain(cls, yaml_uri: str, **kwargs) -> Any:
+        return load_from_yaml(yaml_uri, **kwargs)
