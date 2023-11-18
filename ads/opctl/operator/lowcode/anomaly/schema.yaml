@@ -133,7 +133,7 @@ spec:
           type: dict
       type: dict
 
-    report_file_name:
+    report_filename:
       required: false
       type: string
       default: report.html
@@ -149,12 +149,79 @@ spec:
       allowed:
         - light
         - dark
-    report_metrics_name:
+    metrics_filename:
       required: false
       type: string
-      default: report.csv
+      default: metrics.csv
       meta:
-        description: "Placed into output_directory location. Defaults to report.csv"
+        description: "Placed into output_directory location. Defaults to metrics.csv"
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+    global_explanation_filename:
+      required: false
+      type: string
+      default: global_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to global_explanations.csv"
+    local_explanation_filename:
+      required: false
+      type: string
+      default: local_explanations.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to local_explanations.csv"
+
+    generate_explanations:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
+
+    generate_report:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Report file generation can be enabled using this flag. Defaults to true."
+
+    generate_metrics:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Metrics files generation can be enabled using this flag. Defaults to true."
+
+    datetime_column:
+      type: dict
+      required: true
+      schema:
+        name:
+          type: string
+          required: true
+          default: Date
+        format:
+          type: string
+          required: false
+
+    target_column:
+      type: string
+      required: true
+      default: target
+      meta:
+        description: "Identifier column for the series in the dataset"
+
+    target_category_columns:
+      type: list
+      required: true
+      schema:
+        type: string
+      default: ["Column1"]
+      meta:
+        description: "Column [list] to be used to model for anomaly detection"
 
     model:
       type: string
@@ -162,8 +229,50 @@ spec:
       default: automlx
       allowed:
         - automlx
+        - tods
+        - pyod
+        - auto
+      meta:
+        description: "The model to be used for anomaly detection"
 
     model_kwargs:
       type: dict
       required: false
+
+    preprocessing:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+
+    time_budget:
+      type: float
+      required: false
+      default: 0
+      meta:
+        description: "Time budget for optimization in seconds, defaults to 0 which means no limit & optimization continues till convergence."
+
+    training_ratio:
+      type: float
+      required: false
+      default: 0.7
+      meta:
+        description: "Ratio of data to be used for training, rest of the data is used for validation. defaults to 0.7"
+
+    false_alarm_ratio:
+      type: float
+      required: false
+      default: 0.01
+      meta:
+        description: "False alarm ratio is the ratio of the expected anomaly in the train dataset, defaults to 0.01"
+
+    metric:
+      type: string
+      required: false
+      default: F1_MACRO
+      allowed:
+        - F1_MACRO
+        - unsupervised_unify95
+        - unsupervised_unify95_log_loss
   type: dict
