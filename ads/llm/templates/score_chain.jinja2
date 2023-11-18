@@ -4,7 +4,12 @@ import sys
 import json
 from functools import lru_cache
 from langchain.chains import LLMChain
+from ads import set_auth
 from ads.llm.deploy import ChainDeployment
+from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
+
+if OCI_RESOURCE_PRINCIPAL_VERSION:
+    set_auth("resource_principal")
 
 
 """
