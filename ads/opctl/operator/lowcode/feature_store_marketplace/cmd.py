@@ -14,11 +14,6 @@ from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
 
 from .const import DBType
 
-VAULT_OCID_PLACEHOLDER = "<VAULT_OCID>"
-SECRET_NAME_PLACEHOLDER = "<SECRET_NAME>"
-JDBC_CONNECTION_URL_PLACEHOLDER = "<JDBC_CONNECTION_URL>"
-DB_URL_PLACEHOLDER = "<DB_URL>"
-
 
 def _get_required_keys_(db_type: DBType) -> List[str]:
     if db_type == DBType.MySQL:
@@ -56,5 +51,5 @@ def init(**kwargs: Dict) -> dict:
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
     ).generate_example_dict(
-        values={"configuredDB": db_type}, required_keys=["mysql", "mysql.vault"]
+        values={"configuredDB": db_type}, required_keys=_get_required_keys_(db_type)
     )

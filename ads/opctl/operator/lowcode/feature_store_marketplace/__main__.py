@@ -18,14 +18,15 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
         listing_id="ocid1.mktpublisting.oc1.iad.amaaaaaaclen5bqas6lyd5xler6fewsri5uascfhybhrtwjnh3fwyzbzaora"
         return HelmMarketplaceListingDetails(
             listing_id=listing_id,
-            name="fs-dp-api-test",
-            chart="oci://iad.ocir.io/idogsu2ylimg/feature-store-dataplane-api/helm-chart/feature-store-dp-api",
+            helm_chart_name="",
+            container_name_pattern=[""],
             version="v0.10.2",
             helm_values=operator_config_spec["helmValues"],
-            cluster_id="<cluster id>",
             namespace=operator_config_spec["clusterDetails"]["namespace"],
-            compartment_id="ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa",
-            ocir_repo="fs-dp-amit",
+            dcoker_k8_secret_name="",
+            ocir_repo=operator_config_spec["ocirRepo"],
+            compartment_id="ocid1.compartment.oc1..aaaaaaaa3nvibvakxapvbd46rr3nclxb2kmop7moppqnfdnkpdcafziumygq",
+            helm_app_name="fs-dp",
         )
 
 

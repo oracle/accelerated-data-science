@@ -108,7 +108,7 @@ version: v1
 Run the forecasting within a container using the command below:
 
 ```bash
-ads operator run -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_operator_local_container_config.yaml
+    ads operator run -f ~/forecast/forecast.yaml --backend-config ~/forecast/backend_operator_local_container_config.yaml
 ```
 
 ## 5. Running forecasting in the Data Science job within container runtime

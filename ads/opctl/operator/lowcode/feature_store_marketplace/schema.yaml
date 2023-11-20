@@ -26,6 +26,11 @@ type:
 spec:
   required: true
   schema:
+    helmAppName:
+      required: true
+      type: string
+      description: "Name of the feature store app to deploy"
+      default: "feature-store"
     helmValues:
       required: true
       type: dict
@@ -90,7 +95,11 @@ spec:
                 type: string
                 required: true
 
-
+    marketplaceCompartmentId:
+      type: string
+      required: false
+      default: "root"
+      description: Compartment id for marketplace installation
     clusterDetails:
       required: true
       type: dict
@@ -109,5 +118,6 @@ spec:
       type: string
       required: true
       default: "iad.ocir.io/<repository>"
-      description: "The ocir repo to clone the marketplace listing to"
+      description: "The OCIR repo to clone the marketplace listing to"
+
   type: dict
