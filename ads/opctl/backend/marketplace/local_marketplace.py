@@ -23,6 +23,8 @@ from ads.opctl.backend.marketplace.marketplace_backend_runner import (
 from ads import logger
 
 from ads.common.auth import AuthContext
+from ads.opctl.backend.marketplace.marketplace_utils import export_helm_chart, wait_for_marketplace_export, \
+    list_container_images
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.operator.runtime import const as operator_runtime_const
@@ -123,15 +125,27 @@ class LocalMarketplaceOperatorBackend(Backend):
         timeout_seconds = 10 * 60
         sleep_time = 20
         while True:
-            pod = v1.list_namespaced_pod(namespace=namespace, label_selector=f"app.kubernetes.io/instance={pod_name}").items[0]
+            pod = \
+            v1.list_namespaced_pod(namespace=namespace, label_selector=f"app.kubernetes.io/instance={pod_name}").items[
+                0]
             if is_pod_ready(pod):
                 return 0
             if time.time() - start_time >= timeout_seconds:
-                print("Timed out waiting for pad to get ready.")
+                print("Timed out waiting for pod to get ready.")
                 break
             print(f"Waiting for pod {pod_name} to be ready...")
             time.sleep(sleep_time)
         return -1
+
+    def _export_helm_chart_to_container_registry(self, listing_details: HelmMarketplaceListingDetails):
+        images_before_export = list_container_images(listing_details)
+        workflow_id = export_helm_chart(listing_details)
+        wait_for_marketplace_export(workflow_id)
+        images_after_export = list_container_images(listing_details)
+
+        new_resources = set(map(lambda x: (x.id, x.display_name), images_after_export.items)) - \
+                        set(map(lambda x: (x.id, x.display_name), images_before_export.items))
+        return new_resources
 
     def _run_with_python(self, **kwargs: Dict) -> int:
         """
@@ -156,18 +170,20 @@ class LocalMarketplaceOperatorBackend(Backend):
         listing_details: MarketplaceListingDetails = operator.get_listing_details(
             operator_spec
         )
+
         # operator_spec = self.operator_config['spec']
         # helm_values = operator_spec['helmValues']
         ##Perform backend logic##
         # name = 'fs-dp-api-test'
         # chart = 'oci://iad.ocir.io/idogsu2ylimg/feature-store-dataplane-api/helm-chart/feature-store-dp-api'
         if isinstance(listing_details, HelmMarketplaceListingDetails):
+            exported_charts = self._export_helm_chart_to_container_registry(listing_details)
             override_value_path = self._save_helm_value_to_yaml(listing_details.helm_values)
             helm_install_status = self._run_helm_install(
                 name=listing_details.name,
                 chart=listing_details.chart,
                 **{
-                    "version": listing_details.version,
+                    "version": "1.0",
                     "namespace": listing_details.namespace,
                     "values": override_value_path
                 }

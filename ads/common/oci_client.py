@@ -13,6 +13,7 @@ from oci.data_labeling_service import DataLabelingManagementClient
 from oci.data_labeling_service_dataplane import DataLabelingClient
 from oci.data_science import DataScienceClient
 from oci.identity import IdentityClient
+from oci.marketplace import MarketplaceClient
 from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
@@ -64,7 +65,8 @@ class OCIClientFactory:
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
             "resource_search": ResourceSearchClient,
-            "data_catalog": DataCatalogClient
+            "data_catalog": DataCatalogClient,
+            "marketplace": MarketplaceClient,
         }
         try:
             from oci.feature_store import FeatureStoreClient
@@ -148,3 +150,7 @@ class OCIClientFactory:
     @property
     def data_catalog(self):
         return self.create_client("data_catalog")
+
+    @property
+    def marketplace(self):
+        return self.create_client("marketplace")

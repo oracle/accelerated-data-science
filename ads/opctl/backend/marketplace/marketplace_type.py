@@ -1,4 +1,5 @@
 from abc import ABC
+from typing import Any, Dict
 
 from ads.common.serializer import Serializable, DataClassSerializable
 
@@ -19,7 +20,8 @@ class HelmMarketplaceListingDetails(MarketplaceListingDetails):
             cluster_id: str,
             namespace: str,
             ocir_repo: str,
-            helm_values,
+            compartment_id: str,
+            helm_values: Dict[str, Any],
     ):
         super().__init__(listing_id)
         self.cluster_id = cluster_id
@@ -28,4 +30,6 @@ class HelmMarketplaceListingDetails(MarketplaceListingDetails):
         self.version = version
         self.namespace = namespace
         self.ocir_repo = ocir_repo
+        self.compartment_id = compartment_id
         self.helm_values = helm_values
+
