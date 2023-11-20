@@ -14,7 +14,7 @@ import pathlib
 import sys
 
 from copy import deepcopy
-from typing import Any, List, Optional
+from typing import Any, List, Optional, ClassVar
 
 import yaml
 
@@ -42,7 +42,7 @@ BUILT_IN = "ads."
 class GuardrailSequence(RunnableSequence):
     """Represents a sequence of guardrails and other LangChain (non-guardrail) components."""
 
-    CHAIN_TYPE = "ads_guardrail_sequence"
+    CHAIN_TYPE: ClassVar[str] = "ads_guardrail_sequence"
 
     first: Optional[Runnable] = None
     last: Optional[Runnable] = None
