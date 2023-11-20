@@ -26,7 +26,6 @@ class HelmMarketplaceListingDetails(MarketplaceListingDetails):
         helm_chart_name: str,
         container_name_pattern: List[str],
         helm_values: dict,
-        dcoker_k8_secret_name: str,
     ):
         super().__init__(listing_id, compartment_id, version)
         self.helm_app_name = helm_app_name
@@ -34,5 +33,5 @@ class HelmMarketplaceListingDetails(MarketplaceListingDetails):
         self.ocir_repo = ocir_repo
         self.compartment_id = compartment_id
         self.helm_values = helm_values
-        self.helm_chart_name = (helm_chart_name,)
+        self.helm_chart_name = helm_chart_name
         self.container_name_pattern = container_name_pattern

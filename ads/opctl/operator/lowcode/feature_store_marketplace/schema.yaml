@@ -66,6 +66,11 @@ spec:
                   required: true
                   description: "The JDBC connection url to the database"
                   default: "{Provide JDBC connection URL for MySQL database}"
+                username:
+                  type: string
+                  required: true
+                  description: "The username to use to login to DB"
+                  default: "admin"
                 basic:
                   type: dict
                   required: false
@@ -93,13 +98,12 @@ spec:
                       default: "{Provide name of the secret containing password to mysql db}"
               atp:
                 type: string
-                required: true
-
+                required: false
     marketplaceCompartmentId:
       type: string
-      required: false
-      default: "root"
-      description: Compartment id for marketplace installation
+      required: true
+      default: "<Provide compartment ID here>"
+      description: Compartment id to use for marketplace export
     clusterDetails:
       required: true
       type: dict
