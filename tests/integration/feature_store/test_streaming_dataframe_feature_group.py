@@ -9,7 +9,7 @@ from ads.feature_store.common.enums import TransformationMode, ExpectationType
 from ads.feature_store.statistics_config import StatisticsConfig
 from tests.integration.feature_store.test_base import FeatureStoreTestCase
 
-
+CHECKPOINT_DIR = "tests/integration/feature_store/test_data"
 def get_streaming_df():
     spark_builder = (
         SparkSession.builder.appName("FeatureStore")
@@ -35,7 +35,7 @@ def get_streaming_df():
         .option("sep", ",") \
         .option("header", "true")\
         .schema(credit_score_schema) \
-        .csv("test_data/")
+        .csv(f"{CHECKPOINT_DIR}/")
 
     return credit_score_streaming_df
 
@@ -87,7 +87,7 @@ class TestFeatureGroupWithStreamingDataFrame(FeatureStoreTestCase):
         assert fg.oci_feature_group.id
 
         query = fg.materialise_stream(input_dataframe=streaming_df,
-                              checkpoint_dir=f"test_data/checkpoint/{fg.name}")
+                              checkpoint_dir=f"{CHECKPOINT_DIR}/checkpoint/{fg.name}")
 
         assert query
         time.sleep(10)
@@ -137,7 +137,7 @@ class TestFeatureGroupWithStreamingDataFrame(FeatureStoreTestCase):
         assert fg.oci_feature_group.id
 
         query = fg.materialise_stream(input_dataframe=streaming_df,
-                                      checkpoint_dir=f"test_data/checkpoint/{fg.name}")
+                                      checkpoint_dir=f"{CHECKPOINT_DIR}/checkpoint/{fg.name}")
 
         assert query
         time.sleep(10)
@@ -170,7 +170,7 @@ class TestFeatureGroupWithStreamingDataFrame(FeatureStoreTestCase):
         assert fg.oci_feature_group.id
 
         query = fg.materialise_stream(input_dataframe=streaming_df,
-                                      checkpoint_dir=f"test_data/checkpoint/{fg.name}")
+                                      checkpoint_dir=f"{CHECKPOINT_DIR}/checkpoint/{fg.name}")
 
         assert query
         time.sleep(10)
