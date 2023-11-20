@@ -25,12 +25,12 @@ from langchain.schema.runnable import (
     RunnableConfig,
     RunnableSequence,
 )
-from . import guardrails
-from .guardrails.base import GuardrailIO, Guardrail, RunInfo
+from ads.llm import guardrails
+from ads.llm.serialize import load, dump
+from ads.llm.guardrails.base import GuardrailIO, Guardrail, RunInfo, BlockedByGuardrail
 
 
 logger = logging.getLogger(__name__)
-BLOCKED_MESSAGE = "custom_msg"
 SPEC_CLASS = "class"
 SPEC_PATH = "path"
 SPEC_SPEC = "spec"
@@ -46,6 +46,20 @@ class GuardrailSequence(RunnableSequence):
 
     first: Optional[Runnable] = None
     last: Optional[Runnable] = None
+
+    raise_exception: bool = False
+    """The ``raise_exception`` property indicate whether an exception should be raised
+    if the content is blocked by one of the guardrails.
+    This property is set to ``False`` by default.
+    Note that each guardrail also has its own ``raise_exception`` property.
+    This property on GuardrailSequence has no effect
+    when the ``raise_exception`` is set to False on the individual guardrail.
+
+    When this is ``False``, instead of raising an exception,
+    the custom message from the guardrail will be returned as the output.
+
+    When this is ``True``, the ``BlockedByGuardrail`` exception from the guardrail will be raised.
+    """
 
     @property
     def steps(self) -> List[Runnable[Any, Any]]:
@@ -99,6 +113,31 @@ class GuardrailSequence(RunnableSequence):
             output = llm.batch(texts, **kwargs)
         return output
 
+    def _run_step(
+        self, step: Runnable, obj: GuardrailIO, num_generations: int, **kwargs
+    ):
+        if not isinstance(step, Guardrail):
+            # Invoke the step as a LangChain component
+            spec = {}
+            with RunInfo(name=step.__class__.__name__, input=obj.data) as info:
+                if isinstance(step, LLM):
+                    output = self._invoke_llm(step, obj.data, num_generations, **kwargs)
+                    spec.update(kwargs)
+                    spec["num_generations"] = num_generations
+                else:
+                    output = step.batch(obj.data)
+                info.output = output
+                info.parameters = {
+                    "class": step.__class__.__name__,
+                    "path": step.__module__,
+                    "spec": spec,
+                }
+            obj.info.append(info)
+            obj.data = output
+        else:
+            obj = step.invoke(obj)
+        return obj
+
     def run(self, input: Any, num_generations: int = 1, **kwargs) -> GuardrailIO:
         """Runs the guardrail sequence.
 
@@ -120,36 +159,13 @@ class GuardrailSequence(RunnableSequence):
         """
         obj = GuardrailIO(data=[input])
 
-        for i, step in enumerate(self.steps):
-            if not isinstance(step, Guardrail):
-                # Invoke the step as a LangChain component
-                spec = {}
-                with RunInfo(name=step.__class__.__name__, input=obj.data) as info:
-                    if isinstance(step, LLM):
-                        output = self._invoke_llm(
-                            step, obj.data, num_generations, **kwargs
-                        )
-                        spec.update(kwargs)
-                        spec["num_generations"] = num_generations
-                    else:
-                        output = step.batch(obj.data)
-                    info.output = output
-                    info.parameters = {
-                        "class": step.__class__.__name__,
-                        "path": step.__module__,
-                        "spec": spec,
-                    }
-                obj.info.append(info)
-                obj.data = output
-            else:
-                obj = step.invoke(obj)
-            if not obj.data:
-                default_msg = f"Blocked by {step.__class__.__name__}"
-                msg = getattr(step, BLOCKED_MESSAGE, default_msg)
-                if msg is None:
-                    msg = default_msg
-                obj.data = [msg]
-                return obj
+        try:
+            for i, step in enumerate(self.steps):
+                obj = self._run_step(step, obj, num_generations, **kwargs)
+        except BlockedByGuardrail as ex:
+            if self.raise_exception:
+                raise ex
+            obj.data = [ex.message]
         return obj
 
     def _save_to_file(self, chain_dict, filename, overwrite=False):
