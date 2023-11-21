@@ -26,8 +26,9 @@ from ads.llm.patch import RunnableParallel, RunnableParallelSerializer
 
 # This is a temp solution for supporting custom LLM in legacy load_chain
 __lc_llm_dict = llms.get_type_to_cls_dict()
-for llm_class in [GenerativeAI, ModelDeploymentTGI, ModelDeploymentVLLM]:
-    __lc_llm_dict[llm_class.__name__] = lambda: llm_class
+__lc_llm_dict[GenerativeAI.__name__] = lambda: GenerativeAI
+__lc_llm_dict[ModelDeploymentTGI.__name__] = lambda: ModelDeploymentTGI
+__lc_llm_dict[ModelDeploymentVLLM.__name__] = lambda: ModelDeploymentVLLM
 
 
 def __new_type_to_cls_dict():
