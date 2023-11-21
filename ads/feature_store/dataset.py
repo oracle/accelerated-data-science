@@ -124,6 +124,8 @@ class Dataset(Builder):
     CONST_LAST_JOB_ID = "jobId"
     CONST_MODEL_DETAILS = "modelDetails"
     CONST_FEATURE_GROUP = "datasetFeatureGroups"
+    CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
+    CONST_PRIMARY_KEYS = "primaryKeys"
 
     attribute_map = {
         CONST_ID: "id",
@@ -142,6 +144,8 @@ class Dataset(Builder):
         CONST_MODEL_DETAILS: "model_details",
         CONST_PARTITION_KEYS: "partition_keys",
         CONST_FEATURE_GROUP: "dataset_feature_groups",
+        # CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
+        # CONST_PRIMARY_KEYS: "primary_keys",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -629,6 +633,51 @@ class Dataset(Builder):
             },
         )
 
+    @property
+    def is_online_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
+
+    def with_is_online_enabled(self, is_online_enabled: bool) -> "Dataset":
+        """Sets the compartment_id.
+        Parameters
+        ----------
+        is_online_enabled: bool
+            The compartment_id.
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        # self.redis_client = get_redis_client(self.feature_store_id)
+        return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
+
+    @property
+    def primary_keys(self) -> List[str]:
+        return self.get_spec(self.CONST_PRIMARY_KEYS)
+
+    @primary_keys.setter
+    def primary_keys(self, value: List[str]):
+        self.with_primary_keys(value)
+
+    def with_primary_keys(self, primary_keys: List[str]) -> "Dataset":
+        """Sets the primary keys of the feature group.
+        Parameters
+        ----------
+        primary_keys: str
+            The description of the feature group.
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        return self.set_spec(
+            self.CONST_PRIMARY_KEYS,
+            {
+                self.CONST_ITEMS: [
+                    {self.CONST_NAME: primary_key} for primary_key in primary_keys or []
+                ]
+            },
+        )
     def add_models(self, model_details: ModelDetails) -> "Dataset":
         """Add model details to the dataset, Append to the existing model id list
 

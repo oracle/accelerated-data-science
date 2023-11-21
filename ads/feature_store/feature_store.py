@@ -74,6 +74,8 @@ class FeatureStore(Builder):
     CONST_DEFINED_TAG = "definedTags"
     CONST_OFFLINE_CONFIG = "offlineConfig"
     CONST_METASTORE_ID = "metastoreId"
+    CONST_ONLINE_CONFIG = "onlineConfig"
+    CONST_REDIS_ID = "redisId"
 
     attribute_map = {
         CONST_ID: "id",
@@ -205,6 +207,37 @@ class FeatureStore(Builder):
         """
         return self.set_spec(self.CONST_DESCRIPTION, description)
 
+    @property
+    def online_config(self) -> dict:
+        return self.get_spec(self.CONST_ONLINE_CONFIG)
+
+    @online_config.setter
+    def online_config(self, redis_id: str, **kwargs: Dict[str, Any]):
+        self.with_online_config(redis_id, **kwargs)
+
+    # stream pool id,,tream name
+    def with_online_config(
+            self, redis_id: str, **kwargs: Dict[str, Any]
+    ) -> "FeatureStore":
+        """Sets the offline config.
+        Parameters
+        ----------
+        redis_id: str
+            The metastore id for offline store
+        kwargs: Dict[str, Any]
+            Additional key value arguments
+        Returns
+        -------
+        FeatureStore
+            The FeatureStore instance (self)
+        """
+        return self.set_spec(
+            self.CONST_ONLINE_CONFIG,
+            {
+                self.CONST_REDIS_ID: redis_id,
+                **kwargs,
+            },
+        )
     def init(self):
         """Initialize the feature store with spark session."""
 

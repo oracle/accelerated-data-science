@@ -5,6 +5,7 @@
 
 import logging
 import pandas as pd
+from pyspark.sql.functions import col, concat_ws
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
@@ -456,6 +457,9 @@ class SparkExecutionEngine(Strategy):
             )
             logger.info(f"output features for the dataset: {output_features}")
 
+            if dataset.is_online_enabled:
+                self._save_online_dataframe(dataset_dataframe, dataset)
+
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
                 statistics_config=dataset.oci_dataset.statistics_config,
@@ -610,3 +614,36 @@ class SparkExecutionEngine(Strategy):
                 output_features=output_features,
                 output_details=output_details,
             )
+
+
+    def _save_online_dataframe(
+            self, dataframe, dataset
+    ):
+        """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
+        dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
+        Parameter
+        ----------
+        data_frame
+            data_frame that needs to be ingested in the system.
+        feature_group
+            feature group.
+        Parameters
+        ----------
+        data_frame
+        feature_group
+        Returns
+        -------
+        None
+        """
+
+        if len(dataset.primary_keys["items"]) == 1:
+            key = dataset.primary_keys["items"][0]["name"]
+            df_with_key = dataframe.withColumn("key", col(key))
+        else:
+            primary_keys = []
+            for key in dataset.primary_keys["items"]:
+                primary_keys.append(key["name"])
+            df_with_key = dataframe.withColumn("key", concat_ws(":", *primary_keys))
+        df_with_key.write.format("org.apache.spark.sql.redis").option(
+            "table", dataset.id
+        ).option("key.column", "key").save()
