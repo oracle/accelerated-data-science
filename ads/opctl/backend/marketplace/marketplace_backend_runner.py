@@ -2,6 +2,8 @@ import runpy
 import sys
 import types
 
+from typing import Dict
+
 from ads.opctl.backend.marketplace.marketplace_type import MarketplaceListingDetails
 
 from ads.opctl.backend.marketplace.marketplace_operator_interface import (
@@ -31,4 +33,8 @@ class MarketplaceBackendRunner(MarketplaceInterface):
 
     @runpy_backend_runner
     def get_listing_details(self, operator_config: str) -> MarketplaceListingDetails:
+        pass
+
+    @runpy_backend_runner
+    def get_oci_meta(self, container_map: Dict[str, str], operator_config: str) -> dict:
         pass

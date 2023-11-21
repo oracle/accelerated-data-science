@@ -6,7 +6,9 @@
 
 import logging
 
+import oci.artifacts
 from oci.ai_language import AIServiceLanguageClient
+from oci.artifacts import ArtifactsClient
 from oci.data_catalog import DataCatalogClient
 from oci.data_flow import DataFlowClient
 from oci.data_labeling_service import DataLabelingManagementClient
@@ -18,6 +20,7 @@ from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,7 +28,7 @@ class OCIClientFactory:
 
     """
     A factory class to create OCI client objects. The constructor takes in config, signer and client_kwargs. `client_kwargs` is passed
-    to the client constructor as key word argutments.
+    to the client constructor as key word arguments.
 
     Examples
     --------
@@ -48,12 +51,13 @@ class OCIClientFactory:
     oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
 
-    def __init__(self, config={}, signer=None, client_kwargs=None):
+    def __init__(self, config=(), signer=None, client_kwargs=None):
         self.config = config
         self.signer = signer
         self.client_kwargs = client_kwargs
 
-    def _client_impl(self, client):
+    @staticmethod
+    def _client_impl(client):
         client_map = {
             "object_storage": ObjectStorageClient,
             "data_science": DataScienceClient,
@@ -67,20 +71,15 @@ class OCIClientFactory:
             "resource_search": ResourceSearchClient,
             "data_catalog": DataCatalogClient,
             "marketplace": MarketplaceClient,
+            "artifacts": ArtifactsClient,
         }
-        try:
-            from oci.feature_store import FeatureStoreClient
-            client_map["feature_store"] = FeatureStoreClient
-        except ImportError:
-            logger.warning("OCI SDK with feature store support is not installed")
-            pass
-
         assert (
             client in client_map
         ), f"Invalid client name. Client name not found in {client_map.keys()}"
         return client_map[client]
 
-    def _validate_auth_param(self, auth):
+    @staticmethod
+    def _validate_auth_param(auth):
         if not isinstance(auth, dict):
             raise ValueError("auth parameter should be of type dictionary")
         if "config" in auth and not isinstance(auth["config"], dict):
@@ -136,10 +135,6 @@ class OCIClientFactory:
         return self.create_client("data_labeling_cp")
 
     @property
-    def feature_store(self):
-        return self.create_client("feature_store")
-
-    @property
     def data_labeling_dp(self):
         return self.create_client("data_labeling_dp")
 
@@ -154,3 +149,7 @@ class OCIClientFactory:
     @property
     def marketplace(self):
         return self.create_client("marketplace")
+
+    @property
+    def artifacts(self) -> oci.artifacts.ArtifactsClient:
+        return self.create_client("artifacts")

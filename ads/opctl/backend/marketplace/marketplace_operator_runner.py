@@ -13,4 +13,4 @@ class MarketplaceOperatorRunner(MarketplaceInterface, ABC):
         func: types.MethodType = getattr(self, argv[0])
         if type(func) == types.MethodType:
             sys.runpy_result = func(*argv[1:])
-        print(argv)
+        # print(argv)

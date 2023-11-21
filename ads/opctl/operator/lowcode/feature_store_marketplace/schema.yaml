@@ -26,22 +26,52 @@ type:
 spec:
   required: true
   schema:
-    helmAppName:
-      required: true
-      type: string
-      description: "Name of the feature store app to deploy"
-      default: "feature-store"
-    helmValues:
+    helm:
       required: true
       type: dict
       meta:
-        description: "Values being provided to helm chart"
+        description: "Helm related details"
       schema:
-        db:
-          type: dict
+        appName:
           required: true
-          description: "Feature store metadata database configuration"
+          type: string
+          meta:
+            description: "Helm app name"
+          default: "feature-store-api"
+        values:
+          required: true
+          type: dict
+          meta:
+            description: "Values being provided to helm chart"
           schema:
+            mysqlDBConfig:
+              type: dict
+              required: false
+              meta:
+                description: "Configuration details on how to connect to MySQL DB"
+              schema:
+                user:
+                  type: string
+                  required: true
+                  default: "admin"
+                url:
+                  type: string
+                  required: true
+                  default: "<Enter jdbc url to connect to mysql here>"
+                password:
+                  type: string
+                  required: true
+                  default: "<Enter password to mysql user here>"
+            atpDBConfig:
+              type: dict
+              required: false
+              schema:
+                vaultOCID:
+                  type: string
+                  required: true
+                dbURL:
+                  type: string
+                  required: true
             configuredDB:
               type: string
               required: true
@@ -49,57 +79,6 @@ spec:
               allowed:
                 - MYSQL
                 - ATP
-            mysql:
-              type: dict
-              required: false
-              description: "MySQL database configuration"
-              schema:
-                authType:
-                  type: string
-                  required: true
-                  default: VAULT
-                  allowed:
-                    - VAULT
-                    - BASIC
-                jdbcURL:
-                  type: string
-                  required: true
-                  description: "The JDBC connection url to the database"
-                  default: "{Provide JDBC connection URL for MySQL database}"
-                basic:
-                  type: dict
-                  required: false
-                  description: Basic authentication details
-                  schema:
-                    password:
-                      type: string
-                      required: true
-                      description: "Plain-text password to the MySql database"
-                      default: "{Provide plain-text password for MySQL database}"
-                vault:
-                  type: dict
-                  required: false
-                  description: The details of vault to retrieve mysql secret from
-                  schema:
-                    vaultOcid:
-                      type: string
-                      required: true
-                      description: The OCID of the vault to retrieve the secret from
-                      default: "{Provide ocid of the vault to retrieve the password from}"
-                    secretName:
-                      type: string
-                      required: true
-                      description: The name of the secret inside the vault containing the password
-                      default: "{Provide name of the secret containing password to mysql db}"
-              atp:
-                type: string
-                required: true
-
-    marketplaceCompartmentId:
-      type: string
-      required: false
-      default: "root"
-      description: Compartment id for marketplace installation
     clusterDetails:
       required: true
       type: dict
@@ -118,6 +97,11 @@ spec:
       type: string
       required: true
       default: "iad.ocir.io/<repository>"
-      description: "The OCIR repo to clone the marketplace listing to"
+      description: "The ocir repo to clone the marketplace listing to"
+    compartmentId:
+      type: string
+      required: true
+      default: "<Enter compartment id for deployment here>"
+      description: "Compartment id to use for marketplace export"
 
   type: dict
