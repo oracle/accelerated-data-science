@@ -1,3 +1,4 @@
+import os
 import time
 
 from delta import configure_spark_with_delta_pip
@@ -11,6 +12,11 @@ from tests.integration.feature_store.test_base import FeatureStoreTestCase
 
 
 def get_streaming_df():
+    # Get the current script's directory
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # Create the streaming DataFrame with a relative path
+    csv_path = os.path.join(current_dir, "test_data/")
+
     spark_builder = (
         SparkSession.builder.appName("FeatureStore")
         .config("spark.sql.extensions", "io.delta.sql.DeltaSparkSessionExtension")
@@ -35,7 +41,7 @@ def get_streaming_df():
         .option("sep", ",") \
         .option("header", "true")\
         .schema(credit_score_schema) \
-        .csv("test_data/")
+        .csv(csv_path)
 
     return credit_score_streaming_df
 
