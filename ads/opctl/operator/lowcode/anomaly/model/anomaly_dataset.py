@@ -10,6 +10,7 @@ from ads.opctl.operator.common.utils import default_signer
 from ads.opctl import logger
 import pandas as pd
 
+
 class AnomalyDatasets:
     def __init__(self, config: AnomalyOperatorConfig):
         """Instantiates the DataIO instance.
@@ -46,5 +47,12 @@ class AnomalyDatasets:
             logger.debug(f"Full traceback: {e}")
             spec.freq = None
 
+
 class AnomalyOutput:
-    pass
+    def __init__(
+        self, inliers: pd.DataFrame, outliers: pd.DataFrame, scores: pd.DataFrame
+    ):
+        # Timestamp as index
+        self.inliers = inliers
+        self.outliers = outliers
+        self.scores = scores
