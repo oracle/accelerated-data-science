@@ -6,12 +6,14 @@ import tempfile
 import time
 from subprocess import CompletedProcess
 from typing import Optional, Dict, Union, Any, List
+import io
 import webbrowser
 
 import click
 import oci.marketplace.models as models
 import fsspec
 import oci
+import pandas as pd
 import yaml
 from kubernetes import config, client
 
@@ -101,13 +103,34 @@ class LocalMarketplaceOperatorBackend(Backend):
         os.environ["OCI_CLI_AUTH"] = "security_token"
         os.environ["OCI_CLI_PROFILE"] = "SESSION_PROFILE"
 
+    def _run_helm_list(self, **kwargs) -> pd.DataFrame:
+        flags = []
+        for key, value in kwargs.items():
+            flags.extend([f"--{key}", f"{value}"])
+        helm_cmd = ["helm", "list", *flags]
+        print("Running Command:", " ".join(helm_cmd))
+        result = subprocess.run(helm_cmd, capture_output=True)
+        if result.returncode == 0:
+            output = pd.read_csv(io.BytesIO(result.stdout), delimiter=r'\s*\t\s*', )
+            return output
+
+    def _check_if_chart_already_exist(self, name, **kwargs):
+        print(f"Checking if chart `{name}` exist in {kwargs['namespace']}")
+        helm_list = self._run_helm_list(**{
+            "namespace": kwargs['namespace'],
+        })
+        return (helm_list['NAME'] == name).any()
+
     def _run_helm_install(self, name, chart, **kwargs) -> CompletedProcess:
         self._set_kubernete_env()
+
+        installation_type = "install" if not self._check_if_chart_already_exist(name, **kwargs) else "upgrade"
+
         flags = []
         for key, value in kwargs.items():
             flags.extend([f"--{key}", f"{value}"])
 
-        helm_cmd = ["helm", "install", name, chart, *flags]
+        helm_cmd = ["helm", installation_type, name, chart, *flags]
         print("Running Command:", " ".join(helm_cmd))
         return subprocess.run(helm_cmd)
 
@@ -262,24 +285,24 @@ class LocalMarketplaceOperatorBackend(Backend):
         listing_details: MarketplaceListingDetails = operator.get_listing_details(
             operator_spec
         )
-        self.check_prerequisites(listing_details)
+        # self.check_prerequisites(listing_details)
         # operator_spec = self.operator_config['spec']
         # helm_values = operator_spec['helmValues']
         ##Perform backend logic##
         # name = 'fs-dp-api-test'
         # chart = 'oci://iad.ocir.io/idogsu2ylimg/feature-store-dataplane-api/helm-chart/feature-store-dp-api'
         if isinstance(listing_details, HelmMarketplaceListingDetails):
-            exported_charts = self._export_helm_chart_to_container_registry(
-                listing_details
-            )
+            # exported_charts = self._export_helm_chart_to_container_registry(
+            #     listing_details
+            # )
             override_value_path = self._save_helm_value_to_yaml(
                 listing_details.helm_values
             )
             helm_install_status = self._run_helm_install(
                 name=listing_details.helm_app_name,
-                chart=override_value_path,
+                chart="oci://iad.ocir.io/idogsu2ylimg/feature-store-data-plane-api-helidon/feature-store-dp-api",
                 **{
-                    "version": listing_details.version,
+                    "version": "1.0.0",
                     "namespace": listing_details.namespace,
                     "values": override_value_path,
                 },
