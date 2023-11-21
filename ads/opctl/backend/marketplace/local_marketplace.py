@@ -12,6 +12,8 @@ import oci.marketplace.models as models
 import fsspec
 import yaml
 from kubernetes import config, client
+from kubernetes.client import V1Pod, V1ObjectMeta
+from kubernetes.stream import stream
 
 from ads.opctl.backend.marketplace.marketplace_type import (
     HelmMarketplaceListingDetails,
@@ -24,19 +26,19 @@ from ads.opctl.backend.marketplace.marketplace_backend_runner import (
 
 from ads import logger
 
-from ads.common.auth import AuthContext
+from ads.common.auth import AuthContext, AuthType
 from ads.opctl.backend.marketplace.marketplace_utils import (
     export_helm_chart,
     wait_for_marketplace_export,
     list_container_images,
     get_marketplace_client,
+    set_kubernetes_session_token_env,
 )
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.operator.runtime import const as operator_runtime_const
 from ads.opctl.operator.runtime import marketplace_runtime as operator_runtime
 from ads.opctl.backend.base import Backend
-from ads.common import auth as authutil
 
 
 def cleanse(prompt: str) -> str:
@@ -97,19 +99,12 @@ class LocalMarketplaceOperatorBackend(Backend):
 
         self.operator_info = operator_info
 
-    @staticmethod
-    def _set_kubernetes_env() -> None:
-        os.environ["OCI_CLI_AUTH"] = "security_token"
-        # os.environ["OCI_CLI_PROFILE"] = "SESSION_PROFILE"
-
-    @staticmethod
-    def _run_helm_install(name, chart, **kwargs) -> CompletedProcess:
-        # self._set_kubernetes_env()
+    def _run_helm_install(self, name, chart, **kwargs) -> CompletedProcess:
         flags = []
         for key, value in kwargs.items():
             flags.extend([f"--{key}", f"{value}"])
         helm_cmd = ["helm", "install", name, chart, *flags]
-        print("Running Command:", " ".join(helm_cmd))
+        print(" ".join(helm_cmd))
         return subprocess.run(helm_cmd)
 
     @staticmethod
@@ -149,6 +144,7 @@ class LocalMarketplaceOperatorBackend(Backend):
                 namespace=namespace,
                 label_selector=f"app.kubernetes.io/instance={pod_name}",
             ).items[0]
+
             if is_pod_ready(pod):
                 return 0
             if time.time() - start_time >= timeout_seconds:
@@ -158,26 +154,62 @@ class LocalMarketplaceOperatorBackend(Backend):
             time.sleep(sleep_time)
         return -1
 
+    # TODO: remove in helidon
     @staticmethod
-    def _export_helm_chart_to_container_registry(
+    def run_bugfix_command(namespace: str, pod_name: str):
+        # Configs can be set in Configuration class directly or using helper utility
+        # self._set_kubernetes_env()
+        print("Running bugfix command!!!")
+        time.sleep(60)
+        config.load_kube_config()
+        v1 = client.CoreV1Api()
+
+        pod: V1Pod = v1.list_namespaced_pod(
+            namespace=namespace,
+            label_selector=f"app.kubernetes.io/instance={pod_name}",
+        ).items[0]
+        metadata: V1ObjectMeta = pod.metadata
+        resp = stream(
+            v1.connect_get_namespaced_pod_exec,
+            name=metadata.name,
+            namespace=metadata.namespace,
+            command=[
+                "/bin/bash",
+                "-c",
+                "sed -i  's/-DuseJipherJceProvider=true//' /etc/runit/artifacts/feature-store-dataplane-api/run.sh",
+            ],
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+        )
+        return 0
+
+    @staticmethod
+    def _export_helm_chart_to_container_registry_(
         listing_details: HelmMarketplaceListingDetails,
-    ):
-        images_before_export = list_container_images(listing_details)
+    ) -> Dict[str, str]:
         workflow_id = export_helm_chart(listing_details)
         wait_for_marketplace_export(workflow_id)
-        images_after_export = list_container_images(listing_details)
-
-        new_resources = set(
-            map(lambda x: (x.id, x.display_name), images_after_export.items)
-        ) - set(map(lambda x: (x.id, x.display_name), images_before_export.items))
-        return new_resources
+        images = list_container_images(listing_details)
+        image_map = {}
+        for image in images.items:
+            for container_tag_pattern in listing_details.container_tag_pattern:
+                if (
+                    container_tag_pattern in image.display_name
+                    and image_map.get(container_tag_pattern, None) is None
+                ):
+                    image_map[container_tag_pattern] = image.display_name
+        return image_map
 
     def check_prerequisites(self, listing_details: MarketplaceListingDetails):
         compartment_id = listing_details.compartment_id
         package_version = listing_details.version
         listing_id = listing_details.listing_id
         marketplace = get_marketplace_client()
-        listing: models.Listing = marketplace.get_listing(listing_id=listing_id).data
+        listing: models.Listing = marketplace.get_listing(
+            listing_id=listing_id, compartment_id=compartment_id
+        ).data
         print("\n\n", "*" * 30, f"Checking prerequisites {self.LOADING}", "*" * 30)
         print(f"Checking license agreements for listing: {listing.name} {self.LOADING}")
         accepted_agreements: List[
@@ -190,7 +222,9 @@ class LocalMarketplaceOperatorBackend(Backend):
         agreement_summaries: List[
             models.AgreementSummary
         ] = marketplace.list_agreements(
-            listing_id=listing_id, package_version=package_version
+            listing_id=listing_id,
+            package_version=package_version,
+            compartment_id=listing_details.compartment_id,
         ).data
 
         accepted_agreement_ids: List[str] = []
@@ -203,6 +237,7 @@ class LocalMarketplaceOperatorBackend(Backend):
                     listing_id=listing_id,
                     package_version=package_version,
                     agreement_id=agreement_summary.id,
+                    compartment_id=listing_details.compartment_id,
                 ).data
                 print(
                     f"Agreement from {agreement.author} with id: {agreement_summary.id} is not accepted. Opening terms and conditions in default browser {self.LOADING}"
@@ -253,6 +288,8 @@ class LocalMarketplaceOperatorBackend(Backend):
 
         # build runtime object
         with AuthContext(auth=self.auth_type, profile=self.profile):
+            if self.auth_type == AuthType.SECURITY_TOKEN:
+                set_kubernetes_session_token_env()
             runtime = operator_runtime.MarketplacePythonRuntime.from_dict(
                 self.runtime_config, ignore_unknown=True
             )
@@ -269,31 +306,30 @@ class LocalMarketplaceOperatorBackend(Backend):
             self.check_prerequisites(listing_details)
             if isinstance(listing_details, HelmMarketplaceListingDetails):
                 listing_details: HelmMarketplaceListingDetails = listing_details
-                # exported_charts = self._export_helm_chart_to_container_registry(
-                #     listing_details
-                # )
-                oci_meta = operator.get_oci_meta(
-                    {"feature-store-api": "feature-store-api"}, operator_spec
+                container_map = self._export_helm_chart_to_container_registry_(
+                    listing_details
                 )
+                oci_meta = operator.get_oci_meta(container_map, operator_spec)
                 listing_details.helm_values["oci_meta"] = oci_meta
                 override_value_path = self._save_helm_value_to_yaml(
                     listing_details.helm_values
                 )
                 helm_install_status = self._run_helm_install(
                     name=listing_details.helm_app_name,
-                    chart="oci://"
-                    + listing_details.ocir_repo
-                    + "/"
-                    + listing_details.helm_chart_name,
+                    chart="oci://" + listing_details.ocir_repo.rstrip("/"),
+                    # + "/"
                     **{
                         # TODO: Fix after feature store listing,
                         # "version": listing_details.version,
-                        "version": "1.0.0",
+                        "version": listing_details.helm_chart_tag,
                         "namespace": listing_details.namespace,
                         "values": override_value_path,
                     },
                 )
-                self._delete_temp_file(override_value_path)
+                self.run_bugfix_command(
+                    namespace=listing_details.namespace,
+                    pod_name=listing_details.helm_app_name,
+                )
                 if helm_install_status.returncode == 0:
                     return self._wait_for_pod_ready(
                         listing_details.namespace, listing_details.helm_app_name
@@ -366,7 +402,7 @@ class LocalMarketplaceOperatorBackend(Backend):
                 f"Supported values: {operator_runtime_const.MARKETPLACE_RUNTIME_MAP.keys()}"
             )
 
-        RUNTIME_KWARGS_MAP = {
+        runtime_kwargs_map = {
             operator_runtime.MarketplacePythonRuntime.type: {},
         }
 
@@ -381,7 +417,7 @@ class LocalMarketplaceOperatorBackend(Backend):
 
             return (
                 operator_runtime_const.MARKETPLACE_RUNTIME_MAP[runtime_type]
-                .init(**RUNTIME_KWARGS_MAP[runtime_type])
+                .init(**runtime_kwargs_map[runtime_type])
                 .to_yaml(
                     uri=uri,
                     overwrite=overwrite,

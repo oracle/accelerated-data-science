@@ -19,19 +19,19 @@ class HelmMarketplaceListingDetails(MarketplaceListingDetails):
         self,
         listing_id: str,
         compartment_id: str,
-        version: str,
+        marketplace_version: str,
         helm_app_name: str,
         namespace: str,
         ocir_repo: str,
-        helm_chart_name: str,
-        container_name_pattern: List[str],
+        helm_chart_tag: str,
+        container_tag_pattern: List[str],
         helm_values: dict,
     ):
-        super().__init__(listing_id, compartment_id, version)
+        super().__init__(listing_id, compartment_id, marketplace_version)
         self.helm_app_name = helm_app_name
         self.namespace = namespace
         self.ocir_repo = ocir_repo
         self.compartment_id = compartment_id
         self.helm_values = helm_values
-        self.helm_chart_name = helm_chart_name
-        self.container_name_pattern = container_name_pattern
+        self.helm_chart_tag = helm_chart_tag
+        self.container_tag_pattern = container_tag_pattern

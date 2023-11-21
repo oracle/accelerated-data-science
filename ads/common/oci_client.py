@@ -6,6 +6,7 @@
 
 import logging
 
+import oci.artifacts
 from oci.ai_language import AIServiceLanguageClient
 from oci.artifacts import ArtifactsClient
 from oci.data_catalog import DataCatalogClient
@@ -150,5 +151,5 @@ class OCIClientFactory:
         return self.create_client("marketplace")
 
     @property
-    def artifacts(self):
+    def artifacts(self) -> oci.artifacts.ArtifactsClient:
         return self.create_client("artifacts")

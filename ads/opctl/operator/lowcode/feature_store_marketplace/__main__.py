@@ -12,9 +12,9 @@ from ads.opctl.backend.marketplace.marketplace_type import (
 from typing import Dict
 
 
+# helm install fs-dp-api-test oci://iad.ocir.io/idogsu2ylimg/test-listing   --version 1.0 --namespace feature-store  --values /home/hvrai/projects/feature-store-dataplane/feature-store-terraform/k8/example_values/values_custom.yaml
 class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
-    VERSION = "v0.10.2"
-    LISTING_ID = "ocid1.mktpublisting.oc1.iad.amaaaaaaclen5bqas6lyd5xler6fewsri5uascfhybhrtwjnh3fwyzbzaora"
+    LISTING_ID = "ocid1.mktpublisting.oc1.iad.amaaaaaabiudgxyazaterzjaubwdvhf5r55zie7wg6ujfnuryuhuje3y5tkq"
 
     @staticmethod
     def __add_docker_registry_secret__(
@@ -30,30 +30,32 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
 
     def get_listing_details(self, operator_config: str) -> MarketplaceListingDetails:
         operator_config_spec = self.__get_spec_from_config__(operator_config)
-        helm_values = operator_config_spec["helmValues"]
+        helm_values = operator_config_spec["helm"]["values"]
         self.__add_docker_registry_secret__(helm_values, operator_config_spec)
+        # TODO: Revert after helidon
         return HelmMarketplaceListingDetails(
             listing_id=self.LISTING_ID,
-            helm_chart_name="feature-store-dp-api",
-            container_name_pattern=["feature-store-api"],
-            version=self.VERSION,
-            helm_values=operator_config_spec["helmValues"],
+            # helm_chart_name="feature-store-dp-api",
+            helm_chart_tag="1.0",
+            container_tag_pattern=["feature-store-dataplane-api"],
+            marketplace_version="0.1",
+            helm_values=helm_values,
             namespace=operator_config_spec["clusterDetails"]["namespace"],
             ocir_repo=operator_config_spec["ocirRepo"],
-            compartment_id=operator_config_spec["marketplaceCompartmentId"],
-            helm_app_name=operator_config_spec["helmAppName"],
+            compartment_id=operator_config_spec["compartmentId"],
+            helm_app_name=operator_config_spec["helm"]["appName"],
         )
 
     def get_oci_meta(self, container_map: Dict[str, str], operator_config: str) -> dict:
         operator_config_spec = self.__get_spec_from_config__(operator_config)
         oci_meta = {
-            "repo": operator_config_spec["ocirRepo"] + "/",
+            "repo": operator_config_spec["ocirRepo"].rstrip("/"),
             "images": {
                 "api": {
-                    "image": container_map["feature-store-api"],
+                    "image": "",
                     # TODO: fix after listing
                     # "tag": self.VERSION,
-                    "tag": "1.0.2",
+                    "tag": container_map["feature-store-dataplane-api"].split(":")[1],
                 }
             },
         }

@@ -25,6 +25,11 @@ def get_oci_signer():
         return {}, signer
 
 
+def set_kubernetes_session_token_env() -> None:
+    os.environ["OCI_CLI_AUTH"] = "security_token"
+    os.environ["OCI_CLI_PROFILE"] = "SESSION_PROFILE"
+
+
 def get_marketplace_client():
     return OCIClientFactory(**authutil.default_signer()).marketplace
 
@@ -35,7 +40,7 @@ def export_helm_chart(listing_details: HelmMarketplaceListingDetails):
         package_version=listing_details.version,
         export_package_details=oci.marketplace.models.ExportPackageDetails(
             compartment_id=listing_details.compartment_id,
-            container_repository_path=listing_details.ocir_repo,
+            container_repository_path=listing_details.ocir_repo.rstrip("/"),
         ),
     )
 
@@ -75,11 +80,14 @@ def wait_for_marketplace_export(work_request_id):
     return -1
 
 
-def list_container_images(listing_details: HelmMarketplaceListingDetails):
+def list_container_images(
+    listing_details: HelmMarketplaceListingDetails,
+) -> oci.artifacts.models.ContainerImageCollection:
     artifact_client = OCIClientFactory(**authutil.default_signer()).artifacts
     list_container_images_response = artifact_client.list_container_images(
         compartment_id=listing_details.compartment_id,
         compartment_id_in_subtree=True,
-        repository_name=listing_details.ocir_repo,
+        sort_by="TIMECREATED",
+        repository_name=listing_details.ocir_repo.rstrip("/").split("/")[-1],
     )
     return list_container_images_response.data
