@@ -2,11 +2,11 @@ Quick start
 ************
 1. Create a `Data Science notebook session <https://docs.oracle.com/en-us/iaas/data-science/using/create-notebook-sessions.htm>`__ to access jupyterlab interface.
 
-2. Open a terminal in the notebook session, and then install the ``fspyspark32_p38_cpu_v1`` plugin:
+2. Open a terminal in the notebook session, and then install the ``fspyspark32_p38_cpu_v2`` plugin:
 
   ..  code-block:: shell
 
-     odsc conda install -s fspyspark32_p38_cpu_v1
+     odsc conda install -s fspyspark32_p38_cpu_v2
 
 3. Download the notebook examples from the example notebook section.
 

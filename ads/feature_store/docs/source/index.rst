@@ -9,7 +9,7 @@ Feature Store
 
 .. |PyPI| image:: https://img.shields.io/badge/python-3.8-blue?style=for-the-badge&logo=pypi&logoColor=white
 ..  _PyPI: https://pypi.org/project/oracle-ads/
-.. |PysparkConda| image:: https://img.shields.io/badge/fspyspark32_p38_cpu_v1-1.0-blue?style=for-the-badge&logo=pypi&logoColor=white
+.. |PysparkConda| image:: https://img.shields.io/badge/fspyspark32_p38_cpu_v2-1.0-blue?style=for-the-badge&logo=pypi&logoColor=white
 ..  _PysparkConda: https://docs.oracle.com/en-us/iaas/data-science/using/conda-pyspark-fam.htm
 .. |Notebook Examples| image:: https://img.shields.io/badge/docs-notebook--examples-blue?style=for-the-badge&logo=pypi&logoColor=white
 ..  _Notebook Examples: https://github.com/oracle-samples/oci-data-science-ai-samples/tree/master/notebook_examples
