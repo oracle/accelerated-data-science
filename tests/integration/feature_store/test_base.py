@@ -57,9 +57,9 @@ class FeatureStoreTestCase:
     TIME_NOW = str.format(
         "{}_{}", datetime.utcnow().strftime("%Y_%m_%d_%H_%M_%S"), int(random() * 1000)
     )
-    TENANCY_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    COMPARTMENT_ID = "ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa"
-    METASTORE_ID = "ocid1.datacatalogmetastore.oc1.iad.amaaaaaabiudgxyap7tizm4gscwz7amu7dixz7ml3mtesqzzwwg3urvvdgua"
+    TENANCY_ID = os.getenv("TENANCY_ID")
+    COMPARTMENT_ID = os.getenv("COMPARTMENT_ID")
+    METASTORE_ID = os.getenv("METASTORE_ID")
     INPUT_FEATURE_DETAILS = [
         FeatureDetail("flower")
         .with_feature_type(FeatureType.STRING)
