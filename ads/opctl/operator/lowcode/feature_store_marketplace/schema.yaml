@@ -99,7 +99,7 @@ spec:
               atp:
                 type: string
                 required: false
-    marketplaceCompartmentId:
+    compartmentId:
       type: string
       required: true
       default: "<Provide compartment ID here>"
