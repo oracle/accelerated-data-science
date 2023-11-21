@@ -9,8 +9,11 @@ import pandas as pd
 import fsspec
 from .operator_config import AnomalyOperatorSpec
 
+
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     if fsspec.utils.get_protocol(filename) == "file":
+        return pd_fn(filename, **kwargs)
+    elif fsspec.utils.get_protocol(filename) in ["https", "http"]:
         return pd_fn(filename, **kwargs)
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
