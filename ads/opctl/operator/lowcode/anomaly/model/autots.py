@@ -9,6 +9,7 @@ import pandas as pd
 from ads.common.decorator.runtime_dependency import runtime_dependency
 
 from .base_model import AnomalyOperatorBaseModel
+from .anomaly_dataset import AnomalyOutput
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
