@@ -58,7 +58,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
             inliers=inliers, ouliers=outliers, scores=scores
         )
 
-        return self.anomaly_output
+        return self.outliers
 
     def _generate_report(self):
         import datapane as dp
