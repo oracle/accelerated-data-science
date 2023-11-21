@@ -1,0 +1,5 @@
+from ads.feature_store.online_feature_store.online_feature_store_strategy import OnlineFeatureStoreStrategy
+
+
+class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
+    pass

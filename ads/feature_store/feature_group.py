@@ -8,7 +8,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Optional, Union, OrderedDict, Any
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from great_expectations.core import ExpectationSuite
@@ -168,9 +168,10 @@ class FeatureGroup(Builder):
         CONST_STATISTICS_CONFIG: "statistics_config",
         CONST_INFER_SCHEMA: "is_infer_schema",
         CONST_PARTITION_KEYS: "partition_keys",
+        CONST_IS_ONLINE_ENABLED: "is_online_enabled",
         CONST_TRANSFORMATION_KWARGS: "transformation_parameters",
-        CONST_IS_OFFLINE_ENABLED: "isOfflineEnabled",
-        CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
+        CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
+
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:

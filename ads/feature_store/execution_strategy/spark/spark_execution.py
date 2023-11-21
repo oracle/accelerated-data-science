@@ -17,6 +17,8 @@ from ads.feature_store.common.utils.utility import (
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 import traceback
 
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import OnlineFSStrategyProvider
+
 try:
     from pyspark.sql import DataFrame
 except ModuleNotFoundError:
@@ -318,6 +320,11 @@ class SparkExecutionEngine(Strategy):
 
             if feature_group.is_online_enabled:
                 self._save_online_dataframe(featured_data, feature_group)
+
+
+            if feature_group.is_online_enabled:
+                online_execution_engine = OnlineFSStrategyProvider.provide_online_execution_strategy(feature_group.feature_store_id)
+                online_execution_engine.write(feature_group, featured_data)
 
 
             # Compute Feature Statistics
