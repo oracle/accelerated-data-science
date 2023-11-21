@@ -8,6 +8,9 @@
 import datetime
 import functools
 import operator
+import importlib.util
+import sys
+
 from typing import Any, List, Dict, Tuple
 from langchain.schema.prompt import PromptValue
 from langchain.tools.base import BaseTool, ToolException
@@ -234,6 +237,7 @@ class Guardrail(BaseTool):
         """
         if isinstance(query, GuardrailIO):
             guardrail_io = query
+            query = guardrail_io.data
         else:
             guardrail_io = None
         # In this default implementation, we convert all input to list.
@@ -289,9 +293,6 @@ class Guardrail(BaseTool):
         if self.return_metrics:
             return {"output": output, "metrics": info.metrics}
         return output
-
-    def load(self) -> None:
-        """Loads the models and configs needed for the guardrail."""
 
     def compute(self, data=None, **kwargs) -> dict:
         """Computes the metrics and returns a dictionary."""
@@ -408,3 +409,45 @@ class Guardrail(BaseTool):
         elif self.threshold is not None:
             return self.apply_filter(metrics, data)
         return data
+
+
+class CustomGuardrailBase(Guardrail):
+    """Base class for custom guardrail."""
+
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        """This class is not LangChain serializable."""
+        return False
+
+    @staticmethod
+    def load_class_from_file(uri: str, class_name: str):
+        """Loads a Python class from a file."""
+        # TODO: Support loading from OCI object storage
+        module_name = uri
+        module_spec = importlib.util.spec_from_file_location(module_name, uri)
+        module = importlib.util.module_from_spec(module_spec)
+        sys.modules[module_name] = module
+        module_spec.loader.exec_module(module)
+        return getattr(module, class_name)
+
+    @staticmethod
+    def type() -> str:
+        """A unique string as identifier to the type of the object for serialization."""
+        return "ads_custom_guardrail"
+
+    @staticmethod
+    def load(config, **kwargs):
+        """Loads the object from serialized config."""
+        guardrail_class = CustomGuardrailBase.load_class_from_file(
+            config["module"], config["class"]
+        )
+        return guardrail_class(**config["spec"])
+
+    def save(self) -> dict:
+        """Serialize the object into a dictionary."""
+        return {
+            "_type": self.type(),
+            "module": self.__module__,
+            "class": self.__class__.__name__,
+            "spec": self.dict(),
+        }

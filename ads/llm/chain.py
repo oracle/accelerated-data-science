@@ -5,44 +5,29 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-import importlib
-import importlib.util
 import json
 import logging
 import os
 import pathlib
-import sys
-
-from copy import deepcopy
-from typing import Any, List, Optional, ClassVar
+from typing import Any, List, Optional
 
 import yaml
-
-from langchain.chains.loading import load_chain_from_config, type_to_loader_dict
 from langchain.llms.base import LLM
 from langchain.schema.runnable import (
     Runnable,
     RunnableConfig,
     RunnableSequence,
 )
-from ads.llm import guardrails
-from ads.llm.serialize import load, dump
 from ads.llm.guardrails.base import GuardrailIO, Guardrail, RunInfo, BlockedByGuardrail
 
 
 logger = logging.getLogger(__name__)
-SPEC_CLASS = "class"
-SPEC_PATH = "path"
-SPEC_SPEC = "spec"
 SPEC_CHAIN_TYPE = "_type"
 SPEC_CHAIN = "chain"
-BUILT_IN = "ads."
 
 
 class GuardrailSequence(RunnableSequence):
     """Represents a sequence of guardrails and other LangChain (non-guardrail) components."""
-
-    CHAIN_TYPE: ClassVar[str] = "ads_guardrail_sequence"
 
     first: Optional[Runnable] = None
     last: Optional[Runnable] = None
@@ -72,8 +57,14 @@ class GuardrailSequence(RunnableSequence):
             chain += [self.last]
         return chain
 
+    @staticmethod
+    def type() -> str:
+        """A unique identifier as type for serialization."""
+        return "ads_guardrail_sequence"
+
     @classmethod
     def from_sequence(cls, sequence: RunnableSequence):
+        """Creates a GuardrailSequence from a LangChain runnable sequence."""
         return cls(first=sequence.first, middle=sequence.middle, last=sequence.last)
 
     def __or__(self, other) -> "GuardrailSequence":
@@ -100,7 +91,7 @@ class GuardrailSequence(RunnableSequence):
         """
         return self.run(input)
 
-    def _invoke_llm(self, llm, texts, num_generations, **kwargs):
+    def _invoke_llm(self, llm: LLM, texts: list, num_generations: int, **kwargs):
         if num_generations > 1:
             if len(texts) > 1:
                 raise NotImplementedError(
@@ -166,6 +157,7 @@ class GuardrailSequence(RunnableSequence):
             if self.raise_exception:
                 raise ex
             obj.data = [ex.message]
+            obj.info.append(ex.info)
         return obj
 
     def _save_to_file(self, chain_dict, filename, overwrite=False):
@@ -187,7 +179,7 @@ class GuardrailSequence(RunnableSequence):
                     f"{self.__class__.__name__} can only be saved as yaml or json format."
                 )
 
-    def save(self, filename: str = None, overwrite: bool = False):
+    def save(self, filename: str = None, overwrite: bool = False) -> dict:
         """Serialize the sequence to a dictionary.
         Optionally, save the sequence into a JSON or YAML file.
 
@@ -196,15 +188,11 @@ class GuardrailSequence(RunnableSequence):
             {
                 "_type": "ads_guardrail_sequence",
                 "chain": [
-                    {
-                        "class": "...",
-                        "path": "...",
-                        "spec": {
-                            ...
-                        }
-                    }
+                    ...
                 ]
             }
+
+        where ``chain`` contains a list of steps.
 
         Parameters
         ----------
@@ -216,22 +204,13 @@ class GuardrailSequence(RunnableSequence):
         dict
             The sequence saved as a dictionary.
         """
+        from ads.llm.serialize import dump
+
         chain_spec = []
         for step in self.steps:
-            class_name = step.__class__.__name__
-            if step.__module__.startswith(BUILT_IN):
-                path = getattr(step, "path", None)
-            else:
-                path = step.__module__
-
-            logger.debug("class: %s | module: %s", class_name, path)
-            if not hasattr(step, "dict"):
-                raise NotImplementedError(f"{class_name} is not serializable.")
-            chain_spec.append(
-                {SPEC_CLASS: class_name, SPEC_PATH: path, SPEC_SPEC: step.dict()}
-            )
+            chain_spec.append(dump(step))
         chain_dict = {
-            SPEC_CHAIN_TYPE: self.CHAIN_TYPE,
+            SPEC_CHAIN_TYPE: self.type(),
             SPEC_CHAIN: chain_spec,
         }
 
@@ -240,83 +219,8 @@ class GuardrailSequence(RunnableSequence):
 
         return chain_dict
 
-    def __str__(self) -> str:
-        return "\n".join([str(step.__class__) for step in self.steps])
-
-    @staticmethod
-    def _load_class_from_file(module_name, file_path, class_name):
-        module_spec = importlib.util.spec_from_file_location(module_name, file_path)
-        module = importlib.util.module_from_spec(module_spec)
-        sys.modules[module_name] = module
-        module_spec.loader.exec_module(module)
-        return getattr(module, class_name)
-
-    @staticmethod
-    def _load_class_from_module(module_name, class_name):
-        component_module = importlib.import_module(module_name)
-        return getattr(component_module, class_name)
-
-    @staticmethod
-    def load_step(config: dict):
-        spec = deepcopy(config.get(SPEC_SPEC, {}))
-        spec: dict
-        class_name = config[SPEC_CLASS]
-        module_name = config.get(SPEC_PATH)
-
-        if not module_name and "." in class_name:
-            # The class name is given as a.b.c.MyClass
-            module_name, class_name = class_name.rsplit(".", 1)
-
-        # Load the step with LangChain loader if it matches the "_type".
-        # Note that some LangChain objects are saved with the "_type" but there is no matching loader.
-        if (
-            str(module_name).startswith("langchain.")
-            and SPEC_CHAIN_TYPE in spec
-            and spec[SPEC_CHAIN_TYPE] in type_to_loader_dict
-        ):
-            return load_chain_from_config(spec)
-
-        # Load the guardrail using spec as kwargs
-        if hasattr(guardrails, class_name):
-            # Built-in guardrail, including custom huggingface guardrail
-            component_class = getattr(guardrails, class_name)
-            # Copy the path into spec if it is not already there
-            if SPEC_PATH in config and SPEC_PATH not in spec:
-                spec[SPEC_PATH] = config[SPEC_PATH]
-        elif SPEC_PATH in config:
-            # Custom component
-            # For custom guardrail, the module name could be a file.
-            if "://" in module_name:
-                # TODO: Load module from OCI object storage
-                #
-                # component_class = GuardrailSequence._load_class_from_file(
-                #     module_name, temp_file, class_name
-                # )
-                raise NotImplementedError(
-                    f"Loading module from {module_name} is not supported."
-                )
-            elif os.path.exists(module_name):
-                component_class = GuardrailSequence._load_class_from_file(
-                    module_name, module_name, class_name
-                )
-            else:
-                component_class = GuardrailSequence._load_class_from_module(
-                    module_name, class_name
-                )
-        elif "." in class_name:
-            # The class name is given as a.b.c.MyClass
-            module_name, class_name = class_name.rsplit(".", 1)
-            component_class = GuardrailSequence._load_class_from_module(
-                module_name, class_name
-            )
-        else:
-            raise ValueError(f"Invalid Guardrail: {class_name}")
-
-        spec.pop(SPEC_CHAIN_TYPE, None)
-        return component_class(**spec)
-
     @classmethod
-    def load(cls, chain_dict: dict) -> "GuardrailSequence":
+    def load(cls, chain_dict: dict, **kwargs) -> "GuardrailSequence":
         """Loads the sequence from a dictionary config.
 
         Parameters
@@ -331,10 +235,15 @@ class GuardrailSequence(RunnableSequence):
         GuardrailSequence
             A GuardrailSequence loaded from the config.
         """
+        from ads.llm.serialize import load
+
         chain_spec = chain_dict[SPEC_CHAIN]
         chain = cls()
         for config in chain_spec:
-            guardrail = cls.load_step(config)
-            # Chain the guardrail
-            chain |= guardrail
+            step = load(config, **kwargs)
+            # Chain the step
+            chain |= step
         return chain
+
+    def __str__(self) -> str:
+        return "\n".join([str(step.__class__) for step in self.steps])

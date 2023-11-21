@@ -18,13 +18,16 @@ from langchain.load.load import load as __lc_load
 from langchain.load.serializable import Serializable
 
 from ads.common.auth import default_signer
-from ads.llm.langchain.plugins.llm_gen_ai import GenerativeAI
+from ads.llm import GenerativeAI, ModelDeploymentVLLM, ModelDeploymentTGI
 from ads.llm.chain import GuardrailSequence
+from ads.llm.guardrails.base import CustomGuardrailBase
+from ads.llm.patch import RunnableParallel, RunnableParallelSerializer
 
 
 # This is a temp solution for supporting custom LLM in legacy load_chain
 __lc_llm_dict = llms.get_type_to_cls_dict()
-__lc_llm_dict["GenerativeAI"] = lambda: GenerativeAI
+for llm_class in [GenerativeAI, ModelDeploymentTGI, ModelDeploymentVLLM]:
+    __lc_llm_dict[llm_class.__name__] = lambda: llm_class
 
 
 def __new_type_to_cls_dict():
@@ -33,6 +36,21 @@ def __new_type_to_cls_dict():
 
 llms.get_type_to_cls_dict = __new_type_to_cls_dict
 loading.get_type_to_cls_dict = __new_type_to_cls_dict
+
+# Mapping class to custom serialization functions
+custom_serialization = {
+    GuardrailSequence: GuardrailSequence.save,
+    CustomGuardrailBase: CustomGuardrailBase.save,
+    RunnableParallel: RunnableParallelSerializer.save,
+}
+
+# Mapping _type to custom deserialization functions
+# Note that the load function should take **kwargs
+custom_deserialization = {
+    GuardrailSequence.type(): GuardrailSequence.load,
+    CustomGuardrailBase.type(): CustomGuardrailBase.load,
+    RunnableParallelSerializer.type(): RunnableParallelSerializer.load,
+}
 
 
 def load(
@@ -56,16 +74,23 @@ def load(
     Returns:
         Revived LangChain objects.
     """
-    if isinstance(obj, dict) and "_type" in obj:
-        if obj["_type"] == GuardrailSequence.CHAIN_TYPE:
-            return GuardrailSequence.load(obj)
-        # Legacy chain
-        return load_chain_from_config(obj, **kwargs)
-
     if not valid_namespaces:
         valid_namespaces = []
     if "ads" not in valid_namespaces:
         valid_namespaces.append("ads")
+
+    if isinstance(obj, dict) and "_type" in obj:
+        obj_type = obj["_type"]
+        # Check if the object requires a custom function to load.
+        if obj_type in custom_deserialization:
+            if valid_namespaces:
+                kwargs["valid_namespaces"] = valid_namespaces
+            if secrets_map:
+                kwargs["secret_map"] = secrets_map
+            return custom_deserialization[obj_type](obj, **kwargs)
+        # Legacy chain
+        return load_chain_from_config(obj, **kwargs)
+
     return __lc_load(obj, secrets_map=secrets_map, valid_namespaces=valid_namespaces)
 
 
@@ -76,12 +101,17 @@ def load_from_yaml(
     valid_namespaces: Optional[List[str]] = None,
     **kwargs,
 ):
-    class __SafeLoaderIgnoreUnknown(yaml.SafeLoader):
+    """Revive an ADS/LangChain class from a YAML file."""
+
+    class _SafeLoaderIgnoreUnknown(yaml.SafeLoader):
+        """Loader ignoring unknown tags in YAML"""
+
         def ignore_unknown(self, node):
+            """Ignores unknown tags in YAML"""
             return node.value[0].value
 
-    __SafeLoaderIgnoreUnknown.add_constructor(
-        None, __SafeLoaderIgnoreUnknown.ignore_unknown
+    _SafeLoaderIgnoreUnknown.add_constructor(
+        None, _SafeLoaderIgnoreUnknown.ignore_unknown
     )
 
     if uri.startswith("oci://"):
@@ -89,7 +119,7 @@ def load_from_yaml(
     else:
         storage_options = {}
     with fsspec.open(uri, **storage_options) as f:
-        config = yaml.load(f, Loader=__SafeLoaderIgnoreUnknown)
+        config = yaml.load(f, Loader=_SafeLoaderIgnoreUnknown)
     return load(
         config, secrets_map=secrets_map, valid_namespaces=valid_namespaces, **kwargs
     )
@@ -126,8 +156,9 @@ def dump(obj: Any) -> Dict[str, Any]:
 
     This method will raise TypeError when the object is not serializable.
     """
-    if isinstance(obj, GuardrailSequence):
-        return obj.save()
+    for super_class, save_fn in custom_serialization.items():
+        if isinstance(obj, super_class):
+            return save_fn(obj)
     if (
         isinstance(obj, Serializable)
         and not obj.is_lc_serializable()
