@@ -8,6 +8,7 @@ import oci
 from unittest.mock import patch
 
 import pytest
+
 # from pytest import MonkeyPatch
 
 import ads
@@ -35,7 +36,9 @@ class TestUserAgent:
 
     @patch("oci.config.validate_config")
     @patch("oci.signer.Signer")
-    def test_user_agent_api_keys_using_test_profile(self, mock_signer, mock_validate_config):
+    def test_user_agent_api_keys_using_test_profile(
+        self, mock_signer, mock_validate_config
+    ):
         with patch("oci.config.from_file", return_value=self.test_config):
             auth_info = ads.auth.api_keys("test_path", "TEST_PROFILE")
             assert (
@@ -56,7 +59,9 @@ class TestUserAgent:
 
     @patch("oci.config.validate_config")
     @patch("oci.signer.load_private_key_from_file")
-    def test_user_agent_default_signer(self, mock_load_key_file, mock_validate_config, monkeypatch):
+    def test_user_agent_default_signer(
+        self, mock_load_key_file, mock_validate_config, monkeypatch
+    ):
         # monkeypatch = MonkeyPatch()
         monkeypatch.delenv("OCI_RESOURCE_PRINCIPAL_VERSION", raising=False)
         importlib.reload(ads.config)
@@ -106,7 +111,12 @@ class TestUserAgent:
     @patch("oci.config.validate_config")
     @patch("oci.signer.load_private_key_from_file")
     def test_user_agent_default_signer_known_resources(
-        self,mock_load_key_file, mock_validate_config, monkeypatch, INPUT_DATA, EXPECTED_RESULT
+        self,
+        mock_load_key_file,
+        mock_validate_config,
+        monkeypatch,
+        INPUT_DATA,
+        EXPECTED_RESULT,
     ):
         # monkeypatch = MonkeyPatch()
         monkeypatch.setenv("OCI_RESOURCE_PRINCIPAL_VERSION", "1.1")
@@ -131,7 +141,7 @@ class TestUserAgent:
 
     @patch("oci.config.validate_config")
     @patch("oci.signer.Signer")
-    def test_user_agent_default_singer_ociservice(
+    def test_user_agent_default_signer_ociservice(
         self,
         mock_signer,
         mock_validate_config,
