@@ -10,7 +10,7 @@ from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
 from .tods import TODSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
-
+from .anomaly_dataset import AnomalyDatasets
 
 class UnSupportedModelError(Exception):
     def __init__(self, model_type: str):
@@ -33,7 +33,7 @@ class AnomalyOperatorModelFactory:
 
     @classmethod
     def get_model(
-        cls, operator_config: AnomalyOperatorConfig
+        cls, operator_config: AnomalyOperatorConfig, datasets: AnomalyDatasets
     ) -> AnomalyOperatorBaseModel:
         """
         Gets the operator model based on the model type.
@@ -42,6 +42,9 @@ class AnomalyOperatorModelFactory:
         ----------
         operator_config: AnomalyOperatorConfig
             The anomaly detection operator config.
+
+        datasets: AnomalyDatasets
+            Datasets for finding anomaly
 
         Returns
         -------
@@ -56,4 +59,4 @@ class AnomalyOperatorModelFactory:
         model_type = operator_config.spec.model
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
-        return cls._MAP[model_type](config=operator_config)
+        return cls._MAP[model_type](config=operator_config, datasets=datasets)
