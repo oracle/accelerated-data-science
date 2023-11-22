@@ -213,11 +213,16 @@ class FeatureStore(Builder):
         return self.get_spec(self.CONST_ONLINE_CONFIG)
 
     @online_config.setter
-    def online_config(self, redis_id: str, elastic_search_id: str, **kwargs: Dict[str, Any]):
-        self.with_online_config(redis_id, elastic_search_id,**kwargs)
+    def online_config(
+        self, redis_id: str, elastic_search_id: str, **kwargs: Dict[str, Any]
+    ):
+        self.with_online_config(redis_id, elastic_search_id, **kwargs)
 
     def with_online_config(
-            self, redis_id: str = None, elastic_search_id: str = None, **kwargs: Dict[str, Any]
+        self,
+        redis_id: str = None,
+        elastic_search_id: str = None,
+        **kwargs: Dict[str, Any],
     ) -> "FeatureStore":
         """Sets the offline config.
         Parameters
@@ -233,11 +238,14 @@ class FeatureStore(Builder):
         FeatureStore
             The FeatureStore instance (self)
         """
-        if(redis_id is None and elastic_search_id is None):
-            raise ValueError("Either redis_id or elastic_search_id must be present for online feature store configuration")
-        elif(redis_id is not None and elastic_search_id is not None):
+        if redis_id is None and elastic_search_id is None:
             raise ValueError(
-                "only one must be part of online feature store configuration")
+                "Either redis_id or elastic_search_id must be present for online feature store configuration"
+            )
+        elif redis_id is not None and elastic_search_id is not None:
+            raise ValueError(
+                "only one must be part of online feature store configuration"
+            )
 
         return self.set_spec(
             self.CONST_ONLINE_CONFIG,
@@ -247,6 +255,7 @@ class FeatureStore(Builder):
                 **kwargs,
             },
         )
+
     def init(self):
         """Initialize the feature store with spark session."""
 

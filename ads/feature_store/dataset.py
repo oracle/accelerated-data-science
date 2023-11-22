@@ -124,8 +124,8 @@ class Dataset(Builder):
     CONST_LAST_JOB_ID = "jobId"
     CONST_MODEL_DETAILS = "modelDetails"
     CONST_FEATURE_GROUP = "datasetFeatureGroups"
-    CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
     CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
+    CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
     CONST_PRIMARY_KEYS = "primaryKeys"
 
     attribute_map = {

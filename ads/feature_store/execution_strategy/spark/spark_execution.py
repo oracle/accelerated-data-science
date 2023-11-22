@@ -17,7 +17,9 @@ from ads.feature_store.common.utils.utility import (
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 import traceback
 
-from ads.feature_store.online_feature_store.online_fs_strategy_provider import OnlineFSStrategyProvider
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
+    OnlineFSStrategyProvider,
+)
 
 try:
     from pyspark.sql import DataFrame
@@ -326,7 +328,6 @@ class SparkExecutionEngine(Strategy):
                 online_execution_engine = OnlineFSStrategyProvider.provide_online_execution_strategy(feature_group.feature_store_id)
                 online_execution_engine.write(feature_group, featured_data)
 
-
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
                 statistics_config=feature_group.oci_feature_group.statistics_config,
@@ -450,18 +451,19 @@ class SparkExecutionEngine(Strategy):
                         validation_output=validation_output,
                     )
 
-            self.delta_lake_service.save_delta_dataframe(
-                dataset_dataframe,
-                dataset_job.ingestion_mode,
-                target_table,
-                dataset_job.feature_option_details,
-                dataset.partition_keys,
-            )
+            if dataset.is_offline_enabled:
+                self.delta_lake_service.save_delta_dataframe(
+                    dataset_dataframe,
+                    dataset_job.ingestion_mode,
+                    target_table,
+                    dataset_job.feature_option_details,
+                    dataset.partition_keys,
+                )
 
             # Get the output features
             output_features = get_features(
                 output_columns=self.spark_engine.get_output_columns_from_table_or_dataframe(
-                    table_name=target_table
+                    table_name=target_table, dataframe=dataset_dataframe
                 ),
                 parent_id=dataset.id,
                 entity_type=EntityType.DATASET,
@@ -543,6 +545,7 @@ class SparkExecutionEngine(Strategy):
         timeout,
         checkpoint_dir,
     ):
+        # TODO: Need to make the changes for online store
         output_features = []
         output_details = {
             "error_details": None,
@@ -627,10 +630,7 @@ class SparkExecutionEngine(Strategy):
                 output_details=output_details,
             )
 
-
-    def _save_online_dataframe(
-            self, dataframe, dataset
-    ):
+    def _save_online_dataframe(self, dataframe, dataset):
         """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
         dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
         Parameter
