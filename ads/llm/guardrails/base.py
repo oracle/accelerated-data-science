@@ -46,17 +46,17 @@ class RunInfo(BaseModel):
 class GuardrailIO(BaseModel):
     """The data structure for the guardrail inputs and outputs.
 
-    This is designed to be the standard data object passing through the guardrails.
+    This is designed to be the standard data object passing through the GuardrailSequence.
 
     The data property is designed to hold user facing data, like prompt and completion/response.
-    When a guardrail is chained (|) with a LangChain (non-guardrail) ``Runnable`` component,
-    the data property is used as the ``Input`` of the LangChain component.
+    In a GuardrailSequence, when a guardrail is chained (|) with a LangChain (non-guardrail)
+    ``Runnable`` component, the data property is used as the ``Input`` of the LangChain component.
     The ``Output`` of the LangChain component will be saved into the data property once it is invoked.
     When processed by a guardrail, the data property is passed to the ``compute()`` method of the guardrail.
     See the ``Guardrail`` base class for more details.
 
-    As the ``GuardrailIO`` object is processed by a guardrail, a new ``RunInfo`` object will be attached,
-    so that the metric and parameters can be tracked.
+    As the ``GuardrailIO`` object is processed by a guardrail in a GuardrailSequence,
+    a new ``RunInfo`` object will be attached, so that the metric and parameters can be tracked.
     If the ``GuardrailIO`` object is processed by a LangChain (non-guardrail) component,
     the ``RunInfo`` attached could be empty or contains only parameters,
     as LangChain components do not return structured metrics.
@@ -122,10 +122,7 @@ class SingleMetric:
 class Guardrail(BaseTool):
     """Base class for guardrails.
 
-    Each Guardrail should be compatible with the LangChain Serializable and Runnable interface.
-    A new ``RunnableSerializable`` class was added in LangChain v0.0.307.
-    https://github.com/langchain-ai/langchain/blob/v0.0.307/libs/langchain/langchain/schema/runnable/base.py#L863
-    The Guardrail class may inherit from ``RunnableSerializable`` in the future.
+    Each Guardrail is designed to be a LangChain "tool".
 
     To implement a new guardrail:
     1. Add the guardrail config/spec as class properties (similar to the ``name`` property).
@@ -135,19 +132,13 @@ class Guardrail(BaseTool):
     and save into the class attributes, this is handled by ``pydantic``.
 
     The ``Input`` to the guardrail could be any data types you would like to support,
-    the data may be wrapped by a ``GuardrailIO`` object when processed by another guardrail upstream.
-    The ``GuardrailIO`` object is used by the guardrail internally and track the metrics.
+    the data may be wrapped by a ``GuardrailIO`` object when processed by GuardrailSequence.
+    The ``GuardrailIO`` object is used by the GuardrailSequence internally and track the metrics.
     Normally your guardrail implementation do not need to handle the ``GuardrailIO`` object.
-    If the ``Input`` is not a ``GuardrailIO`` object,
-    the ``preprocess()`` method will do the following to wrap it as a ``GuardrailIO`` object:
-    1. For a single string, it will be converted to a list with a single string.
-    2. For a LangChain `PromptValue`, it will be converted to a string (to_string) then put it into a list.
-    3. Otherwise, the ``Input`` will be saved into the ``data`` property of the ``GuardrailIO`` object.
-    You may want to override the ``preprocess()`` method if you need additional handling.
 
-    After preprocessing, the data will be passed into the ``compute()`` and ``moderate()`` methods
+    After preprocessing, the input will be passed into the ``compute()`` and ``moderate()`` methods
     in the following ways:
-    1. If the data is a dict, it will be passed as ``**kwargs``. You may have ``data`` as keys in the dict.
+    1. If the input is a dict, it will be passed as ``**kwargs``. You may have ``data`` as keys in the dict.
     2. Otherwise, the data will be passed as the ``data`` argument.
 
     The ``compute()`` method should compute the metrics and return them as a dictionary.
@@ -159,12 +150,6 @@ class Guardrail(BaseTool):
     If you are not able to separate the logic of ``compute()`` and ``moderate()``,
     you may do all the work in ``compute()`` and save the moderated data in the metrics,
     then in ``moderate()`` simply return (or pop) the moderated data from the metrics.
-
-    In LangChain, the ``Input`` and ``Output`` types of a ``Runnable`` are usually well defined.
-    In Guardrails, to enable additional data going through the guardrails,
-    the Input and Output are wrapped as ``GuardrailIO`` objects.
-    Although not required, you may restrict them by adding the types like
-    ``class YourGuardrail(Guardrail[Union[GuardrailIO, YourInputType], GuardrailIO):``
 
     """
 
