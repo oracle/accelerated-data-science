@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Optional
 
 import requests
 from langchain.callbacks.manager import CallbackManagerForLLMRun
+
 from ads.llm.langchain.plugins.base import BaseLLM
 from ads.llm.langchain.plugins.contant import (
     DEFAULT_CONTENT_TYPE_JSON,
@@ -25,8 +26,8 @@ class ModelDeploymentLLM(BaseLLM):
     """The uri of the endpoint from the deployed Model Deployment model."""
 
     best_of: int = 1
-    """Generates best_of completions server-side and returns the "best" 
-    (the one with the highest log probability per token). 
+    """Generates best_of completions server-side and returns the "best"
+    (the one with the highest log probability per token).
     """
 
     @property
@@ -230,7 +231,7 @@ class ModelDeploymentVLLM(ModelDeploymentLLM):
     """Whether to use beam search instead of sampling."""
 
     ignore_eos: bool = False
-    """Whether to ignore the EOS token and continue generating tokens after 
+    """Whether to ignore the EOS token and continue generating tokens after
     the EOS token is generated."""
 
     logprobs: Optional[int] = None
