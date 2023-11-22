@@ -7,7 +7,9 @@ The Forecast Operator can be installed in 2 primary ways: PyPi and Conda Packs.
 
 **Installing Through PyPi**
 
-If you are running the operator from outside of a Notebook Session, you may download ``oracle_ads[forecast]`` from pypi.
+If you are running the operator from outside of a Notebook Session, you may download ``oracle_ads[forecast]`` from pypi. 
+
+*Note: Due to our dependence on Automlx, ``oracle_ads[forecast]``  only supports Python<=3.8, != 3.9, <= 3.10.7 . Python 3.8 is the recommended version.*
 
 .. code-block:: bash
 
