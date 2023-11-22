@@ -32,4 +32,4 @@ def init(**kwargs: Dict) -> str:
 
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
-    ).generate_example(values={"type": kwargs.get("type")})
+    ).generate_example_dict(values={"type": kwargs.get("type")})
