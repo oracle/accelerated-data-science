@@ -3,16 +3,16 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-# from darts import datasets as d_datasets
-# import yaml
-# import tempfile
-# import subprocess
-# import pandas as pd
-# import pytest
-# from time import sleep, time
-# from copy import deepcopy
-# from pathlib import Path
-# import random
+from darts import datasets as d_datasets
+import yaml
+import tempfile
+import subprocess
+import pandas as pd
+import pytest
+from time import sleep, time
+from copy import deepcopy
+from pathlib import Path
+import random
 
 
 DATASETS_LIST = [
