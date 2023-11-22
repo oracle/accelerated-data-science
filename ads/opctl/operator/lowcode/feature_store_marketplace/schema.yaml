@@ -91,7 +91,7 @@ spec:
         dockerRegistrySecretName:
           type: string
           required: true
-          default: "ocir-secret"
+          default: "<Operator will create a secret using user's bearer token if this is left untouched>"
           description: "The name of the secret in namespace having docker credentials"
     ocirRepo:
       type: string

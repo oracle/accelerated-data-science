@@ -1,23 +1,19 @@
 import json
 import os
-import re
-import subprocess
 import tempfile
 import time
-from subprocess import CompletedProcess
-from typing import Optional, Dict, Union, Any, List
-import io
-import webbrowser
-
-import click
-import oci.marketplace.models as models
+from typing import Optional, Dict, Union, Any
 import fsspec
-import pandas as pd
 import yaml
+from ads.opctl.backend.marketplace.prerequisite_checker import (
+    check_prerequisites,
+)
+
 from kubernetes import config, client
 from kubernetes.client import V1Pod, V1ObjectMeta
 from kubernetes.stream import stream
 
+from ads.opctl.backend.marketplace.helm_helper import run_helm_install
 from ads.opctl.backend.marketplace.marketplace_type import (
     HelmMarketplaceListingDetails,
     MarketplaceListingDetails,
@@ -31,21 +27,17 @@ from ads import logger
 
 from ads.common.auth import AuthContext, AuthType
 from ads.opctl.backend.marketplace.marketplace_utils import (
-    export_helm_chart,
-    wait_for_marketplace_export,
     list_container_images,
-    get_marketplace_client,
     set_kubernetes_session_token_env,
+    export_helm_chart,
+    Color,
+    StatusIcons,
 )
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.operator.runtime import const as operator_runtime_const
 from ads.opctl.operator.runtime import marketplace_runtime as operator_runtime
 from ads.opctl.backend.base import Backend
-
-
-def cleanse(prompt: str) -> str:
-    return re.sub("<.*?>", "", prompt)
 
 
 class LocalMarketplaceOperatorBackend(Backend):
@@ -67,9 +59,9 @@ class LocalMarketplaceOperatorBackend(Backend):
         The detailed information about the operator.
     """
 
-    CHECK = "\u2705"
-    CROSS = "\u274C"
-    LOADING = "\u274d"
+    DOCKER_SECRET_PLACEHOLDER = (
+        "<This secret is automatically created by operator if left untouched>"
+    )
 
     def __init__(
         self, config: Optional[Dict], operator_info: OperatorInfo = None
@@ -87,6 +79,7 @@ class LocalMarketplaceOperatorBackend(Backend):
         """
         super().__init__(config=config or {})
         self.runtime_config = self.config.get("runtime", {})
+        self.spec = self.runtime_config.get("spec", {})
         self.operator_config = {
             **{
                 key: value
@@ -97,56 +90,19 @@ class LocalMarketplaceOperatorBackend(Backend):
         self.operator_type = self.operator_config.get("type")
 
         self._RUNTIME_RUN_MAP = {
-            operator_runtime.MarketplacePythonRuntime.type: self._run_with_python,
+            operator_runtime.MarketplacePythonRuntime.type: self._run_with_python_,
         }
 
         self.operator_info = operator_info
 
-    def _run_helm_list(self, **kwargs) -> pd.DataFrame:
-        flags = []
-        for key, value in kwargs.items():
-            flags.extend([f"--{key}", f"{value}"])
-        helm_cmd = ["helm", "list", *flags]
-        print("Running Command:", " ".join(helm_cmd))
-        result = subprocess.run(helm_cmd, capture_output=True)
-        if result.returncode == 0:
-            output = pd.read_csv(io.BytesIO(result.stdout), delimiter=r'\s*\t\s*', )
-            return output
-
-    def _check_if_chart_already_exist(self, name, **kwargs):
-        print(f"Checking if chart `{name}` exist in {kwargs['namespace']}")
-        helm_list = self._run_helm_list(**{
-            "namespace": kwargs['namespace'],
-        })
-        return (helm_list['NAME'] == name).any()
-
-    def _run_helm_install(self, name, chart, **kwargs) -> CompletedProcess:
-        installation_type = "install" if not self._check_if_chart_already_exist(name, **kwargs) else "upgrade"
-
-        flags = []
-        for key, value in kwargs.items():
-            flags.extend([f"--{key}", f"{value}"])
-
-        helm_cmd = ["helm", installation_type, name, chart, *flags]
-        print("Running Command:", " ".join(helm_cmd))
-        return subprocess.run(helm_cmd)
-
     @staticmethod
-    def _save_helm_value_to_yaml(helm_values: Dict[str, Any]) -> str:
-        override_value_path = os.path.join(
+    def _save_helm_values_to_yaml_(helm_values: Dict[str, Any]) -> str:
+        temp_file_path = os.path.join(
             tempfile.TemporaryDirectory().name, f"values.yaml"
         )
-        with fsspec.open(override_value_path, mode="w") as f:
+        with fsspec.open(temp_file_path, mode="w") as f:
             f.write(yaml.dump(helm_values))
-        return override_value_path
-
-    @staticmethod
-    def _delete_temp_file(temp_file_path: str) -> bool:
-        if os.path.exists(temp_file_path):
-            os.remove(temp_file_path)
-            return True
-
-        return False
+        return temp_file_path
 
     def _wait_for_pod_ready(self, namespace: str, pod_name: str):
         # Configs can be set in Configuration class directly or using helper utility
@@ -213,8 +169,7 @@ class LocalMarketplaceOperatorBackend(Backend):
     def _export_helm_chart_to_container_registry_(
         listing_details: HelmMarketplaceListingDetails,
     ) -> Dict[str, str]:
-        workflow_id = export_helm_chart(listing_details)
-        wait_for_marketplace_export(workflow_id)
+        export_helm_chart(listing_details)
         images = list_container_images(listing_details)
         image_map = {}
         for image in images.items:
@@ -226,81 +181,7 @@ class LocalMarketplaceOperatorBackend(Backend):
                     image_map[container_tag_pattern] = image.display_name
         return image_map
 
-    def check_prerequisites(self, listing_details: MarketplaceListingDetails):
-        compartment_id = listing_details.compartment_id
-        package_version = listing_details.version
-        listing_id = listing_details.listing_id
-        marketplace = get_marketplace_client()
-        listing: models.Listing = marketplace.get_listing(
-            listing_id=listing_id, compartment_id=compartment_id
-        ).data
-        print("\n\n", "*" * 30, f"Checking prerequisites {self.LOADING}", "*" * 30)
-        print(f"Checking license agreements for listing: {listing.name} {self.LOADING}")
-        accepted_agreements: List[
-            models.AcceptedAgreementSummary
-        ] = marketplace.list_accepted_agreements(
-            listing_id=listing_id,
-            compartment_id=compartment_id,
-        ).data
-
-        agreement_summaries: List[
-            models.AgreementSummary
-        ] = marketplace.list_agreements(
-            listing_id=listing_id,
-            package_version=package_version,
-            compartment_id=listing_details.compartment_id,
-        ).data
-
-        accepted_agreement_ids: List[str] = []
-        for accepted_agreement in accepted_agreements:
-            accepted_agreement_ids.append(accepted_agreement.agreement_id)
-
-        for agreement_summary in agreement_summaries:
-            if agreement_summary.id not in accepted_agreement_ids:
-                agreement: models.Agreement = marketplace.get_agreement(
-                    listing_id=listing_id,
-                    package_version=package_version,
-                    agreement_id=agreement_summary.id,
-                    compartment_id=listing_details.compartment_id,
-                ).data
-                print(
-                    f"Agreement from {agreement.author} with id: {agreement_summary.id} is not accepted. Opening terms and conditions in default browser {self.LOADING}"
-                )
-                webbrowser.open(agreement.content_url)
-                time.sleep(1)
-                answer = click.confirm(
-                    f"{cleanse(agreement.prompt)}",
-                    default=False,
-                )
-                if not answer:
-                    print(
-                        "*" * 30,
-                        f"Agreement from author: {agreement_summary.author} with id: {agreement_summary.id} "
-                        f"is rejected {self.CROSS} "
-                        "*" * 30,
-                    )
-                    raise Exception
-                else:
-                    create_accepted_agreement_details: models.CreateAcceptedAgreementDetails = (
-                        models.CreateAcceptedAgreementDetails()
-                    )
-                    create_accepted_agreement_details.agreement_id = (
-                        agreement_summary.id
-                    )
-                    create_accepted_agreement_details.listing_id = listing_id
-                    create_accepted_agreement_details.compartment_id = compartment_id
-                    create_accepted_agreement_details.signature = agreement.signature
-                    create_accepted_agreement_details.package_version = package_version
-                    marketplace.create_accepted_agreement(
-                        create_accepted_agreement_details
-                    )
-
-            print(
-                f"Agreement from author: {agreement_summary.author} with id: {agreement_summary.id} is accepted "
-                f"{self.CHECK} "
-            )
-
-    def _run_with_python(self, **kwargs: Dict) -> int:
+    def _run_with_python_(self, **kwargs: Dict) -> int:
         """
         Runs the operator within a local python environment.
 
@@ -313,7 +194,7 @@ class LocalMarketplaceOperatorBackend(Backend):
         # build runtime object
         with AuthContext(auth=self.auth_type, profile=self.profile):
             if self.auth_type == AuthType.SECURITY_TOKEN:
-                set_kubernetes_session_token_env()
+                set_kubernetes_session_token_env(profile=self.profile)
             runtime = operator_runtime.MarketplacePythonRuntime.from_dict(
                 self.runtime_config, ignore_unknown=True
             )
@@ -327,37 +208,47 @@ class LocalMarketplaceOperatorBackend(Backend):
             listing_details: MarketplaceListingDetails = operator.get_listing_details(
                 operator_spec
             )
-            # self.check_prerequisites(listing_details)
             if isinstance(listing_details, HelmMarketplaceListingDetails):
                 listing_details: HelmMarketplaceListingDetails = listing_details
+
+                check_prerequisites(listing_details)
+                print(
+                    "\n\n",
+                    "*" * 30,
+                    f"{Color.BOLD}Starting deployment{Color.END}",
+                    "*" * 30,
+                )
                 container_map = self._export_helm_chart_to_container_registry_(
                     listing_details
                 )
                 oci_meta = operator.get_oci_meta(container_map, operator_spec)
                 listing_details.helm_values["oci_meta"] = oci_meta
-                override_value_path = self._save_helm_value_to_yaml(
+                override_value_path = self._save_helm_values_to_yaml_(
                     listing_details.helm_values
                 )
-                helm_install_status = self._run_helm_install(
+                helm_install_status = run_helm_install(
                     name=listing_details.helm_app_name,
-                    chart="oci://" + listing_details.ocir_repo.rstrip("/"),
-                    # + "/"
-                    **{
-                        # TODO: Fix after feature store listing,
-                        # "version": listing_details.version,
-                        "version": listing_details.helm_chart_tag,
-                        "namespace": listing_details.namespace,
-                        "values": override_value_path,
-                    },
-                )
-                self.run_bugfix_command(
+                    chart=f"oci://{listing_details.ocir_fully_qualified_url}",
+                    version=listing_details.helm_chart_tag,
                     namespace=listing_details.namespace,
-                    pod_name=listing_details.helm_app_name,
+                    values_yaml_path=override_value_path,
                 )
                 if helm_install_status.returncode == 0:
-                    return self._wait_for_pod_ready(
+                    self.run_bugfix_command(
+                        namespace=listing_details.namespace,
+                        pod_name=listing_details.helm_app_name,
+                    )
+                    status = self._wait_for_pod_ready(
                         listing_details.namespace, listing_details.helm_app_name
                     )
+                    if status == 0:
+                        print(
+                            "*" * 30,
+                            f"{Color.BOLD}Completed deployment!! {StatusIcons.TADA}{Color.END}",
+                            "*" * 30,
+                            "\n\n",
+                        )
+                    return status
                 else:
                     return -1
 
@@ -374,7 +265,6 @@ class LocalMarketplaceOperatorBackend(Backend):
                 f"Not supported runtime - {runtime_type} for local backend. "
                 f"Supported values: {self._RUNTIME_RUN_MAP.keys()}"
             )
-
         if not self.operator_info:
             self.operator_info = OperatorLoader.from_uri(self.operator_type).load()
 

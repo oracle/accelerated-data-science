@@ -62,4 +62,4 @@ class BACKEND_NAME(ExtendedEnum):
     MODEL_DEPLOYMENT = "deployment"
     LOCAL = "local"
     OPERATOR_LOCAL = "operator.local"
-    MARKETPLACE = "marketplace"
+    MARKETPLACE = "marketplace.local"

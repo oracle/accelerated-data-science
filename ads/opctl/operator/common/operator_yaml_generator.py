@@ -27,7 +27,7 @@ class YamlGenerator:
 
     def generate_example_dict(
         self,
-        values: Optional[Dict[str, Any]] = None,
+        values: Optional[Dict[str, Any]] = (),
         required_keys: Optional[List[str]] = (),
     ) -> Dict:
         """
@@ -91,7 +91,7 @@ class YamlGenerator:
     def _generate_example(
         self,
         schema: Dict[str, Any],
-        values: Optional[Dict[str, Any]] = None,
+        values: Optional[Dict[str, Any]] = (),
         required_keys: Optional[List[str]] = (),
     ) -> Dict[str, Any]:
         """

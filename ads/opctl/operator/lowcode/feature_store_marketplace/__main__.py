@@ -1,4 +1,6 @@
 import json
+import random
+import string
 import sys
 
 from ads.opctl.backend.marketplace.marketplace_operator_runner import (
@@ -8,6 +10,7 @@ from ads.opctl.backend.marketplace.marketplace_operator_runner import (
 from ads.opctl.backend.marketplace.marketplace_type import (
     MarketplaceListingDetails,
     HelmMarketplaceListingDetails,
+    SecretStrategy,
 )
 from typing import Dict
 
@@ -17,13 +20,6 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
     LISTING_ID = "ocid1.mktpublisting.oc1.iad.amaaaaaabiudgxyazaterzjaubwdvhf5r55zie7wg6ujfnuryuhuje3y5tkq"
 
     @staticmethod
-    def __add_docker_registry_secret__(
-        helm_values: dict, operator_config_spec: dict
-    ) -> None:
-        secret_name = operator_config_spec["clusterDetails"]["dockerRegistrySecretName"]
-        helm_values["imagePullSecrets"] = [{"name": f"{secret_name}"}]
-
-    @staticmethod
     def __get_spec_from_config__(operator_config: str):
         operator_config_json = json.loads(operator_config)
         return operator_config_json["spec"]
@@ -31,7 +27,17 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
     def get_listing_details(self, operator_config: str) -> MarketplaceListingDetails:
         operator_config_spec = self.__get_spec_from_config__(operator_config)
         helm_values = operator_config_spec["helm"]["values"]
-        self.__add_docker_registry_secret__(helm_values, operator_config_spec)
+        secret_name: str = operator_config_spec["clusterDetails"].get(
+            "dockerRegistrySecretName", ""
+        )
+        secret_strategy = SecretStrategy.PROMPT
+        if not secret_name:
+            secret_name = (
+                "ocir-secret-"
+                + "".join(random.choices(string.ascii_letters, k=4)).lower()
+            )
+            secret_strategy = SecretStrategy.AUTOMATIC
+        helm_values["imagePullSecrets"] = [{"name": f"{secret_name}"}]
         # TODO: Revert after helidon
         return HelmMarketplaceListingDetails(
             listing_id=self.LISTING_ID,
@@ -40,10 +46,12 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
             container_tag_pattern=["feature-store-dataplane-api"],
             marketplace_version="0.1",
             helm_values=helm_values,
-            namespace=operator_config_spec["clusterDetails"]["namespace"],
             ocir_repo=operator_config_spec["ocirRepo"],
             compartment_id=operator_config_spec["compartmentId"],
             helm_app_name=operator_config_spec["helm"]["appName"],
+            docker_registry_secret=secret_name,
+            namespace=operator_config_spec["clusterDetails"]["namespace"],
+            secret_strategy=secret_strategy.AUTOMATIC,
         )
 
     def get_oci_meta(self, container_map: Dict[str, str], operator_config: str) -> dict:

@@ -27,12 +27,15 @@ def runpy_backend_runner(func: types.FunctionType):
     return inner_backend
 
 
+# TODO: Handle generic listings properly
 class MarketplaceBackendRunner(MarketplaceInterface):
     def __init__(self, module_name: str = None):
         self.module_name = module_name
 
     @runpy_backend_runner
-    def get_listing_details(self, operator_config: str) -> MarketplaceListingDetails:
+    def get_listing_details(
+        self, operator_config: str, docker_registry_secret_name: str
+    ) -> MarketplaceListingDetails:
         pass
 
     @runpy_backend_runner
