@@ -6,10 +6,14 @@ from functools import lru_cache
 from langchain.chains import LLMChain
 from ads import set_auth
 from ads.llm.deploy import ChainDeployment
+from ads.llm.chain import LOG_ADS_GUARDRAIL_INFO
 from ads.config import OCI_RESOURCE_PRINCIPAL_VERSION
 
 if OCI_RESOURCE_PRINCIPAL_VERSION:
     set_auth("resource_principal")
+
+if LOG_ADS_GUARDRAIL_INFO not in os.environ:
+    os.environ[LOG_ADS_GUARDRAIL_INFO] = "1"
 
 
 """

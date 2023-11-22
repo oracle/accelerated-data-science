@@ -24,6 +24,7 @@ from ads.llm.guardrails.base import GuardrailIO, Guardrail, RunInfo, BlockedByGu
 logger = logging.getLogger(__name__)
 SPEC_CHAIN_TYPE = "_type"
 SPEC_CHAIN = "chain"
+LOG_ADS_GUARDRAIL_INFO = "LOG_ADS_GUARDRAIL_INFO"
 
 
 class GuardrailSequence(RunnableSequence):
@@ -44,6 +45,11 @@ class GuardrailSequence(RunnableSequence):
     the custom message from the guardrail will be returned as the output.
 
     When this is ``True``, the ``BlockedByGuardrail`` exception from the guardrail will be raised.
+    """
+
+    log_info: bool = False
+    """Indicate whether to print the run info at the end of each invocation.
+    This option can also be turned on if the environment variable LOG_ADS_GUARDRAIL_INFO is set to "1".
     """
 
     @property
@@ -158,6 +164,9 @@ class GuardrailSequence(RunnableSequence):
                 raise ex
             obj.data = [ex.message]
             obj.info.append(ex.info)
+        if self.log_info or os.environ.get(LOG_ADS_GUARDRAIL_INFO) == "1":
+            # LOG_ADS_GUARDRAIL_INFO is set to "1" in score.py by default.
+            print(obj.dict())
         return obj
 
     def _save_to_file(self, chain_dict, filename, overwrite=False):
