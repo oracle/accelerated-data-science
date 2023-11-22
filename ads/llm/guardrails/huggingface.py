@@ -17,6 +17,7 @@ class HuggingFaceEvaluation(Guardrail):
 
     @root_validator(skip_on_failure=True)
     def load_model(cls, values):
+        """Loads the model from Huggingface."""
         if values.get("path"):
             path = values["path"]
         else:
