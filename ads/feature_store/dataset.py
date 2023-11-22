@@ -125,6 +125,7 @@ class Dataset(Builder):
     CONST_MODEL_DETAILS = "modelDetails"
     CONST_FEATURE_GROUP = "datasetFeatureGroups"
     CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
+    CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
     CONST_PRIMARY_KEYS = "primaryKeys"
 
     attribute_map = {
@@ -144,8 +145,9 @@ class Dataset(Builder):
         CONST_MODEL_DETAILS: "model_details",
         CONST_PARTITION_KEYS: "partition_keys",
         CONST_FEATURE_GROUP: "dataset_feature_groups",
-        # CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
-        # CONST_PRIMARY_KEYS: "primary_keys",
+        CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
+        CONST_PRIMARY_KEYS: "primary_keys",
+        CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -652,6 +654,13 @@ class Dataset(Builder):
         return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
 
     @property
+    def is_offline_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_OFFLINE_ENABLED)
+
+    def with_is_offline_enabled(self, is_offline_enabled: bool) -> "Dataset":
+        return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
+
+    @property
     def primary_keys(self) -> List[str]:
         return self.get_spec(self.CONST_PRIMARY_KEYS)
 
@@ -678,6 +687,7 @@ class Dataset(Builder):
                 ]
             },
         )
+
     def add_models(self, model_details: ModelDetails) -> "Dataset":
         """Add model details to the dataset, Append to the existing model id list
 

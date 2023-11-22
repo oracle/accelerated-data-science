@@ -1,12 +1,12 @@
 from pyspark.sql.functions import col, concat_ws
 
-from ads.feature_store.online_feature_store.online_feature_store_strategy import OnlineFeatureStoreStrategy
+from ads.feature_store.online_feature_store.online_feature_store_strategy import (
+    OnlineFeatureStoreStrategy,
+)
 
 
 class OnlineRedisEngine(OnlineFeatureStoreStrategy):
-    def write(
-            self, feature_group, dataframe
-    ):
+    def write(self, feature_group, dataframe):
         if len(feature_group.primary_keys["items"]) == 1:
             key = feature_group.primary_keys["items"][0]["name"]
             df_with_key = dataframe.withColumn("key", col(key))

@@ -147,6 +147,7 @@ class FeatureGroup(Builder):
     CONST_INFER_SCHEMA = "isInferSchema"
     CONST_TRANSFORMATION_KWARGS = "transformationParameters"
     CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
+    CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
 
     attribute_map = {
         CONST_ID: "id",
@@ -168,6 +169,7 @@ class FeatureGroup(Builder):
         CONST_INFER_SCHEMA: "is_infer_schema",
         CONST_PARTITION_KEYS: "partition_keys",
         CONST_IS_ONLINE_ENABLED: "is_online_enabled",
+        CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
         CONST_TRANSFORMATION_KWARGS: "transformation_parameters",
     }
 
@@ -639,8 +641,15 @@ class FeatureGroup(Builder):
     def is_online_enabled(self) -> bool:
         return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
 
-    def with_is_online_enabled(self, is_online_enabled: bool) -> "Dataset":
+    def with_is_online_enabled(self, is_online_enabled: bool) -> "FeatureGroup":
         return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
+
+    @property
+    def is_offline_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_OFFLINE_ENABLED)
+
+    def with_is_offline_enabled(self, is_offline_enabled: bool) -> "FeatureGroup":
+        return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
 
     def with_job_id(self, feature_group_job_id: str) -> "FeatureGroup":
         """Sets the job_id for the last running job.

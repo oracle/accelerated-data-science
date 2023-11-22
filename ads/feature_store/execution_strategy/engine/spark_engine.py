@@ -205,10 +205,10 @@ class SparkEngine:
                 "Either 'table_name' or 'dataframe' must be provided to retrieve output columns."
             )
 
-        if dataframe is not None:
-            feature_data_target = dataframe
-        else:
+        if table_name is not None:
             feature_data_target = self.spark.sql(f"SELECT * FROM {table_name} LIMIT 1")
+        else:
+            feature_data_target = dataframe
 
         target_table_columns = []
 

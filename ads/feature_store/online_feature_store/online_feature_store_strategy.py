@@ -7,9 +7,7 @@ class OnlineFeatureStoreStrategy(ABC):
     """
 
     @abstractmethod
-    def write(
-        self, feature_group, dataframe
-    ):
+    def write(self, feature_group, dataframe):
         pass
 
     @abstractmethod
@@ -19,4 +17,3 @@ class OnlineFeatureStoreStrategy(ABC):
         dataframe,
     ):
         pass
-   
