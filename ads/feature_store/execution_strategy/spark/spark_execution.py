@@ -469,7 +469,8 @@ class SparkExecutionEngine(Strategy):
             logger.info(f"output features for the dataset: {output_features}")
 
             if dataset.is_online_enabled:
-                self._save_online_dataframe(dataset_dataframe, dataset)
+                online_execution_engine = OnlineFSStrategyProvider.provide_online_execution_strategy(dataset.feature_store_id)
+                online_execution_engine.write(dataset, dataset_dataframe)
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
