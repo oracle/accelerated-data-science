@@ -13,7 +13,7 @@ If you are running the operator from outside of a Notebook Session, you may down
 
 .. code-block:: bash
 
-    python3 -m pip install oracle_ads[forecast]==2.9.0
+    python3 -m pip install "oracle_ads[forecast]==2.9"
 
 
 After that, the Operator is ready to go!
@@ -24,7 +24,7 @@ In order to run on a job, you will need to create and publish a conda pack with 
 
     odsc conda create -n forecast -e
     conda activate /home/datascience/conda/forecast_v1_0
-    python3 -m pip install oracle-ads[forecast]==2.9.0
+    python3 -m pip install "oracle-ads[forecast]==2.9"
     odsc conda publish -s /home/datascience/conda/forecast_v1_0
 
 Ensure that you have properly configured your conda pack namespace and bucket in the Launcher -> Settings -> Object Storage Settings. For more details, see :doc:`ADS Conda Set Up <../../cli/opctl/configure>`
