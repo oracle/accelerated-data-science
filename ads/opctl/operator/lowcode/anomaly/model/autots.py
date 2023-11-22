@@ -9,6 +9,7 @@ import pandas as pd
 from ads.common.decorator.runtime_dependency import runtime_dependency
 
 from .base_model import AnomalyOperatorBaseModel
+from .anomaly_dataset import AnomalyOutput
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
@@ -24,8 +25,40 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         from autots.evaluator.anomaly_detector import AnomalyDetector
 
-        result = pd.DataFrame()
-        return result
+        date_column = self.spec.datetime_column.name
+
+        model = AnomalyDetector(
+            output=self.spec.model_kwargs.get("output", "univariate"),
+            method=self.spec.model_kwargs.get("method", "zscore"),
+            transform_dict=self.spec.model_kwargs.get("tranform_dict", None),
+            forecast_params=self.spec.model_kwargs.get("forecast_params", None),
+            method_params=self.spec.model_kwargs.get("method_params", {}),
+            eval_period=self.spec.model_kwargs.get("eval_period", None),
+            n_jobs=self.spec.model_kwargs.get("n_jobs", 1),
+        )
+
+        data = self.datasets.data
+        data.set_index(data_column)
+
+        (anomaly, scores) = model.detect(data)
+
+        inliers = pd.DataFrame()
+        outliers = pd.DataFrame()
+
+        if len(anomaly.columns) == 1:
+            outlier_indices = anomaly.index[anomaly[anomaly.columns.values[0]] == -1]
+            inlier_indices = anomaly.index[anomaly[anomaly.columns.values[0]] == 1]
+            outliers = data[outlier_indices]
+            inliers = data[inlier_indices]
+
+        else:
+            "TBD"
+
+        self.anomaly_output = AnomalyOutput(
+            inliers=inliers, ouliers=outliers, scores=scores
+        )
+
+        return self.outliers
 
     def _generate_report(self):
         import datapane as dp

@@ -25,6 +25,14 @@ class InputData(DataClassSerializable):
 
 
 @dataclass(repr=True)
+class DateTimeColumn(DataClassSerializable):
+    """Class representing operator specification date time column details."""
+
+    name: str = None
+    format: str = None
+
+
+@dataclass(repr=True)
 class TestData(DataClassSerializable):
     """Class representing operator specification test data details."""
 
@@ -53,6 +61,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
 
     name: str = None
     input_data: InputData = field(default_factory=InputData)
+    datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     test_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
     report_file_name: str = None

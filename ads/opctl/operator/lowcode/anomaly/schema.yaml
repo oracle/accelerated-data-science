@@ -62,6 +62,18 @@ spec:
           required: false
           type: integer
 
+    datetime_column:
+      type: dict
+      required: true
+      schema:
+        name:
+          type: string
+          required: true
+          default: Date
+        format:
+          type: string
+          required: false
+
     test_data:
       required: false
       meta:
