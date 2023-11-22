@@ -90,9 +90,9 @@ spec:
           description: "Namespace where we want to deploy the cluster to. Eg: 'default'"
         dockerRegistrySecretName:
           type: string
-          required: true
-          default: "<Operator will create a secret using user's bearer token if this is left untouched>"
-          description: "The name of the secret in namespace having docker credentials"
+          required: false
+          default: "ocir-secret"
+          description: "Operator will create a secret using user's bearer token if this registry isn't manually provided"
     ocirRepo:
       type: string
       required: true
