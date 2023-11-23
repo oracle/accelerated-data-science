@@ -31,7 +31,9 @@ logger = logging.getLogger(__name__)
 
 
 class SparkEngine:
-    def __init__(self, feature_store_id: str = None, spark_session: SparkSession = None):
+    def __init__(
+        self, feature_store_id: str = None, spark_session: SparkSession = None
+    ):
         if spark_session:
             self.spark = spark_session
         else:

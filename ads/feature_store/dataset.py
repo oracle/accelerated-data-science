@@ -771,6 +771,20 @@ class Dataset(Builder):
                 f"Can't get lineage information for Feature group id {self.id}"
             )
 
+    def get_embedding_vector(
+        self, embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+    ):
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
+            )
+
+            return online_execution_engine.get_embedding_vector(
+                embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+            )
+
     def get_serving_vector(self, primary_key_vector):
         if self.is_online_enabled:
             online_execution_engine = (
@@ -811,7 +825,9 @@ class Dataset(Builder):
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
 
         if self.is_online_enabled and self.primary_keys is None:
-            raise ValueError("FeatureGroup cannot be enabled for online use without primary keys")
+            raise ValueError(
+                "Dataset cannot be enabled for online use without primary keys"
+            )
 
         if not self.name:
             self.name = self._random_display_name()
@@ -978,7 +994,7 @@ class Dataset(Builder):
         dataset_execution_strategy = (
             OciExecutionStrategyProvider.provide_execution_strategy(
                 execution_engine=ExecutionEngine.SPARK,
-                metastore_id=get_metastore_id(self.feature_store_id),
+                feature_store_id=self.feature_store_id,
             )
         )
 

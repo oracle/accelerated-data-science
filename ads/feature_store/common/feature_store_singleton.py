@@ -10,10 +10,12 @@ import ads
 from ads.common.decorator.runtime_dependency import OptionalDependency
 import os
 from ads.common.oci_client import OCIClientFactory
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import \
-    ElasticSearchClientConfig
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import \
-    RedisClientConfig
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import (
+    ElasticSearchClientConfig,
+)
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import (
+    RedisClientConfig,
+)
 
 try:
     from delta import configure_spark_with_delta_pip
@@ -91,7 +93,10 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             )
             # .config("spark.jars", redis_path())
-            .config("spark.jars.packages", "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1")
+            .config(
+                "spark.jars.packages",
+                "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1",
+            )
             .enableHiveSupport()
         )
         _managed_table_location = None
@@ -99,10 +104,13 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
 
         if feature_store_id:
             from ads.feature_store.feature_store import FeatureStore
+
             # Parse the Feature Store and get the required Details
             feature_store = FeatureStore.from_id(feature_store_id)
             offline_config = feature_store.offline_config
-            fs_online_config = self.__get_feature_store_online_config(feature_store.online_config)
+            fs_online_config = self.__get_feature_store_online_config(
+                feature_store.online_config
+            )
             metastore_id = offline_config["metastoreId"]
 
             if not developer_enabled() and metastore_id:
@@ -125,7 +133,10 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         if developer_enabled():
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder,
-                extra_packages=["org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1", "com.redislabs:spark-redis_2.12:3.0.0"]
+                extra_packages=[
+                    "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1",
+                    "com.redislabs:spark-redis_2.12:3.0.0",
+                ],
             ).getOrCreate()
         else:
             self.spark_session = spark_builder.getOrCreate()
@@ -154,15 +165,15 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             host = "localhost"
             scheme = "http"
 
-            return ElasticSearchClientConfig(host=host, username=user, password=password, scheme=scheme,
-                                             verify_certs=False)
+            return ElasticSearchClientConfig(
+                host=host,
+                username=user,
+                password=password,
+                scheme=scheme,
+                verify_certs=False,
+            )
 
         elif online_config.get("redisId"):
-            return RedisClientConfig(host='localhost', port=6379)
+            return RedisClientConfig(host="localhost", port=6379)
 
         return None
-
-
-
-
-

@@ -292,8 +292,8 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
-            is_online_enabled:bool = False,
-            is_offline_enabled:bool = True,
+        is_online_enabled: bool = False,
+        is_offline_enabled: bool = True,
         transformation_kwargs: Dict = None,
     ):
         feature_group_resource = (
@@ -325,7 +325,7 @@ class Entity(Builder):
         self,
         primary_keys: List[str],
         is_online_enabled: bool = False,
-            is_offline_enabled:bool = True,
+        is_offline_enabled: bool = True,
         partition_keys: List[str] = None,
         input_feature_details: List[FeatureDetail] = None,
         schema_details_dataframe: Union[DataFrame, pd.DataFrame] = None,
@@ -469,10 +469,11 @@ class Entity(Builder):
         self,
         query: str,
         name: str = None,
+        primary_keys: List[str] = None,
         description: str = None,
         compartment_id: str = None,
-            is_online_enabled: bool = False,
-            is_offline_enabled: bool = True,
+        is_online_enabled: bool = False,
+        is_offline_enabled: bool = True,
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
@@ -492,6 +493,7 @@ class Entity(Builder):
             )
             .with_statistics_config(statistics_config)
             .with_partition_keys(partition_keys)
+            .with_primary_keys(primary_keys)
         )
 
         if expectation_suite:
@@ -505,8 +507,9 @@ class Entity(Builder):
     def create_dataset(
         self,
         query: str,
-            is_online_enabled: bool = False,
-            is_offline_enabled: bool = True,
+        primary_keys: List[str] = None,
+        is_online_enabled: bool = False,
+        is_offline_enabled: bool = True,
         name: str = None,
         description: str = None,
         compartment_id: str = None,
@@ -549,6 +552,7 @@ class Entity(Builder):
         self.oci_fs_dataset = self._build_dataset(
             query,
             name,
+            primary_keys,
             description,
             compartment_id,
             is_online_enabled,

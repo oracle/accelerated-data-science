@@ -261,9 +261,7 @@ class FeatureStore(Builder):
         """Initialize the feature store with spark session."""
 
         # Initialize the Spark Session
-        return FeatureStoreSingleton(
-            self.id
-        )
+        return FeatureStoreSingleton(self.id)
 
     @property
     def offline_config(self) -> dict:

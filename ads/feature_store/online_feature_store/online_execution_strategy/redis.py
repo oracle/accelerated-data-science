@@ -2,8 +2,9 @@ from typing import OrderedDict, Any
 
 from pyspark.sql.functions import col, concat_ws
 
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import \
-    RedisClientConfig
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import (
+    RedisClientConfig,
+)
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
@@ -15,7 +16,7 @@ def developer_enabled():
 
 
 class OnlineRedisEngine(OnlineFeatureStoreStrategy):
-    def __init__(self, online_engine_config:RedisClientConfig):
+    def __init__(self, online_engine_config: RedisClientConfig):
         self.online_engine_config = online_engine_config
         self.redis_client = online_engine_config.get_client()
 
@@ -48,3 +49,15 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
             f"{feature_group.id}:{ordered_concatenated_key}"
         )
         return response
+
+    def get_embedding_vector(
+        self,
+        feature_group,
+        embedding_field,
+        k_neighbors,
+        query_embedding_vector,
+        max_candidate_pool,
+    ):
+        raise NotImplementedError(
+            "The method get_embedding_vector is not supported for Redis."
+        )

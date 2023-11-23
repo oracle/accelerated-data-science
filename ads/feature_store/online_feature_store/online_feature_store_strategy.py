@@ -9,9 +9,19 @@ class OnlineFeatureStoreStrategy(ABC):
     """
 
     @abstractmethod
-    def write(self, feature_group, feature_group_job, dataframe):
+    def write(self, feature_group_or_dataset, feature_group_or_dataset_job, dataframe):
         pass
 
     @abstractmethod
-    def read(self, feature_group, primary_key_vector):
+    def read(self, feature_group_or_dataset, primary_key_vector):
+        pass
+
+    def get_embedding_vector(
+        self,
+        feature_group_or_dataset,
+        embedding_field,
+        k_neighbors,
+        query_embedding_vector,
+        max_candidate_pool,
+    ):
         pass

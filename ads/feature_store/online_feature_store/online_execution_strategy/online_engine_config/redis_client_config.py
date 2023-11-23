@@ -1,7 +1,8 @@
 import redis
 
+
 class RedisClientConfig:
-    def __init__(self, host='localhost', port=6379, password=None, db=0):
+    def __init__(self, host="localhost", port=6379, password=None, db=0):
         """
         Initialize the Redis client configuration.
 
@@ -33,5 +34,5 @@ class RedisClientConfig:
             password=self.password,
             db=self.db,
             encoding="utf-8",
-            decode_responses=True  # Decodes responses from bytes to strings
+            decode_responses=True,  # Decodes responses from bytes to strings
         )

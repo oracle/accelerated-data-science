@@ -736,7 +736,9 @@ class FeatureGroup(Builder):
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
 
         if self.is_online_enabled and self.primary_keys is None:
-            raise ValueError("FeatureGroup cannot be enabled for online use without primary keys")
+            raise ValueError(
+                "FeatureGroup cannot be enabled for online use without primary keys"
+            )
 
         if not self.feature_store_id:
             raise ValueError("FeatureStore id must be provided.")
@@ -1079,6 +1081,20 @@ class FeatureGroup(Builder):
             entity_id=self.entity_id,
         )
 
+    def get_embedding_vector(
+        self, embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+    ):
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
+            )
+
+            return online_execution_engine.get_embedding_vector(
+                embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+            )
+
     def get_serving_vector(self, primary_key_vector):
         if self.is_online_enabled:
             online_execution_engine = (
@@ -1087,7 +1103,7 @@ class FeatureGroup(Builder):
                 )
             )
 
-            return  online_execution_engine.read(self, primary_key_vector)
+            return online_execution_engine.read(self, primary_key_vector)
 
     def delete(self):
         """Removes FeatureGroup Resource.

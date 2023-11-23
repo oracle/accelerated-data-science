@@ -2,17 +2,19 @@ from typing import OrderedDict, Any, Dict, Union
 
 from pyspark.sql.functions import concat
 
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import \
-    ElasticSearchClientConfig
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import \
-    RedisClientConfig
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import (
+    ElasticSearchClientConfig,
+)
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import (
+    RedisClientConfig,
+)
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
 
 
 class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
-    def __init__(self, online_engine_config:ElasticSearchClientConfig):
+    def __init__(self, online_engine_config: ElasticSearchClientConfig):
         self.online_engine_config = online_engine_config
         self.elastic_client = self.online_engine_config.get_client()
 
@@ -73,3 +75,25 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
             id=ordered_concatenated_key,
         )
         return response
+
+    def get_embedding_vector(
+        self,
+        feature_group,
+        embedding_field,
+        k_neighbors,
+        query_embedding_vector,
+        max_candidate_pool,
+    ):
+        query = {
+            "field": embedding_field,
+            "query_vector": query_embedding_vector,
+            "k": k_neighbors,
+            "num_candidates": max_candidate_pool,
+        }
+
+        res = self.elastic_client.knn_search(
+            index=f"{feature_group.entity_id}_{feature_group.name}".lower(),
+            knn=query,
+            source=[],
+        )
+        return res

@@ -75,7 +75,9 @@ class SparkExecutionEngine(Strategy):
     """
 
     def __init__(self, feature_store_id: str = None):
-        self._spark_session = FeatureStoreSingleton(feature_store_id).get_spark_session()
+        self._spark_session = FeatureStoreSingleton(
+            feature_store_id
+        ).get_spark_session()
         self._spark_context = self._spark_session.sparkContext
         self.spark_engine = SparkEngine(feature_store_id)
         self.delta_lake_service = DeltaLakeService(self._spark_session)
@@ -480,7 +482,7 @@ class SparkExecutionEngine(Strategy):
                         dataset.feature_store_id
                     )
                 )
-                online_execution_engine.write(dataset, dataset_dataframe)
+                online_execution_engine.write(dataset, dataset_job, dataset_dataframe)
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
