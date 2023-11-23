@@ -15,12 +15,3 @@ class OnlineFeatureStoreStrategy(ABC):
     @abstractmethod
     def read(self, feature_group, primary_key_vector):
         pass
-
-    # TODO :Yogesh to verify
-    @abstractmethod
-    def read(
-        self,
-        feature_group,
-        keys: OrderedDict[str, Any],
-    ):
-        pass

@@ -1087,7 +1087,7 @@ class FeatureGroup(Builder):
                 )
             )
 
-            online_execution_engine.read(self, primary_key_vector)
+            return  online_execution_engine.read(self, primary_key_vector)
 
     def delete(self):
         """Removes FeatureGroup Resource.

@@ -90,7 +90,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             )
-            .config("spark.jars", redis_path())
+            # .config("spark.jars", redis_path())
             .config("spark.jars.packages", "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1")
             .enableHiveSupport()
         )
@@ -124,7 +124,8 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
 
         if developer_enabled():
             self.spark_session = configure_spark_with_delta_pip(
-                spark_builder
+                spark_builder,
+                extra_packages=["org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1"]
             ).getOrCreate()
         else:
             self.spark_session = spark_builder.getOrCreate()

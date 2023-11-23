@@ -8,11 +8,8 @@ from ads.feature_store.online_feature_store.online_feature_store_strategy import
 
 
 class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
-    def __init__(self, online_config: Dict):
-        self.online_config = online_config
-
     def write(self, feature_group, feature_group_job, dataframe):
-        index_name = f"{feature_group.entity_id}_{feature_group.name}"
+        index_name = f"{feature_group.entity_id}_{feature_group.name}".lower()
         primary_keys = [
             key_item["name"] for key_item in feature_group.primary_keys["items"]
         ]
@@ -71,7 +68,7 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
 
         ordered_concatenated_key = "".join(ordered_keys)
         response = elastic_search_client.get(
-            index=f"{feature_group.entity_id}_{feature_group.name}",
+            index=f"{feature_group.entity_id}_{feature_group.name}".lower(),
             id=ordered_concatenated_key,
         )
         return response
