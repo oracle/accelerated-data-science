@@ -11,9 +11,5 @@ class OnlineFeatureStoreStrategy(ABC):
         pass
 
     @abstractmethod
-    def read(
-        self,
-        feature_group,
-            primary_key_vector
-    ):
+    def read(self, feature_group, primary_key_vector):
         pass

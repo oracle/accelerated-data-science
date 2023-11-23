@@ -45,7 +45,9 @@ from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.input_feature_detail import FeatureDetail, FeatureType
-from ads.feature_store.online_feature_store.online_fs_strategy_provider import OnlineFSStrategyProvider
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
+    OnlineFSStrategyProvider,
+)
 from ads.feature_store.query.filter import Filter, Logic
 from ads.feature_store.query.query import Query
 from ads.feature_store.service.oci_feature_group import OCIFeatureGroup

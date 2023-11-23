@@ -38,7 +38,9 @@ from ads.feature_store.feature import DatasetFeature
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
-from ads.feature_store.online_feature_store.online_fs_strategy_provider import OnlineFSStrategyProvider
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
+    OnlineFSStrategyProvider,
+)
 from ads.feature_store.service.oci_dataset import OCIDataset
 from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig

@@ -109,9 +109,9 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
 
         if developer_enabled():
             redis_host = "localhost"
-            spark_builder.config("spark.jars", redis_path()) \
-                .config("spark.redis.host", redis_host) \
-                .config("spark.redis.port", "6379")
+            spark_builder.config("spark.jars", redis_path()).config(
+                "spark.redis.host", redis_host
+            ).config("spark.redis.port", "6379")
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder
             ).getOrCreate()
