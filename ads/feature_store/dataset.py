@@ -668,9 +668,7 @@ class Dataset(Builder):
         FeatureGroup
             The FeatureGroup instance (self)
         """
-        # self.redis_client = get_redis_client(self.feature_store_id)
         return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
-
 
     @property
     def primary_keys(self) -> List[str]:
@@ -699,6 +697,7 @@ class Dataset(Builder):
                 ]
             },
         )
+
     def add_models(self, model_details: ModelDetails) -> "Dataset":
         """Add model details to the dataset, Append to the existing model id list
 

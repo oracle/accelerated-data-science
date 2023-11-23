@@ -8,7 +8,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Optional, Union, OrderedDict, Any
+from typing import Dict, List, Optional, Union
 
 import pandas as pd
 from great_expectations.core import ExpectationSuite
@@ -171,8 +171,6 @@ class FeatureGroup(Builder):
         CONST_IS_ONLINE_ENABLED: "is_online_enabled",
         CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
         CONST_TRANSFORMATION_KWARGS: "transformation_parameters",
-        CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
-
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -630,6 +628,16 @@ class FeatureGroup(Builder):
         )
 
     @property
+    def features(self) -> List[Feature]:
+        return [
+            Feature(**feature_dict)
+            for feature_dict in self.get_spec(self.CONST_OUTPUT_FEATURE_DETAILS)[
+                self.CONST_ITEMS
+            ]
+            or []
+        ]
+
+    @property
     def is_online_enabled(self) -> bool:
         return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
 
@@ -663,30 +671,6 @@ class FeatureGroup(Builder):
             The FeatureGroup instance (self)
         """
         # self.redis_client = get_redis_client(self.feature_store_id)
-        return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
-
-    @property
-    def features(self) -> List[Feature]:
-        return [
-            Feature(**feature_dict)
-            for feature_dict in self.get_spec(self.CONST_OUTPUT_FEATURE_DETAILS)[
-                self.CONST_ITEMS
-            ]
-            or []
-        ]
-
-    @property
-    def is_online_enabled(self) -> bool:
-        return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
-
-    def with_is_online_enabled(self, is_online_enabled: bool) -> "FeatureGroup":
-        return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
-
-    @property
-    def is_offline_enabled(self) -> bool:
-        return self.get_spec(self.CONST_IS_OFFLINE_ENABLED)
-
-    def with_is_offline_enabled(self, is_offline_enabled: bool) -> "FeatureGroup":
         return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
 
     def with_job_id(self, feature_group_job_id: str) -> "FeatureGroup":

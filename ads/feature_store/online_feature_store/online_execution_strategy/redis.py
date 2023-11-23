@@ -5,7 +5,11 @@ from pyspark.sql.functions import col, concat_ws
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
+import os
+import redis
 
+def developer_enabled():
+    return os.getenv("DEVELOPER_MODE")
 
 class OnlineRedisEngine(OnlineFeatureStoreStrategy):
     def write(self, feature_group, feature_group_job, dataframe):
@@ -23,7 +27,20 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
 
     def read(self, feature_group, keys: OrderedDict[str, Any]):
         ordered_keys = []
-
+        #TODO:Need to move this out and generalize
+        if developer_enabled():
+            self.redis_client = redis.StrictRedis(
+                host="localhost", encoding="utf-8", decode_responses=True, port=6379
+            )
+        else:
+            self.redis_client = redis.StrictRedis(
+                host="amaaaaaaqc2qulqa7sju3k7vdrvamfjusbabf47g6dghr7wbjmtsioqfekfq-p.redis."
+                     "us-ashburn-1.oci.oraclecloud.com",
+                encoding="utf-8",
+                ssl=True,
+                decode_responses=True,
+                port=6379,
+            )
         for primary_key in feature_group.primary_keys["items"]:
             primary_key_name = primary_key["name"]
             if primary_key_name in keys:
@@ -33,5 +50,5 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
                     f"'FeatureGroup' object has no primary key called {primary_key_name}."
                 )
         ordered_concatenated_key = ":".join(ordered_keys)
-        response = self.redis_client.hgetall(f"{self.id}:{ordered_concatenated_key}")
+        response = self.redis_client.hgetall(f"{feature_group.id}:{ordered_concatenated_key}")
         return response
