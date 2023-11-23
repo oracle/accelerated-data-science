@@ -8,4 +8,5 @@ pytest
 pytest-codecov
 pytest-xdist
 darts
+plotly
 # docker
