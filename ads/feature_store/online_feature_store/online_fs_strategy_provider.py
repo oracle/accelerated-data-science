@@ -20,9 +20,10 @@ class OnlineFSStrategyProvider:
         cls, feature_store_id: str
     ) -> OnlineFeatureStoreStrategy:
         feature_store_singleton = FeatureStoreSingleton(feature_store_id)
+        online_engine_config = feature_store_singleton.get_online_config()
 
 
-        if isinstance(feature_store_singleton.get_online_config(), RedisClientConfig):
-            return OnlineRedisEngine()
-        elif isinstance(feature_store_singleton.get_online_config(), ElasticSearchClientConfig):
-            return OnlineElasticSearchEngine()
+        if isinstance(online_engine_config, RedisClientConfig):
+            return OnlineRedisEngine(online_engine_config)
+        elif isinstance(online_engine_config, ElasticSearchClientConfig):
+            return OnlineElasticSearchEngine(online_engine_config)

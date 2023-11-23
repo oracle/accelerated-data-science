@@ -125,7 +125,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         if developer_enabled():
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder,
-                extra_packages=["org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1"]
+                extra_packages=["org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1", "com.redislabs:spark-redis_2.12:3.0.0"]
             ).getOrCreate()
         else:
             self.spark_session = spark_builder.getOrCreate()
@@ -147,20 +147,21 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         return self.online_config
 
     def __get_feature_store_online_config(self, online_config):
-        if online_config["elasticSearchId"]:
+        if online_config.get("elasticSearchId"):
             # TODO: Get the details
             user = "elastic"
             password = "43ef9*ixWnJbsiclO*lU"
             host = "localhost"
             scheme = "http"
 
-            return ElasticSearchClientConfig(host=host, username=user, password=password, scheme=scheme, verify_certs=False)
+            return ElasticSearchClientConfig(host=host, username=user, password=password, scheme=scheme,
+                                             verify_certs=False)
 
-        elif online_config["redisId"]:
-            # TODO: Get the details
+        elif online_config.get("redisId"):
             return RedisClientConfig(host='localhost', port=6379)
 
         return None
+
 
 
 

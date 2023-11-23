@@ -1,13 +1,21 @@
-from typing import OrderedDict, Any, Dict
+from typing import OrderedDict, Any, Dict, Union
 
 from pyspark.sql.functions import concat
 
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import \
+    ElasticSearchClientConfig
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import \
+    RedisClientConfig
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
 
 
 class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
+    def __init__(self, online_engine_config:ElasticSearchClientConfig):
+        self.online_engine_config = online_engine_config
+        self.elastic_client = self.online_engine_config.get_client()
+
     def write(self, feature_group, feature_group_job, dataframe):
         index_name = f"{feature_group.entity_id}_{feature_group.name}".lower()
         primary_keys = [
@@ -17,12 +25,12 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
 
         # Elasticsearch configuration
         elastic_search_config = {
-            "es.nodes": "localhost",  # Replace with your Elasticsearch server address
+            "es.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
             "es.port": "9200",  # Replace with your Elasticsearch server port
             "es.resource": index_name,  # Replace with your index (without type, as types are deprecated)
             "es.write.operation": "index",  # Use "index" for writing data to Elasticsearch
-            "es.net.http.auth.user": "elastic",  # Elasticsearch user
-            "es.net.http.auth.pass": "43ef9*ixWnJbsiclO*lU",  # Elasticsearch password
+            "es.net.http.auth.user": self.online_engine_config.username,  # Elasticsearch user
+            "es.net.http.auth.pass": self.online_engine_config.password,  # Elasticsearch password
             "es.nodes.wan.only": "true",
             "es.nodes.discovery": "false",
             "es.nodes.client.only": "false",
@@ -48,13 +56,6 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
     def read(self, feature_group, keys: OrderedDict[str, Any]):
         ordered_keys = []
         # TODO:Need to revisit
-        from elasticsearch import Elasticsearch
-
-        elastic_search_client = Elasticsearch(
-            hosts="http://localhost:9200",
-            basic_auth=("elastic", "43ef9*ixWnJbsiclO*lU"),
-            verify_certs=False,
-        )
 
         for primary_key in feature_group.primary_keys["items"]:
             primary_key_name = primary_key["name"]
@@ -67,7 +68,7 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
                 )
 
         ordered_concatenated_key = "".join(ordered_keys)
-        response = elastic_search_client.get(
+        response = self.elastic_client.get(
             index=f"{feature_group.entity_id}_{feature_group.name}".lower(),
             id=ordered_concatenated_key,
         )

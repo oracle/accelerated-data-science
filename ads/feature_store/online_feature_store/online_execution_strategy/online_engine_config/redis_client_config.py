@@ -32,5 +32,6 @@ class RedisClientConfig:
             port=self.port,
             password=self.password,
             db=self.db,
+            encoding="utf-8",
             decode_responses=True  # Decodes responses from bytes to strings
         )

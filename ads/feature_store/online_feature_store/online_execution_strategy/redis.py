@@ -2,11 +2,12 @@ from typing import OrderedDict, Any
 
 from pyspark.sql.functions import col, concat_ws
 
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import \
+    RedisClientConfig
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
 import os
-import redis
 
 
 def developer_enabled():
@@ -14,6 +15,10 @@ def developer_enabled():
 
 
 class OnlineRedisEngine(OnlineFeatureStoreStrategy):
+    def __init__(self, online_engine_config:RedisClientConfig):
+        self.online_engine_config = online_engine_config
+        self.redis_client = online_engine_config.get_client()
+
     def write(self, feature_group, feature_group_job, dataframe):
         if len(feature_group.primary_keys["items"]) == 1:
             key = feature_group.primary_keys["items"][0]["name"]
@@ -30,19 +35,6 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
     def read(self, feature_group, keys: OrderedDict[str, Any]):
         ordered_keys = []
         # TODO:Need to move this out and generalize
-        if developer_enabled():
-            self.redis_client = redis.StrictRedis(
-                host="localhost", encoding="utf-8", decode_responses=True, port=6379
-            )
-        else:
-            self.redis_client = redis.StrictRedis(
-                host="amaaaaaaqc2qulqa7sju3k7vdrvamfjusbabf47g6dghr7wbjmtsioqfekfq-p.redis."
-                "us-ashburn-1.oci.oraclecloud.com",
-                encoding="utf-8",
-                ssl=True,
-                decode_responses=True,
-                port=6379,
-            )
         for primary_key in feature_group.primary_keys["items"]:
             primary_key_name = primary_key["name"]
             if primary_key_name in keys:
