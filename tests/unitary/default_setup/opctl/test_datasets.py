@@ -72,7 +72,7 @@ SAMPLE_FRACTION = 1
 
 parameters_short = []
 
-for dataset_i in DATASETS_LIST[2:3] + [DATASETS_LIST[-2]]:
+for dataset_i in DATASETS_LIST[2:3]:  #  + [DATASETS_LIST[-2]]
     for model in [
         "arima",
         "automlx",
