@@ -38,6 +38,7 @@ from ads.feature_store.feature import DatasetFeature
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import OnlineFSStrategyProvider
 from ads.feature_store.service.oci_dataset import OCIDataset
 from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
@@ -767,6 +768,16 @@ class Dataset(Builder):
             raise ValueError(
                 f"Can't get lineage information for Feature group id {self.id}"
             )
+
+    def get_serving_vector(self, primary_key_vector):
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
+            )
+
+            online_execution_engine.read(self, primary_key_vector)
 
     def create(self, validate_sql=False, **kwargs) -> "Dataset":
         """Creates dataset  resource.

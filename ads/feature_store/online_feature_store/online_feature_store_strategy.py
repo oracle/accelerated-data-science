@@ -14,6 +14,6 @@ class OnlineFeatureStoreStrategy(ABC):
     def read(
         self,
         feature_group,
-        dataframe,
+            primary_key_vector
     ):
         pass

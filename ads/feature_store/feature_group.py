@@ -45,6 +45,7 @@ from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.input_feature_detail import FeatureDetail, FeatureType
+from ads.feature_store.online_feature_store.online_fs_strategy_provider import OnlineFSStrategyProvider
 from ads.feature_store.query.filter import Filter, Logic
 from ads.feature_store.query.query import Query
 from ads.feature_store.service.oci_feature_group import OCIFeatureGroup
@@ -1072,6 +1073,16 @@ class FeatureGroup(Builder):
             feature_store_id=self.feature_store_id,
             entity_id=self.entity_id,
         )
+
+    def get_serving_vector(self, primary_key_vector):
+        if self.is_online_enabled:
+            online_execution_engine = (
+                OnlineFSStrategyProvider.provide_online_execution_strategy(
+                    self.feature_store_id
+                )
+            )
+
+            online_execution_engine.read(self, primary_key_vector)
 
     def delete(self):
         """Removes FeatureGroup Resource.
