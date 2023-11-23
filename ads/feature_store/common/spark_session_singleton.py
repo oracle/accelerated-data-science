@@ -60,6 +60,10 @@ def developer_enabled():
     return get_env_bool("DEVELOPER_MODE", False)
 
 
+def redis_path():
+    return os.getenv("REDIS_PATH")
+
+
 class SingletonMeta(type):
     _instances = {}
 
@@ -104,8 +108,10 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
             )
 
         if developer_enabled():
-            # Configure spark session with delta jars only in developer mode. In other cases,
-            # jars should be part of the conda pack
+            redis_host = "localhost"
+            spark_builder.config("spark.jars", redis_path()) \
+                .config("spark.redis.host", redis_host) \
+                .config("spark.redis.port", "6379")
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder
             ).getOrCreate()
