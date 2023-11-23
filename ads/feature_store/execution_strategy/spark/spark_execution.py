@@ -298,11 +298,13 @@ class SparkExecutionEngine(Strategy):
                         featured_data
                     )
                 )
+            offline_target_table = None
+
             if feature_group.is_offline_enabled:
-                target_table = f"{database}.{feature_group.name}"
+                offline_target_table = f"{database}.{feature_group.name}"
                 self.delta_lake_service.write_dataframe_to_delta_lake(
                     featured_data,
-                    target_table,
+                    offline_target_table,
                     feature_group.primary_keys,
                     feature_group.partition_keys,
                     feature_group_job.ingestion_mode,
@@ -311,22 +313,24 @@ class SparkExecutionEngine(Strategy):
                 )
 
             # Get the output features
-                output_features = get_features(
-                    self.spark_engine.get_output_columns_from_table_or_dataframe(
-                        target_table
-                    ),
-                    feature_group.id,
+            output_features = get_features(
+                self.spark_engine.get_output_columns_from_table_or_dataframe(
+                    table_name=offline_target_table, dataframe=featured_data
+                ),
+                feature_group.id,
+            )
+
+            logger.info(f"output features for the FeatureGroup: {output_features}")
+
+            if feature_group.is_online_enabled:
+                online_execution_engine = (
+                    OnlineFSStrategyProvider.provide_online_execution_strategy(
+                        feature_group.feature_store_id
+                    )
                 )
-
-                logger.info(f"output features for the FeatureGroup: {output_features}")
-
-            if feature_group.is_online_enabled:
-                self._save_online_dataframe(featured_data, feature_group)
-
-
-            if feature_group.is_online_enabled:
-                online_execution_engine = OnlineFSStrategyProvider.provide_online_execution_strategy(feature_group.feature_store_id)
-                online_execution_engine.write(feature_group, featured_data)
+                online_execution_engine.write(
+                    feature_group, feature_group_job, featured_data
+                )
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
@@ -471,7 +475,11 @@ class SparkExecutionEngine(Strategy):
             logger.info(f"output features for the dataset: {output_features}")
 
             if dataset.is_online_enabled:
-                online_execution_engine = OnlineFSStrategyProvider.provide_online_execution_strategy(dataset.feature_store_id)
+                online_execution_engine = (
+                    OnlineFSStrategyProvider.provide_online_execution_strategy(
+                        dataset.feature_store_id
+                    )
+                )
                 online_execution_engine.write(dataset, dataset_dataframe)
 
             # Compute Feature Statistics
