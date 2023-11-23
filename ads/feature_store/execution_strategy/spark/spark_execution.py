@@ -35,7 +35,7 @@ from ads.feature_store.common.enums import (
     EntityType,
     ExpectationType,
 )
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.common.utils.transformation_utils import TransformationUtils
 from ads.feature_store.data_validation.great_expectation import ExpectationService
 from ads.feature_store.dataset_job import DatasetJob
@@ -74,10 +74,10 @@ class SparkExecutionEngine(Strategy):
     Delta Lake table.
     """
 
-    def __init__(self, metastore_id: str = None):
-        self._spark_session = SparkSessionSingleton(metastore_id).get_spark_session()
+    def __init__(self, feature_store_id: str = None):
+        self._spark_session = FeatureStoreSingleton(feature_store_id).get_spark_session()
         self._spark_context = self._spark_session.sparkContext
-        self.spark_engine = SparkEngine(metastore_id)
+        self.spark_engine = SparkEngine(feature_store_id)
         self.delta_lake_service = DeltaLakeService(self._spark_session)
         self._jvm = self._spark_context._jvm
 

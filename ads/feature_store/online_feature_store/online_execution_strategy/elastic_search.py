@@ -1,4 +1,4 @@
-from typing import OrderedDict, Any
+from typing import OrderedDict, Any, Dict
 
 from pyspark.sql.functions import concat
 
@@ -8,6 +8,9 @@ from ads.feature_store.online_feature_store.online_feature_store_strategy import
 
 
 class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
+    def __init__(self, online_config: Dict):
+        self.online_config = online_config
+
     def write(self, feature_group, feature_group_job, dataframe):
         index_name = f"{feature_group.entity_id}_{feature_group.name}"
         primary_keys = [

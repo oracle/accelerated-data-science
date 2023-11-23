@@ -292,6 +292,8 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+            is_online_enabled:bool = False,
+            is_offline_enabled:bool = True,
         transformation_kwargs: Dict = None,
     ):
         feature_group_resource = (
@@ -302,6 +304,8 @@ class Entity(Builder):
             .with_compartment_id(
                 compartment_id if compartment_id else self.compartment_id
             )
+            .with_is_online_enabled(is_online_enabled)
+            .with_is_offline_enabled(is_offline_enabled)
             .with_entity_id(self.id)
             .with_transformation_id(transformation_id)
             .with_partition_keys(partition_keys)
@@ -320,6 +324,8 @@ class Entity(Builder):
     def create_feature_group(
         self,
         primary_keys: List[str],
+        is_online_enabled: bool = False,
+            is_offline_enabled:bool = True,
         partition_keys: List[str] = None,
         input_feature_details: List[FeatureDetail] = None,
         schema_details_dataframe: Union[DataFrame, pd.DataFrame] = None,
@@ -396,6 +402,8 @@ class Entity(Builder):
             name,
             description,
             compartment_id,
+            is_online_enabled,
+            is_offline_enabled,
             transformation_kwargs,
         )
 
@@ -463,6 +471,8 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+            is_online_enabled: bool = False,
+            is_offline_enabled: bool = True,
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
@@ -475,6 +485,8 @@ class Entity(Builder):
             .with_feature_store_id(self.feature_store_id)
             .with_entity_id(self.id)
             .with_query(query)
+            .with_is_online_enabled(is_online_enabled)
+            .with_is_offline_enabled(is_offline_enabled)
             .with_compartment_id(
                 compartment_id if compartment_id else self.compartment_id
             )
@@ -493,6 +505,8 @@ class Entity(Builder):
     def create_dataset(
         self,
         query: str,
+            is_online_enabled: bool = False,
+            is_offline_enabled: bool = True,
         name: str = None,
         description: str = None,
         compartment_id: str = None,
@@ -537,6 +551,8 @@ class Entity(Builder):
             name,
             description,
             compartment_id,
+            is_online_enabled,
+            is_offline_enabled,
             expectation_suite,
             expectation_type,
             statistics_config,

@@ -21,7 +21,7 @@ class OciExecutionStrategyProvider:
 
     @classmethod
     def provide_execution_strategy(
-        cls, execution_engine: ExecutionEngine, metastore_id: str = None
+        cls, execution_engine: ExecutionEngine, feature_store_id: str = None
     ) -> "Strategy":
         """
         Returns an execution strategy for the specified execution engine.
@@ -38,9 +38,9 @@ class OciExecutionStrategyProvider:
         """
 
         if execution_engine == ExecutionEngine.SPARK:
-            return SparkExecutionEngine(metastore_id)
+            return SparkExecutionEngine(feature_store_id)
         elif execution_engine == ExecutionEngine.PANDAS:
-            return SparkExecutionEngine(metastore_id)
+            return SparkExecutionEngine(feature_store_id)
         else:
             raise ValueError(
                 "Unsupported execution engine: {}".format(execution_engine)

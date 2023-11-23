@@ -810,6 +810,9 @@ class Dataset(Builder):
 
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
 
+        if self.is_online_enabled and self.primary_keys is None:
+            raise ValueError("FeatureGroup cannot be enabled for online use without primary keys")
+
         if not self.name:
             self.name = self._random_display_name()
 

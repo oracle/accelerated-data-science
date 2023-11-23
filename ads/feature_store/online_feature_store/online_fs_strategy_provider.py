@@ -1,6 +1,11 @@
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.online_feature_store.online_execution_strategy.elastic_search import (
     OnlineElasticSearchEngine,
 )
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import \
+    ElasticSearchClientConfig
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import \
+    RedisClientConfig
 from ads.feature_store.online_feature_store.online_execution_strategy.redis import (
     OnlineRedisEngine,
 )
@@ -14,11 +19,10 @@ class OnlineFSStrategyProvider:
     def provide_online_execution_strategy(
         cls, feature_store_id: str
     ) -> OnlineFeatureStoreStrategy:
-        from ads.feature_store.feature_store import FeatureStore
+        feature_store_singleton = FeatureStoreSingleton(feature_store_id)
 
-        feature_store = FeatureStore.from_id(feature_store_id)
 
-        if feature_store.online_config["redisId"]:
+        if isinstance(feature_store_singleton.get_online_config(), RedisClientConfig):
             return OnlineRedisEngine()
-        elif feature_store.online_config["elasticSearchId"]:
+        elif isinstance(feature_store_singleton.get_online_config(), ElasticSearchClientConfig):
             return OnlineElasticSearchEngine()

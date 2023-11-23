@@ -18,7 +18,7 @@ from ads.feature_store.common.utils.feature_schema_mapper import (
 from ads.feature_store.feature import Feature, DatasetFeature
 from ads.feature_store.feature_group_expectation import Rule, Expectation
 from ads.feature_store.input_feature_detail import FeatureDetail
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 
 try:
     from pyspark.pandas import DataFrame
@@ -244,9 +244,7 @@ def get_features(
 
 
 def get_schema_from_pandas_df(df: pd.DataFrame, feature_store_id: str):
-    spark = SparkSessionSingleton(
-        get_metastore_id(feature_store_id)
-    ).get_spark_session()
+    spark = FeatureStoreSingleton(feature_store_id).get_spark_session()
     converted_df = spark.createDataFrame(df)
     return get_schema_from_spark_df(converted_df)
 

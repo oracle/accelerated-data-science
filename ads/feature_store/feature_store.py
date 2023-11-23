@@ -13,7 +13,7 @@ from ads.common.oci_mixin import OCIModelMixin
 
 from ads.common import utils
 from ads.feature_store.common.enums import DataFrameType
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 
 from ads.feature_store.entity import Entity
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
@@ -86,7 +86,7 @@ class FeatureStore(Builder):
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
         CONST_OFFLINE_CONFIG: "offline_config",
-        CONST_ONLINE_CONFIG: "online_config"
+        CONST_ONLINE_CONFIG: "online_config",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -261,10 +261,8 @@ class FeatureStore(Builder):
         """Initialize the feature store with spark session."""
 
         # Initialize the Spark Session
-        return SparkSessionSingleton(
-            self.offline_config.get(self.CONST_METASTORE_ID)
-            if self.offline_config
-            else None
+        return FeatureStoreSingleton(
+            self.id
         )
 
     @property

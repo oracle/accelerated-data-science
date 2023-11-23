@@ -735,6 +735,9 @@ class FeatureGroup(Builder):
         """
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
 
+        if self.is_online_enabled and self.primary_keys is None:
+            raise ValueError("FeatureGroup cannot be enabled for online use without primary keys")
+
         if not self.feature_store_id:
             raise ValueError("FeatureStore id must be provided.")
 
@@ -931,7 +934,7 @@ class FeatureGroup(Builder):
         feature_group_execution_strategy = (
             OciExecutionStrategyProvider.provide_execution_strategy(
                 execution_engine=get_execution_engine_type(input_dataframe),
-                metastore_id=get_metastore_id(self.feature_store_id),
+                feature_store_id=self.feature_store_id,
             )
         )
 

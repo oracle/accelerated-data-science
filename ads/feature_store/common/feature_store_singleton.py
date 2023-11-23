@@ -10,6 +10,10 @@ import ads
 from ads.common.decorator.runtime_dependency import OptionalDependency
 import os
 from ads.common.oci_client import OCIClientFactory
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import \
+    ElasticSearchClientConfig
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import \
+    RedisClientConfig
 
 try:
     from delta import configure_spark_with_delta_pip
@@ -73,10 +77,10 @@ class SingletonMeta(type):
         return cls._instances[cls]
 
 
-class SparkSessionSingleton(metaclass=SingletonMeta):
+class FeatureStoreSingleton(metaclass=SingletonMeta):
     """Class provides the spark session."""
 
-    def __init__(self, metastore_id: str = None):
+    def __init__(self, feature_store_id: str = None):
         """Virtually private constructor."""
 
         spark_builder = (
@@ -86,32 +90,39 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             )
+            .config("spar.jars", redis_path())
+            .config("spark.jars.packages", "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1")
             .enableHiveSupport()
         )
         _managed_table_location = None
+        fs_online_config = None
 
-        if not developer_enabled() and metastore_id:
-            # Get the authentication credentials for the OCI data catalog service
-            auth = copy.copy(ads.auth.default_signer())
+        if feature_store_id:
+            from ads.feature_store.feature_store import FeatureStore
+            # Parse the Feature Store and get the required Details
+            feature_store = FeatureStore.from_id(feature_store_id)
+            offline_config = feature_store.offline_config
+            fs_online_config = self.get_feature_store_online_config(feature_store.online_config)
+            metastore_id = offline_config["metastoreId"]
 
-            # Remove the "client_kwargs" key from the authentication credentials (if present)
-            auth.pop("client_kwargs", None)
+            if not developer_enabled() and metastore_id:
+                # Get the authentication credentials for the OCI data catalog service
+                auth = copy.copy(ads.auth.default_signer())
 
-            data_catalog_client = OCIClientFactory(**auth).data_catalog
-            metastore = data_catalog_client.get_metastore(metastore_id).data
-            _managed_table_location = metastore.default_managed_table_location
-            # Configure the Spark session builder object to use the specified metastore
-            spark_builder.config(
-                "spark.hadoop.oracle.dcat.metastore.id", metastore_id
-            ).config("spark.sql.warehouse.dir", _managed_table_location).config(
-                "spark.driver.memory", "16G"
-            )
+                # Remove the "client_kwargs" key from the authentication credentials (if present)
+                auth.pop("client_kwargs", None)
+
+                data_catalog_client = OCIClientFactory(**auth).data_catalog
+                metastore = data_catalog_client.get_metastore(metastore_id).data
+                _managed_table_location = metastore.default_managed_table_location
+                # Configure the Spark session builder object to use the specified metastore
+                spark_builder.config(
+                    "spark.hadoop.oracle.dcat.metastore.id", metastore_id
+                ).config("spark.sql.warehouse.dir", _managed_table_location).config(
+                    "spark.driver.memory", "16G"
+                )
 
         if developer_enabled():
-            redis_host = "localhost"
-            spark_builder.config("spark.jars", redis_path()).config(
-                "spark.redis.host", redis_host
-            ).config("spark.redis.port", "6379")
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder
             ).getOrCreate()
@@ -121,6 +132,7 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
         self.spark_session.conf.set("spark.sql.execution.arrow.pyspark.enabled", "true")
         self.spark_session.sparkContext.setLogLevel("OFF")
         self.managed_table_location = _managed_table_location
+        self.online_config = fs_online_config
 
     def get_spark_session(self):
         """Access method to get the spark session."""
@@ -129,3 +141,26 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
     def get_managed_table_location(self):
         """Returns the managed table location for the spark"""
         return self.managed_table_location
+
+    def get_online_config(self):
+        return self.fs_online_config
+
+    def __get_feature_store_online_config(self, online_config):
+        if online_config["elasticSearchId"]:
+            # TODO: Get the details
+            user = "elastic"
+            password = "43ef9*ixWnJbsiclO*lU"
+            host = "localhost"
+            scheme = "http"
+
+            return ElasticSearchClientConfig(host=host, username=user, password=password, scheme=scheme, verify_certs=False)
+
+        elif online_config["redisId"]:
+            # TODO: Get the details
+            return RedisClientConfig(host='localhost', port=6379)
+
+        return None
+
+
+
+
