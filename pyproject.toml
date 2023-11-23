@@ -175,6 +175,7 @@ forecast = [
   "shap",
   "sktime",
   "statsmodels",
+  "plotly",
 ]
 pii = [
   "aiohttp",
