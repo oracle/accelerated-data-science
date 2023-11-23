@@ -7,7 +7,7 @@ class OnlineFeatureStoreStrategy(ABC):
     """
 
     @abstractmethod
-    def write(self, feature_group, dataframe):
+    def write(self, feature_group, feature_group_job, dataframe):
         pass
 
     @abstractmethod

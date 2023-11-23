@@ -328,7 +328,9 @@ class SparkExecutionEngine(Strategy):
                         feature_group.feature_store_id
                     )
                 )
-                online_execution_engine.write(feature_group, featured_data)
+                online_execution_engine.write(
+                    feature_group, feature_group_job, featured_data
+                )
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(
