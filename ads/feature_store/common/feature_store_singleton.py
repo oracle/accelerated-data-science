@@ -90,7 +90,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             )
-            .config("spar.jars", redis_path())
+            .config("spark.jars", redis_path())
             .config("spark.jars.packages", "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1")
             .enableHiveSupport()
         )
@@ -102,7 +102,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             # Parse the Feature Store and get the required Details
             feature_store = FeatureStore.from_id(feature_store_id)
             offline_config = feature_store.offline_config
-            fs_online_config = self.get_feature_store_online_config(feature_store.online_config)
+            fs_online_config = self.__get_feature_store_online_config(feature_store.online_config)
             metastore_id = offline_config["metastoreId"]
 
             if not developer_enabled() and metastore_id:
@@ -143,7 +143,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         return self.managed_table_location
 
     def get_online_config(self):
-        return self.fs_online_config
+        return self.online_config
 
     def __get_feature_store_online_config(self, online_config):
         if online_config["elasticSearchId"]:
