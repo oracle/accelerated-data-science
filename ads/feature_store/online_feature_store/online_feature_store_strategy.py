@@ -1,4 +1,6 @@
 from abc import ABC, abstractmethod
+from collections import OrderedDict
+from typing import Any
 
 
 class OnlineFeatureStoreStrategy(ABC):
@@ -12,4 +14,12 @@ class OnlineFeatureStoreStrategy(ABC):
 
     @abstractmethod
     def read(self, feature_group, primary_key_vector):
+        pass
+    #TODO :Yogesh to verify
+    @abstractmethod
+    def read(
+            self,
+            feature_group,
+            keys: OrderedDict[str, Any],
+    ):
         pass

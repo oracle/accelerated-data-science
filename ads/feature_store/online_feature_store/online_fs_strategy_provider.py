@@ -18,7 +18,7 @@ class OnlineFSStrategyProvider:
 
         feature_store = FeatureStore.from_id(feature_store_id)
 
-        if feature_store.online_config["redis_id"]:
+        if feature_store.online_config["redisId"]:
             return OnlineRedisEngine()
-        elif feature_store.online_config["elastic_search_id"]:
+        elif feature_store.online_config["elasticSearchId"]:
             return OnlineElasticSearchEngine()

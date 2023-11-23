@@ -76,7 +76,7 @@ class FeatureStore(Builder):
     CONST_METASTORE_ID = "metastoreId"
     CONST_ONLINE_CONFIG = "onlineConfig"
     CONST_REDIS_ID = "redisId"
-    CONST_ELASTIC_SEARCH_ID: "elasticSearchId"
+    CONST_ELASTIC_SEARCH_ID = "elasticSearchId"
 
     attribute_map = {
         CONST_ID: "id",
@@ -86,6 +86,7 @@ class FeatureStore(Builder):
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
         CONST_OFFLINE_CONFIG: "offline_config",
+        CONST_ONLINE_CONFIG: "online_config"
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
