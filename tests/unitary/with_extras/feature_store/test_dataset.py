@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pandas
 import pytest
 
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import SparkSessionSingleton
 from ads.feature_store.dataset import Dataset
 from ads.feature_store.dataset_job import DatasetJob
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine

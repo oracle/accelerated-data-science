@@ -7,7 +7,7 @@
 from copy import deepcopy
 from unittest.mock import patch
 
-from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import SparkSessionSingleton
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_store import FeatureStore
 from ads.feature_store.query.query import Query
