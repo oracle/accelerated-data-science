@@ -12,7 +12,7 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
             "es.port": "9200",  # Replace with your Elasticsearch server port
             "es.resource": index_name,  # Replace with your index (without type, as types are deprecated)
             "es.write.operation": "index",  # Use "index" for writing data to Elasticsearch
-            "es.mapping.id": "id",  # Specify the mapping ID
+            # "es.mapping.id": "id",  # Specify the mapping ID TODO: Need to revisit
             "es.net.http.auth.user": "elastic",  # Elasticsearch user
             "es.net.http.auth.pass": "43ef9*ixWnJbsiclO*lU",  # Elasticsearch password
             "es.nodes.wan.only": "true",
