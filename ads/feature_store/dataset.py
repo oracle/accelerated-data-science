@@ -671,6 +671,7 @@ class Dataset(Builder):
         # self.redis_client = get_redis_client(self.feature_store_id)
         return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
 
+
     @property
     def primary_keys(self) -> List[str]:
         return self.get_spec(self.CONST_PRIMARY_KEYS)
