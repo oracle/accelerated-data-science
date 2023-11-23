@@ -8,7 +8,7 @@ from ads.feature_store.online_feature_store.online_feature_store_strategy import
 class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
     def write(self, feature_group, feature_group_job, dataframe):
         index_name = f"{feature_group.entity_id}_{feature_group.name}"
-        primary_keys = feature_group.primary_keys["items"]
+        primary_keys = [key_item["name"] for key_item in feature_group.primary_keys["items"]]
         composite_key = None
 
         # Elasticsearch configuration
