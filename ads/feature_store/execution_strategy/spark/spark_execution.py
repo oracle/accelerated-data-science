@@ -294,27 +294,31 @@ class SparkExecutionEngine(Strategy):
                         featured_data
                     )
                 )
-
-            target_table = f"{database}.{feature_group.name}"
-            self.delta_lake_service.write_dataframe_to_delta_lake(
-                featured_data,
-                target_table,
-                feature_group.primary_keys,
-                feature_group.partition_keys,
-                feature_group_job.ingestion_mode,
-                featured_data.schema,
-                feature_group_job.feature_option_details,
-            )
+            if feature_group.is_offline_enabled:
+                target_table = f"{database}.{feature_group.name}"
+                self.delta_lake_service.write_dataframe_to_delta_lake(
+                    featured_data,
+                    target_table,
+                    feature_group.primary_keys,
+                    feature_group.partition_keys,
+                    feature_group_job.ingestion_mode,
+                    featured_data.schema,
+                    feature_group_job.feature_option_details,
+                )
 
             # Get the output features
-            output_features = get_features(
-                self.spark_engine.get_output_columns_from_table_or_dataframe(
-                    target_table
-                ),
-                feature_group.id,
-            )
+                output_features = get_features(
+                    self.spark_engine.get_output_columns_from_table_or_dataframe(
+                        target_table
+                    ),
+                    feature_group.id,
+                )
 
-            logger.info(f"output features for the FeatureGroup: {output_features}")
+                logger.info(f"output features for the FeatureGroup: {output_features}")
+
+            if feature_group.is_online_enabled:
+                self._save_online_dataframe(featured_data, feature_group)
+
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(

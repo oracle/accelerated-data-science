@@ -8,7 +8,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, OrderedDict, Any
 
 import pandas as pd
 from great_expectations.core import ExpectationSuite
@@ -146,6 +146,8 @@ class FeatureGroup(Builder):
     CONST_LAST_JOB_ID = "jobId"
     CONST_INFER_SCHEMA = "isInferSchema"
     CONST_TRANSFORMATION_KWARGS = "transformationParameters"
+    CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
+    CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
 
     attribute_map = {
         CONST_ID: "id",
@@ -167,6 +169,8 @@ class FeatureGroup(Builder):
         CONST_INFER_SCHEMA: "is_infer_schema",
         CONST_PARTITION_KEYS: "partition_keys",
         CONST_TRANSFORMATION_KWARGS: "transformation_parameters",
+        CONST_IS_OFFLINE_ENABLED: "isOfflineEnabled",
+        CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -622,6 +626,42 @@ class FeatureGroup(Builder):
         return self.set_spec(
             self.CONST_STATISTICS_CONFIG, statistics_config_in.to_dict()
         )
+
+    @property
+    def is_online_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_ONLINE_ENABLED)
+
+    def with_is_online_enabled(self, is_online_enabled: bool) -> "FeatureGroup":
+        """Sets the compartment_id.
+        Parameters
+        ----------
+        is_online_enabled: bool
+            The compartment_id.
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        # self.redis_client = get_redis_client(self.feature_store_id)
+        return self.set_spec(self.CONST_IS_ONLINE_ENABLED, is_online_enabled)
+
+    @property
+    def is_offline_enabled(self) -> bool:
+        return self.get_spec(self.CONST_IS_OFFLINE_ENABLED)
+
+    def with_is_offline_enabled(self, is_offline_enabled: bool) -> "FeatureGroup":
+        """Sets the compartment_id.
+        Parameters
+        ----------
+        is_offline_enabled
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+        # self.redis_client = get_redis_client(self.feature_store_id)
+        return self.set_spec(self.CONST_IS_OFFLINE_ENABLED, is_offline_enabled)
 
     @property
     def features(self) -> List[Feature]:
@@ -1471,6 +1511,34 @@ class FeatureGroup(Builder):
         )
 
         return ValidationOutput(validation_output)
+
+    def get_serving_vector(self, keys: OrderedDict[str, Any]):
+        """Returns serving vector from online feature store.
+
+        # Arguments
+            entry: dictionary of training dataset feature group primary key names as keys and values provided by
+                serving application.
+        # Returns
+            `list` List of feature values related to provided primary keys, ordered according to positions of this
+            features in training dataset query.
+        Example
+            feature_group_flights.get_serving_vector({'FLIGHT_NUMBER':'6E747'})
+        """
+        ordered_keys = []
+
+        for primary_key in self.primary_keys["items"]:
+            primary_key_name = primary_key["name"]
+            if primary_key_name in keys:
+                ordered_keys.append(keys[primary_key_name])
+            else:
+                raise KeyError(
+                    f"'FeatureGroup' object has no primary key called {primary_key_name}."
+                )
+        ordered_concatenated_key = ":".join(ordered_keys)
+        response = self.redis_client.hgetall(f"{self.id}:{ordered_concatenated_key}")
+        return response
+
+
 
     def __getattr__(self, name):
         try:
