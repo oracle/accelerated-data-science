@@ -45,7 +45,7 @@ def get_db_details() -> DBConfig:
         "Database name (will be auto created if it doesn't already exist)",
         default="FeatureStore",
     )
-    mysql_jdbc_url = jdbc_url.format(mysql_jdbc_ip, db_name)
+    mysql_db_config.url = jdbc_url.format(mysql_jdbc_ip, db_name)
     logger.debug(f"MySQL jdbc url generated is: {mysql_jdbc_url}")
     db_config = DBConfig()
     db_config.mysql_config = mysql_db_config
