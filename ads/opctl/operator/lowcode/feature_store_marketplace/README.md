@@ -16,7 +16,6 @@ ads operator init -t feature_store_marketplace --overwrite --output ~/marketplac
 The most important files expected to be generated are:
 
 - `feature_store_marketplace.yaml`: Contains feature store marketplace OKE related configuration.
-- `feature_store_marketplace_marketplace_python.yaml`: This includes a local backend configuration for running marketplace Kubernetes deployment in a local environment. The environment should be set up manually before running the operator.
 
 All generated configurations should be ready to use without the need for any additional adjustments. However, they are provided as starter kit configurations that can be customized as needed.
 
