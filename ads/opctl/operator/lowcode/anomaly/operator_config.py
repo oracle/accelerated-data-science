@@ -60,15 +60,27 @@ class AnomalyOperatorSpec(DataClassSerializable):
     """Class representing operator specification."""
 
     name: str = None
-    input_data: InputData = field(default_factory=InputData)
+    historical_data: InputData = field(default_factory=InputData)
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     test_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
     report_file_name: str = None
     report_title: str = None
     report_theme: str = None
+    metrics_filename: str = None
+    test_metrics_filename: str = None
+    forecast_filename: str = None
+    global_explanation_filename: str = None
+    local_explanation_filename: str = None
+    target_column: str = None
+    target_category_columns: List[str] = field(default_factory=list)
+    preprocessing: bool = None
+    generate_report: bool = None
+    generate_metrics: bool = None
+    generate_explanations: bool = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
+    metric: str = None
 
     def __post_init__(self):
         """Adjusts the specification details."""

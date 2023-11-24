@@ -26,7 +26,7 @@ type:
 spec:
   required: true
   schema:
-    input_data:
+    historical_data:
       required: true
       type: dict
       meta:

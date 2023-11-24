@@ -30,10 +30,10 @@ class AnomalyDatasets:
         """Loads anomaly input data."""
 
         self.data = utils._load_data(
-            filename=spec.input_data.url,
-            format=spec.input_data.format,
+            filename=spec.historical_data.url,
+            format=spec.historical_data.format,
             storage_options=default_signer(),
-            columns=spec.input_data.columns,
+            columns=spec.historical_data.columns,
         )
         self.original_user_data = self.data.copy()
         date_col = spec.datetime_column.name
