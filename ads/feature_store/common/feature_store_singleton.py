@@ -74,9 +74,11 @@ class SingletonMeta(type):
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
+        feature_store_id = kwargs.get("feature_store_id", None)
+        key = (cls, feature_store_id)
+        if key not in cls._instances:
+            cls._instances[key] = super().__call__(*args, **kwargs)
+        return cls._instances[key]
 
 
 class FeatureStoreSingleton(metaclass=SingletonMeta):
