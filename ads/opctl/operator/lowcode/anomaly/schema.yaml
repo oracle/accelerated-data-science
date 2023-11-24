@@ -230,7 +230,7 @@ spec:
       allowed:
         - automlx
         - tods
-        - pyod
+        - autots
         - auto
       meta:
         description: "The model to be used for anomaly detection"
