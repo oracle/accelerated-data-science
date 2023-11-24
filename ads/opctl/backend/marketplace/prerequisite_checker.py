@@ -32,7 +32,7 @@ DOCKER_SECRET_TYPE = "kubernetes.io/dockerconfigjson"
 
 
 def check_prerequisites(listing_details: MarketplaceListingDetails):
-    print_heading(f"Checking prerequisites")
+    print_heading(f"Checking prerequisites", colors=[Color.BLUE, Color.BOLD])
     _check_license_for_listing_(listing_details)
     if isinstance(listing_details, HelmMarketplaceListingDetails):
         _check_binaries_(["helm", "kubectl"])

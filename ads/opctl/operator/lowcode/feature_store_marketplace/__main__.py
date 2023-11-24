@@ -59,7 +59,7 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
                 "api": {
                     "image": "",
                     # "tag": self.VERSION,
-                    "tag": "0.1.343",
+                    "tag": "0.1.344",
                 }
             },
         }

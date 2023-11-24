@@ -13,7 +13,6 @@ from ads.opctl.operator.lowcode.feature_store_marketplace.models.db_config impor
 
 from ads.opctl.operator.lowcode.feature_store_marketplace.prompts import get_db_details
 
-from ads.opctl import logger
 from ads.opctl.backend.marketplace.marketplace_utils import Color, print_heading
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
@@ -36,23 +35,29 @@ def init(**kwargs: Dict) -> dict:
     str
         The YAML specification generated based on the schema.
     """
-    logger.info("==== Feature store marketplace kubernetes cluster configuration ====")
+    print(
+        "========= Feature store marketplace kubernetes cluster configuration ========="
+    )
 
     print_heading("OCIR Configuration", colors=[Color.BOLD, Color.BLUE])
     compartment_id = click.prompt("Compartment Id")
     ocir_url: str = click.prompt(
-        "URL of the OCIR repository where the images will be cloned from marketplace "
+        "URL of the OCIR repository where the images will be cloned from marketplace \n"
         "(format: {region}.ocir.io/{tenancy_namespace}/{repository})",
     )
     ocir_image = click.prompt("OCIR image name", default="feature-store-api")
 
     db_config: DBConfig = get_db_details()
 
-    print_heading(f"Cluster configuration", colors=[Color.BOLD, Color.BLUE])
+    print_heading(
+        f"Cluster configuration",
+        colors=[Color.BOLD, Color.BLUE],
+        prefix_newline_count=2,
+    )
     helm_app_name = click.prompt("Helm app name", default="feature-store-api")
     kubernetes_namespace = click.prompt("Kubernetes namespace", default="feature-store")
 
-    return YamlGenerator(
+    yaml_dict: Dict = YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
     ).generate_example_dict(
         values={
@@ -63,3 +68,4 @@ def init(**kwargs: Dict) -> dict:
             "ocirURL": f"{ocir_url.rstrip('/')}/{ocir_image}",
         }
     )
+    return yaml_dict

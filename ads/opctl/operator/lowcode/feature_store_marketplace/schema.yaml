@@ -120,7 +120,7 @@ spec:
         dockerRegistrySecretName:
           type: string
           required: true
-          default: "ocir-secret"
+          default: "fs-ocir-secret"
           description: "The name of the secret in namespace having docker credentials"
     ocirURL:
       type: string

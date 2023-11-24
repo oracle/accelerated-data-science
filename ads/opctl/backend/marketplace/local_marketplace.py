@@ -5,6 +5,7 @@ import time
 from typing import Optional, Dict, Union, Any
 import fsspec
 import yaml
+
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
@@ -13,10 +14,6 @@ from ads.common.decorator.runtime_dependency import (
 from ads.opctl.backend.marketplace.prerequisite_checker import (
     check_prerequisites,
 )
-
-from kubernetes import config, client
-from kubernetes.client import V1Pod, V1ObjectMeta
-from kubernetes.stream import stream
 
 from ads.opctl.backend.marketplace.helm_helper import (
     run_helm_install,
@@ -37,10 +34,10 @@ from ads.common.auth import AuthContext, AuthType
 from ads.opctl.backend.marketplace.marketplace_utils import (
     list_container_images,
     set_kubernetes_session_token_env,
-    export_helm_chart,
-    Color,
     StatusIcons,
     print_heading,
+    Color,
+    export_helm_chart,
 )
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
@@ -67,10 +64,6 @@ class LocalMarketplaceOperatorBackend(Backend):
     operator_info: OperatorInfo
         The detailed information about the operator.
     """
-
-    DOCKER_SECRET_PLACEHOLDER = (
-        "<This secret is automatically created by operator if left untouched>"
-    )
 
     def __init__(
         self, config: Optional[Dict], operator_info: OperatorInfo = None
@@ -113,43 +106,13 @@ class LocalMarketplaceOperatorBackend(Backend):
             f.write(yaml.dump(helm_values))
         return temp_file_path
 
-    def _wait_for_pod_ready(self, namespace: str, pod_name: str):
-        # Configs can be set in Configuration class directly or using helper utility
-        # self._set_kubernetes_env()
-        config.load_kube_config()
-        v1 = client.CoreV1Api()
 
-        def is_pod_ready(pod):
-            for condition in pod.status.conditions:
-                if condition.type == "Ready":
-                    return condition.status == "True"
-            return False
-
-        start_time = time.time()
-
-        for i in range(1, 120):
-            pod = v1.list_namespaced_pod(
-                namespace=namespace,
-                label_selector=f"app.kubernetes.io/instance={pod_name}",
-            ).items[0]
-
-            if is_pod_ready(pod):
-                print_heading(f"Listing is successfully deployed {StatusIcons.TADA}")
-                return 0
-            print(
-                f"Waiting for pod '{pod_name}' to be ready."
-                + "." * (int(time.time() - start_time)),
-                end="\r",
-            )
-            time.sleep(5)
-        print("Timed out waiting for pod to get ready.")
-        return -1
 
     @staticmethod
     def _export_helm_chart_to_container_registry_(
         listing_details: HelmMarketplaceListingDetails,
     ) -> Dict[str, str]:
-        # export_helm_chart(listing_details)
+        export_helm_chart(listing_details)
         images = list_container_images(listing_details)
         image_map = {}
         for image in images.items:
@@ -161,7 +124,7 @@ class LocalMarketplaceOperatorBackend(Backend):
                     image_map[container_tag_pattern] = image.display_name
         return image_map
 
-    @runtime_dependency(module="kubernetes", install_from=OptionalDependency.OPCTL)
+    @runtime_dependency(module="kubernetes", install_from=OptionalDependency.FEATURE_STORE_MARKETPLACE)
     def _run_with_python_(self, **kwargs: Dict) -> int:
         """
         Runs the operator within a local python environment.
@@ -220,11 +183,14 @@ class LocalMarketplaceOperatorBackend(Backend):
                 )
                 if helm_install_status.returncode == 0:
                     status = self._wait_for_pod_ready(
-                        listing_details.namespace, listing_details.helm_app_name
+                        listing_details.namespace,
+                        listing_details.helm_app_name,
+                        # container_map.values(),
                     )
                     if status == 0:
                         print_heading(
-                            f"Completed deployment!! {StatusIcons.TADA}",
+                            f"Completed deployment {StatusIcons.TADA}",
+                            colors=[Color.BOLD, Color.BLUE],
                             prefix_newline_count=0,
                             suffix_newline_count=2,
                         )
