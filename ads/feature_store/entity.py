@@ -323,7 +323,7 @@ class Entity(Builder):
 
     def create_feature_group(
         self,
-        primary_keys: List[str],
+        primary_keys: List[str] = None,
         is_online_enabled: bool = False,
         is_offline_enabled: bool = True,
         partition_keys: List[str] = None,

@@ -735,10 +735,15 @@ class FeatureGroup(Builder):
         """
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
 
-        if self.is_online_enabled and self.primary_keys is None:
-            raise ValueError(
-                "FeatureGroup cannot be enabled for online use without primary keys"
-            )
+        if self.is_online_enabled:
+            if (
+                self.primary_keys is None
+                or self.primary_keys.get("items") is None
+                or len(self.primary_keys.get("items")) == 0
+            ):
+                raise ValueError(
+                    "FeatureGroup cannot be enabled for online use, without primary keys"
+                )
 
         if not self.feature_store_id:
             raise ValueError("FeatureStore id must be provided.")
