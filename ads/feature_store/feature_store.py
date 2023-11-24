@@ -76,7 +76,7 @@ class FeatureStore(Builder):
     CONST_METASTORE_ID = "metastoreId"
     CONST_ONLINE_CONFIG = "onlineConfig"
     CONST_REDIS_ID = "redisId"
-    CONST_ELASTIC_SEARCH_ID = "elasticSearchId"
+    CONST_OPEN_SEARCH_ID = "openSearchId"
 
     attribute_map = {
         CONST_ID: "id",
@@ -252,7 +252,7 @@ class FeatureStore(Builder):
             self.CONST_ONLINE_CONFIG,
             {
                 self.CONST_REDIS_ID: redis_id,
-                self.CONST_ELASTIC_SEARCH_ID: elastic_search_id,
+                self.CONST_OPEN_SEARCH_ID: elastic_search_id,
                 **kwargs,
             },
         )

@@ -153,7 +153,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         return self.online_config
 
     def __get_feature_store_online_config(self, online_config):
-        if online_config.get("elasticSearchId"):
+        if online_config.get("openSearchId"):
             # TODO: Get the details
             user = "elastic"
             password = "43ef9*ixWnJbsiclO*lU"
