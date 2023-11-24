@@ -767,13 +767,25 @@ class Dataset(Builder):
         if lineage:
             GraphService.view_lineage(lineage.data, EntityType.DATASET, rankdir)
         else:
-            raise ValueError(
-                f"Can't get lineage information for Feature group id {self.id}"
-            )
+            raise ValueError(f"Can't get lineage information for Dataset id {self.id}")
 
     def get_embedding_vector(
         self, embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
     ):
+        """
+        Retrieves embedding vectors from the online serving environment.
+
+        Parameters:
+            - embedding_field (str): The field containing embedding vectors.
+            - k_neighbors (int): The number of neighbors to consider.
+            - query_embedding_vector (list): The embedding vector for which to find neighbors.
+            - max_candidate_pool (int): The maximum number of candidates to consider.
+
+        Returns:
+            list: List of embedding vectors for the specified query.
+        Raises:
+            ValueError: If online serving or embedding is not enabled for this Dataset.
+        """
         if self.is_online_enabled:
             online_execution_engine = (
                 OnlineFSStrategyProvider.provide_online_execution_strategy(
@@ -784,8 +796,23 @@ class Dataset(Builder):
             return online_execution_engine.get_embedding_vector(
                 embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
             )
+        else:
+            raise ValueError(
+                "Online serving/embedding is not enabled for this Dataset."
+            )
 
     def get_serving_vector(self, primary_key_vector):
+        """
+        Retrieves serving vectors from the online serving environment.
+
+        Parameters:
+            - primary_key_vector (list): The primary key vector used to retrieve specific records.
+
+        Returns:
+            DataFrame: The data read from the online serving environment.
+        Raises:
+            ValueError: If online serving is not enabled for this Dataset.
+        """
         if self.is_online_enabled:
             online_execution_engine = (
                 OnlineFSStrategyProvider.provide_online_execution_strategy(
@@ -793,7 +820,9 @@ class Dataset(Builder):
                 )
             )
 
-            online_execution_engine.read(self, primary_key_vector)
+            return online_execution_engine.read(self, primary_key_vector)
+        else:
+            raise ValueError("Online serving is not enabled for this Dataset.")
 
     def create(self, validate_sql=False, **kwargs) -> "Dataset":
         """Creates dataset  resource.

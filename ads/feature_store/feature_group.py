@@ -1099,6 +1099,10 @@ class FeatureGroup(Builder):
             return online_execution_engine.get_embedding_vector(
                 embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
             )
+        else:
+            raise ValueError(
+                "Online serving/embedding is not enabled for this FeatureGroup."
+            )
 
     def get_serving_vector(self, primary_key_vector):
         if self.is_online_enabled:
@@ -1109,6 +1113,8 @@ class FeatureGroup(Builder):
             )
 
             return online_execution_engine.read(self, primary_key_vector)
+        else:
+            raise ValueError("Online serving is not enabled for this FeatureGroup.")
 
     def delete(self):
         """Removes FeatureGroup Resource.
