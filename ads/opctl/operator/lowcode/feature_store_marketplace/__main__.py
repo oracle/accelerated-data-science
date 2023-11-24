@@ -53,7 +53,7 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
     def get_oci_meta(self, container_map: Dict[str, str], operator_config: str) -> dict:
         operator_config_spec = self.__get_spec_from_config__(operator_config)
         oci_meta = {
-            "repo": operator_config_spec["ocirURL"].rstrip("/"),
+            "repo": "iad.ocir.io/idogsu2ylimg/feature-store-api",
             "images": {
                 "api": {
                     "image": "",
