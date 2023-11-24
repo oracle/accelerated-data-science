@@ -2,7 +2,7 @@ from elasticsearch import Elasticsearch
 
 
 class ElasticSearchClientConfig:
-    def __init__(self, host, username, password, scheme="https", verify_certs=True):
+    def __init__(self, host, scheme="https", verify_certs=True):
         """
         Initialize the Elasticsearch client configuration.
 
@@ -18,12 +18,10 @@ class ElasticSearchClientConfig:
             es = config.get_client()
         """
         self.host = host
-        self.username = username
-        self.password = password
         self.scheme = scheme
         self.verify_certs = verify_certs
 
-    def get_client(self):
+    def get_client(self, http_auth: tuple[str, str]):
         """
         Get an instance of the Elasticsearch client configured based on the provided parameters.
 
@@ -32,7 +30,7 @@ class ElasticSearchClientConfig:
         """
         return Elasticsearch(
             hosts=f"{self.scheme}://{self.host}:9200",
-            basic_auth=(self.username, self.password),
+            basic_auth=http_auth,
             verify_certs=self.verify_certs,
             ssl_show_warn=False,
         )

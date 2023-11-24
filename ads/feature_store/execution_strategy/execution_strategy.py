@@ -30,7 +30,11 @@ class Strategy(ABC):
 
     @abstractmethod
     def ingest_feature_definition(
-        self, feature_group, feature_group_job: FeatureGroupJob, dataframe
+        self,
+        feature_group,
+        feature_group_job: FeatureGroupJob,
+        dataframe,
+        http_auth: tuple[str, str] = None,
     ):
         """
         Ingests a feature definition into the system.
@@ -39,6 +43,7 @@ class Strategy(ABC):
             feature_group (object): An object representing a group of related features.
             feature_group_job (FeatureGroupJob): An object representing a job responsible for processing the feature group.
             dataframe (pandas.DataFrame): A Pandas DataFrame object containing the feature data.
+            http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the feature group is online enabled.
         """
         pass
 
@@ -56,13 +61,16 @@ class Strategy(ABC):
         pass
 
     @abstractmethod
-    def ingest_dataset(self, dataset, dataset_job: DatasetJob):
+    def ingest_dataset(
+        self, dataset, dataset_job: DatasetJob, http_auth: tuple(str, str) = None
+    ):
         """
         Ingests a dataset into the system.
 
         Args:
             dataset (Dataset): An object representing a dataset.
             dataset_job (DatasetJob): An object representing a job responsible for processing the dataset.
+            http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the dataset is online enabled.
         """
         pass
 

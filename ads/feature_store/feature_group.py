@@ -27,6 +27,7 @@ from ads.feature_store.common.enums import (
 from ads.feature_store.common.exceptions import (
     NotMaterializedError,
 )
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
@@ -45,6 +46,9 @@ from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.input_feature_detail import FeatureDetail, FeatureType
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import (
+    ElasticSearchClientConfig,
+)
 from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
     OnlineFSStrategyProvider,
 )
@@ -221,7 +225,7 @@ class FeatureGroup(Builder):
     @property
     def spark_engine(self):
         if not self._spark_engine:
-            self._spark_engine = SparkEngine(get_metastore_id(self.feature_store_id))
+            self._spark_engine = SparkEngine(self.feature_store_id)
         return self._spark_engine
 
     @property
@@ -903,6 +907,7 @@ class FeatureGroup(Builder):
         self,
         input_dataframe: Union[DataFrame, pd.DataFrame],
         ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
+        http_auth: tuple[str, str] = None,
         from_timestamp: str = None,
         to_timestamp: str = None,
         feature_option_details: FeatureOptionDetails = None,
@@ -916,6 +921,7 @@ class FeatureGroup(Builder):
             from_timestamp: Optional. A string representing the lower bound of the time range of data to include in the job.
             to_timestamp: Optional. A string representing the upper bound of the time range of data to include in the job.
             feature_option_details: Optional. An instance of the FeatureOptionDetails class containing feature options.
+            http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the feature group is online enabled.
 
         Returns:
             None. This method does not return anything.
@@ -924,6 +930,20 @@ class FeatureGroup(Builder):
             Any exceptions thrown by the underlying execution strategy or feature store.
 
         """
+
+        feature_store_singleton = FeatureStoreSingleton(
+            feature_store_id=self.feature_store_id
+        )
+        if (
+            isinstance(
+                feature_store_singleton.get_online_config(), ElasticSearchClientConfig
+            )
+            and self.is_online_enabled
+            and http_auth is None
+        ):
+            raise ValueError(
+                "HTTP authentication (username, password) is required to access the online ElasticSearch cluster. Please provide the necessary credentials."
+            )
 
         # Create Feature Definition Job and persist it
         feature_group_job = self._build_feature_group_job(
@@ -946,7 +966,7 @@ class FeatureGroup(Builder):
         )
 
         feature_group_execution_strategy.ingest_feature_definition(
-            self, feature_group_job, input_dataframe
+            self, feature_group_job, input_dataframe, http_auth
         )
 
     def materialise_stream(

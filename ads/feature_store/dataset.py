@@ -24,6 +24,7 @@ from ads.feature_store.common.enums import (
     BatchIngestionMode,
 )
 from ads.feature_store.common.exceptions import NotMaterializedError
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     validate_delta_format_parameters,
@@ -38,6 +39,9 @@ from ads.feature_store.feature import DatasetFeature
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_option_details import FeatureOptionDetails
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import (
+    ElasticSearchClientConfig,
+)
 from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
     OnlineFSStrategyProvider,
 )
@@ -1002,22 +1006,34 @@ class Dataset(Builder):
         self,
         ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
         feature_option_details: FeatureOptionDetails = None,
+        http_auth: tuple[str, str] = None,
     ):
         """Creates a dataset job.
 
         Parameters
         ----------
-        ingestion_mode: dict(str, str), optional
-            The IngestionMode is used to specify the expected behavior of saving a DataFrame.
-            Defaults to OVERWRITE.
-        feature_option_details: FeatureOptionDetails
-            An instance of the FeatureOptionDetails class containing feature options.
+        ingestion_mode: dict(str, str),The IngestionMode is used to specify the expected behavior of saving a DataFrame. Defaults to OVERWRITE.
+        feature_option_details: FeatureOptionDetails An instance of the FeatureOptionDetails class containing feature options.
+        http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the dataset is online enabled.
 
         Returns
         -------
         None
 
         """
+        feature_store_singleton = FeatureStoreSingleton(
+            feature_store_id=self.feature_store_id
+        )
+        if (
+            isinstance(
+                feature_store_singleton.get_online_config(), ElasticSearchClientConfig
+            )
+            and self.is_online_enabled
+            and http_auth is None
+        ):
+            raise ValueError(
+                "HTTP authentication (username, password) is required to access the online ElasticSearch cluster. Please provide the necessary credentials."
+            )
 
         # Build the job and persist it.
         dataset_job = self._build_dataset_job(ingestion_mode, feature_option_details)
@@ -1032,7 +1048,7 @@ class Dataset(Builder):
             )
         )
 
-        dataset_execution_strategy.ingest_dataset(self, dataset_job)
+        dataset_execution_strategy.ingest_dataset(self, dataset_job, http_auth)
 
     def get_last_job(self) -> "DatasetJob":
         """Gets the Job details for the last running Dataset job.

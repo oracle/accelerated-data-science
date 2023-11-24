@@ -88,9 +88,12 @@ class SparkExecutionEngine(Strategy):
         feature_group: "FeatureGroup",
         feature_group_job: FeatureGroupJob,
         dataframe,
+        http_auth: tuple[str, str] = None,
     ):
         try:
-            self._save_offline_dataframe(dataframe, feature_group, feature_group_job)
+            self._save_offline_dataframe(
+                dataframe, feature_group, feature_group_job, http_auth
+            )
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
@@ -117,9 +120,11 @@ class SparkExecutionEngine(Strategy):
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
-    def ingest_dataset(self, dataset, dataset_job: DatasetJob):
+    def ingest_dataset(
+        self, dataset, dataset_job: DatasetJob, http_auth: tuple[str, str] = None
+    ):
         try:
-            self._save_dataset_input(dataset, dataset_job)
+            self._save_dataset_input(dataset, dataset_job, http_auth)
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
@@ -218,7 +223,11 @@ class SparkExecutionEngine(Strategy):
             raise Exception(error_message)
 
     def _save_offline_dataframe(
-        self, data_frame, feature_group, feature_group_job: FeatureGroupJob
+        self,
+        data_frame,
+        feature_group,
+        feature_group_job: FeatureGroupJob,
+        http_auth: tuple[str, str],
     ):
         """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
         dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
@@ -331,7 +340,7 @@ class SparkExecutionEngine(Strategy):
                     )
                 )
                 online_execution_engine.write(
-                    feature_group, feature_group_job, featured_data
+                    feature_group, feature_group_job, featured_data, http_auth
                 )
 
             # Compute Feature Statistics
@@ -421,7 +430,9 @@ class SparkExecutionEngine(Strategy):
         except Exception as e:
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
-    def _save_dataset_input(self, dataset, dataset_job: DatasetJob):
+    def _save_dataset_input(
+        self, dataset, dataset_job: DatasetJob, http_auth: tuple[str, str] = None
+    ):
         """As now this handles both spark dataframe and pandas dataframe. in case of pandas after transformation we
         convert it to spark and write to the delta.
         """
@@ -482,7 +493,9 @@ class SparkExecutionEngine(Strategy):
                         dataset.feature_store_id
                     )
                 )
-                online_execution_engine.write(dataset, dataset_job, dataset_dataframe)
+                online_execution_engine.write(
+                    dataset, dataset_job, dataset_dataframe, http_auth
+                )
 
             # Compute Feature Statistics
             feature_statistics = StatisticsService.compute_stats_with_mlm(

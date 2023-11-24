@@ -20,7 +20,13 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
         self.online_engine_config = online_engine_config
         self.redis_client = online_engine_config.get_client()
 
-    def write(self, feature_group, feature_group_job, dataframe):
+    def write(
+        self,
+        feature_group,
+        feature_group_job,
+        dataframe,
+        http_auth: tuple[str, str] = None,
+    ):
         if len(feature_group.primary_keys["items"]) == 1:
             key = feature_group.primary_keys["items"][0]["name"]
             df_with_key = dataframe.withColumn("key", col(key))
@@ -33,7 +39,12 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
             "table", feature_group.id
         ).option("key.column", "key").save()
 
-    def read(self, feature_group, keys: OrderedDict[str, Any]):
+    def read(
+        self,
+        feature_group,
+        keys: OrderedDict[str, Any],
+        http_auth: tuple[str, str] = None,
+    ):
         ordered_keys = []
         # TODO:Need to move this out and generalize
         for primary_key in feature_group.primary_keys["items"]:
@@ -57,6 +68,7 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
         k_neighbors,
         query_embedding_vector,
         max_candidate_pool,
+        http_auth: tuple[str, str] = None,
     ):
         raise NotImplementedError(
             "The method get_embedding_vector is not supported for Redis."

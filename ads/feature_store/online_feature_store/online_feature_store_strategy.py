@@ -8,7 +8,13 @@ class OnlineFeatureStoreStrategy(ABC):
     """
 
     @abstractmethod
-    def write(self, feature_group_or_dataset, feature_group_or_dataset_job, dataframe):
+    def write(
+        self,
+        feature_group_or_dataset,
+        feature_group_or_dataset_job,
+        dataframe,
+        http_auth: tuple[str, str] = None,
+    ):
         """
         Abstract method for writing data to the online feature store.
 
@@ -16,6 +22,7 @@ class OnlineFeatureStoreStrategy(ABC):
             - feature_group_or_dataset (FeatureGroup or Dataset): The feature group or dataset to write to.
             - feature_group_or_dataset_job (FeatureGroupJob or DatasetJob): The job associated with the feature group or dataset.
             - dataframe (DataFrame): The data to be written to the online feature store.
+            - http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the feature group is online enabled.
 
         Returns:
             None
@@ -23,13 +30,19 @@ class OnlineFeatureStoreStrategy(ABC):
         pass
 
     @abstractmethod
-    def read(self, feature_group_or_dataset, primary_key_vector):
+    def read(
+        self,
+        feature_group_or_dataset,
+        primary_key_vector,
+        http_auth: tuple[str, str] = None,
+    ):
         """
         Abstract method for reading data from the online feature store.
 
         Parameters:
             - feature_group_or_dataset (FeatureGroup or Dataset): The feature group or dataset to read from.
             - primary_key_vector (list): The primary key vector used to retrieve specific records.
+            - http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the feature group is online enabled.
 
         """
         pass
@@ -41,6 +54,7 @@ class OnlineFeatureStoreStrategy(ABC):
         k_neighbors,
         query_embedding_vector,
         max_candidate_pool,
+        http_auth: tuple[str, str] = None,
     ):
         """
         Placeholder method for obtaining embedding vectors in an online serving environment.
@@ -51,5 +65,6 @@ class OnlineFeatureStoreStrategy(ABC):
             - k_neighbors (int): The number of neighbors to consider.
             - query_embedding_vector (list): The embedding vector for which to find neighbors.
             - max_candidate_pool (int): The maximum number of candidates to consider.
+            - http_auth: Optional Http Authentication to authenticate the opensearch elasticsearch hosts if the feature group is online enabled.
         """
         pass

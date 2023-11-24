@@ -96,6 +96,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         )
         _managed_table_location = None
         fs_online_config = None
+        feature_store = None
 
         if feature_store_id:
             from ads.feature_store.feature_store import FeatureStore
@@ -109,20 +110,9 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             metastore_id = offline_config["metastoreId"]
 
             if not developer_enabled() and metastore_id:
-                # Get the authentication credentials for the OCI data catalog service
-                auth = copy.copy(ads.auth.default_signer())
-
-                # Remove the "client_kwargs" key from the authentication credentials (if present)
-                auth.pop("client_kwargs", None)
-
-                data_catalog_client = OCIClientFactory(**auth).data_catalog
-                metastore = data_catalog_client.get_metastore(metastore_id).data
-                _managed_table_location = metastore.default_managed_table_location
-                # Configure the Spark session builder object to use the specified metastore
-                spark_builder.config(
-                    "spark.hadoop.oracle.dcat.metastore.id", metastore_id
-                ).config("spark.sql.warehouse.dir", _managed_table_location).config(
-                    "spark.driver.memory", "16G"
+                # Configure the Spark session builder to use the specified metastore
+                _managed_table_location = self.__configure_metastore(
+                    spark_builder, metastore_id
                 )
 
         if developer_enabled():
@@ -140,6 +130,44 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         self.spark_session.sparkContext.setLogLevel("OFF")
         self.managed_table_location = _managed_table_location
         self.online_config = fs_online_config
+        self.feature_store = feature_store
+
+    def __configure_metastore(self, spark_builder, metastore_id):
+        """Configures the Spark session builder with the specified metastore."""
+        # Fetch authentication credentials for the OCI data catalog service
+        auth = copy.copy(ads.auth.default_signer())
+        auth.pop("client_kwargs", None)
+
+        data_catalog_client = OCIClientFactory(**auth).data_catalog
+        metastore = data_catalog_client.get_metastore(metastore_id).data
+        _managed_table_location = metastore.default_managed_table_location
+
+        spark_builder.config(
+            "spark.hadoop.oracle.dcat.metastore.id", metastore_id
+        ).config("spark.sql.warehouse.dir", _managed_table_location).config(
+            "spark.driver.memory", "16G"
+        )
+
+        return _managed_table_location
+
+    def __get_feature_store_online_config(self, online_config):
+        if online_config.get("openSearchId"):
+            # TODO: Get the details
+            user = "elastic"
+            password = "43ef9*ixWnJbsiclO*lU"
+            host = "localhost"
+            scheme = "http"
+
+            return ElasticSearchClientConfig(
+                host=host,
+                scheme=scheme,
+                verify_certs=False,
+            )
+
+        elif online_config.get("redisId"):
+            return RedisClientConfig(host="localhost", port=6379)
+
+        return None
 
     def get_spark_session(self):
         """Access method to get the spark session."""
@@ -152,23 +180,5 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
     def get_online_config(self):
         return self.online_config
 
-    def __get_feature_store_online_config(self, online_config):
-        if online_config.get("openSearchId"):
-            # TODO: Get the details
-            user = "elastic"
-            password = "43ef9*ixWnJbsiclO*lU"
-            host = "localhost"
-            scheme = "http"
-
-            return ElasticSearchClientConfig(
-                host=host,
-                username=user,
-                password=password,
-                scheme=scheme,
-                verify_certs=False,
-            )
-
-        elif online_config.get("redisId"):
-            return RedisClientConfig(host="localhost", port=6379)
-
-        return None
+    def get_feature_store(self):
+        return self.feature_store

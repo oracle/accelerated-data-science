@@ -16,10 +16,19 @@ from ads.feature_store.online_feature_store.online_feature_store_strategy import
 class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
     def __init__(self, online_engine_config: ElasticSearchClientConfig):
         self.online_engine_config = online_engine_config
-        self.elastic_client = self.online_engine_config.get_client()
 
-    def write(self, feature_group, feature_group_job, dataframe):
+    def write(
+        self,
+        feature_group,
+        feature_group_job,
+        dataframe,
+        http_auth: tuple[str, str] = None,
+    ):
         index_name = f"{feature_group.entity_id}_{feature_group.name}".lower()
+        # Accessing username and password from the tuple
+        username = http_auth[0]
+        password = http_auth[1]
+
         primary_keys = [
             key_item["name"] for key_item in feature_group.primary_keys["items"]
         ]
@@ -31,8 +40,8 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
             "es.port": "9200",  # Replace with your Elasticsearch server port
             "es.resource": index_name,  # Replace with your index (without type, as types are deprecated)
             "es.write.operation": "index",  # Use "index" for writing data to Elasticsearch
-            "es.net.http.auth.user": self.online_engine_config.username,  # Elasticsearch user
-            "es.net.http.auth.pass": self.online_engine_config.password,  # Elasticsearch password
+            "es.net.http.auth.user": username,  # Elasticsearch user
+            "es.net.http.auth.pass": password,  # Elasticsearch password
             "es.nodes.wan.only": "true",
             "es.nodes.discovery": "false",
             "es.nodes.client.only": "false",
@@ -55,7 +64,12 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
             **elastic_search_config
         ).mode(feature_group_job.ingestion_mode).save()
 
-    def read(self, feature_group, keys: OrderedDict[str, Any]):
+    def read(
+        self,
+        feature_group,
+        keys: OrderedDict[str, Any],
+        http_auth: tuple[str, str] = None,
+    ):
         ordered_keys = []
         # TODO:Need to revisit
 
@@ -70,7 +84,7 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
                 )
 
         ordered_concatenated_key = "".join(ordered_keys)
-        response = self.elastic_client.get(
+        response = self.online_engine_config.get_client(http_auth=http_auth).get(
             index=f"{feature_group.entity_id}_{feature_group.name}".lower(),
             id=ordered_concatenated_key,
         )
@@ -83,6 +97,7 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
         k_neighbors,
         query_embedding_vector,
         max_candidate_pool,
+        http_auth: tuple[str, str] = None,
     ):
         query = {
             "field": embedding_field,
@@ -91,7 +106,7 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
             "num_candidates": max_candidate_pool,
         }
 
-        res = self.elastic_client.knn_search(
+        res = self.online_engine_config.get_client(http_auth=http_auth).knn_search(
             index=f"{feature_group.entity_id}_{feature_group.name}".lower(),
             knn=query,
             source=[],
