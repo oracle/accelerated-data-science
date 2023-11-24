@@ -8,12 +8,6 @@ from ads.feature_store.online_feature_store.online_execution_strategy.online_eng
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
-import os
-
-
-def developer_enabled():
-    return os.getenv("DEVELOPER_MODE")
-
 
 class OnlineRedisEngine(OnlineFeatureStoreStrategy):
     def __init__(self, online_engine_config: RedisClientConfig):
