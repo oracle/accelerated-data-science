@@ -28,6 +28,7 @@ class ExtendedEnumMeta(ABCMeta):
     def __contains__(cls, value):
         return value and value.lower() in tuple(value.lower() for value in cls.values())
 
+    @classmethod
     def values(cls) -> list:
         """Gets the list of class attributes values.
 
@@ -40,6 +41,7 @@ class ExtendedEnumMeta(ABCMeta):
             value for key, value in cls.__dict__.items() if not key.startswith("_")
         )
 
+    @classmethod
     def keys(cls) -> list:
         """Gets the list of class attributes names.
 

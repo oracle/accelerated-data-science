@@ -5,6 +5,11 @@ import time
 from typing import Optional, Dict, Union, Any
 import fsspec
 import yaml
+from ads.common.decorator.runtime_dependency import (
+    runtime_dependency,
+    OptionalDependency,
+)
+
 from ads.opctl.backend.marketplace.prerequisite_checker import (
     check_prerequisites,
 )
@@ -13,8 +18,11 @@ from kubernetes import config, client
 from kubernetes.client import V1Pod, V1ObjectMeta
 from kubernetes.stream import stream
 
-from ads.opctl.backend.marketplace.helm_helper import run_helm_install
-from ads.opctl.backend.marketplace.marketplace_type import (
+from ads.opctl.backend.marketplace.helm_helper import (
+    run_helm_install,
+    check_helm_login,
+)
+from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
     MarketplaceListingDetails,
 )
@@ -32,6 +40,7 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     export_helm_chart,
     Color,
     StatusIcons,
+    print_heading,
 )
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
@@ -117,59 +126,30 @@ class LocalMarketplaceOperatorBackend(Backend):
             return False
 
         start_time = time.time()
-        timeout_seconds = 10 * 60
-        sleep_time = 20
-        while True:
+
+        for i in range(1, 120):
             pod = v1.list_namespaced_pod(
                 namespace=namespace,
                 label_selector=f"app.kubernetes.io/instance={pod_name}",
             ).items[0]
 
             if is_pod_ready(pod):
+                print_heading(f"Listing is successfully deployed {StatusIcons.TADA}")
                 return 0
-            if time.time() - start_time >= timeout_seconds:
-                print("Timed out waiting for pod to get ready.")
-                break
-            print(f"Waiting for pod {pod_name} to be ready...")
-            time.sleep(sleep_time)
+            print(
+                f"Waiting for pod '{pod_name}' to be ready."
+                + "." * (int(time.time() - start_time)),
+                end="\r",
+            )
+            time.sleep(5)
+        print("Timed out waiting for pod to get ready.")
         return -1
-
-    # TODO: remove in helidon
-    @staticmethod
-    def run_bugfix_command(namespace: str, pod_name: str):
-        # Configs can be set in Configuration class directly or using helper utility
-        # self._set_kubernetes_env()
-        print("Running bugfix command!!!")
-        time.sleep(60)
-        config.load_kube_config()
-        v1 = client.CoreV1Api()
-
-        pod: V1Pod = v1.list_namespaced_pod(
-            namespace=namespace,
-            label_selector=f"app.kubernetes.io/instance={pod_name}",
-        ).items[0]
-        metadata: V1ObjectMeta = pod.metadata
-        resp = stream(
-            v1.connect_get_namespaced_pod_exec,
-            name=metadata.name,
-            namespace=metadata.namespace,
-            command=[
-                "/bin/bash",
-                "-c",
-                "sed -i  's/-DuseJipherJceProvider=true//' /etc/runit/artifacts/feature-store-dataplane-api/run.sh",
-            ],
-            stderr=True,
-            stdin=False,
-            stdout=True,
-            tty=False,
-        )
-        return 0
 
     @staticmethod
     def _export_helm_chart_to_container_registry_(
         listing_details: HelmMarketplaceListingDetails,
     ) -> Dict[str, str]:
-        export_helm_chart(listing_details)
+        # export_helm_chart(listing_details)
         images = list_container_images(listing_details)
         image_map = {}
         for image in images.items:
@@ -181,6 +161,7 @@ class LocalMarketplaceOperatorBackend(Backend):
                     image_map[container_tag_pattern] = image.display_name
         return image_map
 
+    @runtime_dependency(module="kubernetes", install_from=OptionalDependency.OPCTL)
     def _run_with_python_(self, **kwargs: Dict) -> int:
         """
         Runs the operator within a local python environment.
@@ -212,15 +193,16 @@ class LocalMarketplaceOperatorBackend(Backend):
                 listing_details: HelmMarketplaceListingDetails = listing_details
 
                 check_prerequisites(listing_details)
-                print(
-                    "\n\n",
-                    "*" * 30,
-                    f"{Color.BOLD}Starting deployment{Color.END}",
-                    "*" * 30,
+                print_heading(
+                    f"Starting deployment",
+                    prefix_newline_count=2,
+                    suffix_newline_count=0,
                 )
+
                 container_map = self._export_helm_chart_to_container_registry_(
                     listing_details
                 )
+                check_helm_login(listing_details)
                 oci_meta = operator.get_oci_meta(container_map, operator_spec)
                 listing_details.helm_values["oci_meta"] = oci_meta
                 override_value_path = self._save_helm_values_to_yaml_(
@@ -228,25 +210,23 @@ class LocalMarketplaceOperatorBackend(Backend):
                 )
                 helm_install_status = run_helm_install(
                     name=listing_details.helm_app_name,
-                    chart=f"oci://{listing_details.ocir_fully_qualified_url}",
-                    version=listing_details.helm_chart_tag,
+                    ## TODO: Revert when marketplace listing is done
+                    chart=f"oci://iad.ocir.io/idogsu2ylimg/feature-store-api/feature-store-api-chart",
+                    ## TODO: Revert when marketplace listing is done
+                    # version=listing_details.helm_chart_tag,
+                    version="0.1.343",
                     namespace=listing_details.namespace,
                     values_yaml_path=override_value_path,
                 )
                 if helm_install_status.returncode == 0:
-                    self.run_bugfix_command(
-                        namespace=listing_details.namespace,
-                        pod_name=listing_details.helm_app_name,
-                    )
                     status = self._wait_for_pod_ready(
                         listing_details.namespace, listing_details.helm_app_name
                     )
                     if status == 0:
-                        print(
-                            "*" * 30,
-                            f"{Color.BOLD}Completed deployment!! {StatusIcons.TADA}{Color.END}",
-                            "*" * 30,
-                            "\n\n",
+                        print_heading(
+                            f"Completed deployment!! {StatusIcons.TADA}",
+                            prefix_newline_count=0,
+                            suffix_newline_count=2,
                         )
                     return status
                 else:

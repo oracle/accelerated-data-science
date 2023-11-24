@@ -124,7 +124,6 @@ class YamlGenerator:
                     value["dependencies"], example
                 ):
                     data_type = value.get("type")
-
                     if key in values:
                         example[key] = values[key]
                     elif "default" in value:
@@ -141,10 +140,14 @@ class YamlGenerator:
                     elif data_type == "dict":
                         example[key] = self._generate_example(
                             schema=value.get("schema", {}),
-                            values=values,
+                            values={
+                                remove_prefix(local_key, f"{key}."): value
+                                for local_key, value in values.items()
+                            },
                             required_keys=[
                                 remove_prefix(required_key, f"{key}.")
                                 for required_key in required_keys
                             ],
                         )
+
         return example

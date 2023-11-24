@@ -2,7 +2,9 @@ from abc import ABC, abstractmethod
 
 from typing import Dict
 
-from ads.opctl.backend.marketplace.marketplace_type import MarketplaceListingDetails
+from ads.opctl.backend.marketplace.models.marketplace_type import (
+    MarketplaceListingDetails,
+)
 
 
 # TODO: Handle generic listings properly

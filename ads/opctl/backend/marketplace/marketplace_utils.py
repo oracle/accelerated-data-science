@@ -1,12 +1,16 @@
-import json
 import os
-import time
 
 import oci
+from typing import List
+
+from ads.opctl.backend.marketplace.models.bearer_token import BearerToken
+
 from ads.common.oci_client import OCIClientFactory
 
 from ads.common import auth as authutil
-from ads.opctl.backend.marketplace.marketplace_type import HelmMarketplaceListingDetails
+from ads.opctl.backend.marketplace.models.marketplace_type import (
+    HelmMarketplaceListingDetails,
+)
 
 
 class Color:
@@ -29,6 +33,25 @@ class StatusIcons:
     TADA = "\u2728 "
 
 
+def print_heading(
+    heading: str,
+    prefix_newline_count: int = 0,
+    suffix_newline_count: int = 0,
+    colors: List[Color] = (Color.BOLD,),
+) -> None:
+    colors = [f"{color}" for color in colors]
+    colors = " ".join(colors)
+    print(
+        f"{colors}"
+        + "\n" * prefix_newline_count
+        + "*" * 30
+        + heading
+        + "*" * 30
+        + "\n" * suffix_newline_count
+        + f"{Color.END}"
+    )
+
+
 def set_kubernetes_session_token_env(profile: str = "DEFAULT") -> None:
     os.environ["OCI_CLI_AUTH"] = "security_token"
     os.environ["OCI_CLI_PROFILE"] = profile
@@ -46,7 +69,7 @@ def get_marketplace_composite_client() -> (
     )
 
 
-def get_docker_bearer_token(ocir_repo: str) -> str:
+def get_docker_bearer_token(ocir_repo: str) -> BearerToken:
     def get_ocir_url(repo: str):
         repo = repo.lstrip("https://")
         repo = repo.rstrip("/")
@@ -58,15 +81,14 @@ def get_docker_bearer_token(ocir_repo: str) -> str:
             client_kwargs={
                 "service": "docker",
                 "service_endpoint": get_ocir_url(ocir_repo),
-                "type_mapping": {},
+                "type_mapping": {"SecurityToken": BearerToken},
             },
         )
     ).create_client(oci.BaseClient)
-    resp: oci.Response = token_client.call_api(
-        resource_path="/docker/token", method="GET", response_type="bytes"
-    )
-    data: dict = json.loads(resp.data) or {}
-    return data.get("token")
+    token: BearerToken = token_client.call_api(
+        resource_path="/docker/token", method="GET", response_type="SecurityToken"
+    ).data
+    return token
 
 
 def export_helm_chart(listing_details: HelmMarketplaceListingDetails):

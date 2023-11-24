@@ -1,11 +1,6 @@
 from abc import ABC
 from enum import Enum
-from typing import Any, Dict
-
 from typing import List
-
-from ads.common.extended_enum import ExtendedEnumMeta
-
 from ads.common.serializer import DataClassSerializable
 
 
@@ -70,7 +65,7 @@ class HelmMarketplaceListingDetails(MarketplaceListingDetails):
 
     @property
     def ocir_image_path(self):
-        return "/".join(self.ocir_fully_qualified_url.split("/")[1:])
+        return "/".join(self.ocir_fully_qualified_url.split("/")[2:])
 
     @property
     def helm_fully_qualified_path(self):

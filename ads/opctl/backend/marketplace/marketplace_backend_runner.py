@@ -4,7 +4,9 @@ import types
 
 from typing import Dict
 
-from ads.opctl.backend.marketplace.marketplace_type import MarketplaceListingDetails
+from ads.opctl.backend.marketplace.models.marketplace_type import (
+    MarketplaceListingDetails,
+)
 
 from ads.opctl.backend.marketplace.marketplace_operator_interface import (
     MarketplaceInterface,

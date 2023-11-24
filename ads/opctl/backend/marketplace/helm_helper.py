@@ -3,9 +3,18 @@ from enum import Enum
 from typing import List
 import io
 
+import click
 import pandas as pd
+from ads.opctl.backend.marketplace.models.marketplace_type import (
+    HelmMarketplaceListingDetails,
+)
+
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl import logger
+from ads.opctl.backend.marketplace.marketplace_utils import (
+    StatusIcons,
+    get_docker_bearer_token,
+)
 
 
 class HelmCommand(str, metaclass=ExtendedEnumMeta):
@@ -62,6 +71,38 @@ def _check_if_chart_already_exists_(name: str, namespace: str) -> bool:
         if chart == name:
             return True
     return False
+
+
+def check_helm_login(listing_details: HelmMarketplaceListingDetails):
+    status = check_helm_pull(
+        helm_chart_url=listing_details.helm_fully_qualified_url,
+        version=listing_details.helm_chart_tag,
+    )
+    if status == HelmPullStatus.UNKNOWN_FAILURE:
+        # Todo throw correct exception
+        raise Exception
+    elif status == HelmPullStatus.SUCCESS:
+        print(f"Helm client is authenticated {StatusIcons.CHECK}")
+        return
+    elif status == HelmPullStatus.AUTHENTICATION_FAILURE:
+        response = click.confirm(
+            text="Helm is unable to access OCIR due to authentication failure. Do you want to allow operator to automatically try to fix the issue by setting up bearer token authentication?",
+            abort=True,
+            default=True,
+        )
+        if response:
+            token = get_docker_bearer_token(listing_details.ocir_registry)
+            run_helm_login(ocir_repo=listing_details.ocir_registry, token=token.token)
+            status = check_helm_pull(
+                helm_chart_url=listing_details.helm_fully_qualified_url,
+                version=listing_details.helm_chart_tag,
+            )
+            if status != HelmPullStatus.SUCCESS:
+                print(f"Unable to setup helm authentication. {StatusIcons.CROSS}")
+                # Todo throw correct exception
+                raise Exception
+            else:
+                print(f"Successfully setup authentication for Helm {StatusIcons.CHECK}")
 
 
 def check_helm_pull(helm_chart_url: str, version: str) -> HelmPullStatus:

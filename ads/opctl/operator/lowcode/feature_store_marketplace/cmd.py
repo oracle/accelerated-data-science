@@ -4,26 +4,19 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import Dict, List
+from typing import Dict
 
 import click
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.db_config import (
+    DBConfig,
+)
+
+from ads.opctl.operator.lowcode.feature_store_marketplace.prompts import get_db_details
 
 from ads.opctl import logger
+from ads.opctl.backend.marketplace.marketplace_utils import Color, print_heading
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
-
-from ads.opctl.operator.lowcode.feature_store_marketplace.const import DBType
-
-
-def _get_required_keys_for_db_type_(db_type: str) -> List[str]:
-    if db_type == DBType.MySQL:
-        # TODO: Revert when helidon server is available
-        # return ["mysql", "mysql.vault", "mysql.basic"]
-        return ["mysqlDBConfig"]
-    elif db_type == DBType.ATP:
-        return ["atpDBConfig"]
-    else:
-        return []
 
 
 def init(**kwargs: Dict) -> dict:
@@ -43,18 +36,30 @@ def init(**kwargs: Dict) -> dict:
     str
         The YAML specification generated based on the schema.
     """
-    logger.info("==== Feature store marketplace related options ====")
-    required_keys = []
-    db_type = click.prompt(
-        "Provide a database type:",
-        type=click.Choice(DBType.values()),
-        default=DBType.MySQL,
+    logger.info("==== Feature store marketplace kubernetes cluster configuration ====")
+
+    print_heading("OCIR Configuration", colors=[Color.BOLD, Color.BLUE])
+    compartment_id = click.prompt("Compartment Id")
+    ocir_url: str = click.prompt(
+        "URL of the OCIR repository where the images will be cloned from marketplace "
+        "(format: {region}.ocir.io/{tenancy_namespace}/{repository})",
     )
-    required_keys.append(_get_required_keys_for_db_type_(db_type))
+    ocir_image = click.prompt("OCIR image name", default="feature-store-api")
+
+    db_config: DBConfig = get_db_details()
+
+    print_heading(f"Cluster configuration", colors=[Color.BOLD, Color.BLUE])
+    helm_app_name = click.prompt("Helm app name", default="feature-store-api")
+    kubernetes_namespace = click.prompt("Kubernetes namespace", default="feature-store")
 
     return YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
     ).generate_example_dict(
-        values={"configuredDB": db_type},
-        required_keys=_get_required_keys_for_db_type_(db_type),
+        values={
+            "helm.values.db": db_config.to_dict(),
+            "helm.appName": helm_app_name,
+            "clusterDetails.namespace": kubernetes_namespace,
+            "compartmentId": compartment_id,
+            "ocirURL": f"{ocir_url.rstrip('/')}/{ocir_image}",
+        }
     )

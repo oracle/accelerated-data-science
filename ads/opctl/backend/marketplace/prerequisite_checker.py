@@ -7,17 +7,13 @@ import webbrowser
 from typing import List
 
 import click
+from ads.opctl.backend.marketplace.models.bearer_token import BEARER_TOKEN_USERNAME
 from kubernetes.client import V1SecretList, V1Secret, V1ObjectMeta
 
-from ads.opctl.backend.marketplace.helm_helper import (
-    check_helm_pull,
-    run_helm_login,
-    HelmPullStatus,
-)
 import kubernetes
 from ads.opctl import logger
 
-from ads.opctl.backend.marketplace.marketplace_type import (
+from ads.opctl.backend.marketplace.models.marketplace_type import (
     MarketplaceListingDetails,
     HelmMarketplaceListingDetails,
     SecretStrategy,
@@ -29,29 +25,20 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     Color,
     StatusIcons,
     get_docker_bearer_token,
+    print_heading,
 )
 
 DOCKER_SECRET_TYPE = "kubernetes.io/dockerconfigjson"
 
 
 def check_prerequisites(listing_details: MarketplaceListingDetails):
-    print("\n\n", "*" * 30, f"{Color.BOLD}Checking prerequisites{Color.END}", "*" * 30)
+    print_heading(f"Checking prerequisites")
     _check_license_for_listing_(listing_details)
     if isinstance(listing_details, HelmMarketplaceListingDetails):
         _check_binaries_(["helm", "kubectl"])
         _prompt_kubernetes_confirmation_()
         _check_kubernetes_secret_(listing_details)
-        _check_helm_login_(listing_details)
-    print(
-        "*" * 30,
-        f"{Color.BOLD}Completed prerequisites check {StatusIcons.TADA}{Color.END}",
-        "*" * 30,
-        "\n\n",
-    )
-
-
-# def _check_docker():
-#     docker.client.
+    print_heading(f"Completed prerequisites check {StatusIcons.TADA}")
 
 
 def _prompt_kubernetes_confirmation_():
@@ -65,45 +52,18 @@ def _prompt_kubernetes_confirmation_():
     )
 
 
-def _check_helm_login_(listing_details: HelmMarketplaceListingDetails):
-    status = check_helm_pull(
-        helm_chart_url=listing_details.helm_fully_qualified_url,
-        version=listing_details.helm_chart_tag,
-    )
-    if status == HelmPullStatus.UNKNOWN_FAILURE:
-        # Todo throw correct exception
-        raise Exception
-    elif status == HelmPullStatus.SUCCESS:
-        print(f"Helm client is authenticated {StatusIcons.CHECK}")
-        return
-    elif status == HelmPullStatus.AUTHENTICATION_FAILURE:
-        response = click.confirm(
-            text="Helm is unable to access OCIR due to authentication failure. Do you want to allow operator to automatically try to fix the issue by setting up bearer token authentication?",
-            abort=True,
-            default=True,
-        )
-        if response:
-            token = get_docker_bearer_token(listing_details.ocir_registry)
-            run_helm_login(ocir_repo=listing_details.ocir_registry, token=token)
-            status = check_helm_pull(
-                helm_chart_url=listing_details.helm_fully_qualified_url,
-                version=listing_details.helm_chart_tag,
-            )
-            if status != HelmPullStatus.SUCCESS:
-                print(f"Unable to setup helm authentication. {StatusIcons.CROSS}")
-                # Todo throw correct exception
-                raise Exception
-            else:
-                print(f"Successfully setup authentication for Helm {StatusIcons.CHECK}")
-
-
 def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
+    print(
+        f"Starting docker registry secret verification for secret: {listing_details.docker_registry_secret} in namespace: {listing_details.namespace} ",
+        end="\r",
+    )
     create_secret = True
     kubernetes.config.load_kube_config()
     v1 = kubernetes.client.CoreV1Api()
     secrets: V1SecretList = v1.list_namespaced_secret(
         namespace=listing_details.namespace
     )
+    secret_strategy: SecretStrategy = listing_details.secret_strategy
     for secret in secrets.items:
         secret: V1Secret = secret
         metadata: V1ObjectMeta = secret.metadata
@@ -111,27 +71,39 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
             secret.type == DOCKER_SECRET_TYPE
             and metadata.name == listing_details.docker_registry_secret
         ):
-            print(
-                f"Secret with name {listing_details.docker_registry_secret} exists in namespace {listing_details.namespace} {StatusIcons.CHECK}"
-            )
-            return
-    if listing_details.secret_strategy == SecretStrategy.PROMPT:
+            annotations: dict = metadata.annotations
+            # Check expiry date with 3 minutes buffer to accommodate for pull time
+            if int(annotations.get("expiry")) > (time.time() + 60 * 3):
+                print(
+                    f"Secret {listing_details.docker_registry_secret} exists in namespace '{listing_details.namespace}' {StatusIcons.CHECK}"
+                )
+                return
+            else:
+                print(
+                    f"Operator generated docker secret {listing_details.docker_registry_secret} has expired. Recreating secret using bearer token"
+                )
+                v1.delete_namespaced_secret(
+                    name=metadata.name, namespace=listing_details.namespace
+                )
+                secret_strategy = SecretStrategy.AUTOMATIC
+
+    if secret_strategy == SecretStrategy.PROMPT:
         create_secret = click.confirm(
             text=f"Docker registry secret: {listing_details.docker_registry_secret} wasn't found in namespace: {listing_details.namespace}. Do you want to allow operator to automatically try to fix the issue by setting up bearer token authentication?",
             default=True,
             abort=True,
         )
     if create_secret:
-        username = "BEARER_TOKEN"
-        password = get_docker_bearer_token(ocir_repo=listing_details.ocir_registry)
-        auth = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode(
+        username = BEARER_TOKEN_USERNAME
+        token = get_docker_bearer_token(ocir_repo=listing_details.ocir_registry)
+        auth = base64.b64encode(f"{username}:{token.token}".encode("utf-8")).decode(
             "utf-8"
         )
         docker_config_dict = {
             "auths": {
                 listing_details.ocir_registry: {
                     "username": username,
-                    "password": password,
+                    "password": token.token,
                     "auth": auth,
                 }
             }
@@ -144,11 +116,14 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
             metadata=kubernetes.client.models.V1ObjectMeta(
                 name=listing_details.docker_registry_secret,
                 namespace=listing_details.namespace,
+                annotations={"expiry": str(token.expires_in + int(time.time()))},
             ),
             data={".dockerconfigjson": docker_config},
         )
 
-        v1.create_namespaced_secret(namespace=listing_details.namespace, body=secret)
+        response = v1.create_namespaced_secret(
+            namespace=listing_details.namespace, body=secret
+        )
         print(
             f"Successfully created secret {listing_details.docker_registry_secret} in namespace {listing_details.namespace} {StatusIcons.CHECK}"
         )
@@ -208,11 +183,9 @@ def _check_license_for_listing_(listing_details: MarketplaceListingDetails):
                 default=False,
             )
             if not answer:
-                print(
-                    "*" * 30,
+                print_heading(
                     f"Agreement from author: {agreement_summary.author} with id: {agreement_summary.id} "
                     f"is rejected {StatusIcons.CROSS} "
-                    "*" * 30,
                 )
                 raise Exception
             else:

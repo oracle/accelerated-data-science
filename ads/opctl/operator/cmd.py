@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
+import logging
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -8,8 +9,11 @@ import os
 import re
 import runpy
 import shutil
+import sys
 import tempfile
-from typing import Any, Dict, Union         
+import traceback
+from logging import Logger
+from typing import Any, Dict, Union
 
 import fsspec
 import yaml
@@ -185,6 +189,9 @@ def init(
             "Use --debug option to see the error details."
         )
         logger.debug(ex)
+        if logger.level == logging.DEBUG:
+            ex_type, ex, tb = sys.exc_info()
+            traceback.print_tb(tb)
 
     # copy README and original schema files into a destination folder
     for src_file in ("README.md", "schema.yaml", "environment.yaml"):
@@ -217,7 +224,6 @@ def init(
     logger.info("#" * 100)
     logger.info(f"The auto-generated configs have been placed in: {output}")
     logger.info("#" * 100)
-
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
