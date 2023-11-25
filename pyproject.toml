@@ -168,11 +168,7 @@ forecast = [
   "shap",
   "sktime",
   "statsmodels",
-],
-feature-store-marketplace = [
-    oracle-ads[opctl],
-    kubernetes
-],
+]
 pii = [
   "aiohttp",
   "datapane",

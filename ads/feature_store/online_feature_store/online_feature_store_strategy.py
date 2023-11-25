@@ -53,7 +53,7 @@ class OnlineFeatureStoreStrategy(ABC):
         """
         pass
 
-    def get_embedding_vector(
+    def get_nearest_neighbours(
         self,
         feature_group_or_dataset,
         embedding_field,

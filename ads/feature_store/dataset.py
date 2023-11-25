@@ -773,8 +773,8 @@ class Dataset(Builder):
         else:
             raise ValueError(f"Can't get lineage information for Dataset id {self.id}")
 
-    def get_embedding_vector(
-        self, embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+    def get_nearest_neighbours(
+        self, field, k_neighbors, embedding_vector, max_candidate_pool
     ):
         """
         Retrieves embedding vectors from the online serving environment.
@@ -797,8 +797,8 @@ class Dataset(Builder):
                 )
             )
 
-            return online_execution_engine.get_embedding_vector(
-                embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+            return online_execution_engine.get_nearest_neighbours(
+                field, k_neighbors, embedding_vector, max_candidate_pool
             )
         else:
             raise ValueError(

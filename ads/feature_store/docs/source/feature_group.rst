@@ -93,7 +93,7 @@ Use the ``from_id()`` method from the ``FeatureGroup`` class to load an existing
   feature_group = FeatureGroup.from_id("<unique_id>")
 
 
-Materialize
+Materialise
 ===========
 
 Use the ``materialise() -> FeatureGroupJob`` method of the ``FeatureGroup`` instance to load the data to feature group. To persist the feature group and save feature group data, including the metadata in the feature store, use ``materialise()``.
@@ -103,7 +103,7 @@ The ``.materialise()`` method has the following parameters:
 - ``input_dataframe: Union[DataFrame, pd.DataFrame]``. Spark dataframe or Pandas dataframe.
 - ``from_timestamp: str(Optional)``. From timestamp of the feature group.
 - ``to_timestamp: str(Optional)``. To timestamp of the feature group.
-- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for the materialize operation.
+- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for the materialise operation.
     - ``write_config_details: (merge_schema: bool, overwrite_schema: bool)``. Write configuration details for the feature option details.
     - ``read_config_details: (version_as_of: int, timestamp_as_of: datetime)``. Read configuration details for the feature option details.
 
@@ -139,6 +139,30 @@ The ``.materialise_stream()`` method takes the following parameter:
 
 .. seealso::
    :ref:`Feature Group Job`
+
+.. seealso::
+   Refer  :ref:`Data types` supported by feature store
+
+
+Get nearest neighbours
+======================
+You can call the ``get_nearest_neighbours() -> NearestNeighbour`` method of the ``FeatureGroup`` instance to find the nearest neighbours for a feature field
+
+The ``.get_nearest_neighbours()`` method takes the following parameter:
+    - ``field``: Indicates which fields to fetch.
+    - ``k_neighbors``: Number of neighbours to fetch
+    - ``embedding_vector``: Embedding vector. Usually a dense vector
+    - ``max_candidate_pool``: Indicates the maximum candidate pool size
+
+.. seealso::
+   Refer  :ref:`Data types` supported by feature store
+
+Get serving vector
+===================
+You can call the ``get_serving_vector()`` method of the ``FeatureGroup`` instance to find the serving vector
+
+The ``.get_serving_vector()`` method takes the following parameter:
+    - ``primary_key_vector``: Primary key vector for feature group
 
 .. seealso::
    Refer  :ref:`Data types` supported by feature store

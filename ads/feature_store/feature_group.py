@@ -1106,8 +1106,8 @@ class FeatureGroup(Builder):
             entity_id=self.entity_id,
         )
 
-    def get_embedding_vector(
-        self, embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+    def get_nearest_neighbours(
+        self, field, k_neighbors, embedding_vector, max_candidate_pool
     ):
         if self.is_online_enabled:
             online_execution_engine = (
@@ -1116,8 +1116,8 @@ class FeatureGroup(Builder):
                 )
             )
 
-            return online_execution_engine.get_embedding_vector(
-                embedding_field, k_neighbors, query_embedding_vector, max_candidate_pool
+            return online_execution_engine.get_nearest_neighbours(
+                field, k_neighbors, embedding_vector, max_candidate_pool
             )
         else:
             raise ValueError(

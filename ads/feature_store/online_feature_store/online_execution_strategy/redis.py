@@ -62,7 +62,7 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
         )
         return response
 
-    def get_embedding_vector(
+    def get_nearest_neighbours(
         self,
         feature_group,
         embedding_field,

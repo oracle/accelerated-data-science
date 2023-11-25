@@ -73,7 +73,7 @@ Use the ``from_id()`` method from the ``Dataset`` class to load an existing data
 
   dataset = Dataset.from_id("<unique_id>")
 
-Materialize
+Materialise
 ===========
 
 Use the the ``materialise() -> DatasetJob`` method of the ``Dataset`` instance to load the data to dataset. To persist the dataset and save dataset data, including the metadata in the feature store, use ``materialise()``.
@@ -83,7 +83,7 @@ The ``.materialise()`` method has the following parameters:
 - ``input_dataframe: Union[DataFrame, pd.DataFrame]``. Spark dataframe or Pandas dataframe.
 - ``from_timestamp: str(Optional)``. From timestamp of dataset.
 - ``to_timestamp: str(Optional)``. To timestamp of dataset.
-- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for materialize operation.
+- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for materialise operation.
     - ``write_config_details: (merge_schema: bool, overwrite_schema: bool)``. Write configuration details for feature option details.
     - ``read_config_details: (version_as_of: int, timestamp_as_of: datetime)``. Read configuration details for feature option details.
 
@@ -95,6 +95,29 @@ The ``.materialise()`` method has the following parameters:
 
 .. seealso::
    :ref:`Dataset Job`
+
+Get nearest neighbours
+======================
+You can call the ``get_nearest_neighbours() -> NearestNeighbour`` method of the ``Dataset`` instance to find the nearest neighbours for a feature field
+
+The ``.get_nearest_neighbours()`` method takes the following parameter:
+    - ``field``: Indicates which fields to fetch.
+    - ``k_neighbors``: Number of neighbours to fetch
+    - ``embedding_vector``: Embedding vector. Usually a dense vector
+    - ``max_candidate_pool``: Indicates the maximum candidate pool size
+
+.. seealso::
+   Refer  :ref:`Data types` supported by feature store
+
+Get serving vector
+===================
+You can call the ``get_serving_vector()`` method of the ``Dataset`` instance to find the serving vector
+
+The ``.get_serving_vector()`` method takes the following parameter:
+    - ``primary_key_vector``: Primary key vector for dataset
+
+.. seealso::
+   Refer  :ref:`Data types` supported by feature store
 
 
 Delete
@@ -118,7 +141,7 @@ With a ``Dataset`` instance, you can get the last dataset job details using ``ge
 
 Save Expectation Entity
 =======================
-Feature store allows you to define expectations on data being materialized into dataset instance. With a ``Dataset`` instance, save the expectation details using ``with_expectation_suite()`` with the following parameters:
+Feature store allows you to define expectations on data being materialised into dataset instance. With a ``Dataset`` instance, save the expectation details using ``with_expectation_suite()`` with the following parameters:
 
 - ``expectation_suite: ExpectationSuite``. ``ExpectationSuite`` of the great expectation library.
 - ``expectation_type: ExpectationType``. Type of expectation.
