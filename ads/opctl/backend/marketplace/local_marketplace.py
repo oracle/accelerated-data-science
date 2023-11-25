@@ -1,7 +1,6 @@
 import json
 import os
 import tempfile
-import time
 from typing import Optional, Dict, Union, Any
 import fsspec
 import yaml
@@ -37,7 +36,7 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     StatusIcons,
     print_heading,
     Color,
-    export_helm_chart,
+    export_helm_chart, wait_for_pod_ready,
 )
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
@@ -153,13 +152,13 @@ class LocalMarketplaceOperatorBackend(Backend):
                 operator_spec
             )
             if isinstance(listing_details, HelmMarketplaceListingDetails):
-                listing_details: HelmMarketplaceListingDetails = listing_details
-
                 check_prerequisites(listing_details)
                 print_heading(
                     f"Starting deployment",
+
                     prefix_newline_count=2,
                     suffix_newline_count=0,
+                    colors=[Color.BLUE, Color.BOLD]
                 )
 
                 container_map = self._export_helm_chart_to_container_registry_(
@@ -182,7 +181,7 @@ class LocalMarketplaceOperatorBackend(Backend):
                     values_yaml_path=override_value_path,
                 )
                 if helm_install_status.returncode == 0:
-                    status = self._wait_for_pod_ready(
+                    status = wait_for_pod_ready(
                         listing_details.namespace,
                         listing_details.helm_app_name,
                         # container_map.values(),

@@ -13,7 +13,7 @@ from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl import logger
 from ads.opctl.backend.marketplace.marketplace_utils import (
     StatusIcons,
-    get_docker_bearer_token,
+    get_docker_bearer_token, WARNING, Color,
 )
 
 
@@ -53,7 +53,7 @@ def run_helm_install(
             namespace=namespace, values=values_yaml_path, version=version, **kwargs
         ),
     ]
-    print(" ".join(helm_cmd))
+    print(f"\n{Color.BLUE}{' '.join(helm_cmd)}{Color.END}")
     return subprocess.run(helm_cmd)
 
 
@@ -74,6 +74,7 @@ def _check_if_chart_already_exists_(name: str, namespace: str) -> bool:
 
 
 def check_helm_login(listing_details: HelmMarketplaceListingDetails):
+    print(f"{Color.BLUE}Checking if Helm client is authenticated{Color.END}")
     status = check_helm_pull(
         helm_chart_url=listing_details.helm_fully_qualified_url,
         version=listing_details.helm_chart_tag,
@@ -86,7 +87,7 @@ def check_helm_login(listing_details: HelmMarketplaceListingDetails):
         return
     elif status == HelmPullStatus.AUTHENTICATION_FAILURE:
         response = click.confirm(
-            text="Helm is unable to access OCIR due to authentication failure. Do you want to allow operator to automatically try to fix the issue by setting up bearer token authentication?",
+            text=f"{WARNING} {Color.RED}Helm is unable to access OCIR due to authentication failure.{Color.END}\nDo you want to allow operator to automatically try to fix the issue by setting up bearer token authentication?",
             abort=True,
             default=True,
         )
@@ -157,7 +158,7 @@ def run_helm_list(namespace: str, **kwargs) -> pd.DataFrame:
             io.BytesIO(result.stdout), delimiter=r"\s*\t\s*", engine="python"
         )
     else:
-        print(" ".join(helm_cmd))
+        print(f"\n{Color.BLUE}{' '.join(helm_cmd)}{Color.END}")
         print(result.stderr)
         # TODO: Throw proper exception
         raise Exception()

@@ -11,8 +11,6 @@ from ads.common import auth as authutil
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
 )
-
-
 class Color:
     PURPLE = "\033[95m"
     CYAN = "\033[96m"
@@ -25,6 +23,7 @@ class Color:
     UNDERLINE = "\033[4m"
     END = "\033[0m"
 
+WARNING=f"{Color.RED}{Color.BOLD}WARNING: {Color.END}"
 
 class StatusIcons:
     CHECK = "\u2705 "
@@ -67,7 +66,7 @@ def print_heading(
         + f"{Color.END}"
     )
 
-def _wait_for_pod_ready(namespace: str, pod_name: str):
+def wait_for_pod_ready(namespace: str, pod_name: str):
     import kubernetes as k8
     # Configs can be set in Configuration class directly or using helper utility
     # self._set_kubernetes_env()

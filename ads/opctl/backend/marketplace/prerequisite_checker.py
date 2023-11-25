@@ -25,25 +25,35 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     Color,
     StatusIcons,
     get_docker_bearer_token,
-    print_heading,
+    print_heading, WARNING,
 )
 
 DOCKER_SECRET_TYPE = "kubernetes.io/dockerconfigjson"
 
+class BinaryValidation:
+    def __init__(self, binary: str, installation_path: str):
+        self.binary = binary
+        self.installation_path = installation_path
 
+
+def get_highlighted_text(text: str, colors: List[Color] = (Color.BLUE,)) -> str:
+    colors = [f"{color}" for color in colors]
+    colors = " ".join(colors)
+    return f"{colors}'{text}'{Color.END}"
 def check_prerequisites(listing_details: MarketplaceListingDetails):
-    print_heading(f"Checking prerequisites", colors=[Color.BLUE, Color.BOLD])
+    print_heading(f"Checking Prerequisites", colors=[Color.BLUE, Color.BOLD])
     _check_license_for_listing_(listing_details)
     if isinstance(listing_details, HelmMarketplaceListingDetails):
-        _check_binaries_(["helm", "kubectl"])
+        _check_binaries_([BinaryValidation("helm", "https://helm.sh/docs/intro/install/"),
+                          BinaryValidation("kubectl", "https://kubernetes.io/docs/tasks/tools/")])
         _prompt_kubernetes_confirmation_()
         _check_kubernetes_secret_(listing_details)
-    print_heading(f"Completed prerequisites check {StatusIcons.TADA}")
+    print_heading(f"Completed prerequisites check {StatusIcons.TADA}", colors=[Color.BLUE, Color.BOLD])
 
 
 def _prompt_kubernetes_confirmation_():
     print(
-        f"{Color.RED}{Color.BOLD}WARNING:{Color.END}{Color.RED} Please ensure that kubectl is connected to the exact cluster where the listing needs to be deployed. Failure to do so can lead to unintended consequences.{Color.END}"
+        f"{WARNING}{Color.RED}Please ensure that kubectl is connected to the exact cluster where the listing needs to be deployed. Failure to do so can lead to unintended consequences.{Color.END}"
     )
     click.confirm(
         text="Is it safe to proceed?",
@@ -54,7 +64,7 @@ def _prompt_kubernetes_confirmation_():
 
 def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
     print(
-        f"Starting docker registry secret verification for secret: {listing_details.docker_registry_secret} in namespace: {listing_details.namespace} ",
+        f"Starting docker registry secret verification for secret: {get_highlighted_text(listing_details.docker_registry_secret)} in namespace: {get_highlighted_text(listing_details.namespace)}",
         end="\r",
     )
     create_secret = True
@@ -75,12 +85,12 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
             # Check expiry date with 3 minutes buffer to accommodate for pull time
             if int(annotations.get("expiry")) > (time.time() + 60 * 3):
                 print(
-                    f"Secret {listing_details.docker_registry_secret} exists in namespace '{listing_details.namespace}' {StatusIcons.CHECK}"
+                    f"Secret {get_highlighted_text(listing_details.docker_registry_secret)} exists in namespace {get_highlighted_text(listing_details.namespace)} {StatusIcons.CHECK}"
                 )
                 return
             else:
                 print(
-                    f"Operator generated docker secret {listing_details.docker_registry_secret} has expired. Recreating secret using bearer token"
+                    f"Operator generated docker secret {get_highlighted_text(listing_details.docker_registry_secret)} has expired.\nRecreating secret using bearer token"
                 )
                 v1.delete_namespaced_secret(
                     name=metadata.name, namespace=listing_details.namespace
@@ -125,18 +135,18 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
             namespace=listing_details.namespace, body=secret
         )
         print(
-            f"Successfully created secret {listing_details.docker_registry_secret} in namespace {listing_details.namespace} {StatusIcons.CHECK}"
+            f"Successfully created secret {get_highlighted_text(listing_details.docker_registry_secret)} in namespace {get_highlighted_text(listing_details.namespace)} {StatusIcons.CHECK}"
         )
 
 
-def _check_binaries_(binaries: List[str]):
+def _check_binaries_(binaries: List[BinaryValidation]):
     for binary in binaries:
-        result = subprocess.run(["which", f"{binary}"], capture_output=True)
+        result = subprocess.run(["which", f"{binary.binary}"], capture_output=True)
         if result.returncode == 0:
-            print(f"{binary.capitalize()} is present {StatusIcons.CHECK}")
+            print(f"{binary.binary.capitalize()} is present {StatusIcons.CHECK}")
         else:
-            print(f"{binary} is not present in PATH {StatusIcons.CROSS}")
-
+            print(f"{binary.binary} is not present in PATH {StatusIcons.CROSS}.\nFor installation instructions please check: {binary.installation_path}")
+            raise Exception
 
 def _check_license_for_listing_(listing_details: MarketplaceListingDetails):
     compartment_id = listing_details.compartment_id
@@ -173,7 +183,7 @@ def _check_license_for_listing_(listing_details: MarketplaceListingDetails):
                 compartment_id=listing_details.compartment_id,
             ).data
             print(
-                f"Agreement from {agreement.author} with id: {agreement_summary.id} is not accepted. \
+                f"Agreement from {get_highlighted_text(agreement.author)} with id: {agreement_summary.id} is not accepted. \
                 Opening terms and conditions in default browser {StatusIcons.LOADING}"
             )
             webbrowser.open(agreement.content_url)
@@ -184,7 +194,7 @@ def _check_license_for_listing_(listing_details: MarketplaceListingDetails):
             )
             if not answer:
                 print_heading(
-                    f"Agreement from author: {agreement_summary.author} with id: {agreement_summary.id} "
+                    f"Agreement from author: {get_highlighted_text(agreement_summary.author)} with id: {agreement_summary.id} "
                     f"is rejected {StatusIcons.CROSS} "
                 )
                 raise Exception
@@ -200,6 +210,6 @@ def _check_license_for_listing_(listing_details: MarketplaceListingDetails):
                 marketplace.create_accepted_agreement(create_accepted_agreement_details)
 
         print(
-            f"Agreement from author: {agreement_summary.author} with id: {agreement_summary.id} is accepted "
+            f"Agreement from author: {get_highlighted_text(agreement_summary.author)} with id: {agreement_summary.id} is accepted "
             f"{StatusIcons.CHECK} "
         )

@@ -72,6 +72,10 @@ def list() -> None:
         )
     )
 
+def print_traceback():
+    if logger.level == logging.DEBUG:
+        ex_type, ex, tb = sys.exc_info()
+        traceback.print_tb(tb)
 
 @runtime_dependency(module="rich", install_from=OptionalDependency.OPCTL)
 def info(
@@ -189,9 +193,8 @@ def init(
             "Use --debug option to see the error details."
         )
         logger.debug(ex)
-        if logger.level == logging.DEBUG:
-            ex_type, ex, tb = sys.exc_info()
-            traceback.print_tb(tb)
+        print_traceback()
+
 
     # copy README and original schema files into a destination folder
     for src_file in ("README.md", "schema.yaml", "environment.yaml"):
@@ -429,6 +432,7 @@ def verify(
         )
     except Exception as ex:
         logger.debug(ex)
+        print_traceback()
         raise ValueError(
             f"The validator is not implemented for the `{operator_info.type}` operator."
         )
