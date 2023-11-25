@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-import copy
-
-import ads
-
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import copy
+import ads
 from ads.common.decorator.runtime_dependency import OptionalDependency
 import os
 from ads.common.oci_client import OCIClientFactory
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import (
-    ElasticSearchClientConfig,
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.open_search_client_config import (
+    OpenSearchClientConfig,
 )
 from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import (
     RedisClientConfig,
@@ -120,6 +118,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         if developer_enabled():
             self.spark_session = configure_spark_with_delta_pip(
                 spark_builder,
+                ## org.opensearch.client:opensearch-spark-30_2.12:1.0.1
                 extra_packages=[
                     "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1",
                     "com.redislabs:spark-redis_2.12:3.0.0",
@@ -160,7 +159,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             host = "localhost"
             scheme = "http"
 
-            return ElasticSearchClientConfig(
+            return OpenSearchClientConfig(
                 host=host,
                 scheme=scheme,
                 verify_certs=False,

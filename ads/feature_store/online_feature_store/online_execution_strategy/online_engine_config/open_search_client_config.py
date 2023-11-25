@@ -1,7 +1,13 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+
 from elasticsearch import Elasticsearch
 
 
-class ElasticSearchClientConfig:
+class OpenSearchClientConfig:
     def __init__(self, host, scheme="https", verify_certs=True):
         """
         Initialize the Elasticsearch client configuration.
@@ -14,7 +20,7 @@ class ElasticSearchClientConfig:
             - verify_certs (bool): Whether to verify SSL certificates.
 
         Example:
-            config = ElasticSearchClientConfig(hosts='localhost', username='elastic', password='your_password')
+            config = OpenSearchClientConfig(hosts='localhost', username='elastic', password='<>')
             es = config.get_client()
         """
         self.host = host

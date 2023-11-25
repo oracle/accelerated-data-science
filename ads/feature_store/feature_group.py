@@ -46,8 +46,8 @@ from ads.feature_store.feature_group_expectation import Expectation
 from ads.feature_store.feature_group_job import FeatureGroupJob
 from ads.feature_store.feature_option_details import FeatureOptionDetails
 from ads.feature_store.input_feature_detail import FeatureDetail, FeatureType
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import (
-    ElasticSearchClientConfig,
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.open_search_client_config import (
+    OpenSearchClientConfig,
 )
 from ads.feature_store.online_feature_store.online_fs_strategy_provider import (
     OnlineFSStrategyProvider,
@@ -936,7 +936,7 @@ class FeatureGroup(Builder):
         )
         if (
             isinstance(
-                feature_store_singleton.get_online_config(), ElasticSearchClientConfig
+                feature_store_singleton.get_online_config(), OpenSearchClientConfig
             )
             and self.is_online_enabled
             and http_auth is None

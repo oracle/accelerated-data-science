@@ -1,20 +1,24 @@
-from typing import OrderedDict, Any, Dict, Union
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+
+from typing import OrderedDict, Any
 
 from pyspark.sql.functions import concat
 
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.elastic_search_client_config import (
-    ElasticSearchClientConfig,
-)
-from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.redis_client_config import (
-    RedisClientConfig,
+from ads.feature_store.common.feature_store_singleton import developer_enabled
+from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.open_search_client_config import (
+    OpenSearchClientConfig,
 )
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
 
 
-class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
-    def __init__(self, online_engine_config: ElasticSearchClientConfig):
+class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
+    def __init__(self, online_engine_config: OpenSearchClientConfig):
         self.online_engine_config = online_engine_config
 
     def write(
@@ -35,18 +39,28 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
         composite_key = None
 
         # Elasticsearch configuration
-        elastic_search_config = {
-            "es.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
-            "es.port": "9200",  # Replace with your Elasticsearch server port
-            "es.resource": index_name,  # Replace with your index (without type, as types are deprecated)
-            "es.write.operation": "index",  # Use "index" for writing data to Elasticsearch
-            "es.net.http.auth.user": username,  # Elasticsearch user
-            "es.net.http.auth.pass": password,  # Elasticsearch password
-            "es.nodes.wan.only": "true",
-            "es.nodes.discovery": "false",
-            "es.nodes.client.only": "false",
-            "es.write.operation": "upsert",
-        }
+        if developer_enabled():
+            write_config = {
+                "es.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
+                "es.port": "9200",  # Replace with your Elasticsearch server port
+                "es.resource": index_name,  # Replace with your index (without type, as types are deprecated)
+                "es.write.operation": "index",  # Use "index" for writing data to Elasticsearch
+                "es.net.http.auth.user": username,  # Elasticsearch user
+                "es.net.http.auth.pass": password,  # Elasticsearch password
+                "es.nodes.wan.only": "true",
+                "es.nodes.discovery": "false",
+                "es.nodes.client.only": "false",
+            }
+        else:
+            write_config = {
+                "opensearch.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
+                "opensearch.port": "9200",  # Replace with your Elasticsearch server port
+                "opensearch.resource": index_name,  # Replace with your index (without type, as types are deprecated)
+                "opensearch.write.operation": "index",  # Use "index" for writing data to Elasticsearch
+                "opensearch.net.http.auth.user": username,  # Elasticsearch user
+                "opensearch.net.http.auth.pass": password,  # Elasticsearch password
+                "opensearch.nodes.wan.only": "true",
+            }
 
         if len(primary_keys) == 1:
             composite_key = primary_keys[0]
@@ -57,11 +71,11 @@ class OnlineElasticSearchEngine(OnlineFeatureStoreStrategy):
             )
 
         if composite_key is not None:
-            elastic_search_config["es.mapping.id"] = composite_key
+            write_config["es.mapping.id"] = composite_key
 
         # Write DataFrame to Elasticsearch
         dataframe.write.format("org.elasticsearch.spark.sql").options(
-            **elastic_search_config
+            **write_config
         ).mode(feature_group_job.ingestion_mode).save()
 
     def read(

@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pandas
 import pytest
 
-from ads.feature_store.common.feature_store_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.dataset import Dataset
 from ads.feature_store.dataset_job import DatasetJob
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
@@ -155,8 +155,8 @@ class TestDataset:
 
     @patch.object(OCIDataset, "update")
     @patch.object(OCIDataset, "delete")
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     def test_delete(self, spark, get_spark_session, mock_delete, mock_update):
         """Tests deleting dataset from dataset."""
         with patch.object(DatasetJob, "create"):
@@ -264,8 +264,8 @@ class TestDataset:
             )
 
     @patch.object(OCIDataset, "update")
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     def test_materialise(self, spark, get_spark_session, mock_update):
         with patch.object(DatasetJob, "create") as mock_dataset_job:
             with patch.object(FeatureStore, "from_id"):
@@ -274,8 +274,8 @@ class TestDataset:
                     self.mock_dsc_dataset.with_id(DATASET_OCID)
                     self.mock_dsc_dataset.materialise()
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_preview(self, feature_store, spark, get_spark_session):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
@@ -284,8 +284,8 @@ class TestDataset:
             self.mock_dsc_dataset.preview()
             mock_execution_strategy.assert_called_once()
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_profile(self, spark, get_spark_session, feature_store):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
@@ -294,8 +294,8 @@ class TestDataset:
             self.mock_dsc_dataset.profile()
             mock_execution_strategy.assert_called_once()
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_history(self, spark, get_spark_session, feature_store):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
@@ -305,8 +305,8 @@ class TestDataset:
             mock_execution_strategy.assert_called_once()
 
     @patch.object(OCIDataset, "update")
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_restore(self, spark, get_spark_session, feature_store, mock_update):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:

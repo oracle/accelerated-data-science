@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+
 from typing import OrderedDict, Any
 
 from pyspark.sql.functions import col, concat_ws
@@ -8,6 +14,7 @@ from ads.feature_store.online_feature_store.online_execution_strategy.online_eng
 from ads.feature_store.online_feature_store.online_feature_store_strategy import (
     OnlineFeatureStoreStrategy,
 )
+
 
 class OnlineRedisEngine(OnlineFeatureStoreStrategy):
     def __init__(self, online_engine_config: RedisClientConfig):

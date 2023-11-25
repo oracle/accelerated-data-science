@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pandas
 import pytest
 
-from ads.feature_store.common.feature_store_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_group_job import FeatureGroupJob
@@ -176,8 +176,8 @@ class TestFeatureGroup:
         ) == self.prepare_dict(self.payload)
 
     @patch.object(OCIFeatureGroup, "delete")
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     def test_delete(self, spark, get_spark_session, mock_delete):
         """Tests deleting feature group from feature group."""
         with patch.object(FeatureGroupJob, "create"):
@@ -287,8 +287,8 @@ class TestFeatureGroup:
             )
 
     @patch.object(OCIFeatureGroup, "update")
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     def test_materialise(
         self, spark_session, get_spark_session, mocke_update, dataframe_fixture_basic
     ):
@@ -301,8 +301,8 @@ class TestFeatureGroup:
                     self.mock_dsc_feature_group.with_id(FEATURE_GROUP_OCID)
                     self.mock_dsc_feature_group.materialise(dataframe_fixture_basic)
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_preview(self, feature_store, spark_session, get_spark_session):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
@@ -310,8 +310,8 @@ class TestFeatureGroup:
             self.mock_dsc_feature_group.preview()
             mock_execution_strategy.assert_called_once()
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_profile(self, feature_store, spark_session, get_spark_session):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
@@ -319,8 +319,8 @@ class TestFeatureGroup:
             self.mock_dsc_feature_group.profile()
             mock_execution_strategy.assert_called_once()
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_history(self, feature_store, spark_session, get_spark_session):
         with patch.object(SparkEngine, "sql") as mock_execution_strategy:
@@ -329,8 +329,8 @@ class TestFeatureGroup:
             mock_execution_strategy.assert_called_once()
 
     @patch.object(OCIFeatureGroup, "update")
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
     @patch.object(OCIFeatureStore, "from_id")
     def test_restore(
         self, feature_store, spark_session, get_spark_session, mock_update

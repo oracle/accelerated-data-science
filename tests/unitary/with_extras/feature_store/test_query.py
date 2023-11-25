@@ -7,7 +7,7 @@
 from copy import deepcopy
 from unittest.mock import patch
 
-from ads.feature_store.common.feature_store_singleton import SparkSessionSingleton
+from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
 from ads.feature_store.feature_group import FeatureGroup
 from ads.feature_store.feature_store import FeatureStore
 from ads.feature_store.query.query import Query
@@ -139,9 +139,12 @@ class TestQuery:
         self.feature_store_id = "ocid1.featurestore.oc1.iad.xxx"
         self.entity_id = "ocid1.entity.oc1.iad.xxx"
 
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
-    def test_select_subset_query(self, spark_session, mock_feature_store):
+    def test_select_subset_query(
+        self, spark_session, managed_table_location, mock_feature_store
+    ):
         """Tests with simple select query."""
         dsc_query = Query(
             left_feature_group=self.mock_dsc_feature_group_1,
@@ -154,9 +157,12 @@ class TestQuery:
             == "SELECT fg_0.cc_num cc_num FROM `ocid1.entity.oc1.iad.xxx`.feature_group1 fg_0"
         )
 
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
-    def test_select_all_query(self, spark_session, mock_feature_store):
+    def test_select_all_query(
+        self, spark_session, managed_table_location, mock_feature_store
+    ):
         """Tests with simple select all query."""
         dsc_query = Query(
             left_feature_group=self.mock_dsc_feature_group_1,
@@ -170,9 +176,12 @@ class TestQuery:
             "FROM `ocid1.entity.oc1.iad.xxx`.feature_group1 fg_0"
         )
 
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
-    def test_select_subset_two_columns_query(self, spark_session, mock_feature_store):
+    def test_select_subset_two_columns_query(
+        self, spark_session, managed_table_location, mock_feature_store
+    ):
         """Tests with simple select query."""
         dsc_query = Query(
             left_feature_group=self.mock_dsc_feature_group_1,
@@ -186,11 +195,16 @@ class TestQuery:
             "FROM `ocid1.entity.oc1.iad.xxx`.feature_group1 fg_0"
         )
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
     def test_select_subset_with_no_matching_column(
-        self, spark_session, get_spark_session, mock_feature_store
+        self,
+        spark_session,
+        get_spark_session,
+        managed_table_location,
+        mock_feature_store,
     ):
         """Tests with select and join query with not matching column"""
         with pytest.raises(
@@ -219,11 +233,16 @@ class TestQuery:
         #     "`ocid1.entity.oc1.iad.xxx`.feature_group3 fg_0 ON fg_1.X = fg_0.X"
         # )
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
     def test_select_subset_with_no_matching_column_without_on(
-        self, spark_session, get_spark_session, mock_feature_store
+        self,
+        spark_session,
+        get_spark_session,
+        managed_table_location,
+        mock_feature_store,
     ):
         """Tests with select and join query with not matching column"""
         with pytest.raises(
@@ -248,11 +267,16 @@ class TestQuery:
                 )
             )
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
     def test_select_subset_two_columns_and_join_query(
-        self, spark_session, get_spark_session, mock_feature_store
+        self,
+        spark_session,
+        get_spark_session,
+        managed_table_location,
+        mock_feature_store,
     ):
         """Tests with select and join query."""
         dsc_query = Query(
@@ -277,11 +301,16 @@ class TestQuery:
             "`ocid1.entity.oc1.iad.xxx`.feature_group2 fg_0 ON fg_1.cc_num = fg_0.cc_num"
         )
 
-    @patch.object(SparkSessionSingleton, "__init__", return_value=None)
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "__init__", return_value=None)
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
     def test_select_subset_and_multi_join_query(
-        self, spark_session, get_spark_session, mock_feature_store
+        self,
+        spark_session,
+        get_spark_session,
+        managed_table_location,
+        mock_feature_store,
     ):
         """Tests with select and join query."""
         dsc_query = (
@@ -320,9 +349,12 @@ class TestQuery:
             "ON fg_0.cc_num = fg_1.X"
         )
 
-    @patch.object(SparkSessionSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_spark_session")
+    @patch.object(FeatureStoreSingleton, "get_managed_table_location")
     @patch.object(FeatureStore, "from_id")
-    def test_validation_of_features(self, spark_session, mock_feature_store):
+    def test_validation_of_features(
+        self, spark_session, managed_table_location, mock_feature_store
+    ):
         """Tests with select and join query."""
         dsc_query = Query(
             left_feature_group=self.mock_dsc_feature_group_1,
