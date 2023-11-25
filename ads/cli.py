@@ -14,12 +14,12 @@ try:
     import ads.opctl.cli
     import ads.jobs.cli
     import ads.pipeline.cli
-    import os
-    import json
+    import ads.opctl.operator.cli
 except Exception as ex:
     print(
         "Please run `pip install oracle-ads[opctl]` to install "
-        "the required dependencies for ADS CLI."
+        "the required dependencies for ADS CLI. \n"
+        f"{str(ex)}"
     )
     logger.debug(ex)
     logger.debug(traceback.format_exc())
@@ -44,6 +44,7 @@ def cli():
 cli.add_command(ads.opctl.cli.commands)
 cli.add_command(ads.jobs.cli.commands)
 cli.add_command(ads.pipeline.cli.commands)
+cli.add_command(ads.opctl.operator.cli.commands)
 
 
 if __name__ == "__main__":

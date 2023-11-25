@@ -36,7 +36,7 @@ jobs:
         test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
         include:
           - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
-            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store"
+            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store --ignore tests/unitary/with_extras/operator/forecast"
             name: "unitary"
           - test-path: "tests/unitary/with_extras/model"
             name: "model"

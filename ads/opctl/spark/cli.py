@@ -15,6 +15,7 @@ from ads.opctl.spark.cmds import core_site as core_site_cmd
 @click.group("spark")
 @click.help_option("--help", "-h")
 def commands():
+    "The CLI to assist in the management of the Spark workloads."
     pass
 
 

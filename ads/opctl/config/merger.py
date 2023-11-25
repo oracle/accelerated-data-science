@@ -43,6 +43,10 @@ class ConfigMerger(ConfigProcessor):
     def process(self, **kwargs) -> None:
         config_string = Template(json.dumps(self.config)).safe_substitute(os.environ)
         self.config = json.loads(config_string)
+
+        if "runtime" not in self.config:
+            self.config["runtime"] = {}
+
         # 1. merge and overwrite values from command line args
         self._merge_config_with_cmd_args(kwargs)
         # 1.5 merge environment variables
@@ -61,7 +65,6 @@ class ConfigMerger(ConfigProcessor):
 
         self._config_flex_shape_details()
 
-        logger.debug(f"Config: {self.config}")
         return self
 
     def _merge_config_with_cmd_args(self, cmd_args: Dict) -> None:
@@ -113,11 +116,18 @@ class ConfigMerger(ConfigProcessor):
         # set default auth
         if not self.config["execution"].get("auth", None):
             if is_in_notebook_session():
-                self.config["execution"]["auth"] = AuthType.RESOURCE_PRINCIPAL
+                self.config["execution"]["auth"] = (
+                    exec_config.get("auth") or AuthType.RESOURCE_PRINCIPAL
+                )
             else:
-                self.config["execution"]["auth"] = AuthType.API_KEY
+                self.config["execution"]["auth"] = (
+                    exec_config.get("auth") or AuthType.API_KEY
+                )
         # determine profile
-        if self.config["execution"]["auth"] != AuthType.API_KEY:
+        if (
+            self.config["execution"]["auth"] != AuthType.API_KEY
+            and self.config["execution"]["auth"] != AuthType.SECURITY_TOKEN
+        ):
             profile = self.config["execution"]["auth"].upper()
             exec_config.pop("oci_profile", None)
             self.config["execution"]["oci_profile"] = None
@@ -127,7 +137,6 @@ class ConfigMerger(ConfigProcessor):
             )
             self.config["execution"]["oci_profile"] = profile
         # loading config for corresponding profile
-        logger.info(f"Loading service config for profile {profile}.")
         infra_config = self._get_service_config(profile, ads_config_path)
         if infra_config.get(
             "conda_pack_os_prefix"
@@ -169,11 +178,12 @@ class ConfigMerger(ConfigProcessor):
             return {
                 "oci_config": parser["OCI"].get("oci_config"),
                 "oci_profile": parser["OCI"].get("oci_profile"),
+                "auth": parser["OCI"].get("auth"),
                 "conda_pack_folder": parser["CONDA"].get("conda_pack_folder"),
                 "conda_pack_os_prefix": parser["CONDA"].get("conda_pack_os_prefix"),
             }
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, 'config.ini')} does not exist. No config loaded."
             )
             return {}
@@ -193,8 +203,10 @@ class ConfigMerger(ConfigProcessor):
             parser = read_from_ini(os.path.join(ads_config_folder, config_file))
             if oci_profile in parser:
                 return parser[oci_profile]
+            if DEFAULT_PROFILE in parser:
+                return parser[DEFAULT_PROFILE]
         else:
-            logger.info(
+            logger.debug(
                 f"{os.path.join(ads_config_folder, config_file)} does not exist. No config loaded."
             )
         return {}
@@ -214,7 +226,7 @@ class ConfigMerger(ConfigProcessor):
                 ):
                     raise ValueError(
                         "Parameters `ocpus` and `memory_in_gbs` must be provided for using flex shape. "
-                        "Call `ads opctl config` to specify."
+                        "Call `ads opctl configure` to specify."
                     )
                 infrastructure["shape_config_details"] = {
                     "ocpus": infrastructure.pop("ocpus"),
@@ -235,7 +247,7 @@ class ConfigMerger(ConfigProcessor):
                     if parameter not in infrastructure:
                         raise ValueError(
                             f"Parameters {parameter} must be provided for using flex shape. "
-                            "Call `ads opctl config` to specify."
+                            "Call `ads opctl configure` to specify."
                         )
                 infrastructure["driver_shape_config"] = {
                     "ocpus": infrastructure.pop("driver_shape_ocpus"),
