@@ -7,10 +7,13 @@
 from functools import wraps
 from typing import Callable, Dict, List
 
+import click
+
 from ads.common.auth import AuthContext
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.merger import ConfigMerger
+from ads.opctl.constants import OVERRIDE_KWARGS
 
 RUN_ID_FIELD = "run_id"
 
@@ -99,5 +102,28 @@ def with_auth(func: Callable) -> Callable:
             }
         ):
             return func(*args, **kwargs)
+
+    return wrapper
+
+
+def with_click_unknown_args(func: Callable) -> Callable:
+    """The decorator to parse the click unknown arguments and put them into kwargs."""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs) -> Dict:
+        kwargs[OVERRIDE_KWARGS] = {}
+        try:
+            click_context = next(
+                item for item in args if isinstance(item, click.core.Context)
+            )
+            kwargs[OVERRIDE_KWARGS] = {
+                key[2:]: value
+                for key, value in zip(click_context.args[::2], click_context.args[1::2])
+            }
+        except Exception as ex:
+            logger.debug(ex)
+            pass
+
+        return func(*args, **kwargs)
 
     return wrapper

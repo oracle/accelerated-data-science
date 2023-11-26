@@ -565,7 +565,9 @@ def create(
     raise NotImplementedError()
 
 
-def run(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
+def run(
+    config: Dict, backend: Union[Dict, str] = None, **kwargs: Dict[str, Any]
+) -> None:
     """
     Runs the operator with the given specification on the targeted backend.
 
@@ -575,7 +577,7 @@ def run(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
         The operator's config.
     backend: (Union[Dict, str], optional)
         The backend config or backend name to run the operator.
-    kwargs: (Dict, optional)
+    kwargs: (Dict[str, Any], optional)
         Optional key value arguments to run the operator.
     """
     BackendFactory.backend(
