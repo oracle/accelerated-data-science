@@ -8,7 +8,7 @@ keywords:
   - marketplace
   - Feature store
 backends:
-  - marketplace.local
+  - marketplace
 description: |
   Feature store deployment operator helps ease the operational burden of deploying feature store helm charts from marketplace
   to OKE cluster of your choice!!

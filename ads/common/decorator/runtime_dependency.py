@@ -65,6 +65,7 @@ class OptionalDependency:
     SPARK = "oracle-ads[spark]"
     HUGGINGFACE = "oracle-ads[huggingface]"
     FORECAST = "oracle-ads[forecast]"
+    FEATURE_STORE_MARKETPLACE = "oracle-ads[feature-store-marketplace]"
     PII = "oracle-ads[pii]"
     FEATURE_STORE = "oracle-ads[feature-store]"
     GRAPHVIZ = "oracle-ads[graphviz]"

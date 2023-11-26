@@ -1,5 +1,5 @@
 import os
-
+import time
 import oci
 from typing import List
 
@@ -11,8 +11,6 @@ from ads.common import auth as authutil
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
 )
-
-
 class Color:
     PURPLE = "\033[95m"
     CYAN = "\033[96m"
@@ -25,12 +23,29 @@ class Color:
     UNDERLINE = "\033[4m"
     END = "\033[0m"
 
+WARNING=f"{Color.RED}{Color.BOLD}WARNING: {Color.END}"
 
 class StatusIcons:
     CHECK = "\u2705 "
     CROSS = "\u274C "
     LOADING = "\u274d "
     TADA = "\u2728 "
+
+
+def print_ticker(text: str, iteration: int):
+    ticker = ["/", "-", "\\"]
+    text = f"{text} [{ticker[iteration % len(ticker)]}]"
+    end = "\n"
+    try:
+        size = os.get_terminal_size()
+        backspaces_needed = int((len(text) + 1) / size.columns) + 1
+    except OSError:
+        end = "\r"
+    else:
+        if iteration != 0:
+            print(f"\033[{backspaces_needed}F", end="", flush=True)
+
+    print(text, end=end, flush=True)
 
 
 def print_heading(
@@ -51,6 +66,34 @@ def print_heading(
         + f"{Color.END}"
     )
 
+def wait_for_pod_ready(namespace: str, pod_name: str):
+    import kubernetes as k8
+    # Configs can be set in Configuration class directly or using helper utility
+    # self._set_kubernetes_env()
+    k8.config.load_kube_config()
+    v1 = k8.client.CoreV1Api()
+
+    def is_pod_ready(pod):
+        for condition in pod.status.conditions:
+            if condition.type == "Ready":
+                return condition.status == "True"
+        return False
+
+    for i in range(1, 120):
+        pod = v1.list_namespaced_pod(
+            namespace=namespace,
+            label_selector=f"app.kubernetes.io/instance={pod_name}",
+        ).items[0]
+
+        if is_pod_ready(pod):
+            return 0
+        print(
+            f"Waiting for pod '{pod_name}' to be ready." + "." * i,
+            end="\r",
+            )
+        time.sleep(5)
+    print("Timed out waiting for pod to get ready.")
+    return -1
 
 def set_kubernetes_session_token_env(profile: str = "DEFAULT") -> None:
     os.environ["OCI_CLI_AUTH"] = "security_token"
@@ -109,9 +152,8 @@ def export_helm_chart(listing_details: HelmMarketplaceListingDetails):
         client.get_work_request(export_listing_work_request.id),
         evaluate_response=lambda r: getattr(r.data, "status")
         and getattr(r.data, "status").lower() in ["succeeded", "failed"],
-        wait_callback=lambda times_checked, _: print(
-            "Waiting for marketplace export to finish" + "." * times_checked,
-            end="\r",
+        wait_callback=lambda times_checked, _: print_ticker(
+            "Waiting for marketplace export to finish", iteration=times_checked - 1
         ),
     ).data
     if export_listing_work_request.status == "FAILED":
