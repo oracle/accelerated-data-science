@@ -13,7 +13,7 @@ from ads.opctl.operator.common.utils import default_signer
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl.constants import BACKEND_NAME, RUNTIME_TYPE
-from ads.opctl.decorator.common import click_options, with_auth
+from ads.opctl.decorator.common import click_options, with_auth, with_click_unknown_args
 from ads.opctl.utils import suppress_traceback
 
 from .__init__ import __operators__
@@ -271,7 +271,12 @@ def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     suppress_traceback(debug)(cmd_publish_conda)(**kwargs)
 
 
-@commands.command()
+@commands.command(
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    )
+)
 @click_options(DEBUG_OPTION + ADS_CONFIG_OPTION + AUTH_TYPE_OPTION)
 @click.option(
     "--file",
@@ -303,8 +308,10 @@ def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
     is_flag=True,
     help="During dry run, the actual operation is not performed, only the steps are enumerated.",
 )
+@click.pass_context
+@with_click_unknown_args
 @with_auth
-def run(debug: bool, **kwargs: Dict[str, Any]) -> None:
+def run(ctx: click.core.Context, debug: bool, **kwargs: Dict[str, Any]) -> None:
     """
     Runs the operator with the given specification on the targeted backend.
     """
