@@ -28,8 +28,9 @@ def test_helm_install(mock_check_chart_exist: Mock, subprocess_mock: Mock):
         name,
         chart,
         *_get_as_flags_(
-            namespace=namespace, values=values_yaml_path, version=version, **kwargs
+            namespace=namespace, values=values_yaml_path, version=version, timeout="300s", **kwargs
         ),
+        "--wait"
     ]
 
     subprocess_mock.assert_called_with(helm_cmd)
@@ -47,8 +48,9 @@ def test_helm_upgrade(mock_check_chart_exist: Mock, subprocess_mock: Mock):
         name,
         chart,
         *_get_as_flags_(
-            namespace=namespace, values=values_yaml_path, version=version, **kwargs
+            namespace=namespace, values=values_yaml_path, version=version, timeout="300s", **kwargs
         ),
+        "--wait"
     ]
     subprocess_mock.assert_called_with(helm_cmd)
 

@@ -3,7 +3,6 @@ from unittest.mock import patch, Mock
 
 import mock
 import yaml
-from kubernetes.client import V1PodCondition
 
 from ads.opctl.backend.marketplace.local_marketplace import LocalMarketplaceOperatorBackend
 from ads.opctl.backend.marketplace.models.marketplace_type import HelmMarketplaceListingDetails
@@ -28,36 +27,12 @@ def test_helm_values_to_yaml(file_writer: Mock):
     file_writer.return_value.__enter__().write.assert_called_once_with(yaml.dump(sample_helm_value))
 
 
-
-@patch('ads.opctl.backend.marketplace.local_marketplace.export_helm_chart')
-@patch('ads.opctl.backend.marketplace.local_marketplace.list_container_images')
-def test_export_helm_chart_to_container_registry(list_api: Mock, export_api: Mock):
-    pattern = "feature-store-dataplane-api"
-
-    mock_container_summary = Mock()
-    mock_container_summary.display_name = f"{pattern}-1"
-
-    list_api.return_value.items.__iter__ = Mock(return_value=iter([mock_container_summary]))
-    listing_details = Mock()
-    listing_details.container_tag_pattern = [pattern]
-    result = LocalMarketplaceOperatorBackend._export_helm_chart_to_container_registry_(listing_details)
-    assert pattern in result
-    assert result[pattern] == f"{pattern}-1"
-
-
-@patch('ads.opctl.backend.marketplace.local_marketplace.wait_for_pod_ready')
-@patch('ads.opctl.backend.marketplace.local_marketplace.check_helm_login')
-@patch('ads.opctl.backend.marketplace.local_marketplace.check_prerequisites')
-@patch('ads.opctl.backend.marketplace.local_marketplace.run_helm_install')
 @patch('ads.opctl.backend.marketplace.local_marketplace.MarketplaceBackendRunner')
 @patch('ads.opctl.backend.marketplace.local_marketplace.operator_runtime')
-def test_run_with_python_success(operator_runtime: Mock, backend_runner: Mock, helm_install_api: Mock,
-                                 check_prerequisites: Mock, check_helm_login: Mock, wait_for_pod_api:Mock
-                                 ):
+def test_run_with_python_success(operator_runtime: Mock, backend_runner: Mock):
     local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}}, operator_info=OperatorInfo())
-    local_marketplace_operator._export_helm_chart_to_container_registry_ = Mock()
-    local_marketplace_operator._save_helm_values_to_yaml_ = Mock()
-    wait_for_pod_api.return_value = 0
+    local_marketplace_operator.process_helm_listing = Mock(return_value=0)
+
     mock_helm_detail = Mock(spec=HelmMarketplaceListingDetails)
     mock_helm_detail.helm_values = {}
     mock_helm_detail.helm_app_name = 'helm_app_name'
@@ -65,8 +40,7 @@ def test_run_with_python_success(operator_runtime: Mock, backend_runner: Mock, h
     mock_helm_detail.helm_chart_tag = 'helm_chart_tag'
     mock_helm_detail.namespace = 'namespace'
     backend_runner.return_value.get_listing_details.return_value = mock_helm_detail
-
-    helm_install_api.return_value.returncode = 0
+    # helm_install_api.return_value.returncode = 0
     assert local_marketplace_operator._run_with_python_() == 0
 
 
@@ -80,8 +54,7 @@ def test_run_with_python_failure(operator_runtime: Mock, backend_runner: Mock, h
                                  check_helm_login: Mock
                                  ):
     local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}}, operator_info=OperatorInfo())
-    local_marketplace_operator._export_helm_chart_to_container_registry_ = Mock()
-    local_marketplace_operator._save_helm_values_to_yaml_ = Mock()
+    local_marketplace_operator.process_helm_listing = Mock(return_value=-1)
     mock_helm_detail = Mock(spec=HelmMarketplaceListingDetails)
     mock_helm_detail.helm_values = {}
     mock_helm_detail.helm_app_name = 'helm_app_name'

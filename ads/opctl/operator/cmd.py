@@ -9,14 +9,12 @@ import os
 import re
 import runpy
 import shutil
-import sys
 import tempfile
-import traceback
-from logging import Logger
 from typing import Any, Dict, Union
 
 import fsspec
 import yaml
+from ads.opctl.operator.common.utils import print_traceback
 from tabulate import tabulate
 
 from ads.common import utils as ads_common_utils
@@ -72,10 +70,6 @@ def list() -> None:
         )
     )
 
-def print_traceback():
-    if logger.level == logging.DEBUG:
-        ex_type, ex, tb = sys.exc_info()
-        traceback.print_tb(tb)
 
 @runtime_dependency(module="rich", install_from=OptionalDependency.OPCTL)
 def info(
