@@ -45,6 +45,7 @@ Feature Store
     statistics
     feature_validation
     data_versioning
+    online_feature_store
     ui
 
 .. toctree::

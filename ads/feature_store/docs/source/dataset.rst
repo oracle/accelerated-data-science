@@ -73,6 +73,8 @@ Use the ``from_id()`` method from the ``Dataset`` class to load an existing data
 
   dataset = Dataset.from_id("<unique_id>")
 
+.. _Materialise Dataset:
+
 Materialise
 ===========
 
@@ -109,6 +111,9 @@ The ``.get_nearest_neighbours()`` method takes the following parameter:
 .. seealso::
    Refer  :ref:`Data types` supported by feature store
 
+.. seealso::
+   See :ref:`Online Feature Store` for the documentation on online feature store.
+
 Get serving vector
 ===================
 You can call the ``get_serving_vector()`` method of the ``Dataset`` instance to find the serving vector
@@ -118,6 +123,9 @@ The ``.get_serving_vector()`` method takes the following parameter:
 
 .. seealso::
    Refer  :ref:`Data types` supported by feature store
+
+.. seealso::
+   See :ref:`Online Feature Store` for the documentation on online feature store.
 
 
 Delete
