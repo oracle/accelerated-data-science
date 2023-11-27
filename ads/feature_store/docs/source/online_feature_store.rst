@@ -44,8 +44,10 @@ The ``.get_serving_vector()`` method takes the following parameter:
 Online feature store datatypes
 ==============================
 
+The following tables illustrate the mapping of data types to OpenSearch.
+
 +------------------+-----------------+-------------------+
-| Feature Store    | Spark Type      | Elastic Search    |
+| Feature Store    | Spark Type      | Open Search       |
 | Type             |                 | Datatype          |
 +==================+=================+===================+
 | STRING           | ByteType        | byte              |
