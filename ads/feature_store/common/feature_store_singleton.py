@@ -120,7 +120,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
                 spark_builder,
                 ## org.opensearch.client:opensearch-spark-30_2.12:1.0.1
                 extra_packages=[
-                    "org.elasticsearch:elasticsearch-spark-30_2.12:8.11.1",
+                    "org.opensearch.client:opensearch-spark-30_2.12:1.0.1",
                     "com.redislabs:spark-redis_2.12:3.0.0",
                 ],
             ).getOrCreate()
