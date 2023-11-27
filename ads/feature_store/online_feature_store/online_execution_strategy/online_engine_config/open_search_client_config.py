@@ -5,10 +5,11 @@
 
 
 from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 
 
 class OpenSearchClientConfig:
-    def __init__(self, host, scheme="https", verify_certs=True):
+    def __init__(self, host, scheme="https", verify_certs=True, ssl_show_warn=False):
         """
         Initialize the Elasticsearch client configuration.
 
@@ -26,17 +27,20 @@ class OpenSearchClientConfig:
         self.host = host
         self.scheme = scheme
         self.verify_certs = verify_certs
+        self.ssl_show_warn = ssl_show_warn
 
-    def get_client(self, http_auth: tuple[str, str]):
+    def get_client(self, http_auth: tuple[str, str]) -> OpenSearch:
         """
         Get an instance of the Elasticsearch client configured based on the provided parameters.
 
         Returns:
             Elasticsearch: An instance of the Elasticsearch client.
         """
-        return Elasticsearch(
-            hosts=f"{self.scheme}://{self.host}:9200",
-            basic_auth=http_auth,
-            verify_certs=self.verify_certs,
-            ssl_show_warn=False,
+
+        return OpenSearch(
+            [f"{self.scheme}://{self.host}:9200"],
+            http_auth=http_auth,
+            verify_certs=self.verify_certs,  # Set to True if you want to verify SSL certificate
+            timeout=30,
+            ssl_show_warn=self.ssl_show_warn,
         )

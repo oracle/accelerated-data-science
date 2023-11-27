@@ -152,20 +152,31 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
         return _managed_table_location
 
     def __get_feature_store_online_config(self, online_config):
+        auth = copy.copy(ads.auth.default_signer())
+        auth.pop("client_kwargs", None)
+        client_factory = OCIClientFactory(**auth)
+
         if online_config.get("openSearchId"):
-            # TODO: Get the details
-            user = "elastic"
-            password = "43ef9*ixWnJbsiclO*lU"
-            host = "localhost"
-            scheme = "http"
+            auth = copy.copy(ads.auth.default_signer())
+            auth.pop("client_kwargs", None)
+
+            opensearch_client = client_factory.opensearch
+            get_opensearch_cluster_response = opensearch_client.get_opensearch_cluster(
+                opensearch_cluster_id=online_config.get("openSearchId")
+            )
+            opensearch_endpoint_host = get_opensearch_cluster_response.data.get(
+                "opensearch_fqdn"
+            )
 
             return OpenSearchClientConfig(
-                host=host,
-                scheme=scheme,
+                host=opensearch_endpoint_host,
                 verify_certs=False,
             )
 
         elif online_config.get("redisId"):
+            # TODO  Need to fix
+            # redis_client = client_factory.redis
+            # get_redis_cluster_response = redis_client.get_redis_cluster(redis_cluster_id=online_config.get("redisId"))
             return RedisClientConfig(host="localhost", port=6379)
 
         return None
