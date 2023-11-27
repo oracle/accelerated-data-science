@@ -18,6 +18,8 @@ from ads.feature_store.online_feature_store.online_feature_store_strategy import
 
 
 class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
+    """Online strategy for interacting with OpenSearch for feature serving and embedding retrieval."""
+
     def __init__(self, online_engine_config: OpenSearchClientConfig):
         self.online_engine_config = online_engine_config
 
@@ -28,6 +30,18 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         dataframe,
         http_auth: tuple[str, str] = None,
     ):
+        """
+        Write DataFrame to OpenSearch.
+
+        Parameters:
+        - feature_group: Feature group metadata.
+        - feature_group_job: Feature group job metadata.
+        - dataframe: Spark DataFrame to be written.
+        - http_auth: Tuple containing username and password for authentication.
+
+        Raises:
+        - ValueError: If http_auth is not provided for authentication.
+        """
         index_name = f"{feature_group.entity_id}_{feature_group.name}".lower()
         # Accessing username and password from the tuple
         username = http_auth[0]
@@ -84,6 +98,17 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         keys: OrderedDict[str, Any],
         http_auth: tuple[str, str] = None,
     ):
+        """
+        Read data from OpenSearch based on primary key.
+
+        Parameters:
+        - feature_group: Feature group metadata.
+        - keys: OrderedDict containing primary key information.
+        - http_auth: Tuple containing username and password for authentication.
+
+        Returns:
+        - dict: Retrieved data from OpenSearch.
+        """
         ordered_keys = []
         # TODO:Need to revisit
 
@@ -113,6 +138,20 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         max_candidate_pool,
         http_auth: tuple[str, str] = None,
     ):
+        """
+        Get nearest neighbors from OpenSearch based on embedding vector.
+
+        Parameters:
+        - feature_group: Feature group metadata.
+        - embedding_field: Field containing embedding vectors.
+        - k_neighbors: Number of neighbors to retrieve.
+        - query_embedding_vector: Embedding vector for the query.
+        - max_candidate_pool: Maximum number of candidates to consider.
+        - http_auth: Tuple containing username and password for authentication.
+
+        Returns:
+        - dict: Result of the nearest neighbors search.
+        """
         query = {
             "field": embedding_field,
             "query_vector": query_embedding_vector,

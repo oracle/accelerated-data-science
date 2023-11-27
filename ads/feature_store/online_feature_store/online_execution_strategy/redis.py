@@ -17,6 +17,8 @@ from ads.feature_store.online_feature_store.online_feature_store_strategy import
 
 
 class OnlineRedisEngine(OnlineFeatureStoreStrategy):
+    """Online strategy for interacting with Redis for feature serving."""
+
     def __init__(self, online_engine_config: RedisClientConfig):
         self.online_engine_config = online_engine_config
         self.redis_client = online_engine_config.get_client()
@@ -28,6 +30,18 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
         dataframe,
         http_auth: tuple[str, str] = None,
     ):
+        """
+        Write DataFrame to Redis.
+
+        Parameters:
+        - feature_group: Feature group metadata.
+        - feature_group_job: Feature group job metadata.
+        - dataframe: Spark DataFrame to be written.
+        - http_auth: Tuple containing username and password for authentication.
+
+        Raises:
+        - NotImplementedError: This method is not supported for Redis.
+        """
         if len(feature_group.primary_keys["items"]) == 1:
             key = feature_group.primary_keys["items"][0]["name"]
             df_with_key = dataframe.withColumn("key", col(key))
@@ -46,6 +60,17 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
         keys: OrderedDict[str, Any],
         http_auth: tuple[str, str] = None,
     ):
+        """
+        Read data from Redis based on primary key.
+
+        Parameters:
+        - feature_group: Feature group metadata.
+        - keys: OrderedDict containing primary key information.
+        - http_auth: Tuple containing username and password for authentication.
+
+        Returns:
+        - dict: Retrieved data from Redis.
+        """
         ordered_keys = []
         # TODO:Need to move this out and generalize
         for primary_key in feature_group.primary_keys["items"]:
@@ -71,6 +96,20 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
         max_candidate_pool,
         http_auth: tuple[str, str] = None,
     ):
+        """
+        Get nearest neighbors from Redis based on embedding vector.
+
+        Parameters:
+        - feature_group: Feature group metadata.
+        - embedding_field: Field containing embedding vectors.
+        - k_neighbors: Number of neighbors to retrieve.
+        - query_embedding_vector: Embedding vector for the query.
+        - max_candidate_pool: Maximum number of candidates to consider.
+        - http_auth: Tuple containing username and password for authentication.
+
+        Raises:
+        - NotImplementedError: This method is not supported for Redis.
+        """
         raise NotImplementedError(
             "The method get_embedding_vector is not supported for Redis."
         )
