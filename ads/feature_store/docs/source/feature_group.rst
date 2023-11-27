@@ -92,6 +92,7 @@ Use the ``from_id()`` method from the ``FeatureGroup`` class to load an existing
 
   feature_group = FeatureGroup.from_id("<unique_id>")
 
+.. _Materialise FG:
 
 Materialise
 ===========
@@ -138,10 +139,11 @@ The ``.materialise_stream()`` method takes the following parameter:
         - Defaults to ``{}``.
 
 .. seealso::
-   :ref:`Feature Group Job`
+   Refer  :ref:`Data types` supported by feature store
 
 .. seealso::
-   Refer  :ref:`Data types` supported by feature store
+   See :ref:`Online Feature Store` for the documentation on online feature store.
+
 
 
 Get nearest neighbours
@@ -156,6 +158,10 @@ The ``.get_nearest_neighbours()`` method takes the following parameter:
 
 .. seealso::
    Refer  :ref:`Data types` supported by feature store
+
+.. seealso::
+   See :ref:`Online Feature Store` for the documentation on online feature store.
+
 
 Get serving vector
 ===================
