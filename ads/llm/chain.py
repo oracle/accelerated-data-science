@@ -52,6 +52,9 @@ class GuardrailSequence(RunnableSequence):
     This option can also be turned on if the environment variable LOG_ADS_GUARDRAIL_INFO is set to "1".
     """
 
+    max_retry: int = 1
+    """Maximum number of retry for running the Guardrail sequence again if the output is blocked by a guardrail."""
+
     @property
     def steps(self) -> List[Runnable[Any, Any]]:
         """Steps in the sequence."""
@@ -69,9 +72,11 @@ class GuardrailSequence(RunnableSequence):
         return "ads_guardrail_sequence"
 
     @classmethod
-    def from_sequence(cls, sequence: RunnableSequence):
+    def from_sequence(cls, sequence: RunnableSequence, **kwargs):
         """Creates a GuardrailSequence from a LangChain runnable sequence."""
-        return cls(first=sequence.first, middle=sequence.middle, last=sequence.last)
+        return cls(
+            first=sequence.first, middle=sequence.middle, last=sequence.last, **kwargs
+        )
 
     def __or__(self, other) -> "GuardrailSequence":
         """Adds another component to the end of this sequence.
@@ -154,16 +159,22 @@ class GuardrailSequence(RunnableSequence):
             Contains the outputs and metrics from each step.
             The final output is stored in GuardrailIO.data property.
         """
-        obj = GuardrailIO(data=[input])
-
-        try:
-            for i, step in enumerate(self.steps):
-                obj = self._run_step(step, obj, num_generations, **kwargs)
-        except BlockedByGuardrail as ex:
-            if self.raise_exception:
-                raise ex
-            obj.data = [ex.message]
-            obj.info.append(ex.info)
+        retry_count = 0
+        while True:
+            retry_count += 1
+            obj = GuardrailIO(data=[input])
+            try:
+                for i, step in enumerate(self.steps):
+                    obj = self._run_step(step, obj, num_generations, **kwargs)
+                break
+            except BlockedByGuardrail as ex:
+                if retry_count < self.max_retry:
+                    continue
+                if self.raise_exception:
+                    raise ex
+                obj.data = [ex.message]
+                obj.info.append(ex.info)
+                break
         if self.log_info or os.environ.get(LOG_ADS_GUARDRAIL_INFO) == "1":
             # LOG_ADS_GUARDRAIL_INFO is set to "1" in score.py by default.
             print(obj.dict())
