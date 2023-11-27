@@ -1,12 +1,13 @@
 from subprocess import CompletedProcess
 from unittest.mock import patch, Mock, call
 
+import pytest
 from oci.marketplace.models import AcceptedAgreementSummary, AgreementSummary
 
 from ads.opctl.backend.marketplace.models.marketplace_type import HelmMarketplaceListingDetails, \
     MarketplaceListingDetails
 from ads.opctl.backend.marketplace.prerequisite_checker import check_prerequisites, _prompt_kubernetes_confirmation_, \
-    _check_binaries_, _check_license_for_listing_
+    _check_binaries_, _check_license_for_listing_, BinaryValidation
 
 
 @patch(
@@ -32,7 +33,7 @@ def test_prompt_kubernetes_confirmation(click: Mock):
 
 @patch("ads.opctl.backend.marketplace.prerequisite_checker.subprocess.run")
 def test_check_binaries_success(subprocess_runner: Mock):
-    binaries = ["bin_a", "bin_b"]
+    binaries = [BinaryValidation("bin_a", ""), BinaryValidation("bin_b", "")]
     subprocess_runner.return_value = CompletedProcess(args="", returncode=0)
     _check_binaries_(binaries)
     subprocess_runner.assert_has_calls([
@@ -43,13 +44,14 @@ def test_check_binaries_success(subprocess_runner: Mock):
 
 @patch("ads.opctl.backend.marketplace.prerequisite_checker.subprocess.run")
 def test_check_binaries_failure(subprocess_runner: Mock):
-    binaries = ["bin_a", "bin_b"]
-    subprocess_runner.return_value = CompletedProcess(args="", returncode=-1)
-    _check_binaries_(binaries)
-    subprocess_runner.assert_has_calls([
-        call(['which', 'bin_a'], capture_output=True),
-        call(['which', 'bin_b'], capture_output=True)
-    ])
+    with pytest.raises(Exception):
+        binaries = [BinaryValidation("bin_a", ""), BinaryValidation("bin_b", "")]
+        subprocess_runner.return_value = CompletedProcess(args="", returncode=-1)
+        _check_binaries_(binaries)
+        subprocess_runner.assert_has_calls([
+            call(['which', 'bin_a'], capture_output=True),
+            call(['which', 'bin_b'], capture_output=True)
+        ])
 
 
 @patch("ads.opctl.backend.marketplace.prerequisite_checker.get_marketplace_client")
