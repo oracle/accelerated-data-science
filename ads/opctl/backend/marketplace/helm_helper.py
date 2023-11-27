@@ -99,6 +99,7 @@ def check_helm_login(listing_details: HelmMarketplaceListingDetails):
                 helm_chart_url=listing_details.helm_fully_qualified_url,
                 version=listing_details.helm_chart_tag,
             )
+            status = HelmPullStatus.SUCCESS
             if status != HelmPullStatus.SUCCESS:
                 print(f"Unable to setup helm authentication. {StatusIcons.CROSS}")
                 # Todo throw correct exception

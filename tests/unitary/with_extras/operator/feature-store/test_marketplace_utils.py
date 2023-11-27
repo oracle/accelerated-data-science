@@ -15,13 +15,13 @@ def test_set_kubernetes_session_token_env():
 
 @patch('ads.opctl.backend.marketplace.marketplace_utils.OCIClientFactory')
 def test_get_docker_bearer_token(client_factory: Mock):
-    mock_token = "TOKEN"
+    mock_token = '{"token":"TOKEN"}'
     token_client = Mock()
-    token_client.call_api.return_value.data = '{"token":"%s"}' % format(mock_token)
+    token_client.call_api.return_value.data = mock_token
     client_factory.return_value.create_client.return_value = token_client
     ocir_repo = "iad.ocir.io/idogsu2ylimg/feature-store-data-plane-api-helidon/"
     assert get_docker_bearer_token(ocir_repo) == mock_token
-    token_client.call_api.assert_called_once_with(resource_path='/docker/token', method='GET', response_type='bytes')
+    token_client.call_api.assert_called_once_with(resource_path='/docker/token', method='GET', response_type='SecurityToken')
 
 
 @patch('ads.opctl.backend.marketplace.marketplace_utils.get_marketplace_client')

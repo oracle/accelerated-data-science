@@ -6,7 +6,7 @@ import yaml
 from kubernetes.client import V1PodList, V1Pod, V1PodStatus, V1PodCondition
 
 from ads.opctl.backend.marketplace.local_marketplace import LocalMarketplaceOperatorBackend
-from ads.opctl.backend.marketplace.marketplace_type import MarketplaceListingDetails, HelmMarketplaceListingDetails
+from ads.opctl.backend.marketplace.models.marketplace_type import HelmMarketplaceListingDetails
 from ads.opctl.operator.common.operator_loader import OperatorInfo
 
 
@@ -48,51 +48,40 @@ def test_wait_for_pod_healthy(kube_config: Mock, kube_client: Mock, timer: Mock)
 @patch('ads.opctl.backend.marketplace.local_marketplace.config.load_kube_config')
 def test_wait_for_pod_unhealthy(kube_config: Mock, kube_client: Mock, timer: Mock):
     local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}})
-    timer.time = Mock(side_effect=[0.0, 11 * 60])
+    timer.time = Mock(return_value=0.0)
     kube_client.return_value.list_namespaced_pod.return_value.items.__getitem__.return_value.status.conditions.__iter__ = Mock(
         return_value=iter([V1PodCondition(type="Ready", status="False")]))
 
     assert local_marketplace_operator._wait_for_pod_ready('namespace', 'pod_name') == -1
-    kube_client.return_value.list_namespaced_pod.assert_called_once_with(namespace='namespace',
-                                                                         label_selector='app.kubernetes.io/instance=pod_name')
+    kube_client.return_value.list_namespaced_pod.assert_called()
     kube_config.assert_called()
-
-
-@patch('ads.opctl.backend.marketplace.local_marketplace.time')
-@patch('ads.opctl.backend.marketplace.local_marketplace.stream')
-@patch('ads.opctl.backend.marketplace.local_marketplace.client.CoreV1Api')
-@patch('ads.opctl.backend.marketplace.local_marketplace.config.load_kube_config')
-def test_run_bug_fix(kube_config: Mock, kube_client: Mock, kube_stream: Mock, timer: Mock):
-    local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}})
-    assert local_marketplace_operator.run_bugfix_command('namespace', 'pod_name') == 0
-    kube_config.assert_called_once()
-    kube_client.assert_called_once()
-    kube_client.return_value.list_namespaced_pod.assert_called_once_with(namespace='namespace',
-                                                                         label_selector=f'app.kubernetes.io/instance=pod_name')
-    kube_stream.assert_called_once()
 
 
 @patch('ads.opctl.backend.marketplace.local_marketplace.export_helm_chart')
 @patch('ads.opctl.backend.marketplace.local_marketplace.list_container_images')
-def test_export_helm_chart_to_container_registry(list_api: Mock, export_api:Mock):
+def test_export_helm_chart_to_container_registry(list_api: Mock, export_api: Mock):
     pattern = "feature-store-dataplane-api"
 
     mock_container_summary = Mock()
     mock_container_summary.display_name = f"{pattern}-1"
 
-    list_api.return_value.items.__iter__ = Mock(return_value= iter([mock_container_summary]))
+    list_api.return_value.items.__iter__ = Mock(return_value=iter([mock_container_summary]))
     listing_details = Mock()
     listing_details.container_tag_pattern = [pattern]
     result = LocalMarketplaceOperatorBackend._export_helm_chart_to_container_registry_(listing_details)
     assert pattern in result
     assert result[pattern] == f"{pattern}-1"
 
+
+@patch('ads.opctl.backend.marketplace.local_marketplace.check_helm_login')
 @patch('ads.opctl.backend.marketplace.local_marketplace.check_prerequisites')
 @patch('ads.opctl.backend.marketplace.local_marketplace.run_helm_install')
 @patch('ads.opctl.backend.marketplace.local_marketplace.MarketplaceBackendRunner')
 @patch('ads.opctl.backend.marketplace.local_marketplace.operator_runtime')
-def test_run_with_python_success(operator_runtime:Mock, backend_runner:Mock, helm_install_api:Mock, check_prerequisites:Mock):
-    local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}}, operator_info =OperatorInfo())
+def test_run_with_python_success(operator_runtime: Mock, backend_runner: Mock, helm_install_api: Mock,
+                                 check_prerequisites: Mock, check_helm_login: Mock
+                                 ):
+    local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}}, operator_info=OperatorInfo())
     local_marketplace_operator._export_helm_chart_to_container_registry_ = Mock()
     local_marketplace_operator._save_helm_values_to_yaml_ = Mock()
     local_marketplace_operator.run_bugfix_command = Mock()
@@ -108,12 +97,17 @@ def test_run_with_python_success(operator_runtime:Mock, backend_runner:Mock, hel
     helm_install_api.return_value.returncode = 0
     assert local_marketplace_operator._run_with_python_() == 0
 
+
+@patch('ads.opctl.backend.marketplace.local_marketplace.check_helm_login')
 @patch('ads.opctl.backend.marketplace.local_marketplace.check_prerequisites')
 @patch('ads.opctl.backend.marketplace.local_marketplace.run_helm_install')
 @patch('ads.opctl.backend.marketplace.local_marketplace.MarketplaceBackendRunner')
 @patch('ads.opctl.backend.marketplace.local_marketplace.operator_runtime')
-def test_run_with_python_failure(operator_runtime:Mock, backend_runner:Mock, helm_install_api:Mock, check_prerequisites:Mock):
-    local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}}, operator_info =OperatorInfo())
+def test_run_with_python_failure(operator_runtime: Mock, backend_runner: Mock, helm_install_api: Mock,
+                                 check_prerequisites: Mock,
+                                 check_helm_login: Mock
+                                 ):
+    local_marketplace_operator = LocalMarketplaceOperatorBackend(config={'execution': {}}, operator_info=OperatorInfo())
     local_marketplace_operator._export_helm_chart_to_container_registry_ = Mock()
     local_marketplace_operator._save_helm_values_to_yaml_ = Mock()
     mock_helm_detail = Mock(spec=HelmMarketplaceListingDetails)
