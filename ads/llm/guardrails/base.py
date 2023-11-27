@@ -104,15 +104,16 @@ class SingleMetric:
         def wrapper(self: "Guardrail", metrics: dict, data: list, *args, **kwargs):
             if self.metric_key not in metrics:
                 raise KeyError(
-                    f"This method requires the metrics contains {self.metric_key}."
+                    f"Method requires the metrics contains {self.metric_key}."
                 )
             if not isinstance(metrics[self.metric_key], list):
                 raise ValueError(
-                    f"This method requires the value of {self.metric_key} in metrics."
+                    f"Method requires the value of {self.metric_key} in metrics."
                 )
             if len(metrics[self.metric_key]) != len(data):
                 raise ValueError(
-                    f"This method requires the value of {self.metric_key} in metrics to have the same size as data."
+                    f"Method requires the value of {self.metric_key} in metrics "
+                    "to have the same size as data."
                 )
             return func(self, metrics, data, *args, **kwargs)
 
@@ -327,6 +328,8 @@ class Guardrail(BaseTool):
         """
         if self.select not in self._SELECT_OPERATOR:
             raise ValueError(f"select='{self.select}' is not supported.")
+        if not data:
+            return data
         func = self._SELECT_OPERATOR[self.select]
         values = metrics[self.metric_key]
         idx = values.index(func(values))
@@ -379,11 +382,11 @@ class Guardrail(BaseTool):
             The selected candidate in a list.
         """
         filtered_data = self.apply_filter(metrics, data)
-        passed_idx = [i for i in range(len(metrics["passed"])) if metrics["passed"]]
+        passed_idx = [i for i in range(len(metrics["passed"])) if metrics["passed"][i]]
         filtered_metrics = {
             self.metric_key: [metrics[self.metric_key][i] for i in passed_idx]
         }
-        return self.apply_select(filtered_data, filtered_metrics)
+        return self.apply_select(filtered_metrics, filtered_data)
 
     def single_metric_moderate(self, metrics: dict, data=None, **kwargs) -> List[str]:
         """Applies moderation (filter and/or select) using the metrics."""
