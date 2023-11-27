@@ -25,8 +25,8 @@ class RuntimeInfo(DataClassSerializable):
         default_factory=ModelProvenanceDetails
     )
 
-    @staticmethod
-    def _validate_dict(obj_dict: Dict) -> bool:
+    @classmethod
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
         """Validate the runtime info.
 
         Parameters

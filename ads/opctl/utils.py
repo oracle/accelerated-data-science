@@ -11,21 +11,18 @@ import os
 import subprocess
 import sys
 import shlex
-import tempfile
 import urllib.parse
-from distutils import dir_util
 from subprocess import Popen, PIPE, STDOUT
 from typing import Union, List, Tuple, Dict
 import yaml
+import re
 
 import ads
 from ads.common.oci_client import OCIClientFactory
 from ads.opctl import logger
 from ads.opctl.constants import (
     ML_JOB_IMAGE,
-    OPS_IMAGE_BASE,
     ML_JOB_GPU_IMAGE,
-    OPS_IMAGE_GPU_BASE,
 )
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
@@ -95,12 +92,6 @@ def get_region_key(auth: dict) -> str:
     return client.get_tenancy(tenancy).data.home_region_key
 
 
-# Not needed at the moment
-# def _get_compartment_name(compartment_id: str, auth: dict) -> str:
-#     client = OCIClientFactory(**auth).identity
-#     return client.get_compartment(compartment_id=compartment_id).data.name
-
-
 def publish_image(image: str, registry: str = None) -> None:  # pragma: no cover
     """
     Publish an image.
@@ -121,6 +112,7 @@ def publish_image(image: str, registry: str = None) -> None:  # pragma: no cover
         print(f"pushed {image}")
         return image
     else:
+        registry = registry.rstrip("/")
         run_command(
             ["docker", "tag", f"{image}", f"{registry}/{os.path.basename(image)}"]
         )
@@ -129,22 +121,18 @@ def publish_image(image: str, registry: str = None) -> None:  # pragma: no cover
         return f"{registry}/{os.path.basename(image)}"
 
 
-def build_image(
-    image_type: str, gpu: bool = False, source_folder: str = None, dst_image: str = None
-) -> None:
+def build_image(image_type: str, gpu: bool = False) -> None:
     """
     Build an image for opctl.
 
     Parameters
     ----------
     image_type: str
-        specify the image to build, can take 'job-local' or 'ads-ops-base',
+        specify the image to build, can take 'job-local',
         former for running job with conda pack locally,
         latter for running operators
     gpu: bool
         whether to use gpu version of image
-    source_folder: str
-        source folder when building custom operator, to be included in custom image
     dst_image: str
         image to save as when building custom operator
 
@@ -160,7 +148,14 @@ def build_image(
             )
         proc = _build_custom_operator_image(gpu, source_folder, dst_image)
     else:
-        image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu)
+        # https://stackoverflow.com/questions/66842004/get-the-processor-type-using-python-for-apple-m1-processor-gives-me-an-intel-pro
+        import cpuinfo
+        # Just get the manufacturer of the processors
+        manufacturer = cpuinfo.get_cpu_info().get('brand_raw')
+        arch = 'arm' if re.search("apple m\d ", manufacturer, re.IGNORECASE) else 'other'
+        print(f"The local machine's platform is {arch}.")
+        image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu, arch)
+        print(f"dockerfile used is {dockerfile}")
         command = [
             "docker",
             "build",
@@ -186,48 +181,15 @@ def build_image(
         raise RuntimeError("Docker build failed.")
 
 
-def _get_image_name_dockerfile_target(type: str, gpu: bool) -> str:
+def _get_image_name_dockerfile_target(type: str, gpu: bool, arch: str) -> str:
     look_up = {
-        ("job-local", False): (ML_JOB_IMAGE, "Dockerfile.job", None),
-        ("job-local", True): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
-        ("ads-ops-base", False): (OPS_IMAGE_BASE, "Dockerfile", "base"),
-        ("ads-ops-base", True): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
+        ("job-local", False, "arm"): (ML_JOB_IMAGE, "Dockerfile.job.arm", None),
+        ("job-local", False, "other"): (ML_JOB_IMAGE, "Dockerfile.job", None),
+        ("job-local", True, "other"): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
+        ("ads-ops-base", False, "other"): (OPS_IMAGE_BASE, "Dockerfile", "base"),
+        ("ads-ops-base", True, "other"): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
     }
-    return look_up[(type, gpu)]
-
-
-@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
-def _build_custom_operator_image(
-    gpu: bool, source_folder: str, dst_image: str
-) -> None:  # pragma: no cover
-    operator = os.path.basename(source_folder)
-    base_image_name = OPS_IMAGE_BASE if not gpu else OPS_IMAGE_GPU_BASE
-    try:
-        client = docker.from_env()
-        client.api.inspect_image(base_image_name)
-    except docker.errors.ImageNotFound:
-        build_image("ads-ops-base", gpu)
-    with tempfile.TemporaryDirectory() as td:
-        dir_util.copy_tree(source_folder, os.path.join(td, operator))
-        if os.path.exists(os.path.join(td, operator, "environment.yaml")):
-            with open(os.path.join(td, "Dockerfile"), "w") as f:
-                f.write(
-                    f"""
-FROM {base_image_name}
-COPY ./{operator}/environment.yaml operators/{operator}/environment.yaml
-RUN conda env update -f operators/{operator}/environment.yaml --name op_env && conda clean -afy
-COPY ./{operator} operators/{operator}
-                        """
-                )
-        else:
-            with open(os.path.join(td, "Dockerfile"), "w") as f:
-                f.write(
-                    f"""
-FROM {base_image_name}
-COPY ./{operator} operators/{operator}
-                        """
-                )
-        return run_command(["docker", "build", "-t", f"{dst_image}", "."], td)
+    return look_up[(type, gpu, arch)]
 
 
 def run_command(
@@ -289,6 +251,8 @@ def suppress_traceback(debug: bool = True) -> None:
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def get_docker_client() -> "docker.client.DockerClient":
+    import docker
+
     process = subprocess.Popen(
         ["docker", "info"], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT
     )
@@ -306,7 +270,9 @@ def run_container(
     command: str = None,
     entrypoint: str = None,
     verbose: bool = False,
-):
+) -> int:
+    import docker
+
     if env_vars is None:
         env_vars = {}
     # If Proxy variables are setup, pass it on to the docker run

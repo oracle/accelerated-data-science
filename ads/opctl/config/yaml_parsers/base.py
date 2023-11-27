@@ -56,5 +56,4 @@ class YamlSpecParser:
             m = importlib.import_module("ads.opctl.config.yaml_parsers")
             parser = getattr(m, className)
             parsed_output = parser(yaml_spec).parse()
-            logger.debug(f"Parsed Output: {parsed_output}")
         return parsed_output

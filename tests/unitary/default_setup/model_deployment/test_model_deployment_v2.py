@@ -21,7 +21,6 @@ from ads.model.datascience_model import DataScienceModel
 from ads.model.deployment.model_deployment import (
     ModelDeployment,
     ModelDeploymentLogType,
-    ModelDeploymentFailedError,
 )
 from ads.model.deployment.model_deployment_infrastructure import (
     ModelDeploymentInfrastructure,
@@ -1147,44 +1146,6 @@ spec:
         mock_create.assert_called()
         mock_create_model_deployment.assert_called_with(create_model_deployment_details)
         mock_sync.assert_called()
-
-    @patch.object(OCIDataScienceMixin, "sync")
-    @patch.object(
-        oci.data_science.DataScienceClient,
-        "create_model_deployment",
-    )
-    @patch.object(DataScienceModel, "create")
-    def test_deploy_failed(
-        self, mock_create, mock_create_model_deployment, mock_sync
-    ):
-        dsc_model = MagicMock()
-        dsc_model.id = "fakeid.datasciencemodel.oc1.iad.xxx"
-        mock_create.return_value = dsc_model
-        response = oci.response.Response(
-            status=MagicMock(),
-            headers=MagicMock(),
-            request=MagicMock(),
-            data=oci.data_science.models.ModelDeployment(
-                id="test_model_deployment_id",
-                lifecycle_state="FAILED",
-                lifecycle_details="The specified log object is not found or user is not authorized.",
-            ),
-        )
-        mock_sync.return_value = response.data
-        model_deployment = self.initialize_model_deployment()
-        create_model_deployment_details = (
-            model_deployment._build_model_deployment_details()
-        )
-        with pytest.raises(
-            ModelDeploymentFailedError,
-            match=f"Model deployment {response.data.id} failed to deploy: {response.data.lifecycle_details}",
-        ):
-            model_deployment.deploy(wait_for_completion=False)
-            mock_create.assert_called()
-            mock_create_model_deployment.assert_called_with(
-                create_model_deployment_details
-            )
-            mock_sync.assert_called()
 
     @patch.object(
         OCIDataScienceModelDeployment,

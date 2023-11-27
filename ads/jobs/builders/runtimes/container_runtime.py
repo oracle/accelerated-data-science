@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import Union
 from ads.jobs.builders.runtimes.base import Runtime
@@ -123,7 +123,7 @@ class ContainerRuntime(Runtime):
         self._spec[self.CONST_CMD] = cmd
         return self
 
-    def init(self) -> "ContainerRuntime":
+    def init(self, **kwargs) -> "ContainerRuntime":
         """Initializes a starter specification for the runtime.
 
         Returns
@@ -131,10 +131,10 @@ class ContainerRuntime(Runtime):
         ContainerRuntime
             The runtime instance.
         """
-        super().init()
+        super().init(**kwargs)
 
         return self.with_image(
-            image="iad.ocir.io/namespace/image:tag",
+            image=kwargs.get("image", "iad.ocir.io/namespace/image:tag"),
             entrypoint=["bash", "--login", "-c"],
-            cmd="{Container CMD. For MLFlow, it will be replaced with the Project CMD}",
+            cmd="{Container CMD. For MLflow and Operator will be auto generated}",
         )

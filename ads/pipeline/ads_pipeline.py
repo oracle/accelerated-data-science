@@ -1981,7 +1981,7 @@ class Pipeline(Builder):
             return self.data_science_pipeline.lifecycle_state
         return None
 
-    def init(self) -> "Pipeline":
+    def init(self, **kwargs) -> "Pipeline":
         """Initializes a starter specification for the Pipeline.
 
         Returns

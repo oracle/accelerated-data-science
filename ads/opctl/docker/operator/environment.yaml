@@ -1,0 +1,8 @@
+name: operator
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/forecasting#egg=oracle-ads"
