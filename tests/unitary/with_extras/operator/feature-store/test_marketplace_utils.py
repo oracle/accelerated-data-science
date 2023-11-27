@@ -2,7 +2,7 @@ import os
 from unittest.mock import Mock, patch
 
 from ads.opctl.backend.marketplace.marketplace_utils import set_kubernetes_session_token_env, get_docker_bearer_token, \
-    export_helm_chart, list_container_images
+    _export_helm_chart_, list_container_images
 
 
 def test_set_kubernetes_session_token_env():
@@ -29,7 +29,7 @@ def test_get_docker_bearer_token(client_factory: Mock):
 def test_export_helm_chart_success(oci: Mock, marketplace_client: Mock):
     oci.wait_until.return_value.data.status = "SUCCESS"
     listing_details = Mock()
-    export_helm_chart(listing_details)
+    _export_helm_chart_(listing_details)
     marketplace_client.return_value.export_listing.assert_called_once()
     oci.wait_until.assert_called_once()
 

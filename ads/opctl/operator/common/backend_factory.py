@@ -12,6 +12,8 @@ The factory validates the backend type and runtime type before creating the back
 from typing import Dict, List, Tuple, Union
 
 import yaml
+from ads.opctl.operator.common.utils import print_traceback
+
 from ads.opctl.backend.marketplace.local_marketplace import (
     LocalMarketplaceOperatorBackend,
 )
@@ -443,5 +445,6 @@ class BackendFactory:
                     f"Unable to generate the configuration for the `{resource_type}` backend. "
                     f"{ex}"
                 )
+                print_traceback()
 
         return result

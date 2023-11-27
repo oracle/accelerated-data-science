@@ -50,8 +50,9 @@ def run_helm_install(
         name,
         chart,
         *_get_as_flags_(
-            namespace=namespace, values=values_yaml_path, version=version, **kwargs
+            namespace=namespace, values=values_yaml_path, version=version, timeout="300s",**kwargs
         ),
+        "--wait"
     ]
     print(f"\n{Color.BLUE}{' '.join(helm_cmd)}{Color.END}")
     return subprocess.run(helm_cmd)

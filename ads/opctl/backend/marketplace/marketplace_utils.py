@@ -1,12 +1,9 @@
 import os
 import time
 import oci
-from typing import List
-
+from typing import List, Dict
 from ads.opctl.backend.marketplace.models.bearer_token import BearerToken
-
 from ads.common.oci_client import OCIClientFactory
-
 from ads.common import auth as authutil
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
@@ -66,35 +63,6 @@ def print_heading(
         + f"{Color.END}"
     )
 
-def wait_for_pod_ready(namespace: str, pod_name: str):
-    import kubernetes as k8
-    # Configs can be set in Configuration class directly or using helper utility
-    # self._set_kubernetes_env()
-    k8.config.load_kube_config()
-    v1 = k8.client.CoreV1Api()
-
-    def is_pod_ready(pod):
-        for condition in pod.status.conditions:
-            if condition.type == "Ready":
-                return condition.status == "True"
-        return False
-
-    for i in range(1, 120):
-        pod = v1.list_namespaced_pod(
-            namespace=namespace,
-            label_selector=f"app.kubernetes.io/instance={pod_name}",
-        ).items[0]
-
-        if is_pod_ready(pod):
-            return 0
-        print(
-            f"Waiting for pod '{pod_name}' to be ready." + "." * i,
-            end="\r",
-            )
-        time.sleep(5)
-    print("Timed out waiting for pod to get ready.")
-    return -1
-
 def set_kubernetes_session_token_env(profile: str = "DEFAULT") -> None:
     os.environ["OCI_CLI_AUTH"] = "security_token"
     os.environ["OCI_CLI_PROFILE"] = profile
@@ -134,7 +102,7 @@ def get_docker_bearer_token(ocir_repo: str) -> BearerToken:
     return token
 
 
-def export_helm_chart(listing_details: HelmMarketplaceListingDetails):
+def _export_helm_chart_(listing_details: HelmMarketplaceListingDetails):
     client = get_marketplace_client()
     export_listing_work_request: oci.marketplace.models.WorkRequest = (
         client.export_listing(
@@ -174,14 +142,32 @@ def get_marketplace_request_status(work_request_id):
     return get_work_request_response.data
 
 
-def list_container_images(
-    listing_details: HelmMarketplaceListingDetails,
+def list_container_images(compartment_id: str, ocir_image_path: str
 ) -> oci.artifacts.models.ContainerImageCollection:
     artifact_client = OCIClientFactory(**authutil.default_signer()).artifacts
     list_container_images_response = artifact_client.list_container_images(
-        compartment_id=listing_details.compartment_id,
+        compartment_id=compartment_id,
         compartment_id_in_subtree=True,
         sort_by="TIMECREATED",
-        repository_name=listing_details.ocir_image_path,
+        repository_name=ocir_image_path
     )
     return list_container_images_response.data
+
+
+def export_helm_chart_to_container_registry(
+        listing_details: HelmMarketplaceListingDetails,
+) -> Dict[str, str]:
+    _export_helm_chart_(listing_details)
+    images = list_container_images(compartment_id=listing_details.compartment_id,
+                                   ocir_image_path=listing_details.ocir_image_path)
+    image_map = {}
+    for image in images.items:
+        for container_tag_pattern in listing_details.container_tag_pattern:
+            if (
+                    container_tag_pattern in image.display_name
+                    and image_map.get(container_tag_pattern, None) is None
+            ):
+                image_map[container_tag_pattern] = image.display_name
+    return image_map
+
+
