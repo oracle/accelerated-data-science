@@ -8,7 +8,6 @@ from typing import OrderedDict, Any
 
 from pyspark.sql.functions import concat
 
-from ads.feature_store.common.feature_store_singleton import developer_enabled
 from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.open_search_client_config import (
     OpenSearchClientConfig,
 )
@@ -53,28 +52,18 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         composite_key = None
 
         # Elasticsearch configuration
-        if developer_enabled():
-            write_config = {
-                "es.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
-                "es.port": "9200",  # Replace with your Elasticsearch server port
-                "es.resource": index_name,  # Replace with your index (without type, as types are deprecated)
-                "es.write.operation": "index",  # Use "index" for writing data to Elasticsearch
-                "es.net.http.auth.user": username,  # Elasticsearch user
-                "es.net.http.auth.pass": password,  # Elasticsearch password
-                "es.nodes.wan.only": "true",
-                "es.nodes.discovery": "false",
-                "es.nodes.client.only": "false",
-            }
-        else:
-            write_config = {
-                "opensearch.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
-                "opensearch.port": "9200",  # Replace with your Elasticsearch server port
-                "opensearch.resource": index_name,  # Replace with your index (without type, as types are deprecated)
-                "opensearch.write.operation": "index",  # Use "index" for writing data to Elasticsearch
-                "opensearch.net.http.auth.user": username,  # Elasticsearch user
-                "opensearch.net.http.auth.pass": password,  # Elasticsearch password
-                "opensearch.nodes.wan.only": "true",
-            }
+
+        es_write_config = {
+            "opensearch.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
+            "opensearch.port": "9200",  # Replace with your Elasticsearch server port
+            "opensearch.resource": index_name,  # Replace with your index (without type, as types are deprecated)
+            "opensearch.write.operation": "index",  # Use "index" for writing data to Elasticsearch
+            "opensearch.net.http.auth.user": username,  # Elasticsearch user
+            "opensearch.net.http.auth.pass": password,  # Elasticsearch password
+            "opensearch.nodes.wan.only": "true",
+            "es.write.operation": "upsert",
+            "opensearch.net.ssl": "true",
+        }
 
         if len(primary_keys) == 1:
             composite_key = primary_keys[0]
@@ -85,11 +74,11 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
             )
 
         if composite_key is not None:
-            write_config["es.mapping.id"] = composite_key
+            es_write_config["es.mapping.id"] = composite_key
 
         # Write DataFrame to Elasticsearch
         dataframe.write.format("org.elasticsearch.spark.sql").options(
-            **write_config
+            **es_write_config
         ).mode(feature_group_job.ingestion_mode).save()
 
     def read(
