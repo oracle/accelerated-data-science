@@ -17,6 +17,7 @@ from oci.data_science import DataScienceClient
 from oci.identity import IdentityClient
 from oci.marketplace import MarketplaceClient
 from oci.object_storage import ObjectStorageClient
+from oci.opensearch import OpensearchClusterClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
@@ -72,6 +73,8 @@ class OCIClientFactory:
             "data_catalog": DataCatalogClient,
             "marketplace": MarketplaceClient,
             "artifacts": ArtifactsClient,
+            "opensearch": OpensearchClusterClient,
+            # "redis": RedisClusterClient
         }
         assert (
             client in client_map
@@ -153,3 +156,11 @@ class OCIClientFactory:
     @property
     def artifacts(self) -> oci.artifacts.ArtifactsClient:
         return self.create_client("artifacts")
+
+    @property
+    def opensearch(self):
+        return self.create_client("opensearch")
+
+    @property
+    def redis(self):
+        return self.create_client("redis")
