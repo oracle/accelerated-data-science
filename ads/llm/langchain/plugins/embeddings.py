@@ -5,12 +5,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from typing import List, Optional
-
+from langchain.load.serializable import Serializable
 from langchain.schema.embeddings import Embeddings
 from ads.llm.langchain.plugins.base import GenerativeAiClientModel
 
 
-class GenerativeAIEmbeddings(GenerativeAiClientModel, Embeddings):
+class GenerativeAIEmbeddings(GenerativeAiClientModel, Embeddings, Serializable):
     """OCI Generative AI embedding models."""
 
     model: str = "cohere.embed-english-light-v2.0"
@@ -18,6 +18,16 @@ class GenerativeAIEmbeddings(GenerativeAiClientModel, Embeddings):
 
     truncate: Optional[str] = None
     """Truncate embeddings that are too long from start or end ("NONE"|"START"|"END")"""
+
+    @classmethod
+    def get_lc_namespace(cls) -> List[str]:
+        """Get the namespace of the LangChain object."""
+        return ["ads", "llm"]
+
+    @classmethod
+    def is_lc_serializable(cls) -> bool:
+        """This class can be serialized with default LangChain serialization."""
+        return True
 
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """Embeds a list of strings.
