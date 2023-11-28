@@ -21,6 +21,7 @@ from oci.opensearch import OpensearchClusterClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
+from oci.redis import RedisClusterClient
 
 logger = logging.getLogger(__name__)
 
@@ -74,8 +75,10 @@ class OCIClientFactory:
             "marketplace": MarketplaceClient,
             "artifacts": ArtifactsClient,
             "opensearch": OpensearchClusterClient,
-            # "redis": RedisClusterClient
+            "redis": RedisClusterClient,
+
         }
+
         assert (
             client in client_map
         ), f"Invalid client name. Client name not found in {client_map.keys()}"
