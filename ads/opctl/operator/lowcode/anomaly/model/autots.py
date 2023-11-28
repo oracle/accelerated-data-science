@@ -10,6 +10,7 @@ from ads.common.decorator.runtime_dependency import runtime_dependency
 
 from .base_model import AnomalyOperatorBaseModel
 from .anomaly_dataset import AnomalyOutput
+from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
@@ -25,40 +26,57 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
     def _build_model(self) -> pd.DataFrame:
         from autots.evaluator.anomaly_detector import AnomalyDetector
 
+        method = self.spec.model_kwargs.get("method")
+
+        if method == "random" or method == "deep" or method == "fast":
+            new_params = AnomalyDetector.get_new_params(method=method)
+            new_params.pop("transform_dict")
+
+            for key, value in new_params.items():
+                self.spec.model_kwargs[key] = value
+
+        if self.spec.model_kwargs.get("output") is None:
+            self.spec.model_kwargs["output"] = "univariate"
+
+        if "transform_dict" not in self.spec.model_kwargs:
+            self.spec.model_kwargs["transform_dict"] = {}
+
+        model = AnomalyDetector(**self.spec.model_kwargs)
+
         date_column = self.spec.datetime_column.name
+        dataset = self.datasets
 
-        model = AnomalyDetector(
-            output=self.spec.model_kwargs.get("output", "univariate"),
-            method=self.spec.model_kwargs.get("method", "zscore"),
-            transform_dict=self.spec.model_kwargs.get("tranform_dict", None),
-            forecast_params=self.spec.model_kwargs.get("forecast_params", None),
-            method_params=self.spec.model_kwargs.get("method_params", {}),
-            eval_period=self.spec.model_kwargs.get("eval_period", None),
-            n_jobs=self.spec.model_kwargs.get("n_jobs", 1),
-        )
-
-        data = self.datasets.data
-        data.set_index(data_column)
+        data = dataset.data
+        data = data.set_index(date_column)
 
         (anomaly, scores) = model.detect(data)
+
+        anomaly = anomaly.reset_index(drop=True)
+        scores = scores.reset_index(drop=True)
+
+        data = data.reset_index()
 
         inliers = pd.DataFrame()
         outliers = pd.DataFrame()
 
         if len(anomaly.columns) == 1:
-            outlier_indices = anomaly.index[anomaly[anomaly.columns.values[0]] == -1]
-            inlier_indices = anomaly.index[anomaly[anomaly.columns.values[0]] == 1]
-            outliers = data[outlier_indices]
-            inliers = data[inlier_indices]
+            col = anomaly.columns.values[0]
+            anomaly[col] = anomaly[col].replace({1: 0, -1: 1})
+
+            dataset.data[OutputColumns.ANOMALY_COL] = anomaly[col].values
+
+            outlier_indices = anomaly.index[anomaly[col] == 1]
+            inlier_indices = anomaly.index[anomaly[col] == 0]
+
+            outliers = dataset.data.loc[outlier_indices]
+            inliers = dataset.data.loc[inlier_indices]
+
+            self.anomaly_output = AnomalyOutput(
+                inliers=inliers, outliers=outliers, scores=scores
+            )
 
         else:
             "TBD"
-
-        self.anomaly_output = AnomalyOutput(
-            inliers=inliers, ouliers=outliers, scores=scores
-        )
-
-        return self.outliers
 
     def _generate_report(self):
         import datapane as dp
