@@ -1107,7 +1107,7 @@ class FeatureGroup(Builder):
         )
 
     def get_nearest_neighbours(
-        self, field, k_neighbors, embedding_vector, max_candidate_pool
+        self, field, k_neighbors, embedding_vector, max_candidate_pool, http_auth:Tuple[str, str]
     ):
         if self.is_online_enabled:
             online_execution_engine = (
@@ -1117,7 +1117,7 @@ class FeatureGroup(Builder):
             )
 
             return online_execution_engine.get_nearest_neighbours(
-                field, k_neighbors, embedding_vector, max_candidate_pool
+                field, k_neighbors, embedding_vector, max_candidate_pool, http_auth=http_auth
             )
         else:
             raise ValueError(
