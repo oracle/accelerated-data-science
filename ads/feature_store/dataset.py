@@ -805,7 +805,7 @@ class Dataset(Builder):
                 "Online serving/embedding is not enabled for this Dataset."
             )
 
-    def get_serving_vector(self, primary_key_vector):
+    def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str]):
         """
         Retrieves serving vectors from the online serving environment.
 
@@ -824,7 +824,7 @@ class Dataset(Builder):
                 )
             )
 
-            return online_execution_engine.read(self, primary_key_vector)
+            return online_execution_engine.read(self, primary_key_vector, http_auth=http_auth)
         else:
             raise ValueError("Online serving is not enabled for this Dataset.")
 

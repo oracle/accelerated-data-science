@@ -57,11 +57,10 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
             "opensearch.nodes": self.online_engine_config.host,  # Replace with your Elasticsearch server address
             "opensearch.port": "9200",  # Replace with your Elasticsearch server port
             "opensearch.resource": index_name,  # Replace with your index (without type, as types are deprecated)
-            "opensearch.write.operation": "index",  # Use "index" for writing data to Elasticsearch
+            "opensearch.write.operation": "upsert",  # Use "index" for writing data to Elasticsearch
             "opensearch.net.http.auth.user": username,  # Elasticsearch user
             "opensearch.net.http.auth.pass": password,  # Elasticsearch password
             "opensearch.nodes.wan.only": "true",
-            "es.write.operation": "upsert",
             "opensearch.net.ssl": "true",
         }
 
@@ -74,10 +73,10 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
             )
 
         if composite_key is not None:
-            es_write_config["es.mapping.id"] = composite_key
+            es_write_config["opensearch.mapping.id"] = composite_key
 
         # Write DataFrame to Elasticsearch
-        dataframe.write.format("org.elasticsearch.spark.sql").options(
+        dataframe.write.format("org.opensearch.spark.sql").options(
             **es_write_config
         ).mode(feature_group_job.ingestion_mode).save()
 
