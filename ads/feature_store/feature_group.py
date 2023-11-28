@@ -1107,7 +1107,12 @@ class FeatureGroup(Builder):
         )
 
     def get_nearest_neighbours(
-        self, field, k_neighbors, embedding_vector, max_candidate_pool, http_auth:Tuple[str, str]
+        self,
+        field,
+        k_neighbors,
+        embedding_vector,
+        max_candidate_pool,
+        http_auth: Tuple[str, str],
     ):
         if self.is_online_enabled:
             online_execution_engine = (
@@ -1117,7 +1122,11 @@ class FeatureGroup(Builder):
             )
 
             return online_execution_engine.get_nearest_neighbours(
-                field, k_neighbors, embedding_vector, max_candidate_pool, http_auth=http_auth
+                field,
+                k_neighbors,
+                embedding_vector,
+                max_candidate_pool,
+                http_auth=http_auth,
             )
         else:
             raise ValueError(
@@ -1132,7 +1141,9 @@ class FeatureGroup(Builder):
                 )
             )
 
-            return online_execution_engine.read(self, primary_key_vector, http_auth=http_auth)
+            return online_execution_engine.read(
+                self, primary_key_vector, http_auth=http_auth
+            )
         else:
             raise ValueError("Online serving is not enabled for this FeatureGroup.")
 
