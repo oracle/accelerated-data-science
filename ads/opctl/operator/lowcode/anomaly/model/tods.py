@@ -14,7 +14,7 @@ from ads.common.decorator.runtime_dependency import runtime_dependency
 from ..const import (
     TODS_IMPORT_MODEL_MAP,
     TODS_MODEL_MAP,
-    TODSSubModels,
+    OutputColumns,
     TODS_DEFAULT_MODEL,
 )
 from .base_model import AnomalyOperatorBaseModel
@@ -42,7 +42,6 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         sub_model = self.spec.model_kwargs.get("sub_model", TODS_DEFAULT_MODEL)
         model_kwargs.pop("sub_model", None)
 
-
         self.datasets.full_data_dict = dict(
             tuple(self.datasets.data.groupby(self.spec.target_column))
         )
@@ -52,6 +51,7 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         prediction_score_train = {}
         predictions_test = {}
         prediction_score_test = {}
+        dataset = self.datasets
         for target, df in self.datasets.full_data_dict.items():
             model = getattr(tods_module, TODS_MODEL_MAP.get(sub_model))(**model_kwargs)
 
@@ -63,8 +63,11 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
                 np.array(df[self.spec.target_category_columns]).reshape(-1, 1)
             )
             models[target] = model
+            dataset.data.loc[
+                dataset.data[self.spec.target_column] == target,
+                OutputColumns.ANOMALY_COL,
+            ] = predictions_train[target]
 
-        # result = pd.DataFrame()
         return model, predictions_train, prediction_score_test
 
     def _generate_report(self):
