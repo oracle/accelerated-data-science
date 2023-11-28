@@ -35,7 +35,6 @@ __lc_llm_dict[ModelDeploymentTGI.__name__] = lambda: ModelDeploymentTGI
 __lc_llm_dict[ModelDeploymentVLLM.__name__] = lambda: ModelDeploymentVLLM
 
 
-
 def __new_type_to_cls_dict():
     return __lc_llm_dict
 
@@ -43,60 +42,70 @@ def __new_type_to_cls_dict():
 llms.get_type_to_cls_dict = __new_type_to_cls_dict
 loading.get_type_to_cls_dict = __new_type_to_cls_dict
 
+
 class OpenSearchVectorDBSerializer:
+    """
+    Serializer for OpenSearchVectorSearch class
+    """
     @staticmethod
     def type():
         return OpenSearchVectorSearch.__name__
 
     @staticmethod
     def load(config: dict, **kwargs):
-        config["kwargs"]["embedding_function"] = load(config["kwargs"]["embedding_function"])
-        return OpenSearchVectorSearch(**config["kwargs"], 
-                                      http_auth=(
-                                        os.environ.get("oci_opensearch_username"), 
-                                        os.environ.get("oci_opensearch_password")
-                                        ),
-                                        verify_certs=os.environ.get("oci_opensearch_verify_certs", False),
-                                        ca_certs=os.environ.get("oci_opensearch_ca_certs", None),
-                                    )
+        config["kwargs"]["embedding_function"] = load(
+            config["kwargs"]["embedding_function"]
+        )
+        return OpenSearchVectorSearch(
+            **config["kwargs"],
+            http_auth=(
+                os.environ.get("oci_opensearch_username"),
+                os.environ.get("oci_opensearch_password"),
+            ),
+            verify_certs=os.environ.get("oci_opensearch_verify_certs", False),
+            ca_certs=os.environ.get("oci_opensearch_ca_certs", None),
+        )
 
     @staticmethod
     def save(obj):
         serialized = dumpd(obj)
-        serialized["type"] = 'constructor'
+        serialized["type"] = "constructor"
         serialized["_type"] = OpenSearchVectorDBSerializer.type()
         kwargs = {}
         for key, val in obj.__dict__.items():
             if key == "client":
                 if isinstance(val, OpenSearch):
                     client_info = val.transport.hosts[0]
-                    opensearch_url = f"https://{client_info['host']}:{client_info['port']}"
+                    opensearch_url = (
+                        f"https://{client_info['host']}:{client_info['port']}"
+                    )
                     kwargs.update({"opensearch_url": opensearch_url})
                 else:
                     raise NotImplementedError("Only support OpenSearch client.")
                 continue
             kwargs[key] = dump(val)
-        serialized['kwargs'] = kwargs
+        serialized["kwargs"] = kwargs
         return serialized
-    
 
 
+# Mapping class to vector store serialization functions
 vectordb_serialization = {"OpenSearchVectorSearch": OpenSearchVectorDBSerializer}
+
+
 class RetrieverQASerializer:
+    """
+    Serializer for RetrieverQA class
+    """
     @staticmethod
     def type():
         return "retrieval_qa"
-    
+
     @staticmethod
     def load(config: dict, **kwargs):
-        
         config_param = deepcopy(config)
-        
         retriever_kwargs = config_param.pop("retriever_kwargs")
-        # retriever_kwargs = config_param["retriever_kwargs"]
         vectordb_serializer = vectordb_serialization[config_param["vectordb"]["class"]]
         vectordb = vectordb_serializer.load(config_param.pop("vectordb"))
-        # vectordb = vectordb_serializer.load(config_param["vectordb"])
         retriever = vectordb.as_retriever(**retriever_kwargs)
         return load_chain_from_config(config=config_param, retriever=retriever)
 
@@ -105,17 +114,20 @@ class RetrieverQASerializer:
         serialized = obj.dict()
         retriever_kwargs = {}
         for key, val in obj.retriever.__dict__.items():
-            if key not in ['tags', 'metadata', 'vectorstore']:
+            if key not in ["tags", "metadata", "vectorstore"]:
                 retriever_kwargs[key] = val
-        serialized['retriever_kwargs'] = retriever_kwargs
+        serialized["retriever_kwargs"] = retriever_kwargs
         serialized["vectordb"] = {"class": obj.retriever.vectorstore.__class__.__name__}
         vectordb_serializer = vectordb_serialization[serialized["vectordb"]["class"]]
-        serialized["vectordb"].update(vectordb_serializer.save(obj.retriever.vectorstore))
-        
+        serialized["vectordb"].update(
+            vectordb_serializer.save(obj.retriever.vectorstore)
+        )
+
         if serialized["vectordb"]["class"] not in vectordb_serialization:
-            raise NotImplementedError(f"VectorDBSerializer for {serialized['vectordb']['class']} is not implemented.")
+            raise NotImplementedError(
+                f"VectorDBSerializer for {serialized['vectordb']['class']} is not implemented."
+            )
         return serialized
-    
 
 
 # Mapping class to custom serialization functions
@@ -260,5 +272,3 @@ def dump(obj: Any) -> Dict[str, Any]:
         finally:
             os.unlink(temp_file.name)
     return json.loads(json.dumps(obj, default=default))
-
-
