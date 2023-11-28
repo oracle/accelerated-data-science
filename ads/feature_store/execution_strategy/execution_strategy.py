@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 from ads.common.decorator.runtime_dependency import OptionalDependency
 
@@ -34,7 +35,7 @@ class Strategy(ABC):
         feature_group,
         feature_group_job: FeatureGroupJob,
         dataframe,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """
         Ingests a feature definition into the system.
@@ -62,7 +63,7 @@ class Strategy(ABC):
 
     @abstractmethod
     def ingest_dataset(
-        self, dataset, dataset_job: DatasetJob, http_auth: tuple(str, str) = None
+        self, dataset, dataset_job: DatasetJob, http_auth: Tuple[str, str] = None
     ):
         """
         Ingests a dataset into the system.

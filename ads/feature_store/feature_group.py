@@ -8,7 +8,7 @@ import json
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Tuple
 
 import pandas as pd
 from great_expectations.core import ExpectationSuite
@@ -907,7 +907,7 @@ class FeatureGroup(Builder):
         self,
         input_dataframe: Union[DataFrame, pd.DataFrame],
         ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
         from_timestamp: str = None,
         to_timestamp: str = None,
         feature_option_details: FeatureOptionDetails = None,

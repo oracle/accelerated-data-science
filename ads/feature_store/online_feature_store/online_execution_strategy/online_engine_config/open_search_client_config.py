@@ -2,6 +2,7 @@
 # -*- coding: utf-8; -*-
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from typing import Tuple
 
 from opensearchpy import OpenSearch
 
@@ -27,7 +28,7 @@ class OpenSearchClientConfig:
         self.verify_certs = verify_certs
         self.ssl_show_warn = ssl_show_warn
 
-    def get_client(self, http_auth: tuple[str, str]) -> OpenSearch:
+    def get_client(self, http_auth: Tuple[str, str]) -> OpenSearch:
         """
         Get an instance of the Elasticsearch client configured based on the provided parameters.
 

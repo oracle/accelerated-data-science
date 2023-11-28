@@ -48,7 +48,7 @@ from ads.feature_store.transformation import Transformation
 
 from ads.feature_store.feature_statistics.statistics_service import StatisticsService
 from ads.feature_store.common.utils.utility import validate_input_feature_details
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from ads.feature_store.feature_group import FeatureGroup
@@ -88,7 +88,7 @@ class SparkExecutionEngine(Strategy):
         feature_group: "FeatureGroup",
         feature_group_job: FeatureGroupJob,
         dataframe,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         try:
             self._save_offline_dataframe(
@@ -121,7 +121,7 @@ class SparkExecutionEngine(Strategy):
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
     def ingest_dataset(
-        self, dataset, dataset_job: DatasetJob, http_auth: tuple[str, str] = None
+        self, dataset, dataset_job: DatasetJob, http_auth: Tuple[str, str] = None
     ):
         try:
             self._save_dataset_input(dataset, dataset_job, http_auth)
@@ -227,7 +227,7 @@ class SparkExecutionEngine(Strategy):
         data_frame,
         feature_group,
         feature_group_job: FeatureGroupJob,
-        http_auth: tuple[str, str],
+        http_auth: Tuple[str, str],
     ):
         """Ingest dataframe to the feature store system. as now this handles both spark dataframe and pandas
         dataframe. in case of pandas after transformation we convert it to spark and write to the delta.
@@ -431,7 +431,7 @@ class SparkExecutionEngine(Strategy):
             raise SparkExecutionException(e).with_traceback(e.__traceback__)
 
     def _save_dataset_input(
-        self, dataset, dataset_job: DatasetJob, http_auth: tuple[str, str] = None
+        self, dataset, dataset_job: DatasetJob, http_auth: Tuple[str, str] = None
     ):
         """As now this handles both spark dataframe and pandas dataframe. in case of pandas after transformation we
         convert it to spark and write to the delta.

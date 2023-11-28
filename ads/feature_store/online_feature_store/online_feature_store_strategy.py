@@ -5,6 +5,7 @@
 
 
 from abc import ABC, abstractmethod
+from typing import Tuple
 
 
 class OnlineFeatureStoreStrategy(ABC):
@@ -19,7 +20,7 @@ class OnlineFeatureStoreStrategy(ABC):
         feature_group_or_dataset,
         feature_group_or_dataset_job,
         dataframe,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """
         Abstract method for writing data to the online feature store.
@@ -40,7 +41,7 @@ class OnlineFeatureStoreStrategy(ABC):
         self,
         feature_group_or_dataset,
         primary_key_vector,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """
         Abstract method for reading data from the online feature store.
@@ -60,7 +61,7 @@ class OnlineFeatureStoreStrategy(ABC):
         k_neighbors,
         query_embedding_vector,
         max_candidate_pool,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """
         Placeholder method for obtaining embedding vectors in an online serving environment.

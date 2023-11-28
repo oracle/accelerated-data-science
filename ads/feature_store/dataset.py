@@ -3,7 +3,7 @@
 import logging
 from copy import deepcopy
 from datetime import datetime
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import pandas
 import pandas as pd
@@ -1006,7 +1006,7 @@ class Dataset(Builder):
         self,
         ingestion_mode: BatchIngestionMode = BatchIngestionMode.OVERWRITE,
         feature_option_details: FeatureOptionDetails = None,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """Creates a dataset job.
 

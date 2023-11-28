@@ -164,8 +164,8 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             get_opensearch_cluster_response = opensearch_client.get_opensearch_cluster(
                 opensearch_cluster_id=online_config.get("openSearchId")
             )
-            opensearch_endpoint_host = get_opensearch_cluster_response.data.get(
-                "opensearch_fqdn"
+            opensearch_endpoint_host = (
+                get_opensearch_cluster_response.data.opensearch_fqdn
             )
 
             return OpenSearchClientConfig(
@@ -178,7 +178,7 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             get_redis_cluster_response = redis_client.get_redis_cluster(
                 redis_cluster_id=online_config.get("redisId")
             )
-            print(get_redis_cluster_response)
+
             redis_endpoint_host = get_redis_cluster_response.data.primary_fqdn
 
             return RedisClientConfig(host=redis_endpoint_host, port=6379)

@@ -4,7 +4,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from typing import OrderedDict, Any
+from typing import OrderedDict, Any, Tuple
 
 from pyspark.sql.functions import concat
 
@@ -27,7 +27,7 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         feature_group,
         feature_group_job,
         dataframe,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """
         Write DataFrame to OpenSearch.
@@ -85,7 +85,7 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         self,
         feature_group,
         keys: OrderedDict[str, Any],
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """
         Read data from OpenSearch based on primary key.
@@ -125,7 +125,7 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         k_neighbors,
         query_embedding_vector,
         max_candidate_pool,
-        http_auth: tuple[str, str] = None,
+        http_auth: Tuple[str, str] = None,
     ):
         """
         Get nearest neighbors from OpenSearch based on embedding vector.
