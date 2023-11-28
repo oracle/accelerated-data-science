@@ -63,8 +63,6 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
             col = anomaly.columns.values[0]
             anomaly[col] = anomaly[col].replace({1: 0, -1: 1})
 
-            dataset.data[OutputColumns.ANOMALY_COL] = anomaly[col].values
-
             outlier_indices = anomaly.index[anomaly[col] == 1]
             inlier_indices = anomaly.index[anomaly[col] == 0]
 
@@ -74,6 +72,8 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
             self.anomaly_output = AnomalyOutput(
                 inliers=inliers, outliers=outliers, scores=scores
             )
+
+            dataset.data[OutputColumns.ANOMALY_COL] = anomaly[col].values
 
         else:
             "TBD"
