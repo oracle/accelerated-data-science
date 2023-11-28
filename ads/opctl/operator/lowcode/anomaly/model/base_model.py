@@ -19,6 +19,9 @@ from ads.opctl import logger
 from .. import utils
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 from .anomaly_dataset import AnomalyDatasets
+from ..const import OutputColumns
+from ..const import SupportedModels
+from ads.opctl.operator.common.utils import human_time_friendly
 
 
 class AnomalyOperatorBaseModel(ABC):
@@ -40,20 +43,54 @@ class AnomalyOperatorBaseModel(ABC):
     def generate_report(self):
         """Generates the report."""
         import datapane as dp
-
-        # load data and build models
+        import matplotlib.pyplot as plt
         start_time = time.time()
-        input_data = self._load_data()
-        result_df = self._build_model()
-        elapsed_time = time.time() - start_time
 
+        result_df = self._build_model()
+        table_block = dp.DataTable(self.datasets.data)
+        figure_blocks = []
+        date_column = self.spec.datetime_column.name
+        columns = set(self.datasets.data.columns).difference({date_column, OutputColumns.ANOMALY_COL})
+        anomaly_col = self.datasets.data[OutputColumns.ANOMALY_COL]
+        time_col = self.datasets.data[date_column]
+        for col in columns:
+            y = self.datasets.data[col]
+            fig, ax = plt.subplots(figsize=(8, 3), layout='constrained')
+            ax.grid()
+            ax.plot(time_col, y, color='black')
+            for i, index in enumerate(anomaly_col):
+                if anomaly_col[i] == 1:
+                    ax.scatter(time_col[i], y[i], color='red', marker='o')
+            plt.xlabel(date_column)
+            plt.ylabel(col)
+            plt.title(f'`{col}` with reference to anomalies')
+            figure_blocks.append(ax)
+        elapsed_time = time.time() - start_time
         report_sections = []
         title_text = dp.Text("# Anomaly Detection Report")
 
         yaml_appendix_title = dp.Text(f"## Reference: YAML File")
         yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
-        report_sections = [title_text] + [yaml_appendix_title, yaml_appendix]
-
+        summary = dp.Blocks(
+            blocks=[
+                dp.Group(
+                    dp.Text(
+                        f"You selected the **`{self.spec.model}`** model."
+                    ),
+                    dp.Text(
+                        "Based on your dataset, you could have also selected "
+                        f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                    ),
+                    dp.BigNumber(
+                        heading="Analysis was completed in ",
+                        value=human_time_friendly(elapsed_time),
+                    ),
+                    label="Summary",
+                )
+            ]
+        )
+        report_sections = [summary] + figure_blocks + [table_block] + [title_text] + [yaml_appendix_title,
+                                                                                      yaml_appendix]
         # save the report and result CSV
         self._save_report(
             report_sections=report_sections,
@@ -89,9 +126,9 @@ class AnomalyOperatorBaseModel(ABC):
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                    os.path.join(output_dir, self.spec.report_file_name),
-                    "w",
-                    **default_signer(),
+                        os.path.join(output_dir, self.spec.report_file_name),
+                        "w",
+                        **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
 
