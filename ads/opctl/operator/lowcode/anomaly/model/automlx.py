@@ -9,7 +9,7 @@ import pandas as pd
 from ads.common.decorator.runtime_dependency import runtime_dependency
 
 from .base_model import AnomalyOperatorBaseModel
-
+from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
 class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
     """Class representing AutoMLX operator model."""
@@ -22,10 +22,11 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        from automl import init
-
-        result = pd.DataFrame()
-        return result
+        est = automl.Pipeline(task='anomaly_detection')
+        dataset = self.datasets
+        est.fit(dataset.data, y=None)
+        y_pred = est.predict(dataset.data)
+        dataset.data[OutputColumns.ANOMALY_COL] = y_pred
 
     def _generate_report(self):
         import datapane as dp
