@@ -20,6 +20,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 
 from .. import utils
+from ads.opctl.operator.common.utils import human_time_friendly
 from ..const import SUMMARY_METRICS_HORIZON_LIMIT, SupportedMetrics, SupportedModels
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
@@ -171,7 +172,7 @@ class ForecastOperatorBaseModel(ABC):
                                 dp.Group(
                                     dp.BigNumber(
                                         heading="Analysis was completed in ",
-                                        value=utils.human_time_friendly(elapsed_time),
+                                        value=human_time_friendly(elapsed_time),
                                     ),
                                     dp.BigNumber(
                                         heading="Starting time index",
