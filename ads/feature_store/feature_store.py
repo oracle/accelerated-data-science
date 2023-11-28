@@ -215,14 +215,14 @@ class FeatureStore(Builder):
 
     @online_config.setter
     def online_config(
-        self, redis_id: str, elastic_search_id: str, **kwargs: Dict[str, Any]
+        self, redis_id: str, opensearch_id: str, **kwargs: Dict[str, Any]
     ):
-        self.with_online_config(redis_id, elastic_search_id, **kwargs)
+        self.with_online_config(redis_id, opensearch_id, **kwargs)
 
     def with_online_config(
         self,
         redis_id: str = None,
-        elastic_search_id: str = None,
+        opensearch_id: str = None,
         **kwargs: Dict[str, Any],
     ) -> "FeatureStore":
         """Sets the offline config.
@@ -230,7 +230,7 @@ class FeatureStore(Builder):
         ----------
         redis_id: str
             The redis id for online store
-        elastic_search_id: str
+        opensearch_id: str
             The elastic search id for online store
         kwargs: Dict[str, Any]
             Additional key value arguments
@@ -239,11 +239,11 @@ class FeatureStore(Builder):
         FeatureStore
             The FeatureStore instance (self)
         """
-        if redis_id is None and elastic_search_id is None:
+        if redis_id is None and opensearch_id is None:
             raise ValueError(
                 "Either redis_id or elastic_search_id must be present for online feature store configuration"
             )
-        elif redis_id is not None and elastic_search_id is not None:
+        elif redis_id is not None and opensearch_id is not None:
             raise ValueError(
                 "only one must be part of online feature store configuration"
             )
@@ -252,7 +252,7 @@ class FeatureStore(Builder):
             self.CONST_ONLINE_CONFIG,
             {
                 self.CONST_REDIS_ID: redis_id,
-                self.CONST_OPEN_SEARCH_ID: elastic_search_id,
+                self.CONST_OPEN_SEARCH_ID: opensearch_id,
                 **kwargs,
             },
         )
