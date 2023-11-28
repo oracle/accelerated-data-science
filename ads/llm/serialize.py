@@ -18,6 +18,7 @@ from langchain.load.load import load as __lc_load
 from langchain.load.serializable import Serializable
 
 from ads.common.auth import default_signer
+from ads.common.object_storage_details import ObjectStorageDetails
 from ads.llm import GenerativeAI, ModelDeploymentVLLM, ModelDeploymentTGI
 from ads.llm.chain import GuardrailSequence
 from ads.llm.guardrails.base import CustomGuardrailBase
@@ -115,12 +116,11 @@ def load_from_yaml(
         None, _SafeLoaderIgnoreUnknown.ignore_unknown
     )
 
-    if uri.startswith("oci://"):
-        storage_options = default_signer()
-    else:
-        storage_options = {}
+    storage_options = default_signer() if ObjectStorageDetails.is_oci_path(uri) else {}
+
     with fsspec.open(uri, **storage_options) as f:
         config = yaml.load(f, Loader=_SafeLoaderIgnoreUnknown)
+
     return load(
         config, secrets_map=secrets_map, valid_namespaces=valid_namespaces, **kwargs
     )

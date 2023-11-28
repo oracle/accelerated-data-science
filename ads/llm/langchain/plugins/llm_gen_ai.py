@@ -8,7 +8,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from langchain.callbacks.manager import CallbackManagerForLLMRun
-from oci.util import to_dict
+
 from ads.llm.langchain.plugins.base import BaseLLM, GenerativeAiClientModel
 from ads.llm.langchain.plugins.contant import *
 
@@ -31,10 +31,10 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
 
     """
 
-    task: Task = Task.TEXT_GENERATION
+    task: str = "text_generation"
     """Indicates the task."""
 
-    model: Optional[str] = OCIGenerativeAIModel.COHERE_COMMAND
+    model: Optional[str] = "cohere.command"
     """Model name to use."""
 
     frequency_penalty: float = None
@@ -46,13 +46,13 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
     truncate: Optional[str] = None
     """Specify how the client handles inputs longer than the maximum token."""
 
-    length: str = LengthParam.AUTO
+    length: str = "AUTO"
     """Indicates the approximate length of the summary. """
 
-    format: str = FormatParam.PARAGRAPH
+    format: str = "PARAGRAPH"
     """Indicates the style in which the summary will be delivered - in a free form paragraph or in bullet points."""
 
-    extractiveness: str = ExtractivenessParam.AUTO
+    extractiveness: str = "AUTO"
     """Controls how close to the original text the summary is. High extractiveness summaries will lean towards reusing sentences verbatim, while low extractiveness summaries will tend to paraphrase more."""
 
     additional_command: str = ""
@@ -181,8 +181,8 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
     def completion_with_retry(self, **kwargs: Any) -> Any:
         from oci.generative_ai.models import (
             GenerateTextDetails,
-            SummarizeTextDetails,
             OnDemandServingMode,
+            SummarizeTextDetails,
         )
 
         # TODO: Add retry logic for OCI

@@ -3,8 +3,17 @@
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+from enum import Enum
 
-from ads.llm.langchain.plugins.base import StrEnum
+
+class StrEnum(str, Enum):
+    """Enum with string members
+    https://docs.python.org/3.11/library/enum.html#enum.StrEnum
+    """
+
+    # Pydantic uses Python's standard enum classes to define choices.
+    # https://docs.pydantic.dev/latest/api/standard_library_types/#enum
+
 
 DEFAULT_TIME_OUT = 300
 DEFAULT_CONTENT_TYPE_JSON = "application/json"
