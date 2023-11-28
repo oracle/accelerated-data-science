@@ -55,12 +55,15 @@ class OnlineRedisEngine(OnlineFeatureStoreStrategy):
         redis_options = {
             "table": feature_group.id,
             "key.column": "key",
-            "host": self.online_engine_config.host,  # Replace with your Redis server address
-            "port": self.online_engine_config.port,  # Replace with your Redis server port
-            # Add other options as needed
+            "host": self.online_engine_config.host,
+            "port": self.online_engine_config.port,
+            "ssl": True,
+            "ssl_cert_reqs": None,
         }
 
-        df_with_key.write.format("org.apache.spark.sql.redis").options(**redis_options).save()
+        df_with_key.write.format("org.apache.spark.sql.redis").options(
+            **redis_options
+        ).save()
 
     def read(
         self,
