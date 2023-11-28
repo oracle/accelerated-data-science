@@ -64,10 +64,10 @@ class AnomalyOperatorBaseModel(ABC):
         """Loads input data."""
 
         return utils._load_data(
-            filename=self.spec.historical_data.url,
-            format=self.spec.historical_data.format,
+            filename=self.spec.input_data.url,
+            format=self.spec.input_data.format,
             storage_options=default_signer(),
-            columns=self.spec.historical_data.columns,
+            columns=self.spec.input_data.columns,
         )
 
     def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame):

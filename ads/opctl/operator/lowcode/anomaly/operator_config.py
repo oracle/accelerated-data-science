@@ -60,7 +60,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
     """Class representing operator specification."""
 
     name: str = None
-    historical_data: InputData = field(default_factory=InputData)
+    input_data: InputData = field(default_factory=InputData)
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     test_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
