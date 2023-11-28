@@ -1122,12 +1122,12 @@ class FeatureGroup(Builder):
             )
 
             return online_execution_engine.get_nearest_neighbours(
-                feature_group_or_dataset=self,
-                embedding_field=field,
-                k_neighbors=k_neighbors,
-                query_embedding_vector=embedding_vector,
-                max_candidate_pool=max_candidate_pool,
-                http_auth=http_auth,
+                self,
+                field,
+                k_neighbors,
+                embedding_vector,
+                max_candidate_pool,
+                http_auth,
             )
         else:
             raise ValueError(

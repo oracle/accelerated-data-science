@@ -241,7 +241,7 @@ class FeatureStore(Builder):
         """
         if redis_id is None and opensearch_id is None:
             raise ValueError(
-                "Either redis_id or elastic_search_id must be present for online feature store configuration"
+                "Either redis_id or opensearch_id must be present for online feature store configuration"
             )
         elif redis_id is not None and opensearch_id is not None:
             raise ValueError(

@@ -140,16 +140,20 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         Returns:
         - dict: Result of the nearest neighbors search.
         """
-        query = {
-            "field": embedding_field,
-            "query_vector": query_embedding_vector,
-            "k": k_neighbors,
-            "num_candidates": max_candidate_pool,
-        }
 
-        res = self.online_engine_config.get_client(http_auth=http_auth).knn_search(
+        res = self.online_engine_config.get_client(http_auth=http_auth).search(
             index=f"{feature_group.entity_id}_{feature_group.name}".lower(),
-            knn=query,
-            source=[],
+            body={
+                "size": k_neighbors,
+                "query": {
+                    "knn": {
+                        embedding_field: {
+                            "vector": query_embedding_vector,
+                            "k": k_neighbors,
+                            "candidate_pool_size": max_candidate_pool,
+                        }
+                    }
+                },
+            },
         )
         return res
