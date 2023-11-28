@@ -174,10 +174,14 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             )
 
         elif online_config.get("redisId"):
-            # TODO  Need to fix
-            # redis_client = client_factory.redis
-            # get_redis_cluster_response = redis_client.get_redis_cluster(redis_cluster_id=online_config.get("redisId"))
-            return RedisClientConfig(host="localhost", port=6379)
+            redis_client = client_factory.redis
+            get_redis_cluster_response = redis_client.get_redis_cluster(
+                redis_cluster_id=online_config.get("redisId")
+            )
+            print(get_redis_cluster_response)
+            redis_endpoint_host = get_redis_cluster_response.data.primary_fqdn
+
+            return RedisClientConfig(host=redis_endpoint_host, port=6379)
 
         return None
 
