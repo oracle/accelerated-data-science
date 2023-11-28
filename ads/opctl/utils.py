@@ -23,6 +23,8 @@ from ads.opctl import logger
 from ads.opctl.constants import (
     ML_JOB_IMAGE,
     ML_JOB_GPU_IMAGE,
+    OPS_IMAGE_BASE,
+    OPS_IMAGE_GPU_BASE,
 )
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
@@ -150,11 +152,16 @@ def build_image(image_type: str, gpu: bool = False) -> None:
     else:
         # https://stackoverflow.com/questions/66842004/get-the-processor-type-using-python-for-apple-m1-processor-gives-me-an-intel-pro
         import cpuinfo
+
         # Just get the manufacturer of the processors
-        manufacturer = cpuinfo.get_cpu_info().get('brand_raw')
-        arch = 'arm' if re.search("apple m\d ", manufacturer, re.IGNORECASE) else 'other'
+        manufacturer = cpuinfo.get_cpu_info().get("brand_raw")
+        arch = (
+            "arm" if re.search("apple m\d ", manufacturer, re.IGNORECASE) else "other"
+        )
         print(f"The local machine's platform is {arch}.")
-        image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu, arch)
+        image, dockerfile, target = _get_image_name_dockerfile_target(
+            image_type, gpu, arch
+        )
         print(f"dockerfile used is {dockerfile}")
         command = [
             "docker",
