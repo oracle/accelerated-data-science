@@ -178,6 +178,9 @@ class GuardrailSequence(RunnableSequence):
         if self.log_info or os.environ.get(LOG_ADS_GUARDRAIL_INFO) == "1":
             # LOG_ADS_GUARDRAIL_INFO is set to "1" in score.py by default.
             print(obj.dict())
+        # If the output is a singleton list, take it out of the list.
+        if isinstance(obj.data, list) and len(obj.data) == 1:
+            obj.data = obj.data[0]
         return obj
 
     def _save_to_file(self, chain_dict, filename, overwrite=False):

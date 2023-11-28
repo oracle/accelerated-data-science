@@ -46,7 +46,7 @@ class BaseLLM(LLM, Serializable):
 
     @classmethod
     def get_lc_namespace(cls) -> List[str]:
-        """Get the namespace of the langchain object."""
+        """Get the namespace of the LangChain object."""
         return ["ads", "llm"]
 
     @classmethod
