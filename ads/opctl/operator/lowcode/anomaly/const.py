@@ -43,3 +43,5 @@ TODS_MODEL_MAP = {
     TODSSubModels.LSTMODetector: "LSTMODetectorSKI",
     TODSSubModels.KNN: "KNNSKI",
 }
+
+TODS_DEFAULT_MODEL = "ocsvm"
