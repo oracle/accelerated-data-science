@@ -32,13 +32,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
+        name: ["unitary", "slow_tests"]
         include:
-          - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
-            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store"
-            name: "unitary"
-          - test-path: "tests/unitary/with_extras/model"
-            name: "model"
+          - name: "unitary"
+            test-path: "tests/unitary"
+            # `model` tests running in "slow_tests",
+            # `feature_store` tests has its own test suite
+            ignore-path: |
+              --ignore tests/unitary/with_extras/model
+              --ignore tests/unitary/with_extras/feature_store
+              --ignore tests/unitary/with_extras/hpo
+          - name: "slow_tests"
+            test-path: "tests/unitary/with_extras/model"
 
     steps:
       - uses: actions/checkout@v3
@@ -68,7 +73,7 @@ jobs:
           pip install -e ".[forecast]"
 
       - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 60
+        timeout-minutes: 40
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniconda
@@ -82,9 +87,17 @@ jobs:
           ln -s ../ads ads
           ln -s ../.coveragerc .coveragerc
 
+          "Run hpo tests, which hangs if run together with all unitary tests"
+          if [[ ${{ matrix.name ==  "unitary" }} ]]; then
+            python -m pytest -v -p no:warnings -n auto --dist loadfile \
+            --cov-append --cov=ads --cov-report=xml --cov-report=html \
+            tests/unitary/with_extras/hpo
+          fi
+
           # Run tests
           python -m pytest -v -p no:warnings --durations=5 \
-          -n auto --dist loadfile --cov=ads --cov-report=xml --cov-report=html \
+          -n auto --dist loadfile \
+          --cov-append --cov=ads --cov-report=xml --cov-report=html \
           ${{ matrix.test-path }} ${{ matrix.ignore-path }}
 
       - name: "Save coverage files"
@@ -123,11 +136,11 @@ jobs:
           # Prepare file paths to .coverage files
           # Filenames taken from job.test last step with name - "Save coverage files"
           FILE_UNITARY="cov-reports-unitary/.coverage"; [[ ! -f $FILE_UNITARY ]] && FILE_UNITARY=""
-          FILE_MODEL="cov-reports-model/.coverage"; [[ ! -f $FILE_MODEL ]] && FILE_MODEL=""
+          FILE_SLOW="cov-reports-slow_tests/.coverage"; [[ ! -f $FILE_SLOW ]] && FILE_SLOW=""
 
           # Combine coverage files
           pip install coverage
-          coverage combine $FILE_UNITARY $FILE_MODEL
+          coverage combine $FILE_UNITARY $FILE_SLOW
 
           # Make html report
           coverage html
@@ -151,7 +164,7 @@ jobs:
           # Prepare file paths to coverage xml files
           # Filenames taken from job.test last step with name - "Save coverage files"
           FILE1="cov-reports-unitary/coverage.xml"; [[ ! -f $FILE1 ]] && FILE1=""
-          FILE2="cov-reports-model/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
+          FILE2="cov-reports-slow_tests/coverage.xml"; [[ ! -f $FILE2 ]] && FILE2=""
           echo "FILE1=$FILE1" >> $GITHUB_ENV
           echo "FILE2=$FILE2" >> $GITHUB_ENV
 

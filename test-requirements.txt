@@ -5,7 +5,7 @@ faker
 mock
 pip
 pytest
-pytest-codecov
+pytest-cov
 pytest-xdist
 # darts
 # docker

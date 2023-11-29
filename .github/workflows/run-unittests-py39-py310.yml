@@ -33,13 +33,21 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10"]
-        test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
+        name: ["unitary", "slow_tests"]
         include:
-          - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
-            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store --ignore tests/unitary/with_extras/operator/forecast"
-            name: "unitary"
-          - test-path: "tests/unitary/with_extras/model"
-            name: "model"
+          - name: "unitary"
+            test-path: "tests/unitary"
+            # `model` tests running in "slow_tests",
+            # `feature_store` tests has its own test suite
+            # `forecast` tests not supported in python 3.9,3.10 (automlx dependency). Tests are running in python3.8 test env, see run-unittests-py38-cov-report.yml
+            # 'hpo' tests hangs if run together with all unitary tests. Tests running in separate command before running all unitary
+            ignore-path: |
+              --ignore tests/unitary/with_extras/model
+              --ignore tests/unitary/with_extras/feature_store
+              --ignore tests/unitary/with_extras/operator/forecast
+              --ignore tests/unitary/with_extras/hpo
+          - name: "slow_tests"
+            test-path: "tests/unitary/with_extras/model"
 
     steps:
       - uses: actions/checkout@v3
@@ -62,8 +70,19 @@ jobs:
         name: "Test env setup"
         timeout-minutes: 20
 
+      - name: "Run hpo tests"
+        description: "Run hpo tests, which hangs if run together with all unitary tests"
+        timeout-minutes: 10
+        shell: bash
+        if: ${{ matrix.name }} == "unitary"
+        run: |
+          set -x # print commands that are executed
+
+          python -m pytest -v -p no:warnings -n auto --dist loadfile \
+          tests/unitary/with_extras/hpo
+
       - name: "Run unitary tests folder with maximum ADS dependencies"
-        timeout-minutes: 60
+        timeout-minutes: 30
         shell: bash
         env:
           CONDA_PREFIX: /usr/share/miniconda
