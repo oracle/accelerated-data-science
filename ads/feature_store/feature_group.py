@@ -196,6 +196,8 @@ class FeatureGroup(Builder):
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci FeatureGroup instance
         self.feature_group_job = None
+        self.with_is_offline_enabled(True)
+        self.with_is_online_enabled(False)
         self._spark_engine = None
         self.oci_feature_group: OCIFeatureGroup = self._to_oci_feature_group(**kwargs)
         self.dsc_job = OCIFeatureGroupJob()

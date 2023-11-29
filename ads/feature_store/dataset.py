@@ -173,6 +173,8 @@ class Dataset(Builder):
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci Dataset instance
         self.dataset_job = None
+        self.with_is_offline_enabled(True)
+        self.with_is_online_enabled(False)
         self._is_manual_association: bool = False
         self._spark_engine = None
         self.oci_dataset = self._to_oci_dataset(**kwargs)
