@@ -58,14 +58,12 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
                 for col in self.datasets.data.columns
                 if col not in [self.spec.datetime_column.name]
             ]
-            self.spec.target_category_columns = target_col[0]
-            self.datasets.full_data_dict = {
-                self.spec.target_category_columns: self.datasets.data
-            }
+            self.spec.target_column = target_col[0]
+            self.datasets.full_data_dict = {self.spec.target_column: self.datasets.data}
         else:
             # Group the data by target column
             self.datasets.full_data_dict = dict(
-                tuple(self.datasets.data.groupby(self.spec.target_column))
+                tuple(self.datasets.data.groupby(self.spec.target_category_columns))
             )
 
         # Initialize variables
@@ -82,23 +80,23 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
             model = getattr(tods_module, TODS_MODEL_MAP.get(sub_model))(**model_kwargs)
 
             # Fit the model
-            model.fit(np.array(df[self.spec.target_category_columns]).reshape(-1, 1))
+            model.fit(np.array(df[self.spec.target_column]).reshape(-1, 1))
 
             # Make predictions
             predictions_train[target] = model.predict(
-                np.array(df[self.spec.target_category_columns]).reshape(-1, 1)
+                np.array(df[self.spec.target_column]).reshape(-1, 1)
             )
             prediction_score_train[target] = model.predict_score(
-                np.array(df[self.spec.target_category_columns]).reshape(-1, 1)
+                np.array(df[self.spec.target_column]).reshape(-1, 1)
             )
 
             # Store the model and predictions in dictionaries
             models[target] = model
-            if self.spec.target_column is None:
+            if self.spec.target_category_columns is None:
                 dataset.data[OutputColumns.ANOMALY_COL] = predictions_train[target]
             else:
                 dataset.data.loc[
-                    dataset.data[self.spec.target_column] == target,
+                    dataset.data[self.spec.target_category_columns[0]] == target,
                     OutputColumns.ANOMALY_COL,
                 ] = predictions_train[target]
 
