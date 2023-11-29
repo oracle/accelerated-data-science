@@ -1,0 +1,12 @@
+-e .
+click
+coverage
+faker
+mock
+pip
+pytest
+pytest-codecov
+pytest-xdist
+darts
+plotly
+docker
