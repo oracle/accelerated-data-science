@@ -1,0 +1,60 @@
+name: "[Py3.8][Py3.10] Operators Tests"
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "ads/opctl/operator/**"
+      - "**requirements.txt"
+      - ".github/workflows/run-operators*.yml"
+
+# Cancel in progress workflows on pull_requests.
+# https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# hack for https://github.com/actions/cache/issues/810#issuecomment-1222550359
+env:
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+
+jobs:
+  test:
+    name: python ${{ matrix.python-version }}, default_setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.8", "3.10"]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+          cache-dependency-path: |
+            pyproject.toml
+            "**requirements.txt"
+            "test-requirements-operators.txt"
+
+      - uses: ./.github/workflows/set-dummy-conf
+        name: "Test config setup"
+
+      - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
+        timeout-minutes: 15
+        shell: bash
+        env:
+          NoDependency: True
+        run: |
+          set -x # print commands that are executed
+          $CONDA/bin/conda init
+          source /home/runner/.bashrc
+          pip install -r test-requirements-operators.txt
+          python -m pytest -v -p no:warnings --durations=5 tests/operators
