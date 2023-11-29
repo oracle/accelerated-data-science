@@ -149,6 +149,22 @@ def default(obj: Any) -> Any:
     raise TypeError(f"Serialization of {type(obj)} is not supported.")
 
 
+def __save(obj):
+    """Calls the legacy save method to save the object to temp json
+    then load it into a dictionary.
+    """
+    try:
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".json", delete=False
+        )
+        temp_file.close()
+        obj.save(temp_file.name)
+        with open(temp_file.name, "r", encoding="utf-8") as f:
+            return json.load(f)
+    finally:
+        os.unlink(temp_file.name)
+
+
 def dump(obj: Any) -> Dict[str, Any]:
     """Return a json dict representation of an object.
 
@@ -167,14 +183,14 @@ def dump(obj: Any) -> Dict[str, Any]:
     ):
         # The object is not is_lc_serializable.
         # However, it supports the legacy save() method.
-        try:
-            temp_file = tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf-8", suffix=".json", delete=False
-            )
-            temp_file.close()
-            obj.save(temp_file.name)
-            with open(temp_file.name, "r", encoding="utf-8") as f:
-                return json.load(f)
-        finally:
-            os.unlink(temp_file.name)
-    return json.loads(json.dumps(obj, default=default))
+        return __save(obj)
+    # The object is is_lc_serializable.
+    # However, some properties may not be serializable
+    # Here we try to dump the object and fallback to the save() method
+    # if there is an error.
+    try:
+        return json.loads(json.dumps(obj, default=default))
+    except TypeError as ex:
+        if isinstance(obj, Serializable) and hasattr(obj, "save"):
+            return __save(obj)
+        raise ex
