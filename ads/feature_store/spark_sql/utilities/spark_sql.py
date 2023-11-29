@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Iterable, List, Optional
+from collections import defaultdict
+from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Dict
+
+from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+
+from ads.feature_store.feature_store import FeatureStore
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, Row, SparkSession
@@ -11,11 +16,7 @@ class SparkSQL:
 
     def __init__(
         self,
-        spark_session: Optional[SparkSession] = None,
-        catalog: Optional[str] = None,
-        schema: Optional[str] = None,
-        ignore_tables: Optional[List[str]] = None,
-        include_tables: Optional[List[str]] = None,
+        feature_store: FeatureStore,
         sample_rows_in_table_info: int = 3,
     ):
         """Initialize a SparkSQL object.
@@ -34,6 +35,18 @@ class SparkSQL:
             sample_rows_in_table_info: The number of rows to include in the table info.
               Defaults to 3.
         """
+        self.feature_store = feature_store
+        entities = self.feature_store.list_entities(compartment_id=self.feature_store.compartment_id,
+                                                    feature_store_id = self.feature_store.id)
+        self.database_table_map: Dict[str, List[str]] = defaultdict(lambda : [])
+        self.all_tables: List[str] = []
+        for entity in entities:
+            # TODO: Fix this call once entity id filter is resolved
+            feature_groups = entity.list_feature_group(compartment_id=self.feature_store.compartment_id, feature_store_id = self.feature_store.id, entity_id = entity.id)
+            for feature_group in feature_groups:
+                self.database_table_map[entity.id].append(feature_group.name)
+                self.all_tables.append(f"{entity.id}.{feature_group.name}")
+
         try:
             from pyspark.sql import SparkSession
         except ImportError:
@@ -41,32 +54,9 @@ class SparkSQL:
                 "pyspark is not installed. Please install it with `pip install pyspark`"
             )
 
-        self._spark = (
-            spark_session if spark_session else SparkSession.builder.getOrCreate()
-        )
-        if catalog is not None:
-            self._spark.catalog.setCurrentCatalog(catalog)
-        if schema is not None:
-            self._spark.catalog.setCurrentDatabase(schema)
+        self._spark = SparkSessionSingleton().get_spark_session()
 
-        self._all_tables = set(self._get_all_table_names())
-        self._include_tables = set(include_tables) if include_tables else set()
-        if self._include_tables:
-            missing_tables = self._include_tables - self._all_tables
-            if missing_tables:
-                raise ValueError(
-                    f"include_tables {missing_tables} not found in database"
-                )
-        self._ignore_tables = set(ignore_tables) if ignore_tables else set()
-        if self._ignore_tables:
-            missing_tables = self._ignore_tables - self._all_tables
-            if missing_tables:
-                raise ValueError(
-                    f"ignore_tables {missing_tables} not found in database"
-                )
-        usable_tables = self.get_usable_table_names()
-        self._usable_tables = set(usable_tables) if usable_tables else self._all_tables
-
+        self.feature_store = feature_store
         if not isinstance(sample_rows_in_table_info, int):
             raise TypeError("sample_rows_in_table_info must be an integer")
 
@@ -90,15 +80,8 @@ class SparkSQL:
         return cls(spark, **kwargs)
 
     def get_usable_table_names(self) -> Iterable[str]:
-        """Get names of tables available."""
-        if self._include_tables:
-            return self._include_tables
-        # sorting the result can help LLM understanding it.
-        return sorted(self._all_tables - self._ignore_tables)
-
-    def _get_all_table_names(self) -> Iterable[str]:
-        rows = self._spark.sql("SHOW TABLES").select("tableName").collect()
-        return list(map(lambda row: f"22be90c973aef6615ac0e4dd42b1e967.{row.tableName}", rows))
+                # sorting the result can help LLM understanding it.
+        return  ", ".join(self.database_table_map)
 
     def _get_create_table_stmt(self, table: str) -> str:
         statement = (
@@ -114,14 +97,12 @@ class SparkSQL:
         return answer
 
     def get_table_info(self, table_names: Optional[List[str]] = None) -> str:
-        all_table_names = self.get_usable_table_names()
         if table_names is not None:
-            missing_tables = set(table_names).difference(all_table_names)
+            missing_tables = set(table_names).difference(self.all_tables)
             if missing_tables:
                 raise ValueError(f"table_names {missing_tables} not found in database")
-            all_table_names = table_names
         tables = []
-        for table_name in all_table_names:
+        for table_name in table_names:
             table_info = self._get_create_table_stmt(table_name)
             if self._sample_rows_in_table_info:
                 table_info += "\n\n/*"

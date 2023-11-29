@@ -9,6 +9,11 @@ from copy import deepcopy
 from typing import Dict, Any, List, Optional
 
 import pandas
+from langchain.agents import create_spark_sql_agent, AgentExecutor
+from langchain.chat_models import ChatOpenAI
+
+from ads.feature_store.spark_sql.tool_kit.toolkit import SparkSQLToolkit
+
 from ads.common.oci_mixin import OCIModelMixin
 
 from ads.common import utils
@@ -18,6 +23,7 @@ from ads.feature_store.common.spark_session_singleton import SparkSessionSinglet
 from ads.feature_store.entity import Entity
 from ads.feature_store.execution_strategy.engine.spark_engine import SparkEngine
 from ads.feature_store.service.oci_feature_store import OCIFeatureStore
+from ads.feature_store.spark_sql.utilities.spark_sql import SparkSQL
 from ads.feature_store.transformation import Transformation, TransformationMode
 from ads.jobs.builders.base import Builder
 
@@ -494,6 +500,12 @@ class FeatureStore(Builder):
         )
 
         return self.oci_transformation.create()
+
+    def get_natural_language_query_generator(self, llm=ChatOpenAI()) -> AgentExecutor:
+        spark_sql = SparkSQL(feature_store=self)
+        toolkit = SparkSQLToolkit(db=spark_sql, llm=llm)
+        agent_executor = create_spark_sql_agent(llm=llm, toolkit=toolkit, verbose=True, handle_parsing_errors=True)
+        return agent_executor
 
     def delete_transformation(self):
         """Removes Transformation Resource.

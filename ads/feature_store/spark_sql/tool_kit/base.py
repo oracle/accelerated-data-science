@@ -1,11 +1,12 @@
 """Spark SQL agent."""
 from typing import Any, Dict, List, Optional
 
+from ads.feature_store.spark_sql.tool_kit.prompt import SQL_PREFIX, SQL_SUFFIX
+
+from ads.feature_store.spark_sql.tool_kit.toolkit import SparkSQLToolkit
 from langchain_core.language_models import BaseLanguageModel
 
 from langchain.agents.agent import AgentExecutor
-from langchain.agents.agent_toolkits.spark_sql.prompt import SQL_PREFIX, SQL_SUFFIX
-from langchain.agents.agent_toolkits.spark_sql.toolkit import SparkSQLToolkit
 from langchain.agents.mrkl.base import ZeroShotAgent
 from langchain.agents.mrkl.prompt import FORMAT_INSTRUCTIONS
 from langchain.callbacks.base import BaseCallbackManager, Callbacks

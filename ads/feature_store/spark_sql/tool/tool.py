@@ -1,6 +1,6 @@
 # flake8: noqa
 """Tools for interacting with Spark SQL."""
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from langchain_core.pydantic_v1 import BaseModel, Field, root_validator
 
@@ -11,9 +11,10 @@ from langchain.callbacks.manager import (
 )
 from langchain.chains.llm import LLMChain
 from langchain_core.prompts import PromptTemplate
-from langchain.utilities.spark_sql import SparkSQL
 from langchain.tools.base import BaseTool
 from langchain.tools.spark_sql.prompt import QUERY_CHECKER
+
+from ads.feature_store.spark_sql.utilities.spark_sql import SparkSQL
 
 
 class BaseSparkSQLTool(BaseModel):
@@ -28,7 +29,7 @@ class BaseSparkSQLTool(BaseModel):
 class QuerySparkSQLTool(BaseSparkSQLTool, BaseTool):
     """Tool for querying a Spark SQL."""
 
-    name: str = "query_sql_db"
+    name: str = "query_sql_warehouse"
     description: str = """
     Input to this tool is a detailed and correct SQL query, output is a result from the Spark SQL.
     If the query is not correct, an error message will be returned.
@@ -47,12 +48,12 @@ class QuerySparkSQLTool(BaseSparkSQLTool, BaseTool):
 class InfoSparkSQLTool(BaseSparkSQLTool, BaseTool):
     """Tool for getting metadata about a Spark SQL."""
 
-    name: str = "schema_sql_db"
+    name: str = "schema_sql_table"
     description: str = """
-    Input to this tool is a comma-separated list of tables, output is the schema and sample rows for those tables.
-    Be sure that the tables actually exist by calling list_tables_sql_db first!
+    Input to this tool is a comma-separated list of fully qualified table names, output is the schema and sample rows for those tables.
+    WARNING: Be sure that the tables actually exist by calling list_tables_sql_db first!!!
 
-    Example Input: "table1, table2, table3"
+    Example Input: "database1.table1, database1.table2, database2.table3"
     """
 
     def _run(
@@ -64,20 +65,40 @@ class InfoSparkSQLTool(BaseSparkSQLTool, BaseTool):
         return self.db.get_table_info_no_throw(table_names.split(", "))
 
 
-class ListSparkSQLTool(BaseSparkSQLTool, BaseTool):
+class ListSparkSQLTablesTool(BaseSparkSQLTool, BaseTool):
     """Tool for getting tables names."""
 
     name: str = "list_tables_sql_db"
-    description: str = "Input is an empty string, output is a comma separated list of tables in the Spark SQL."
+    description: str = """Input to this tool is the name of the database we want to list the tables from, output is a comma separated list of tables in the Spark SQL database.
+    WARNING: Be sure that the database actually exists by calling list_databases_sql_db first!!!
+    
+    Example Input: "database"
+    """
 
     def _run(
         self,
-        tool_input: str = "",
+        database_name: str = "",
         run_manager: Optional[CallbackManagerForToolRun] = None,
     ) -> str:
         """Get the schema for a specific table."""
-        return ", ".join(self.db.get_usable_table_names())
+        return ", ".join(self.db.database_table_map[database_name])
 
+class ListSparkSQLDatabasesTool(BaseSparkSQLTool, BaseTool):
+    """Tool for getting tables names."""
+
+    name: str = "list_databases_sql_db"
+    description: str = """Input is an empty string, output is a comma separated list of Spark SQL database names.
+    
+    Example Output: 22BE90C973AEF6615AC0E4DD42B1E967, 22BE90C973AEF6615AC0E4DD42B1E967
+    """
+
+    def _run(
+            self,
+            tool_input: str = "",
+            run_manager: Optional[CallbackManagerForToolRun] = None,
+    ) -> str:
+        """Get the schema for a specific table."""
+        return ",".join(self.db.database_table_map.keys())
 
 class QueryCheckerTool(BaseSparkSQLTool, BaseTool):
     """Use an LLM to check if a query is correct.

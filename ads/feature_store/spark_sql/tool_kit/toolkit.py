@@ -1,18 +1,15 @@
 """Toolkit for interacting with Spark SQL."""
 from typing import List
 
+from ads.feature_store.spark_sql.tool.tool import QuerySparkSQLTool, InfoSparkSQLTool, ListSparkSQLTablesTool, \
+    QueryCheckerTool, ListSparkSQLDatabasesTool
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.pydantic_v1 import Field
 
 from langchain.agents.agent_toolkits.base import BaseToolkit
 from langchain.tools import BaseTool
-from langchain.tools.spark_sql.tool import (
-    InfoSparkSQLTool,
-    ListSparkSQLTool,
-    QueryCheckerTool,
-    QuerySparkSQLTool,
-)
-from langchain.utilities.spark_sql import SparkSQL
+
+from ads.feature_store.spark_sql.utilities.spark_sql import SparkSQL
 
 
 class SparkSQLToolkit(BaseToolkit):
@@ -31,6 +28,7 @@ class SparkSQLToolkit(BaseToolkit):
         return [
             QuerySparkSQLTool(db=self.db),
             InfoSparkSQLTool(db=self.db),
-            ListSparkSQLTool(db=self.db),
+            ListSparkSQLTablesTool(db=self.db),
+            ListSparkSQLDatabasesTool(db=self.db),
             QueryCheckerTool(db=self.db, llm=self.llm),
         ]
