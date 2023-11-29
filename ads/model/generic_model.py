@@ -67,7 +67,8 @@ from ads.model.model_metadata import (
     Framework,
     ModelCustomMetadata,
     ModelProvenanceMetadata,
-    ModelTaxonomyMetadata, MetadataCustomCategory,
+    ModelTaxonomyMetadata,
+    MetadataCustomCategory,
 )
 from ads.model.model_metadata_mixin import MetadataMixin
 from ads.model.model_properties import ModelProperties
@@ -1824,18 +1825,19 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     def save(
         self,
-        display_name: Optional[str] = None,
-        description: Optional[str] = None,
-        freeform_tags: Optional[dict] = None,
-        defined_tags: Optional[dict] = None,
-        ignore_introspection: Optional[bool] = False,
         bucket_uri: Optional[str] = None,
-        overwrite_existing_artifact: Optional[bool] = True,
-        remove_existing_artifact: Optional[bool] = True,
-        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
-        version_label: Optional[str] = None,
+        defined_tags: Optional[dict] = None,
+        description: Optional[str] = None,
+        display_name: Optional[str] = None,
         featurestore_dataset=None,
+        freeform_tags: Optional[dict] = None,
+        ignore_introspection: Optional[bool] = False,
+        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
+        overwrite_existing_artifact: Optional[bool] = True,
         parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        remove_existing_artifact: Optional[bool] = True,
+        reload: Optional[bool] = True,
+        version_label: Optional[str] = None,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -1862,7 +1864,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         overwrite_existing_artifact: (bool, optional). Defaults to `True`.
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Wether artifacts uploaded to object storage bucket need to be removed or not.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
         model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
             The model version set OCID, or model version set name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
@@ -1871,6 +1873,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The feature store dataset
         parallel_process_count: (int, optional)
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+        reload: (bool, optional)
+            Whether to reload to check if `load_model()` works in `score.py`. Default to `True`.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1926,12 +1930,13 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 raise RuntimeInfoInconsistencyError(
                     "`.runtime_info` does not sync with runtime.yaml file. Call "
                     "`.runtime_info.save()` if you updated `runtime_info`. "
-                    "Call `.reload()` if you updated runtime.yaml file."
+                    "Call `.reload_runtime_info()` if you updated runtime.yaml file."
                 )
             # reload to check if load_model works in score.py, i.e.
             # whether the model file has been serialized, and whether it can be loaded
             # successfully.
-            self.reload()
+            if reload:
+                self.reload()
         except:
             if not self.ignore_conda_error:
                 raise
@@ -1967,11 +1972,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if featurestore_dataset:
             dataset_details = {
                 "dataset-id": featurestore_dataset.id,
-                "dataset-name": featurestore_dataset.name
+                "dataset-name": featurestore_dataset.name,
             }
-            self.metadata_custom.add("featurestore.dataset", value=str(dataset_details),
-                                     category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
-                                     description="feature store dataset", replace=True)
+            self.metadata_custom.add(
+                "featurestore.dataset",
+                value=str(dataset_details),
+                category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
+                description="feature store dataset",
+                replace=True,
+            )
 
         self.dsc_model = (
             self.dsc_model.with_compartment_id(self.properties.compartment_id)
