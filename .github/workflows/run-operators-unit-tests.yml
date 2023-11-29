@@ -7,6 +7,7 @@ on:
       - "ads/opctl/operator/**"
       - "**requirements.txt"
       - ".github/workflows/run-operators*.yml"
+      - "test-requirements-operators.txt"
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -23,7 +24,7 @@ env:
 
 jobs:
   test:
-    name: python ${{ matrix.python-version }}, default_setup
+    name: python ${{ matrix.python-version }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
 
