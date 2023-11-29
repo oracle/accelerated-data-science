@@ -13,6 +13,7 @@ from time import sleep, time
 from copy import deepcopy
 from pathlib import Path
 import random
+import pathlib
 
 
 DATASETS_LIST = [
@@ -41,6 +42,15 @@ DATASETS_LIST = [
     "WeatherDataset",
     "WineDataset",
     "WoolyDataset",
+]
+
+MODELS = [
+    "arima",
+    "automlx",
+    "prophet",
+    "neuralprophet",
+    "autots",
+    "auto",
 ]
 
 TEMPLATE_YAML = {
@@ -73,14 +83,9 @@ SAMPLE_FRACTION = 1
 parameters_short = []
 
 for dataset_i in DATASETS_LIST[2:3]:  #  + [DATASETS_LIST[-2]]
-    for model in [
-        "arima",
-        "automlx",
-        "prophet",
-        "neuralprophet",
-        "autots",
-        "auto",
-    ]:  # ["arima", "automlx", "prophet", "neuralprophet", "autots", "auto"]
+    for (
+        model
+    ) in MODELS:  # ["arima", "automlx", "prophet", "neuralprophet", "autots", "auto"]
         parameters_short.append((model, dataset_i))
 
 
@@ -173,6 +178,52 @@ def test_load_datasets(model, dataset_name):
         train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
         print(train_metrics)
         return test_metrics.iloc[0][f"{columns[0]}_A"]
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_rossman(model):
+    curr_dir = pathlib.Path(__file__).parent.resolve()
+    data_folder = f"{curr_dir}/data/"
+    historical_data_path = f"{curr_dir}/data/rs_10_prim.csv"
+    additional_data_path = f"{curr_dir}/data/rs_10_add.csv"
+    test_data_path = f"{curr_dir}/data/rs_10_test.csv"
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        generate_train_metrics = True
+
+        yaml_i["spec"]["additional_data"] = {"url": additional_data_path}
+        yaml_i["spec"]["historical_data"]["url"] = historical_data_path
+        yaml_i["spec"]["test_data"] = {"url": test_data_path}
+        yaml_i["spec"]["output_directory"]["url"] = output_data_path
+        yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["target_column"] = "Sales"
+        yaml_i["spec"]["datetime_column"]["name"] = "Date"
+        yaml_i["spec"]["target_category_columns"] = ["Store"]
+        yaml_i["spec"]["horizon"] = PERIODS
+
+        if generate_train_metrics:
+            yaml_i["spec"]["generate_metrics"] = generate_train_metrics
+        if model == "autots":
+            yaml_i["spec"]["model_kwargs"] = {"model_list": "superfast"}
+        if model == "automlx":
+            yaml_i["spec"]["model_kwargs"] = {"time_budget": 1}
+
+        forecast_yaml_filename = f"{tmpdirname}/forecast.yaml"
+        with open(f"{tmpdirname}/forecast.yaml", "w") as f:
+            f.write(yaml.dump(yaml_i))
+        sleep(0.1)
+        subprocess.run(
+            f"ads operator run -f {forecast_yaml_filename} --debug", shell=True
+        )
+        sleep(0.1)
+        subprocess.run(f"ls -a {output_data_path}", shell=True)
+
+        test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
+        print(test_metrics)
+        train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
+        print(train_metrics)
 
 
 if __name__ == "__main__":
