@@ -1937,6 +1937,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             # successfully.
             if reload:
                 self.reload()
+            else:
+                logger.warning(
+                    "The score.py file has not undergone testing, and this could result in deployment errors. To verify its functionality, please set `reload=True`."
+                )
         except:
             if not self.ignore_conda_error:
                 raise
