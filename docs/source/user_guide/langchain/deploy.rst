@@ -1,18 +1,10 @@
-################################
-LangChain Application Deployment
-################################
+#########
+LangChain
+#########
 
 Oracle ADS SDK now supports the deployment of LangChain application to OCI data science model deployment and you can easily do so just by writing a couple lines of code.
 
-Installation
-************
-
-Before you start, install the ``oracle-ads >= 2.9.1`` package following the command below. 
-The Oracle ADS SDK has all of the required tools needed for the deployment.
-
-.. code-block:: shell
-
-    pip install oracle-ads —-upgrade
+.. versionadded:: 2.9.1
 
 Configuration
 *************
@@ -23,13 +15,6 @@ Here we're using the ``resource_principal`` as auth type and you can configure t
 .. code-block:: shell
 
     allow dynamic-group <dynamic-group-name> to manage data-science-model-deployments in compartment <compartment-name>
-
-Set auth for ADS SDK to access the OCI data science model deployment resources.
-
-.. code-block:: python3
-
-    import ads
-    ads.set_auth(auth="resource_principal")
 
 Create LangChain Application
 ****************************
@@ -153,8 +138,14 @@ Now the OCI data science model deployment endpoint is ready and you can invoke i
 
     chain_deployment.predict(data={"subject": "animals"})["prediction"]
 
+.. figure:: figures/prediction.png
+  :width: 800
+
 Alternatively, you can use OCI CLI to invoke the model deployment. Remember to replace the ``langchain_application_model_deployment_url`` with the actual model deployment url which you can find in the output from deploy step.
 
 .. code-block:: shell
 
     oci raw-request --http-method POST --target-uri <langchain_application_model_deployment_url>/predict --request-body '{"subject": "animals"}' --auth resource_principal
+
+.. figure:: figures/cli_prediction.png
+  :width: 800
