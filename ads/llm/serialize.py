@@ -19,7 +19,7 @@ from langchain.llms import loading
 from langchain.load import dumpd
 from langchain.load.load import load as lc_load
 from langchain.load.serializable import Serializable
-from langchain.vectorstores import OpenSearchVectorSearch
+from langchain.vectorstores import OpenSearchVectorSearch, FAISS
 from opensearchpy.client import OpenSearch
 
 from ads.common.auth import default_signer
@@ -27,6 +27,9 @@ from ads.llm import GenerativeAI, ModelDeploymentTGI, ModelDeploymentVLLM
 from ads.llm.chain import GuardrailSequence
 from ads.llm.guardrails.base import CustomGuardrailBase
 from ads.llm.patch import RunnableParallel, RunnableParallelSerializer
+import json
+import base64
+
 
 # This is a temp solution for supporting custom LLM in legacy load_chain
 __lc_llm_dict = llms.get_type_to_cls_dict()
@@ -59,8 +62,8 @@ class OpenSearchVectorDBSerializer:
         return OpenSearchVectorSearch(
             **config["kwargs"],
             http_auth=(
-                os.environ.get("oci_opensearch_username"),
-                os.environ.get("oci_opensearch_password"),
+                os.environ.get("oci_opensearch_username", None),
+                os.environ.get("oci_opensearch_password", None),
             ),
             verify_certs=os.environ.get("oci_opensearch_verify_certs", False),
             ca_certs=os.environ.get("oci_opensearch_ca_certs", None),
@@ -88,8 +91,36 @@ class OpenSearchVectorDBSerializer:
         return serialized
 
 
+class FaissSerializer:
+    """
+    Serializer for OpenSearchVectorSearch class
+    """
+    @staticmethod
+    def type():
+        return FAISS.__name__
+
+    @staticmethod
+    def load(config: dict, **kwargs):
+        embedding_function = load(config["embedding_function"])
+        decoded_pkl = base64.b64decode(json.loads(config["vectordb"]))
+        return FAISS.deserialize_from_bytes(
+            embeddings=embedding_function, serialized=decoded_pkl
+        )  # Load the index
+
+    @staticmethod
+    def save(obj):
+        serialized = {}
+        serialized["_type"] = FaissSerializer.type()
+        pkl = obj.serialize_to_bytes()
+        # Encoding bytes to a base64 string
+        encoded_pkl = base64.b64encode(pkl).decode('utf-8')
+        # Serializing the base64 string
+        serialized["vectordb"] = json.dumps(encoded_pkl)
+        serialized["embedding_function"] = dump(obj.__dict__["embedding_function"])
+        return serialized
+
 # Mapping class to vector store serialization functions
-vectordb_serialization = {"OpenSearchVectorSearch": OpenSearchVectorDBSerializer}
+vectordb_serialization = {"OpenSearchVectorSearch": OpenSearchVectorDBSerializer, "FAISS": FaissSerializer}
 
 
 class RetrieverQASerializer:
@@ -118,6 +149,7 @@ class RetrieverQASerializer:
                 retriever_kwargs[key] = val
         serialized["retriever_kwargs"] = retriever_kwargs
         serialized["vectordb"] = {"class": obj.retriever.vectorstore.__class__.__name__}
+
         vectordb_serializer = vectordb_serialization[serialized["vectordb"]["class"]]
         serialized["vectordb"].update(
             vectordb_serializer.save(obj.retriever.vectorstore)

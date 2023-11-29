@@ -64,7 +64,7 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
         return {
             **{
                 "model": self.model,
-                "task": self.task,
+                "task": self.task.value,
                 "client_kwargs": self.client_kwargs,
                 "endpoint_kwargs": self.endpoint_kwargs,
             },
