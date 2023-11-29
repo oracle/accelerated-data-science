@@ -381,6 +381,7 @@ class TestDataScienceModel:
             auth=None,
             timeout=None,
             parallel_process_count=3,
+            model_by_reference=False,
         )
         mock_sync.assert_called()
         assert self.prepare_dict(result.to_dict()["spec"]) == self.prepare_dict(
@@ -624,6 +625,7 @@ class TestDataScienceModel:
                         overwrite_existing_artifact=False,
                         remove_existing_artifact=False,
                         parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+                        model_by_reference=False,
                     )
                     mock_upload.assert_called()
 
