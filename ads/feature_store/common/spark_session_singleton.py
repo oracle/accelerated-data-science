@@ -103,7 +103,7 @@ class SparkSessionSingleton(metaclass=SparkSessionSingletonMeta):
             spark_builder.config(
                 "spark.hadoop.oracle.dcat.metastore.id", metastore_id
             ).config("spark.sql.warehouse.dir", _managed_table_location).config(
-                "spark.driver.memory", f"{available_memory}K"
+                "spark.driver.memory", f"{available_memory}k"
             )
 
         if developer_enabled():
