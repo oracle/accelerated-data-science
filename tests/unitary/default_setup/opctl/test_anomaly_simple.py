@@ -51,10 +51,15 @@ for m in MODELS:
 
 
 @pytest.mark.parametrize("model", MODELS)
-def test_artifical_big():
+def test_artificial_big(model):
     all_data = []
     TARGET_COLUMN = "sensor"
     TARGET_CATEGORY_COLUMN = "Meter ID"
+    DATETIME_COLUMN = "Date"
+    yr_in_30_min = pd.date_range(
+        "2014-01-15 00:00:00", "2015-01-15 00:00:00", freq="30min"
+    )
+
     for i in range(5):
         d1 = np.random.multivariate_normal(
             mean=np.array([-0.5, 0, 2]),
@@ -64,7 +69,7 @@ def test_artifical_big():
         df_i = pd.DataFrame(
             d1, columns=[TARGET_COLUMN, "extra reg 1", "extra reg 2"]
         )  # columns=[f"sensor {i}", f"extra reg {i}-1", f"extra reg {i}-2"]  # Uncomment for wide format
-        df_i["Date"] = yr_in_30_min
+        df_i[DATETIME_COLUMN] = yr_in_30_min
         df_i[TARGET_CATEGORY_COLUMN] = f"GHNI007894032{i}"
         all_data.append(df_i)
 
@@ -83,6 +88,7 @@ def test_artifical_big():
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["target_column"] = TARGET_COLUMN
         yaml_i["spec"]["target_category_columns"] = [TARGET_CATEGORY_COLUMN]
+        yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COLUMN
 
         with open(anomaly_yaml_filename, "w") as f:
             f.write(yaml.dump(yaml_i))
