@@ -6,6 +6,7 @@
 
 import os
 import shutil
+import warnings
 from abc import ABC, abstractmethod
 from typing import Dict, Optional
 
@@ -257,9 +258,12 @@ class LargeArtifactUploader(ArtifactUploader):
         self.dsc_model.export_model_artifact(bucket_uri=bucket_uri, region=self.region)
 
         if self.remove_existing_artifact:
-            self.progress.update(
-                "Removing temporary artifacts from the Object Storage bucket"
+            warnings.warn(
+                (
+                    "The `remove_existing_artifact` flag is deprecated as large model artifacts are now passed "
+                    "by reference and will be ignored now."
+                ),
+                DeprecationWarning,
+                stacklevel=2,
             )
-            utils.remove_file(bucket_uri)
-        else:
-            self.progress.update()
+        self.progress.update()

@@ -10,6 +10,7 @@ from copy import deepcopy
 from typing import Dict, List, Optional, Union
 
 import pandas
+from urllib.parse import urlparse
 from ads.common import utils
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.config import COMPARTMENT_OCID, PROJECT_OCID
@@ -19,6 +20,7 @@ from ads.model.model_metadata import (
     ModelCustomMetadata,
     ModelProvenanceMetadata,
     ModelTaxonomyMetadata,
+    MetadataCustomCategory,
 )
 from ads.model.service.oci_datascience_model import (
     ModelProvenanceNotFoundError,
@@ -171,6 +173,10 @@ class DataScienceModel(Builder):
     CONST_ARTIFACT = "artifact"
     CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
     CONST_MODEL_VERSION_LABEL = "versionLabel"
+    CONST_MODEL_ARTIFACT_SOURCE_TYPE = "modelArtifactSourceType"
+    CONST_OBJECT_STORAGE_NAMESPACE = "objectStorageNamespace"
+    CONST_OBJECT_STORAGE_BUCKET = "objectStorageBucket"
+    CONST_FILE_PREFIX = "prefix"
 
     attribute_map = {
         CONST_ID: "id",
@@ -702,6 +708,11 @@ class DataScienceModel(Builder):
                 remove_existing_artifact=remove_existing_artifact,
                 parallel_process_count=parallel_process_count,
             )
+
+            # Update custom metadata
+            logger.info("Update custom metadata fields with model artifact location.")
+            self.update_custom_metadata_with_model_path(bucket_uri=bucket_uri)
+
         else:
             artifact_uploader = SmallArtifactUploader(
                 dsc_model=self.dsc_model,
@@ -1088,3 +1099,57 @@ class DataScienceModel(Builder):
         if f"with_{item}" in self.__dir__():
             return self.get_spec(item)
         raise AttributeError(f"Attribute {item} not found.")
+
+    def update_custom_metadata_with_model_path(
+        self,
+        bucket_uri: str,
+    ):
+        """Updates the custom metadata to pass model artifacts by reference
+
+        Parameters
+        ----------
+        bucket_uri: (str).
+            The OCI Object Storage URI where model artifact is available for the Model Store.
+            Example: `oci://<bucket_name>@<namespace>/prefix/`.
+
+        Returns
+        -------
+        None
+        """
+        # Supports OCI object storage only
+        parsed = urlparse(output_uri)
+
+        bucket = parsed.username
+        namespace = parsed.hostname
+        prefix = parsed.path
+        if prefix.startswith("/"):
+            prefix = path[1:]
+
+        self.custom_metadata_list.add(
+            key=self.CONST_MODEL_ARTIFACT_SOURCE_TYPE,
+            value="OSS",
+            category=MetadataCustomCategory.OTHER,
+            description="model by reference storage type",
+            replace=True,
+        )
+        self.custom_metadata_list.add(
+            key=self.CONST_OBJECT_STORAGE_NAMESPACE,
+            value=namespace,
+            category=MetadataCustomCategory.OTHER,
+            description="oss bucket namespace",
+            replace=True,
+        )
+        self.custom_metadata_list.add(
+            key=self.CONST_OBJECT_STORAGE_BUCKET,
+            value=bucket,
+            category=MetadataCustomCategory.OTHER,
+            description="oss bucket location",
+            replace=True,
+        )
+        self.custom_metadata_list.add(
+            key=self.CONST_FILE_PREFIX,
+            value=prefix,
+            category=MetadataCustomCategory.OTHER,
+            description="prefix value",
+            replace=True,
+        )
