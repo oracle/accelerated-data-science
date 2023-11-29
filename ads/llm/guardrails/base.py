@@ -78,7 +78,7 @@ class GuardrailIO(BaseModel):
             steps.append(f"{run_info.name} - {run_info.metrics}")
         if run_info:
             steps.append(str(run_info.output))
-        return "\n".join(steps)
+        return "\n".join(steps) + "\n\n" + str(self)
 
 
 class BlockedByGuardrail(ToolException):
