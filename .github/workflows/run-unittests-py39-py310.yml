@@ -33,13 +33,16 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.9", "3.10"]
-        test-path: ["tests/unitary/with_extras tests/unitary/default_setup", "tests/unitary/with_extras/model"]
+        name: ["unitary", "slow_tests"]
         include:
-          - test-path: "tests/unitary/with_extras tests/unitary/default_setup"
-            ignore-path: "--ignore tests/unitary/with_extras/model --ignore tests/unitary/with_extras/feature_store --ignore tests/unitary/with_extras/operator/forecast"
-            name: "unitary"
-          - test-path: "tests/unitary/with_extras/model"
-            name: "model"
+          - name: "unitary"
+            test-path: "tests/unitary"
+            # `model` tests running in "slow_tests",
+            # `feature_store` tests has its own test suite
+            # `forecast` tests not supported in python 3.9,3.10 (automlx dependency). Tests are running in python3.8 test env, see run-unittests-py38-cov-report.yml
+            ignore-path: "--ignore tests/unitary/all_optional_deps/model --ignore tests/unitary/all_optional_deps/feature_store --ignore tests/unitary/with_extras/operator/forecast"
+          - name: "slow_tests"
+            test-path: "tests/unitary/all_optional_deps/model"
 
     steps:
       - uses: actions/checkout@v3
