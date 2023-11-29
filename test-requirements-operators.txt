@@ -17,13 +17,13 @@ nbformat
 oci-cli
 py-cpuinfo
 rich
-"autots[additional]"
+autots[additional]
 datapane
 holidays==0.21.13
 neuralprophet
 numpy
 optuna==2.9.0
-"oracle-automlx[forecasting]==23.2.3"
+oracle-automlx[forecasting]==23.2.3
 pmdarima
 prophet
 shap
