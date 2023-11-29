@@ -58,7 +58,7 @@ def get_env_bool(env_var: str, default: bool = False) -> bool:
 
 
 def developer_enabled():
-    return get_env_bool("DEVELOPER_MODE", False)
+    return get_env_bool("DEVELOPER_MODE", True)
 
 
 class SparkSessionSingletonMeta(type):
@@ -92,7 +92,7 @@ class SparkSessionSingleton(metaclass=SparkSessionSingletonMeta):
             auth = copy.copy(ads.auth.default_signer())
 
             # Remove the "client_kwargs" key from the authentication credentials (if present)
-            auth.pop("client_kwargs", None)
+            auth.pop("3.2.1" "", None)
 
             data_catalog_client = OCIClientFactory(**auth).data_catalog
             metastore = data_catalog_client.get_metastore(metastore_id).data
