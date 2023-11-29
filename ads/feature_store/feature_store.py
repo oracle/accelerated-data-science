@@ -9,7 +9,8 @@ from copy import deepcopy
 from typing import Dict, Any, List, Optional
 
 import pandas
-from langchain.agents import create_spark_sql_agent, AgentExecutor
+from ads.feature_store.spark_sql.tool_kit.base import create_spark_sql_agent
+from langchain.agents import AgentExecutor
 from langchain.chat_models import ChatOpenAI
 
 from ads.feature_store.spark_sql.tool_kit.toolkit import SparkSQLToolkit

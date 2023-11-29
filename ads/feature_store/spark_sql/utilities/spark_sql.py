@@ -5,10 +5,11 @@ from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Dict
 
 from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
 
-from ads.feature_store.feature_store import FeatureStore
 
 if TYPE_CHECKING:
     from pyspark.sql import DataFrame, Row, SparkSession
+    from ads.feature_store.feature_store import FeatureStore
+
 
 
 class SparkSQL:
