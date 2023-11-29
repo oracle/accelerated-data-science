@@ -68,6 +68,7 @@ Oracle Accelerated Data Science (ADS)
    user_guide/logs/logs
    user_guide/pipeline/index
    user_guide/secrets/index
+   user_guide/langchain/deploy
 
 .. toctree::
    :hidden:
