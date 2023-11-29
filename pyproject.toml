@@ -82,7 +82,7 @@ bds = [
   "sqlalchemy",
 ]
 boosted = [
-  "lightgbm",
+  "lightgbm<4.0.0", # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "xgboost",
 ]
 data = [
@@ -106,10 +106,10 @@ notebook = [
   "ipywidgets~=7.6.3",
 ]
 onnx = [
-  "lightgbm",
+  "lightgbm<4.0.0", # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "onnx>=1.12.0",
   "onnxmltools>=1.10.0",
-  "onnxruntime>=1.10.0,<1.16",  # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealedd by unit tests
+  "onnxruntime>=1.10.0,<1.16",  # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
   "oracle_ads[viz]",
   "protobuf<=3.20",
   "skl2onnx>=1.10.4",
