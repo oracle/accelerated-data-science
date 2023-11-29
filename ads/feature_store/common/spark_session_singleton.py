@@ -58,7 +58,7 @@ def get_env_bool(env_var: str, default: bool = False) -> bool:
 
 
 def developer_enabled():
-    return get_env_bool("DEVELOPER_MODE", True)
+    return get_env_bool("DEVELOPER_MODE", False)
 
 
 class SparkSessionSingletonMeta(type):
