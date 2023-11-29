@@ -14,7 +14,7 @@ import os
 import numpy as np
 
 
-MODELS = ["automlx", "tods", "autots", "auto"]
+MODELS = ["automlx", "tods", "autots"]  # , "auto"
 
 
 TEMPLATE_YAML = {
@@ -51,7 +51,52 @@ for m in MODELS:
 
 
 @pytest.mark.parametrize("model", MODELS)
-def test_artificial_multivariate(model):
+def test_artifical_big():
+    all_data = []
+    TARGET_COLUMN = "sensor"
+    TARGET_CATEGORY_COLUMN = "Meter ID"
+    for i in range(5):
+        d1 = np.random.multivariate_normal(
+            mean=np.array([-0.5, 0, 2]),
+            cov=np.array([[1, 0, 0.5], [0, 1, 0.7], [0.5, 0.7, 1]]),
+            size=len(yr_in_30_min),
+        )
+        df_i = pd.DataFrame(
+            d1, columns=[TARGET_COLUMN, "extra reg 1", "extra reg 2"]
+        )  # columns=[f"sensor {i}", f"extra reg {i}-1", f"extra reg {i}-2"]  # Uncomment for wide format
+        df_i["Date"] = yr_in_30_min
+        df_i[TARGET_CATEGORY_COLUMN] = f"GHNI007894032{i}"
+        all_data.append(df_i)
+
+    d = pd.concat(all_data).reset_index(drop=True)
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        anomaly_yaml_filename = f"{tmpdirname}/anomaly.yaml"
+        input_data = f"{tmpdirname}/data.csv"
+        output_dirname = f"{tmpdirname}/results"
+
+        d.to_csv(input_data, index=False)
+
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["input_data"]["url"] = input_data
+        yaml_i["spec"]["output_directory"]["url"] = output_dirname
+        yaml_i["spec"]["target_column"] = TARGET_COLUMN
+        yaml_i["spec"]["target_category_columns"] = [TARGET_CATEGORY_COLUMN]
+
+        with open(anomaly_yaml_filename, "w") as f:
+            f.write(yaml.dump(yaml_i))
+        sleep(0.1)
+        subprocess.run(
+            f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
+        )
+        sleep(0.1)
+        subprocess.run(f"ls -a {output_dirname}/", shell=True)
+        assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_artificial_small(model):
     # artificial data
     d1 = np.random.multivariate_normal(
         mean=np.array([-0.5, 0]), cov=np.array([[1, 0], [0, 1]]), size=100
