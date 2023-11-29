@@ -47,8 +47,8 @@ jobs:
       - uses: ./.github/workflows/set-dummy-conf
         name: "Test config setup"
 
-      - name: "Run default_setup tests folder ONLY with minimum ADS dependencies"
-        timeout-minutes: 15
+      - name: "Run Operators Tests"
+        timeout-minutes: 60
         shell: bash
         env:
           NoDependency: True
