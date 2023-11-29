@@ -23,8 +23,6 @@ from ads.opctl import logger
 from ads.opctl.constants import (
     ML_JOB_IMAGE,
     ML_JOB_GPU_IMAGE,
-    OPS_IMAGE_BASE,
-    OPS_IMAGE_GPU_BASE,
 )
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
@@ -193,8 +191,6 @@ def _get_image_name_dockerfile_target(type: str, gpu: bool, arch: str) -> str:
         ("job-local", False, "arm"): (ML_JOB_IMAGE, "Dockerfile.job.arm", None),
         ("job-local", False, "other"): (ML_JOB_IMAGE, "Dockerfile.job", None),
         ("job-local", True, "other"): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
-        ("ads-ops-base", False, "other"): (OPS_IMAGE_BASE, "Dockerfile", "base"),
-        ("ads-ops-base", True, "other"): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
     }
     return look_up[(type, gpu, arch)]
 
