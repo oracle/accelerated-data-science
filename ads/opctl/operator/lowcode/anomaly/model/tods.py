@@ -51,10 +51,22 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         sub_model = self.spec.model_kwargs.get("sub_model", TODS_DEFAULT_MODEL)
         model_kwargs.pop("sub_model", None)
 
-        # Group the data by target column
-        self.datasets.full_data_dict = dict(
-            tuple(self.datasets.data.groupby(self.spec.target_column))
-        )
+        if self.spec.target_category_columns is None:
+            # support for optional target category column
+            target_col = [
+                col
+                for col in self.datasets.data.columns
+                if col not in [self.spec.datetime_column.name]
+            ]
+            self.spec.target_category_columns = target_col[0]
+            self.datasets.full_data_dict = {
+                self.spec.target_category_columns: self.datasets.data
+            }
+        else:
+            # Group the data by target column
+            self.datasets.full_data_dict = dict(
+                tuple(self.datasets.data.groupby(self.spec.target_column))
+            )
 
         # Initialize variables
         models = {}
@@ -72,8 +84,6 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
             # Fit the model
             model.fit(np.array(df[self.spec.target_category_columns]).reshape(-1, 1))
 
-
-
             # Make predictions
             predictions_train[target] = model.predict(
                 np.array(df[self.spec.target_category_columns]).reshape(-1, 1)
@@ -84,10 +94,13 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
 
             # Store the model and predictions in dictionaries
             models[target] = model
-            dataset.data.loc[
-                dataset.data[self.spec.target_column] == target,
-                OutputColumns.ANOMALY_COL,
-            ] = predictions_train[target]
+            if self.spec.target_column is None:
+                dataset.data[OutputColumns.ANOMALY_COL] = predictions_train[target]
+            else:
+                dataset.data.loc[
+                    dataset.data[self.spec.target_column] == target,
+                    OutputColumns.ANOMALY_COL,
+                ] = predictions_train[target]
 
         return model, predictions_train, prediction_score_test
 
