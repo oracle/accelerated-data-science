@@ -16,7 +16,6 @@ import ads
 from ads.common.auth import AuthContext, AuthType
 from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.oci_datascience import DSCNotebookSession
-from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowBackend
 from ads.opctl.backend.ads_ml_job import MLJobBackend, MLJobDistributedBackend
 from ads.opctl.backend.ads_ml_pipeline import PipelineBackend
@@ -25,6 +24,7 @@ from ads.opctl.backend.local import (
     LocalBackend,
     LocalBackendDistributed,
     LocalModelDeploymentBackend,
+    LocalOperatorBackend,
     LocalPipelineBackend,
 )
 from ads.opctl.config.base import ConfigProcessor
@@ -54,6 +54,9 @@ from ads.opctl.distributed.cmds import (
     update_image,
     update_ini,
     verify_and_publish_image,
+)
+from ads.opctl.operator.common.backend_factory import (
+    BackendFactory as OperatorBackendFactory,
 )
 from ads.opctl.utils import get_service_pack_prefix, is_in_notebook_session
 
@@ -98,6 +101,7 @@ class _BackendFactory:
         BACKEND_NAME.DATAFLOW.value: DataFlowBackend,
         BACKEND_NAME.PIPELINE.value: PipelineBackend,
         BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
+        BACKEND_NAME.OPERATOR_LOCAL.value: LocalOperatorBackend,
     }
 
     LOCAL_BACKENDS_MAP = {
@@ -154,6 +158,7 @@ def _save_yaml(yaml_content, **kwargs):
             f.write(yaml_content)
         print(f"Job run info saved to {yaml_path}")
 
+
 def run(config: Dict, **kwargs) -> Dict:
     """
     Run a job given configuration and command line args passed in (kwargs).
@@ -172,7 +177,23 @@ def run(config: Dict, **kwargs) -> Dict:
     """
     if config:
         p = ConfigProcessor(config).step(ConfigMerger, **kwargs)
-        if p.config["kind"] != BACKEND_NAME.LOCAL.value and p.config["kind"] != "distributed":
+        try:
+            return OperatorBackendFactory.backend(
+                config=p,
+                backend=p.config["execution"].get("backend"),
+                **{
+                    key: value
+                    for key, value in kwargs.items()
+                    if key not in ("backend", "config")
+                },
+            ).run(**kwargs)
+        except RuntimeError:
+            pass
+
+        if (
+            p.config["kind"] != BACKEND_NAME.LOCAL.value
+            and p.config["kind"] != "distributed"
+        ):
             p.config["execution"]["backend"] = p.config["kind"]
             return _BackendFactory(p.config).backend.apply()
     else:
@@ -321,31 +342,6 @@ def _update_env_vars(config, env_vars: List):
     return config
 
 
-def init_operator(**kwargs) -> str:
-    """
-    Initialize the resources for an operator
-
-    Parameters
-    ----------
-    kwargs: dict
-        keyword argument, stores command line args
-    Returns
-    -------
-    folder_path: str
-        a path to the folder with all of the resources
-    """
-    # TODO: confirm that operator slug is in the set of valid operator slugs
-    assert kwargs["operator_slug"] == "dask_cluster"
-
-    if kwargs.get("folder_path"):
-        kwargs["operator_folder_path"] = kwargs.pop("folder_path")[0]
-    else:
-        kwargs["operator_folder_path"] = kwargs["operator_slug"]
-    p = ConfigProcessor().step(ConfigMerger, **kwargs)
-    print(f"config check: {p.config}")
-    return _BackendFactory(p.config).backend.init_operator()
-
-
 def delete(**kwargs) -> None:
     """
     Delete a MLJob/DataFlow run.
@@ -388,7 +384,7 @@ def cancel(**kwargs) -> None:
     ----------
     kwargs: dict
         keyword argument, stores command line args
-    
+
     Returns
     -------
     None
@@ -400,9 +396,7 @@ def cancel(**kwargs) -> None:
         or DataScienceResourceRun.PIPELINE_RUN in kwargs["ocid"]
     ):
         kwargs["run_id"] = kwargs.pop("ocid")
-    elif (
-        DataScienceResource.JOB in kwargs["ocid"]
-    ):
+    elif DataScienceResource.JOB in kwargs["ocid"]:
         kwargs["id"] = kwargs.pop("ocid")
     else:
         raise ValueError(f"{kwargs['ocid']} is invalid or not supported.")
@@ -543,6 +537,12 @@ def configure() -> None:
     if "CONDA" not in config_parser:
         config_parser["CONDA"] = {}
 
+    oci_auth = click.prompt(
+        text="Default OCI authentication type:",
+        type=click.Choice(AuthType.values()),
+        default=None,
+    )
+
     oci_config_path = click.prompt(
         "OCI config path:",
         default=config_parser["OCI"].get("oci_config", DEFAULT_OCI_CONFIG_FILE),
@@ -558,6 +558,7 @@ def configure() -> None:
     config_parser["OCI"] = {
         "oci_config": oci_config_path,
         "oci_profile": oci_profile,
+        "auth": oci_auth,
     }
     conda_pack_path = click.prompt(
         "Conda pack install folder:",
@@ -604,7 +605,7 @@ def configure() -> None:
             ("docker_registry", ""),
             ("conda_pack_os_prefix", "in the format oci://<bucket>@<namespace>/<path>"),
             ("memory_in_gbs", ""),
-            ("ocpus", "")
+            ("ocpus", ""),
         ]
         _set_service_configurations(
             ADS_JOBS_CONFIG_FILE_NAME,
@@ -634,7 +635,7 @@ def configure() -> None:
             ("driver_shape_memory_in_gbs", ""),
             ("driver_shape_ocpus", ""),
             ("executor_shape_memory_in_gbs", ""),
-            ("executor_shape_ocpus", "")
+            ("executor_shape_ocpus", ""),
         ]
         _set_service_configurations(
             ADS_DATAFLOW_CONFIG_FILE_NAME,
@@ -685,7 +686,7 @@ def configure() -> None:
             ("replica", ""),
             ("web_concurrency", ""),
             ("memory_in_gbs", ""),
-            ("ocpus", "")
+            ("ocpus", ""),
         ]
 
         _set_service_configurations(

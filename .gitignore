@@ -160,3 +160,6 @@ logs/
 
 # vim
 *.swp
+
+# Python Wheel
+*.whl

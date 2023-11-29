@@ -711,7 +711,7 @@ class ModelArtifact(Introspectable):
         ignore_pending_changes: bool = False,
         auth: dict = None,
         training_id: str = None,
-        timeout: int = None,
+        timeout: int = 1800,
         ignore_introspection=True,
         freeform_tags=None,
         defined_tags=None,

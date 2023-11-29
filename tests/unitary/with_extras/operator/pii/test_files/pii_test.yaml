@@ -1,0 +1,14 @@
+kind: operator
+spec:
+  detectors:
+  - action: anonymize
+    name: default.phone
+  - action: mask
+    name: default.text_blob_name
+  input_data:
+    url: ./test_data.csv
+  output_directory:
+    url: ./test_result/
+  target_column: text
+type: pii
+version: v1

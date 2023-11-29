@@ -158,29 +158,29 @@ def set_auth(
     ... )
     >>> ads.set_auth("security_token", config=config) # Set security token authentication from provided config
 
-    >>> singer = oci.signer.Signer(
+    >>> signer = oci.signer.Signer(
     ...     user=ocid1.user.oc1..<unique_ID>,
     ...     fingerprint=<fingerprint>,
     ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
     ...     region=us-ashburn-1,
     ...     private_key_content=<private key content>,
     ... )
-    >>> ads.set_auth(singer=singer) # Set api keys authentication with private key content based on provided signer
+    >>> ads.set_auth(signer=signer) # Set api keys authentication with private key content based on provided signer
 
-    >>> singer = oci.signer.Signer(
+    >>> signer = oci.signer.Signer(
     ...     user=ocid1.user.oc1..<unique_ID>,
     ...     fingerprint=<fingerprint>,
     ...     tenancy=ocid1.tenancy.oc1..<unique_ID>,
     ...     region=us-ashburn-1,
     ...     private_key_file_location=<private key content>,
     ... )
-    >>> ads.set_auth(singer=singer) # Set api keys authentication with private key file location based on provided signer
+    >>> ads.set_auth(signer=signer) # Set api keys authentication with private key file location based on provided signer
 
-    >>> singer = oci.auth.signers.get_resource_principals_signer()
-    >>> ads.auth.create_signer(config={}, singer=signer) # resource principals authentication dictionary created
+    >>> signer = oci.auth.signers.get_resource_principals_signer()
+    >>> ads.auth.create_signer(config={}, signer=signer) # resource principals authentication dictionary created
 
     >>> signer_callable = oci.auth.signers.ResourcePrincipalsFederationSigner
-    >>> ads.set_auth(signer_callable=signer_callable) # Set resource principal federation singer callable
+    >>> ads.set_auth(signer_callable=signer_callable) # Set resource principal federation signer callable
 
     >>> signer_callable = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
     >>> signer_kwargs = dict(log_requests=True) # will log the request url and response data when retrieving
@@ -400,7 +400,7 @@ def create_signer(
     ... }
     >>> auth = ads.auth.create_signer(config=config) # api_key type of authentication dictionary with private key file location created based on provided config
 
-    >>> singer = oci.auth.signers.get_resource_principals_signer()
+    >>> signer = oci.auth.signers.get_resource_principals_signer()
     >>> auth = ads.auth.create_signer(config={}, signer=signer) # resource principals authentication dictionary created
 
     >>> auth = ads.auth.create_signer(auth_type='instance_principal') # instance principals authentication dictionary created
@@ -517,7 +517,7 @@ def get_signer(
 ) -> Dict:
     """
     Provides config and signer based given parameters. If oci_config (api key config file location) and
-    oci_profile specified new signer will ge generated. Else singer of a type specified in OCI_CLI_AUTH
+    oci_profile specified new signer will ge generated. Else signer of a type specified in OCI_CLI_AUTH
     environment variable will be used to generate signer and return. If OCI_CLI_AUTH not set,
     resource principal signer will be provided. Accepted values for OCI_CLI_AUTH: 'api_key',
     'instance_principal', 'resource_principal'.
@@ -629,8 +629,8 @@ class APIKey(AuthSignerGenerator):
                 user=configuration["user"],
                 fingerprint=configuration["fingerprint"],
                 private_key_file_location=configuration.get("key_file"),
-                pass_phrase= configuration.get("pass_phrase"),
-                private_key_content=configuration.get("key_content")
+                pass_phrase=configuration.get("pass_phrase"),
+                private_key_content=configuration.get("key_content"),
             ),
             "client_kwargs": self.client_kwargs,
         }
@@ -750,21 +750,10 @@ class SecurityToken(AuthSignerGenerator):
     a given user - it requires that user's private key and security token.
     It prepares extra arguments necessary for creating clients for variety of OCI services.
     """
-    SECURITY_TOKEN_GENERIC_HEADERS = [
-        "date",
-        "(request-target)",
-        "host"
-    ]
-    SECURITY_TOKEN_BODY_HEADERS = [
-        "content-length",
-        "content-type",
-        "x-content-sha256"
-    ]
-    SECURITY_TOKEN_REQUIRED = [
-        "security_token_file",
-        "key_file",
-        "region"
-    ]
+
+    SECURITY_TOKEN_GENERIC_HEADERS = ["date", "(request-target)", "host"]
+    SECURITY_TOKEN_BODY_HEADERS = ["content-length", "content-type", "x-content-sha256"]
+    SECURITY_TOKEN_REQUIRED = ["security_token_file", "key_file", "region"]
 
     def __init__(self, args: Optional[Dict] = None):
         """
@@ -831,12 +820,18 @@ class SecurityToken(AuthSignerGenerator):
         return {
             "config": configuration,
             "signer": oci.auth.signers.SecurityTokenSigner(
-                token=self._read_security_token_file(configuration.get("security_token_file")),
+                token=self._read_security_token_file(
+                    configuration.get("security_token_file")
+                ),
                 private_key=oci.signer.load_private_key_from_file(
                     configuration.get("key_file"), configuration.get("pass_phrase")
                 ),
-                generic_headers=configuration.get("generic_headers", self.SECURITY_TOKEN_GENERIC_HEADERS),
-                body_headers=configuration.get("body_headers", self.SECURITY_TOKEN_BODY_HEADERS)
+                generic_headers=configuration.get(
+                    "generic_headers", self.SECURITY_TOKEN_GENERIC_HEADERS
+                ),
+                body_headers=configuration.get(
+                    "body_headers", self.SECURITY_TOKEN_BODY_HEADERS
+                ),
             ),
             "client_kwargs": self.client_kwargs,
         }
@@ -849,30 +844,37 @@ class SecurityToken(AuthSignerGenerator):
         configuration: Dict
             Security token configuration.
         """
-        security_token = self._read_security_token_file(configuration.get("security_token_file"))
-        security_token_container = oci.auth.security_token_container.SecurityTokenContainer(
-            session_key_supplier=None,
-            security_token=security_token
+        security_token = self._read_security_token_file(
+            configuration.get("security_token_file")
+        )
+        security_token_container = (
+            oci.auth.security_token_container.SecurityTokenContainer(
+                session_key_supplier=None, security_token=security_token
+            )
         )
 
         if not security_token_container.valid():
             raise SecurityTokenError(
                 "Security token has expired. Call `oci session authenticate` to generate new session."
             )
-        
+
         time_now = int(time.time())
         time_expired = security_token_container.get_jwt()["exp"]
         if time_expired - time_now < SECURITY_TOKEN_LEFT_TIME:
             if not self.oci_config_location:
-                logger.warning("Can not auto-refresh token. Specify parameter `oci_config_location` through ads.set_auth() or ads.auth.create_signer().")
+                logger.warning(
+                    "Can not auto-refresh token. Specify parameter `oci_config_location` through ads.set_auth() or ads.auth.create_signer()."
+                )
             else:
-                result = os.system(f"oci session refresh --config-file {self.oci_config_location} --profile {self.oci_key_profile}")
+                result = os.system(
+                    f"oci session refresh --config-file {self.oci_config_location} --profile {self.oci_key_profile}"
+                )
                 if result == 1:
                     logger.warning(
                         "Some error happened during auto-refreshing the token. Continue using the current one that's expiring in less than {SECURITY_TOKEN_LEFT_TIME} seconds."
                         "Please follow steps in https://docs.oracle.com/en-us/iaas/Content/API/SDKDocs/clitoken.htm to renew token."
                     )
-        
+
         date_time = datetime.fromtimestamp(time_expired).strftime("%Y-%m-%d %H:%M:%S")
         logger.info(f"Session is valid until {date_time}.")
 
@@ -894,7 +896,7 @@ class SecurityToken(AuthSignerGenerator):
             raise ValueError("Invalid `security_token_file`. Specify a valid path.")
         try:
             token = None
-            with open(expanded_path, 'r') as f:
+            with open(expanded_path, "r") as f:
                 token = f.read()
             return token
         except:
@@ -903,7 +905,7 @@ class SecurityToken(AuthSignerGenerator):
 
 class AuthFactory:
     """
-    AuthFactory class which contains list of registered signers and alllows to register new signers.
+    AuthFactory class which contains list of registered signers and allows to register new signers.
     Check documentation for more signers: https://docs.oracle.com/en-us/iaas/tools/python/latest/api/signing.html.
 
     Current signers:
@@ -927,9 +929,9 @@ class AuthFactory:
         Parameters
         ----------
         signer_type: str
-            Singer type to be registers
+            signer type to be registers
         signer: RecordParser
-            A new Singer class to be registered.
+            A new signer class to be registered.
 
         Returns
         -------

@@ -1,5 +1,5 @@
 -r test-requirements.txt
--e ".[bds,data,geo,huggingface,notebook,onnx,opctl,optuna,spark,tensorflow,text,torch,viz]"
+-e ".[bds,data,geo,huggingface,notebook,onnx,opctl,optuna,pii,spark,tensorflow,text,torch,viz]"
 arff
 category_encoders
 dask

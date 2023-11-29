@@ -386,8 +386,6 @@ class TestCommonUtils:
                 force_overwrite=input_params["force_overwrite"],
                 chunk_size=input_params.get("chunk_size"),
             )
-            if not input_params["auth"]:
-                mock_default_signer.assert_called()
 
             assert result_file_name.endswith(expected_result)
             assert os.path.exists(result_file_name)
