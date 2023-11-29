@@ -4,10 +4,19 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import importlib
+
+import numpy as np
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
 
+from ..const import (
+    TODS_IMPORT_MODEL_MAP,
+    TODS_MODEL_MAP,
+    OutputColumns,
+    TODS_DEFAULT_MODEL,
+)
 from .base_model import AnomalyOperatorBaseModel
 
 
@@ -22,11 +31,76 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        from tods import schemas as schemas_utils
-        from tods.utils import generate_dataset_problem, evaluate_pipeline
+        """
+        Build the TODS model.
 
-        result = pd.DataFrame()
-        return result
+        Returns
+        -------
+            Tuple: model, predictions_train, and prediction_score_test
+        """
+        # Import the TODS module
+        tods_module = importlib.import_module(
+            name=TODS_IMPORT_MODEL_MAP.get(
+                self.spec.model_kwargs.get("sub_model", TODS_DEFAULT_MODEL)
+            ),
+            package="tods.sk_interface.detection_algorithm",
+        )
+
+        # Get the model kwargs
+        model_kwargs = self.spec.model_kwargs
+        sub_model = self.spec.model_kwargs.get("sub_model", TODS_DEFAULT_MODEL)
+        model_kwargs.pop("sub_model", None)
+
+        if self.spec.target_category_columns is None:
+            # support for optional target category column
+            target_col = [
+                col
+                for col in self.datasets.data.columns
+                if col not in [self.spec.datetime_column.name]
+            ]
+            self.spec.target_column = target_col[0]
+            self.datasets.full_data_dict = {self.spec.target_column: self.datasets.data}
+        else:
+            # Group the data by target column
+            self.datasets.full_data_dict = dict(
+                tuple(self.datasets.data.groupby(self.spec.target_category_columns))
+            )
+
+        # Initialize variables
+        models = {}
+        predictions_train = {}
+        prediction_score_train = {}
+        predictions_test = {}
+        prediction_score_test = {}
+        dataset = self.datasets
+
+        # Iterate over the full_data_dict items
+        for target, df in self.datasets.full_data_dict.items():
+            # Instantiate the model
+            model = getattr(tods_module, TODS_MODEL_MAP.get(sub_model))(**model_kwargs)
+
+            # Fit the model
+            model.fit(np.array(df[self.spec.target_column]).reshape(-1, 1))
+
+            # Make predictions
+            predictions_train[target] = model.predict(
+                np.array(df[self.spec.target_column]).reshape(-1, 1)
+            )
+            prediction_score_train[target] = model.predict_score(
+                np.array(df[self.spec.target_column]).reshape(-1, 1)
+            )
+
+            # Store the model and predictions in dictionaries
+            models[target] = model
+            if self.spec.target_category_columns is None:
+                dataset.data[OutputColumns.ANOMALY_COL] = predictions_train[target]
+            else:
+                dataset.data.loc[
+                    dataset.data[self.spec.target_category_columns[0]] == target,
+                    OutputColumns.ANOMALY_COL,
+                ] = predictions_train[target]
+
+        return model, predictions_train, prediction_score_test
 
     def _generate_report(self):
         import datapane as dp
@@ -39,9 +113,9 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         all_sections = [selected_models_text]
 
         model_description = dp.Text(
-            "The automlx model automatically pre-processes, selects and engineers "
-            "high-quality features in your dataset, which then given to an automatically "
-            "chosen and optimized machine learning model.."
+            "The tods model is a full-stack automated machine learning system for outlier detection "
+            "on univariate / multivariate time-series data. It provides exhaustive modules for building "
+            "machine learning-based outlier detection systems and wide range of algorithms."
         )
         other_sections = all_sections
 

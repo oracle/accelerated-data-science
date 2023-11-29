@@ -8,4 +8,5 @@ dependencies:
       - datapane
       - cerberus
       - oracle-automlx==23.2.3
+      - "git+https://github.com/datamllab/tods.git"
       - "git+https://github.com/oracle/accelerated-data-science.git@feature/anomaly#egg=oracle-ads"

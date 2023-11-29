@@ -15,6 +15,35 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     TODS = "tods"
 
 
+class TODSSubModels(str, metaclass=ExtendedEnumMeta):
+    """Supported TODS sub models."""
+
+    OCSVM = "ocsvm"
+    DeepLog = "deeplog"
+    Telemanom = "telemanom"
+    IsolationForest = "isolationforest"
+    LSTMODetector = "lstmodetector"
+    KNN = "knn"
+
+
+TODS_IMPORT_MODEL_MAP = {
+    TODSSubModels.OCSVM: ".OCSVM_skinterface",
+    TODSSubModels.DeepLog: ".DeepLog_skinterface",
+    TODSSubModels.Telemanom: ".Telemanom_skinterface",
+    TODSSubModels.IsolationForest: ".IsolationForest_skinterface",
+    TODSSubModels.LSTMODetector: ".LSTMODetector_skinterface",
+    TODSSubModels.KNN: ".KNN_skinterface",
+}
+
+TODS_MODEL_MAP = {
+    TODSSubModels.OCSVM: "OCSVMSKI",
+    TODSSubModels.DeepLog: "DeepLogSKI",
+    TODSSubModels.Telemanom: "TelemanomSKI",
+    TODSSubModels.IsolationForest: "IsolationForestSKI",
+    TODSSubModels.LSTMODetector: "LSTMODetectorSKI",
+    TODSSubModels.KNN: "KNNSKI",
+}
+
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     UNSUPERVISED_UNIFY95 = "unsupervised_unify95"
     UNSUPERVISED_UNIFY95_LOG_LOSS = "unsupervised_unify95_log_loss"
@@ -23,3 +52,6 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
 
 class OutputColumns(str, metaclass=ExtendedEnumMeta):
     ANOMALY_COL = "anomaly"
+
+
+TODS_DEFAULT_MODEL = "ocsvm"
