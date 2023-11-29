@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from ads.feature_store.feature_store import FeatureStore
 
 
-
 class SparkSQL:
     """SparkSQL is a utility class for interacting with Spark SQL."""
 
@@ -37,13 +36,12 @@ class SparkSQL:
               Defaults to 3.
         """
         self.feature_store = feature_store
-        entities = self.feature_store.list_entities(compartment_id=self.feature_store.compartment_id,
-                                                    feature_store_id = self.feature_store.id)
-        self.database_table_map: Dict[str, List[str]] = defaultdict(lambda : [])
+        entities = self.feature_store.list_entities()
+        self.database_table_map: Dict[str, List[str]] = defaultdict(lambda: [])
         self.all_tables: List[str] = []
         for entity in entities:
             # TODO: Fix this call once entity id filter is resolved
-            feature_groups = entity.list_feature_group(compartment_id=self.feature_store.compartment_id, feature_store_id = self.feature_store.id, entity_id = entity.id)
+            feature_groups = entity.list_feature_groups()
             for feature_group in feature_groups:
                 self.database_table_map[entity.id].append(feature_group.name)
                 self.all_tables.append(f"{entity.id}.{feature_group.name}")
@@ -81,19 +79,17 @@ class SparkSQL:
         return cls(spark, **kwargs)
 
     def get_usable_table_names(self) -> Iterable[str]:
-                # sorting the result can help LLM understanding it.
-        return  ", ".join(self.database_table_map)
+        # sorting the result can help LLM understanding it.
+        return ", ".join(self.database_table_map)
 
     def _get_create_table_stmt(self, table: str) -> str:
-        statement = (
-            self._spark.sql(f"DESCRIBE TABLE {table}").collect()
-        )
+        statement = self._spark.sql(f"DESCRIBE TABLE {table}").collect()
         answer = "Table " + f"{table} has columns: "
         for result in statement:
-            if result[0]=="":
+            if result[0] == "":
                 break
             answer += f"{result[0]} of type {result[1]}, "
-        answer=answer.rstrip(", ")
+        answer = answer.rstrip(", ")
         # Ignore the data source provider and options to reduce the number of tokens.
         return answer
 

@@ -502,10 +502,12 @@ class FeatureStore(Builder):
 
         return self.oci_transformation.create()
 
-    def get_natural_language_query_generator(self, llm=ChatOpenAI()) -> AgentExecutor:
+    def get_natural_language_query_generator(self, llm) -> AgentExecutor:
         spark_sql = SparkSQL(feature_store=self)
         toolkit = SparkSQLToolkit(db=spark_sql, llm=llm)
-        agent_executor = create_spark_sql_agent(llm=llm, toolkit=toolkit, verbose=True, handle_parsing_errors=True)
+        agent_executor = create_spark_sql_agent(
+            llm=llm, toolkit=toolkit, verbose=True, handle_parsing_errors=True
+        )
         return agent_executor
 
     def delete_transformation(self):
