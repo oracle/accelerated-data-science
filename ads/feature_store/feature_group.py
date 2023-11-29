@@ -1114,6 +1114,20 @@ class FeatureGroup(Builder):
         max_candidate_pool,
         http_auth: Tuple[str, str],
     ):
+        """
+        Get nearest neighbors based on embedding vector.
+
+        Parameters:
+        - field (str): Field containing embedding vectors.
+        - k_neighbors (int): Number of neighbors to retrieve.
+        - embedding_vector: Embedding vector for the query.
+        - max_candidate_pool (int): Maximum number of candidates to consider.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
+
+        Returns:
+        - result: Result of the nearest neighbors query.
+        """
+
         if self.is_online_enabled:
             online_execution_engine = (
                 OnlineFSStrategyProvider.provide_online_execution_strategy(
@@ -1135,6 +1149,17 @@ class FeatureGroup(Builder):
             )
 
     def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str]):
+        """
+        Get serving vector based on primary key.
+
+        Parameters:
+        - primary_key_vector: Primary key vector for serving vector retrieval.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
+
+        Returns:
+        - serving_vector: Serving vector retrieved based on the primary key.
+        """
+
         if self.is_online_enabled:
             online_execution_engine = (
                 OnlineFSStrategyProvider.provide_online_execution_strategy(

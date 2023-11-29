@@ -782,18 +782,17 @@ class Dataset(Builder):
         http_auth: Tuple[str, str],
     ):
         """
-        Retrieves embedding vectors from the online serving environment.
+        Get nearest neighbors based on embedding vector.
 
         Parameters:
-            - embedding_field (str): The field containing embedding vectors.
-            - k_neighbors (int): The number of neighbors to consider.
-            - query_embedding_vector (list): The embedding vector for which to find neighbors.
-            - max_candidate_pool (int): The maximum number of candidates to consider.
+        - field (str): Field containing embedding vectors.
+        - k_neighbors (int): Number of neighbors to retrieve.
+        - embedding_vector: Embedding vector for the query.
+        - max_candidate_pool (int): Maximum number of candidates to consider.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
 
         Returns:
-            list: List of embedding vectors for the specified query.
-        Raises:
-            ValueError: If online serving or embedding is not enabled for this Dataset.
+        - result: Result of the nearest neighbors query.
         """
         if self.is_online_enabled:
             online_execution_engine = (
@@ -817,15 +816,14 @@ class Dataset(Builder):
 
     def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str]):
         """
-        Retrieves serving vectors from the online serving environment.
+        Get serving vector based on primary key.
 
         Parameters:
-            - primary_key_vector (list): The primary key vector used to retrieve specific records.
+        - primary_key_vector: Primary key vector for serving vector retrieval.
+        - http_auth (Tuple[str, str]): Tuple containing username and password for authentication.
 
         Returns:
-            DataFrame: The data read from the online serving environment.
-        Raises:
-            ValueError: If online serving is not enabled for this Dataset.
+        - serving_vector: Serving vector retrieved based on the primary key.
         """
         if self.is_online_enabled:
             online_execution_engine = (
