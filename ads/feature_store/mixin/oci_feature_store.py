@@ -85,9 +85,7 @@ class OCIFeatureStoreMixin(OCIModelMixin):
         return super().client
 
     @class_or_instance_method
-    def list_resource(
-        cls, compartment_id: str = None, limit: int = 0, **kwargs
-    ) -> list:
+    def list_resource(cls, limit: int = 0, **kwargs) -> list:
         """Generic method to list OCI resources
 
         Parameters
@@ -114,13 +112,10 @@ class OCIFeatureStoreMixin(OCIModelMixin):
 
         """
         if limit:
-            items = cls._find_oci_method("list")(
-                compartment_id, limit=limit, **kwargs
-            ).data.items
+            items = cls._find_oci_method("list")(limit=limit, **kwargs).data.items
         else:
             items = oci.pagination.list_call_get_all_results(
                 cls._find_oci_method("list"),
-                compartment_id,
                 **kwargs,
             ).data
         return [cls.from_oci_model(item) for item in items]
