@@ -71,13 +71,13 @@ jobs:
         timeout-minutes: 20
 
       - name: "Run hpo tests"
-        description: "Run hpo tests, which hangs if run together with all unitary tests"
         timeout-minutes: 10
         shell: bash
         if: ${{ matrix.name }} == "unitary"
         run: |
           set -x # print commands that are executed
 
+          # Run hpo tests, which hangs if run together with all unitary tests
           python -m pytest -v -p no:warnings -n auto --dist loadfile \
           tests/unitary/with_extras/hpo
 
