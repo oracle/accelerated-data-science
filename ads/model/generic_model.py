@@ -67,7 +67,8 @@ from ads.model.model_metadata import (
     Framework,
     ModelCustomMetadata,
     ModelProvenanceMetadata,
-    ModelTaxonomyMetadata, MetadataCustomCategory,
+    ModelTaxonomyMetadata,
+    MetadataCustomCategory,
 )
 from ads.model.model_metadata_mixin import MetadataMixin
 from ads.model.model_properties import ModelProperties
@@ -1836,6 +1837,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         version_label: Optional[str] = None,
         featurestore_dataset=None,
         parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        model_by_reference: Optional[bool] = False,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -1871,6 +1873,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The feature store dataset
         parallel_process_count: (int, optional)
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+        model_by_reference: (bool, optional)
+            Whether model artifact is made available to Model Store by reference.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1902,7 +1906,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         >>> model.save(
         ...     bucket_uri="oci://my-bucket@my-tenancy/",
         ...     overwrite_existing_artifact=True,
-        ...     remove_existing_artifact=True,
         ...     remove_existing_artifact=True,
         ...     parallel_process_count=9,
         ... )
@@ -1967,11 +1970,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if featurestore_dataset:
             dataset_details = {
                 "dataset-id": featurestore_dataset.id,
-                "dataset-name": featurestore_dataset.name
+                "dataset-name": featurestore_dataset.name,
             }
-            self.metadata_custom.add("featurestore.dataset", value=str(dataset_details),
-                                     category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
-                                     description="feature store dataset", replace=True)
+            self.metadata_custom.add(
+                "featurestore.dataset",
+                value=str(dataset_details),
+                category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
+                description="feature store dataset",
+                replace=True,
+            )
 
         self.dsc_model = (
             self.dsc_model.with_compartment_id(self.properties.compartment_id)
@@ -1988,6 +1995,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             overwrite_existing_artifact=overwrite_existing_artifact,
             remove_existing_artifact=remove_existing_artifact,
             parallel_process_count=parallel_process_count,
+            model_by_reference=model_by_reference,
             **kwargs,
         )
 

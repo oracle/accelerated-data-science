@@ -576,6 +576,8 @@ class DataScienceModel(Builder):
                 The connection timeout in seconds for the client.
             parallel_process_count: (int, optional).
                 The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+            model_by_reference: (bool, optional)
+                Whether model artifact is made available to Model Store by reference.
 
         Returns
         -------
@@ -622,6 +624,7 @@ class DataScienceModel(Builder):
             auth=kwargs.pop("auth", None),
             timeout=kwargs.pop("timeout", None),
             parallel_process_count=kwargs.pop("parallel_process_count", None),
+            model_by_reference=kwargs.pop("model_by_reference", False),
         )
 
         # Sync up model
@@ -639,6 +642,7 @@ class DataScienceModel(Builder):
         remove_existing_artifact: Optional[bool] = True,
         timeout: Optional[int] = None,
         parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        model_by_reference: Optional[bool] = False,
     ) -> None:
         """Uploads model artifacts to the model catalog.
 
@@ -669,6 +673,8 @@ class DataScienceModel(Builder):
             The connection timeout in seconds for the client.
         parallel_process_count: (int, optional)
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+        model_by_reference: (bool, optional)
+            Whether model artifact is made available to Model Store by reference.
         """
         # Upload artifact to the model catalog
         if not self.artifact:
@@ -707,11 +713,17 @@ class DataScienceModel(Builder):
                 overwrite_existing_artifact=overwrite_existing_artifact,
                 remove_existing_artifact=remove_existing_artifact,
                 parallel_process_count=parallel_process_count,
+                model_by_reference=model_by_reference,
             )
 
-            # Update custom metadata
-            logger.info("Update custom metadata fields with model artifact location.")
-            self.update_custom_metadata_with_model_path(bucket_uri=bucket_uri)
+            # if set, artifacts will not be uploaded to model catalog OSS bucket but will be accessible
+            # using the custom metadata field of the model
+            if model_by_reference:
+                # Update custom metadata
+                logger.info(
+                    "Update custom metadata fields with model artifact location."
+                )
+                self.update_custom_metadata_with_model_path(bucket_uri=bucket_uri)
 
         else:
             artifact_uploader = SmallArtifactUploader(

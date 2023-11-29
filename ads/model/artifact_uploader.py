@@ -161,6 +161,7 @@ class LargeArtifactUploader(ArtifactUploader):
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
         parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        model_by_reference: Optional[bool] = False,
     ):
         """Initializes `LargeArtifactUploader` instance.
 
@@ -196,6 +197,8 @@ class LargeArtifactUploader(ArtifactUploader):
             Whether artifacts uploaded to object storage bucket need to be removed or not.
         parallel_process_count: (int, optional).
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+        model_by_reference: (bool, optional)
+            Whether model artifact is made available to Model Store by reference.
         """
         self.auth = auth or dsc_model.auth
         if ObjectStorageDetails.is_oci_path(artifact_path):
@@ -218,6 +221,7 @@ class LargeArtifactUploader(ArtifactUploader):
         self.overwrite_existing_artifact = overwrite_existing_artifact
         self.remove_existing_artifact = remove_existing_artifact
         self._parallel_process_count = parallel_process_count
+        self._model_by_reference = model_by_reference
 
     def _upload(self):
         """Uploads model artifacts to the model catalog."""
@@ -254,16 +258,16 @@ class LargeArtifactUploader(ArtifactUploader):
                     f"See Exception: {ex}"
                 )
 
-        self.progress.update("Exporting model artifact to the model catalog")
-        self.dsc_model.export_model_artifact(bucket_uri=bucket_uri, region=self.region)
-
-        if self.remove_existing_artifact:
-            warnings.warn(
-                (
-                    "The `remove_existing_artifact` flag is deprecated as large model artifacts are now passed "
-                    "by reference and will be ignored now."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
+        if not self._model_by_reference:
+            self.progress.update("Exporting model artifact to the model catalog")
+            self.dsc_model.export_model_artifact(
+                bucket_uri=bucket_uri, region=self.region
             )
-        self.progress.update()
+
+            if self.remove_existing_artifact:
+                self.progress.update(
+                    "Removing temporary artifacts from the Object Storage bucket"
+                )
+                utils.remove_file(bucket_uri)
+            else:
+                self.progress.update()
