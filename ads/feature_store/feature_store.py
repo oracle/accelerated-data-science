@@ -100,10 +100,20 @@ class FeatureStore(Builder):
         """
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Specify oci FeatureStore instance
-        self.spark_engine = None
         self.oci_transformation = None
+        self.__internal_spark_engine: Optional[SparkEngine] = None
         self.oci_fs_entity = None
         self.oci_fs = self._to_oci_fs(**kwargs)
+
+    @property
+    def _spark_engine(self) -> SparkEngine:
+        if not self.__internal_spark_engine:
+            self.__internal_spark_engine = SparkEngine(
+                self.offline_config.get(self.CONST_METASTORE_ID)
+                if self.offline_config
+                else None
+            )
+        return self.__internal_spark_engine
 
     def _to_oci_fs(self, **kwargs):
         """Creates an `OCIFeatureStore` instance from the  `FeatureStore`.
@@ -157,8 +167,8 @@ class FeatureStore(Builder):
         return self.get_spec(self.CONST_DISPLAY_NAME)
 
     @display_name.setter
-    def display_name(self, name: str) -> "FeatureStore":
-        return self.with_display_name(name)
+    def display_name(self, name: str):
+        self.with_display_name(name)
 
     def with_display_name(self, name: str) -> "FeatureStore":
         """Sets the name.
@@ -250,7 +260,7 @@ class FeatureStore(Builder):
 
     @classmethod
     def from_id(cls, id: str) -> "FeatureStore":
-        """Gets an existing feature store resource by Id.
+        """Gets an existing feature store resource by id.
 
         Parameters
         ----------
@@ -384,9 +394,8 @@ class FeatureStore(Builder):
 
         self.oci_fs_entity.delete()
 
-    @classmethod
-    def list_entities(cls, compartment_id: str = None, **kwargs) -> List["Entity"]:
-        """Lists Entity resources in a given compartment.
+    def list_entities(self, compartment_id: str = None, **kwargs) -> List["Entity"]:
+        """Lists Entity resources in a given compartment inside feature store
 
         Parameters
         ----------
@@ -401,13 +410,14 @@ class FeatureStore(Builder):
             The list of the Entity Resources.
         """
 
-        return Entity.list(compartment_id, **kwargs)
+        return Entity.list(
+            compartment_id=compartment_id, feature_store_id=self.id, **kwargs
+        )
 
-    @classmethod
     def list_entities_df(
-        cls, compartment_id: str = None, **kwargs
+        self, compartment_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
-        """Lists Entity resources in a given compartment as pandas dataframe.
+        """Lists Entity resources in a given compartment inside feature store as pandas dataframe.
 
         Parameters
         ----------
@@ -422,7 +432,7 @@ class FeatureStore(Builder):
             The list of the Entity Resources.
         """
 
-        return Entity.list_df(compartment_id, **kwargs)
+        return Entity.list_df(compartment_id, feature_store_id=self.id, **kwargs)
 
     def _build_transformation(
         self,
@@ -503,9 +513,8 @@ class FeatureStore(Builder):
 
         self.oci_transformation.delete()
 
-    @classmethod
-    def list_transformation(
-        cls, compartment_id: str = None, **kwargs
+    def list_transformations(
+        self, compartment_id: str = None, **kwargs
     ) -> List["Transformation"]:
         """Lists Transformation resources in a given compartment.
 
@@ -522,11 +531,10 @@ class FeatureStore(Builder):
             The list of the Transformation Resources.
         """
 
-        return Transformation.list(compartment_id, **kwargs)
+        return Transformation.list(compartment_id, feature_store_id=self.id, **kwargs)
 
-    @classmethod
     def list_transformations_df(
-        cls, compartment_id: str = None, **kwargs
+        self, compartment_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
         """Lists Transformation resources in a given compartment as pandas dataframe.
 
@@ -543,7 +551,9 @@ class FeatureStore(Builder):
             The list of the Transformation Resources.
         """
 
-        return Transformation.list_df(compartment_id, **kwargs)
+        return Transformation.list_df(
+            compartment_id, feature_store_id=self.id, **kwargs
+        )
 
     def delete(self):
         """Removes FeatureStore Resource.
@@ -662,15 +672,7 @@ class FeatureStore(Builder):
             raise ValueError(
                 "Cannot query a FeatureStore resource that has not been created or saved."
             )
-
-        if not self.spark_engine:
-            self.spark_engine = SparkEngine(
-                self.offline_config.get(self.CONST_METASTORE_ID)
-                if self.offline_config
-                else None
-            )
-
-        return self.spark_engine.sql(query, dataframe_type, is_online)
+        return self._spark_engine.sql(query, dataframe_type, is_online)
 
     def _random_display_name(self):
         """Generates a random display name."""

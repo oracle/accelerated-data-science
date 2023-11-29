@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 import copy
+import psutil
 
 import ads
 
@@ -60,16 +61,16 @@ def developer_enabled():
     return get_env_bool("DEVELOPER_MODE", False)
 
 
-class SingletonMeta(type):
+class SparkSessionSingletonMeta(type):
     _instances = {}
 
-    def __call__(cls, *args, **kwargs):
-        if cls not in cls._instances:
-            cls._instances[cls] = super().__call__(*args, **kwargs)
-        return cls._instances[cls]
+    def __call__(cls, metastore_id: str = None, *args, **kwargs):
+        if metastore_id not in cls._instances:
+            cls._instances[metastore_id] = super().__call__(*args, **kwargs)
+        return cls._instances[metastore_id]
 
 
-class SparkSessionSingleton(metaclass=SingletonMeta):
+class SparkSessionSingleton(metaclass=SparkSessionSingletonMeta):
     """Class provides the spark session."""
 
     def __init__(self, metastore_id: str = None):
@@ -97,10 +98,12 @@ class SparkSessionSingleton(metaclass=SingletonMeta):
             metastore = data_catalog_client.get_metastore(metastore_id).data
             _managed_table_location = metastore.default_managed_table_location
             # Configure the Spark session builder object to use the specified metastore
+            available_memory = int(psutil.virtual_memory().available / 1000 * 0.9)
+
             spark_builder.config(
                 "spark.hadoop.oracle.dcat.metastore.id", metastore_id
             ).config("spark.sql.warehouse.dir", _managed_table_location).config(
-                "spark.driver.memory", "16G"
+                "spark.driver.memory", f"{available_memory}K"
             )
 
         if developer_enabled():

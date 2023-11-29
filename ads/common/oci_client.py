@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+from typing import Any
 
 from oci.ai_language import AIServiceLanguageClient
 from oci.data_catalog import DataCatalogClient
@@ -17,6 +18,7 @@ from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,12 +49,13 @@ class OCIClientFactory:
     oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
 
-    def __init__(self, config={}, signer=None, client_kwargs=None):
+    def __init__(self, config=(), signer=None, client_kwargs=None):
         self.config = config
         self.signer = signer
         self.client_kwargs = client_kwargs
 
-    def _client_impl(self, client):
+    @staticmethod
+    def _client_impl(client):
         client_map = {
             "object_storage": ObjectStorageClient,
             "data_science": DataScienceClient,
@@ -64,15 +67,8 @@ class OCIClientFactory:
             "data_labeling_dp": DataLabelingClient,
             "data_labeling_cp": DataLabelingManagementClient,
             "resource_search": ResourceSearchClient,
-            "data_catalog": DataCatalogClient
+            "data_catalog": DataCatalogClient,
         }
-        try:
-            from oci.feature_store import FeatureStoreClient
-            client_map["feature_store"] = FeatureStoreClient
-        except ImportError:
-            logger.warning("OCI SDK with feature store support is not installed")
-            pass
-
         assert (
             client in client_map
         ), f"Invalid client name. Client name not found in {client_map.keys()}"
@@ -89,7 +85,7 @@ class OCIClientFactory:
             )
         return True
 
-    def create_client(self, client_name):
+    def create_client(self, client_name) -> Any:
         assert (
             client_name is not None and client_name != ""
         ), "Client name cannot be empty"
@@ -102,49 +98,45 @@ class OCIClientFactory:
         return client(config=self.config, signer=self.signer, **kwargs)
 
     @property
-    def object_storage(self):
+    def object_storage(self) -> ObjectStorageClient:
         return self.create_client("object_storage")
 
     @property
-    def identity(self):
+    def identity(self) -> IdentityClient:
         return self.create_client("identity")
 
     @property
-    def data_science(self):
+    def data_science(self) -> DataScienceClient:
         return self.create_client("data_science")
 
     @property
-    def dataflow(self):
+    def dataflow(self) -> DataFlowClient:
         return self.create_client("dataflow")
 
     @property
-    def secret(self):
+    def secret(self) -> SecretsClient:
         return self.create_client("secret")
 
     @property
-    def vault(self):
+    def vault(self) -> VaultsClient:
         return self.create_client("vault")
 
     @property
-    def ai_language(self):
+    def ai_language(self) -> AIServiceLanguageClient:
         return self.create_client("ai_language")
 
     @property
-    def data_labeling_cp(self):
+    def data_labeling_cp(self) -> DataLabelingManagementClient:
         return self.create_client("data_labeling_cp")
 
     @property
-    def feature_store(self):
-        return self.create_client("feature_store")
-
-    @property
-    def data_labeling_dp(self):
+    def data_labeling_dp(self) -> DataLabelingClient:
         return self.create_client("data_labeling_dp")
 
     @property
-    def resource_search(self):
+    def resource_search(self) -> ResourceSearchClient:
         return self.create_client("resource_search")
 
     @property
-    def data_catalog(self):
+    def data_catalog(self) -> DataCatalogClient:
         return self.create_client("data_catalog")

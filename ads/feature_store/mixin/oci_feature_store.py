@@ -115,12 +115,12 @@ class OCIFeatureStoreMixin(OCIModelMixin):
         """
         if limit:
             items = cls._find_oci_method("list")(
-                cls.check_compartment_id(compartment_id), limit=limit, **kwargs
+                compartment_id, limit=limit, **kwargs
             ).data.items
         else:
             items = oci.pagination.list_call_get_all_results(
                 cls._find_oci_method("list"),
-                cls.check_compartment_id(compartment_id),
+                compartment_id,
                 **kwargs,
             ).data
         return [cls.from_oci_model(item) for item in items]

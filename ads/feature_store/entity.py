@@ -181,8 +181,8 @@ class Entity(Builder):
         return self.get_spec(self.CONST_NAME)
 
     @name.setter
-    def name(self, name: str) -> "Entity":
-        return self.with_name(name)
+    def name(self, name: str):
+        self.with_name(name)
 
     def with_name(self, name: str) -> "Entity":
         """Sets the name.
@@ -231,7 +231,7 @@ class Entity(Builder):
 
     @classmethod
     def from_id(cls, id: str) -> "Entity":
-        """Gets an existing entity resource by Id.
+        """Gets an existing entity resource by id.
 
         Parameters
         ----------
@@ -415,9 +415,8 @@ class Entity(Builder):
 
         self.oci_feature_group.delete()
 
-    @classmethod
-    def list_feature_group(
-        cls, compartment_id: str = None, **kwargs
+    def list_feature_groups(
+        self, compartment_id: str = None, **kwargs
     ) -> List["FeatureGroup"]:
         """Lists FeatureGroup resources in a given compartment.
 
@@ -434,11 +433,15 @@ class Entity(Builder):
             The list of the FeatureGroup Resources.
         """
 
-        return FeatureGroup.list(compartment_id, **kwargs)
+        return FeatureGroup.list(
+            compartment_id,
+            entity_id=self.id,
+            feature_store_id=self.feature_store_id,
+            **kwargs,
+        )
 
-    @classmethod
-    def list_feature_group_df(
-        cls, compartment_id: str = None, **kwargs
+    def list_feature_groups_df(
+        self, compartment_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
         """Lists FeatureGroup resources in a given compartment as pandas dataframe.
 
@@ -455,7 +458,12 @@ class Entity(Builder):
             The list of the FeatureGroup Resources.
         """
 
-        return FeatureGroup.list_df(compartment_id, **kwargs)
+        return FeatureGroup.list_df(
+            compartment_id,
+            entity_id=self.id,
+            feature_store_id=self.feature_store_id,
+            **kwargs,
+        )
 
     def _build_dataset(
         self,
@@ -557,9 +565,8 @@ class Entity(Builder):
 
         self.oci_fs_dataset.delete()
 
-    @classmethod
-    def list_dataset(cls, compartment_id: str = None, **kwargs) -> List["Dataset"]:
-        """Lists Dataset resources in a given compartment.
+    def list_datasets(self, compartment_id: str = None, **kwargs) -> List["Dataset"]:
+        """Lists Dataset resources in a given compartment in an entity.
 
         Parameters
         ----------
@@ -574,13 +581,17 @@ class Entity(Builder):
             The list of the Dataset Resources.
         """
 
-        return Dataset.list(compartment_id, **kwargs)
+        return Dataset.list(
+            compartment_id,
+            entity_id=self.id,
+            feature_store_id=self.feature_store_id,
+            **kwargs,
+        )
 
-    @classmethod
-    def list_dataset_df(
-        cls, compartment_id: str = None, **kwargs
+    def list_datasets_df(
+        self, compartment_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
-        """Lists Dataset resources in a given compartment as pandas dataframe.
+        """Lists Dataset resources in a given compartment in an entity as a pandas dataframe.
 
         Parameters
         ----------
@@ -595,7 +606,12 @@ class Entity(Builder):
             The list of the Dataset Resources.
         """
 
-        return Dataset.list_df(compartment_id, **kwargs)
+        return Dataset.list_df(
+            compartment_id,
+            entity_id=self.id,
+            feature_store_id=self.feature_store_id,
+            **kwargs,
+        )
 
     def delete(self):
         """Removes entity resource.
