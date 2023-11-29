@@ -39,8 +39,8 @@ jobs:
             # `model` tests running in "slow_tests",
             # `feature_store` tests has its own test suite
             ignore-path: |
-              --ignore tests/unitary/with_extras/model
-              --ignore tests/unitary/with_extras/feature_store
+              --ignore tests/unitary/with_extras/model \
+              --ignore tests/unitary/with_extras/feature_store \
               --ignore tests/unitary/with_extras/hpo
           - name: "slow_tests"
             test-path: "tests/unitary/with_extras/model"
