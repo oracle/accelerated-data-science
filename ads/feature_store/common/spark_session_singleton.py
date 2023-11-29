@@ -61,18 +61,15 @@ def developer_enabled():
     return get_env_bool("DEVELOPER_MODE", False)
 
 
-class SparkSessionSingletonMeta(type):
+class SingletonMeta(type):
     _instances = {}
 
-    def __call__(cls, metastore_id: str = None, *args, **kwargs):
-        if metastore_id not in cls._instances:
-            cls._instances[metastore_id] = super().__call__(
-                metastore_id, *args, **kwargs
-            )
-        return cls._instances[metastore_id]
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super().__call__(*args, **kwargs)
+        return cls._instances[cls]
 
-
-class SparkSessionSingleton(metaclass=SparkSessionSingletonMeta):
+class SparkSessionSingleton(metaclass=SingletonMeta):
     """Class provides the spark session."""
 
     def __init__(self, metastore_id: str = None):
@@ -94,7 +91,7 @@ class SparkSessionSingleton(metaclass=SparkSessionSingletonMeta):
             auth = copy.copy(ads.auth.default_signer())
 
             # Remove the "client_kwargs" key from the authentication credentials (if present)
-            auth.pop("3.2.1" "", None)
+            auth.pop("client_kwargs", None)
 
             data_catalog_client = OCIClientFactory(**auth).data_catalog
             metastore = data_catalog_client.get_metastore(metastore_id).data
