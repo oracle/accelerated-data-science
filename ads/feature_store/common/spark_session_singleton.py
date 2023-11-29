@@ -66,7 +66,9 @@ class SparkSessionSingletonMeta(type):
 
     def __call__(cls, metastore_id: str = None, *args, **kwargs):
         if metastore_id not in cls._instances:
-            cls._instances[metastore_id] = super().__call__(*args, **kwargs)
+            cls._instances[metastore_id] = super().__call__(
+                metastore_id, *args, **kwargs
+            )
         return cls._instances[metastore_id]
 
 
