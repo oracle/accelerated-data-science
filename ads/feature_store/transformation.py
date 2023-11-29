@@ -406,7 +406,7 @@ class Transformation(Builder):
         return self
 
     @classmethod
-    def list_df(cls, compartment_id: str = None, **kwargs) -> "pandas.DataFrame":
+    def list_df(cls, **kwargs) -> "pandas.DataFrame":
         """Lists transformation resources in a given compartment.
 
         Parameters
@@ -422,9 +422,7 @@ class Transformation(Builder):
             The list of the transformation resources in a pandas dataframe format.
         """
         records = []
-        for oci_fs_transformation in OCITransformation.list_resource(
-            compartment_id, **kwargs
-        ):
+        for oci_fs_transformation in OCITransformation.list_resource(**kwargs):
             records.append(
                 {
                     "id": oci_fs_transformation.id,
@@ -447,7 +445,7 @@ class Transformation(Builder):
         return pandas.DataFrame.from_records(records)
 
     @classmethod
-    def list(cls, compartment_id: str = None, **kwargs) -> List["Transformation"]:
+    def list(cls, **kwargs) -> List["Transformation"]:
         """Lists transformation resources in a given compartment.
 
         Parameters
@@ -464,9 +462,7 @@ class Transformation(Builder):
         """
         return [
             cls()._update_from_oci_fs_transformation_model(oci_fs_transformation)
-            for oci_fs_transformation in OCITransformation.list_resource(
-                compartment_id, **kwargs
-            )
+            for oci_fs_transformation in OCITransformation.list_resource(**kwargs)
         ]
 
     def _random_display_name(self):

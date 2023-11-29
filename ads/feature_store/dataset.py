@@ -1133,7 +1133,7 @@ class Dataset(Builder):
         return ValidationOutput(validation_output)
 
     @classmethod
-    def list_df(cls, compartment_id: str = None, **kwargs) -> "pandas.DataFrame":
+    def list_df(cls, **kwargs) -> "pandas.DataFrame":
         """Lists dataset resources in a given compartment.
 
         Parameters
@@ -1149,7 +1149,7 @@ class Dataset(Builder):
             The list of the dataset resources in a pandas dataframe format.
         """
         records = []
-        for oci_dataset in OCIDataset.list_resource(compartment_id, **kwargs):
+        for oci_dataset in OCIDataset.list_resource(**kwargs):
             records.append(
                 {
                     "id": oci_dataset.id,
@@ -1174,7 +1174,7 @@ class Dataset(Builder):
         return pandas.DataFrame.from_records(records)
 
     @classmethod
-    def list(cls, compartment_id: str = None, **kwargs) -> List["Dataset"]:
+    def list(cls, **kwargs) -> List["Dataset"]:
         """Lists Dataset Resources in a given compartment.
 
         Parameters
@@ -1191,7 +1191,7 @@ class Dataset(Builder):
         """
         return [
             cls()._update_from_oci_dataset_model(oci_dataset)
-            for oci_dataset in OCIDataset.list_resource(compartment_id, **kwargs)
+            for oci_dataset in OCIDataset.list_resource(**kwargs)
         ]
 
     def _random_display_name(self):

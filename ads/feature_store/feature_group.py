@@ -1237,7 +1237,7 @@ class FeatureGroup(Builder):
         return self.spark_engine.sql(sql_query)
 
     @classmethod
-    def list_df(cls, compartment_id: str = None, **kwargs) -> "pd.DataFrame":
+    def list_df(cls, **kwargs) -> "pd.DataFrame":
         """Lists FeatureGroup resources in a given compartment.
 
         Parameters
@@ -1253,16 +1253,14 @@ class FeatureGroup(Builder):
             The list of the FeatureGroup resources in a pandas dataframe format.
         """
         records = []
-        for oci_feature_group in OCIFeatureGroup.list_resource(
-            compartment_id, **kwargs
-        ):
+        for oci_feature_group in OCIFeatureGroup.list_resource(**kwargs):
             oci_feature_group: OCIFeatureGroup = oci_feature_group
             records.append(oci_feature_group.to_df_record())
 
         return pd.DataFrame.from_records(records)
 
     @classmethod
-    def list(cls, compartment_id: str = None, **kwargs) -> List["FeatureGroup"]:
+    def list(cls, **kwargs) -> List["FeatureGroup"]:
         """Lists FeatureGroup Resources in a given compartment.
 
         Parameters
@@ -1279,9 +1277,7 @@ class FeatureGroup(Builder):
         """
         return [
             cls()._update_from_oci_feature_group_model(oci_feature_group)
-            for oci_feature_group in OCIFeatureGroup.list_resource(
-                compartment_id, **kwargs
-            )
+            for oci_feature_group in OCIFeatureGroup.list_resource(**kwargs)
         ]
 
     @classmethod

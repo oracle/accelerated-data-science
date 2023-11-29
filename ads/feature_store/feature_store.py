@@ -394,7 +394,7 @@ class FeatureStore(Builder):
 
         self.oci_fs_entity.delete()
 
-    def list_entities(self, compartment_id: str = None, **kwargs) -> List["Entity"]:
+    def list_entities(self, **kwargs) -> List["Entity"]:
         """Lists Entity resources in a given compartment inside feature store
 
         Parameters
@@ -410,13 +410,9 @@ class FeatureStore(Builder):
             The list of the Entity Resources.
         """
 
-        return Entity.list(
-            compartment_id=compartment_id, feature_store_id=self.id, **kwargs
-        )
+        return Entity.list(feature_store_id=self.id, **kwargs)
 
-    def list_entities_df(
-        self, compartment_id: str = None, **kwargs
-    ) -> "pandas.DataFrame":
+    def list_entities_df(self, **kwargs) -> "pandas.DataFrame":
         """Lists Entity resources in a given compartment inside feature store as pandas dataframe.
 
         Parameters
@@ -432,7 +428,7 @@ class FeatureStore(Builder):
             The list of the Entity Resources.
         """
 
-        return Entity.list_df(compartment_id, feature_store_id=self.id, **kwargs)
+        return Entity.list_df(feature_store_id=self.id, **kwargs)
 
     def _build_transformation(
         self,
@@ -513,9 +509,7 @@ class FeatureStore(Builder):
 
         self.oci_transformation.delete()
 
-    def list_transformations(
-        self, compartment_id: str = None, **kwargs
-    ) -> List["Transformation"]:
+    def list_transformations(self, **kwargs) -> List["Transformation"]:
         """Lists Transformation resources in a given compartment.
 
         Parameters
@@ -531,11 +525,9 @@ class FeatureStore(Builder):
             The list of the Transformation Resources.
         """
 
-        return Transformation.list(compartment_id, feature_store_id=self.id, **kwargs)
+        return Transformation.list(feature_store_id=self.id, **kwargs)
 
-    def list_transformations_df(
-        self, compartment_id: str = None, **kwargs
-    ) -> "pandas.DataFrame":
+    def list_transformations_df(self, **kwargs) -> "pandas.DataFrame":
         """Lists Transformation resources in a given compartment as pandas dataframe.
 
         Parameters
@@ -551,9 +543,7 @@ class FeatureStore(Builder):
             The list of the Transformation Resources.
         """
 
-        return Transformation.list_df(
-            compartment_id, feature_store_id=self.id, **kwargs
-        )
+        return Transformation.list_df(feature_store_id=self.id, **kwargs)
 
     def delete(self):
         """Removes FeatureStore Resource.
@@ -589,7 +579,7 @@ class FeatureStore(Builder):
         return self
 
     @classmethod
-    def list_df(cls, compartment_id: str = None, **kwargs) -> "pandas.DataFrame":
+    def list_df(cls, **kwargs) -> "pandas.DataFrame":
         """Lists featurestore resources in a given compartment.
 
         Parameters
@@ -605,9 +595,7 @@ class FeatureStore(Builder):
             The list of the featurestore resources in a pandas dataframe format.
         """
         records = []
-        for oci_feature_store in OCIFeatureStore.list_resource(
-            compartment_id, **kwargs
-        ):
+        for oci_feature_store in OCIFeatureStore.list_resource(**kwargs):
             records.append(
                 {
                     "id": oci_feature_store.id,
@@ -628,13 +616,11 @@ class FeatureStore(Builder):
         return pandas.DataFrame.from_records(records)
 
     @classmethod
-    def list(cls, compartment_id: str = None, **kwargs) -> List["FeatureStore"]:
+    def list(cls, **kwargs) -> List["FeatureStore"]:
         """Lists FeatureStore Resources in a given compartment.
 
         Parameters
         ----------
-        compartment_id: (str, optional). Defaults to `None`.
-            The compartment OCID.
         kwargs
             Additional keyword arguments for filtering FeatureStore.
 
@@ -645,9 +631,7 @@ class FeatureStore(Builder):
         """
         return [
             cls()._update_from_oci_fs_model(oci_feature_store)
-            for oci_feature_store in OCIFeatureStore.list_resource(
-                compartment_id, **kwargs
-            )
+            for oci_feature_store in OCIFeatureStore.list_resource(**kwargs)
         ]
 
     def sql(

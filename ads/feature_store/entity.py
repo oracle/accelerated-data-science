@@ -415,9 +415,7 @@ class Entity(Builder):
 
         self.oci_feature_group.delete()
 
-    def list_feature_groups(
-        self, compartment_id: str = None, **kwargs
-    ) -> List["FeatureGroup"]:
+    def list_feature_groups(self, **kwargs) -> List["FeatureGroup"]:
         """Lists FeatureGroup resources in a given compartment.
 
         Parameters
@@ -434,15 +432,12 @@ class Entity(Builder):
         """
 
         return FeatureGroup.list(
-            compartment_id,
             entity_id=self.id,
             feature_store_id=self.feature_store_id,
             **kwargs,
         )
 
-    def list_feature_groups_df(
-        self, compartment_id: str = None, **kwargs
-    ) -> "pandas.DataFrame":
+    def list_feature_groups_df(self, **kwargs) -> "pandas.DataFrame":
         """Lists FeatureGroup resources in a given compartment as pandas dataframe.
 
         Parameters
@@ -459,7 +454,6 @@ class Entity(Builder):
         """
 
         return FeatureGroup.list_df(
-            compartment_id,
             entity_id=self.id,
             feature_store_id=self.feature_store_id,
             **kwargs,
@@ -565,7 +559,7 @@ class Entity(Builder):
 
         self.oci_fs_dataset.delete()
 
-    def list_datasets(self, compartment_id: str = None, **kwargs) -> List["Dataset"]:
+    def list_datasets(self, **kwargs) -> List["Dataset"]:
         """Lists Dataset resources in a given compartment in an entity.
 
         Parameters
@@ -582,15 +576,12 @@ class Entity(Builder):
         """
 
         return Dataset.list(
-            compartment_id,
             entity_id=self.id,
             feature_store_id=self.feature_store_id,
             **kwargs,
         )
 
-    def list_datasets_df(
-        self, compartment_id: str = None, **kwargs
-    ) -> "pandas.DataFrame":
+    def list_datasets_df(self, **kwargs) -> "pandas.DataFrame":
         """Lists Dataset resources in a given compartment in an entity as a pandas dataframe.
 
         Parameters
@@ -607,7 +598,6 @@ class Entity(Builder):
         """
 
         return Dataset.list_df(
-            compartment_id,
             entity_id=self.id,
             feature_store_id=self.feature_store_id,
             **kwargs,
@@ -647,7 +637,7 @@ class Entity(Builder):
         return self
 
     @classmethod
-    def list_df(cls, compartment_id: str = None, **kwargs) -> "pandas.DataFrame":
+    def list_df(cls, **kwargs) -> "pandas.DataFrame":
         """Lists entity resources in a given compartment.
 
         Parameters
@@ -663,7 +653,7 @@ class Entity(Builder):
             The list of the entity resources in a pandas dataframe format.
         """
         records = []
-        for oci_fs_entity in OCIEntity.list_resource(compartment_id, **kwargs):
+        for oci_fs_entity in OCIEntity.list_resource(**kwargs):
             records.append(
                 {
                     "id": oci_fs_entity.id,
@@ -684,7 +674,7 @@ class Entity(Builder):
         return pandas.DataFrame.from_records(records)
 
     @classmethod
-    def list(cls, compartment_id: str = None, **kwargs) -> List["Entity"]:
+    def list(cls, **kwargs) -> List["Entity"]:
         """Lists Entity Resources in a given compartment.
 
         Parameters
@@ -701,7 +691,7 @@ class Entity(Builder):
         """
         return [
             cls()._update_from_oci_fs_entity_model(oci_fs_entity)
-            for oci_fs_entity in OCIEntity.list_resource(compartment_id, **kwargs)
+            for oci_fs_entity in OCIEntity.list_resource(**kwargs)
         ]
 
     def _random_display_name(self):
