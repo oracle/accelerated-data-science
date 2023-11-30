@@ -51,8 +51,6 @@ jobs:
       - name: "Run Operators Tests"
         timeout-minutes: 60
         shell: bash
-        env:
-          NoDependency: True
         run: |
           set -x # print commands that are executed
           $CONDA/bin/conda init
