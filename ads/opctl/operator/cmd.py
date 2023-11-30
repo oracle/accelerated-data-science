@@ -208,15 +208,16 @@ def init(
 
         with fsspec.open(
             os.path.join(
-                output, f"{operator_info.type}_{'_'.join(key).replace('.','_')}.yaml"
+                output,
+                f"{operator_info.type}_{'_'.join(key).replace('.','_')}_backend.yaml",
             ),
             mode="w",
         ) as f:
             f.write(yaml.dump(tmp_config))
 
-    logger.info("#" * 100)
+    logger.info("#" * 50)
     logger.info(f"The auto-generated configs have been placed in: {output}")
-    logger.info("#" * 100)
+    logger.info("#" * 50)
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)

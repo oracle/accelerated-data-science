@@ -419,7 +419,16 @@ class BackendFactory:
 
                     # get config info from ini files
                     p = ConfigProcessor(
-                        {**runtime_kwargs, **{"execution": {"backend": resource_type}}}
+                        {
+                            **runtime_kwargs,
+                            **{"execution": {"backend": resource_type}},
+                            **{
+                                "infrastructure": {
+                                    **operator_info.jobs_default_params.to_dict(),
+                                    **operator_info.dataflow_default_params.to_dict(),
+                                }
+                            },
+                        }
                     ).step(
                         ConfigMerger,
                         ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,

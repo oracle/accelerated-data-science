@@ -56,3 +56,75 @@ conda:
   type: string
   meta:
     description: "The operator's conda environment name. Will be auto-generated if not provided."
+jobs_default_params:
+  required: false
+  type: dict
+  meta:
+    description: "The default parameters for the Data Science Job."
+  schema:
+    shape_name:
+      required: false
+      type: string
+      meta:
+        description: "The name of the shape."
+    ocpus:
+      required: false
+      type: integer
+      meta:
+        description: "The OCPUs count."
+    memory_in_gbs:
+      required: false
+      type: integer
+      meta:
+        description: "The size of the memory in GBs."
+    block_storage_size_in_GBs:
+      required: false
+      type: integer
+      meta:
+        description: "Size of the block storage drive."
+dataflow_default_params:
+  required: false
+  type: dict
+  meta:
+    description: "The default params for the DataFlow service."
+  schema:
+    spark_version:
+      required: false
+      type: string
+      meta:
+        description: "The version of the SPARK."
+    driver_shape:
+      required: false
+      type: string
+      meta:
+        description: "The name of the driver shape."
+    driver_shape_ocpus:
+      required: false
+      type: integer
+      meta:
+        description: "The OCPUs count for the driver shape."
+    driver_shape_memory_in_gbs:
+      required: false
+      type: integer
+      meta:
+        description: "The size of the memory in GBs for the driver shape."
+    executor_shape:
+      required: false
+      type: string
+      meta:
+        description: "The name of the executor shape."
+    executor_shape_ocpus:
+      required: false
+      type: integer
+      meta:
+        description: "The OCPUs count for the executor shape."
+    executor_shape_memory_in_gbs:
+      required: false
+      type: integer
+      meta:
+        description: "The size of the memory in GBs for the executor shape."
+    num_executors:
+      required: false
+      type: integer
+      meta:
+        description: "The number of executors."
