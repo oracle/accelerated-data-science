@@ -90,18 +90,12 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
                     score[self.spec.target_category_columns[0]] = target
                     scores = pd.concat([scores, score], axis=0, ignore_index=True)
 
-                    full_data_dict[target].loc[
-                        full_data_dict[target][self.spec.target_category_columns[0]]
-                        == target,
-                        OutputColumns.ANOMALY_COL,
-                    ] = anomaly[col].values
-
                 else:
                     outliers = df.loc[outlier_indices]
                     inliers = df.loc[inlier_indices]
                     scores = score
 
-                    dataset.data[OutputColumns.ANOMALY_COL] = anomaly[col].values
+                full_data_dict[target][OutputColumns.ANOMALY_COL] = anomaly[col].values
 
             else:
                 "TBD"
