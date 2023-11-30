@@ -143,7 +143,7 @@ class TestUserAgent:
 
     @patch("oci.config.validate_config")
     @patch("oci.signer.Signer")
-    def test_user_agent_default_singer_ociservice(
+    def test_user_agent_default_signer_ociservice(
         self,
         mock_signer,
         mock_validate_config,
