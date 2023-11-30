@@ -44,6 +44,7 @@ TODS_MODEL_MAP = {
     TODSSubModels.KNN: "KNNSKI",
 }
 
+
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     UNSUPERVISED_UNIFY95 = "unsupervised_unify95"
     UNSUPERVISED_UNIFY95_LOG_LOSS = "unsupervised_unify95_log_loss"
@@ -52,6 +53,7 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
 
 class OutputColumns(str, metaclass=ExtendedEnumMeta):
     ANOMALY_COL = "anomaly"
+    SCORE_COL = "score"
 
 
 TODS_DEFAULT_MODEL = "ocsvm"

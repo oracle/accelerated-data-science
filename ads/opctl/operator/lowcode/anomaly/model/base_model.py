@@ -22,6 +22,7 @@ from .anomaly_dataset import AnomalyDatasets
 from ..const import OutputColumns
 from ..const import SupportedModels
 from ads.opctl.operator.common.utils import human_time_friendly
+from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class AnomalyOperatorBaseModel(ABC):
@@ -47,7 +48,7 @@ class AnomalyOperatorBaseModel(ABC):
 
         start_time = time.time()
 
-        result_df = self._build_model()
+        anomaly_output = self._build_model()
         table_blocks = [
             dp.DataTable(df, label=col)
             for col, df in self.datasets.full_data_dict.items()
@@ -63,10 +64,10 @@ class AnomalyOperatorBaseModel(ABC):
                 df = df.drop(columns=[self.spec.target_category_columns[0]])
             figure_blocks = []
             time_col = df[date_column]
-            anomaly_col = df[OutputColumns.ANOMALY_COL]
-            columns = set(df.columns).difference(
-                {date_column, OutputColumns.ANOMALY_COL}
-            )
+            anomaly_col = anomaly_output.get_anomalies_by_cat(category=target)[
+                OutputColumns.ANOMALY_COL
+            ]
+            columns = set(df.columns).difference({date_column})
             for col in columns:
                 y = df[col]
                 fig, ax = plt.subplots(figsize=(8, 3), layout="constrained")
@@ -114,7 +115,9 @@ class AnomalyOperatorBaseModel(ABC):
         # save the report and result CSV
         self._save_report(
             report_sections=report_sections,
-            result_df=result_df,
+            inliers=anomaly_output.get_inliers(self.datasets.full_data_dict),
+            outliers=anomaly_output.get_outliers(self.datasets.full_data_dict),
+            scores=anomaly_output.get_scores(self.spec.target_category_columns),
         )
 
     def _load_data(self):
@@ -127,7 +130,13 @@ class AnomalyOperatorBaseModel(ABC):
             columns=self.spec.input_data.columns,
         )
 
-    def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame):
+    def _save_report(
+        self,
+        report_sections: Tuple,
+        inliers: pd.DataFrame,
+        outliers: pd.DataFrame,
+        scores: pd.DataFrame,
+    ):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
@@ -140,6 +149,12 @@ class AnomalyOperatorBaseModel(ABC):
                     output_dir
                 )
             )
+
+        if ObjectStorageDetails.is_oci_path(output_dir):
+            storage_options = default_signer()
+        else:
+            storage_options = dict()
+
         # datapane html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
@@ -151,6 +166,27 @@ class AnomalyOperatorBaseModel(ABC):
                     **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
+
+        utils._write_data(
+            data=inliers,
+            filename=os.path.join(output_dir, self.spec.inliers_filename),
+            format="csv",
+            storage_options=storage_options,
+        )
+
+        utils._write_data(
+            data=outliers,
+            filename=os.path.join(output_dir, self.spec.outliers_filename),
+            format="csv",
+            storage_options=storage_options,
+        )
+
+        utils._write_data(
+            data=scores,
+            filename=os.path.join(output_dir, self.spec.scores_filename),
+            format="csv",
+            storage_options=storage_options,
+        )
 
         logger.warn(
             f"The report has been successfully "
