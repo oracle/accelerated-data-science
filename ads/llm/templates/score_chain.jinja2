@@ -165,5 +165,5 @@ def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dir
 
     """
     features = pre_inference(data, input_schema_path)
-    yhat = post_inference(model.run(features))
+    yhat = post_inference(model.invoke(features))
     return {'prediction': yhat}
