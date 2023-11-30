@@ -14,7 +14,7 @@ import yaml
 from langchain import llms
 from langchain.llms import loading
 from langchain.chains.loading import load_chain_from_config
-from langchain.load.load import load as __lc_load
+from langchain.load.load import Reviver, load as __lc_load
 from langchain.load.serializable import Serializable
 
 from ads.common.auth import default_signer
@@ -76,14 +76,32 @@ def load(
     Returns:
         Revived LangChain objects.
     """
+    # Add ADS as valid namespace
     if not valid_namespaces:
         valid_namespaces = []
     if "ads" not in valid_namespaces:
         valid_namespaces.append("ads")
 
+    reviver = Reviver(secrets_map, valid_namespaces)
+
+    def _load(obj: Any) -> Any:
+        if isinstance(obj, dict):
+            if "_type" in obj and obj["_type"] in custom_deserialization:
+                if valid_namespaces:
+                    kwargs["valid_namespaces"] = valid_namespaces
+                if secrets_map:
+                    kwargs["secret_map"] = secrets_map
+                return custom_deserialization[obj["_type"]](obj, **kwargs)
+            # Need to revive leaf nodes before reviving this node
+            loaded_obj = {k: _load(v) for k, v in obj.items()}
+            return reviver(loaded_obj)
+        if isinstance(obj, list):
+            return [_load(o) for o in obj]
+        return obj
+
     if isinstance(obj, dict) and "_type" in obj:
         obj_type = obj["_type"]
-        # Check if the object requires a custom function to load.
+        # Check if the object has custom load function.
         if obj_type in custom_deserialization:
             if valid_namespaces:
                 kwargs["valid_namespaces"] = valid_namespaces
@@ -93,7 +111,7 @@ def load(
         # Legacy chain
         return load_chain_from_config(obj, **kwargs)
 
-    return __lc_load(obj, secrets_map=secrets_map, valid_namespaces=valid_namespaces)
+    return _load(obj)
 
 
 def load_from_yaml(
@@ -144,6 +162,9 @@ def default(obj: Any) -> Any:
     TypeError
         If the object is not LangChain serializable.
     """
+    for super_class, save_fn in custom_serialization.items():
+        if isinstance(obj, super_class):
+            return save_fn(obj)
     if isinstance(obj, Serializable) and obj.is_lc_serializable():
         return obj.to_json()
     raise TypeError(f"Serialization of {type(obj)} is not supported.")
