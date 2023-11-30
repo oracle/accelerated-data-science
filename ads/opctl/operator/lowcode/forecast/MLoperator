@@ -1,8 +1,8 @@
 type: forecast
 version: v1
 name: Forecasting Operator
-conda_type: published
-conda: forecast_v1
+conda_type: service
+conda: forecast_p38_cpu_v1
 gpu: no
 jobs_default_params:
   shape_name: VM.Standard.E4.Flex
