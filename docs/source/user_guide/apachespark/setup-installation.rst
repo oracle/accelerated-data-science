@@ -24,7 +24,7 @@ Activate the conda environment to upgrade to the latest ``oracle-ads``
 .. code-block:: shell
 
     conda activate /home/datascience/conda/pyspark30_p37_cpu_v5
-    pip install oracle-ads[data_science, data, opctl] --upgrade
+    pip install "oracle-ads[data_science, data, opctl]" --upgrade
 
 
 Configuring core-site.xml
@@ -200,4 +200,3 @@ Data Flow to access logs bucket, use a policy like:
    ALLOW SERVICE dataflow TO READ objects IN tenancy WHERE target.bucket.name='dataflow-logs'
 
 For more information, see the `Data Flow documentation <https://docs.oracle.com/en-us/iaas/data-flow/using/dfs_getting_started.htm#set_up_admin>`__.
-
