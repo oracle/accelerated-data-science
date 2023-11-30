@@ -24,6 +24,7 @@ class AnomalyDatasets:
         self.data = None
         self.test_data = None
         self.target_columns = None
+        self.full_data_dict = None
         self._load_data(config.spec)
 
     def _load_data(self, spec):
@@ -47,12 +48,29 @@ class AnomalyDatasets:
             logger.debug(f"Full traceback: {e}")
             spec.freq = None
 
+        if spec.target_category_columns is None:
+            # support for optional target category column
+            target_col = [
+                col
+                for col in self.data.columns
+                if col not in [spec.datetime_column.name]
+            ]
+            spec.target_column = target_col[0]
+            self.full_data_dict = {spec.target_column: self.data}
+        else:
+            # Group the data by target column
+            self.full_data_dict = dict(
+                tuple(
+                    (group, df.reset_index(drop=True))
+                    for group, df in self.data.groupby(spec.target_category_columns[0])
+                )
+            )
+
 
 class AnomalyOutput:
     def __init__(
         self, inliers: pd.DataFrame, outliers: pd.DataFrame, scores: pd.DataFrame
     ):
-        # Timestamp as index
         self.inliers = inliers
         self.outliers = outliers
         self.scores = scores
