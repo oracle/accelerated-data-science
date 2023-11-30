@@ -87,7 +87,7 @@ jobs:
           ln -s ../ads ads
           ln -s ../.coveragerc .coveragerc
 
-          "Run hpo tests, which hangs if run together with all unitary tests"
+          # Run hpo tests, which hangs if run together with all unitary tests
           if [[ ${{ matrix.name }} ==  "unitary" ]]; then
             python -m pytest -v -p no:warnings -n auto --dist loadfile \
             --cov-append --cov=ads --cov-report=xml --cov-report=html \
