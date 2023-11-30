@@ -46,7 +46,7 @@ class BaseLLM(LLM, Serializable):
 
     @classmethod
     def get_lc_namespace(cls) -> List[str]:
-        """Get the namespace of the langchain object."""
+        """Get the namespace of the LangChain object."""
         return ["ads", "llm"]
 
     @classmethod
@@ -56,10 +56,12 @@ class BaseLLM(LLM, Serializable):
 
 
 class GenerativeAiClientModel(BaseModel):
+    """Base model for generative AI embedding model and LLM."""
+
     client: Any  #: :meta private:
     """OCI GenerativeAiClient."""
 
-    compartment_id: str
+    compartment_id: str = None
     """Compartment ID of the caller."""
 
     endpoint_kwargs: Dict[str, Any] = {}
@@ -90,7 +92,9 @@ class GenerativeAiClientModel(BaseModel):
             client_kwargs.update(values["client_kwargs"])
             values["client"] = GenerativeAiClient(**auth, **client_kwargs)
         # Set default compartment ID
-        if "compartment_id" not in values and COMPARTMENT_OCID:
-            values["compartment_id"] = COMPARTMENT_OCID
-
+        if not values.get("compartment_id"):
+            if COMPARTMENT_OCID:
+                values["compartment_id"] = COMPARTMENT_OCID
+            else:
+                raise ValueError("Please specify compartment_id.")
         return values
