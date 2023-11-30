@@ -23,7 +23,8 @@ from langchain.vectorstores import OpenSearchVectorSearch, FAISS
 from opensearchpy.client import OpenSearch
 
 from ads.common.auth import default_signer
-from ads.llm import GenerativeAI, ModelDeploymentTGI, ModelDeploymentVLLM
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.llm import GenerativeAI, ModelDeploymentVLLM, ModelDeploymentTGI
 from ads.llm.chain import GuardrailSequence
 from ads.llm.guardrails.base import CustomGuardrailBase
 from ads.llm.patch import RunnableParallel, RunnableParallelSerializer
@@ -241,12 +242,11 @@ def load_from_yaml(
         None, _SafeLoaderIgnoreUnknown.ignore_unknown
     )
 
-    if uri.startswith("oci://"):
-        storage_options = default_signer()
-    else:
-        storage_options = {}
+    storage_options = default_signer() if ObjectStorageDetails.is_oci_path(uri) else {}
+
     with fsspec.open(uri, **storage_options) as f:
         config = yaml.load(f, Loader=_SafeLoaderIgnoreUnknown)
+
     return load(
         config, secrets_map=secrets_map, valid_namespaces=valid_namespaces, **kwargs
     )
@@ -275,6 +275,22 @@ def default(obj: Any) -> Any:
     raise TypeError(f"Serialization of {type(obj)} is not supported.")
 
 
+def __save(obj):
+    """Calls the legacy save method to save the object to temp json
+    then load it into a dictionary.
+    """
+    try:
+        temp_file = tempfile.NamedTemporaryFile(
+            mode="w", encoding="utf-8", suffix=".json", delete=False
+        )
+        temp_file.close()
+        obj.save(temp_file.name)
+        with open(temp_file.name, "r", encoding="utf-8") as f:
+            return json.load(f)
+    finally:
+        os.unlink(temp_file.name)
+
+
 def dump(obj: Any) -> Dict[str, Any]:
     """Return a json dict representation of an object.
 
@@ -293,14 +309,14 @@ def dump(obj: Any) -> Dict[str, Any]:
     ):
         # The object is not is_lc_serializable.
         # However, it supports the legacy save() method.
-        try:
-            temp_file = tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf-8", suffix=".json", delete=False
-            )
-            temp_file.close()
-            obj.save(temp_file.name)
-            with open(temp_file.name, "r", encoding="utf-8") as f:
-                return json.load(f)
-        finally:
-            os.unlink(temp_file.name)
-    return json.loads(json.dumps(obj, default=default))
+        return __save(obj)
+    # The object is is_lc_serializable.
+    # However, some properties may not be serializable
+    # Here we try to dump the object and fallback to the save() method
+    # if there is an error.
+    try:
+        return json.loads(json.dumps(obj, default=default))
+    except TypeError as ex:
+        if isinstance(obj, Serializable) and hasattr(obj, "save"):
+            return __save(obj)
+        raise ex
