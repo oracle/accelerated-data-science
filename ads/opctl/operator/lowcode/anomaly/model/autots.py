@@ -23,7 +23,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
             "install the required dependencies for TODS."
         ),
     )
-    def _build_model(self) -> pd.DataFrame:
+    def _build_model(self) -> AnomalyOutput:
         from autots.evaluator.anomaly_detector import AnomalyDetector
 
         method = self.spec.model_kwargs.get("method")
@@ -46,37 +46,45 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         date_column = self.spec.datetime_column.name
         dataset = self.datasets
 
-        data = dataset.data
-        data = data.set_index(date_column)
+        full_data_dict = dataset.full_data_dict
 
-        (anomaly, scores) = model.detect(data)
+        target_category_column = (
+            self.spec.target_category_columns[0]
+            if self.spec.target_category_columns is not None
+            else None
+        )
 
-        anomaly = anomaly.reset_index(drop=True)
-        scores = scores.reset_index(drop=True)
+        anomaly_output = AnomalyOutput()
 
-        data = data.reset_index()
+        # Iterate over the full_data_dict items
+        for target, df in full_data_dict.items():
+            data = df.set_index(date_column)
 
-        inliers = pd.DataFrame()
-        outliers = pd.DataFrame()
+            if self.spec.target_category_columns is not None:
+                data = data.drop(self.spec.target_category_columns[0], axis=1)
 
-        if len(anomaly.columns) == 1:
-            col = anomaly.columns.values[0]
-            anomaly[col] = anomaly[col].replace({1: 0, -1: 1})
+            (anomaly, score) = model.detect(data)
 
-            outlier_indices = anomaly.index[anomaly[col] == 1]
-            inlier_indices = anomaly.index[anomaly[col] == 0]
+            if len(anomaly.columns) == 1:
+                score.rename(
+                    columns={score.columns.values[0]: OutputColumns.SCORE_COL},
+                    inplace=True,
+                )
+                score = score.reset_index(drop=False)
 
-            outliers = dataset.data.loc[outlier_indices]
-            inliers = dataset.data.loc[inlier_indices]
+                col = anomaly.columns.values[0]
+                anomaly[col] = anomaly[col].replace({1: 0, -1: 1})
+                anomaly.rename(columns={col: OutputColumns.ANOMALY_COL}, inplace=True)
+                anomaly = anomaly.reset_index(drop=False)
 
-            self.anomaly_output = AnomalyOutput(
-                inliers=inliers, outliers=outliers, scores=scores
-            )
+                anomaly_output.add_output(target, anomaly, score)
 
-            dataset.data[OutputColumns.ANOMALY_COL] = anomaly[col].values
+            else:
+                raise NotImplementedError(
+                    "Multi-Output Anomaly Detection is not yet supported in autots"
+                )
 
-        else:
-            "TBD"
+        return anomaly_output
 
     def _generate_report(self):
         import datapane as dp

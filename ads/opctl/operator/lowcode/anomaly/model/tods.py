@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from .anomaly_dataset import AnomalyOutput
 
 from ..const import (
     TODS_IMPORT_MODEL_MAP,
@@ -51,21 +52,6 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         sub_model = self.spec.model_kwargs.get("sub_model", TODS_DEFAULT_MODEL)
         model_kwargs.pop("sub_model", None)
 
-        if self.spec.target_category_columns is None:
-            # support for optional target category column
-            target_col = [
-                col
-                for col in self.datasets.data.columns
-                if col not in [self.spec.datetime_column.name]
-            ]
-            self.spec.target_column = target_col[0]
-            self.datasets.full_data_dict = {self.spec.target_column: self.datasets.data}
-        else:
-            # Group the data by target column
-            self.datasets.full_data_dict = dict(
-                tuple(self.datasets.data.groupby(self.spec.target_category_columns))
-            )
-
         # Initialize variables
         models = {}
         predictions_train = {}
@@ -73,6 +59,7 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         predictions_test = {}
         prediction_score_test = {}
         dataset = self.datasets
+        anomaly_output = AnomalyOutput()
 
         # Iterate over the full_data_dict items
         for target, df in self.datasets.full_data_dict.items():
@@ -100,7 +87,19 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
                     OutputColumns.ANOMALY_COL,
                 ] = predictions_train[target]
 
-        return model, predictions_train, prediction_score_test
+            self.datasets.full_data_dict[target][
+                OutputColumns.ANOMALY_COL
+            ] = predictions_train[target]
+
+            score = pd.DataFrame(
+                data=prediction_score_train[target], columns=[OutputColumns.SCORE_COL]
+            )
+            anomaly = pd.DataFrame(
+                data=predictions_train[target], columns=[OutputColumns.ANOMALY_COL]
+            )
+            anomaly_output.add_output(target, anomaly, score)
+
+        return anomaly_output
 
     def _generate_report(self):
         import datapane as dp

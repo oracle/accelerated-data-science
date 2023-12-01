@@ -69,7 +69,9 @@ class AnomalyOperatorSpec(DataClassSerializable):
     report_theme: str = None
     metrics_filename: str = None
     test_metrics_filename: str = None
-    forecast_filename: str = None
+    inliers_filename: str = None
+    outliers_filename: str = None
+    scores_filename: str = None
     global_explanation_filename: str = None
     local_explanation_filename: str = None
     target_column: str = None
@@ -86,6 +88,9 @@ class AnomalyOperatorSpec(DataClassSerializable):
         """Adjusts the specification details."""
         self.report_file_name = self.report_file_name or "report.html"
         self.report_theme = self.report_theme or "light"
+        self.inliers_filename = self.inliers_filename or "inliers.csv"
+        self.outliers_filename = self.outliers_filename or "outliers.csv"
+        self.scores_filename = self.scores_filename or "scores.csv"
         self.model_kwargs = self.model_kwargs or dict()
 
 

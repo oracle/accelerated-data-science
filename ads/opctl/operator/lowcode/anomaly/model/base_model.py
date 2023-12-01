@@ -22,6 +22,7 @@ from .anomaly_dataset import AnomalyDatasets
 from ..const import OutputColumns
 from ..const import SupportedModels
 from ads.opctl.operator.common.utils import human_time_friendly
+from ads.common.object_storage_details import ObjectStorageDetails
 
 
 class AnomalyOperatorBaseModel(ABC):
@@ -44,27 +45,44 @@ class AnomalyOperatorBaseModel(ABC):
         """Generates the report."""
         import datapane as dp
         import matplotlib.pyplot as plt
+
         start_time = time.time()
 
-        result_df = self._build_model()
-        table_block = dp.DataTable(self.datasets.data)
-        figure_blocks = []
+        anomaly_output = self._build_model()
+        table_blocks = [
+            dp.DataTable(df, label=col)
+            for col, df in self.datasets.full_data_dict.items()
+        ]
+        data_table = (
+            dp.Select(blocks=table_blocks) if len(table_blocks) > 1 else table_blocks[0]
+        )
         date_column = self.spec.datetime_column.name
-        columns = set(self.datasets.data.columns).difference({date_column, OutputColumns.ANOMALY_COL})
-        anomaly_col = self.datasets.data[OutputColumns.ANOMALY_COL]
-        time_col = self.datasets.data[date_column]
-        for col in columns:
-            y = self.datasets.data[col]
-            fig, ax = plt.subplots(figsize=(8, 3), layout='constrained')
-            ax.grid()
-            ax.plot(time_col, y, color='black')
-            for i, index in enumerate(anomaly_col):
-                if anomaly_col[i] == 1:
-                    ax.scatter(time_col[i], y[i], color='red', marker='o')
-            plt.xlabel(date_column)
-            plt.ylabel(col)
-            plt.title(f'`{col}` with reference to anomalies')
-            figure_blocks.append(ax)
+
+        blocks = []
+        for target, df in self.datasets.full_data_dict.items():
+            if self.spec.target_category_columns is not None:
+                df = df.drop(columns=[self.spec.target_category_columns[0]])
+            figure_blocks = []
+            time_col = df[date_column].reset_index(drop=True)
+            anomaly_col = anomaly_output.get_anomalies_by_cat(category=target)[
+                OutputColumns.ANOMALY_COL
+            ]
+            columns = set(df.columns).difference({date_column})
+            for col in columns:
+                y = df[col].reset_index(drop=True)
+                fig, ax = plt.subplots(figsize=(8, 3), layout="constrained")
+                ax.grid()
+                ax.plot(time_col, y, color="black")
+                for i, index in enumerate(anomaly_col):
+                    if anomaly_col[i] == 1:
+                        ax.scatter(time_col[i], y[i], color="red", marker="o")
+                plt.xlabel(date_column)
+                plt.ylabel(col)
+                plt.title(f"`{col}` with reference to anomalies")
+                figure_blocks.append(ax)
+            blocks.append(dp.Group(blocks=figure_blocks, label=target))
+        plots = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+
         elapsed_time = time.time() - start_time
         report_sections = []
         title_text = dp.Text("# Anomaly Detection Report")
@@ -74,9 +92,7 @@ class AnomalyOperatorBaseModel(ABC):
         summary = dp.Blocks(
             blocks=[
                 dp.Group(
-                    dp.Text(
-                        f"You selected the **`{self.spec.model}`** model."
-                    ),
+                    dp.Text(f"You selected the **`{self.spec.model}`** model."),
                     dp.Text(
                         "Based on your dataset, you could have also selected "
                         f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
@@ -89,12 +105,19 @@ class AnomalyOperatorBaseModel(ABC):
                 )
             ]
         )
-        report_sections = [summary] + figure_blocks + [table_block] + [title_text] + [yaml_appendix_title,
-                                                                                      yaml_appendix]
+        report_sections = (
+            [summary]
+            + [plots]
+            + [data_table]
+            + [title_text]
+            + [yaml_appendix_title, yaml_appendix]
+        )
         # save the report and result CSV
         self._save_report(
             report_sections=report_sections,
-            result_df=result_df,
+            inliers=anomaly_output.get_inliers(self.datasets.full_data_dict),
+            outliers=anomaly_output.get_outliers(self.datasets.full_data_dict),
+            scores=anomaly_output.get_scores(self.spec.target_category_columns),
         )
 
     def _load_data(self):
@@ -107,7 +130,13 @@ class AnomalyOperatorBaseModel(ABC):
             columns=self.spec.input_data.columns,
         )
 
-    def _save_report(self, report_sections: Tuple, result_df: pd.DataFrame):
+    def _save_report(
+        self,
+        report_sections: Tuple,
+        inliers: pd.DataFrame,
+        outliers: pd.DataFrame,
+        scores: pd.DataFrame,
+    ):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
@@ -120,17 +149,44 @@ class AnomalyOperatorBaseModel(ABC):
                     output_dir
                 )
             )
+
+        if ObjectStorageDetails.is_oci_path(output_dir):
+            storage_options = default_signer()
+        else:
+            storage_options = dict()
+
         # datapane html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                        os.path.join(output_dir, self.spec.report_file_name),
-                        "w",
-                        **default_signer(),
+                    os.path.join(output_dir, self.spec.report_file_name),
+                    "w",
+                    **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
+
+        utils._write_data(
+            data=inliers,
+            filename=os.path.join(output_dir, self.spec.inliers_filename),
+            format="csv",
+            storage_options=storage_options,
+        )
+
+        utils._write_data(
+            data=outliers,
+            filename=os.path.join(output_dir, self.spec.outliers_filename),
+            format="csv",
+            storage_options=storage_options,
+        )
+
+        utils._write_data(
+            data=scores,
+            filename=os.path.join(output_dir, self.spec.scores_filename),
+            format="csv",
+            storage_options=storage_options,
+        )
 
         logger.warn(
             f"The report has been successfully "
