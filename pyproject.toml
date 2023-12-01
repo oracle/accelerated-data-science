@@ -154,6 +154,13 @@ viz = [
   "seaborn>=0.11.0",
 ]
 forecast = [
+  "conda-pack",
+  "inflection",
+  "nbconvert",
+  "nbformat",
+  "oci-cli",
+  "py-cpuinfo",
+  "rich",
   "autots[additional]",
   "datapane",
   "holidays==0.21.13",
@@ -161,13 +168,14 @@ forecast = [
   "numpy",
   "oci-cli",
   "optuna==2.9.0",
-  "oracle-ads[opctl]",
-  "oracle-automlx==23.2.3",
+  "oracle-ads",
+  "oracle-automlx[forecasting]==23.2.3",
   "pmdarima",
   "prophet",
   "shap",
   "sktime",
   "statsmodels",
+  "plotly",
 ]
 anomaly  = [
   "tods @ git+https://github.com/datamllab/tods.git"

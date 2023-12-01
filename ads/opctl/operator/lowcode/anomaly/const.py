@@ -44,7 +44,6 @@ TODS_MODEL_MAP = {
     TODSSubModels.KNN: "KNNSKI",
 }
 
-
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     UNSUPERVISED_UNIFY95 = "unsupervised_unify95"
     UNSUPERVISED_UNIFY95_LOG_LOSS = "unsupervised_unify95_log_loss"

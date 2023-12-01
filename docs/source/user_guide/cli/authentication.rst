@@ -109,13 +109,13 @@ The ``~/.oci/config`` configuration allow for multiple configurations to be stor
     key_content=private_key_content,
   )
   ads.set_auth(config = config) # default signer is set to API Keys with private key content
-  
+
   ads.set_auth("resource_principal")  # default signer is set to resource principal authentication
   ads.set_auth("instance_principal")  # default signer is set to instance principal authentication
   ads.set_auth("security_token")  # default signer is set to security token authentication
 
-  singer = oci.auth.signers.ResourcePrincipalsFederationSigner()
-  ads.set_auth(config={}, singer=signer) # default signer is set to ResourcePrincipalsFederationSigner
+  signer = oci.auth.signers.ResourcePrincipalsFederationSigner()
+  ads.set_auth(config={}, signer=signer) # default signer is set to ResourcePrincipalsFederationSigner
 
   signer_callable = oci.auth.signers.ResourcePrincipalsFederationSigner
   ads.set_auth(signer_callable=signer_callable) #  default signer is set ResourcePrincipalsFederationSigner callable
@@ -167,8 +167,8 @@ More signers can be created using the ``create_signer()`` method. With the ``aut
   auth = ads.auth.create_signer("security_token", profile="test_session")
 
   # Example 3. Provide a ResourcePrincipalsFederationSigner object
-  singer = oci.auth.signers.ResourcePrincipalsFederationSigner()
-  auth = ads.auth.create_signer(config={}, singer=signer)
+  signer = oci.auth.signers.ResourcePrincipalsFederationSigner()
+  auth = ads.auth.create_signer(config={}, signer=signer)
 
   # Example 4. Create signer that uses instance principals with log requests enabled
   signer_callable = oci.auth.signers.InstancePrincipalsSecurityTokenSigner
