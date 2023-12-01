@@ -14,7 +14,7 @@ import yaml
 from langchain import llms
 from langchain.llms import loading
 from langchain.chains.loading import load_chain_from_config
-from langchain.load.load import Reviver, load as __lc_load
+from langchain.load.load import Reviver
 from langchain.load.serializable import Serializable
 
 from ads.common.auth import default_signer
