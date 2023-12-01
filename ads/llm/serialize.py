@@ -4,6 +4,7 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import base64
 import json
 import os
 import tempfile
@@ -19,18 +20,15 @@ from langchain.llms import loading
 from langchain.load import dumpd
 from langchain.load.load import load as lc_load
 from langchain.load.serializable import Serializable
-from langchain.vectorstores import OpenSearchVectorSearch, FAISS
+from langchain.vectorstores import FAISS, OpenSearchVectorSearch
 from opensearchpy.client import OpenSearch
 
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.llm import GenerativeAI, ModelDeploymentVLLM, ModelDeploymentTGI
+from ads.llm import GenerativeAI, ModelDeploymentTGI, ModelDeploymentVLLM
 from ads.llm.chain import GuardrailSequence
 from ads.llm.guardrails.base import CustomGuardrailBase
 from ads.llm.patch import RunnableParallel, RunnableParallelSerializer
-import json
-import base64
-
 
 # This is a temp solution for supporting custom LLM in legacy load_chain
 __lc_llm_dict = llms.get_type_to_cls_dict()
@@ -58,7 +56,7 @@ class OpenSearchVectorDBSerializer:
     @staticmethod
     def load(config: dict, **kwargs):
         config["kwargs"]["embedding_function"] = load(
-            config["kwargs"]["embedding_function"]
+            config["kwargs"]["embedding_function"], **kwargs
         )
         return OpenSearchVectorSearch(
             **config["kwargs"],
@@ -66,7 +64,7 @@ class OpenSearchVectorDBSerializer:
                 os.environ.get("oci_opensearch_username", None),
                 os.environ.get("oci_opensearch_password", None),
             ),
-            verify_certs=os.environ.get("oci_opensearch_verify_certs", False),
+            verify_certs=True if os.environ.get("oci_opensearch_verify_certs", None).lower() == "true" else False,
             ca_certs=os.environ.get("oci_opensearch_ca_certs", None),
         )
 
@@ -102,7 +100,7 @@ class FaissSerializer:
 
     @staticmethod
     def load(config: dict, **kwargs):
-        embedding_function = load(config["embedding_function"])
+        embedding_function = load(config["embedding_function"], **kwargs)
         decoded_pkl = base64.b64decode(json.loads(config["vectordb"]))
         return FAISS.deserialize_from_bytes(
             embeddings=embedding_function, serialized=decoded_pkl
@@ -124,7 +122,7 @@ class FaissSerializer:
 vectordb_serialization = {"OpenSearchVectorSearch": OpenSearchVectorDBSerializer, "FAISS": FaissSerializer}
 
 
-class RetrieverQASerializer:
+class RetrievalQASerializer:
     """
     Serializer for RetrieverQA class
     """
@@ -137,7 +135,7 @@ class RetrieverQASerializer:
         config_param = deepcopy(config)
         retriever_kwargs = config_param.pop("retriever_kwargs")
         vectordb_serializer = vectordb_serialization[config_param["vectordb"]["class"]]
-        vectordb = vectordb_serializer.load(config_param.pop("vectordb"))
+        vectordb = vectordb_serializer.load(config_param.pop("vectordb"), **kwargs)
         retriever = vectordb.as_retriever(**retriever_kwargs)
         return load_chain_from_config(config=config_param, retriever=retriever)
 
@@ -168,7 +166,7 @@ custom_serialization = {
     GuardrailSequence: GuardrailSequence.save,
     CustomGuardrailBase: CustomGuardrailBase.save,
     RunnableParallel: RunnableParallelSerializer.save,
-    RetrievalQA: RetrieverQASerializer.save,
+    RetrievalQA: RetrievalQASerializer.save,
 }
 
 # Mapping _type to custom deserialization functions
@@ -177,7 +175,7 @@ custom_deserialization = {
     GuardrailSequence.type(): GuardrailSequence.load,
     CustomGuardrailBase.type(): CustomGuardrailBase.load,
     RunnableParallelSerializer.type(): RunnableParallelSerializer.load,
-    RetrieverQASerializer.type(): RetrieverQASerializer.load,
+    RetrievalQASerializer.type(): RetrievalQASerializer.load,
 }
 
 
