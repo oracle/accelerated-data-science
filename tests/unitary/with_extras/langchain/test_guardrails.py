@@ -146,8 +146,8 @@ class GuardrailSequenceTests(GuardrailTestsBase):
         def test_fn(chain: GuardrailSequence):
             output = chain.run("cats", num_generations=5)
             self.assertIsInstance(output, GuardrailIO)
-            self.assertIsInstance(output.data, list)
-            self.assertEqual(len(output.data), 1)
+            self.assertIsInstance(output.data, str)
+            self.assertEqual(output.data, "Tell me a joke about cats")
             self.assertIsInstance(output.info, list)
             self.assertEqual(len(output.info), len(chain.steps))
 
@@ -166,9 +166,8 @@ class GuardrailSequenceTests(GuardrailTestsBase):
         def test_fn(chain: GuardrailSequence):
             output = chain.run(self.TOXIC_CONTENT)
             self.assertIsInstance(output, GuardrailIO)
-            self.assertIsInstance(output.data, list)
-            self.assertEqual(len(output.data), 1)
-            self.assertEqual(output.data[0], message)
+            self.assertIsInstance(output.data, str)
+            self.assertEqual(output.data, message)
             self.assertIsInstance(output.info, list)
             self.assertEqual(len(output.info), len(chain.steps))
 
