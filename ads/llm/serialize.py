@@ -62,11 +62,11 @@ class OpenSearchVectorDBSerializer:
         return OpenSearchVectorSearch(
             **config["kwargs"],
             http_auth=(
-                os.environ.get("oci_opensearch_username", None),
-                os.environ.get("oci_opensearch_password", None),
+                os.environ.get("OCI_OPENSEARCH_USERNAME", None),
+                os.environ.get("OCI_OPENSEARCH_PASSWORD", None),
             ),
-            verify_certs=True if os.environ.get("oci_opensearch_verify_certs", None).lower() == "true" else False,
-            ca_certs=os.environ.get("oci_opensearch_ca_certs", None),
+            verify_certs=True if os.environ.get("OCI_OPENSEARCH_VERIFY_CERTS", None).lower() == "true" else False,
+            ca_certs=os.environ.get("OCI_OPENSEARCH_CA_CERTS", None),
         )
 
     @staticmethod

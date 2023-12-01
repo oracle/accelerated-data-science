@@ -40,10 +40,10 @@ class FakeEmbeddings(Serializable, Embeddings):
 class TestOpensearchSearchVectorSerializers(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.env_patcher = mock.patch.dict(os.environ, {"oci_opensearch_username": "username",
-                                                    "oci_opensearch_password": "password",
-                                                    "oci_opensearch_verify_certs": "True",
-                                                    "oci_opensearch_ca_certs": "/path/to/cert.pem"})
+        cls.env_patcher = mock.patch.dict(os.environ, {"OCI_OPENSEARCH_USERNAME": "username",
+                                                    "OCI_OPENSEARCH_PASSWORD": "password",
+                                                    "OCI_OPENSEARCH_VERIFY_CERTS": "True",
+                                                    "OCI_OPENSEARCH_CA_CERTS": "/path/to/cert.pem"})
         cls.env_patcher.start()
         cls.index_name = "test_index"
         cls.embeddings = FakeEmbeddings()
@@ -52,9 +52,9 @@ class TestOpensearchSearchVectorSerializers(unittest.TestCase):
             embedding_function=cls.embeddings,
             index_name=cls.index_name,
             engine="lucene",
-            http_auth=(os.environ["oci_opensearch_username"], os.environ["oci_opensearch_password"]),
-            verify_certs=os.environ["oci_opensearch_verify_certs"],
-            ca_certs=os.environ["oci_opensearch_ca_certs"],
+            http_auth=(os.environ["OCI_OPENSEARCH_USERNAME"], os.environ["OCI_OPENSEARCH_PASSWORD"]),
+            verify_certs=os.environ["OCI_OPENSEARCH_VERIFY_CERTS"],
+            ca_certs=os.environ["OCI_OPENSEARCH_CA_CERTS"],
         )
         cls.serializer = OpenSearchVectorDBSerializer()
         super().setUpClass()
