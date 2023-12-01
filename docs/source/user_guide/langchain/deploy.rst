@@ -136,7 +136,7 @@ Now the OCI data science model deployment endpoint is ready and you can invoke i
 
 .. code-block:: python3
 
-    chain_deployment.predict(data={"subject": "animals"})["prediction"]
+    chain_deployment.predict(data={"subject": "animals"})["output"]
 
 .. figure:: figures/prediction.png
   :width: 800
