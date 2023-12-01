@@ -18,7 +18,6 @@ from langchain.chains import RetrievalQA
 from langchain.chains.loading import load_chain_from_config
 from langchain.llms import loading
 from langchain.load import dumpd
-from langchain.load.load import load as __lc_load
 from langchain.load.load import Reviver
 from langchain.load.serializable import Serializable
 from langchain.vectorstores import FAISS, OpenSearchVectorSearch
@@ -236,7 +235,7 @@ def load(
         # Legacy chain
         return load_chain_from_config(obj, **kwargs)
 
-    return __lc_load(obj, secrets_map=secrets_map, valid_namespaces=valid_namespaces)
+    return _load(obj)
 
 
 def load_from_yaml(
