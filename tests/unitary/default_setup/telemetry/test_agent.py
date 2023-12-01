@@ -9,8 +9,6 @@ from unittest.mock import patch
 
 import pytest
 
-# from pytest import MonkeyPatch
-
 import ads
 from ads.telemetry.telemetry import (
     EXTRA_USER_AGENT_INFO,
@@ -37,8 +35,9 @@ class TestUserAgent:
     @patch("oci.config.validate_config")
     @patch("oci.signer.Signer")
     def test_user_agent_api_keys_using_test_profile(
-        self, mock_signer, mock_validate_config
+        self, mock_signer, mock_validate_config, monkeypatch
     ):
+        monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
         with patch("oci.config.from_file", return_value=self.test_config):
             auth_info = ads.auth.api_keys("test_path", "TEST_PROFILE")
             assert (
@@ -49,6 +48,7 @@ class TestUserAgent:
     @patch("oci.auth.signers.get_resource_principals_signer")
     def test_user_agent_rp(self, mock_signer, monkeypatch):
         monkeypatch.delenv("OCI_RESOURCE_PRINCIPAL_VERSION", raising=False)
+        monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
         importlib.reload(ads.config)
         importlib.reload(ads.telemetry)
         auth_info = ads.auth.resource_principal()
@@ -64,6 +64,7 @@ class TestUserAgent:
     ):
         # monkeypatch = MonkeyPatch()
         monkeypatch.delenv("OCI_RESOURCE_PRINCIPAL_VERSION", raising=False)
+        monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
         importlib.reload(ads.config)
         with patch("oci.config.from_file", return_value=self.test_config):
             auth_info = ads.auth.default_signer()
@@ -121,6 +122,7 @@ class TestUserAgent:
         # monkeypatch = MonkeyPatch()
         monkeypatch.setenv("OCI_RESOURCE_PRINCIPAL_VERSION", "1.1")
         monkeypatch.setenv(INPUT_DATA["RESOURCE_KEY"], "1234")
+        monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
         if INPUT_DATA[EXTRA_USER_AGENT_INFO] is not None:
             monkeypatch.setenv(EXTRA_USER_AGENT_INFO, INPUT_DATA[EXTRA_USER_AGENT_INFO])
 
@@ -148,6 +150,7 @@ class TestUserAgent:
         monkeypatch,
     ):
         monkeypatch.setenv("OCI_RESOURCE_PRINCIPAL_VERSION", "1.1")
+        monkeypatch.delenv(EXTRA_USER_AGENT_INFO, raising=False)
 
         importlib.reload(ads.config)
         importlib.reload(ads.telemetry)

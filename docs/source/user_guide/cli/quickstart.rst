@@ -61,79 +61,79 @@ To work with gradient boosting models, install the ``boosted`` module. This modu
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[boosted]
+    $ python3 -m pip install "oracle-ads[boosted]"
 
 For big data use cases using Oracle Big Data Service (BDS), install the ``bds`` module. It includes the following libraries: ``ibis-framework[impala]``, ``hdfs[kerberos]`` and ``sqlalchemy``.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[bds]
+    $ python3 -m pip install "oracle-ads[bds]"
 
 To work with a broad set of data formats (for example, Excel, Avro, etc.) install the ``data`` module. It includes the following libraries: ``fastavro``, ``openpyxl``, ``pandavro``, ``asteval``, ``datefinder``, ``htmllistparse``, and ``sqlalchemy``.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[data]
+    $ python3 -m pip install "oracle-ads[data]"
 
 To work with geospatial data install the ``geo`` module. It includes the ``geopandas`` and libraries from the ``viz`` module.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[geo]
+    $ python3 -m pip install "oracle-ads[geo]"
 
 Install the ``notebook`` module to use ADS within the Oracle Cloud Infrastructure Data Science service `Notebook Session <https://docs.oracle.com/en-us/iaas/data-science/using/manage-notebook-sessions.htm>`_. This module installs ``ipywidgets`` and ``ipython`` libraries.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[notebook]
+    $ python3 -m pip install "oracle-ads[notebook]"
 
 To work with ONNX-compatible run times and libraries designed to maximize performance and model portability, install the ``onnx`` module. It includes the following libraries, ``onnx``, ``onnxruntime``, ``onnxmltools``, ``skl2onnx``, ``xgboost``, ``lightgbm`` and libraries from the ``viz`` module.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[onnx]
+    $ python3 -m pip install "oracle-ads[onnx]"
 
 For infrastructure tasks, install the ``opctl`` module. It includes the following libraries, ``oci-cli``, ``docker``, ``conda-pack``, ``nbconvert``, ``nbformat``, and ``inflection``.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[opctl]
+    $ python3 -m pip install "oracle-ads[opctl]"
 
 For hyperparameter optimization tasks install the ``optuna`` module. It includes the ``optuna`` and libraries from the ``viz`` module.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[optuna]
+    $ python3 -m pip install "oracle-ads[optuna]"
 
 For Spark tasks install the ``spark`` module.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[spark]
+    $ python3 -m pip install "oracle-ads[spark]"
 
 Install the ``tensorflow`` module to include ``tensorflow`` and libraries from the ``viz`` module.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[tensorflow]
+    $ python3 -m pip install "oracle-ads[tensorflow]"
 
 For text related tasks, install the ``text`` module. This will include the ``wordcloud``, ``spacy`` libraries.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[text]
+    $ python3 -m pip install "oracle-ads[text]"
 
 Install the ``torch`` module to include ``pytorch`` and libraries from the ``viz`` module.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[torch]
+    $ python3 -m pip install "oracle-ads[torch]"
 
 Install the ``viz`` module to include libraries for visualization tasks. Some of the key packages are ``bokeh``, ``folium``, ``seaborn`` and related packages.
 
 .. code-block:: bash
 
-    $ python3 -m pip install oracle-ads[viz]
+    $ python3 -m pip install "oracle-ads[viz]"
 
 See ``pyproject.toml`` file ``[project.optional-dependencies]`` section for full list of modules and its list of extra libraries.
 
@@ -143,4 +143,4 @@ Multiple extra dependencies can be installed together. For example:
 
 .. code-block:: bash
 
-    $ python3 -m pip install  oracle-ads[notebook,viz,text]
+    $ python3 -m pip install  "oracle-ads[notebook,viz,text]"

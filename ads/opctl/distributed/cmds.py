@@ -4,18 +4,22 @@
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
-import fsspec
-import subprocess
-import yaml
 import json
+import os
 import re
-import docker
+import subprocess
 from configparser import ConfigParser
-
-from ads.common.auth import create_signer, AuthType, AuthContext
 from urllib.parse import urlparse
-from ads.jobs import Job, DataScienceJobRun
+
+import fsspec
+import yaml
+
+from ads.common.auth import AuthContext, AuthType, create_signer
+from ads.common.decorator.runtime_dependency import (
+    OptionalDependency,
+    runtime_dependency,
+)
+from ads.jobs import Job
 from ads.jobs.builders.runtimes.artifact import Artifact
 from ads.opctl.utils import publish_image as publish_image_cmd
 from ads.opctl.utils import run_command
@@ -137,6 +141,7 @@ def show_config_info(job_id, work_dir, cluster_file_name, worker_info, **kwargs)
         )
 
 
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def verify_image(img_name):
     """
     Verify if the input image exists in OCI registry
@@ -151,6 +156,8 @@ def verify_image(img_name):
     -------
 
     """
+    import docker
+
     client = docker.from_env()
     try:
         client.images.get_registry_data(img_name)

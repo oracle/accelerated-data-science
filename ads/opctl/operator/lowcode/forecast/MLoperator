@@ -1,9 +1,14 @@
 type: forecast
 version: v1
 name: Forecasting Operator
-conda_type: published
-conda: forecast_v1
+conda_type: service
+conda: forecast_p38_cpu_v1
 gpu: no
+jobs_default_params:
+  shape_name: VM.Standard.E4.Flex
+  ocpus: 32
+  memory_in_gbs: 512
+  block_storage_size_in_GBs: 512
 keywords:
   - Prophet
   - AutoML
