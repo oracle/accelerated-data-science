@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 
 from ads.common.decorator.runtime_dependency import runtime_dependency
+from .anomaly_dataset import AnomalyOutput
 
 from ..const import (
     TODS_IMPORT_MODEL_MAP,
@@ -73,6 +74,7 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         predictions_test = {}
         prediction_score_test = {}
         dataset = self.datasets
+        anomaly_output = AnomalyOutput()
 
         # Iterate over the full_data_dict items
         for target, df in self.datasets.full_data_dict.items():
@@ -100,7 +102,19 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
                     OutputColumns.ANOMALY_COL,
                 ] = predictions_train[target]
 
-        return model, predictions_train, prediction_score_test
+            self.datasets.full_data_dict[target][
+                OutputColumns.ANOMALY_COL
+            ] = predictions_train[target]
+
+            score = pd.DataFrame(
+                data=prediction_score_train[target], columns=[OutputColumns.SCORE_COL]
+            )
+            anomaly = pd.DataFrame(
+                data=predictions_train[target], columns=[OutputColumns.ANOMALY_COL]
+            )
+            anomaly_output.add_output(target, anomaly, score)
+
+        return anomaly_output
 
     def _generate_report(self):
         import datapane as dp

@@ -63,13 +63,13 @@ class AnomalyOperatorBaseModel(ABC):
             if self.spec.target_category_columns is not None:
                 df = df.drop(columns=[self.spec.target_category_columns[0]])
             figure_blocks = []
-            time_col = df[date_column]
+            time_col = df[date_column].reset_index(drop=True)
             anomaly_col = anomaly_output.get_anomalies_by_cat(category=target)[
                 OutputColumns.ANOMALY_COL
             ]
             columns = set(df.columns).difference({date_column})
             for col in columns:
-                y = df[col]
+                y = df[col].reset_index(drop=True)
                 fig, ax = plt.subplots(figsize=(8, 3), layout="constrained")
                 ax.grid()
                 ax.plot(time_col, y, color="black")
