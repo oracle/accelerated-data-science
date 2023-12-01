@@ -1,5 +1,6 @@
 from langchain.schema.runnable import RunnableParallel
-from langchain.load import dumpd, load
+from langchain.load.dump import dumpd
+from langchain.load.load import load
 
 
 class RunnableParallelSerializer:

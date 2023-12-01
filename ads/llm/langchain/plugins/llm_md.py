@@ -8,6 +8,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import requests
+from oci.auth import signers
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 
 from ads.llm.langchain.plugins.base import BaseLLM
@@ -134,11 +135,22 @@ class ModelDeploymentLLM(BaseLLM):
             header.pop("content_type", DEFAULT_CONTENT_TYPE_JSON)
             or DEFAULT_CONTENT_TYPE_JSON
         )
+        timeout = kwargs.pop("timeout", DEFAULT_TIME_OUT)
         request_kwargs = {"json": data}
         request_kwargs["headers"] = header
-        request_kwargs["auth"] = self.auth.get("signer")
-        timeout = kwargs.pop("timeout", DEFAULT_TIME_OUT)
-        response = requests.post(endpoint, timeout=timeout, **request_kwargs, **kwargs)
+        signer = self.auth.get("signer")
+
+        attempts = 0
+        while attempts < 2:
+            request_kwargs["auth"] = signer
+            response = requests.post(
+                endpoint, timeout=timeout, **request_kwargs, **kwargs
+            )
+            if response.status_code == 401 and self.is_principal_signer(signer):
+                signer.refresh_security_token()
+                attempts += 1
+                continue
+            break
 
         try:
             response.raise_for_status()
@@ -154,6 +166,21 @@ class ModelDeploymentLLM(BaseLLM):
             raise
 
         return response_json
+
+    @staticmethod
+    def is_principal_signer(signer):
+        """Checks if the signer is instance principal or resource principal signer."""
+        if (
+            isinstance(signer, signers.InstancePrincipalsSecurityTokenSigner)
+            or isinstance(signer, signers.ResourcePrincipalsFederationSigner)
+            or isinstance(signer, signers.EphemeralResourcePrincipalSigner)
+            or isinstance(signer, signers.EphemeralResourcePrincipalV21Signer)
+            or isinstance(signer, signers.NestedResourcePrincipals)
+            or isinstance(signer, signers.OkeWorkloadIdentityResourcePrincipalSigner)
+        ):
+            return True
+        else:
+            return False
 
 
 class ModelDeploymentTGI(ModelDeploymentLLM):

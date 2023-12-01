@@ -132,22 +132,6 @@ def pre_inference(data, input_schema_path):
     """
     return deserialize(data, input_schema_path)
 
-
-def post_inference(yhat):
-    """
-    Post-process the model results
-
-    Parameters
-    ----------
-    yhat: Data format after calling model.predict.
-
-    Returns
-    -------
-    yhat: Data format after any processing.
-
-    """
-    return yhat
-
 def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dirname(os.path.realpath(__file__)), "input_schema.json")):
     """
     Returns prediction given the model and data to predict
@@ -165,5 +149,5 @@ def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dir
 
     """
     features = pre_inference(data, input_schema_path)
-    yhat = post_inference(model.invoke(features))
-    return {'prediction': yhat}
+    output = model.invoke(features)
+    return {'output': output}
