@@ -234,7 +234,7 @@ class ModelDeploymentTGI(ModelDeploymentLLM):
         }
 
     def _process_response(self, response_json: dict):
-        return str(response_json.get("generated_text", response_json)) + "\n"
+        return str(response_json.get("generated_text", response_json))
 
 
 class ModelDeploymentVLLM(ModelDeploymentLLM):
