@@ -1,5 +1,5 @@
 import os
-from unittest import TestCase, mock
+from unittest import TestCase, mock, SkipTest
 
 from langchain.llms import Cohere
 from langchain.chains import LLMChain
@@ -7,7 +7,12 @@ from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnableParallel, RunnablePassthrough
 
 from ads.llm.serialize import load, dump
-from ads.llm import GenerativeAI, ModelDeploymentTGI, GenerativeAIEmbeddings
+from ads.llm import (
+    GenerativeAI,
+    GenerativeAIEmbeddings,
+    ModelDeploymentTGI,
+    ModelDeploymentVLLM,
+)
 
 
 class ChainSerializationTest(TestCase):
@@ -51,7 +56,7 @@ class ChainSerializationTest(TestCase):
         "_type": "llm_chain",
     }
 
-    EXPECTED_LLM_CHAIN_WITH_OCI_GEN_AI = {
+    EXPECTED_LLM_CHAIN_WITH_OCI_MD = {
         "lc": 1,
         "type": "constructor",
         "id": ["langchain", "chains", "llm", "LLMChain"],
@@ -70,12 +75,10 @@ class ChainSerializationTest(TestCase):
             "llm": {
                 "lc": 1,
                 "type": "constructor",
-                "id": ["ads", "llm", "GenerativeAI"],
+                "id": ["ads", "llm", "ModelDeploymentVLLM"],
                 "kwargs": {
-                    "compartment_id": "<ocid>",
-                    "client_kwargs": {
-                        "service_endpoint": "https://endpoint.oraclecloud.com"
-                    },
+                    "endpoint": "https://modeldeployment.customer-oci.com/ocid/predict",
+                    "model": "my_model",
                 },
             },
         },
@@ -166,31 +169,31 @@ class ChainSerializationTest(TestCase):
         self.assertIsInstance(llm_chain.llm, Cohere)
         self.assertEqual(llm_chain.input_keys, ["subject"])
 
-    def test_llm_chain_serialization_with_oci_gen_ai(self):
+    def test_llm_chain_serialization_with_oci(self):
         """Tests serialization of LLMChain with OCI Gen AI."""
-        llm = GenerativeAI(
-            compartment_id=self.COMPARTMENT_ID,
-            client_kwargs=self.GEN_AI_KWARGS,
-        )
+        llm = ModelDeploymentVLLM(endpoint=self.ENDPOINT, model="my_model")
         template = PromptTemplate.from_template(self.PROMPT_TEMPLATE)
         llm_chain = LLMChain(prompt=template, llm=llm)
         serialized = dump(llm_chain)
-        self.assertEqual(serialized, self.EXPECTED_LLM_CHAIN_WITH_OCI_GEN_AI)
+        self.assertEqual(serialized, self.EXPECTED_LLM_CHAIN_WITH_OCI_MD)
         llm_chain = load(serialized)
         self.assertIsInstance(llm_chain, LLMChain)
         self.assertIsInstance(llm_chain.prompt, PromptTemplate)
         self.assertEqual(llm_chain.prompt.template, self.PROMPT_TEMPLATE)
-        self.assertIsInstance(llm_chain.llm, GenerativeAI)
-        self.assertEqual(llm_chain.llm.compartment_id, self.COMPARTMENT_ID)
-        self.assertEqual(llm_chain.llm.client_kwargs, self.GEN_AI_KWARGS)
+        self.assertIsInstance(llm_chain.llm, ModelDeploymentVLLM)
+        self.assertEqual(llm_chain.llm.endpoint, self.ENDPOINT)
+        self.assertEqual(llm_chain.llm.model, "my_model")
         self.assertEqual(llm_chain.input_keys, ["subject"])
 
     def test_oci_gen_ai_serialization(self):
         """Tests serialization of OCI Gen AI LLM."""
-        llm = GenerativeAI(
-            compartment_id=self.COMPARTMENT_ID,
-            client_kwargs=self.GEN_AI_KWARGS,
-        )
+        try:
+            llm = GenerativeAI(
+                compartment_id=self.COMPARTMENT_ID,
+                client_kwargs=self.GEN_AI_KWARGS,
+            )
+        except ImportError:
+            raise SkipTest("OCI SDK does not support Generative AI.")
         serialized = dump(llm)
         self.assertEqual(serialized, self.EXPECTED_GEN_AI_LLM)
         llm = load(serialized)
@@ -199,9 +202,12 @@ class ChainSerializationTest(TestCase):
 
     def test_gen_ai_embeddings_serialization(self):
         """Tests serialization of OCI Gen AI embeddings."""
-        embeddings = GenerativeAIEmbeddings(
-            compartment_id=self.COMPARTMENT_ID, client_kwargs=self.GEN_AI_KWARGS
-        )
+        try:
+            embeddings = GenerativeAIEmbeddings(
+                compartment_id=self.COMPARTMENT_ID, client_kwargs=self.GEN_AI_KWARGS
+            )
+        except ImportError:
+            raise SkipTest("OCI SDK does not support Generative AI.")
         serialized = dump(embeddings)
         self.assertEqual(serialized, self.EXPECTED_GEN_AI_EMBEDDINGS)
         embeddings = load(serialized)
