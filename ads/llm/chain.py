@@ -192,15 +192,15 @@ class GuardrailSequence(RunnableSequence):
             )
 
         file_ext = pathlib.Path(expanded_path).suffix.lower()
+        if file_ext not in [".yaml", ".json"]:
+            raise ValueError(
+                f"{self.__class__.__name__} can only be saved as yaml or json format."
+            )
         with open(expanded_path, "w", encoding="utf-8") as f:
             if file_ext == ".yaml":
                 yaml.safe_dump(chain_dict, f, default_flow_style=False)
             elif file_ext == ".json":
                 json.dump(chain_dict, f)
-            else:
-                raise ValueError(
-                    f"{self.__class__.__name__} can only be saved as yaml or json format."
-                )
 
     def save(self, filename: str = None, overwrite: bool = False) -> dict:
         """Serialize the sequence to a dictionary.
