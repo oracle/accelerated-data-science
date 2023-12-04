@@ -124,7 +124,10 @@ class ConfigMerger(ConfigProcessor):
                     exec_config.get("auth") or AuthType.API_KEY
                 )
         # determine profile
-        if self.config["execution"]["auth"] != AuthType.API_KEY:
+        if self.config["execution"]["auth"] in (
+            AuthType.RESOURCE_PRINCIPAL,
+            AuthType.INSTANCE_PRINCIPAL,
+        ):
             profile = self.config["execution"]["auth"].upper()
             exec_config.pop("oci_profile", None)
             self.config["execution"]["oci_profile"] = None

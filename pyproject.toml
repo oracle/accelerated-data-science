@@ -82,7 +82,7 @@ bds = [
   "sqlalchemy",
 ]
 boosted = [
-  "lightgbm",
+  "lightgbm<4.0.0",  # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "xgboost",
 ]
 data = [
@@ -106,10 +106,10 @@ notebook = [
   "ipywidgets~=7.6.3",
 ]
 onnx = [
-  "lightgbm",
+  "lightgbm<4.0.0",  # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "onnx>=1.12.0",
   "onnxmltools>=1.10.0",
-  "onnxruntime>=1.10.0,<1.16",  # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealedd by unit tests
+  "onnxruntime>=1.10.0,<1.16",  # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
   "oracle_ads[viz]",
   "protobuf<=3.20",
   "skl2onnx>=1.10.4",
@@ -154,6 +154,13 @@ viz = [
   "seaborn>=0.11.0",
 ]
 forecast = [
+  "conda-pack",
+  "inflection",
+  "nbconvert",
+  "nbformat",
+  "oci-cli",
+  "py-cpuinfo",
+  "rich",
   "autots[additional]",
   "datapane",
   "holidays==0.21.13",
@@ -161,13 +168,14 @@ forecast = [
   "numpy",
   "oci-cli",
   "optuna==2.9.0",
-  "oracle-ads[opctl]",
-  "oracle-automlx==23.2.3",
+  "oracle-ads",
+  "oracle-automlx[forecasting]==23.2.3",
   "pmdarima",
   "prophet",
   "shap",
   "sktime",
   "statsmodels",
+  "plotly",
 ]
 pii = [
   "aiohttp",
