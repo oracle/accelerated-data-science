@@ -190,7 +190,8 @@ pii = [
   "spacy==3.6.1",
 ]
 llm = [
-  "langchain>=0.0.295"
+  "langchain>=0.0.295",
+  "evaluate>=0.4.0",
 ]
 
 [project.urls]
