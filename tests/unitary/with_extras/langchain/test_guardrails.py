@@ -13,7 +13,7 @@ from langchain.callbacks.manager import CallbackManagerForLLMRun
 from langchain.llms.base import LLM
 from langchain.prompts import PromptTemplate
 from langchain.schema.runnable import RunnableMap, RunnablePassthrough
-from ads.llm.guardrails import HuggingFaceEvaluation
+from ads.llm.guardrails.huggingface import HuggingFaceEvaluation
 from ads.llm.guardrails.base import BlockedByGuardrail, GuardrailIO
 from ads.llm.chain import GuardrailSequence
 from ads.llm.serialize import load, dump
