@@ -1,21 +1,27 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
+
+import os
 import unittest
+from unittest import mock
+from typing import List
 from langchain.load.serializable import Serializable
 from langchain.schema.embeddings import Embeddings
-
 from langchain.vectorstores import OpenSearchVectorSearch, FAISS
-
-
-import unittest
-from ads.llm.serialize import OpenSearchVectorDBSerializer, FaissSerializer, RetrievalQASerializer
-from tests.unitary.with_extras.langchain.test_guardrails import FakeLLM
-import os
-from unittest import mock
-from typing import Any, Dict, List, Mapping, Optional
 from langchain.chains import RetrievalQA
 from langchain import llms
 from langchain.llms import loading
 
-
+from ads.llm.serializers.retrieval_qa import (
+    OpenSearchVectorDBSerializer,
+    FaissSerializer,
+    RetrievalQASerializer,
+)
+from tests.unitary.with_extras.langchain.test_guardrails import FakeLLM
 
 
 class FakeEmbeddings(Serializable, Embeddings):
@@ -35,27 +41,38 @@ class FakeEmbeddings(Serializable, Embeddings):
 
     def embed_query(self, text: str) -> List[float]:
         return [1] * 1024
-    
-    
+
+
 class TestOpensearchSearchVectorSerializers(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.env_patcher = mock.patch.dict(os.environ, {"OCI_OPENSEARCH_USERNAME": "username",
-                                                    "OCI_OPENSEARCH_PASSWORD": "password",
-                                                    "OCI_OPENSEARCH_VERIFY_CERTS": "True",
-                                                    "OCI_OPENSEARCH_CA_CERTS": "/path/to/cert.pem"})
+        cls.env_patcher = mock.patch.dict(
+            os.environ,
+            {
+                "OCI_OPENSEARCH_USERNAME": "username",
+                "OCI_OPENSEARCH_PASSWORD": "password",
+                "OCI_OPENSEARCH_VERIFY_CERTS": "True",
+                "OCI_OPENSEARCH_CA_CERTS": "/path/to/cert.pem",
+            },
+        )
         cls.env_patcher.start()
         cls.index_name = "test_index"
         cls.embeddings = FakeEmbeddings()
-        cls.opensearch = OpenSearchVectorSearch(
-            "https://localhost:8888",
-            embedding_function=cls.embeddings,
-            index_name=cls.index_name,
-            engine="lucene",
-            http_auth=(os.environ["OCI_OPENSEARCH_USERNAME"], os.environ["OCI_OPENSEARCH_PASSWORD"]),
-            verify_certs=os.environ["OCI_OPENSEARCH_VERIFY_CERTS"],
-            ca_certs=os.environ["OCI_OPENSEARCH_CA_CERTS"],
-        )
+        try:
+            cls.opensearch = OpenSearchVectorSearch(
+                "https://localhost:8888",
+                embedding_function=cls.embeddings,
+                index_name=cls.index_name,
+                engine="lucene",
+                http_auth=(
+                    os.environ["OCI_OPENSEARCH_USERNAME"],
+                    os.environ["OCI_OPENSEARCH_PASSWORD"],
+                ),
+                verify_certs=os.environ["OCI_OPENSEARCH_VERIFY_CERTS"],
+                ca_certs=os.environ["OCI_OPENSEARCH_CA_CERTS"],
+            )
+        except ImportError as ex:
+            raise unittest.SkipTest("opensearch-py is not installed.") from ex
         cls.serializer = OpenSearchVectorDBSerializer()
         super().setUpClass()
 
@@ -65,7 +82,12 @@ class TestOpensearchSearchVectorSerializers(unittest.TestCase):
 
     def test_save(self):
         serialized = self.serializer.save(self.opensearch)
-        assert serialized["id"] == ['langchain', 'vectorstores', 'opensearch_vector_search', 'OpenSearchVectorSearch']
+        assert serialized["id"] == [
+            "langchain",
+            "vectorstores",
+            "opensearch_vector_search",
+            "OpenSearchVectorSearch",
+        ]
         assert serialized["kwargs"]["opensearch_url"] == "https://localhost:8888"
         assert serialized["kwargs"]["engine"] == "lucene"
         assert serialized["_type"] == "OpenSearchVectorSearch"
@@ -81,7 +103,10 @@ class TestFAISSSerializers(unittest.TestCase):
     def setUpClass(cls):
         cls.embeddings = FakeEmbeddings()
         text_embedding_pair = [("test", [1] * 1024)]
-        cls.db = FAISS.from_embeddings(text_embedding_pair, cls.embeddings)
+        try:
+            cls.db = FAISS.from_embeddings(text_embedding_pair, cls.embeddings)
+        except ImportError as ex:
+            raise unittest.SkipTest(ex.msg) from ex
         cls.serializer = FaissSerializer()
         super().setUpClass()
 
@@ -90,7 +115,14 @@ class TestFAISSSerializers(unittest.TestCase):
 
     def test_save(self):
         serialized = self.serializer.save(self.db)
-        assert serialized["embedding_function"]["id"] == ["tests", "unitary", "with_extras", "langchain", "test_serializers", "FakeEmbeddings"]
+        assert serialized["embedding_function"]["id"] == [
+            "tests",
+            "unitary",
+            "with_extras",
+            "langchain",
+            "test_serializers",
+            "FakeEmbeddings",
+        ]
         assert isinstance(serialized["vectordb"], str)
 
     def test_load(self):
@@ -106,14 +138,18 @@ class TestRetrievalQASerializer(unittest.TestCase):
         cls.llm = FakeLLM()
         cls.embeddings = FakeEmbeddings()
         text_embedding_pair = [("test", [1] * 1024)]
-        cls.db = FAISS.from_embeddings(text_embedding_pair, cls.embeddings)
+        try:
+            cls.db = FAISS.from_embeddings(text_embedding_pair, cls.embeddings)
+        except ImportError as ex:
+            raise unittest.SkipTest(ex.msg) from ex
         cls.serializer = FaissSerializer()
         cls.retriever = cls.db.as_retriever()
-        cls.qa = RetrievalQA.from_chain_type(llm=cls.llm,
-                                            chain_type="stuff",
-                                            retriever=cls.retriever)
+        cls.qa = RetrievalQA.from_chain_type(
+            llm=cls.llm, chain_type="stuff", retriever=cls.retriever
+        )
         cls.serializer = RetrievalQASerializer()
         from copy import deepcopy
+
         cls.original_type_to_cls_dict = deepcopy(llms.get_type_to_cls_dict())
         __lc_llm_dict = llms.get_type_to_cls_dict()
         __lc_llm_dict["custom_embedding"] = lambda: FakeEmbeddings
