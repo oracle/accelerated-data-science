@@ -1,6 +1,6 @@
-#########
-LangChain
-#########
+############################
+Deploy LangChain Application
+############################
 
 Oracle ADS SDK now supports the deployment of LangChain application to OCI data science model deployment and you can easily do so just by writing a couple lines of code.
 
