@@ -8,6 +8,8 @@ imbalanced-learn
 lxml
 mysql-connector-python
 nltk
+opensearch-py
+faiss-cpu
 pdfplumber
 py4j
 pyarrow
