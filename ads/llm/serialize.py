@@ -4,26 +4,31 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import base64
 import json
 import os
 import tempfile
+from copy import deepcopy
 from typing import Any, Dict, List, Optional
 
 import fsspec
 import yaml
 from langchain import llms
-from langchain.llms import loading
+from langchain.chains import RetrievalQA
 from langchain.chains.loading import load_chain_from_config
+from langchain.llms import loading
+from langchain.load import dumpd
 from langchain.load.load import Reviver
 from langchain.load.serializable import Serializable
+from langchain.vectorstores import FAISS, OpenSearchVectorSearch
+from opensearchpy.client import OpenSearch
 
 from ads.common.auth import default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.llm import GenerativeAI, ModelDeploymentVLLM, ModelDeploymentTGI
+from ads.llm import GenerativeAI, ModelDeploymentTGI, ModelDeploymentVLLM
 from ads.llm.chain import GuardrailSequence
 from ads.llm.guardrails.base import CustomGuardrailBase
 from ads.llm.patch import RunnableParallel, RunnableParallelSerializer
-
 
 # This is a temp solution for supporting custom LLM in legacy load_chain
 __lc_llm_dict = llms.get_type_to_cls_dict()
@@ -39,11 +44,129 @@ def __new_type_to_cls_dict():
 llms.get_type_to_cls_dict = __new_type_to_cls_dict
 loading.get_type_to_cls_dict = __new_type_to_cls_dict
 
+
+class OpenSearchVectorDBSerializer:
+    """
+    Serializer for OpenSearchVectorSearch class
+    """
+    @staticmethod
+    def type():
+        return OpenSearchVectorSearch.__name__
+
+    @staticmethod
+    def load(config: dict, **kwargs):
+        config["kwargs"]["embedding_function"] = load(
+            config["kwargs"]["embedding_function"], **kwargs
+        )
+        return OpenSearchVectorSearch(
+            **config["kwargs"],
+            http_auth=(
+                os.environ.get("OCI_OPENSEARCH_USERNAME", None),
+                os.environ.get("OCI_OPENSEARCH_PASSWORD", None),
+            ),
+            verify_certs=True if os.environ.get("OCI_OPENSEARCH_VERIFY_CERTS", None).lower() == "true" else False,
+            ca_certs=os.environ.get("OCI_OPENSEARCH_CA_CERTS", None),
+        )
+
+    @staticmethod
+    def save(obj):
+        serialized = dumpd(obj)
+        serialized["type"] = "constructor"
+        serialized["_type"] = OpenSearchVectorDBSerializer.type()
+        kwargs = {}
+        for key, val in obj.__dict__.items():
+            if key == "client":
+                if isinstance(val, OpenSearch):
+                    client_info = val.transport.hosts[0]
+                    opensearch_url = (
+                        f"https://{client_info['host']}:{client_info['port']}"
+                    )
+                    kwargs.update({"opensearch_url": opensearch_url})
+                else:
+                    raise NotImplementedError("Only support OpenSearch client.")
+                continue
+            kwargs[key] = dump(val)
+        serialized["kwargs"] = kwargs
+        return serialized
+
+
+class FaissSerializer:
+    """
+    Serializer for OpenSearchVectorSearch class
+    """
+    @staticmethod
+    def type():
+        return FAISS.__name__
+
+    @staticmethod
+    def load(config: dict, **kwargs):
+        embedding_function = load(config["embedding_function"], **kwargs)
+        decoded_pkl = base64.b64decode(json.loads(config["vectordb"]))
+        return FAISS.deserialize_from_bytes(
+            embeddings=embedding_function, serialized=decoded_pkl
+        )  # Load the index
+
+    @staticmethod
+    def save(obj):
+        serialized = {}
+        serialized["_type"] = FaissSerializer.type()
+        pkl = obj.serialize_to_bytes()
+        # Encoding bytes to a base64 string
+        encoded_pkl = base64.b64encode(pkl).decode('utf-8')
+        # Serializing the base64 string
+        serialized["vectordb"] = json.dumps(encoded_pkl)
+        serialized["embedding_function"] = dump(obj.__dict__["embedding_function"])
+        return serialized
+
+# Mapping class to vector store serialization functions
+vectordb_serialization = {"OpenSearchVectorSearch": OpenSearchVectorDBSerializer, "FAISS": FaissSerializer}
+
+
+class RetrievalQASerializer:
+    """
+    Serializer for RetrieverQA class
+    """
+    @staticmethod
+    def type():
+        return "retrieval_qa"
+
+    @staticmethod
+    def load(config: dict, **kwargs):
+        config_param = deepcopy(config)
+        retriever_kwargs = config_param.pop("retriever_kwargs")
+        vectordb_serializer = vectordb_serialization[config_param["vectordb"]["class"]]
+        vectordb = vectordb_serializer.load(config_param.pop("vectordb"), **kwargs)
+        retriever = vectordb.as_retriever(**retriever_kwargs)
+        return load_chain_from_config(config=config_param, retriever=retriever)
+
+    @staticmethod
+    def save(obj):
+        serialized = obj.dict()
+        retriever_kwargs = {}
+        for key, val in obj.retriever.__dict__.items():
+            if key not in ["tags", "metadata", "vectorstore"]:
+                retriever_kwargs[key] = val
+        serialized["retriever_kwargs"] = retriever_kwargs
+        serialized["vectordb"] = {"class": obj.retriever.vectorstore.__class__.__name__}
+
+        vectordb_serializer = vectordb_serialization[serialized["vectordb"]["class"]]
+        serialized["vectordb"].update(
+            vectordb_serializer.save(obj.retriever.vectorstore)
+        )
+
+        if serialized["vectordb"]["class"] not in vectordb_serialization:
+            raise NotImplementedError(
+                f"VectorDBSerializer for {serialized['vectordb']['class']} is not implemented."
+            )
+        return serialized
+
+
 # Mapping class to custom serialization functions
 custom_serialization = {
     GuardrailSequence: GuardrailSequence.save,
     CustomGuardrailBase: CustomGuardrailBase.save,
     RunnableParallel: RunnableParallelSerializer.save,
+    RetrievalQA: RetrievalQASerializer.save,
 }
 
 # Mapping _type to custom deserialization functions
@@ -52,6 +175,7 @@ custom_deserialization = {
     GuardrailSequence.type(): GuardrailSequence.load,
     CustomGuardrailBase.type(): CustomGuardrailBase.load,
     RunnableParallelSerializer.type(): RunnableParallelSerializer.load,
+    RetrievalQASerializer.type(): RetrievalQASerializer.load,
 }
 
 

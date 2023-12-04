@@ -4,7 +4,9 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import os
+import tempfile
 from typing import Any, List, Dict, Mapping, Optional
 from unittest import TestCase
 from langchain.callbacks.manager import CallbackManagerForLLMRun
@@ -146,8 +148,8 @@ class GuardrailSequenceTests(GuardrailTestsBase):
         def test_fn(chain: GuardrailSequence):
             output = chain.run("cats", num_generations=5)
             self.assertIsInstance(output, GuardrailIO)
-            self.assertIsInstance(output.data, list)
-            self.assertEqual(len(output.data), 1)
+            self.assertIsInstance(output.data, str)
+            self.assertEqual(output.data, "Tell me a joke about cats")
             self.assertIsInstance(output.info, list)
             self.assertEqual(len(output.info), len(chain.steps))
 
@@ -166,10 +168,37 @@ class GuardrailSequenceTests(GuardrailTestsBase):
         def test_fn(chain: GuardrailSequence):
             output = chain.run(self.TOXIC_CONTENT)
             self.assertIsInstance(output, GuardrailIO)
-            self.assertIsInstance(output.data, list)
-            self.assertEqual(len(output.data), 1)
-            self.assertEqual(output.data[0], message)
+            self.assertIsInstance(output.data, str)
+            self.assertEqual(output.data, message)
             self.assertIsInstance(output.info, list)
             self.assertEqual(len(output.info), len(chain.steps))
 
         self.assert_before_and_after_serialization(test_fn, chain)
+
+    def test_empty_sequence(self):
+        """Tests empty sequence."""
+        seq = GuardrailSequence()
+        self.assertEqual(seq.steps, [])
+
+    def test_save_to_file(self):
+        """Tests saving to file."""
+        message = "Let's talk something else."
+        toxicity = HuggingFaceEvaluation(
+            path="toxicity",
+            load_args=self.LOAD_ARGS,
+            threshold=0.5,
+            custom_msg=message,
+        )
+        chain = GuardrailSequence.from_sequence(self.FAKE_LLM | toxicity)
+        try:
+            temp = tempfile.NamedTemporaryFile(suffix=".json", delete=False)
+            temp.close()
+            with self.assertRaises(FileExistsError):
+                serialized = chain.save(temp.name)
+            with self.assertRaises(ValueError):
+                chain.save("abc.html")
+            serialized = chain.save(temp.name, overwrite=True)
+            with open(temp.name, "r", encoding="utf-8") as f:
+                self.assertEqual(json.load(f), serialized)
+        finally:
+            os.unlink(temp.name)

@@ -150,4 +150,7 @@ def predict(data, model=load_model(), input_schema_path=os.path.join(os.path.dir
     """
     features = pre_inference(data, input_schema_path)
     output = model.invoke(features)
+    # Return the output as is if the output is a dictionary
+    if isinstance(output, dict):
+        return output
     return {'output': output}

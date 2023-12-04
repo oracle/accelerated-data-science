@@ -181,6 +181,9 @@ pii = [
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
 ]
+llm = [
+  "langchain>=0.0.295"
+]
 
 [project.urls]
 "Github" = "https://github.com/oracle/accelerated-data-science"
