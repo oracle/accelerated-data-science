@@ -43,11 +43,6 @@ class ModelDeploymentLLM(BaseLLM):
             "endpoint",
             "OCI_LLM_ENDPOINT",
         )
-        if not values["endpoint"]:
-            raise ValueError(
-                "Please specify endpoint by setting environment variable"
-                "`OCI_LLM_ENDPOINT` or passing through argument `endpoint`."
-            )
         return values
 
     @property
