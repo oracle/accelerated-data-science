@@ -2,14 +2,15 @@
 -e ".[bds,data,geo,huggingface,llm,notebook,onnx,opctl,optuna,pii,spark,tensorflow,text,torch,viz]"
 arff
 category_encoders
+cohere
 dask
+faiss-cpu
 fastparquet
 imbalanced-learn
 lxml
 mysql-connector-python
 nltk
 opensearch-py
-faiss-cpu
 pdfplumber
 py4j
 pyarrow
