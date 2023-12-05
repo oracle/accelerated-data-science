@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import sys
 import time
 import traceback
 from datetime import date, datetime
@@ -18,6 +19,7 @@ from typing import Callable, Optional, Union
 from enum import Enum
 
 import oci
+import tqdm
 import yaml
 from ads.common import auth
 from ads.common.decorator.utils import class_or_instance_method
@@ -1038,3 +1040,95 @@ class OCIModelWithNameMixin:
         if not res:
             raise OCIModelNotExists()
         return cls.from_oci_model(res[0])
+
+
+class ADSWorkRequest(OCIClientMixin):
+
+    def __init__(self, id: str, description: str = "Processing"):
+        self.id = id
+        self._description = description
+        self._percentage = 0
+        self._status = None
+
+    def _sync(self):
+        try:
+            work_request = self.client.get_work_request(self.id).data
+            work_request_logs = self.client.list_work_request_logs(
+                self.id
+            ).data
+
+            self._percentage= work_request.percent_complete
+            self._status = work_request.status
+            self._description = work_request_logs[:-1]
+        except Exception as ex:
+            logger.warn(ex)
+
+    def watch(
+        self, 
+        progress_callback: Callable,
+        max_wait_time: int,
+        poll_interval: int,
+    ):
+        previous_percent_complete = 0
+        previous_log = None
+
+        start_time = time.time()
+        while self._percentage < 100:
+
+            seconds_since = time.time() - start_time
+            if max_wait_time > 0 and seconds_since >= max_wait_time:
+                logger.error(f"Max wait time ({max_wait_time} seconds) exceeded.")
+                return
+
+            time.sleep(poll_interval)
+            self._sync()
+            percent_change = self._percentage - previous_percent_complete
+            previous_percent_complete = self._percentage
+            description = self._description if previous_log != self._description else ""
+            progress_callback(
+                percent_change=percent_change, 
+                description=description
+            )
+            previous_log = self._description
+
+            if self._status in WORK_REQUEST_STOP_STATE:
+                if self._status != oci.work_requests.models.WorkRequest.STATUS_SUCCEEDED:
+                    if self._description:
+                        raise Exception(self._description)
+                    else:
+                        raise Exception(
+                            "Error occurred in attempt to perform the operation. "
+                            "Check the service logs to get more details. "
+                        )
+                else:
+                    break
+
+        progress_callback(percent_change=0, description="Done")
+
+
+def wait_work_request(
+    id: str, 
+    desc: str, 
+    max_wait_time: int=DEFAULT_WAIT_TIME,
+    poll_interval: int=DEFAULT_POLL_INTERVAL
+):
+    ads_work_request = ADSWorkRequest(id)
+
+    with tqdm(
+        leave=False,
+        file=sys.stdout,
+        desc=desc,
+    ) as pbar:
+
+        def progress_callback(percent_change, description):
+            if percent_change != 0:
+                pbar.update(percent_change)
+            if description:
+                pbar.set_description(description)
+
+        ads_work_request.watch(
+            progress_callback,
+            max_wait_time=max_wait_time,
+            poll_interval=poll_interval
+        )
+ 
