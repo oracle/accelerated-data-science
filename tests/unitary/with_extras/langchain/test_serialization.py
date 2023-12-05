@@ -25,6 +25,10 @@ from ads.llm import (
 class ChainSerializationTest(TestCase):
     """Contains tests for chain serialization."""
 
+    def setUp(self) -> None:
+        self.maxDiff = None
+        return super().setUp()
+
     PROMPT_TEMPLATE = "Tell me a joke about {subject}"
     COMPARTMENT_ID = "<ocid>"
     GEN_AI_KWARGS = {"service_endpoint": "https://endpoint.oraclecloud.com"}
