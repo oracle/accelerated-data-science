@@ -1,8 +1,8 @@
 .. _vector_store:
 
-##########################################################
-Extensive Support of Langchain Vector Stores serialization
-##########################################################
+########################
+Vector Store integration
+########################
 
 .. versionadded:: 2.9.1
 
@@ -40,7 +40,7 @@ The following code snippet shows how to use ``OpenSearchVectorSearch`` with envi
 
 .. admonition:: Deployment
   :class: note
-  
+
 During deployment, it is very important that you remember to pass in those environment variables as well:
 
 .. code-block:: python3
