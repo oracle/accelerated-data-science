@@ -75,7 +75,7 @@ class ChainSerializationTest(TestCase):
             "prompt": {
                 "lc": 1,
                 "type": "constructor",
-                "id": ["langchain", "prompts", "prompt", "PromptTemplate"],
+                "id": ["langchain_core", "prompts", "prompt", "PromptTemplate"],
                 "kwargs": {
                     "input_variables": ["subject"],
                     "template": "Tell me a joke about {subject}",
@@ -118,21 +118,20 @@ class ChainSerializationTest(TestCase):
     EXPECTED_RUNNABLE_SEQUENCE = {
         "lc": 1,
         "type": "constructor",
-        "id": ["langchain", "schema", "runnable", "RunnableSequence"],
+        "id": ["langchain_core", "runnables", "RunnableSequence"],
         "kwargs": {
             "first": {
                 "lc": 1,
                 "type": "constructor",
-                "id": ["langchain", "schema", "runnable", "RunnableParallel"],
+                "id": ["langchain_core", "runnables", "RunnableParallel"],
                 "kwargs": {
                     "steps": {
                         "text": {
                             "lc": 1,
                             "type": "constructor",
                             "id": [
-                                "langchain",
-                                "schema",
-                                "runnable",
+                                "langchain_core",
+                                "runnables",
                                 "RunnablePassthrough",
                             ],
                             "kwargs": {"func": None, "afunc": None, "input_type": None},
@@ -145,7 +144,7 @@ class ChainSerializationTest(TestCase):
                 {
                     "lc": 1,
                     "type": "constructor",
-                    "id": ["langchain", "prompts", "prompt", "PromptTemplate"],
+                    "id": ["langchain_core", "prompts", "prompt", "PromptTemplate"],
                     "kwargs": {
                         "input_variables": ["subject"],
                         "template": "Tell me a joke about {subject}",
