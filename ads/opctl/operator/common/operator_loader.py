@@ -136,6 +136,9 @@ class OperatorInfo(DataClassSerializable):
     dataflow_default_params (DataFlowDefaultParams)
         The default params for the DataFlow service.
         Will be used when operator run on the DataFlow service.
+    logo: str
+        The logo of the operator.
+        Needs to be attached in the "svg+xml;base64" format.
 
     Properties
     ----------
@@ -157,6 +160,7 @@ class OperatorInfo(DataClassSerializable):
     dataflow_default_params: DataFlowDefaultParams = field(
         default_factory=DataFlowDefaultParams
     )
+    logo: str = ""
 
     @property
     def conda_prefix(self) -> str:
