@@ -13,6 +13,7 @@ from .base import Guardrail
 class HuggingFaceEvaluation(Guardrail):
     path: str = ""
     load_args: dict = {}
+    compute_args: dict = {}
     _evaluator: evaluate.EvaluationModule = ""
 
     @root_validator(skip_on_failure=True)
@@ -36,7 +37,7 @@ class HuggingFaceEvaluation(Guardrail):
             load_args = {"path": self.path}
             load_args.update(self.load_args)
             self._evaluator = evaluate.load(**load_args)
-        return self._evaluator.compute(predictions=data, **kwargs)
+        return self._evaluator.compute(predictions=data, **self.compute_args, **kwargs)
 
     @property
     def metric_key(self):
