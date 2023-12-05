@@ -150,11 +150,16 @@ def build_image(image_type: str, gpu: bool = False) -> None:
     else:
         # https://stackoverflow.com/questions/66842004/get-the-processor-type-using-python-for-apple-m1-processor-gives-me-an-intel-pro
         import cpuinfo
+
         # Just get the manufacturer of the processors
-        manufacturer = cpuinfo.get_cpu_info().get('brand_raw')
-        arch = 'arm' if re.search("apple m\d ", manufacturer, re.IGNORECASE) else 'other'
+        manufacturer = cpuinfo.get_cpu_info().get("brand_raw")
+        arch = (
+            "arm" if re.search("apple m\d ", manufacturer, re.IGNORECASE) else "other"
+        )
         print(f"The local machine's platform is {arch}.")
-        image, dockerfile, target = _get_image_name_dockerfile_target(image_type, gpu, arch)
+        image, dockerfile, target = _get_image_name_dockerfile_target(
+            image_type, gpu, arch
+        )
         print(f"dockerfile used is {dockerfile}")
         command = [
             "docker",
@@ -186,8 +191,6 @@ def _get_image_name_dockerfile_target(type: str, gpu: bool, arch: str) -> str:
         ("job-local", False, "arm"): (ML_JOB_IMAGE, "Dockerfile.job.arm", None),
         ("job-local", False, "other"): (ML_JOB_IMAGE, "Dockerfile.job", None),
         ("job-local", True, "other"): (ML_JOB_GPU_IMAGE, "Dockerfile.job.gpu", None),
-        ("ads-ops-base", False, "other"): (OPS_IMAGE_BASE, "Dockerfile", "base"),
-        ("ads-ops-base", True, "other"): (OPS_IMAGE_GPU_BASE, "Dockerfile.gpu", "base"),
     }
     return look_up[(type, gpu, arch)]
 
