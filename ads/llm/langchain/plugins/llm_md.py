@@ -8,8 +8,10 @@ import logging
 from typing import Any, Dict, List, Optional
 
 import requests
-from oci.auth import signers
 from langchain.callbacks.manager import CallbackManagerForLLMRun
+from langchain.pydantic_v1 import root_validator
+from langchain.utils import get_from_dict_or_env
+from oci.auth import signers
 
 from ads.llm.langchain.plugins.base import BaseLLM
 from ads.llm.langchain.plugins.contant import (
@@ -23,13 +25,25 @@ logger = logging.getLogger(__name__)
 class ModelDeploymentLLM(BaseLLM):
     """Base class for LLM deployed on OCI Model Deployment."""
 
-    endpoint: str
+    endpoint: str = ""
     """The uri of the endpoint from the deployed Model Deployment model."""
 
     best_of: int = 1
     """Generates best_of completions server-side and returns the "best"
     (the one with the highest log probability per token).
     """
+
+    @root_validator()
+    def validate_environment(  # pylint: disable=no-self-argument
+        cls, values: Dict
+    ) -> Dict:
+        """Fetch endpoint from environment variable or arguments."""
+        values["endpoint"] = get_from_dict_or_env(
+            values,
+            "endpoint",
+            "OCI_LLM_ENDPOINT",
+        )
+        return values
 
     @property
     def _default_params(self) -> Dict[str, Any]:
@@ -73,7 +87,7 @@ class ModelDeploymentLLM(BaseLLM):
         run_manager: Optional[CallbackManagerForLLMRun] = None,
         **kwargs: Any,
     ) -> str:
-        """Call out to OCI Data Science Model Deployment TGI endpoint.
+        """Call out to OCI Data Science Model Deployment endpoint.
 
         Parameters
         ----------
@@ -203,8 +217,11 @@ class ModelDeploymentTGI(ModelDeploymentLLM):
     """
 
     watermark = True
+    """Watermarking with `A Watermark for Large Language Models <https://arxiv.org/abs/2301.10226>`_.
+    Defaults to True."""
 
     return_full_text = False
+    """Whether to prepend the prompt to the generated text. Defaults to False."""
 
     @property
     def _llm_type(self) -> str:
@@ -241,6 +258,7 @@ class ModelDeploymentVLLM(ModelDeploymentLLM):
     """VLLM deployed on OCI Model Deployment"""
 
     model: str
+    """Name of the model."""
 
     n: int = 1
     """Number of output sequences to return for the given prompt."""
