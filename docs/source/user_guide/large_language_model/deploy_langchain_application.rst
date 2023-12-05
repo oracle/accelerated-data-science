@@ -63,13 +63,16 @@ Prepare the Model Artifacts
 
 Call ``prepare`` from ``ChainDeployment`` to generate the ``score.py`` and serialize the LangChain application to ``chain.yaml`` file under ``artifact_dir`` folder. 
 Parameters ``inference_conda_env`` and ``inference_python_version`` are passed to define the conda environment where your LangChain application will be running on OCI cloud. 
-Here we're using ``pytorch21_p39_gpu_v1`` with python 3.9.
+Here, replace ``custom_conda_environment_uri`` with your conda environment uri that has the latest ADS 2.9.1 and replace ``python_version`` with your conda environment python version.
+
+.. note::
+    For how to customize and publish conda environment, take reference to `Publishing a Conda Environment to an Object Storage Bucket <https://docs.oracle.com/en-us/iaas/data-science/using/conda_publishs_object.htm>`_
 
 .. code-block:: python3
 
     chain_deployment.prepare(
-        inference_conda_env="pytorch21_p39_gpu_v1",
-        inference_python_version="3.9",
+        inference_conda_env="<custom_conda_environment_uri>",
+        inference_python_version="<python_version>",
     )
 
 Below is the ``chain.yaml`` file that was saved from ``llm_chain`` object. For more information regarding LLMs model serialization, see `here <https://python.langchain.com/docs/modules/model_io/llms/llm_serialization>`_.
