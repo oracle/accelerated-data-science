@@ -30,7 +30,7 @@ class OpenSearchVectorDBSerializer:
                 os.environ.get("OCI_OPENSEARCH_PASSWORD", None),
             ),
             verify_certs=True
-            if os.environ.get("OCI_OPENSEARCH_VERIFY_CERTS", None).lower() == "true"
+            if os.environ.get("OCI_OPENSEARCH_VERIFY_CERTS", None) == "True"
             else False,
             ca_certs=os.environ.get("OCI_OPENSEARCH_CA_CERTS", None),
         )
