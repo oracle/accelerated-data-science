@@ -40,7 +40,7 @@ The following code snippet shows how to use ``OpenSearchVectorSearch`` with envi
 
 .. admonition:: Deployment
   :class: note
-
+  
 During deployment, it is very important that you remember to pass in those environment variables as well:
 
 .. code-block:: python3
