@@ -8,7 +8,7 @@ from functools import wraps
 import logging
 from typing import Callable, List
 from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.oci_mixin import OCIWorkRequestMixin
+from ads.common.oci_mixin import OCIWorkRequestMixin, wait_work_request
 from ads.config import PROJECT_OCID
 from ads.model.deployment.common.utils import OCIClientManager, State
 import oci
@@ -197,8 +197,9 @@ class OCIDataScienceModelDeployment(
                 self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
                 try:
-                    self.wait_for_progress(
-                        self.workflow_req_id, 
+                    wait_work_request(
+                        self.workflow_req_id,
+                        f"Activating model deployment: {self.display_name}",
                         max_wait_time, 
                         poll_interval
                     )
@@ -247,8 +248,9 @@ class OCIDataScienceModelDeployment(
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
             try:
-                self.wait_for_progress(
-                    self.workflow_req_id, 
+                wait_work_request(
+                    self.workflow_req_id,
+                    f"Creating model deployment: {self.display_name}",
                     max_wait_time, 
                     poll_interval
                 )
@@ -309,8 +311,9 @@ class OCIDataScienceModelDeployment(
                 self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
                 try:
-                    self.wait_for_progress(
-                        self.workflow_req_id, 
+                    wait_work_request(
+                        self.workflow_req_id,
+                        f"Deactivating model deployment: {self.display_name}",
                         max_wait_time, 
                         poll_interval
                     )
@@ -378,8 +381,9 @@ class OCIDataScienceModelDeployment(
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
             try:
-                self.wait_for_progress(
-                    self.workflow_req_id, 
+                wait_work_request(
+                    self.workflow_req_id,
+                    f"Deleting model deployment: {self.display_name}",
                     max_wait_time, 
                     poll_interval
                 )

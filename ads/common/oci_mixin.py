@@ -19,7 +19,7 @@ from typing import Callable, Optional, Union
 from enum import Enum
 
 import oci
-import tqdm
+from tqdm import tqdm
 import yaml
 from ads.common import auth
 from ads.common.decorator.utils import class_or_instance_method
@@ -1051,17 +1051,14 @@ class ADSWorkRequest(OCIClientMixin):
         self._status = None
 
     def _sync(self):
-        try:
-            work_request = self.client.get_work_request(self.id).data
-            work_request_logs = self.client.list_work_request_logs(
-                self.id
-            ).data
+        work_request = self.client.get_work_request(self.id).data
+        work_request_logs = self.client.list_work_request_logs(
+            self.id
+        ).data
 
-            self._percentage= work_request.percent_complete
-            self._status = work_request.status
-            self._description = work_request_logs[:-1]
-        except Exception as ex:
-            logger.warn(ex)
+        self._percentage= work_request.percent_complete
+        self._status = work_request.status
+        self._description = work_request_logs[:-1]
 
     def watch(
         self, 
@@ -1081,14 +1078,17 @@ class ADSWorkRequest(OCIClientMixin):
                 return
 
             time.sleep(poll_interval)
-            self._sync()
+
+            try:
+                self._sync()
+            except Exception as ex:
+                logger.warn(ex)
+                continue
+
             percent_change = self._percentage - previous_percent_complete
             previous_percent_complete = self._percentage
             description = self._description if previous_log != self._description else ""
-            progress_callback(
-                percent_change=percent_change, 
-                description=description
-            )
+            progress_callback(percent_change, description)
             previous_log = self._description
 
             if self._status in WORK_REQUEST_STOP_STATE:
@@ -1103,12 +1103,12 @@ class ADSWorkRequest(OCIClientMixin):
                 else:
                     break
 
-        progress_callback(percent_change=0, description="Done")
+        progress_callback(0, "Done")
 
 
 def wait_work_request(
     id: str, 
-    desc: str, 
+    progress_bar_description: str, 
     max_wait_time: int=DEFAULT_WAIT_TIME,
     poll_interval: int=DEFAULT_POLL_INTERVAL
 ):
@@ -1116,8 +1116,9 @@ def wait_work_request(
 
     with tqdm(
         leave=False,
+        mininterval=0,
         file=sys.stdout,
-        desc=desc,
+        desc=progress_bar_description,
     ) as pbar:
 
         def progress_callback(percent_change, description):
@@ -1128,7 +1129,7 @@ def wait_work_request(
 
         ads_work_request.watch(
             progress_callback,
-            max_wait_time=max_wait_time,
-            poll_interval=poll_interval
+            max_wait_time,
+            poll_interval
         )
  
