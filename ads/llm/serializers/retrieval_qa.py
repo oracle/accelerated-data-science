@@ -50,10 +50,10 @@ class OpenSearchVectorDBSerializer:
         serialized["type"] = "constructor"
         serialized["_type"] = OpenSearchVectorDBSerializer.type()
         kwargs = {}
-        for key, val in obj.__dict__.items():
-            if key == "client":
-                if isinstance(val, OpenSearch):
-                    client_info = val.transport.hosts[0]
+        for component_name, component in obj.__dict__.items():
+            if component_name == "client":
+                if isinstance(component, OpenSearch):
+                    client_info = component.transport.hosts[0]
                     opensearch_url = (
                         f"https://{client_info['host']}:{client_info['port']}"
                     )
@@ -61,7 +61,7 @@ class OpenSearchVectorDBSerializer:
                 else:
                     raise NotImplementedError("Only support OpenSearch client.")
                 continue
-            kwargs[key] = dump(val)
+            kwargs[component_name] = dump(component)
         serialized["kwargs"] = kwargs
         return serialized
 
