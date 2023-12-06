@@ -32,10 +32,10 @@ ADS is designed to work with LangChain, enabling developers to incorporate vario
 
 
 .. toctree::
-    :hidden:
     :maxdepth: 2
 
     training_llm
+    langchain_models
     deploy_langchain_application
     retrieval
     guardrails
