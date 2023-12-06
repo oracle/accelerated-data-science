@@ -15,7 +15,6 @@ from langchain import llms
 from langchain.chains import RetrievalQA
 from langchain.chains.loading import load_chain_from_config
 from langchain.llms import loading
-from langchain.load import dumpd
 from langchain.load.load import Reviver
 from langchain.load.serializable import Serializable
 from langchain.schema.runnable import RunnableParallel
