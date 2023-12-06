@@ -251,7 +251,8 @@ Here is an example code snippet for OpenSearchVectorSearch deployment:
     from ads.llm.deploy import ChainDeployment
     model = ChainDeployment(qa)
     model.prepare(force_overwrite=True,
-            inference_conda_env="your_conda_pack",
+            inference_conda_env="<custom_conda_environment_uri>",
+            inference_python_version="<python_version>",
             )
 
     model.save()
@@ -322,7 +323,8 @@ Here is an example code snippet for FAISS deployment:
     from ads.llm.deploy import ChainDeployment
     model = ChainDeployment(qa)
     model.prepare(force_overwrite=True,
-            inference_conda_env="your_conda_pack",
+            inference_conda_env="<custom_conda_environment_uri>",
+            inference_python_version="<python_version>",
             )
 
     model.save()
