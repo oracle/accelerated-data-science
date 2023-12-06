@@ -16,7 +16,7 @@ For example, to use the `toxicity measurement <https://huggingface.co/spaces/eva
     # Only allow content with toxicity score less than 0.2
     toxicity = HuggingFaceEvaluation(path="toxicity", threshold=0.2)
 
-By default, it uses the `facebook/roberta-hate-speech-dynabench-r4-target<https://huggingface.co/facebook/roberta-hate-speech-dynabench-r4-target>`_ model. You may use a custom model by specifying the ``load_args`` and ``compute_args``. For example, to use the ``DaNLP/da-electra-hatespeech-detection`` model:
+By default, it uses the `facebook/roberta-hate-speech-dynabench-r4-target <https://huggingface.co/facebook/roberta-hate-speech-dynabench-r4-target>`_ model. You may use a custom model by specifying the ``load_args`` and ``compute_args``. For example, to use the ``DaNLP/da-electra-hatespeech-detection`` model:
 
 .. code-block:: python3
 
