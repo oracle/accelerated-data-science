@@ -16,3 +16,11 @@ except ImportError as ex:
             f"{ex.msg}\nPlease install/update langchain with `pip install langchain -U`"
         ) from ex
     raise ex
+
+
+__all__ = [
+    "GenerativeAI",
+    "GenerativeAIEmbeddings",
+    "ModelDeploymentTGI",
+    "ModelDeploymentVLLM",
+]
