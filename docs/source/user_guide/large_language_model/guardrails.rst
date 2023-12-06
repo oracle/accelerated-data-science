@@ -1,6 +1,9 @@
 Guardrails
 **********
 
+.. versionadded:: 2.9.1
+
+
 ADS provides LangChain compatible guardrails to utilize open-source models or your own models for LLM content moderation.
 
 HuggingFace Measurement as Guardrail
