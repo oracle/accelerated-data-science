@@ -1,7 +1,7 @@
 .. _vector_store:
 
 #################################################
-integration with OCI Generative AI and OpenSearch
+Integration with OCI Generative AI and OpenSearch
 #################################################
 
 .. versionadded:: 2.9.1
@@ -91,12 +91,15 @@ Since the search result usually cannot be directly used to answer a specific que
     )
     qa.run("your question")
 
+Retrieval QA with FAISS
+=======================
+
 FAISS as Vector DB
-==================
+------------------
 
 A lot of the time, your documents are not that large and you dont have a OCI OpenSearch cluster set up. In that case, you can use ``FAISS`` as your in-memory vector store, which can also do similarty search very efficiently. 
 
-The following code snippet shows how to use ``FAISS`` as your vector store:
+The following code snippet shows how to use ``FAISS`` along with OCI Embedding Model to do semantic search:
 
 .. code-block:: python3
 
@@ -120,7 +123,7 @@ The following code snippet shows how to use ``FAISS`` as your vector store:
     db = FAISS.from_embeddings(text_embedding_pairs, oci_embedings)
     db.similarity_search("your query", k=2, size=2)
 
-Retrieval QA Using FAISS Vector Store as a retriever
+Retrieval QA Using FAISS Vector Store as a Retriever
 ----------------------------------------------------
 
 Similarly, you can use FAISS Vector Store as a retriever to build a retrieval QA engine using langchain. The following code snippet shows how to use OCI OpenSearch as a retriever:
@@ -158,7 +161,7 @@ As of version 0.0.346, Langchain does not support serialization of any vector st
 OpenSearchVectorSearch Serialization
 ------------------------------------
 
-langchain does not automatically support serialization of ``OpenSearchVectorSearch``. However, ADS provides a way to serialize ``OpenSearchVectorSearch``. To serialize ``OpenSearchVectorSearch``, you need to use environment variables to pass in the credentials. The following variables can be passed in through the corresponding environment variables:
+langchain does not automatically support serialization of ``OpenSearchVectorSearch``. However, ADS provides a way to serialize ``OpenSearchVectorSearch``. To serialize ``OpenSearchVectorSearch``, you need to use environment variables to store the credentials. The following variables can be passed in through the corresponding environment variables:
 
 - http_auth: (``OCI_OPENSEARCH_USERNAME``, ``OCI_OPENSEARCH_PASSWORD``)
 - verify_certs: ``OCI_OPENSEARCH_VERIFY_CERTS``
@@ -196,10 +199,10 @@ During deployment, it is very important that you remember to pass in those envir
                                     "OCI_OPENSEARCH_PASSWORD": "<oci_opensearch_password>",
                                     "OCI_OPENSEARCH_VERIFY_CERTS": "<oci_opensearch_verify_certs>",)
 
-OpenSearchVectorSearch Deployment
----------------------------------
+Deployment of Retrieval QA with OpenSearch
+------------------------------------------
 
-Here is an example code snippet for OpenSearchVectorSearch deployment:
+Here is an example code snippet for deployment of Retrieval QA using OpenSearch as a retriever:
 
 .. code-block:: python3
 
@@ -268,12 +271,10 @@ Here is an example code snippet for OpenSearchVectorSearch deployment:
     model.predict("your prompt")
 
 
+Deployment of Retrieval QA with FAISS
+-------------------------------------
 
-
-FAISS Deployment
-----------------
-
-Here is an example code snippet for FAISS deployment:
+Here is an example code snippet for deployment of Retrieval QA using FAISS as a retriever:
 
 .. code-block:: python3
 
