@@ -95,8 +95,7 @@ Here is an example code snippet for OpenSearchVectorSearch deployment:
     retriever = opensearch_vector_search.as_retriever(search_kwargs={"vector_field": "embeds", 
                                                                     "text_field": "text", 
                                                                     "k": 3, 
-                                                                    "size": 3},
-                                                    max_tokens_limit=1000)
+                                                                    "size": 3})
     qa = RetrievalQA.from_chain_type(
         llm=oci_llm,
         chain_type="stuff",
@@ -181,6 +180,7 @@ Here is an example code snippet for FAISS deployment:
     )
 
     from ads.llm.deploy import ChainDeployment
+    model = ChainDeployment(qa)
     model.prepare(force_overwrite=True,
             inference_conda_env="your_conda_pack",
             )
