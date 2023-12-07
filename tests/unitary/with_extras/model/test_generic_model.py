@@ -1069,6 +1069,7 @@ class TestGenericModel:
             bucket_uri="test_bucket_uri",
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
+            load_artifact=True,
         )
 
         mock_from_id.assert_called_with(test_model_deployment_id)
@@ -1083,6 +1084,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=False,
+            load_artifact=True,
         )
 
         assert test_result == test_model
@@ -1186,6 +1188,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            load_artifact=True,
         )
 
         mock_from_model_deployment.assert_called_with(
@@ -1199,6 +1202,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            load_artifact=True,
         )
 
         assert test_model_deployment_result == test_model
@@ -1234,6 +1238,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            load_artifact=True,
         )
 
         mock_from_model_catalog.assert_called_with(
@@ -1247,6 +1252,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            load_artifact=True,
         )
 
         assert test_model_result == mock_oci_model
