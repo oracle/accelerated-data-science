@@ -4,7 +4,7 @@
 Large Language Model
 ####################
 
-Oracle Cloud Infrastructure (OCI) provides fully managed infrastructure to work with Large Language Model (LLM). 
+Oracle Cloud Infrastructure (OCI) provides fully managed infrastructure to work with Large Language Model (LLM).
 
 Train and Deploy LLM
 ********************
@@ -32,9 +32,10 @@ ADS is designed to work with LangChain, enabling developers to incorporate vario
 
 
 .. toctree::
-    :hidden:
     :maxdepth: 2
 
     training_llm
+    langchain_models
     deploy_langchain_application
     retrieval
+    guardrails
