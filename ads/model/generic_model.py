@@ -3019,7 +3019,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Parameter to ignore error when collecting conda information.
         region: (str, optional). Defaults to `None`.
             The destination Object Storage bucket region.
-            By default the value will be extracted from the `OCI_REGION_METADATA` environment variables.
+            By default, the value will be extracted from the `OCI_REGION_METADATA` environment variables.
         timeout: (int, optional). Defaults to 10 seconds.
             The connection timeout in seconds for the client.
         """
@@ -3179,7 +3179,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model._summary_status.update_action(
             detail="Local tested .predict from score.py",
             action="Local artifact is not available. "
-            "Call .from_id() with load_artifact flag set to True.",
+            "Set load_artifact flag to True.",
         )
         model._summary_status.update_status(
             detail="Conducted Introspect Test",
