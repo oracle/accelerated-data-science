@@ -131,13 +131,13 @@ class TestFeatureGroupWithStreamingDataFrame(FeatureStoreTestCase):
         )
         expectation_suite_trans.add_expectation(
             ExpectationConfiguration(
-                expectation_type="EXPECT_COLUMN_VALUES_TO_BE_NULL",
+                expectation_type="expect_column_values_to_not_be_null",
                 kwargs={"column": "date"},
             )
         )
         expectation_suite_trans.add_expectation(
             ExpectationConfiguration(
-                expectation_type="EXPECT_COLUMN_VALUES_TO_NOT_BE_NULL",
+                expectation_type="expect_column_values_to_not_be_null",
                 kwargs={"column": "date"},
             )
         )
