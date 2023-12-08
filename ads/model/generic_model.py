@@ -3024,9 +3024,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The connection timeout in seconds for the client.
         """
 
+        model_id = ocid.lower()
+        target_dir = (
+            artifact_dir
+            if not ObjectStorageDetails.is_oci_path(artifact_dir)
+            else tempfile.mkdtemp()
+        )
+
         model_deployment = None
 
-        model_id = ocid.lower()
         if DataScienceModelType.MODEL_DEPLOYMENT in ocid:
             model_deployment = ModelDeployment.from_id(ocid)
             model_id = model_deployment.properties.model_id
@@ -3034,12 +3040,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             raise ValueError(
                 f"Invalid OCID: {ocid}. Please provide valid model OCID or model deployment OCID."
             )
-
-        target_dir = (
-            artifact_dir
-            if not ObjectStorageDetails.is_oci_path(artifact_dir)
-            else tempfile.mkdtemp()
-        )
 
         dsc_model = DataScienceModel.from_id(model_id)
 
