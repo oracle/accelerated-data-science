@@ -64,7 +64,7 @@ DEFAULT_WORKFLOW_STEPS = 6
 DELETE_WORKFLOW_STEPS = 2
 DEACTIVATE_WORKFLOW_STEPS = 2
 DEFAULT_RETRYING_REQUEST_ATTEMPTS = 3
-TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
+TERMINAL_STATES = [State.FAILED, State.DELETED, State.INACTIVE]
 
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
@@ -720,7 +720,7 @@ class ModelDeployment(Builder):
 
     def watch(
         self,
-        log_type: str = ModelDeploymentLogType.ACCESS,
+        log_type: str = None,
         time_start: datetime = None,
         interval: int = LOG_INTERVAL,
         log_filter: str = None,
@@ -731,7 +731,7 @@ class ModelDeployment(Builder):
         ----------
         log_type: str, optional
             The log type. Can be `access`, `predict` or None.
-            Defaults to access.
+            Defaults to None.
         time_start : datetime.datetime, optional
             Starting time for the log query.
             Defaults to None.
@@ -748,7 +748,12 @@ class ModelDeployment(Builder):
             The instance of ModelDeployment.
         """
         status = ""
-        while not self._stop_condition():
+        while self.state not in [
+            State.ACTIVE, 
+            State.FAILED, 
+            State.DELETED, 
+            State.INACTIVE
+        ]:
             status = self._check_and_print_status(status)
             time.sleep(interval)
 
