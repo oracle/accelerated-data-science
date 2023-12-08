@@ -64,8 +64,6 @@ DEFAULT_WORKFLOW_STEPS = 6
 DELETE_WORKFLOW_STEPS = 2
 DEACTIVATE_WORKFLOW_STEPS = 2
 DEFAULT_RETRYING_REQUEST_ATTEMPTS = 3
-TERMINAL_STATES = [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
-WATCH_TERMINAL_STATES = [State.FAILED, State.DELETED, State.INACTIVE]
 
 MODEL_DEPLOYMENT_KIND = "deployment"
 MODEL_DEPLOYMENT_TYPE = "modelDeployment"
@@ -749,7 +747,7 @@ class ModelDeployment(Builder):
             The instance of ModelDeployment.
         """
         status = ""
-        while self.state not in TERMINAL_STATES:
+        while not self._stop_condition():
             status = self._check_and_print_status(status)
             time.sleep(interval)
 
@@ -758,7 +756,7 @@ class ModelDeployment(Builder):
             count = self.logs(log_type).stream(
                 source=self.model_deployment_id,
                 interval=interval,
-                stop_condition=self._stop_condition,
+                stop_condition=self._stream_stop_condition,
                 time_start=time_start,
                 log_filter=log_filter,
             )
@@ -773,8 +771,12 @@ class ModelDeployment(Builder):
             pass
 
     def _stop_condition(self):
-        """Stops the watch sync once the model deployment is in a terminal state."""
-        return self.state in WATCH_TERMINAL_STATES
+        """Stops the sync once the model deployment is in a terminal state."""
+        return self.state in [State.ACTIVE, State.FAILED, State.DELETED, State.INACTIVE]
+
+    def _stream_stop_condition(self):
+        """Stops the stream sync once the model deployment is in a terminal state."""
+        return self.state in [State.FAILED, State.DELETED, State.INACTIVE]
 
     def _check_and_print_status(self, prev_status) -> str:
         """Check and print the next status.
