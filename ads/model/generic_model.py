@@ -2991,6 +2991,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         **kwargs: dict,
     ) -> Self:
         """
+        Downloads model artifacts from the model catalog.
+
         Parameters
         ----------
         ocid: str
