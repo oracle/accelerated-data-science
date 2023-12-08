@@ -937,7 +937,7 @@ class TestGenericModel:
         "test_args",
         [
             {
-                "model_id": "test_model_id",
+                "model_id": "xxxx.datasciencemodel.xxxx",
                 "model_file_name": "test_model_file_name",
                 "artifact_dir": "/test_artifact_dir",
                 "bucket_uri": "test_bucket_uri",
@@ -945,7 +945,7 @@ class TestGenericModel:
                 "ignore_conda_error": True,
             },
             {
-                "model_id": "test_model_id",
+                "model_id": "xxxx.datasciencemodel.xxxx",
                 "model_file_name": "test_model_file_name",
                 "artifact_dir": "/test_artifact_dir",
                 "auth": {"config": "value"},
@@ -1050,8 +1050,8 @@ class TestGenericModel:
         """Tests loading model from model deployment."""
         test_auth_config = {"signer": {"config": "value"}}
         mock_default_signer.return_value = test_auth_config
-        test_model_deployment_id = "md_ocid"
-        test_model_id = "model_ocid"
+        test_model_deployment_id = "xxxx.datasciencemodeldeployment.xxxx"
+        test_model_id = "xxxx.datasciencemodel.xxxx"
         md_props = ModelDeploymentProperties(model_id=test_model_id)
         md = ModelDeployment(properties=md_props)
         mock_from_id.return_value = md
