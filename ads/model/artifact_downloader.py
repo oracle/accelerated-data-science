@@ -63,6 +63,7 @@ class ArtifactDownloader(ABC):
                     "Set `force_overwrite` to `True` if you wish to overwrite."
                 )
             shutil.rmtree(self.target_dir)
+            os.mkdir(self.target_dir)
         with utils.get_progress_bar(
             ArtifactDownloader.PROGRESS_STEPS_COUNT + self.PROGRESS_STEPS_COUNT
         ) as progress:
@@ -85,15 +86,16 @@ class SmallArtifactDownloader(ArtifactDownloader):
         """Downloads model artifacts."""
         self.progress.update("Importing model artifacts from catalog")
         zip_content = self.dsc_model.get_model_artifact_content()
-        with tempfile.TemporaryDirectory() as temp_dir:
-            self.progress.update("Copying model artifacts to the artifact directory")
-            zip_file_path = os.path.join(temp_dir, f"{str(uuid.uuid4())}.zip")
-            with open(zip_file_path, "wb") as zip_file:
-                zip_file.write(zip_content)
-            self.progress.update("Extracting model artifacts")
-            with ZipFile(zip_file_path) as zip_file:
-                zip_file.extractall(self.target_dir)
-
+        self.progress.update("Copying model artifacts to the artifact directory")
+        
+        zip_file_path = os.path.join(self.target_dir, f"{str(uuid.uuid4())}.zip")
+        with open(zip_file_path, "wb") as zip_file:
+            zip_file.write(zip_content)
+        self.progress.update("Extracting model artifacts")
+        with ZipFile(zip_file_path) as zip_file:
+            zip_file.extractall(self.target_dir)
+        
+        utils.remove_file(zip_file_path)
 
 class LargeArtifactDownloader(ArtifactDownloader):
     PROGRESS_STEPS_COUNT = 4
@@ -157,17 +159,19 @@ class LargeArtifactDownloader(ArtifactDownloader):
 
         self.dsc_model.import_model_artifact(bucket_uri=bucket_uri, region=self.region)
         self.progress.update("Copying model artifacts to the artifact directory")
-        with tempfile.TemporaryDirectory() as temp_dir:
-            zip_file_path = os.path.join(temp_dir, f"{str(uuid.uuid4())}.zip")
-            zip_file_path = utils.copy_file(
-                uri_src=bucket_uri,
-                uri_dst=zip_file_path,
-                auth=self.auth,
-                progressbar_description="Copying model artifacts to the artifact directory",
-            )
-            self.progress.update("Extracting model artifacts")
-            with ZipFile(zip_file_path) as zip_file:
-                zip_file.extractall(self.target_dir)
+        
+        zip_file_path = os.path.join(self.target_dir, f"{str(uuid.uuid4())}.zip")
+        zip_file_path = utils.copy_file(
+            uri_src=bucket_uri,
+            uri_dst=zip_file_path,
+            auth=self.auth,
+            progressbar_description="Copying model artifacts to the artifact directory",
+        )
+        self.progress.update("Extracting model artifacts")
+        with ZipFile(zip_file_path) as zip_file:
+            zip_file.extractall(self.target_dir)
+
+        utils.remove_file(zip_file_path)
 
         if self.remove_existing_artifact:
             self.progress.update(

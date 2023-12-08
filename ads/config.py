@@ -45,6 +45,7 @@ RESOURCE_OCID = (
     NB_SESSION_OCID or JOB_RUN_OCID or MD_OCID or PIPELINE_RUN_OCID or DATAFLOW_RUN_OCID
 )
 NO_CONTAINER = os.environ.get("NO_CONTAINER")
+TMPDIR = os.environ.get("TMPDIR")
 
 
 def export(
