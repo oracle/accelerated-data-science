@@ -1395,6 +1395,86 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
         return model
 
+    def download_artifact(
+        self,
+        artifact_dir: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
+        **kwargs,
+    ) -> "GenericModel":
+        model_id = self.model_id
+        if not model_id:
+            raise ValueError(
+                "`model_id` is not available, load the GenericModel object first."
+            )
+
+        if not artifact_dir:
+            artifact_dir = self.artifact_dir
+        artifact_dir = _prepare_artifact_dir(artifact_dir)
+
+        target_dir = (
+            artifact_dir
+            if not ObjectStorageDetails.is_oci_path(artifact_dir)
+            else tempfile.mkdtemp()
+        )
+
+        dsc_model = DataScienceModel.from_id(model_id)
+        dsc_model.download_artifact(
+            target_dir=target_dir,
+            force_overwrite=force_overwrite,
+            bucket_uri=bucket_uri,
+            remove_existing_artifact=remove_existing_artifact,
+            auth=auth,
+            region=kwargs.pop("region", None),
+            timeout=kwargs.pop("timeout", None),
+        )
+        model_artifact = ModelArtifact.from_uri(
+            uri=target_dir,
+            artifact_dir=artifact_dir,
+            model_file_name=self.model_file_name,
+            force_overwrite=force_overwrite,
+            auth=auth,
+            ignore_conda_error=self.ignore_conda_error,
+        )
+        self.dsc_model = dsc_model
+        self.local_copy_dir = model_artifact.local_copy_dir
+        self.model_artifact = model_artifact
+        self.reload_runtime_info()
+        self._summary_status.update_status(
+            detail="Generated score.py",
+            status=ModelState.DONE.value,
+        )
+        self._summary_status.update_status(
+            detail="Generated runtime.yaml",
+            status=ModelState.DONE.value,
+        )
+        self._summary_status.update_status(
+            detail="Serialized model", status=ModelState.DONE.value
+        )
+        self._summary_status.update_status(
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            status=ModelState.DONE.value,
+        )
+        self._summary_status.update_status(
+            detail="Local tested .predict from score.py",
+            status=ModelState.AVAILABLE.value,
+        )
+        self._summary_status.update_action(
+            detail="Local tested .predict from score.py",
+            action="",
+        )
+        self._summary_status.update_status(
+            detail="Conducted Introspect Test",
+            status=ModelState.AVAILABLE.value,
+        )
+        self._summary_status.update_status(
+            detail="Uploaded artifact to model catalog",
+            status=ModelState.AVAILABLE.value,
+        )
+        return self
+
     @classmethod
     def from_model_catalog(
         cls: Type[Self],
@@ -1470,26 +1550,100 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         auth = auth or authutil.default_signer()
         artifact_dir = _prepare_artifact_dir(artifact_dir)
 
+        target_dir = (
+            artifact_dir
+            if not ObjectStorageDetails.is_oci_path(artifact_dir)
+            else tempfile.mkdtemp()
+        )
         bucket_uri = bucket_uri or (
             artifact_dir if ObjectStorageDetails.is_oci_path(artifact_dir) else None
         )
+        dsc_model = DataScienceModel.from_id(model_id)
 
-        result_model = cls.download_artifact(
-            ocid=model_id,
-            artifact_dir=artifact_dir,
-            bucket_uri=bucket_uri,
-            model_file_name=model_file_name,
+        if not load_artifact:
+            result_model = cls(
+                artifact_dir=artifact_dir,
+                bucket_uri=bucket_uri,
+                auth=auth,
+                properties=properties,
+                ignore_conda_error=ignore_conda_error,
+                **kwargs,
+            )
+            result_model._summary_status.update_status(
+                detail="Generated score.py",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Generated runtime.yaml",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Serialized model", status=ModelState.NOTAPPLICABLE.value
+            )
+            result_model._summary_status.update_status(
+                detail="Populated metadata(Custom, Taxonomy and Provenance)",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Local tested .predict from score.py",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_action(
+                detail="Local tested .predict from score.py",
+                action="Local artifact is not available. "
+                "Set load_artifact flag to True while loading the model or "
+                "call .download_artifact().",
+            )
+            result_model._summary_status.update_status(
+                detail="Conducted Introspect Test",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Uploaded artifact to model catalog",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model.dsc_model = dsc_model
+            return result_model
+
+        dsc_model.download_artifact(
+            target_dir=target_dir,
             force_overwrite=force_overwrite,
+            bucket_uri=bucket_uri,
             remove_existing_artifact=remove_existing_artifact,
-            load_artifact=load_artifact,
             auth=auth,
-            properties=properties,
-            ignore_conda_error=ignore_conda_error,
             region=kwargs.pop("region", None),
             timeout=kwargs.pop("timeout", None),
+        )
+        result_model = cls.from_model_artifact(
+            uri=target_dir,
+            model_file_name=model_file_name,
+            artifact_dir=artifact_dir,
+            auth=auth,
+            force_overwrite=force_overwrite,
+            properties=properties,
+            ignore_conda_error=ignore_conda_error,
             **kwargs,
         )
+        result_model.dsc_model = dsc_model
 
+        result_model._summary_status.update_status(
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            status=ModelState.DONE.value,
+        )
+        result_model._summary_status.update_action(
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            action="",
+        )
+        result_model._summary_status.update_status(
+            detail="Local tested .predict from score.py",
+            status=ModelState.AVAILABLE.value,
+        )
+        result_model._summary_status.update_status(
+            detail="Conducted Introspect Test",
+            status=ModelState.AVAILABLE.value
+            if not result_model.ignore_conda_error
+            else ModelState.NOTAVAILABLE.value,
+        )
         return result_model
 
     @classmethod
@@ -1582,16 +1736,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             load_artifact=load_artifact,
             **kwargs,
         )
-        if load_artifact:
-            model._summary_status.update_status(
-                detail="Uploaded artifact to model catalog",
-                status=ModelState.AVAILABLE.value,
-            )
-        else:
-            model._summary_status.update_status(
-                detail="Uploaded artifact to model catalog",
-                status=ModelState.NOTAPPLICABLE.value,
-            )
+        model._summary_status.update_status(
+            detail="Uploaded artifact to model catalog",
+            status=ModelState.AVAILABLE.value,
+        )
 
         model.model_deployment = model_deployment
         model._summary_status.update_status(
@@ -2972,226 +3120,6 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         finally:
             if tmp_artifact_zip_path:
                 os.remove(tmp_artifact_zip_path)
-
-    @classmethod
-    def download_artifact(
-        cls: Type[Self],
-        ocid: str,
-        artifact_dir: Optional[str] = None,
-        bucket_uri: Optional[str] = None,
-        model_file_name: str = None,
-        force_overwrite: Optional[bool] = False,
-        remove_existing_artifact: Optional[bool] = True,
-        load_artifact: Optional[bool] = True,
-        auth: Optional[Dict] = None,
-        properties: Optional[ModelProperties] = None,
-        ignore_conda_error: Optional[bool] = False,
-        region: Optional[str] = None,
-        timeout: Optional[int] = None,
-        **kwargs: dict,
-    ) -> Self:
-        """
-        Downloads model artifacts from the model catalog.
-
-        Parameters
-        ----------
-        ocid: str
-            The model OCID or model deployment OCID.
-        load_artifact: (bool, optional). Defaults to True.
-            Whether to download the model pickle or checkpoints
-        model_file_name: (str, optional). Defaults to `None`.
-            Name of the serialized model.
-        artifact_dir: str
-            The local artifact folder to store the files needed for deployment.
-        auth: (Dict, optional). Defaults to None.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
-            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-            authentication signer and kwargs required to instantiate IdentityClient object.
-        force_overwrite: bool
-            Overwrite target_dir if exists.
-        properties: (ModelProperties, optional). Defaults to None.
-            ModelProperties object required to save and deploy model.
-        bucket_uri: (str, optional). Defaults to None.
-            The OCI Object Storage URI where model artifacts will be copied to.
-            The `bucket_uri` is only necessary for downloading large artifacts with
-            size is greater than 2GB. Example: `bucket_uri=oci://<bucket_name>@<namespace>/prefix/`.
-        remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Whether artifacts uploaded to object storage bucket need to be removed or not.
-        ignore_conda_error: (bool, optional). Defaults to False.
-            Parameter to ignore error when collecting conda information.
-        region: (str, optional). Defaults to `None`.
-            The destination Object Storage bucket region.
-            By default, the value will be extracted from the `OCI_REGION_METADATA` environment variables.
-        timeout: (int, optional). Defaults to 10 seconds.
-            The connection timeout in seconds for the client.
-        """
-
-        model_id = ocid.lower()
-        target_dir = (
-            artifact_dir
-            if not ObjectStorageDetails.is_oci_path(artifact_dir)
-            else tempfile.mkdtemp()
-        )
-
-        model_deployment = None
-
-        if DataScienceModelType.MODEL_DEPLOYMENT in ocid:
-            model_deployment = ModelDeployment.from_id(ocid)
-            model_id = model_deployment.properties.model_id
-        elif DataScienceModelType.MODEL not in ocid:
-            raise ValueError(
-                f"Invalid OCID: {ocid}. Please provide valid model OCID or model deployment OCID."
-            )
-
-        dsc_model = DataScienceModel.from_id(model_id)
-
-        if not load_artifact:
-            result_model = cls.load_model_metadata(
-                model_id=model_id,
-                artifact_dir=artifact_dir,
-                auth=auth,
-                properties=properties,
-                ignore_conda_error=ignore_conda_error,
-                **kwargs,
-            )
-            result_model.dsc_model = dsc_model
-            if model_deployment:
-                result_model.model_deployment = model_deployment
-            return result_model
-
-        dsc_model.download_artifact(
-            target_dir=target_dir,
-            force_overwrite=force_overwrite,
-            bucket_uri=bucket_uri,
-            remove_existing_artifact=remove_existing_artifact,
-            auth=auth,
-            region=region,
-            timeout=timeout,
-        )
-        result_model = cls.from_model_artifact(
-            uri=target_dir,
-            model_file_name=model_file_name,
-            artifact_dir=artifact_dir,
-            auth=auth,
-            force_overwrite=force_overwrite,
-            properties=properties,
-            ignore_conda_error=ignore_conda_error,
-            **kwargs,
-        )
-        result_model.dsc_model = dsc_model
-        if model_deployment:
-            result_model.model_deployment = model_deployment
-
-        result_model._summary_status.update_status(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            status=ModelState.DONE.value,
-        )
-        result_model._summary_status.update_action(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            action="",
-        )
-        result_model._summary_status.update_status(
-            detail="Local tested .predict from score.py",
-            status=ModelState.AVAILABLE.value,
-        )
-        result_model._summary_status.update_status(
-            detail="Conducted Introspect Test",
-            status=ModelState.AVAILABLE.value
-            if not result_model.ignore_conda_error
-            else ModelState.NOTAVAILABLE.value,
-        )
-        result_model._summary_status.update_status(
-            detail="Uploaded artifact to model catalog",
-            status=ModelState.AVAILABLE.value
-            if not result_model.ignore_conda_error
-            else ModelState.NOTAVAILABLE.value,
-        )
-        return result_model
-
-    @classmethod
-    def load_model_metadata(
-        cls: Type[Self],
-        model_id: str,
-        artifact_dir: Optional[str] = None,
-        auth: Optional[Dict] = None,
-        properties: Optional[ModelProperties] = None,
-        ignore_conda_error: Optional[bool] = False,
-        **kwargs: dict,
-    ) -> Self:
-        """Loads the model details without the artifacts.
-
-        Parameters
-        ----------
-        model_id: str
-            The model OCID or model deployment OCID.
-        artifact_dir: str
-            The local artifact folder to store the files needed for deployment.
-        auth: (Dict, optional). Defaults to None.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
-            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-            authentication signer and kwargs required to instantiate IdentityClient object.
-        properties: (ModelProperties, optional). Defaults to None.
-            ModelProperties object required to save and deploy model.
-        ignore_conda_error: (bool, optional). Defaults to False.
-            Parameter to ignore error when collecting conda information.
-
-        Returns
-        -------
-        Self
-            An instance of `GenericModel` class.
-
-        """
-
-        local_vars = _extract_locals(locals())
-        properties = properties or ModelProperties()
-        properties.with_dict(local_vars)
-        properties.compartment_id = properties.compartment_id or _COMPARTMENT_OCID
-        auth = auth or authutil.default_signer()
-        artifact_dir = _prepare_artifact_dir(artifact_dir)
-
-        model = cls(
-            model_id=model_id,
-            artifact_dir=artifact_dir,
-            auth=auth,
-            properties=properties,
-            **kwargs,
-        )
-        model.ignore_conda_error = ignore_conda_error
-
-        # summary status updates
-        model._summary_status.update_status(
-            detail="Generated score.py",
-            status=ModelState.NOTAPPLICABLE.value,
-        )
-        model._summary_status.update_status(
-            detail="Generated runtime.yaml",
-            status=ModelState.NOTAPPLICABLE.value,
-        )
-        model._summary_status.update_status(
-            detail="Serialized model", status=ModelState.NOTAPPLICABLE.value
-        )
-        model._summary_status.update_status(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            status=ModelState.NOTAPPLICABLE.value,
-        )
-        model._summary_status.update_status(
-            detail="Local tested .predict from score.py",
-            status=ModelState.NOTAPPLICABLE.value,
-        )
-        model._summary_status.update_action(
-            detail="Local tested .predict from score.py",
-            action="Local artifact is not available. "
-            "Set load_artifact flag to True.",
-        )
-        model._summary_status.update_status(
-            detail="Conducted Introspect Test",
-            status=ModelState.NOTAPPLICABLE.value,
-        )
-        model._summary_status.update_status(
-            detail="Uploaded artifact to model catalog",
-            status=ModelState.NOTAPPLICABLE.value,
-        )
-        return model
 
     def update(self, **kwargs) -> "GenericModel":
         """Updates model metadata in the Model Catalog.
