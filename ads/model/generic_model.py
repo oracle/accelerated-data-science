@@ -1404,6 +1404,36 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         remove_existing_artifact: Optional[bool] = True,
         **kwargs,
     ) -> "GenericModel":
+        """Downloads model artifacts from the model catalog.
+
+         Parameters
+         ----------
+        artifact_dir: (str, optional). Defaults to `None`.
+            The artifact directory to store the files needed for deployment.
+            Will be created if not exists.
+        auth: (Dict, optional). Defaults to None.
+            The default authentication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
+        force_overwrite: (bool, optional). Defaults to False.
+            Whether to overwrite existing files or not.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
+
+         Returns
+         -------
+         Self
+             An instance of `GenericModel` class.
+
+         Raises
+         ------
+         ValueError
+             If `model_id` is not available in the GenericModel object.
+        """
         model_id = self.model_id
         if not model_id:
             raise ValueError(
