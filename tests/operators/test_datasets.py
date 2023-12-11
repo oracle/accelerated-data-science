@@ -185,7 +185,8 @@ def test_rossman(model):
     curr_dir = pathlib.Path(__file__).parent.resolve()
     data_folder = f"{curr_dir}/data/"
     historical_data_path = f"{curr_dir}/data/rs_10_prim.csv"
-    additional_data_path = f"{curr_dir}/data/rs_10_add.csv"
+    # additional_data_path = f"{curr_dir}/data/rs_10_add.csv"
+    additional_data_path = f"{curr_dir}/data/rs_10_add_sampled.csv"
     test_data_path = f"{curr_dir}/data/rs_10_test.csv"
 
     with tempfile.TemporaryDirectory() as tmpdirname:
