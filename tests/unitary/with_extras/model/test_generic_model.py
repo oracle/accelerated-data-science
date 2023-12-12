@@ -40,6 +40,7 @@ from ads.model.generic_model import (
     _ATTRIBUTES_TO_SHOW_,
     GenericModel,
     NotActiveDeploymentError,
+    ArtifactsNotAvailableError,
     SummaryStatus,
     _prepare_artifact_dir,
 )
@@ -1276,6 +1277,97 @@ class TestGenericModel:
                 compartment_id="test_compartment_id",
                 ignore_conda_error=True,
             )
+
+    @patch.object(GenericModel, "from_model_catalog")
+    def test_from_id_model_without_artifact(self, mock_from_model_catalog):
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        mock_model = MagicMock(model_id=test_model_id, model_artifact=None)
+        mock_from_model_catalog.return_value = mock_model
+
+        test_model_result = GenericModel.from_id(
+            ocid=test_model_id,
+            compartment_id="test_compartment_id",
+            load_artifact=False,
+        )
+        mock_from_model_catalog.assert_called_with(
+            test_model_id,
+            model_file_name=None,
+            artifact_dir=None,
+            auth=None,
+            force_overwrite=False,
+            properties=None,
+            bucket_uri=None,
+            remove_existing_artifact=True,
+            compartment_id="test_compartment_id",
+            ignore_conda_error=False,
+            load_artifact=False,
+        )
+        assert test_model_result.model_artifact is None
+        assert test_model_result == mock_model
+
+    @patch.object(GenericModel, "from_model_catalog")
+    def test_from_id_with_artifact(self, mock_from_model_catalog):
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        artifact_dir = "test_dir"
+        model_artifact = MagicMock(artifact_dir=artifact_dir, reload=False)
+        mock_model = MagicMock(model_id=test_model_id, model_artifact=model_artifact)
+        mock_from_model_catalog.return_value = mock_model
+
+        test_model_result = GenericModel.from_id(
+            artifact_dir=artifact_dir,
+            ocid=test_model_id,
+            compartment_id="test_compartment_id",
+            remove_existing_artifact=True,
+            load_artifact=True,
+        )
+
+        mock_from_model_catalog.assert_called_with(
+            test_model_id,
+            model_file_name=None,
+            artifact_dir=artifact_dir,
+            auth=None,
+            force_overwrite=False,
+            properties=None,
+            bucket_uri=None,
+            remove_existing_artifact=True,
+            compartment_id="test_compartment_id",
+            ignore_conda_error=False,
+            load_artifact=True,
+        )
+        assert test_model_result.model_artifact is not None
+        assert test_model_result == mock_model
+
+    @patch("ads.common.auth.default_signer")
+    def test_verify_without_local_artifact(self, mock_signer):
+        """Test verify input data with model without artifacts loaded."""
+        _prepare(self.generic_model)
+        self.generic_model.model_artifact = None
+
+        with pytest.raises(
+            ArtifactsNotAvailableError,
+            match="Model artifacts are either not generated or "
+            "not available locally.",
+        ):
+            self.generic_model.verify(self.X_test.tolist())
+
+    def test_download_artifact_fail(self):
+        """Test to check if model is loaded first before downloading artifacts"""
+        with pytest.raises(
+            ValueError,
+            match="`model_id` is not available, load the GenericModel object first.",
+        ):
+            generic_model = GenericModel()
+            generic_model.download_artifact(uri="", auth={"config": "value"})
+
+    def test_save_without_local_artifact(self):
+        """Test to check if model artifact is available before saving the model"""
+        self.generic_model.model_artifact = None
+        with pytest.raises(
+            ArtifactsNotAvailableError,
+            match="Model artifacts are either not generated or "
+            "not available locally.",
+        ):
+            self.generic_model.save()
 
     @patch.object(ModelDeployment, "activate")
     @patch.object(ModelDeployment, "deactivate")
