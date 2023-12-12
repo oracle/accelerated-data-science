@@ -93,7 +93,7 @@ Use the ``from_id()`` method from the ``FeatureGroup`` class to load an existing
   feature_group = FeatureGroup.from_id("<unique_id>")
 
 
-Materialize
+Materialise
 ===========
 
 Use the ``materialise() -> FeatureGroupJob`` method of the ``FeatureGroup`` instance to load the data to feature group. To persist the feature group and save feature group data, including the metadata in the feature store, use ``materialise()``.
@@ -103,7 +103,7 @@ The ``.materialise()`` method has the following parameters:
 - ``input_dataframe: Union[DataFrame, pd.DataFrame]``. Spark dataframe or Pandas dataframe.
 - ``from_timestamp: str(Optional)``. From timestamp of the feature group.
 - ``to_timestamp: str(Optional)``. To timestamp of the feature group.
-- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for the materialize operation.
+- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for the materialise operation.
     - ``write_config_details: (merge_schema: bool, overwrite_schema: bool)``. Write configuration details for the feature option details.
     - ``read_config_details: (version_as_of: int, timestamp_as_of: datetime)``. Read configuration details for the feature option details.
 
@@ -337,7 +337,7 @@ The ``.preview()`` method has the following optional parameters:
   # Preview feature group
   df = feature_group.preview(row_count=50)
 
-as_of
+As Of
 =======
 
 Use the ``as_of()`` method of the ``FeatureGroup`` instance to get specified point in time and time traveled data.

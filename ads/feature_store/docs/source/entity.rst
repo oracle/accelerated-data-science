@@ -3,6 +3,7 @@ Entity
 
 An entity is a group of semantically related features. An entity is an object or concept that is described by its features. The first step when accessing a feature store is typically to list the entities and the entities associated features. Examples of entities are customer, product, transaction, review, image, document, and so on.
 
+.. image:: figures/entity.png
 
 Define
 ======
