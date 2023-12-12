@@ -30,13 +30,13 @@ SCORE_VERSION = "1.0"
 ADS_VERSION = __version__
 
 
-class ArtifactNestedFolderError(Exception):   # pragma: no cover
+class ArtifactNestedFolderError(Exception):  # pragma: no cover
     def __init__(self, folder: str):
         self.folder = folder
         super().__init__("The required artifact files placed in a nested folder.")
 
 
-class ArtifactRequiredFilesError(Exception):   # pragma: no cover
+class ArtifactRequiredFilesError(Exception):  # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "Not all required files presented in artifact folder. "
@@ -44,7 +44,7 @@ class ArtifactRequiredFilesError(Exception):   # pragma: no cover
         )
 
 
-class AritfactFolderStructureError(Exception):   # pragma: no cover
+class AritfactFolderStructureError(Exception):  # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "The artifact folder has a wrong structure. "
@@ -272,7 +272,7 @@ class ModelArtifact:
             or runtime_info.model_deployment.inference_conda_env.inference_python_version.strip()
             == ""
         ):
-            warnings.warn(
+            raise ValueError(
                 "Cannot automatically detect the inference python version. `inference_python_version` must be provided."
             )
         runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
