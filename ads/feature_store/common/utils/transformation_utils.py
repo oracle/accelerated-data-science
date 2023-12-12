@@ -53,7 +53,7 @@ class TransformationUtils:
         execution_namespace = {}
         exec(transformation_function, execution_namespace)
         transformation_function_caller = execution_namespace.get(
-            transformation.display_name
+            transformation.name
         )
         transformed_data = None
 
