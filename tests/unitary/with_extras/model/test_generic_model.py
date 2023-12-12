@@ -1280,6 +1280,7 @@ class TestGenericModel:
 
     @patch.object(GenericModel, "from_model_catalog")
     def test_from_id_model_without_artifact(self, mock_from_model_catalog):
+        """Test to check model artifact is not loaded when load_artifact is set to False"""
         test_model_id = "xxxx.datasciencemodel.xxxx"
         mock_model = MagicMock(model_id=test_model_id, model_artifact=None)
         mock_from_model_catalog.return_value = mock_model
@@ -1307,6 +1308,7 @@ class TestGenericModel:
 
     @patch.object(GenericModel, "from_model_catalog")
     def test_from_id_with_artifact(self, mock_from_model_catalog):
+        """Test to check model artifact is loaded when load_artifact is set to True"""
         test_model_id = "xxxx.datasciencemodel.xxxx"
         artifact_dir = "test_dir"
         model_artifact = MagicMock(artifact_dir=artifact_dir, reload=False)
@@ -1358,6 +1360,42 @@ class TestGenericModel:
         ):
             generic_model = GenericModel()
             generic_model.download_artifact(uri="", auth={"config": "value"})
+
+    @patch.object(ModelArtifact, "from_uri")
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(GenericModel, "reload_runtime_info")
+    @patch.object(DataScienceModel, "download_artifact")
+    def test_download_artifact(
+        self,
+        mock_download_artifact,
+        mock_reload_runtime_info,
+        mock_dsc_model_from_id,
+        mock_from_uri,
+    ):
+        """Test to check if model artifacts are updated after download_artifact is called"""
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        artifact_dir = "test_dir"
+        self.generic_model.dsc_model = MagicMock(id=test_model_id)
+        self.generic_model.model_artifact = None
+        self.generic_model.artifact_dir = artifact_dir
+
+        mock_dsc_model_from_id.return_value = MagicMock(id=test_model_id)
+        mock_download_artifact.return_value = None
+        mock_artifact_instance = MagicMock(model="test_model")
+        mock_from_uri.return_value = mock_artifact_instance
+
+        assert self.generic_model.model_artifact is None
+
+        self.generic_model.download_artifact(
+            artifact_dir=artifact_dir,
+            auth={"config": {}},
+            force_overwrite=True,
+            bucket_uri="bucket_uri",
+            remove_existing_artifact=True,
+        )
+
+        mock_reload_runtime_info.assert_called()
+        assert self.generic_model.model_artifact is not None
 
     def test_save_without_local_artifact(self):
         """Test to check if model artifact is available before saving the model"""
