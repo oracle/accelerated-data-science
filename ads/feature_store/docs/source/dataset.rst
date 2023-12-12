@@ -259,7 +259,7 @@ The ``.preview()`` method has the following optional parameters:
   df = dataset.preview(row_count=50)
   df.show()
 
-as_of
+As Of
 =======
 
 Use the the ``as_of()`` method of the ``Dataset`` instance to get a specified point in time and time traveled data.

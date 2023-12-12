@@ -39,3 +39,9 @@ Following are brief descriptions of key concepts and the main components of ADS 
         - .. image:: https://img.shields.io/badge/delta-2.0.1-blue?style=for-the-badge&logo=pypi&logoColor=white
       * - pyspark
         - .. image:: https://img.shields.io/badge/pyspark-3.2.1-blue?style=for-the-badge&logo=pypi&logoColor=white
+      * - great-expectations
+        - .. image:: https://img.shields.io/badge/greatexpectations-0.17.19-blue?style=for-the-badge&logo=pypi&logoColor=white
+      * - pandas
+        - .. image:: https://img.shields.io/badge/pandas-1.5.3-blue?style=for-the-badge&logo=pypi&logoColor=white
+      * - pyarrow
+        - .. image:: https://img.shields.io/badge/pyarrow-11.0.0-blue?style=for-the-badge&logo=pypi&logoColor=white
