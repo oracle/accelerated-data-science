@@ -17,12 +17,13 @@ from sklearn.metrics import (
     explained_variance_score,
     mean_absolute_percentage_error,
     mean_squared_error,
+    r2_score,
 )
 
 try:
     from scipy.stats import linregress
 except:
-    from sklearn.metrics import r2_score
+    pass
 
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
@@ -364,7 +365,7 @@ def _build_metrics_df(y_true, y_pred, column_name):
     metrics["RMSE"] = np.sqrt(mean_squared_error(y_true=y_true, y_pred=y_pred))
     try:
         metrics["r2"] = linregress(y_true, y_pred).rvalue ** 2
-    except:
+    except NameError:
         metrics["r2"] = r2_score(y_true=y_true, y_pred=y_pred)
     metrics["Explained Variance"] = explained_variance_score(
         y_true=y_true, y_pred=y_pred
