@@ -13,15 +13,13 @@ from langchain.load.serializable import Serializable
 from langchain.schema.embeddings import Embeddings
 from langchain.vectorstores import OpenSearchVectorSearch, FAISS
 from langchain.chains import RetrievalQA
-from langchain import llms
-from langchain.llms import loading
+from langchain.llms import Cohere
 
 from ads.llm.serializers.retrieval_qa import (
     OpenSearchVectorDBSerializer,
     FaissSerializer,
     RetrievalQASerializer,
 )
-from tests.unitary.with_extras.langchain.test_guardrails import FakeLLM
 
 
 class FakeEmbeddings(Serializable, Embeddings):
@@ -135,7 +133,7 @@ class TestRetrievalQASerializer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Create a sample RetrieverQA object for testing
-        cls.llm = FakeLLM()
+        cls.llm = Cohere(cohere_api_key="api_key")
         cls.embeddings = FakeEmbeddings()
         text_embedding_pair = [("test", [1] * 1024)]
         try:
@@ -148,18 +146,6 @@ class TestRetrievalQASerializer(unittest.TestCase):
             llm=cls.llm, chain_type="stuff", retriever=cls.retriever
         )
         cls.serializer = RetrievalQASerializer()
-        from copy import deepcopy
-
-        cls.original_type_to_cls_dict = deepcopy(llms.get_type_to_cls_dict())
-        __lc_llm_dict = llms.get_type_to_cls_dict()
-        __lc_llm_dict["custom_embedding"] = lambda: FakeEmbeddings
-        __lc_llm_dict["custom"] = lambda: FakeLLM
-
-        def __new_type_to_cls_dict():
-            return __lc_llm_dict
-
-        llms.get_type_to_cls_dict = __new_type_to_cls_dict
-        loading.get_type_to_cls_dict = __new_type_to_cls_dict
 
     def test_type(self):
         self.assertEqual(self.serializer.type(), "retrieval_qa")
@@ -176,6 +162,7 @@ class TestRetrievalQASerializer(unittest.TestCase):
         self.assertIn("retriever_kwargs", serialized)
         serialized["vectordb"]["class"] == "FAISS"
 
+    @mock.patch.dict(os.environ, {"COHERE_API_KEY": "api_key"})
     def test_load(self):
         # Create a sample config dictionary
         serialized = self.serializer.save(self.qa)
@@ -185,12 +172,6 @@ class TestRetrievalQASerializer(unittest.TestCase):
 
         # Ensure that the deserialized object is an instance of RetrieverQA
         self.assertIsInstance(deserialized, RetrievalQA)
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        llms.get_type_to_cls_dict = cls.original_type_to_cls_dict
-        loading.get_type_to_cls_dict = cls.original_type_to_cls_dict
-        return super().tearDownClass()
 
 
 if __name__ == "__main__":
