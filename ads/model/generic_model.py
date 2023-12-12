@@ -154,7 +154,7 @@ class NotActiveDeploymentError(Exception):  # pragma: no cover
 
 class ArtifactsNotAvailableError(Exception):
     def __init__(
-        self, msg="Model artifacts are either not generated or not available locally. "
+        self, msg="Model artifacts are either not generated or not available locally."
     ):
         super().__init__(msg)
 
@@ -1472,6 +1472,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self.local_copy_dir = model_artifact.local_copy_dir
         self.model_artifact = model_artifact
         self.reload_runtime_info()
+
         self._summary_status.update_status(
             detail="Generated score.py",
             status=ModelState.DONE.value,
