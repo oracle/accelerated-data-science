@@ -3,6 +3,8 @@ Transformation
 
 Transformations in a feature store refers to the operations and processes applied to raw data to create, modify or derive new features that can be used as inputs for ML Models. These transformations are crucial for improving the quality, relevance and usefulness of features which in turn can enhance the performance of ml models. It is an object that represents a transformation applied on the feature group and can be a pandas transformation or spark sql transformation.
 
+.. image:: figures/transformation.png
+
 * ``TransformationMode.PANDAS``: Pandas Transformation allows users to do the transformation using native pandas functionality.
 * ``TransformationMode.SQL``: Spark SQL brings native support for SQL to Spark. Users generally can give the spark transformation that they wish to do using spark SQL.
 * ``TransformationMode.SPARK``: Spark Transformation allows users to do the transformation using native spark functionality.
