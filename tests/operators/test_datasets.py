@@ -184,7 +184,7 @@ def test_load_datasets(model, dataset_name):
 def test_rossman(model):
     curr_dir = pathlib.Path(__file__).parent.resolve()
     data_folder = f"{curr_dir}/data/"
-    historical_data_path = f"{curr_dir}/data/rs_10_prim.csv"
+    historical_data_path = f"{curr_dir}/data/rs_10_prim_sampled_90.csv"
     # additional_data_path = f"{curr_dir}/data/rs_10_add.csv"
     additional_data_path = f"{curr_dir}/data/rs_10_add_sampled_50.csv"
     test_data_path = f"{curr_dir}/data/rs_10_test.csv"

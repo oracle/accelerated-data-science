@@ -81,20 +81,21 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         for i, (target, df) in enumerate(full_data_dict.items()):
             logger.debug("Running automl for {} at position {}".format(target, i))
-            series_values = df[df[target].notna()]
-            # drop NaNs for the time period where data wasn't recorded
-            series_values.dropna(inplace=True)
-            df[date_column] = pd.to_datetime(
-                df[date_column], format=self.spec.datetime_column.format
+            # series_values = df[df[target].notna()]
+            # # drop NaNs for the time period where data wasn't recorded
+            # series_values.dropna(inplace=True)
+
+            df_clean = df.set_index(
+                pd.DatetimeIndex(df[date_column], freq=self.spec.freq)
             )
-            df = df.set_index(date_column)
-            # if len(df.columns) > 1:
-            # when additional columns are present
-            y_train, y_test = temporal_train_test_split(df, test_size=horizon)
-            forecast_x = y_test.drop(target, axis=1)
-            # else:
-            #     y_train = df
-            #     forecast_x = None
+            df_clean.drop(date_column, axis=1, inplace=True)
+
+            y_train_idx, y_test_idx = temporal_train_test_split(
+                df_clean[[target]], test_size=horizon
+            )
+            y_train = df_clean.loc[y_train_idx.index]
+            forecast_x = df_clean.loc[y_test_idx.index].drop(target, axis=1)
+
             logger.debug(
                 "Time Index is" + ""
                 if y_train.index.is_monotonic

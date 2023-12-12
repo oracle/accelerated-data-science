@@ -161,9 +161,7 @@ class ForecastDatasets:
         return data_merged
 
     def get_longest_datetime_column(self):
-        return pd.to_datetime(
-            self.format_wide()[self.datetime_col], format=self.datetime_format
-        )
+        return pd.to_datetime(self.format_wide()[self.datetime_col])
 
 
 class ForecastOutput:
