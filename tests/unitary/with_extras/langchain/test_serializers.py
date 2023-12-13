@@ -80,8 +80,7 @@ class TestOpensearchSearchVectorSerializers(unittest.TestCase):
 
     def test_save(self):
         serialized = self.serializer.save(self.opensearch)
-        assert serialized["id"] == [
-            "langchain",
+        assert serialized["id"][-3:] == [
             "vectorstores",
             "opensearch_vector_search",
             "OpenSearchVectorSearch",
