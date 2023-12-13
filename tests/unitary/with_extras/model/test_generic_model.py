@@ -6,36 +6,38 @@
 """Unit tests for model frameworks. Includes tests for:
  - GenericModel
 """
+import glob
 import os
 import random
 import shutil
-from copy import copy
-import glob
 import tempfile
+from copy import copy
 from unittest.mock import MagicMock, PropertyMock, patch
+from zipfile import ZipFile
 
+import numpy as np
 import pandas as pd
 import pytest
 import yaml
-import numpy as np
+from joblib import dump
+from oci.data_science.models.model_provenance import ModelProvenance
+from sklearn.datasets import load_iris
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+
 from ads.common import utils
-from ads.config import (
-    JOB_RUN_COMPARTMENT_OCID,
-    NB_SESSION_COMPARTMENT_OCID,
-)
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.config import JOB_RUN_COMPARTMENT_OCID, NB_SESSION_COMPARTMENT_OCID
 from ads.model.artifact import ModelArtifact
+from ads.model.datascience_model import DataScienceModel, OCIDataScienceModel
 from ads.model.deployment import (
-    DEFAULT_POLL_INTERVAL,
-    DEFAULT_WAIT_TIME,
     ModelDeployer,
     ModelDeployment,
+    ModelDeploymentContainerRuntime,
+    ModelDeploymentInfrastructure,
     ModelDeploymentProperties,
 )
 from ads.model.deployment.common.utils import State as ModelDeploymentState
-from ads.model.deployment import (
-    ModelDeploymentInfrastructure,
-    ModelDeploymentContainerRuntime,
-)
 from ads.model.generic_model import (
     _ATTRIBUTES_TO_SHOW_,
     GenericModel,
@@ -45,14 +47,6 @@ from ads.model.generic_model import (
 )
 from ads.model.model_properties import ModelProperties
 from ads.model.runtime.runtime_info import RuntimeInfo
-from ads.model.datascience_model import DataScienceModel, OCIDataScienceModel
-from joblib import dump
-from oci.data_science.models.model_provenance import ModelProvenance
-from sklearn.datasets import load_iris
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
-from zipfile import ZipFile
-from ads.model.deployment.common.utils import State
 
 try:
     from yaml import CDumper as dumper
@@ -279,6 +273,21 @@ class TestGenericModel:
                 "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
             )
 
+    @patch.object(
+        ObjectStorageDetails,
+        "fetch_metadata_of_object",
+        side_effect=Exception("Connection Error."),
+    )
+    def test_prepare_fail_missing_python_version_field(
+        self, mock_fetch_metadata_of_object
+    ):
+        """Ensures that prepare method fails in case if python version not provided and cannot be resolved automatically."""
+        with pytest.raises(
+            ValueError,
+            match="Cannot automatically detect the inference python version. `inference_python_version` must be provided.",
+        ):
+            self.generic_model.prepare(inference_conda_env=INFERENCE_CONDA_ENV)
+
     @patch("ads.model.runtime.env_info.get_service_packs")
     @patch("ads.common.auth.default_signer")
     def test_prepare_both_conda_env(self, mock_signer, mock_get_service_packs):
@@ -332,7 +341,8 @@ class TestGenericModel:
     def test_prepare_with_custom_scorepy(self, mock_signer):
         """Test prepare a trained model with custom score.py."""
         self.generic_model.prepare(
-            INFERENCE_CONDA_ENV,
+            inference_conda_env=INFERENCE_CONDA_ENV,
+            inference_python_version=DEFAULT_PYTHON_VERSION,
             model_file_name="fake_model_name",
             score_py_uri=f"{os.path.dirname(os.path.abspath(__file__))}/test_files/custom_score.py",
         )
@@ -467,11 +477,11 @@ class TestGenericModel:
 
     def test_set_model_input_serializer(self):
         """Tests set_model_input_serializer() with different input types."""
+        from ads.model.serde.common import SERDE
         from ads.model.serde.model_input import (
             CloudpickleModelInputSERDE,
             JsonModelInputSERDE,
         )
-        from ads.model.serde.common import SERDE
 
         generic_model = GenericModel(estimator=self.clr, artifact_dir="fake_folder")
         # set by passing str
