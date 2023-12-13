@@ -273,7 +273,8 @@ class ModelArtifact:
             == ""
         ):
             raise ValueError(
-                "Cannot automatically detect the inference python version. `inference_python_version` must be provided."
+                "Cannot automatically detect the inference python version. "
+                "`inference_python_version` must be provided."
             )
         runtime_file_path = os.path.join(self.artifact_dir, "runtime.yaml")
         if os.path.exists(runtime_file_path) and not force_overwrite:
