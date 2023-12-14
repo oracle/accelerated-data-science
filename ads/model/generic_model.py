@@ -287,6 +287,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         Tests if deployment works in local environment.
     upload_artifact(...)
         Uploads model artifacts to the provided `uri`.
+    download_artifact(...)
+        Downloads model artifacts from the model catalog.
 
 
     Examples
