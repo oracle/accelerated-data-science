@@ -375,7 +375,7 @@ class TestOCIDataScienceModel:
             **{"kwargkey": "kwargvalue"},
         )
 
-    @patch.object(OCIDataScienceModel, "_wait_for_work_request")
+    @patch("ads.model.service.oci_datascience_model.wait_work_request")
     def test_import_model_artifact_success(
         self,
         mock_wait_for_work_request,
@@ -400,10 +400,7 @@ class TestOCIDataScienceModel:
                     )
                 ),
             )
-            mock_wait_for_work_request.assert_called_with(
-                work_request_id="work_request_id",
-                num_steps=2,
-            )
+            mock_wait_for_work_request.assert_called_with("work_request_id")
 
     @patch.object(OCIDataScienceModel, "client")
     def test_import_model_artifact_fail(self, mock_client):
@@ -419,7 +416,7 @@ class TestOCIDataScienceModel:
                 bucket_uri=test_bucket_uri, region="test_region"
             )
 
-    @patch.object(OCIDataScienceModel, "_wait_for_work_request")
+    @patch("ads.model.service.oci_datascience_model.wait_work_request")
     def test_export_model_artifact(
         self,
         mock_wait_for_work_request,
@@ -444,115 +441,4 @@ class TestOCIDataScienceModel:
                     )
                 ),
             )
-            mock_wait_for_work_request.assert_called_with(
-                work_request_id="work_request_id",
-                num_steps=2,
-            )
-
-    @patch.object(TqdmProgressBar, "update")
-    def test__wait_for_work_request_fail(self, mock_tqdm_update, mock_client):
-        mock_client.get_work_request = MagicMock(
-            return_value=Response(
-                data=WorkRequest(id="work_request_id", status="FAILED"),
-                status=None,
-                headers={"opc-work-request-id": "work_request_id"},
-                request=None,
-            )
-        )
-        mock_client.list_work_request_logs = MagicMock(
-            return_value=Response(
-                data=[
-                    WorkRequestLogEntry(message="test_message_1"),
-                    WorkRequestLogEntry(message="error_message_1"),
-                ],
-                status=None,
-                headers=None,
-                request=None,
-            )
-        )
-        with patch.object(
-            OCIDataScienceModel,
-            "client",
-            new_callable=PropertyMock,
-            return_value=mock_client,
-        ):
-            with pytest.raises(Exception, match="error_message_1"):
-                self.mock_model._wait_for_work_request(
-                    work_request_id="work_request_id", num_steps=2
-                )
-                mock_tqdm_update.assert_has_calls(
-                    [
-                        call("test_message_1"),
-                        call("error_message_1"),
-                    ]
-                )
-                assert mock_tqdm_update.call_count == 2
-
-    @patch.object(TqdmProgressBar, "update")
-    def test__wait_for_work_request_fail_generic(self, mock_tqdm_update, mock_client):
-        mock_client.get_work_request = MagicMock(
-            return_value=Response(
-                data=WorkRequest(id="work_request_id", status="FAILED"),
-                status=None,
-                headers={"opc-work-request-id": "work_request_id"},
-                request=None,
-            )
-        )
-        mock_client.list_work_request_logs = MagicMock(
-            return_value=Response(
-                data=[],
-                status=None,
-                headers=None,
-                request=None,
-            )
-        )
-        with patch.object(
-            OCIDataScienceModel,
-            "client",
-            new_callable=PropertyMock,
-            return_value=mock_client,
-        ):
-            with pytest.raises(
-                Exception, match="^Error occurred in attempt to perform the operation*"
-            ):
-                self.mock_model._wait_for_work_request(
-                    work_request_id="work_request_id", num_steps=2
-                )
-                mock_tqdm_update.assert_not_called()
-
-    @patch.object(TqdmProgressBar, "update")
-    def test__wait_for_work_request_success(self, mock_tqdm_update, mock_client):
-        mock_client.get_work_request = MagicMock(
-            return_value=Response(
-                data=WorkRequest(id="work_request_id", status="SUCCEEDED"),
-                status=None,
-                headers={"opc-work-request-id": "work_request_id"},
-                request=None,
-            )
-        )
-        mock_client.list_work_request_logs = MagicMock(
-            return_value=Response(
-                data=[
-                    WorkRequestLogEntry(message="test_message_1"),
-                    WorkRequestLogEntry(message="test_message_2"),
-                ],
-                status=None,
-                headers=None,
-                request=None,
-            )
-        )
-        with patch.object(
-            OCIDataScienceModel,
-            "client",
-            new_callable=PropertyMock,
-            return_value=mock_client,
-        ):
-            self.mock_model._wait_for_work_request(
-                work_request_id="work_request_id", num_steps=2
-            )
-            # mock_tqdm_update.assert_has_calls(
-            #     [call("test_message_1"), call("test_message_2")]
-            # )
-            # assert mock_tqdm_update.call_count == 2
-            # mock_tqdm_update.assert_called()
-            # assert mock_tqdm_update.call_count == 2
+            mock_wait_for_work_request.assert_called_with("work_request_id")
