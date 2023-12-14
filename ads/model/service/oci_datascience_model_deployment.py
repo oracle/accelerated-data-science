@@ -8,7 +8,7 @@ from functools import wraps
 import logging
 from typing import Callable, List
 from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.oci_mixin import OCIWorkRequestMixin, wait_work_request
+from ads.common.work_request import wait_work_request
 from ads.config import PROJECT_OCID
 from ads.model.deployment.common.utils import OCIClientManager, State
 import oci
@@ -77,7 +77,6 @@ class MissingModelDeploymentWorkflowIdError(Exception):  # pragma: no cover
 
 class OCIDataScienceModelDeployment(
     OCIDataScienceMixin,
-    OCIWorkRequestMixin,
     oci.data_science.models.ModelDeployment,
 ):
     """Represents an OCI Data Science Model Deployment.
@@ -192,7 +191,7 @@ class OCIDataScienceModelDeployment(
                 try:
                     wait_work_request(
                         self.workflow_req_id,
-                        f"Activating model deployment: {self.display_name}",
+                        "Activating model deployment",
                         max_wait_time, 
                         poll_interval
                     )
@@ -243,7 +242,7 @@ class OCIDataScienceModelDeployment(
             try:
                 wait_work_request(
                     self.workflow_req_id,
-                    f"Creating model deployment: {self.display_name}",
+                    "Creating model deployment",
                     max_wait_time, 
                     poll_interval
                 )
@@ -297,7 +296,7 @@ class OCIDataScienceModelDeployment(
                 try:
                     wait_work_request(
                         self.workflow_req_id,
-                        f"Deactivating model deployment: {self.display_name}",
+                        "Deactivating model deployment",
                         max_wait_time, 
                         poll_interval
                     )
@@ -366,7 +365,7 @@ class OCIDataScienceModelDeployment(
             try:
                 wait_work_request(
                     self.workflow_req_id,
-                    f"Deleting model deployment: {self.display_name}",
+                    "Deleting model deployment",
                     max_wait_time, 
                     poll_interval
                 )
