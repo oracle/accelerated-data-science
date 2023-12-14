@@ -9,7 +9,6 @@ import os
 import time
 from string import Template
 from typing import Any, Dict, List, Tuple
-from ads.opctl.operator.common.utils import default_signer
 
 import fsspec
 import yaml
