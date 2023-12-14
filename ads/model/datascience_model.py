@@ -216,7 +216,7 @@ class DataScienceModel(Builder):
             - provenance_metadata: Union[ModelProvenanceMetadata, Dict]
             - artifact: str
         """
-        self.auth = kwargs.pop("auth", None)
+        self.auth = kwargs.pop("auth", {})
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Reinitiate complex attributes
         self._init_complex_attributes()
