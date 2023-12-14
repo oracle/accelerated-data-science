@@ -413,7 +413,7 @@ class JobRunner:
                     logger.log(level=level, msg=msg)
             # Add a small delay so that
             # outputs from the subsequent code will have different timestamp for oci logging
-            time.sleep(0.05)
+            time.sleep(0.02)
         if check and process.returncode != 0:
             # If there is an error, exit the main process with the same return code.
             sys.exit(process.returncode)

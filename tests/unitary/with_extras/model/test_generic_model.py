@@ -283,19 +283,19 @@ class TestGenericModel:
     @patch("ads.common.auth.default_signer")
     def test_prepare_both_conda_env(self, mock_signer, mock_get_service_packs):
         """prepare a model by only providing inference conda env."""
-        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
-        inference_python_version="3.6"
-        training_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
-        training_python_version="3.7"
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        inference_python_version = "3.6"
+        training_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
+        training_python_version = "3.7"
         mock_get_service_packs.return_value = (
             {
-                inference_conda_env : ("mlcpuv1", inference_python_version),
-                training_conda_env : ("database_p37_cpu_v1", training_python_version)
+                inference_conda_env: ("mlcpuv1", inference_python_version),
+                training_conda_env: ("database_p37_cpu_v1", training_python_version),
             },
             {
-                "mlcpuv1" : (inference_conda_env, inference_python_version),
-                "database_p37_cpu_v1" : (training_conda_env, training_python_version)
-            }
+                "mlcpuv1": (inference_conda_env, inference_python_version),
+                "database_p37_cpu_v1": (training_conda_env, training_python_version),
+            },
         )
         self.generic_model.prepare(
             inference_conda_env=inference_conda_env,
@@ -365,17 +365,19 @@ class TestGenericModel:
     @patch.object(GenericModel, "_random_display_name", return_value="test_name")
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.runtime.env_info.get_service_packs")
-    def test_save(self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name):
+    def test_save(
+        self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name
+    ):
         """test saving a model to artifact."""
-        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
-        inference_python_version="3.7"
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
         mock_get_service_packs.return_value = (
             {
-                inference_conda_env : ("dataexpl_p37_cpu_v3", inference_python_version),
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
             },
             {
-                "dataexpl_p37_cpu_v3" : (inference_conda_env, inference_python_version),
-            }
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
         )
         mock_dsc_model_create.return_value = MagicMock(id="fake_id")
         self.generic_model.prepare(
@@ -400,15 +402,15 @@ class TestGenericModel:
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_save_not_implemented_error(self, mock_get_service_packs):
         """test saving a model to artifact."""
-        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
-        inference_python_version="3.7"
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
         mock_get_service_packs.return_value = (
             {
-                inference_conda_env : ("dataexpl_p37_cpu_v3", inference_python_version),
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
             },
             {
-                "dataexpl_p37_cpu_v3" : (inference_conda_env, inference_python_version),
-            }
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
         )
         self.generic_model._serialize = False
         self.generic_model.prepare(
@@ -428,6 +430,40 @@ class TestGenericModel:
         )
         with pytest.raises(NotImplementedError):
             self.generic_model.save()
+
+    @patch.object(GenericModel, "_random_display_name", return_value="test_name")
+    @patch.object(DataScienceModel, "create")
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    @patch("ads.model.GenericModel.reload")
+    def test_save_not_reload(
+        self,
+        mock_reload,
+        mock_get_service_packs,
+        mock_dsc_model_create,
+        mock__random_display_name,
+    ):
+        """test saving a model to artifact without verify score.py."""
+        inference_conda_env = "oci://bucket@tenancy/prefix/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
+        )
+        mock_dsc_model_create.return_value = MagicMock(id="fake_id")
+        self.generic_model.prepare(
+            inference_conda_env="dataexpl_p37_cpu_v3",
+            namespace="ociodscdev",
+            inference_python_version="3.7",
+            model_file_name="model.joblib",
+            force_overwrite=True,
+            training_id=None,
+        )
+        self.generic_model.save(ignore_introspection=True, reload=False)
+        mock_reload.assert_not_called()
 
     def test_set_model_input_serializer(self):
         """Tests set_model_input_serializer() with different input types."""
