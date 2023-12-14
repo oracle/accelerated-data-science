@@ -9,6 +9,7 @@ import os
 import time
 from string import Template
 from typing import Any, Dict, List, Tuple
+from ads.opctl.operator.common.utils import default_signer
 
 import fsspec
 import yaml
@@ -26,35 +27,12 @@ class OperatorValidator(Validator):
     pass
 
 
-def path_exists(uri: str, auth: Optional[Dict] = None) -> bool:
-    """Check if the given path exists. It can be a local path or an OCI object storage URI.
-
-    Parameters
-    ----------
-    uri: str
-        The URI of the target, which can be local path or OCI object storage URI.
-    auth: (Dict, optional). Defaults to None.
-        The default authentication is set using `ads.set_auth` API. If you need to override the
-        default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
-        authentication signer and kwargs required to instantiate IdentityClient object.
-
-    Returns
-    -------
-    bool: return True if the path exists.
-    """
-    protocol = fsspec.utils.get_protocol(uri)
-    storage_options = {}
-    if protocol != "file":
-        storage_options = auth or authutil.default_signer()
-    return fsspec.filesystem(protocol, **storage_options).exists(uri)
-
-
 def create_output_folder(name):
     output_folder = name
     protocol = fsspec.utils.get_protocol(output_folder)
     storage_options = {}
     if protocol != "file":
-        storage_options = auth or authutil.default_signer()  # TODO update auth
+        storage_options = auth or default_signer()
 
     fs = fsspec.filesystem(protocol, **storage_options)
     name_suffix = 1
