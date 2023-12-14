@@ -368,7 +368,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self.estimator = estimator
         self.auth = auth or authutil.default_signer()
         self.dsc_model = (
-            DataScienceModel()
+            DataScienceModel(auth=self.auth)
             .with_custom_metadata_list(ModelCustomMetadata())
             .with_provenance_metadata(ModelProvenanceMetadata())
             .with_defined_metadata_list(ModelTaxonomyMetadata())

@@ -274,7 +274,7 @@ class OCISerializableMixin(OCIClientMixin):
         else:
             return cls.__deserialize_model(data, to_cls)
 
-    @classmethod
+    @class_or_instance_method
     def __deserialize_model(cls, data, to_cls):
         """De-serializes list or dict to model."""
         if isinstance(data, to_cls):
