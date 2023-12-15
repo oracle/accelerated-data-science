@@ -171,22 +171,17 @@ class ModelArtifact:
         self.ignore_conda_error = ignore_conda_error
         self.model = None
         self.auth = auth or authutil.default_signer()
-        try:
-            if reload and not ignore_conda_error:
-                self.reload()
-                # Extracts the model_file_name from the score.py.
-                if (
-                    not self.model_file_name
-                    and self.score
-                    and hasattr(self.score, "model_name")
-                    and self.score.model_name
-                ):
-                    self.model_file_name = self.score.model_name
-        except:
-            logger.error(
-                "Failing to load model into environemnt. Please set `reload=False` or `ignore_conda_error=True`."
-            )
-            raise
+
+        if reload and not ignore_conda_error:
+            self.reload()
+            # Extracts the model_file_name from the score.py.
+            if (
+                not self.model_file_name
+                and self.score
+                and hasattr(self.score, "model_name")
+                and self.score.model_name
+            ):
+                self.model_file_name = self.score.model_name
 
     def prepare_runtime_yaml(
         self,
@@ -422,7 +417,7 @@ class ModelArtifact:
         force_overwrite: Optional[bool] = False,
         ignore_conda_error: Optional[bool] = False,
         model_file_name: Optional[str] = None,
-        reload: Optional[bool] = True,
+        reload: Optional[bool] = False,
     ):
         """Constructs a ModelArtifact object from the existing model artifacts.
 
@@ -445,8 +440,8 @@ class ModelArtifact:
             Parameter to ignore error when collecting conda information.
         model_file_name: (str, optional). Defaults to `None`
             The file name of the serialized model.
-        reload: (bool, optional). Defaults to True.
-            Determine whether will reload the Model into the env.
+        reload: (bool, optional). Defaults to False.
+            Whether to reload the Model into the environment.
 
         Returns
         -------
