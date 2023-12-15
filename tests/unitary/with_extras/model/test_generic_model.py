@@ -807,7 +807,6 @@ class TestGenericModel:
                 # )
                 assert test_result == {"result": "result"}
 
-    # @pytest.mark.skip(reason="need to fix later.")
     @pytest.mark.parametrize(
         "test_args",
         [
@@ -849,6 +848,7 @@ class TestGenericModel:
                 "uri": "src/folder",
                 "force_overwrite": True,
                 "auth": {"config": "value"},
+                "reload": True,
             },
         ],
     )
@@ -882,6 +882,7 @@ class TestGenericModel:
             auth=test_args.get("auth", {"config": "value"}),
             model_file_name=test_args.get("model_file_name"),
             ignore_conda_error=False,
+            reload=test_args.get("reload", False),
         )
 
         if not test_args.get("as_onnx"):
@@ -899,8 +900,10 @@ class TestGenericModel:
                 properties=ModelProperties(),
                 as_onnx=True,
             )
-
-        mock_reload_runtime_info.assert_called()
+        if test_args.get("reload", False):
+            mock_reload_runtime_info.assert_called()
+        else:
+            mock_reload_runtime_info.assert_not_called()
         assert test_result == None
 
     @patch("ads.common.auth.default_signer")
