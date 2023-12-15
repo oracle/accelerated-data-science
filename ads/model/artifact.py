@@ -498,6 +498,8 @@ class ModelArtifact:
                     utils.copy_from_uri(
                         uri=temp_dir, to_path=to_path, force_overwrite=True
                     )
+            except ArtifactRequiredFilesError as ex:
+                logger.warning(ex)
 
         if ObjectStorageDetails.is_oci_path(artifact_dir):
             for root, dirs, files in os.walk(to_path):

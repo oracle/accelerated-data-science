@@ -1372,21 +1372,29 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
         if reload:
             model.reload_runtime_info()
-            model._summary_status.update_status(
-                detail="Generated score.py",
-                status=ModelState.DONE.value,
-            )
-            model._summary_status.update_status(
-                detail="Generated runtime.yaml",
-                status=ModelState.DONE.value,
-            )
-            model._summary_status.update_status(
-                detail="Serialized model", status=ModelState.DONE.value
-            )
             model._summary_status.update_action(
                 detail="Populated metadata(Custom, Taxonomy and Provenance)",
-                action=f"Call .populate_metadata() to populate metadata.",
+                action="Call .populate_metadata() to populate metadata.",
             )
+
+        model._summary_status.update_status(
+            detail="Generated score.py",
+            status=ModelState.NOTAPPLICABLE.value,
+        )
+        model._summary_status.update_status(
+            detail="Generated runtime.yaml",
+            status=ModelState.NOTAPPLICABLE.value,
+        )
+        model._summary_status.update_status(
+            detail="Serialized model",
+            status=ModelState.NOTAPPLICABLE.value,
+        )
+        model._summary_status.update_status(
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            status=ModelState.AVAILABLE.value
+            if reload
+            else ModelState.NOTAPPLICABLE.value,
+        )
 
         return model
 
@@ -3038,6 +3046,7 @@ class ModelState(Enum):
     AVAILABLE = "Available"
     NOTAVAILABLE = "Not Available"
     NEEDSACTION = "Needs Action"
+    NOTAPPLICABLE = "Not Applicable"
 
 
 class SummaryStatus:
