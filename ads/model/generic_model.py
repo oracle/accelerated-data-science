@@ -1348,6 +1348,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         properties.with_dict(local_vars)
         auth = auth or authutil.default_signer()
         artifact_dir = _prepare_artifact_dir(artifact_dir)
+        reload = kwargs.pop("reload", False)
         model_artifact = ModelArtifact.from_uri(
             uri=uri,
             artifact_dir=artifact_dir,
@@ -1355,7 +1356,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             force_overwrite=force_overwrite,
             ignore_conda_error=ignore_conda_error,
             model_file_name=model_file_name,
-            reload=kwargs.pop("reload", False),
+            reload=reload,
         )
         model = cls(
             estimator=model_artifact.model,
@@ -1368,22 +1369,25 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model.local_copy_dir = model_artifact.local_copy_dir
         model.model_artifact = model_artifact
         model.ignore_conda_error = ignore_conda_error
-        model.reload_runtime_info()
-        model._summary_status.update_status(
-            detail="Generated score.py",
-            status=ModelState.DONE.value,
-        )
-        model._summary_status.update_status(
-            detail="Generated runtime.yaml",
-            status=ModelState.DONE.value,
-        )
-        model._summary_status.update_status(
-            detail="Serialized model", status=ModelState.DONE.value
-        )
-        model._summary_status.update_action(
-            detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            action=f"Call .populate_metadata() to populate metadata.",
-        )
+
+        if reload:
+            model.reload_runtime_info()
+            model._summary_status.update_status(
+                detail="Generated score.py",
+                status=ModelState.DONE.value,
+            )
+            model._summary_status.update_status(
+                detail="Generated runtime.yaml",
+                status=ModelState.DONE.value,
+            )
+            model._summary_status.update_status(
+                detail="Serialized model", status=ModelState.DONE.value
+            )
+            model._summary_status.update_action(
+                detail="Populated metadata(Custom, Taxonomy and Provenance)",
+                action=f"Call .populate_metadata() to populate metadata.",
+            )
+
         return model
 
     @classmethod

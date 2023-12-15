@@ -3,7 +3,7 @@
 
 # Copyright (c) 2022, 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+from ads.common.decorator.utils import class_or_instance_method
 import cgi
 import logging
 from copy import deepcopy
@@ -849,7 +849,7 @@ class DataScienceModel(Builder):
         self.dsc_model.delete(delete_associated_model_deployment)
         return self.sync()
 
-    @classmethod
+    @class_or_instance_method
     def list(
         cls, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List["DataScienceModel"]:
@@ -876,7 +876,7 @@ class DataScienceModel(Builder):
             )
         ]
 
-    @classmethod
+    @class_or_instance_method
     def list_df(
         cls, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> "pandas.DataFrame":
@@ -914,7 +914,7 @@ class DataScienceModel(Builder):
             )
         return pandas.DataFrame.from_records(records)
 
-    @classmethod
+    @class_or_instance_method
     def from_id(cls, id: str) -> "DataScienceModel":
         """Gets an existing model by OCID.
 
@@ -972,6 +972,18 @@ class DataScienceModel(Builder):
                 dsc_spec[dsc_attr] = value
 
         dsc_spec.update(**kwargs)
+        # TODO: dsc_spec doesn't have auth info
+        # from ads.common import auth
+
+        # dsc_spec.update(
+        #     **auth.api_keys(
+        #         client_kwargs={
+        #             "service_endpoint": "https://datascience-int.us-ashburn-1.oci.oc-test.com/20190101"
+        #         }
+        #     )
+        # )
+        # print("dsc_spec")
+        # print(dsc_spec)
         return OCIDataScienceModel(**dsc_spec)
 
     def _update_from_oci_dsc_model(
@@ -1046,7 +1058,7 @@ class DataScienceModel(Builder):
             "spec": utils.batch_convert_case(spec, "camel"),
         }
 
-    @classmethod
+    @class_or_instance_method
     def from_dict(cls, config: Dict) -> "DataScienceModel":
         """Loads model instance from a dictionary of configurations.
 
