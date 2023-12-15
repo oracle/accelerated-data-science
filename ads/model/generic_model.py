@@ -1355,7 +1355,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             force_overwrite=force_overwrite,
             ignore_conda_error=ignore_conda_error,
             model_file_name=model_file_name,
-            reload=kwargs.pop("reload", None),
+            reload=kwargs.pop("reload", False),
         )
         model = cls(
             estimator=model_artifact.model,
