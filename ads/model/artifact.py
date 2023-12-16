@@ -413,10 +413,10 @@ class ModelArtifact:
         cls,
         uri: str,
         artifact_dir: str,
-        auth: Optional[Dict] = None,
+        model_file_name: str = None,
         force_overwrite: Optional[bool] = False,
+        auth: Optional[Dict] = None,
         ignore_conda_error: Optional[bool] = False,
-        model_file_name: Optional[str] = None,
         reload: Optional[bool] = False,
     ):
         """Constructs a ModelArtifact object from the existing model artifacts.
