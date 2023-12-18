@@ -33,7 +33,7 @@ LIFECYCLE_STOP_STATE = ("SUCCEEDED", "FAILED", "CANCELED", "DELETED")
 WORK_REQUEST_STOP_STATE = ("SUCCEEDED", "FAILED", "CANCELED")
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
-DEFAULT_WORKFLOW_STEPS = 2
+WORK_REQUEST_PERCENTAGE = 100
 
 
 class MergeStrategy(Enum):
@@ -939,7 +939,6 @@ class OCIWorkRequestMixin:
     def wait_for_progress(
         self,
         work_request_id: str,
-        num_steps: int = DEFAULT_WORKFLOW_STEPS,
         max_wait_time: int = DEFAULT_WAIT_TIME,
         poll_interval: int = DEFAULT_POLL_INTERVAL,
     ):
@@ -949,8 +948,6 @@ class OCIWorkRequestMixin:
         ----------
         work_request_id: str
             Work Request OCID.
-        num_steps: (int, optional). Defaults to 2.
-            Number of steps for the progress indicator.
         max_wait_time: int
             Maximum amount of time to wait in seconds (Defaults to 1200).
             Negative implies infinite wait time.
@@ -965,13 +962,14 @@ class OCIWorkRequestMixin:
 
         i = 0
         start_time = time.time()
-        with get_progress_bar(num_steps) as progress:
+        with get_progress_bar(WORK_REQUEST_PERCENTAGE) as progress:
             seconds_since = time.time() - start_time
             exceed_max_time = max_wait_time > 0 and seconds_since >= max_wait_time
             if exceed_max_time:
                 logger.error(f"Max wait time ({max_wait_time} seconds) exceeded.")
+            previous_percent_complete = 0
             while not exceed_max_time and (
-                not work_request_logs or len(work_request_logs) < num_steps
+                not work_request_logs or previous_percent_complete <= WORK_REQUEST_PERCENTAGE
             ):
                 time.sleep(poll_interval)
                 new_work_request_logs = []
@@ -988,9 +986,23 @@ class OCIWorkRequestMixin:
                     work_request_logs[i:] if work_request_logs else []
                 )
 
-                for wr_item in new_work_request_logs:
-                    progress.update(wr_item.message)
-                    i += 1
+                percent_change = work_request.percent_complete - previous_percent_complete
+                previous_percent_complete = work_request.percent_complete
+
+                if len(new_work_request_logs) > 0:
+                    start_index = True
+                    for wr_item in new_work_request_logs:
+                        if start_index:
+                            progress.update(wr_item.message, percent_change)
+                            start_index = False
+                        else:
+                            progress.update(wr_item.message, 0)
+                        i += 1
+                else:
+                    # if there is new percent change but the new work request logs is empty
+                    # needs to add this percent change to the bar to ensure the final percentage is 100
+                    if percent_change != 0:
+                        progress.update(n=percent_change)
 
                 if work_request and work_request.status in WORK_REQUEST_STOP_STATE:
                     if work_request.status != "SUCCEEDED":

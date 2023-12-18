@@ -21,7 +21,6 @@ from ads.feature_store.common.enums import (
     ExpectationType,
     EntityType,
     StreamingIngestionMode,
-    IngestionType,
     BatchIngestionMode,
 )
 from ads.feature_store.common.exceptions import (
@@ -69,7 +68,6 @@ except ModuleNotFoundError:
     )
 except Exception as e:
     raise
-from pyspark.sql import DataFrame
 
 logger = logging.getLogger(__name__)
 

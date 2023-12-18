@@ -73,6 +73,7 @@ class OCIClientFactory:
             "marketplace": MarketplaceClient,
             "artifacts": ArtifactsClient,
         }
+
         assert (
             client in client_map
         ), f"Invalid client name. Client name not found in {client_map.keys()}"

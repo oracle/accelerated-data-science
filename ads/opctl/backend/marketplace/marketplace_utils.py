@@ -1,5 +1,7 @@
 import os
 import time
+from collections import defaultdict
+
 import oci
 from typing import List, Dict
 from ads.opctl.backend.marketplace.models.bearer_token import BearerToken
@@ -8,6 +10,8 @@ from ads.common import auth as authutil
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
 )
+
+
 class Color:
     PURPLE = "\033[95m"
     CYAN = "\033[96m"
@@ -20,7 +24,9 @@ class Color:
     UNDERLINE = "\033[4m"
     END = "\033[0m"
 
-WARNING=f"{Color.RED}{Color.BOLD}WARNING: {Color.END}"
+
+WARNING = f"{Color.RED}{Color.BOLD}WARNING: {Color.END}"
+
 
 class StatusIcons:
     CHECK = "\u2705 "
@@ -62,6 +68,7 @@ def print_heading(
         + "\n" * suffix_newline_count
         + f"{Color.END}"
     )
+
 
 def set_kubernetes_session_token_env(profile: str = "DEFAULT") -> None:
     os.environ["OCI_CLI_AUTH"] = "security_token"
@@ -142,32 +149,31 @@ def get_marketplace_request_status(work_request_id):
     return get_work_request_response.data
 
 
-def list_container_images(compartment_id: str, ocir_image_path: str
+def list_container_images(
+    compartment_id: str, ocir_image_path: str
 ) -> oci.artifacts.models.ContainerImageCollection:
     artifact_client = OCIClientFactory(**authutil.default_signer()).artifacts
     list_container_images_response = artifact_client.list_container_images(
         compartment_id=compartment_id,
         compartment_id_in_subtree=True,
         sort_by="TIMECREATED",
-        repository_name=ocir_image_path
+        repository_name=ocir_image_path,
     )
     return list_container_images_response.data
 
 
 def export_helm_chart_to_container_registry(
-        listing_details: HelmMarketplaceListingDetails,
+    listing_details: HelmMarketplaceListingDetails,
 ) -> Dict[str, str]:
     _export_helm_chart_(listing_details)
-    images = list_container_images(compartment_id=listing_details.compartment_id,
-                                   ocir_image_path=listing_details.ocir_image_path)
+    images = list_container_images(
+        compartment_id=listing_details.compartment_id,
+        ocir_image_path=listing_details.ocir_image_path,
+    )
     image_map = {}
     for image in images.items:
         for container_tag_pattern in listing_details.container_tag_pattern:
-            if (
-                    container_tag_pattern in image.display_name
-                    and image_map.get(container_tag_pattern, None) is None
-            ):
+            if container_tag_pattern in image.display_name:
                 image_map[container_tag_pattern] = image.display_name
+                break
     return image_map
-
-

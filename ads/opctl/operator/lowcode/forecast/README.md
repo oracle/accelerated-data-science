@@ -6,11 +6,7 @@ Below are the steps to configure and run the Forecasting Operator on different r
 
 ## 1. Prerequisites
 
-Follow the [CLI Configuration](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/opctl/configure.html) steps from the ADS documentation. This step is mandatory as it sets up default values for different options while running the Forecasting Operator on OCI Data Science jobs or OCI Data Flow applications. If you have previously done this and used a flexible shape, make sure to adjust `ml_job_config.ini` with shape config details and `docker_registry` information.
-
-- ocpus = 1
-- memory_in_gbs = 16
-- docker_registry = `<iad.ocir.io/namespace/>`
+Follow the [CLI Configuration](https://accelerated-data-science.readthedocs.io/en/latest/user_guide/cli/opctl/configure.html) steps from the ADS documentation. This step is mandatory as it sets up default values for different options while running the Forecasting Operator on OCI Data Science Jobs.
 
 ## 2. Generating configs
 
@@ -23,10 +19,10 @@ ads operator init -t forecast --overwrite --output ~/forecast/
 The most important files expected to be generated are:
 
 - `forecast.yaml`: Contains forecast-related configuration.
-- `backend_operator_local_python_config.yaml`: This includes a local backend configuration for running forecasting in a local environment. The environment should be set up manually before running the operator.
-- `backend_operator_local_container_config.yaml`: This includes a local backend configuration for running forecasting within a local container. The container should be built before running the operator. Please refer to the instructions below for details on how to accomplish this.
-- `backend_job_container_config.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a container (BYOC) runtime. The container should be built and published before running the operator. Please refer to the instructions below for details on how to accomplish this.
-- `backend_job_python_config.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a conda runtime. The conda should be built and published before running the operator.
+- `forecast_operator_local_python_backend.yaml`: This includes a local backend configuration for running forecasting in a local environment. The environment should be set up manually before running the operator.
+- `forecast_operator_local_container_backend.yaml`: This includes a local backend configuration for running forecasting within a local container. The container should be built before running the operator. Please refer to the instructions below for details on how to accomplish this.
+- `forecast_job_container_backend.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a container (BYOC) runtime. The container should be built and published before running the operator. Please refer to the instructions below for details on how to accomplish this.
+- `forecast_job_python_backend.yaml`: Contains Data Science job-related config to run forecasting in a Data Science job within a conda runtime. The conda should be built and published before running the operator.
 
 All generated configurations should be ready to use without the need for any additional adjustments. However, they are provided as starter kit configurations that can be customized as needed.
 

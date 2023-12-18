@@ -324,9 +324,7 @@ class SecretKeeper(Vault, ContextDecorator):
                     )
             os.environ.update(export_dict)
             self.exported_keys = list(export_dict.keys())
-            logger.debug(
-                f"Exporting credentials to environment. Keys: {self.exported_keys}"
-            )
+            logger.debug(f"Exporting credentials to environment.")
         else:
             logger.debug(f"Skipping Export credentials to environment.")
 

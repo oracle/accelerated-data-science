@@ -87,6 +87,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
             fitted_values[target] = model.predict_in_sample(X=X_in)
             actual_values[target] = y
+            actual_values[target].index = pd.to_datetime(y.index)
 
             # Build future dataframe
             start_date = y.index.values[-1]
@@ -107,12 +108,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             )
             yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
 
-            dt_columns[target] = pd.concat(
-                [
-                    df_encoded[self.spec.datetime_column.name],
-                    pd.Series(yhat_clean.index),
-                ]
-            )
+            dt_columns[target] = df_encoded[self.spec.datetime_column.name]
             conf_int_clean = pd.DataFrame(
                 conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
             )
@@ -139,10 +135,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         for cat in self.categories:
             output_i = pd.DataFrame()
             output_i["Date"] = dt_columns[f"{col}_{cat}"]
-            output_i = output_i.set_index("Date")
             output_i["Series"] = cat
-            output_i["input_value"] = actual_values[f"{col}_{cat}"]
+            output_i = output_i.set_index("Date")
 
+            output_i["input_value"] = actual_values[f"{col}_{cat}"]
             output_i["fitted_value"] = fitted_values[f"{col}_{cat}"]
             output_i["forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
             output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
