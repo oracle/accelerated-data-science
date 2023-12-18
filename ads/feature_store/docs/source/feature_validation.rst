@@ -18,31 +18,30 @@ The following example defines an expectation:
 
 .. code-block:: python3
 
-    from great_expectations.core.expectation_configuration import ExpectationConfiguration
+    from great_expectations.core import ExpectationSuite, ExpectationConfiguration
+    from ads.feature_store.common.enums import ExpectationType
+    from ads.feature_store.feature_group import FeatureGroup
+    feature_group = FeatureGroup.from_id("<unique_id>")
 
     # Create an Expectation
-    expect_config = ExpectationConfiguration(
-        # Name of expectation type being added
-        expectation_type="expect_table_columns_to_match_ordered_list",
-        # These are the arguments of the expectation
-        # The keys allowed in the dictionary are Parameters and
-        # Keyword Arguments of this Expectation Type
-        kwargs={
-            "column_list": [
-                "column1",
-                "column2",
-                "column3",
-                "column4",
-            ]
-        },
-        # This is how you can optionally add a comment about this expectation.
-        meta={
-            "notes": {
-                "format": "markdown",
-                "content": "details about this expectation. **Markdown** `Supported`",
-            }
-        },
+    expectation_suite = ExpectationSuite(
+        expectation_suite_name="test_suite"
     )
+    expectation_suite.add_expectation(
+        ExpectationConfiguration(
+            expectation_type="expect_column_values_to_not_be_null",
+            kwargs={"column": "COL1"},
+        )
+    )
+    expectation_suite.add_expectation(
+        ExpectationConfiguration(
+            expectation_type="expect_column_values_to_be_between",
+            kwargs={"column": "COL2", "min_value": 0, "max_value": 30},
+        )
+    )
+
+    feature_group.with_expectation_suite(expectation_suite, expectation_type = ExpectationType.STRICT)
+    feature_group.update()
 
 Expectations Suite
 ===================
