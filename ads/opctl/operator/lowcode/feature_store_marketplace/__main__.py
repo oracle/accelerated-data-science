@@ -1,8 +1,6 @@
 import json
 import sys
 
-import oci.marketplace
-
 from ads.opctl.backend.marketplace.marketplace_operator_runner import (
     MarketplaceOperatorRunner,
 )
@@ -13,15 +11,11 @@ from ads.opctl.backend.marketplace.models.marketplace_type import (
     SecretStrategy,
 )
 from typing import Dict
-from ads.common.oci_client import OCIClientFactory
 
-from ads.common import auth as authutil
+from ads.opctl.operator.lowcode.feature_store_marketplace.const import LISTING_ID
 
 
-# helm install fs-dp-api-test oci://iad.ocir.io/idogsu2ylimg/test-listing   --version 1.0 --namespace feature-store  --values /home/hvrai/projects/feature-store-dataplane/feature-store-terraform/k8/example_values/values_custom.yaml
 class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
-    LISTING_ID = "ocid1.mktpublisting.oc1.iad.amaaaaaabiudgxyazaterzjaubwdvhf5r55zie7wg6ujfnuryuhuje3y5tkq"
-
     @staticmethod
     def __get_spec_from_config__(operator_config: str):
         operator_config_json = json.loads(operator_config)
@@ -37,10 +31,12 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
         helm_values["imagePullSecrets"] = [{"name": f"{secret_name}"}]
 
         return HelmMarketplaceListingDetails(
-            listing_id=self.LISTING_ID,
-            helm_chart_tag="1.0",
-            container_tag_pattern=["feature-store-dataplane-api"],
-            marketplace_version="0.1",
+            listing_id=LISTING_ID,
+            helm_chart_tag=operator_config_spec["version"],
+            container_tag_pattern=[
+                f"feature-store-api-{operator_config_spec['version']}"
+            ],
+            marketplace_version=operator_config_spec["version"],
             helm_values=helm_values,
             ocir_repo=operator_config_spec["ocirURL"],
             compartment_id=operator_config_spec["compartmentId"],
@@ -52,15 +48,21 @@ class FeatureStoreOperatorRunner(MarketplaceOperatorRunner):
 
     def get_oci_meta(self, container_map: Dict[str, str], operator_config: str) -> dict:
         operator_config_spec = self.__get_spec_from_config__(operator_config)
+        repo = operator_config_spec["ocirURL"].split("/")[0]
+        container_path = container_map[
+            f"feature-store-api-{operator_config_spec['version']}"
+        ]
+        namespace = self.__get_spec_from_config__(operator_config)["ocirURL"].split(
+            "/"
+        )[1]
         oci_meta = {
-            ## TODO: Revert after marketplace lisiting
-            "repo": "iad.ocir.io/idogsu2ylimg/feature-store-api",
+            "repo": repo,
             "images": {
                 "api": {
-                    "image": "",
-                    # "tag": self.VERSION,
-                    "tag": "0.1.344",
-                }
+                    "image": "/" + namespace + "/" + container_path.split(":")[0],
+                    "tag": container_path.split(":")[1],
+                },
+                "authoriser": {"image": "dummy", "tag": "dummy"},
             },
         }
         return oci_meta

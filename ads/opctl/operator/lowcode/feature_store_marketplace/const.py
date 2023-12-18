@@ -6,3 +6,5 @@ from enum import Enum
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.common.extended_enum import ExtendedEnumMeta
+
+LISTING_ID = "ocid1.mktpublisting.oc1.iad.amaaaaaabiudgxya26lzh2dsyvg7cfzgllvdl6xo5phz4mnsoktxeutecrvq"

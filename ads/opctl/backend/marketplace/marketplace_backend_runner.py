@@ -2,7 +2,7 @@ import runpy
 import sys
 import types
 
-from typing import Dict
+from typing import Dict, List
 
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     MarketplaceListingDetails,

@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 
-from typing import Dict
+from typing import Dict, List
 
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     MarketplaceListingDetails,

@@ -9,10 +9,11 @@ from ads.opctl.operator.lowcode.feature_store_marketplace.models.mysql_config im
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.db_config import (
     DBConfig,
 )
+from ads.common import auth as authutil
 
 
 def get_db_details() -> DBConfig:
-    jdbc_url = "jdbc://mysql://{}/{}?createDatabaseIfNotExist=true"
+    jdbc_url = "jdbc:mysql://{}/{}?createDatabaseIfNotExist=true"
     mysql_db_config = MySqlConfig()
     print_heading(
         f"MySQL database configuration",
@@ -54,3 +55,6 @@ def get_db_details() -> DBConfig:
     db_config = DBConfig()
     db_config.mysql_config = mysql_db_config
     return db_config
+
+
+#
