@@ -12,7 +12,7 @@ from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_config import OperatorConfig
 
-from .const import SupportedMetrics
+from .const import SupportedMetrics, SpeedAccuracyMode
 from .const import SupportedModels
 
 @dataclass(repr=True)
@@ -88,6 +88,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     generate_report: bool = None
     generate_metrics: bool = None
     generate_explanations: bool = None
+    explanations_accuracy_mode: str = None
     horizon: int = None
     freq: str = None
     model: str = None
@@ -119,6 +120,7 @@ class ForecastOperatorSpec(DataClassSerializable):
             if self.generate_explanations is not None
             else False
         )
+        self.explanations_accuracy_mode = self.explanations_accuracy_mode or SpeedAccuracyMode.FAST_APPROXIMATE
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
         self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"
