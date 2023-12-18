@@ -32,6 +32,7 @@ DEFAULT_MODEL_DEPLOYMENT_FOLDER = "/opt/ds/model/deployed_model/"
 # OPERATOR
 OPERATOR_MODULE_PATH = "ads.opctl.operator.lowcode"
 OPERATOR_IMAGE_WORK_DIR = "/etc/operator"
+OVERRIDE_KWARGS = "override_kwargs"
 
 
 class RUNTIME_TYPE(ExtendedEnum):

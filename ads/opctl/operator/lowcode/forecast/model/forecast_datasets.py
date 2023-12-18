@@ -7,7 +7,6 @@
 import pandas as pd
 from ..operator_config import ForecastOperatorConfig
 from .. import utils
-from ads.opctl.operator.lowcode.forecast.utils import default_signer
 from .transformations import Transformations
 from ads.opctl import logger
 import pandas as pd
@@ -40,7 +39,6 @@ class ForecastDatasets:
         raw_data = utils._load_data(
             filename=spec.historical_data.url,
             format=spec.historical_data.format,
-            storage_options=default_signer(),
             columns=spec.historical_data.columns,
         )
         self.original_user_data = raw_data.copy()
@@ -71,7 +69,6 @@ class ForecastDatasets:
             additional_data = utils._load_data(
                 filename=spec.additional_data.url,
                 format=spec.additional_data.format,
-                storage_options=default_signer(),
                 columns=spec.additional_data.columns,
             )
             additional_data = data_transformer._sort_by_datetime_col(additional_data)

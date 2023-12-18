@@ -30,10 +30,12 @@ from ads.opctl.config.merger import ConfigMerger
 from ads.opctl.constants import (
     BACKEND_NAME,
     DEFAULT_ADS_CONFIG_FOLDER,
+    OVERRIDE_KWARGS,
     RESOURCE_TYPE,
     RUNTIME_TYPE,
 )
 from ads.opctl.operator.common.const import PACK_TYPE
+from ads.opctl.operator.common.dictionary_merger import DictionaryMerger
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 
 
@@ -209,7 +211,10 @@ class BackendFactory:
             {**backend, **{"execution": {"backend": backend_kind}}}
         ).step(ConfigMerger, **kwargs)
 
-        config.config["runtime"] = backend
+        # merge backend with the override parameters
+        config.config["runtime"] = DictionaryMerger(
+            updates=kwargs.get(OVERRIDE_KWARGS)
+        ).merge(backend)
         config.config["infrastructure"] = p_backend.config["infrastructure"]
         config.config["execution"] = p_backend.config["execution"]
 
@@ -423,7 +428,16 @@ class BackendFactory:
 
                     # get config info from ini files
                     p = ConfigProcessor(
-                        {**runtime_kwargs, **{"execution": {"backend": resource_type}}}
+                        {
+                            **runtime_kwargs,
+                            **{"execution": {"backend": resource_type}},
+                            **{
+                                "infrastructure": {
+                                    **operator_info.jobs_default_params.to_dict(),
+                                    **operator_info.dataflow_default_params.to_dict(),
+                                }
+                            },
+                        }
                     ).step(
                         ConfigMerger,
                         ads_config=ads_config or DEFAULT_ADS_CONFIG_FOLDER,
