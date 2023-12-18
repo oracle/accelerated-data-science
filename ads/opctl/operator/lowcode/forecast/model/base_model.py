@@ -578,36 +578,22 @@ class ForecastOperatorBaseModel(ABC):
         exp_start_time = time.time()
         global_ex_time = 0
         local_ex_time = 0
+        logger.info(f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode")
         for series_id in self.target_columns:
             self.series_id = series_id
-            if self.spec.model == SupportedModels.AutoTS:
-                self.dataset_cols = (
-                    self.full_data_long.loc[
-                        self.full_data_long.series_id == self.category_mapping[self.series_id]
-                    ]
-                    .set_index(datetime_col_name)
-                    .columns
-                )
+            self.dataset_cols = (
+                self.full_data_dict.get(series_id)
+                .set_index(datetime_col_name)
+                .drop(series_id, axis=1)
+                .columns
+            )
 
-                self.bg_data = self.full_data_long.loc[
-                    self.full_data_long.series_id == self.category_mapping[self.series_id]
-                ].set_index(datetime_col_name)
-
-            else:
-                self.dataset_cols = (
-                    self.full_data_dict.get(series_id)
-                    .set_index(datetime_col_name)
-                    .drop(series_id, axis=1)
-                    .columns
-                )
-
-                self.bg_data = self.full_data_dict.get(series_id).set_index(
-                    datetime_col_name
-                )
+            self.bg_data = self.full_data_dict.get(series_id).set_index(
+                datetime_col_name
+            )
             data = self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][
                 list(self.dataset_cols)]
             ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
-            logger.info(f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode")
             data_trimmed = data.tail(max(int(len(data) * ratio), 100)).reset_index()
             data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(lambda x: x.timestamp())
             kernel_explnr = PermutationExplainer(
