@@ -27,6 +27,9 @@ DEFAULT_BAR_FORMAT = '{l_bar}{bar}| [{elapsed}<{remaining}, ' '{rate_fmt}{postfi
 
 
 class ADSWorkRequest(OCIDataScienceMixin):
+    """Class for monitoring OCI WorkRequest and representing on tqdm progress bar. This class inherits
+    `OCIDataScienceMixin` so as to call its `client` attribute to interact with OCI backend.
+    """
 
     def __init__(
         self, 
@@ -37,6 +40,27 @@ class ADSWorkRequest(OCIDataScienceMixin):
         client_kwargs: dict = None, 
         **kwargs
     ) -> None:
+        """Initializes ADSWorkRequest object.
+
+        Parameters
+        ----------
+        id: str
+            Work Request OCID.
+        description: str
+            Progress bar initial step description (Defaults to `Processing`).
+        config : dict, optional
+            OCI API key config dictionary to initialize 
+            oci.data_science.DataScienceClient (Defaults to None).
+        signer : oci.signer.Signer, optional
+            OCI authentication signer to initialize 
+            oci.data_science.DataScienceClient (Defaults to None).
+        client_kwargs : dict, optional
+            Additional client keyword arguments to initialize 
+            oci.data_science.DataScienceClient (Defaults to None).
+        kwargs:
+            Additional keyword arguments to initialize 
+            oci.data_science.DataScienceClient.
+        """
         self.id = id
         self._description = description
         self._percentage = 0
@@ -45,6 +69,7 @@ class ADSWorkRequest(OCIDataScienceMixin):
         
 
     def _sync(self):
+        """Fetches the latest work request information to ADSWorkRequest object."""
         work_request = self.client.get_work_request(self.id).data
         work_request_logs = self.client.list_work_request_logs(
             self.id
@@ -57,9 +82,27 @@ class ADSWorkRequest(OCIDataScienceMixin):
     def watch(
         self, 
         progress_callback: Callable,
-        max_wait_time: int,
-        poll_interval: int,
+        max_wait_time: int=DEFAULT_WAIT_TIME,
+        poll_interval: int=DEFAULT_POLL_INTERVAL,
     ):
+        """Updates the progress bar with realtime message and percentage until the process is completed.
+
+        Parameters
+        ----------
+        progress_callback: Callable
+            Progress bar callback function.
+            It must accept `(percent_change, description)` where `percent_change` is the
+            work request percent complete and `description` is the latest work request log message. 
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time. 
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
+
+        Returns
+        -------
+        None
+        """
         previous_percent_complete = 0
 
         start_time = time.time()
@@ -67,7 +110,7 @@ class ADSWorkRequest(OCIDataScienceMixin):
 
             seconds_since = time.time() - start_time
             if max_wait_time > 0 and seconds_since >= max_wait_time:
-                logger.error(f"Max wait time ({max_wait_time} seconds) exceeded.")
+                logger.error(f"Exceeded max wait time of {max_wait_time} seconds.")
                 return
 
             time.sleep(poll_interval)
@@ -80,7 +123,10 @@ class ADSWorkRequest(OCIDataScienceMixin):
 
             percent_change = self._percentage - previous_percent_complete
             previous_percent_complete = self._percentage
-            progress_callback(percent_change, self._description)
+            progress_callback(
+                progress=percent_change,
+                description=self._description
+            )
 
             if self._status in WORK_REQUEST_STOP_STATE:
                 if self._status != oci.work_requests.models.WorkRequest.STATUS_SUCCEEDED:
@@ -90,19 +136,38 @@ class ADSWorkRequest(OCIDataScienceMixin):
                         raise Exception(
                             "Error occurred in attempt to perform the operation. "
                             "Check the service logs to get more details. "
+                            f"Work request id: {self.id}."
                         )
                 else:
                     break
 
-        progress_callback(0, "Done")
+        progress_callback(progress=0, description="Done")
 
 
 def wait_work_request(
     id: str, 
-    progress_bar_description: str, 
+    progress_bar_description: str="Processing", 
     max_wait_time: int=DEFAULT_WAIT_TIME,
     poll_interval: int=DEFAULT_POLL_INTERVAL
 ):
+    """Waits for the work request progress bar to be completed.
+    
+    Parameters
+    ----------
+    id: str
+        Work Request OCID.
+    progress_bar_description: str
+        Progress bar initial step description (Defaults to `Processing`).
+    max_wait_time: int
+        Maximum amount of time to wait in seconds (Defaults to 1200).
+        Negative implies infinite wait time.
+    poll_interval: int
+        Poll interval in seconds (Defaults to 10).
+    
+    Returns
+    -------
+    None
+    """
     ads_work_request = ADSWorkRequest(id)
 
     with tqdm(
