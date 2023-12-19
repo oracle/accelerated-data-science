@@ -6,6 +6,7 @@
 
 
 import os
+from copy import deepcopy
 from unittest import TestCase, mock, SkipTest
 
 from langchain.llms import Cohere
@@ -24,6 +25,11 @@ from ads.llm import (
 
 class ChainSerializationTest(TestCase):
     """Contains tests for chain serialization."""
+
+    # LangChain is updating frequently on the module organization,
+    # mainly affecting the id field of the serialization.
+    # In the test, we will not check the id field of some components.
+    # We expect users to use the same LangChain version for serialize and de-serialize
 
     def setUp(self) -> None:
         self.maxDiff = None
@@ -75,7 +81,6 @@ class ChainSerializationTest(TestCase):
             "prompt": {
                 "lc": 1,
                 "type": "constructor",
-                "id": ["langchain_core", "prompts", "prompt", "PromptTemplate"],
                 "kwargs": {
                     "input_variables": ["subject"],
                     "template": "Tell me a joke about {subject}",
@@ -118,12 +123,10 @@ class ChainSerializationTest(TestCase):
     EXPECTED_RUNNABLE_SEQUENCE = {
         "lc": 1,
         "type": "constructor",
-        "id": ["langchain_core", "runnables", "RunnableSequence"],
         "kwargs": {
             "first": {
                 "lc": 1,
                 "type": "constructor",
-                "id": ["langchain_core", "runnables", "RunnableParallel"],
                 "kwargs": {
                     "steps": {
                         "text": {
@@ -144,7 +147,6 @@ class ChainSerializationTest(TestCase):
                 {
                     "lc": 1,
                     "type": "constructor",
-                    "id": ["langchain_core", "prompts", "prompt", "PromptTemplate"],
                     "kwargs": {
                         "input_variables": ["subject"],
                         "template": "Tell me a joke about {subject}",
@@ -185,7 +187,10 @@ class ChainSerializationTest(TestCase):
         template = PromptTemplate.from_template(self.PROMPT_TEMPLATE)
         llm_chain = LLMChain(prompt=template, llm=llm)
         serialized = dump(llm_chain)
-        self.assertEqual(serialized, self.EXPECTED_LLM_CHAIN_WITH_OCI_MD)
+        # Do not check the ID field.
+        expected = deepcopy(self.EXPECTED_LLM_CHAIN_WITH_OCI_MD)
+        expected["kwargs"]["prompt"]["id"] = serialized["kwargs"]["prompt"]["id"]
+        self.assertEqual(serialized, expected)
         llm_chain = load(serialized)
         self.assertIsInstance(llm_chain, LLMChain)
         self.assertIsInstance(llm_chain.prompt, PromptTemplate)
@@ -202,8 +207,8 @@ class ChainSerializationTest(TestCase):
                 compartment_id=self.COMPARTMENT_ID,
                 client_kwargs=self.GEN_AI_KWARGS,
             )
-        except ImportError:
-            raise SkipTest("OCI SDK does not support Generative AI.")
+        except ImportError as ex:
+            raise SkipTest("OCI SDK does not support Generative AI.") from ex
         serialized = dump(llm)
         self.assertEqual(serialized, self.EXPECTED_GEN_AI_LLM)
         llm = load(serialized)
@@ -216,8 +221,8 @@ class ChainSerializationTest(TestCase):
             embeddings = GenerativeAIEmbeddings(
                 compartment_id=self.COMPARTMENT_ID, client_kwargs=self.GEN_AI_KWARGS
             )
-        except ImportError:
-            raise SkipTest("OCI SDK does not support Generative AI.")
+        except ImportError as ex:
+            raise SkipTest("OCI SDK does not support Generative AI.") from ex
         serialized = dump(embeddings)
         self.assertEqual(serialized, self.EXPECTED_GEN_AI_EMBEDDINGS)
         embeddings = load(serialized)
@@ -232,7 +237,15 @@ class ChainSerializationTest(TestCase):
 
         chain = map_input | template | llm
         serialized = dump(chain)
-        self.assertEqual(serialized, self.EXPECTED_RUNNABLE_SEQUENCE)
+        # Do not check the ID fields.
+        expected = deepcopy(self.EXPECTED_RUNNABLE_SEQUENCE)
+        expected["id"] = serialized["id"]
+        expected["kwargs"]["first"]["id"] = serialized["kwargs"]["first"]["id"]
+        expected["kwargs"]["first"]["kwargs"]["steps"]["text"]["id"] = serialized[
+            "kwargs"
+        ]["first"]["kwargs"]["steps"]["text"]["id"]
+        expected["kwargs"]["middle"][0]["id"] = serialized["kwargs"]["middle"][0]["id"]
+        self.assertEqual(serialized, expected)
         chain = load(serialized)
         self.assertEqual(len(chain.steps), 3)
         self.assertIsInstance(chain.steps[0], RunnableParallel)

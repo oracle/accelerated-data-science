@@ -373,7 +373,6 @@ spec:
                 "ocpus": 10.0,
                 "memory_in_gbs": 36.0,
             },
-            ModelDeploymentInfrastructure.CONST_WEB_CONCURRENCY: 10,
             ModelDeploymentInfrastructure.CONST_REPLICA: 1,
         }
 
@@ -1286,7 +1285,7 @@ spec:
         mock_stream.assert_called_with(
             source=model_deployment.model_deployment_id,
             time_start=time_start,
-            stop_condition=model_deployment._stop_condition,
+            stop_condition=model_deployment._stream_stop_condition,
             interval=10,
             log_filter="test_filter",
         )

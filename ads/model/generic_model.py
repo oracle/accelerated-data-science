@@ -31,6 +31,7 @@ from ads.config import (
     NB_SESSION_OCID,
     PIPELINE_RUN_COMPARTMENT_OCID,
     PROJECT_OCID,
+    TMPDIR,
 )
 from ads.evaluations import EvaluatorMixin
 from ads.feature_engineering import ADSImage
@@ -190,7 +191,7 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     if artifact_dir and isinstance(artifact_dir, str):
         return os.path.abspath(os.path.expanduser(artifact_dir))
 
-    artifact_dir = tempfile.mkdtemp()
+    artifact_dir = TMPDIR or tempfile.mkdtemp()
     logger.info(
         f"The `artifact_dir` was not provided and "
         f"automatically set to: {artifact_dir}"

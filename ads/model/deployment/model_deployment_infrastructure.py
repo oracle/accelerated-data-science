@@ -20,7 +20,6 @@ MODEL_DEPLOYMENT_INFRASTRUCTURE_TYPE = "datascienceModelDeployment"
 MODEL_DEPLOYMENT_INFRASTRUCTURE_KIND = "infrastructure"
 
 DEFAULT_BANDWIDTH_MBPS = 10
-DEFAULT_WEB_CONCURRENCY = 10
 DEFAULT_REPLICA = 1
 DEFAULT_SHAPE_NAME = "VM.Standard.E4.Flex"
 DEFAULT_OCPUS = 1
@@ -219,7 +218,6 @@ class ModelDeploymentInfrastructure(Builder):
             defaults[self.CONST_PROJECT_ID] = PROJECT_OCID
 
         defaults[self.CONST_BANDWIDTH_MBPS] = DEFAULT_BANDWIDTH_MBPS
-        defaults[self.CONST_WEB_CONCURRENCY] = DEFAULT_WEB_CONCURRENCY
         defaults[self.CONST_REPLICA] = DEFAULT_REPLICA
 
         if NB_SESSION_OCID:
@@ -628,7 +626,6 @@ class ModelDeploymentInfrastructure(Builder):
             .with_compartment_id(self.compartment_id or "{Provide a compartment OCID}")
             .with_project_id(self.project_id or "{Provide a project OCID}")
             .with_bandwidth_mbps(self.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS)
-            .with_web_concurrency(self.web_concurrency or DEFAULT_WEB_CONCURRENCY)
             .with_replica(self.replica or DEFAULT_REPLICA)
             .with_shape_name(self.shape_name or DEFAULT_SHAPE_NAME)
             .with_shape_config_details(
