@@ -1448,9 +1448,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         artifact_dir = _prepare_artifact_dir(artifact_dir)
 
         target_dir = (
-            artifact_dir
-            if not ObjectStorageDetails.is_oci_path(artifact_dir)
-            else tempfile.mkdtemp()
+            _prepare_artifact_dir()
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else artifact_dir
         )
 
         dsc_model = DataScienceModel.from_id(model_id)
@@ -1585,9 +1585,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         artifact_dir = _prepare_artifact_dir(artifact_dir)
 
         target_dir = (
-            artifact_dir
-            if not ObjectStorageDetails.is_oci_path(artifact_dir)
-            else tempfile.mkdtemp()
+            _prepare_artifact_dir()
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else artifact_dir
         )
         bucket_uri = bucket_uri or (
             artifact_dir if ObjectStorageDetails.is_oci_path(artifact_dir) else None
