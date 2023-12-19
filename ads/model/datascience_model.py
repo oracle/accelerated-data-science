@@ -216,7 +216,6 @@ class DataScienceModel(Builder):
             - provenance_metadata: Union[ModelProvenanceMetadata, Dict]
             - artifact: str
         """
-        self.auth = kwargs.pop("auth", {})
         super().__init__(spec=spec, **deepcopy(kwargs))
         # Reinitiate complex attributes
         self._init_complex_attributes()
@@ -971,9 +970,9 @@ class DataScienceModel(Builder):
                 )()
             else:
                 dsc_spec[dsc_attr] = value
-
+        auth = kwargs.pop("auth", {})
         dsc_spec.update(**kwargs)
-        return OCIDataScienceModel(**dsc_spec, **self.auth)
+        return OCIDataScienceModel(**dsc_spec, **auth)
 
     def _update_from_oci_dsc_model(
         self, dsc_model: OCIDataScienceModel

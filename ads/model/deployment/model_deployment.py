@@ -286,7 +286,6 @@ class ModelDeployment(Builder):
         kwargs:
             Keyword arguments for initializing `ModelDeploymentProperties` or `ModelDeployment`.
         """
-
         if spec and properties:
             raise ValueError(
                 "You can only pass in either `spec` or `properties` to initialize model deployment instance."
@@ -953,7 +952,9 @@ class ModelDeployment(Builder):
         except oci.exceptions.ServiceError as ex:
             # When bandwidth exceeds the allocated value, TooManyRequests error (429) will be raised by oci backend.
             if ex.status == 429:
-                bandwidth_mbps = self.infrastructure.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS
+                bandwidth_mbps = (
+                    self.infrastructure.bandwidth_mbps or DEFAULT_BANDWIDTH_MBPS
+                )
                 utils.get_logger().warning(
                     f"Load balancer bandwidth exceeds the allocated {bandwidth_mbps} Mbps."
                     "To estimate the actual bandwidth, use formula: (payload size in KB) * (estimated requests per second) * 8 / 1024."

@@ -969,7 +969,8 @@ class OCIWorkRequestMixin:
                 logger.error(f"Max wait time ({max_wait_time} seconds) exceeded.")
             previous_percent_complete = 0
             while not exceed_max_time and (
-                not work_request_logs or previous_percent_complete <= WORK_REQUEST_PERCENTAGE
+                not work_request_logs
+                or previous_percent_complete <= WORK_REQUEST_PERCENTAGE
             ):
                 time.sleep(poll_interval)
                 new_work_request_logs = []
@@ -986,7 +987,9 @@ class OCIWorkRequestMixin:
                     work_request_logs[i:] if work_request_logs else []
                 )
 
-                percent_change = work_request.percent_complete - previous_percent_complete
+                percent_change = (
+                    work_request.percent_complete - previous_percent_complete
+                )
                 previous_percent_complete = work_request.percent_complete
 
                 if len(new_work_request_logs) > 0:

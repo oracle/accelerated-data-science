@@ -1137,6 +1137,7 @@ class TestGenericModel:
     def test_update_deployment_instance_level_with_id(
         self, mock_client, mock_signer, mock_update
     ):
+        mock_signer.return_value = {}
         test_model_deployment_id = "xxxx.datasciencemodeldeployment.xxxx"
         md_props = ModelDeploymentProperties(model_id=test_model_deployment_id)
         md = ModelDeployment(properties=md_props)
@@ -1144,8 +1145,7 @@ class TestGenericModel:
         test_model = MagicMock(model_deployment=md, _summary_status=SummaryStatus())
         mock_update.return_value = test_model
 
-        generic_model = GenericModel(estimator=TestEstimator())
-        test_result = generic_model.update_deployment(
+        test_result = self.generic_model.update_deployment(
             model_deployment_id=test_model_deployment_id,
             properties=None,
             wait_for_completion=True,
@@ -1281,11 +1281,10 @@ class TestGenericModel:
         test_model_deployment_id = "xxxx.datasciencemodeldeployment.xxxx"
         md_props = ModelDeploymentProperties(model_id=test_model_deployment_id)
         md = ModelDeployment(properties=md_props)
-        generic_model = GenericModel(estimator=TestEstimator())
-        generic_model.model_deployment = md
+        self.generic_model.model_deployment = md
         mock_deactivate.return_value = md
         mock_activate.return_value = md
-        generic_model.restart_deployment(max_wait_time=2000, poll_interval=50)
+        self.generic_model.restart_deployment(max_wait_time=2000, poll_interval=50)
         mock_deactivate.assert_called_with(max_wait_time=2000, poll_interval=50)
         mock_activate.assert_called_with(max_wait_time=2000, poll_interval=50)
 
