@@ -366,7 +366,7 @@ class SparkExecutionEngine(Strategy):
         try:
             # Get the output features
             output_features = get_features(
-                self.spark_engine.get_columns_from_table(target_table), feature_group.id
+                self.spark_engine.get_output_columns_from_table_or_dataframe(table_name=target_table), feature_group.id
             )
             if output_features:
                 feature_group._with_features(output_features)
@@ -392,7 +392,7 @@ class SparkExecutionEngine(Strategy):
         try:
             # Get the output features
             output_features = get_features(
-                output_columns=self.spark_engine.get_columns_from_table(target_table),
+                output_columns=self.spark_engine.get_output_columns_from_table_or_dataframe(table_name=target_table),
                 parent_id=dataset.id,
                 entity_type=EntityType.DATASET,
             )
