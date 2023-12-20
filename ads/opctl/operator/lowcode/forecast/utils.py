@@ -397,10 +397,26 @@ def evaluate_train_metrics(
 
 
 def _select_plot_list(fn, target_columns):
-    import datapane as dp
+    # import datapane as dp
+    import report_creator as dp
+
+    # Base,
+    # BigNumber,
+    # Blocks,
+    # Collapse,
+    # DataTable,
+    # Group,
+    # Markdown,
+    # Plot,
+    # Python,
+    # ReportCreator,
+    # Section,
+    # Select,
+    # Text,
+    # Yaml,
 
     blocks = [dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
-    return dp.Select(blocks=blocks) if len(target_columns) > 1 else blocks[0]
+    return dp.Select(*blocks) if len(target_columns) > 1 else blocks[0]
 
 
 def _add_unit(num, unit):
@@ -484,7 +500,7 @@ def get_forecast_plots(
             line_dash="dash",
             line_color="gray",
         )
-        return fig
+        return fig.get_figure()
 
     return _select_plot_list(plot_forecast_plotly, target_columns)
 

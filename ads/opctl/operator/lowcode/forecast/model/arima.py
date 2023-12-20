@@ -156,14 +156,15 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
     def _generate_report(self):
         """The method that needs to be implemented on the particular model level."""
-        import datapane as dp
+        # import datapane as dp
+        import report_creator as dp
 
         sec5_text = dp.Text(f"## ARIMA Model Parameters")
         blocks = [
             dp.HTML(m.summary().as_html(), label=self.target_columns[i])
             for i, m in enumerate(self.models)
         ]
-        sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+        sec5 = dp.Select(*blocks) if len(blocks) > 1 else blocks[0]
         all_sections = [sec5_text, sec5]
 
         if self.spec.generate_explanations:
@@ -211,7 +212,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                    dp.Select(*blocks) if len(blocks) > 1 else blocks[0]
                 )
 
                 # Append the global explanation text and section to the "all_sections" list

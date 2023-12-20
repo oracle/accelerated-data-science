@@ -250,7 +250,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         return output_col
 
     def _generate_report(self):
-        import datapane as dp
+        # import datapane as dp
+        import report_creator as dp
         from prophet.plot import add_changepoints_to_plot
 
         sec1_text = dp.Text(
@@ -258,15 +259,17 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "These plots show your forecast in the context of historical data."
         )
         sec1 = utils._select_plot_list(
-            lambda idx, *args: self.models[idx].plot(
-                self.outputs[idx], include_legend=True
-            ),
+            lambda idx, *args: self.models[idx]
+            .plot(self.outputs[idx], include_legend=True)
+            .get_figure(),
             target_columns=self.target_columns,
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
         sec2 = utils._select_plot_list(
-            lambda idx, *args: self.models[idx].plot_components(self.outputs[idx]),
+            lambda idx, *args: self.models[idx]
+            .plot_components(self.outputs[idx])
+            .get_figure(),
             target_columns=self.target_columns,
         )
 
@@ -282,7 +285,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             for idx in range(len(self.target_columns))
         ]
         sec3 = utils._select_plot_list(
-            lambda idx, *args: sec3_figs[idx], target_columns=self.target_columns
+            lambda idx, *args: sec3_figs[idx].get_figure(),
+            target_columns=self.target_columns,
         )
 
         all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
@@ -348,7 +352,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                    dp.Select(*blocks) if len(blocks) > 1 else blocks[0]
                 )
 
                 # Append the global explanation text and section to the "all_sections" list

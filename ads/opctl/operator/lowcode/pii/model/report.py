@@ -39,7 +39,8 @@ from ads.opctl.operator.lowcode.pii.utils import (
 )
 
 try:
-    import datapane as dp
+    # import datapane as dp
+    import report_creator as dp
 except ImportError:
     raise ModuleNotFoundError(
         f"`datapane` module was not found. Please run "
@@ -226,7 +227,7 @@ class RowReportFields:
     def build_report(self) -> dp.Group:
         return dp.Group(
             dp.Select(
-                blocks=[
+                *[
                     self._make_stats_card(),
                     self._make_text_card(),
                 ],
@@ -253,7 +254,7 @@ class RowReportFields:
                     label="Resolved Entities",
                 )
             )
-        return dp.Group(blocks=stats, label="STATS")
+        return dp.Group(*stats, label="STATS")
 
     def _make_text_card(self):
         annotations = []
@@ -302,7 +303,7 @@ class PIIOperatorReport:
 
         structure = dp.Blocks(
             dp.Select(
-                blocks=[
+                *[
                     dp.Group(
                         self._build_summary_page(),
                         label="Summary",
@@ -343,7 +344,7 @@ class PIIOperatorReport:
             dp.Text("# PII Summary"),
             dp.Text(self._get_summary_desc()),
             dp.Select(
-                blocks=[
+                *[
                     self._make_summary_stats_card(),
                     self._make_yaml_card(),
                     self._make_model_card(),
@@ -358,9 +359,7 @@ class PIIOperatorReport:
         details = dp.Blocks(
             dp.Text(DETAILS_REPORT_DESCRIPTION),
             dp.Select(
-                blocks=[
-                    row.build_report() for row in self.rows_details
-                ],  # RowReportFields
+                *[row.build_report() for row in self.rows_details],  # RowReportFields
                 type=dp.SelectType.DROPDOWN,
                 label="Details",
             ),
@@ -408,7 +407,7 @@ class PIIOperatorReport:
                         self.report_spec.run_summary.elapsed_time
                     ),
                 ),
-                columns=2,
+                # columns=2,
             ),
             dp.Text(f"### Entities Distribution"),
             plot_pie(self.report_spec.run_summary.statics),
@@ -417,14 +416,14 @@ class PIIOperatorReport:
             entites_df = self._build_total_entity_df()
             summary_stats.append(dp.Text(f"### Resolved Entities"))
             summary_stats.append(dp.DataTable(entites_df))
-        return dp.Group(blocks=summary_stats, label="STATS")
+        return dp.Group(*summary_stats, label="STATS")
 
     def _make_yaml_card(self) -> dp.Group:
         """Shows the full pii config yaml."""
         yaml_string = self.report_spec.run_summary.config.to_yaml()
         yaml_appendix_title = dp.Text(f"## Reference: YAML File")
         yaml_appendix = dp.Code(code=yaml_string, language="yaml")
-        return dp.Group(blocks=[yaml_appendix_title, yaml_appendix], label="YAML")
+        return dp.Group(*[yaml_appendix_title, yaml_appendix], label="YAML")
 
     def _make_model_card(self) -> dp.Group:
         """Generates model card."""
@@ -444,12 +443,12 @@ class PIIOperatorReport:
 
         if len(model_cards) <= 1:
             return dp.Group(
-                blocks=model_cards,
+                *model_cards,
                 label="MODEL CARD",
             )
         return dp.Group(
             dp.Select(
-                blocks=model_cards,
+                *model_cards,
                 type=dp.SelectType.TABS,
             ),
             label="MODEL CARD",

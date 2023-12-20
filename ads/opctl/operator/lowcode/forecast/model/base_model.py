@@ -71,7 +71,8 @@ class ForecastOperatorBaseModel(ABC):
             warnings.simplefilter(action="ignore", category=UserWarning)
             warnings.simplefilter(action="ignore", category=RuntimeWarning)
             warnings.simplefilter(action="ignore", category=ConvergenceWarning)
-            import datapane as dp
+            # import datapane as dp
+            import report_creator as dp
 
             # load data and build models
             start_time = time.time()
@@ -158,7 +159,7 @@ class ForecastOperatorBaseModel(ABC):
                 ]
                 summary = dp.Blocks(
                     dp.Select(
-                        blocks=[
+                        *[
                             dp.Group(
                                 dp.Text(
                                     f"You selected the **`{self.spec.model}`** model."
@@ -189,19 +190,19 @@ class ForecastOperatorBaseModel(ABC):
                                         heading="Num series",
                                         value=len(self.target_columns),
                                     ),
-                                    columns=4,
+                                    # columns=4,
                                 ),
                                 dp.Text("### First 10 Rows of Data"),
-                                dp.Select(blocks=first_10_rows_blocks)
+                                dp.Select(*first_10_rows_blocks)
                                 if len(first_10_rows_blocks) > 1
                                 else first_10_rows_blocks[0],
                                 dp.Text("----"),
                                 dp.Text("### Last 10 Rows of Data"),
-                                dp.Select(blocks=last_10_rows_blocks)
+                                dp.Select(*last_10_rows_blocks)
                                 if len(last_10_rows_blocks) > 1
                                 else last_10_rows_blocks[0],
                                 dp.Text("### Data Summary Statistics"),
-                                dp.Select(blocks=data_summary_blocks)
+                                dp.Select(*data_summary_blocks)
                                 if len(data_summary_blocks) > 1
                                 else data_summary_blocks[0],
                                 label="Summary",
@@ -415,7 +416,8 @@ class ForecastOperatorBaseModel(ABC):
         test_metrics_df: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
-        import datapane as dp
+        # import datapane as dp
+        import report_creator as dp
 
         if self.spec.output_directory:
             output_dir = self.spec.output_directory.url

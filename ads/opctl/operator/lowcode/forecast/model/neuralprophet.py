@@ -274,7 +274,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         return output_col
 
     def _generate_report(self):
-        import datapane as dp
+        # import datapane as dp
+        import report_creator as dp
 
         sec1_text = dp.Text(
             "## Forecast Overview \nThese plots show your "
@@ -367,7 +368,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                    dp.Select(*blocks) if len(blocks) > 1 else blocks[0]
                 )
 
                 # Append the global explanation text and section to the "all_sections" list

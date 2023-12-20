@@ -221,7 +221,8 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             - ds_forecast_col (pd.Index): A pandas Index containing the forecast column values.
             - ci_col_names (list): A list of column names for confidence intervals.
         """
-        import datapane as dp
+        # import datapane as dp
+        import report_creator as dp
 
         # Section 1: Forecast Overview
         sec1_text = dp.Text(
@@ -299,7 +300,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+                    dp.Select(*blocks) if len(blocks) > 1 else blocks[0]
                 )
 
                 # Append the global explanation text and section to the "all_sections" list
