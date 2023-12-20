@@ -30,13 +30,13 @@ SCORE_VERSION = "1.0"
 ADS_VERSION = __version__
 
 
-class ArtifactNestedFolderError(Exception):   # pragma: no cover
+class ArtifactNestedFolderError(Exception):  # pragma: no cover
     def __init__(self, folder: str):
         self.folder = folder
         super().__init__("The required artifact files placed in a nested folder.")
 
 
-class ArtifactRequiredFilesError(Exception):   # pragma: no cover
+class ArtifactRequiredFilesError(Exception):  # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "Not all required files presented in artifact folder. "
@@ -44,7 +44,7 @@ class ArtifactRequiredFilesError(Exception):   # pragma: no cover
         )
 
 
-class AritfactFolderStructureError(Exception):   # pragma: no cover
+class AritfactFolderStructureError(Exception):  # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "The artifact folder has a wrong structure. "
@@ -225,7 +225,8 @@ class ModelArtifact:
         Raises
         ------
         ValueError
-            If neither slug or conda_env_uri is provided.
+            If inference_python_version is not provided.
+            If runtime.yaml already exists.
 
         Returns
         -------
