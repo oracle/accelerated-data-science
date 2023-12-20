@@ -966,17 +966,20 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             auth=self.auth,
             local_copy_dir=self.local_copy_dir,
         )
-        self.runtime_info = self.model_artifact.prepare_runtime_yaml(
-            inference_conda_env=self.properties.inference_conda_env,
-            inference_python_version=self.properties.inference_python_version,
-            training_conda_env=self.properties.training_conda_env,
-            training_python_version=self.properties.training_python_version,
-            force_overwrite=force_overwrite,
-            namespace=namespace,
-            bucketname=DEFAULT_CONDA_BUCKET_NAME,
-            auth=self.auth,
-            ignore_conda_error=self.ignore_conda_error,
-        )
+        try:
+            self.runtime_info = self.model_artifact.prepare_runtime_yaml(
+                inference_conda_env=self.properties.inference_conda_env,
+                inference_python_version=self.properties.inference_python_version,
+                training_conda_env=self.properties.training_conda_env,
+                training_python_version=self.properties.training_python_version,
+                force_overwrite=force_overwrite,
+                namespace=namespace,
+                bucketname=DEFAULT_CONDA_BUCKET_NAME,
+                auth=self.auth,
+                ignore_conda_error=self.ignore_conda_error,
+            )
+        except ValueError as e:
+            raise e
 
         self._summary_status.update_status(
             detail="Generated runtime.yaml", status=ModelState.DONE.value
