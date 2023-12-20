@@ -19,8 +19,8 @@ The following example defines a feature store and gives it a name. A ``FeatureSt
     from ads.feature_store.feature_store import FeatureStore
 
     feature_store = (
-        feature_store_resource = FeatureStore().
-            with_description(<feature_store_description>)
+            FeatureStore().
+            with_description(<feature_store_description>).
             with_compartment_id("ocid1.compartment..<unique_id>").
             with_name(<feature_store_name>).
             with_offline_config(
@@ -118,5 +118,5 @@ You can call the ``create_transformation()`` method of the FeatureStore instance
   feature_store.create_transformation(
       source_code_func="<FUNCTION>",
       transformation_mode="SQL|PANDAS"
-      display_name="<TRANSFORMATION NAME>"
+      name="<TRANSFORMATION NAME>"
   )
