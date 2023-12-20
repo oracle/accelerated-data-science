@@ -3,6 +3,14 @@ Feature Group
 
 A feature group in a feature store is a collection of related features that are often used together in machine learning models. Feature groups serve as an organizational unit within the feature store to manage, version, and share features across different machine learning projects. By organizing features into groups, data scientists and machine learning engineers can efficiently discover, reuse, and collaborate on features. Feature groups reduce the redundant work and ensure consistency in feature engineering.
 
+.. image:: figures/feature_group.png
+
+In feature group, three key types play crucial roles:
+
+- **Primary Keys**: These keys uniquely identify individual records within the feature group. They ensure the uniqueness and integrity of each entry, allowing for efficient retrieval and modification of specific data points.
+- **Partition Keys**: These keys assist in distributing and organizing data across different partitions within the feature group. They enable efficient data retrieval by logically grouping related information, optimizing query performance, and minimizing resource utilization.
+- **Event Timestamp Keys**: These keys capture the temporal aspect of the data by indicating the time or timestamp associated with a specific event or entry within the feature group. They facilitate time-based querying, trend analysis, and time-series operations.
+
 Define
 ======
 

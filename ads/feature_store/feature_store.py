@@ -58,7 +58,7 @@ class FeatureStore(Builder):
     >>> feature_store = feature_store.FeatureStore()
     >>>     .with_description("Feature store description")
     >>>     .with_compartment_id(os.environ["PROJECT_COMPARTMENT_OCID"])
-    >>>     .with_display_name("FeatureStore")
+    >>>     .with_name("FeatureStore")
     >>>     .with_offline_config(
     >>>         metastore_id="metastore id")
     >>> feature_store.create()
@@ -68,7 +68,7 @@ class FeatureStore(Builder):
 
     CONST_ID = "id"
     CONST_COMPARTMENT_ID = "compartmentId"
-    CONST_DISPLAY_NAME = "displayName"
+    CONST_NAME = "name"
     CONST_DESCRIPTION = "description"
     CONST_FREEFORM_TAG = "freeformTags"
     CONST_DEFINED_TAG = "definedTags"
@@ -78,7 +78,7 @@ class FeatureStore(Builder):
     attribute_map = {
         CONST_ID: "id",
         CONST_COMPARTMENT_ID: "compartment_id",
-        CONST_DISPLAY_NAME: "display_name",
+        CONST_NAME: "name",
         CONST_DESCRIPTION: "description",
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
@@ -153,14 +153,14 @@ class FeatureStore(Builder):
         return self.set_spec(self.CONST_COMPARTMENT_ID, compartment_id)
 
     @property
-    def display_name(self) -> str:
-        return self.get_spec(self.CONST_DISPLAY_NAME)
+    def name(self) -> str:
+        return self.get_spec(self.CONST_NAME)
 
-    @display_name.setter
-    def display_name(self, name: str) -> "FeatureStore":
-        return self.with_display_name(name)
+    @name.setter
+    def name(self, name: str) -> "FeatureStore":
+        return self.with_name(name)
 
-    def with_display_name(self, name: str) -> "FeatureStore":
+    def with_name(self, name: str) -> "FeatureStore":
         """Sets the name.
 
         Parameters
@@ -173,7 +173,7 @@ class FeatureStore(Builder):
         FeatureStore
             The FeatureStore instance (self)
         """
-        return self.set_spec(self.CONST_DISPLAY_NAME, name)
+        return self.set_spec(self.CONST_NAME, name)
 
     @property
     def id(self) -> str:
@@ -292,8 +292,8 @@ class FeatureStore(Builder):
         ):
             raise ValueError("OfflineConfig must be provided with valid metastore_id.")
 
-        if not self.display_name:
-            self.display_name = self._random_display_name()
+        if not self.name:
+            self.name = self._random_display_name()
 
         payload = deepcopy(self._spec)
         # TODO: Remove when no longer needed
@@ -342,7 +342,7 @@ class FeatureStore(Builder):
 
     def create_entity(
         self,
-        display_name: str = None,
+        name: str = None,
         description: str = None,
         compartment_id: str = None,
     ):
@@ -350,8 +350,8 @@ class FeatureStore(Builder):
 
         Parameters
         ----------
-        display_name: str
-            display name for the entity.
+        name: str
+             name for the entity.
         description: str
              description for the entity.
         compartment_id: str
@@ -368,7 +368,7 @@ class FeatureStore(Builder):
             )
 
         self.oci_fs_entity = self._build_entity(
-            display_name, description, compartment_id
+            name, description, compartment_id
         )
         return self.oci_fs_entity.create()
 
@@ -428,7 +428,7 @@ class FeatureStore(Builder):
         self,
         source_code_func,
         transformation_mode,
-        display_name: str = None,
+        name: str = None,
         description: str = None,
         compartment_id: str = None,
     ):
@@ -436,7 +436,7 @@ class FeatureStore(Builder):
             Transformation()
             .with_transformation_mode(transformation_mode)
             .with_description(description)
-            .with_display_name(display_name)
+            .with_name(name)
             .with_source_code_function(source_code_func)
             .with_compartment_id(
                 compartment_id if compartment_id else self.compartment_id
@@ -450,7 +450,7 @@ class FeatureStore(Builder):
         self,
         source_code_func,
         transformation_mode: TransformationMode,
-        display_name: str = None,
+        name: str = None,
         description: str = None,
         compartment_id: str = None,
     ) -> "Transformation":
@@ -462,8 +462,8 @@ class FeatureStore(Builder):
             Transformation source code.
         transformation_mode: TransformationMode
             Transformation mode.
-        display_name: str
-            display name for the entity.
+        name: str
+             name for the entity.
         description: str
              description for the entity.
         compartment_id: str
@@ -482,7 +482,7 @@ class FeatureStore(Builder):
         self.oci_transformation = self._build_transformation(
             source_code_func,
             transformation_mode,
-            display_name,
+            name,
             description,
             compartment_id,
         )

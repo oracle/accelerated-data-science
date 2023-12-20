@@ -22,7 +22,7 @@ Transformations in a feature store refers to the operations and processes applie
         Transformation()
          .with_description("Feature store description")
          .with_compartment_id(os.environ["PROJECT_COMPARTMENT_OCID"])
-         .with_display_name("FeatureStore")
+         .with_name("transformation_name")
          .with_feature_store_id(feature_store.id)
          .with_transformation_mode(TransformationMode.SQL)
          .with_source_code_function(transactions_df)
@@ -75,7 +75,7 @@ Transformations in a feature store refers to the operations and processes applie
 
     transformation = (
         Transformation()
-        .with_display_name("chained_transformation")
+        .with_name("chained_transformation")
         .with_feature_store_id(feature_store.id)
         .with_source_code_function(chained_transformation)
         .with_transformation_mode(TransformationMode.PANDAS)
@@ -106,7 +106,7 @@ Transformations in a feature store refers to the operations and processes applie
 
     transformation = (
         Transformation()
-        .with_display_name("spark_transformation")
+        .with_name("spark_transformation")
         .with_feature_store_id(feature_store.id)
         .with_source_code_function(credit_score_transformation)
         .with_transformation_mode(TransformationMode.SPARK)
