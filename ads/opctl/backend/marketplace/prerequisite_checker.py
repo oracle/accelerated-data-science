@@ -84,6 +84,9 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
     secrets: V1SecretList = v1.list_namespaced_secret(
         namespace=listing_details.namespace
     )
+    v1.list_namespaced_service(
+        namespace="feature-store",
+    )
     secret_strategy: SecretStrategy = listing_details.secret_strategy
     for secret in secrets.items:
         secret: V1Secret = secret

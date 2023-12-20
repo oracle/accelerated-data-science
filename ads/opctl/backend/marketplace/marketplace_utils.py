@@ -2,6 +2,7 @@ import os
 import time
 from collections import defaultdict
 
+import kubernetes
 import oci
 from typing import List, Dict
 from ads.opctl.backend.marketplace.models.bearer_token import BearerToken
@@ -55,7 +56,7 @@ def print_heading(
     heading: str,
     prefix_newline_count: int = 0,
     suffix_newline_count: int = 0,
-    colors: List[Color] = (Color.BOLD,),
+    colors: List[str] = (Color.BOLD,),
 ) -> None:
     colors = [f"{color}" for color in colors]
     colors = " ".join(colors)
@@ -162,18 +163,53 @@ def list_container_images(
     return list_container_images_response.data
 
 
-def export_helm_chart_to_container_registry(
+def export_if_tags_not_exist(
     listing_details: HelmMarketplaceListingDetails,
 ) -> Dict[str, str]:
-    _export_helm_chart_(listing_details)
+    class ImageTagPatternNotFound(Exception):
+        def __init__(self, pattern: List[str]):
+            self.pattern = pattern
+
+        def __repr__(self):
+            print_heading(
+                f"Couldn't find images with tags: {listing_details.container_tag_pattern} requested by the operator.",
+                colors=[Color.RED],
+            )
+
+    tags_map = _get_tags_map(listing_details)
+
+    if not tags_map:
+        _export_helm_chart_(listing_details)
+        tags_map = _get_tags_map(listing_details)
+        if not tags_map:
+            raise ImageTagPatternNotFound(pattern=listing_details.container_tag_pattern)
+    else:
+        print(
+            f"Images already exist in the path. Continuing without export.{StatusIcons.CHECK}"
+        )
+    return tags_map
+
+
+def get_kubernetes_service(listings_details: HelmMarketplaceListingDetails):
+    kubernetes.config.load_kube_config()
+    k8 = kubernetes.client.CoreV1Api()
+    return k8.list_namespaced_service(
+        namespace=listings_details.namespace,
+        label_selector=f"app.kubernetes.io/instance={listings_details.helm_app_name}",
+    )
+
+
+def _get_tags_map(
+    listing_details: HelmMarketplaceListingDetails,
+) -> Dict[str, str]:
     images = list_container_images(
         compartment_id=listing_details.compartment_id,
         ocir_image_path=listing_details.ocir_image_path,
     )
-    image_map = {}
+    tags_map = {}
     for image in images.items:
         for container_tag_pattern in listing_details.container_tag_pattern:
             if container_tag_pattern in image.display_name:
-                image_map[container_tag_pattern] = image.display_name
+                tags_map[container_tag_pattern] = image.display_name.split(":")[1]
                 break
-    return image_map
+    return tags_map

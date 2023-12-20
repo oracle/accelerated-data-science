@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import json
 import os
 import tempfile
@@ -9,15 +15,9 @@ from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.opctl.backend.marketplace.helm_helper import check_helm_login, run_helm_install
+from ads.opctl.backend.marketplace.marketplace_operator_interface import Status
 
-from ads.opctl.backend.marketplace.prerequisite_checker import (
-    check_prerequisites,
-)
-
-from ads.opctl.backend.marketplace.helm_helper import (
-    run_helm_install,
-    check_helm_login,
-)
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
     MarketplaceListingDetails,
@@ -35,7 +35,8 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     StatusIcons,
     print_heading,
     Color,
-    export_helm_chart_to_container_registry,
+    export_if_tags_not_exist,
+    get_kubernetes_service,
 )
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
@@ -108,7 +109,7 @@ class LocalMarketplaceOperatorBackend(Backend):
         operator = MarketplaceBackendRunner(
             module_name=self.operator_info.type,
         )
-        check_prerequisites(listing_details)
+        # check_prerequisites(listing_details)
         print_heading(
             f"Starting deployment",
             prefix_newline_count=2,
@@ -116,11 +117,9 @@ class LocalMarketplaceOperatorBackend(Backend):
             colors=[Color.BLUE, Color.BOLD],
         )
 
-        container_map = export_helm_chart_to_container_registry(listing_details)
+        tags_map = export_if_tags_not_exist(listing_details)
         check_helm_login(listing_details)
-        oci_meta = operator.get_oci_meta(
-            container_map, json.dumps(self.operator_config)
-        )
+        oci_meta = operator.get_oci_meta(json.dumps(self.operator_config), tags_map)
         listing_details.helm_values["oci_meta"] = oci_meta
         override_value_path = self._save_helm_values_to_yaml_(
             listing_details.helm_values
@@ -139,9 +138,18 @@ class LocalMarketplaceOperatorBackend(Backend):
                 prefix_newline_count=0,
                 suffix_newline_count=2,
             )
-            return 0
+
+            operator.finalise_installation(
+                json.dumps(self.operator_config),
+                Status.SUCCESS,
+                tags_map,
+                get_kubernetes_service(listing_details),
+            )
         else:
-            return helm_install_status.returncode
+            operator.finalise_installation(
+                json.dumps(self.operator_config), Status.FAILURE, None, None
+            )
+        return helm_install_status.returncode
 
     @runtime_dependency(
         module="kubernetes", install_from=OptionalDependency.FEATURE_STORE_MARKETPLACE
