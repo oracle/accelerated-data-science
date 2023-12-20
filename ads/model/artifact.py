@@ -30,13 +30,13 @@ SCORE_VERSION = "1.0"
 ADS_VERSION = __version__
 
 
-class ArtifactNestedFolderError(Exception):   # pragma: no cover
+class ArtifactNestedFolderError(Exception):  # pragma: no cover
     def __init__(self, folder: str):
         self.folder = folder
         super().__init__("The required artifact files placed in a nested folder.")
 
 
-class ArtifactRequiredFilesError(Exception):   # pragma: no cover
+class ArtifactRequiredFilesError(Exception):  # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "Not all required files presented in artifact folder. "
@@ -44,7 +44,7 @@ class ArtifactRequiredFilesError(Exception):   # pragma: no cover
         )
 
 
-class AritfactFolderStructureError(Exception):   # pragma: no cover
+class AritfactFolderStructureError(Exception):  # pragma: no cover
     def __init__(self, required_files: Tuple[str]):
         super().__init__(
             "The artifact folder has a wrong structure. "
@@ -171,6 +171,7 @@ class ModelArtifact:
         self.ignore_conda_error = ignore_conda_error
         self.model = None
         self.auth = auth or authutil.default_signer()
+
         if reload and not ignore_conda_error:
             self.reload()
             # Extracts the model_file_name from the score.py.
@@ -416,6 +417,7 @@ class ModelArtifact:
         force_overwrite: Optional[bool] = False,
         auth: Optional[Dict] = None,
         ignore_conda_error: Optional[bool] = False,
+        reload: Optional[bool] = False,
     ):
         """Constructs a ModelArtifact object from the existing model artifacts.
 
@@ -426,16 +428,20 @@ class ModelArtifact:
             OCI object storage URI.
         artifact_dir: str
             The local artifact folder to store the files needed for deployment.
-        model_file_name: (str, optional). Defaults to `None`
-            The file name of the serialized model.
-        force_overwrite: (bool, optional). Defaults to False.
-            Whether to overwrite existing files or not.
         auth: (Dict, optional). Defaults to None.
             The default authetication is set using `ads.set_auth` API.
             If you need to override the default, use the `ads.common.auth.api_keys`
             or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate
             IdentityClient object.
+        force_overwrite: (bool, optional). Defaults to False.
+            Whether to overwrite existing files or not.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
+        model_file_name: (str, optional). Defaults to `None`
+            The file name of the serialized model.
+        reload: (bool, optional). Defaults to False.
+            Whether to reload the Model into the environment.
 
         Returns
         -------
@@ -492,6 +498,8 @@ class ModelArtifact:
                     utils.copy_from_uri(
                         uri=temp_dir, to_path=to_path, force_overwrite=True
                     )
+            except ArtifactRequiredFilesError as ex:
+                logger.warning(ex)
 
         if ObjectStorageDetails.is_oci_path(artifact_dir):
             for root, dirs, files in os.walk(to_path):
@@ -507,10 +515,10 @@ class ModelArtifact:
 
         return cls(
             artifact_dir=artifact_dir,
-            model_file_name=model_file_name,
-            reload=True,
             ignore_conda_error=ignore_conda_error,
             local_copy_dir=to_path,
+            model_file_name=model_file_name,
+            reload=reload,
         )
 
     def __getattr__(self, item):
