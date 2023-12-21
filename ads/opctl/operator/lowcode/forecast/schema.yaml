@@ -234,6 +234,15 @@ spec:
       meta:
         description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
 
+    explanations_accuracy_mode:
+      type: string
+      required: false
+      default: FAST_APPROXIMATE
+      allowed:
+        - HIGH_ACCURACY
+        - BALANCED
+        - FAST_APPROXIMATE
+
     generate_report:
       type: boolean
       required: false

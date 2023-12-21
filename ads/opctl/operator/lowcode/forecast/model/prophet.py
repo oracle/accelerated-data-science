@@ -378,6 +378,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         )
 
     def _custom_predict_prophet(self, data):
+        data[PROPHET_INTERNAL_DATE_COL] = pd.to_datetime(data[PROPHET_INTERNAL_DATE_COL], unit='s')
         return self.models[self.target_columns.index(self.series_id)].predict(
             data.reset_index()
         )["yhat"]
