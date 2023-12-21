@@ -3,12 +3,12 @@
 Feature Validation
 ******************
 
-Feature validation is the process of checking the quality and accuracy of the features used in a machine learning model. This is important because features that aren't accurate or reliable can lead to poor model performance. Feature store allows you to define expectation on the data that is being materialised into feature groups and datasets. The Great Expectations open source library is used to define expectations.
+Feature validation is the process of checking the quality and accuracy of the features used in a machine learning model. This is important because features that aren't accurate or reliable can lead to poor model performance. Feature Store lets you define expectations on the data that is being materialised into feature groups and datasets. The Great Expectations open source library is used to define expectations.
 
-There are 2 types of expectations possible for expectation suite
+There are two types of expectations possible for expectation suite
 
-- ``ExpectationType.STRICT``: Requires meeting set expectations; the job fails if criteria aren't met.
-- ``ExpectationType.LENIENT``: Permits unmet expectations; the job continues despite criteria not being fully satisfied.
+- ``ExpectationType.STRICT``: Requires meeting set expectations. The job fails if criteria aren't met.
+- ``ExpectationType.LENIENT``: Permits unmet expectations. The job continues despite criteria not being fully satisfied.
 
 
 .. note::

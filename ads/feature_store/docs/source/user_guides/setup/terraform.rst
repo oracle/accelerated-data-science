@@ -2,7 +2,7 @@
 Terraform: Setting Up a Feature Store
 =====================================
 
-The following shows a terraform stack deployment of the feature store resources.
+The following shows a terraform stack deployment of the Feature Store resources.
 
 .. figure:: figures/feature_store_deployment.png
   :width: 400
@@ -14,27 +14,27 @@ Blue-green deployment is a strategy for releasing new versions of an application
 Required Policies for a Terraform Stack
 =======================================
 
-Feature store requires the following policy statements to deploy the feature store in a Terraform stack:
+Feature store requires the following policy statements to deploy the Feature Store in a Terraform stack:
 
 ..  code-block:: shell
 
     define tenancy service_tenancy as ocid1.tenancy.oc1..aaaaaaaa462hfhplpx652b32ix62xrdijppq2c7okwcqjlgrbknhgtj2kofa
-    endorse group <feature store user group> to read repos in tenancy service_tenancy
-    allow group <feature store user group> to manage orm-stacks in compartment <compartmentName>
-    allow group <feature store user group> to manage orm-jobs in compartment <compartmentName>
-    allow group <feature store user group> to manage object-family in compartment <compartmentName>
-    allow group <feature store user group> to manage users in compartment <compartmentName>
-    allow group <feature store user group> to manage instance-family in compartment <compartmentName>
-    allow group <feature store user group> to manage tag-namespaces in compartment <compartmentName>
-    allow group <feature store user group> to manage groups in compartment <compartmentName>
-    allow group <feature store user group> to manage policies in compartment <compartmentName>
-    allow group <feature store user group> to manage dynamic-groups in compartment <compartmentName>
-    allow group <feature store user group> to manage virtual-network-family in compartment <compartmentName>
-    allow group <feature store user group> to manage functions-family in compartment <compartmentName>
-    allow group <feature store user group> to inspect compartments in compartment <compartmentName>
-    allow group <feature store user group> to manage cluster-family in compartment <compartmentName>
-    allow group <feature store user group> to manage mysql-family in compartment <compartmentName>
-    allow group <feature store user group> to manage api-gateway-family in compartment <compartmentName>
+    endorse group <Feature Store user group> to read repos in tenancy service_tenancy
+    allow group <Feature Store user group> to manage orm-stacks in compartment <compartmentName>
+    allow group <Feature Store user group> to manage orm-jobs in compartment <compartmentName>
+    allow group <Feature Store user group> to manage object-family in compartment <compartmentName>
+    allow group <Feature Store user group> to manage users in compartment <compartmentName>
+    allow group <Feature Store user group> to manage instance-family in compartment <compartmentName>
+    allow group <Feature Store user group> to manage tag-namespaces in compartment <compartmentName>
+    allow group <Feature Store user group> to manage groups in compartment <compartmentName>
+    allow group <Feature Store user group> to manage policies in compartment <compartmentName>
+    allow group <Feature Store user group> to manage dynamic-groups in compartment <compartmentName>
+    allow group <Feature Store user group> to manage virtual-network-family in compartment <compartmentName>
+    allow group <Feature Store user group> to manage functions-family in compartment <compartmentName>
+    allow group <Feature Store user group> to inspect compartments in compartment <compartmentName>
+    allow group <Feature Store user group> to manage cluster-family in compartment <compartmentName>
+    allow group <Feature Store user group> to manage mysql-family in compartment <compartmentName>
+    allow group <Feature Store user group> to manage api-gateway-family in compartment <compartmentName>
 
 No policies are explicitly required for administrator users.
 
@@ -55,7 +55,7 @@ If you aren't already signed in, enter the tenancy and user credentials. Review 
 
 6. After creating the stack, click **Terraform Actions**, and select **Plan**.
 
-7. Wait for the job to complet, and then review the plan.
+7. Wait for the job to complete, and then review the plan.
 
 8. To make changes return to the Stack Details page, click **Edit Stack**, and make the required changes. Then run the Plan action again.
 
@@ -112,7 +112,7 @@ Prerequisites
 #############
 
 1. Install `oci-cli <https://docs.oracle.com/en-us/iaas/Content/API/Concepts/cliconcepts.htm>`__ if it's not installed.
-2. T update the stack, get the <STACK_ID> from the stack details page in the Console using `Resource Manager <https://www.oracle.com/devops/resource-manager/>`__:
+2. To update the stack, get the <STACK_ID> from the stack details page in the Console using `Resource Manager <https://www.oracle.com/devops/resource-manager/>`__:
 
 .. figure:: figures/resource_manager.png
 
@@ -160,31 +160,31 @@ The following Terraform variables used in this stack are:
      - The version of API to be deployed in customer tenancy.
    * - `spec_version`
      - `0.1.218.master`
-     - The version of API specs to be deployed in customer tenancy.
+     - The version of API specifications to be deployed in customer tenancy.
    * - `deployment_name`
      - `DEFAULT_NAME`
-     - Name of the deployment.
+     - The name of the deployment.
    * - `db_name`
      - `DEFAULT_NAME`
-     - Name of the ATP or MySQL database.
+     - The name of the ATP or MySQL database.
    * - `db_config`
      - `DEFAULT_NAME`
-     - configuration for the database.
+     - The configuration of the database.
    * - `compartment_ocid`
      - `DEFAULT_NAME`
-     - OCID of compartment to deploy the feature store stack in.
+     - The OCID of the compartment to deploy the Feature Store stack in.
    * - `vcn_details`
      - `DEFAULT_NAME`
-     - VCN details required to onboard the database that has network access within the VCN.
+     - The VCN details required to onboard the database that has network access within the VCN.
    * - `user_ocid`
      - `ocid1.user..<unique_id>`
      - If you don't have permission to create users, provide the user_ocid of a user that has permission to retrieve images from the OCI Registry.
    * - `tenancy_ocid`
      - `ocid1.tenancy..<unique_id>`
-     - OCID of the tenancy to deploy the feature store stack in.
+     - The OCID of the tenancy to deploy the Feature Store stack in.
    * - `ssh_authorized_key`
      - `<SSH AUTHORIZED KEY>`
-     - OCID of tenancy to deploy the feature store stack in.
+     - The OCID of tenancy to deploy the Feature Store stack in.
    * - `ocir_puller_auth_token`
      - `<AUTH TOKEN>`
      - If the specified user has an auth_token to use, then specify it. If null, a new token is created. This variable requires that the user has one token at most . There is a limit of two tokens per user.
@@ -196,14 +196,14 @@ The following Terraform variables used in this stack are:
      - If you do not have permission to create users, provide the user_ocid of a user that has permission to create MySQL and Object Storage buckets.
    * - `feature_store_user_group_id`
      - `ocid1.group..<unique_id>`
-     - Specify the feature store user group ID if the specified user is not an administrator.
+     - Specify the Feature Store user group ID if the specified user is not an administrator.
 
 
 User VCN Deployment
 ===================
-Bring your own database (BYODB) is not supported by feature store because it doesn't support private access using a private endpoint and private access gateway for ATP instances.
+Bring your own database (BYODB) is not supported by Feature Store because it doesn't support private access using a private endpoint and private access gateway for ATP instances.
 
-You can specify VCN details for the feature store to use an existing VCN. A Terraform stack feature store has the following Terraform VCN variables:
+You can specify VCN details for the Feature Store to use an existing VCN. A Terraform stack Feature Store has the following Terraform VCN variables:
 
     .. list-table::
        :header-rows: 1
@@ -213,13 +213,13 @@ You can specify VCN details for the feature store to use an existing VCN. A Terr
          - Description
        * - `vcn_id`
          - `ocid1.vcn.oc1.iad.xxxxxxxxxxxx`
-         - The OCID of the VCN where you want to deploy the feature store.
+         - The OCID of the VCN where you want to deploy the Feature Store.
        * - `vcn_cidr`
          - `10.0.0.0/16`
          - The VCN CIDR range to be use.
        * - `subnet_suffix`
          - `8`
-         - The subnet suffix to be used to create feature store related subnets. For example, 10.0.0.0/16 + 8 => 10.0.0.0/24.
+         - The subnet suffix to be used to create Feature Store related subnets. For example, 10.0.0.0/16 + 8 => 10.0.0.0/24.
        * - `max_subnet`
          - `16`
          - Optional. Sets the maximum subnet creations that are allowed within the CIDR range.
@@ -228,32 +228,32 @@ You can specify VCN details for the feature store to use an existing VCN. A Terr
          - DHCP options OCID is required for instance configuration within the VCN.
        * - `igw_id`
          - `ocid1.internetgateway.oc1.iad.xxxxxxxxxxxx`
-         - Optional. The internet gateway OCID. Feature store creates the IGW if not specified.
+         - Optional. The internet gateway OCID. Feature Store creates the IGW if it isn't specified.
        * - `nat_gw_id`
          - `ocid1.natgateway.oc1.iad.xxxxxxxxxx`
-         - Optional. The NAT gateway OCID. The feature store creates the NAT gateway if not specified.
+         - Optional. The NAT gateway OCID. The Feature Store creates the NAT gateway if it isn't specified.
        * - `sgw_id`
          - `ocid1.servicegateway.oc1.iad.xxxxxxxxxx`
-         - Optional. The feature store gateway OCID. Feature store doesn't create SGW even when its null, or doesn't enable SGW until the time you explicitly set using sgw_enable. This ensures that SGW is only enabled for network resources (ATP for example) that allow access through SGW.
+         - Optional. The Feature Store gateway OCID. Feature Store doesn't create SGW even when its null, or doesn't enable SGW until the time you explicitly set using sgw_enable. This ensures that SGW is only enabled for network resources (ATP for example) that allow access through SGW.
        * - `sgw_enable`
          - `false`
          - Enable service gateway use or creation depending on the sgw_id specified.
        * - `private_route_table_id`
          - `ocid1.routetable.oc1.iad.xxxxxxxxxxxxxxxx`
-         - Optional. The private route table OCID. Ensure that the NAT gateway and feature store gateway (if applicable) route rules have been added for feature store access. The feature store creates a private route table with supporting route rules if not specified.
+         - Optional. The private route table OCID. Ensure that the NAT gateway and Feature Store gateway (if applicable) route rules have been added for Feature Store access. The Feature Store creates a private route table with supporting route rules if not specified.
        * - `public_route_table_id`
          - `ocid1.routetable.oc1.iad.xxxxxxxxxxxxxxxx`
-         - Optional. The public route table OCID. Ensure that the internet gateway route rule are added for feature store access. The feature store creates a public route table with supporting route rules if not specified.
+         - Optional. The public route table OCID. Ensure that the internet gateway route rule are added for Feature Store access. The Feature Store creates a public route table with supporting route rules if not specified.
 
-    Feature store is deployed in feature store specific subnets and security list access is maintained on the basis of details specified.
+    Feature Store is deployed in Feature Store specific subnets and security list access is maintained on the basis of details specified.
 
 
     Onboarding a Database
     #####################
 
-    Specify the following details to onboard database instancesL
+    Specify the following details to onboard database instances.
 
-    1. Use the following variables to specify a general database configuration that's required for the initial database setup for a BYODB or feature store database.
+    1. Use the following variables to specify a general database configuration that's required for the initial database setup for a BYODB or Feature Store database.
 
     .. list-table:: db_config
        :header-rows: 1
@@ -263,16 +263,16 @@ You can specify VCN details for the feature store to use an existing VCN. A Terr
          - Description
        * - `vault_ocid`
          - `ocid1.vault.oc1.iad.b5sb3bclaaaog.xxxxxxxxxxxxx`
-         - The OCID of the vault where the ATP or MySQL secret is. Set to null if setting up a feature store database.
+         - The OCID of the vault where the ATP or MySQL secret is. Set to null if setting up a Feature Store database.
        * - `vault_compartment_id`
          - `ocid1.tenancy.oc1.iad.b5sb3bclaaaog.xxxxxxxxxxxxx`
-         - The OCID of the vault compartment. Set to null if setting up a feature store database.
+         - The OCID of the vault compartment. Set to null if setting up a Feature Store database.
        * - `db_type`
          - `mysql`
          - Set the database type to ATP or MySQL.
        * - `db_secret_source`
          - `VAULT`
-         - The database secret source. Use VAULT for BYODB databases. Use OSS for an ATP database and LOCAL for MySQL for default feature store deployment without BYODB.
+         - The database secret source. Use VAULT for BYODB databases. Use OSS for an ATP database and LOCAL for MySQL for default Feature Store deployment without BYODB.
        * - `user_db`
          - `false`
          - Set to true for BYODB.
@@ -299,7 +299,7 @@ You can specify VCN details for the feature store to use an existing VCN. A Terr
 
        .. tab:: MySQL DB Config: MySQL database configuration
 
-          A MySQL instance can only be accessed within the network so you must deploy the feature store in your VCN. Specify the vault secret for the MySQL database password.
+          A MySQL instance can only be accessed within the network so you must deploy the Feature Store in your VCN. Specify the vault secret for the MySQL database password.
           Ensure that ingress rules are in place to provide VCN access for the MySQL instance, see `Networking <https://docs.oracle.com/en-us/iaas/mysql-database/doc/networking-setup-mysql-db-systems.html>`__ for more details.
 
           .. list-table:: mysql_db_config
@@ -319,9 +319,9 @@ You can specify VCN details for the feature store to use an existing VCN. A Terr
 
           The existing ATP instance can have two types of access:
 
-              1. Public Access: The ATP instance can be accessed with feature store deployed in its own VCN, or in your VCN. Specify the vault secret names to use for the ATP database connection.
+              1. Public Access: The ATP instance can be accessed with Feature Store deployed in its own VCN, or in your VCN. Specify the vault secret names to use for the ATP database connection.
 
-              2. Network Access: If the ATP instance has network access in a VCN, then you must deploy the feature store in the VCN that has ATP access. Specify the vault secret names to use for the ATP connection.
+              2. Network Access: If the ATP instance has network access in a VCN, then you must deploy the Feature Store in the VCN that has ATP access. Specify the vault secret names to use for the ATP connection.
 
 
           .. list-table:: atp_db_config
@@ -332,7 +332,7 @@ You can specify VCN details for the feature store to use an existing VCN. A Terr
                - Description
              * - `wallet_file_secret`
                - `["cwallet.sso", "ewallet.p12", "keystore.jks", "ojdbc.properties", "tnsnames.ora", "truststore.jks", "sqlnet.ora"]`
-               - List of ATP Wallet files vault secrets base64 encoded. Ensure to encode the wallet files to the base64 format, and then push them as base64 encoded strings to the vault.
+               - The list of ATP Wallet files vault secrets base64 encoded. Encode the wallet files to the base64 format, and then push them as base64 encoded strings to the vault.
              * - `wallet_password_secret`
                - `example-secret`
                - The vault wallet password secret.

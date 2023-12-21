@@ -3,7 +3,7 @@
 Dataset Job
 ***********
 
-A Dataset job is the processing instance of a dataset. Each dataset job includes validation and statistics results.
+A dataset job is the processing instance of a dataset. Each dataset job includes validation and statistics results.
 
 
 Load
@@ -20,7 +20,7 @@ Use the ``from_id()`` method from the ``DatasetJob`` class to load an existing d
 Delete
 ======
 
-Use the ``.delete()`` method on the ``DatasetJob`` instance to delete a dataset job. A dataset_job can only be deleted when its associated entities are all deleted,
+Use the ``.delete()`` method on the ``DatasetJob`` instance to delete a dataset job. A dataset job can only be deleted when its associated entities are all deleted.
 
 .. code-block:: python3
 
