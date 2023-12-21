@@ -29,7 +29,7 @@ Feature Store
     :caption: Getting started:
 
     overview
-    terraform
+    ./user_guides/setup/setup_feature_store
     quickstart
 
 .. toctree::
