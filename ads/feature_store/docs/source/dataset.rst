@@ -28,7 +28,7 @@ The following example defines a dataset and gives it a name. A ``Dataset`` insta
         .with_description("<dataset_description>")
         .with_compartment_id("<compartment_id>")
         .with_dataset_ingestion_mode(DatasetIngestionMode.SQL)
-        .with_query('SELECT col FROM <entity_id>.<feature_group_nmae>')
+        .with_query('SELECT col FROM <entity_id>.<feature_group_name>')
     )
 
   .. code-tab:: Python3
@@ -52,7 +52,7 @@ The following example defines a dataset and gives it a name. A ``Dataset`` insta
 Create
 ======
 
-Use the the ``create()`` method of the ``Dataset`` instance to create an dataset.
+Use the the ``create()`` method of the ``Dataset`` instance to create a dataset.
 
 .. important::
 
