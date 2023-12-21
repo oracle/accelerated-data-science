@@ -1521,7 +1521,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
         ignore_conda_error: Optional[bool] = False,
-        load_artifact: Optional[bool] = True,
+        download_artifact: Optional[bool] = True,
         **kwargs,
     ) -> Self:
         """Loads model from model catalog.
@@ -1551,7 +1551,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
-        load_artifact: (bool, optional). Defaults to True.
+        download_artifact: (bool, optional). Defaults to True.
             Whether to download the model pickle or checkpoints
         kwargs:
             compartment_id : (str, optional)
@@ -1594,7 +1594,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
         dsc_model = DataScienceModel.from_id(model_id)
 
-        if not load_artifact:
+        if not download_artifact:
             result_model = cls(
                 artifact_dir=artifact_dir,
                 bucket_uri=bucket_uri,
@@ -1692,7 +1692,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
         ignore_conda_error: Optional[bool] = False,
-        load_artifact: Optional[bool] = True,
+        download_artifact: Optional[bool] = True,
         **kwargs,
     ) -> Self:
         """Loads model from model deployment.
@@ -1722,7 +1722,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
-        load_artifact: (bool, optional). Defaults to True.
+        download_artifact: (bool, optional). Defaults to True.
             Whether to download the model pickle or checkpoints
         kwargs:
             compartment_id : (str, optional)
@@ -1767,7 +1767,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             bucket_uri=bucket_uri,
             remove_existing_artifact=remove_existing_artifact,
             ignore_conda_error=ignore_conda_error,
-            load_artifact=load_artifact,
+            download_artifact=download_artifact,
             **kwargs,
         )
         model._summary_status.update_status(
@@ -1890,7 +1890,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
         ignore_conda_error: Optional[bool] = False,
-        load_artifact: Optional[bool] = True,
+        download_artifact: Optional[bool] = True,
         **kwargs,
     ) -> Self:
         """Loads model from model OCID or model deployment OCID.
@@ -1920,7 +1920,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
-        load_artifact: (bool, optional). Defaults to True.
+        download_artifact: (bool, optional). Defaults to True.
             Whether to download the model pickle or checkpoints
         kwargs:
             compartment_id : (str, optional)
@@ -1945,7 +1945,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
                 ignore_conda_error=ignore_conda_error,
-                load_artifact=load_artifact,
+                download_artifact=download_artifact,
                 **kwargs,
             )
         elif DataScienceModelType.MODEL in ocid:
@@ -1959,7 +1959,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
                 ignore_conda_error=ignore_conda_error,
-                load_artifact=load_artifact,
+                download_artifact=download_artifact,
                 **kwargs,
             )
         else:

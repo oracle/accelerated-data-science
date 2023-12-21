@@ -1070,7 +1070,7 @@ class TestGenericModel:
             bucket_uri="test_bucket_uri",
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
-            load_artifact=True,
+            download_artifact=True,
         )
 
         mock_from_id.assert_called_with(test_model_deployment_id)
@@ -1085,7 +1085,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=False,
-            load_artifact=True,
+            download_artifact=True,
         )
 
         assert test_result == test_model
@@ -1189,7 +1189,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
-            load_artifact=True,
+            download_artifact=True,
         )
 
         mock_from_model_deployment.assert_called_with(
@@ -1203,7 +1203,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
-            load_artifact=True,
+            download_artifact=True,
         )
 
         assert test_model_deployment_result == test_model
@@ -1239,7 +1239,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
-            load_artifact=True,
+            download_artifact=True,
         )
 
         mock_from_model_catalog.assert_called_with(
@@ -1253,7 +1253,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
-            load_artifact=True,
+            download_artifact=True,
         )
 
         assert test_model_result == mock_oci_model
@@ -1280,7 +1280,7 @@ class TestGenericModel:
 
     @patch.object(GenericModel, "from_model_catalog")
     def test_from_id_model_without_artifact(self, mock_from_model_catalog):
-        """Test to check model artifact is not loaded when load_artifact is set to False"""
+        """Test to check model artifact is not loaded when download_artifact is set to False"""
         test_model_id = "xxxx.datasciencemodel.xxxx"
         mock_model = MagicMock(model_id=test_model_id, model_artifact=None)
         mock_from_model_catalog.return_value = mock_model
@@ -1288,7 +1288,7 @@ class TestGenericModel:
         test_model_result = GenericModel.from_id(
             ocid=test_model_id,
             compartment_id="test_compartment_id",
-            load_artifact=False,
+            download_artifact=False,
         )
         mock_from_model_catalog.assert_called_with(
             test_model_id,
@@ -1301,14 +1301,14 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=False,
-            load_artifact=False,
+            download_artifact=False,
         )
         assert test_model_result.model_artifact is None
         assert test_model_result == mock_model
 
     @patch.object(GenericModel, "from_model_catalog")
     def test_from_id_with_artifact(self, mock_from_model_catalog):
-        """Test to check model artifact is loaded when load_artifact is set to True"""
+        """Test to check model artifact is loaded when download_artifact is set to True"""
         test_model_id = "xxxx.datasciencemodel.xxxx"
         artifact_dir = "test_dir"
         model_artifact = MagicMock(artifact_dir=artifact_dir, reload=False)
@@ -1320,7 +1320,7 @@ class TestGenericModel:
             ocid=test_model_id,
             compartment_id="test_compartment_id",
             remove_existing_artifact=True,
-            load_artifact=True,
+            download_artifact=True,
         )
 
         mock_from_model_catalog.assert_called_with(
@@ -1334,7 +1334,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=False,
-            load_artifact=True,
+            download_artifact=True,
         )
         assert test_model_result.model_artifact is not None
         assert test_model_result == mock_model
