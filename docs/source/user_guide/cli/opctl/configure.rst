@@ -97,7 +97,6 @@ This will prompt you to setup default ADS CLI configurations for each OCI profil
     project_id = oci.xxxx.<project_ocid>
     bandwidth_mbps = 10
     replica = 1
-    web_concurrency = 10
 
     [ANOTHERPROF]
     compartment_id = ocid1.compartment.oc1..<unique_ID>

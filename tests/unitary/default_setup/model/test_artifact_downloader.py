@@ -100,20 +100,19 @@ class TestArtifactDownloader:
             expected_artifact_bytes_content
         )
         with tempfile.TemporaryDirectory() as tmp_dir:
-            target_dir = os.path.join(tmp_dir, "model_artifacts/")
             SmallArtifactDownloader(
                 dsc_model=self.mock_dsc_model,
-                target_dir=target_dir,
+                target_dir=tmp_dir,
                 force_overwrite=True,
             ).download()
 
             self.mock_dsc_model.get_model_artifact_content.assert_called()
 
             test_files = list(
-                glob.iglob(os.path.join(target_dir, "**"), recursive=True)
+                glob.iglob(os.path.join(tmp_dir, "**"), recursive=True)
             )
             expected_files = [
-                os.path.join(target_dir, file_name)
+                os.path.join(tmp_dir, file_name)
                 for file_name in ["", "runtime.yaml", "score.py"]
             ]
             assert sorted(test_files) == sorted(expected_files)

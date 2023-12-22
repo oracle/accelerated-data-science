@@ -373,7 +373,6 @@ spec:
                 "ocpus": 10.0,
                 "memory_in_gbs": 36.0,
             },
-            ModelDeploymentInfrastructure.CONST_WEB_CONCURRENCY: 10,
             ModelDeploymentInfrastructure.CONST_REPLICA: 1,
         }
 
