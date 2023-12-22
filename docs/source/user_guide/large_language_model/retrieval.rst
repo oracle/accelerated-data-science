@@ -19,7 +19,9 @@ The following code snippet shows how to use the Generative AI Embedding Models:
 
 .. code-block:: python3
 
+    from ads.llm import GenerativeAIEmbeddings
     import ads
+
     ads.set_auth("resource_principal")
 
     oci_embedings = GenerativeAIEmbeddings(
@@ -42,8 +44,10 @@ With the OCI OpenSearch and OCI Generative Embedding, you can do semantic search
 
 .. code-block:: python3
 
+    from langchain.vectorstores import OpenSearchVectorSearch
     import os
-    os.environ['OCI_OPENSEARCH_USERNAME'] = "username"
+    # Saving the credentials as environment variables is not recommended. You should save them in Vault instead in prod.
+    os.environ['OCI_OPENSEARCH_USERNAME'] = "username" 
     os.environ['OCI_OPENSEARCH_PASSWORD'] = "password"
     os.environ['OCI_OPENSEARCH_VERIFY_CERTS'] = "False" 
 
@@ -132,6 +136,7 @@ Similarly, you can use FAISS Vector Store as a retriever to build a retrieval QA
 
     from langchain.chains import RetrievalQA
     from ads.llm import GenerativeAI
+    import ads
 
     ads.set_auth("resource_principal")
     
@@ -171,6 +176,9 @@ The following code snippet shows how to use ``OpenSearchVectorSearch`` with envi
 
 .. code-block:: python3
 
+    from langchain.vectorstores import OpenSearchVectorSearch
+    import os
+
     os.environ['OCI_OPENSEARCH_USERNAME'] = "username"
     os.environ['OCI_OPENSEARCH_PASSWORD'] = "password"
     os.environ['OCI_OPENSEARCH_VERIFY_CERTS'] = "False"
@@ -188,7 +196,7 @@ The following code snippet shows how to use ``OpenSearchVectorSearch`` with envi
 .. admonition:: Deployment
   :class: note
 
-During deployment, it is very important that you remember to pass in those environment variables as well:
+During deployment, it is very important that you remember to pass in those environment variables as well or retrieve them from the Vault in score.py which is recommended and more secure:
 
 .. code-block:: python3
 
@@ -206,9 +214,13 @@ Here is an example code snippet for deployment of Retrieval QA using OpenSearch 
 
 .. code-block:: python3
 
-    from langchain.vectorstores import OpenSearchVectorSearch
     from ads.llm import GenerativeAIEmbeddings, GenerativeAI
+    from ads.llm.deploy import ChainDeployment
+    from langchain.chains import RetrievalQA
+    from langchain.vectorstores import OpenSearchVectorSearch
+    
     import ads
+    import os
 
     ads.set_auth("resource_principal")
 
@@ -221,8 +233,7 @@ Here is an example code snippet for deployment of Retrieval QA using OpenSearch 
         compartment_id="ocid1.compartment.####",
         client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
-
-    import os
+    # Saving the credentials as environment variables is not recommended. You should save them in Vault instead in prod.
     os.environ['OCI_OPENSEARCH_USERNAME'] = "username"
     os.environ['OCI_OPENSEARCH_PASSWORD'] = "password"
     os.environ['OCI_OPENSEARCH_VERIFY_CERTS'] = "True" # make sure this is capitalized.
@@ -238,7 +249,7 @@ Here is an example code snippet for deployment of Retrieval QA using OpenSearch 
         verify_certs=os.environ["OCI_OPENSEARCH_VERIFY_CERTS"],
         ca_certs=os.environ["OCI_OPENSEARCH_CA_CERTS"],
     )
-    from langchain.chains import RetrievalQA
+    
     retriever = opensearch_vector_search.as_retriever(search_kwargs={"vector_field": "embeds", 
                                                                     "text_field": "text", 
                                                                     "k": 3, 
@@ -251,7 +262,7 @@ Here is an example code snippet for deployment of Retrieval QA using OpenSearch 
             "verbose": True
         }
     )
-    from ads.llm.deploy import ChainDeployment
+    
     model = ChainDeployment(qa)
     model.prepare(force_overwrite=True,
             inference_conda_env="<custom_conda_environment_uri>",
@@ -278,12 +289,14 @@ Here is an example code snippet for deployment of Retrieval QA using FAISS as a 
 
 .. code-block:: python3
 
-    import ads
     from ads.llm import GenerativeAIEmbeddings, GenerativeAI
+    from ads.llm.deploy import ChainDeployment
     from langchain.document_loaders import TextLoader
     from langchain.text_splitter import CharacterTextSplitter
     from langchain.vectorstores import FAISS
     from langchain.chains import RetrievalQA
+    
+    import ads
 
     ads.set_auth("resource_principal")
     oci_embedings = GenerativeAIEmbeddings(
@@ -308,7 +321,7 @@ Here is an example code snippet for deployment of Retrieval QA using FAISS as a 
         embeddings.extend(oci_embedings.embed_documents(subdocs))
 
     texts = [item.page_content for item in docs]
-    text_embedding_pairs = [(text, embed) for text, embed in  zip(texts, embeddings)]
+    text_embedding_pairs = [(text, embed) for text, embed in zip(texts, embeddings)]
     db = FAISS.from_embeddings(text_embedding_pairs, oci_embedings)
 
     retriever = db.as_retriever()
@@ -321,7 +334,6 @@ Here is an example code snippet for deployment of Retrieval QA using FAISS as a 
         }
     )
 
-    from ads.llm.deploy import ChainDeployment
     model = ChainDeployment(qa)
     model.prepare(force_overwrite=True,
             inference_conda_env="<custom_conda_environment_uri>",
