@@ -29,7 +29,7 @@ Feature Store
     :caption: Getting started:
 
     overview
-    ./user_guides/setup/setup_feature_store
+    user_guides.setup.feature_store_operator
     quickstart
 
 .. toctree::

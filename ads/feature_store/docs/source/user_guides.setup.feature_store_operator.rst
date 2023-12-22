@@ -1,11 +1,12 @@
-=======================================================================
-Marketplace Operator: Setup Feature Store into an Existing OKE Cluster
-=======================================================================
+=================================
+Feature Store Deployment Operator
+=================================
 
 The Feature Store marketplace operator uses your current infrastructure to set up a Feature Store. It helps in setting up the Feature Store API server in your exisiting OKE cluster and MySQL database.
 
 
-**Installing the Feature Store Marketplace Operator**
+Installing the Feature Store Marketplace Operator
+-------------------------------------------------
 
 The Feature Store Marketplace Operator can be installed from PyPi using the following command.
 
@@ -16,13 +17,15 @@ The Feature Store Marketplace Operator can be installed from PyPi using the foll
 
 After that, the Operator is ready to go!
 
-**Configuration**
+Configuration
+-------------
 
 After having set up ads opctl on your desired machine using ads opctl configure, you are ready to begin setting up Feature Store. At a minimum, you need to provide the following details about your infrastructure:
 
 - The path to the OCIR repository where Feature Store container images are cloned.
 - The compartment ID where Feature Store is set up.
-- :ref:`Database configuration`
+.. seealso::
+   :ref:`Database configuration`
 - The app name to use for Helm.
 - The namespace to use in the Kubernetes cluster.
 - The version of the Feature Store stack to install.
@@ -35,7 +38,8 @@ Optionally you can specify details for the  API Gateway setup for Feature Store 
 
 These details can be easily configured in an interactive manner by running the command ``ads operator init --type feature_store_marketplace``
 
-**Prerequisites for running the operator**
+Prerequisites for running the operator
+----------------------------------------
 
 Before running the operator you need to configure the following requirements:
 
@@ -45,7 +49,8 @@ Before running the operator you need to configure the following requirements:
 4. `Setup cluster access locally: <https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengdownloadkubeconfigfile.htm#:~:text=Under%20Containers%20%26%20Artifacts%2C%20click%20Kubernetes,shows%20details%20of%20the%20cluster>`_
 
 
-**Run**
+Run
+----
 
 After the feature_store_marketplace.yaml is written using the init step above, you can start the deployment using:
 
@@ -57,11 +62,14 @@ After the feature_store_marketplace.yaml is written using the init step above, y
 **Common Issues**
  -- TODO --
 
+
 .. _Policies:
 
-**Policies**
+Policies
+---------
 
 The policies required by the Feature Store API server are:
+
 .. code-block:: text
 
     allow dynamic-group <feature-store-dynamic-group> to read compartments in tenancy
@@ -72,8 +80,10 @@ The policies required by the Feature Store API server are:
 
 Here ``feature-store-dynamic-group`` is the dynamic group corresponding to the instances of the OKE nodepool where the server is deployed. `Dynamic groups <https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm#:~:text=Dynamic%20groups%20allow%20you%20to,against%20Oracle%20Cloud%20Infrastructure%20services.>`_
 
+.. _Database configuration:
 
-**Database configuration**
+Database configuration
+-----------------------
 
 Feature Store can be configured to use your existing MySQL database. It supports two types of authentication:
 
