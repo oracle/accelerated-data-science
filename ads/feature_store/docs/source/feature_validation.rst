@@ -25,7 +25,6 @@ The following example defines an expectation:
 .. code-block:: python3
 
     from great_expectations.core import ExpectationSuite, ExpectationConfiguration
-    from ads.feature_store.data_validation.great_expectation import ExpectationType
     from ads.feature_store.common.enums import ExpectationType
     from ads.feature_store.feature_group import FeatureGroup
 

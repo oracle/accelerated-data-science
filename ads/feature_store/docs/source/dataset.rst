@@ -135,6 +135,12 @@ Feature Store allows you to define expectations on data being materialised into 
 
 .. code-block:: python3
 
+    from great_expectations.core import ExpectationSuite, ExpectationConfiguration
+    from ads.feature_store.common.enums import ExpectationType
+    from ads.feature_store.dataset import Dataset
+
+    dataset = Dataset.from_id("<unique_id>")
+
     expectation_suite = ExpectationSuite(
         expectation_suite_name="expectation_suite_name"
     )

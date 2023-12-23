@@ -201,6 +201,12 @@ Using a ``FeatureGroup`` instance, you can save the expectation details using ``
 
 .. code-block:: python3
 
+    from great_expectations.core import ExpectationSuite, ExpectationConfiguration
+    from ads.feature_store.common.enums import ExpectationType
+    from ads.feature_store.feature_group import FeatureGroup
+
+    feature_group = FeatureGroup.from_id("<unique_id>")
+
     expectation_suite = ExpectationSuite(
         expectation_suite_name="expectation_suite_name"
     )
