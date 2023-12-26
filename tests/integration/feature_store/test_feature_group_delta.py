@@ -47,7 +47,7 @@ class TestFeatureGroupDelta(FeatureStoreTestCase):
 
         assert feature_store.oci_fs.id
         assert feature_store.oci_fs.lifecycle_state == "ACTIVE"
-        assert feature_store.oci_fs.display_name == self.get_name("FeatureStore1")
+        assert feature_store.oci_fs.name == self.get_name("FeatureStore1")
 
         assert entity.oci_fs_entity.id
         assert entity.oci_fs_entity.lifecycle_state == "ACTIVE"

@@ -379,13 +379,13 @@ class FeatureStoreTestCase:
         return feature_store_resource
 
     def create_entity_resource(self, feature_store) -> "Entity":
-        entity = feature_store.create_entity(display_name=self.get_name("entity"))
+        entity = feature_store.create_entity(name=self.get_name("entity"))
         return entity
 
     def create_transformation_resource(self, feature_store) -> "Transformation":
         transformation = feature_store.create_transformation(
             source_code_func=transformation_with_kwargs,
-            display_name="transformation_with_kwargs",
+            name="transformation_with_kwargs",
             transformation_mode=TransformationMode.PANDAS,
         )
         return transformation
@@ -498,7 +498,7 @@ class FeatureStoreTestCase:
 
     @staticmethod
     def assert_dataset_job(dataset, dataset_job):
-        assert dataset_job.display_name == dataset.name
+        assert dataset_job.name == dataset.name
         assert dataset_job.id is not None
         assert dataset_job.compartment_id == dataset.compartment_id
 
