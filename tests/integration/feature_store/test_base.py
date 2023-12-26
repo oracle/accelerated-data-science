@@ -373,7 +373,7 @@ class FeatureStoreTestCase:
             FeatureStore()
             .with_description("Feature Store Description")
             .with_compartment_id(self.COMPARTMENT_ID)
-            .with_display_name(name)
+            .with_name(name)
             .with_offline_config(metastore_id=self.METASTORE_ID)
         )
         return feature_store_resource
