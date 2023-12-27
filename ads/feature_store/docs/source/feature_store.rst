@@ -1,15 +1,15 @@
 Feature Store
 *************
 
-Feature store is the top-level entity for a feature store.
+Feature store is the top-level entity for a Feature Store.
 
 Define
 ======
 
-In an ADS feature store module, you can use the Python API or a yaml file to define a feature store.
+In an ADS Feature Store module, you can use the Python API or a .yaml file to define a Feature Store.
 
 
-The following example defines a feature store and gives it a name. A ``FeatureStore`` instance is created.
+The following example defines a Feature Store and gives it a name. A ``FeatureStore`` instance is created.
 
 .. tabs::
 
@@ -49,18 +49,18 @@ The following example defines a feature store and gives it a name. A ``FeatureSt
 Create
 ======
 
-Use the ``create()`` method of the ``FeatureStore`` instance to create a feature store.
+Use the ``create()`` method of the ``FeatureStore`` instance to create a Feature Store.
 
 .. code-block:: python3
 
-  # Create an feature store
+  # Create an Feature Store
   feature_store.create()
 
 
 Load
 ====
 
-Use the ``from_id()`` method from the ``FeatureStore`` class to load an existing feature store by specifying its OCID. A ``FeatureStore`` instance is returned.
+Use the ``from_id()`` method from the ``FeatureStore`` class to load an existing Feature Store by specifying its OCID. A ``FeatureStore`` instance is returned.
 
 .. code-block:: python3
 
@@ -71,7 +71,7 @@ Use the ``from_id()`` method from the ``FeatureStore`` class to load an existing
 Delete
 ======
 
-Use the ``.delete()`` method on the ``FeatureStore`` instance to delete a feature store. A feature store can only be deleted when its associated entities are all deleted.
+Use the ``.delete()`` method on the ``FeatureStore`` instance to delete a Feature Store. A Feature Store can only be deleted when its associated entities are all deleted.
 
 .. code-block:: python3
 
@@ -79,13 +79,13 @@ Use the ``.delete()`` method on the ``FeatureStore`` instance to delete a featur
 
 SQL
 ===
-Use the ``sql()`` method of the ``FeatureStore`` instance to query a feature store.
+Use the ``sql()`` method of the ``FeatureStore`` instance to query a Feature Store.
 
-The following example queries a feature store using SQL:
+The following example queries a Feature Store using SQL:
 
 .. code-block:: python3
 
-  # Fetch the entity id. Entity id is used as database name in feature store
+  # Fetch the entity id. Entity id is used as database name in Feature Store
   entity_id = entity.id
 
   # Form a query with entity id and fetch the results
@@ -104,17 +104,17 @@ Use the ``create_entity()`` method of the ``FeatureStore`` instance to create an
 
 .. code-block:: python3
 
-  # Create a feature store entity
+  # Create a Feature Store entity
   feature_store.create_entity(name="<ENTITY_NAME>")
 
 Create a Transformation
 =======================
-Transformations in a feature store are the operations and processes applied to raw data to create, modify, or derive new features for use as inputs for machine learning models. These transformations are necessary for improving the quality, relevance, and usefulness of features that then enhance the performance of models.
+Transformations in a Feature Store are the operations and processes applied to raw data to create, modify, or derive new features for use as inputs for machine learning models. These transformations are necessary for improving the quality, relevance, and usefulness of features that then enhance the performance of models.
 You can call the ``create_transformation()`` method of the FeatureStore instance to create a ``Transformation``.
 
 .. code-block:: python3
 
-  # Create a feature store entity
+  # Create a Feature Store entity
   feature_store.create_transformation(
       source_code_func="<FUNCTION>",
       transformation_mode="SQL|PANDAS"

@@ -1,7 +1,7 @@
 Data Versioning
 ****************
 
-Data versioning is a practice aimed at recording the various data commits integrated into a particular feature group and dataset. This involves tracking changes in data over time while maintaining consistent schema structures and feature definitions within a shared schema version. In the context of feature store, it's important to note that data versioning features are exclusively available for offline feature groups.
+Data versioning is a practice aimed at recording the various data commits integrated into a particular feature group and dataset. This involves tracking changes in data over time while maintaining consistent schema structures and feature definitions within a shared schema version. Note that, in Feature Store, data versioning features are available only for offline feature groups.
 
 .. image:: figures/data_versioning.png
 
@@ -9,12 +9,12 @@ Data versioning is a practice aimed at recording the various data commits integr
 As Of
 ======
 
-You can call the ``as_of()`` method of the ``FeatureGroup`` or ``Dataset`` instance to get specified point in time and time traveled data.
+You can call the ``as_of()`` method of the ``FeatureGroup`` or ``Dataset`` instance to get the specified point in time and time traveled data.
 
-The ``.as_of()`` method takes the following optional parameter:
+The ``.as_of()`` method takes the following optional parameters:
 
-- ``commit_timestamp: date-time``. Commit timestamp for feature group
-- ``version_number: int``. Version number for feature group
+- ``commit_timestamp: date-time``. The commit timestamp for the feature group.
+- ``version_number: int``. The version number for the feature group.
 
 .. code-block:: python3
 
@@ -25,7 +25,7 @@ The ``.as_of()`` method takes the following optional parameter:
 History
 =======
 
-You can call the ``history()`` method of the ``FeatureGroup`` or ``Dataset`` instance to show history of the feature group.
+You can call the ``history()`` method of the ``FeatureGroup`` or ``Dataset`` instance to show the history of the feature group.
 
 .. code-block:: python3
 

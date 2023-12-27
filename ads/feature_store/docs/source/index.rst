@@ -29,7 +29,7 @@ Feature Store
     :caption: Getting started:
 
     overview
-    ./user_guides/setup/setup_feature_store
+    user_guides.setup.feature_store_operator
     quickstart
 
 .. toctree::
@@ -48,6 +48,7 @@ Feature Store
     :maxdepth: 2
     :caption: Feature store concepts:
 
+    cicd
     statistics
     feature_validation
     data_versioning

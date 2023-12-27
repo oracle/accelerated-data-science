@@ -1,23 +1,23 @@
 Feature Group
 *************
 
-A feature group in a feature store is a collection of related features that are often used together in machine learning models. Feature groups serve as an organizational unit within the feature store to manage, version, and share features across different machine learning projects. By organizing features into groups, data scientists and machine learning engineers can efficiently discover, reuse, and collaborate on features. Feature groups reduce the redundant work and ensure consistency in feature engineering.
+A feature group in a Feature Store is a collection of related features that are often used together in machine learning models. Feature groups serve as an organizational unit in the Feature Store to manage, version, and share features across different machine learning projects. By organizing features into groups, data scientists and machine learning engineers can efficiently discover, reuse, and collaborate on features. Feature groups reduce the redundant work and ensure consistency in feature engineering.
 
 .. image:: figures/feature_group.png
 
 In feature group, three key types play crucial roles:
 
-- **Primary Keys**: These keys uniquely identify individual records within the feature group. They ensure the uniqueness and integrity of each entry, allowing for efficient retrieval and modification of specific data points.
-- **Partition Keys**: These keys assist in distributing and organizing data across different partitions within the feature group. They enable efficient data retrieval by logically grouping related information, optimizing query performance, and minimizing resource utilization.
-- **Event Timestamp Keys**: These keys capture the temporal aspect of the data by indicating the time or timestamp associated with a specific event or entry within the feature group. They facilitate time-based querying, trend analysis, and time-series operations.
+- **Primary Keys**: These keys uniquely identify individual records in the feature group. They ensure the uniqueness and integrity of each entry, allowing for efficient retrieval and modification of specific data points.
+- **Partition Keys**: These keys assist in distributing and organizing data across different partitions in the feature group. They enable efficient data retrieval by logically grouping related information, optimizing query performance, and minimizing resource utilization.
+- **Event Timestamp Keys**: These keys capture the temporal aspect of the data by indicating the time or timestamp associated with a specific event or entry in the feature group. They facilitate time-based querying, trend analysis, and time-series operations.
 
 Define
 ======
 
-In an ADS feature store module, you can use the Python API or a yaml file to define a feature group.
+In an ADS Feature Store module, you can use the Python API or a .yaml file to define a feature group.
 
 
-The following example definse a feature group and gives it a name. A ``FeatureGroup`` instance is created.
+The following example defines a feature group and gives it a name. A ``FeatureGroup`` instance is created.
 
 .. tabs::
 
@@ -81,7 +81,7 @@ Use the ``create()`` method of the ``FeatureGroup`` instance to create a feature
 
 .. important::
 
-  This method doesn't persist any metadata or feature data in the feature store. To persist the feature group and save feature data, including the metadata in the feature store, use the ``materialise()`` method with a dataframe.
+  This method doesn't persist any metadata or feature data in the Feature Store. To persist the feature group and save feature data, including the metadata in the Feature Store, use the ``materialise()`` method with a dataframe.
 
 .. code-block:: python3
 
@@ -104,14 +104,14 @@ Use the ``from_id()`` method from the ``FeatureGroup`` class to load an existing
 Materialise
 ===========
 
-Use the ``materialise() -> FeatureGroupJob`` method of the ``FeatureGroup`` instance to load the data to feature group. To persist the feature group and save feature group data, including the metadata in the feature store, use ``materialise()``.
+Use the ``materialise() -> FeatureGroupJob`` method of the ``FeatureGroup`` instance to load the data to feature group. To persist the feature group and save feature group data, including the metadata in the Feature Store, use ``materialise()``.
 
 The ``.materialise()`` method has the following parameters:
 
-- ``input_dataframe: Union[DataFrame, pd.DataFrame]``. Spark dataframe or Pandas dataframe.
-- ``from_timestamp: str(Optional)``. From timestamp of the feature group.
-- ``to_timestamp: str(Optional)``. To timestamp of the feature group.
-- ``feature_option_details: FeatureOptionDetails(Optional)``. Feature option details for the materialise operation.
+- ``input_dataframe: Union[DataFrame, pd.DataFrame]``. The Spark dataframe or Pandas dataframe.
+- ``from_timestamp: str(Optional)``. The from timestamp of the feature group.
+- ``to_timestamp: str(Optional)``. The to timestamp of the feature group.
+- ``feature_option_details: FeatureOptionDetails(Optional)``. The feature option details for the materialise operation.
     - ``write_config_details: (merge_schema: bool, overwrite_schema: bool)``. Write configuration details for the feature option details.
     - ``read_config_details: (version_as_of: int, timestamp_as_of: datetime)``. Read configuration details for the feature option details.
 
@@ -125,31 +125,31 @@ The ``.materialise()`` method has the following parameters:
    For more information, see :ref:`Feature Group Job`.
 
 .. seealso::
-   See :ref:`Data types` for the types supported by feature store.
+   See :ref:`Data types` for the types supported by Feature Store.
 
 Materialise Stream
 ==================
-You can call the ``materialise_stream() -> FeatureGroupJob`` method of the ``FeatureGroup`` instance to load the streaming data to feature group. To persist the feature_group and save feature_group data along the metadata in the feature store, call the ``materialise_stream()``
+You can call the ``materialise_stream() -> FeatureGroupJob`` method of the ``FeatureGroup`` instance to load the streaming data to the feature group. To persist the feature group and save the feature group data along the metadata in the Feature Store, call the ``materialise_stream()``
 
 The ``.materialise_stream()`` method takes the following parameter:
-    - ``input_dataframe``: Features in Streaming Dataframe to be saved.
-    - ``query_name``: It is possible to optionally specify a name for the query to make it easier to recognise in the Spark UI. Defaults to ``None``.
-    - ``ingestion_mode``: Specifies how data of a streaming DataFrame/Dataset is written to a streaming sink.
-        - ``append``: Only the new rows in the streaming DataFrame/Dataset will be written to the sink. If the query doesn’t contain aggregations, it will be equivalent to append mode. Defaults to ``"append"``.
-        - ``complete``: All the rows in the streaming DataFrame/Dataset will be written to the sink every time there is some update.
-        - ``update``: only the rows that were updated in the streaming DataFrame/Dataset will be written to the sink every time there are some updates.
-    - ``await_termination``: Waits for the termination of this query, either by ``query.stop()`` or by an exception. If the query has terminated with an exception, then the exception will be thrown. If timeout is set, it returns whether the query has terminated or not within the timeout seconds. Defaults to ``False``.
+    - ``input_dataframe``: The features in Streaming Dataframe to be saved.
+    - ``query_name``: It is possible to optionally specify a name for the query to make it easier to recognize in the Spark UI. It defaults to ``None``.
+    - ``ingestion_mode``: Specifies how the data of a streaming DataFrame or dataset is written to a streaming sink.
+        - ``append``: Only the new rows in the streaming DataFrame or dataset are written to the sink. If the query doesn’t contain aggregations, it is equivalent to the append mode. It defaults to ``"append"``.
+        - ``complete``: All the rows in the streaming DataFrame or dataset are written to the sink every time there is an update.
+        - ``update``: Only the rows that were updated in the streaming DataFrame or dataset are written to the sink every time there is an update.
+    - ``await_termination``: Waits for the ending of this query, either by ``query.stop()`` or by an exception. If the query has ended with an exception, then the exception is raised. If a timeout is set, it returns whether the query has terminated or not in the timeout seconds. It defaults to ``False``.
     - ``timeout``: Only relevant in combination with ``await_termination=True``.
         - Defaults to ``None``.
-    - ``checkpoint_dir``: Checkpoint directory location. This will be used to as a reference to from where to resume the streaming job. Defaults to ``None``.
-    - ``write_options``: Additional write options for Spark as key-value pairs.
+    - ``checkpoint_dir``: The checkpoint directory location. It's used to as a reference to where to resume the streaming job from. It defaults to ``None``.
+    - ``write_options``: Extra write options for Spark as key-value pairs.
         - Defaults to ``{}``.
 
 .. seealso::
    :ref:`Feature Group Job`
 
 .. seealso::
-   Refer  :ref:`Data types` supported by feature store
+   Refer  :ref:`Data types` supported by Feature Store.
 
 Delete
 ======
@@ -164,7 +164,7 @@ Select
 ======
 Use the ``select()`` method of the ``FeatureGroup`` instance to return the ``Query`` interface. The ``Query`` interface is used to join and filter on the feature group.
 
-Feature store provides an API similar to Pandas to join feature groups together, and to select features from different feature groups. Write the query by selecting all or a subset of features from a feature group, and then join them with all or a subset of features of another feature group.
+Feature Store provides an API similar to Pandas to join feature groups together, and to select features from different feature groups. Write the query by selecting all, or a subset, of the features from a feature group, and then join them with all, or a subset, of the features of another feature group.
 
 .. code-block:: python3
 
@@ -188,8 +188,8 @@ Save Expectation Entity
 =======================
 Using a ``FeatureGroup`` instance, you can save the expectation details using ``with_expectation_suite()`` with the following parameters:
 
-- ``expectation_suite: ExpectationSuite``. ``ExpectationSuite`` of the great expectation library.
-- ``expectation_type: ExpectationType``. Type of expectation.
+- ``expectation_suite: ExpectationSuite``. The ``ExpectationSuite`` of the great expectation library.
+- ``expectation_type: ExpectationType``. The type of expectation.
         - ``ExpectationType.STRICT``: Fail the job if the expectation isn't met.
         - ``ExpectationType.LENIENT``: Pass the job even if the expectation isn't met.
 
@@ -200,6 +200,12 @@ Using a ``FeatureGroup`` instance, you can save the expectation details using ``
 .. image:: figures/validation.png
 
 .. code-block:: python3
+
+    from great_expectations.core import ExpectationSuite, ExpectationConfiguration
+    from ads.feature_store.common.enums import ExpectationType
+    from ads.feature_store.feature_group import FeatureGroup
+
+    feature_group = FeatureGroup.from_id("<unique_id>")
 
     expectation_suite = ExpectationSuite(
         expectation_suite_name="expectation_suite_name"
@@ -225,15 +231,15 @@ Using a ``FeatureGroup`` instance, you can save the expectation details using ``
     )
 
 Use the ``get_validation_output()`` method of the ``FeatureGroup`` instance to fetch validation results for a specific ingestion job.
-The ``get_validation_output()`` method has the following optional parameter:
+The ``get_validation_output()`` method has the following optional parameters:
 
-- ``job_id: string``. ID of the feature group job.
+- ``job_id: string``. The ID of the feature group job.
 
-``get_validation_output().to_pandas()`` Outputs  the validation results for each expectation as Pandas dataframe.
+``get_validation_output().to_pandas()`` Outputs  the validation results for each expectation as a Pandas dataframe.
 
 .. image:: figures/validation_results.png
 
-``get_validation_output().to_summary()`` Outputs the overall summary of validation as Pandas dataframe.
+``get_validation_output().to_summary()`` Outputs the overall summary of validation as a Pandas dataframe.
 
 .. image:: figures/validation_summary.png
 .. seealso::
@@ -243,7 +249,7 @@ The ``get_validation_output()`` method has the following optional parameter:
 
 Statistics Computation
 ========================
-During the materialization, feature store performs computation of statistical metrics for all the features by default. Configure computation using a ``StatisticsConfig`` object, which is passed at the creation of a feature group, or it can be updated later.
+During the materialisation, Feature Store performs a computation of statistical metrics for all the features by default. Configure computation using a ``StatisticsConfig`` object, which is passed at the creation of a feature group, or which can be updated later.
 
 .. code-block:: python3
 
@@ -273,18 +279,18 @@ Use the ``get_statistics()`` method of the feature group to fetch metrics for a 
 
 The ``get_statistics()`` method has the following optional parameter:
 
-- ``job_id: string``. ID of feature the group job.
+- ``job_id: string``. The ID of feature the group job.
 
 .. code-block:: python3
 
-  # Fetch stats results for a feature group job
+  # Fetch statistics results for a feature group job
   df = feature_group.get_statistics(job_id).to_pandas()
 
 .. image:: figures/stats_1.png
 
 .. code-block:: python3
 
-  # Fetch and visualize stats for a dataset job
+  # Fetch and visualize statistics for a dataset job
   df = feature_group.get_statistics(job_id).to_viz()
 
 .. image:: figures/feature_group_statistics_viz.png
@@ -295,7 +301,7 @@ The ``get_statistics()`` method has the following optional parameter:
 
 Get Last Feature Group Job
 ==========================
-Feature group job is the processing instance of a feature group. Each feature group job includes validation and statistics results.
+The feature group job is the processing instance of a feature group. Each feature group job includes validation and statistics results.
 
 Using a FeatureGroup instance, you can get the last feature group job details using ``get_last_job()``.
 
@@ -336,9 +342,9 @@ Use the ``preview()`` method of the ``FeatureGroup`` instance to preview the fea
 
 The ``.preview()`` method has the following optional parameters:
 
-- ``timestamp: date-time``. Commit timestamp for the feature group.
-- ``version_number: int``. Version number for the feature group.
-- ``row_count: int``. Defaults to 10. Total number of rows to return.
+- ``timestamp: date-time``. The commit timestamp of the feature group.
+- ``version_number: int``. The version number of the feature group.
+- ``row_count: int``. Defaults to 10. The total number of rows to return.
 
 .. code-block:: python3
 
@@ -352,8 +358,8 @@ Use the ``as_of()`` method of the ``FeatureGroup`` instance to get specified poi
 
 The ``.as_of()`` method takes the following optional parameters:
 
-- ``commit_timestamp: date-time``. Commit timestamp for the feature group.
-- ``version_number: int``. Version number for the feature group.
+- ``commit_timestamp: date-time``. The commit timestamp for the feature group.
+- ``version_number: int``. The version number for the feature group.
 
 .. code-block:: python3
 
@@ -367,12 +373,12 @@ Use the ``restore()`` method of the ``FeatureGroup`` instance to restore the fea
 
 The ``.restore()`` method takes the following optional parameters:
 
-- ``timestamp: date-time``. Commit timestamp for thefeature group.
-- ``version_number: int``. Version number for the feature group.
+- ``timestamp: date-time``. The commit timestamp of the feature group.
+- ``version_number: int``. The version number of the feature group.
 
 .. code-block:: python3
 
-  # Restore feature group to a particular version and timestamp
+  # Restore the feature group to a particular version and timestamp
   df = feature_group.restore(version_number=2)
 
 Profile
@@ -388,7 +394,7 @@ Use the ``profile()`` method of the ``FeatureGroup`` instance to profile the fea
 History
 =======
 
-Use the ``history()`` method of the ``FeatureGroup`` instance to show history of the feature group.
+Use the ``history()`` method of the ``FeatureGroup`` instance to show the history of the feature group.
 
 .. code-block:: python3
 
@@ -402,7 +408,7 @@ Use the ``show()`` method on the ``FeatureGroup`` instance to visualize the line
 
 The ``show()`` method has the following optional parameter:
 
-  - ``rankdir: (str, optional)``. Defaults to ``LR``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode, and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
+  - ``rankdir: (str, optional)``. It defaults to ``LR``. The allowed values are ``TB`` or ``LR``. This parameter is applicable only for ``graph`` mode, and it renders the direction of the graph as either top to bottom (TB) or left to right (LR).
 
 
 .. code-block:: python3
@@ -418,7 +424,7 @@ The following is an example of the output:
 
 Data Types
 ==========
-The data is stored in a data type native to each store. Specifying ``with_schema_details_from_dataframe`` causes the feature store to automatically infer the data types from the dataframe. This option can also specify the data type explicitly.
+The data is stored in a data type native to each store. Specifying ``with_schema_details_from_dataframe`` causes the Feature Store to automatically infer the data types from the dataframe. This option can also specify the data type explicitly.
 
 .. note::
 
@@ -547,7 +553,7 @@ The data is stored in a data type native to each store. Specifying ``with_schema
          - STRING_DATE_MAP
          - Key-value pairs
 
-    For Pandas dataframes, the initial step involves converting the dataframe into a Spark dataframe. This conversion uses the default conversion mechanism provided by Spark, which may result in a less precise mapping between Python and Spark types.
+    For Pandas dataframes, the initial step involves converting the dataframe into a Spark dataframe. This conversion uses the default conversion mechanism provided by Spark, which might result in a less precise mapping between Python and Spark types.
 
     .. list-table::
        :widths: 30 20 40

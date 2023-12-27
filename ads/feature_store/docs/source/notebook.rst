@@ -30,7 +30,7 @@ Quick start examples
         | * ``Schema enforcement``, also known as schema validation, is a safeguard in Delta Lake that ensures data quality by rejecting writes to a table that don't match the table's schema.
 
     * - `Storage of medical records in feature store <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/feature_store_ehr_data.ipynb>`__
-      - | Example to demonstrate storage of medical records in feature store
+      - | Example to demonstrate storage of medical records in Feature Store.
 
 Big data operations using OCI DataFlow
 ######################################

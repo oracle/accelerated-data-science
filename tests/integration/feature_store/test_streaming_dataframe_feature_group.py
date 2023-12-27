@@ -71,7 +71,7 @@ class TestFeatureGroupWithStreamingDataFrame(FeatureStoreTestCase):
     def create_transformation_resource_stream(self, feature_store) -> "Transformation":
         transformation = feature_store.create_transformation(
             source_code_func=credit_score_transformation,
-            display_name="credit_score_transformation",
+            name="credit_score_transformation",
             transformation_mode=TransformationMode.SPARK,
         )
         return transformation
