@@ -80,6 +80,7 @@ class ContainerRuntime(Runtime):
     _schema: ClassVar[str] = "container_runtime_schema.yaml"
     type: str = OPERATOR_LOCAL_RUNTIME_TYPE.CONTAINER.value
     version: str = "v1"
+    kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     spec: ContainerRuntimeSpec = field(default_factory=ContainerRuntimeSpec)
 
     @classmethod
@@ -99,6 +100,7 @@ class PythonRuntime(Runtime):
     """Represents a python operator runtime."""
 
     _schema: ClassVar[str] = "python_runtime_schema.yaml"
+    kind: str = OPERATOR_LOCAL_RUNTIME_KIND
     type: str = OPERATOR_LOCAL_RUNTIME_TYPE.PYTHON.value
     version: str = "v1"
 

@@ -37,6 +37,7 @@ from ads.opctl import logger
 from ads.opctl.backend.marketplace.marketplace_utils import (
     Color,
     print_heading,
+    print_ticker,
 )
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.mysql_config import (
     MySqlConfig,
@@ -299,9 +300,15 @@ def apply_stack(stack_id: str):
     job_details.job_operation_details = job_operation_details
     job: oci.resource_manager.models.Job = (
         resource_manager_composite_client.create_job_and_wait_for_state(
-            create_job_details=job_details, wait_for_states=["FAILED", "SUCCEEDED"]
-        ).data
-    )
+            create_job_details=job_details,
+            wait_for_states=["FAILED", "SUCCEEDED"],
+            waiter_kwargs={
+                "wait_callback": lambda times_checked, _: print_ticker(
+                    "Waiting for stack to apply", iteration=times_checked - 1
+                )
+            },
+        )
+    ).data
     if job.lifecycle_state == "FAILED":
         print(
             f"{Color.RED}{Color.BOLD}Couldn't apply feature store apigw stack. Please check the error logs to debug issues. Re run the operator once the issues are resolved to complete deployment. For more help refer documentation: https://feature-store-accelerated-data-science.readthedocs.io/{Color.END}"
