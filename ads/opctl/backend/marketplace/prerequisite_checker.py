@@ -8,9 +8,7 @@ from typing import List
 
 import click
 from ads.opctl.backend.marketplace.models.bearer_token import BEARER_TOKEN_USERNAME
-from kubernetes.client import V1SecretList, V1Secret, V1ObjectMeta
 
-import kubernetes
 from ads.opctl import logger
 
 from ads.opctl.backend.marketplace.models.marketplace_type import (
@@ -74,6 +72,10 @@ def _prompt_kubernetes_confirmation_():
 
 
 def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
+    from kubernetes.client import V1SecretList, V1Secret, V1ObjectMeta
+
+    import kubernetes
+
     print(
         f"Starting docker registry secret verification for secret: {get_highlighted_text(listing_details.docker_registry_secret)} in namespace: {get_highlighted_text(listing_details.namespace)}",
         end="\r",

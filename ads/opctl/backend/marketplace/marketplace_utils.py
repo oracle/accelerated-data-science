@@ -1,8 +1,6 @@
 import os
 import time
 from collections import defaultdict
-
-import kubernetes
 import oci
 from typing import List, Dict
 from ads.opctl.backend.marketplace.models.bearer_token import BearerToken
@@ -191,6 +189,8 @@ def export_if_tags_not_exist(
 
 
 def get_kubernetes_service(listings_details: HelmMarketplaceListingDetails):
+    import kubernetes
+
     kubernetes.config.load_kube_config()
     k8 = kubernetes.client.CoreV1Api()
     return k8.list_namespaced_service(
