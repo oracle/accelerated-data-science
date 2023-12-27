@@ -4,8 +4,12 @@ import types
 
 from typing import Dict, List
 
+try:
+    from kubernetes.client import V1ServiceList
+except ImportError:
+    pass
+
 from ads.common.auth import AuthState
-from kubernetes.client import V1ServiceList
 
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     MarketplaceListingDetails,
@@ -58,6 +62,6 @@ class MarketplaceBackendRunner(MarketplaceInterface):
         operator_config: str,
         status: Status,
         tags_map: Dict[str, str],
-        kubernetes_service_list: V1ServiceList,
+        kubernetes_service_list: "V1ServiceList",
     ):
         pass

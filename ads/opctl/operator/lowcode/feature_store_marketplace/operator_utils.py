@@ -10,12 +10,17 @@ from typing import Optional, List, Dict
 
 import oci
 import requests
-from kubernetes.client import (
-    V1ServiceStatus,
-    V1Service,
-    V1LoadBalancerStatus,
-    V1LoadBalancerIngress,
-)
+
+try:
+    from kubernetes.client import (
+        V1ServiceStatus,
+        V1Service,
+        V1LoadBalancerStatus,
+        V1LoadBalancerIngress,
+    )
+except ImportError:
+    pass
+
 from oci.resource_manager.models import StackSummary, AssociatedResourceSummary
 
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.apigw_config import (

@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from typing import Dict, List
+from typing import Dict
 
-from kubernetes.client import V1ServiceList
-
+try:
+    from kubernetes.client import V1ServiceList
+except ImportError:
+    pass
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     MarketplaceListingDetails,
 )
@@ -33,6 +35,6 @@ class MarketplaceInterface(ABC):
         operator_config: str,
         status: Status,
         tags_map: Dict[str, str],
-        kubernetes_service_list: V1ServiceList,
+        kubernetes_service_list: "V1ServiceList",
     ):
         pass
