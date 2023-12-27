@@ -6,7 +6,7 @@ Quick start
 
   ..  code-block:: shell
 
-     odsc conda install -s fspyspark32_p38_cpu_v2
+     odsc conda install -s fspyspark32_p38_cpu_v3
 
 3. Download the notebook examples from the example notebook section.
 
