@@ -109,7 +109,7 @@ class LocalMarketplaceOperatorBackend(Backend):
         operator = MarketplaceBackendRunner(
             module_name=self.operator_info.type,
         )
-        # check_prerequisites(listing_details)
+        check_prerequisites(listing_details)
         print_heading(
             f"Starting deployment",
             prefix_newline_count=2,
