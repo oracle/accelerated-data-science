@@ -81,13 +81,7 @@ class TestBackendFactory:
         # expected backends
         self.mock_supported_backends = tuple(
             set(BackendFactory.BACKENDS + BackendFactory.LOCAL_BACKENDS)
-            & set(
-                self.mock_operator_info.backends
-                + [
-                    BACKEND_NAME.OPERATOR_LOCAL.value,
-                    BACKEND_NAME.LOCAL.value,
-                ]
-            )
+            & set(self.mock_operator_info.backends)
         )
 
     @pytest.mark.parametrize(
