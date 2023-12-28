@@ -10,6 +10,7 @@ import tempfile
 from typing import Optional, Dict, Union, Any
 import fsspec
 import yaml
+from ads.opctl.backend.marketplace.prerequisite_checker import check_prerequisites
 
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
