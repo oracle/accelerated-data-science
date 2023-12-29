@@ -13,7 +13,9 @@ from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl import logger
 from ads.opctl.backend.marketplace.marketplace_utils import (
     StatusIcons,
-    get_docker_bearer_token, WARNING, Color,
+    get_docker_bearer_token,
+    WARNING,
+    Color,
 )
 
 
@@ -46,13 +48,18 @@ def run_helm_install(
     )
     helm_cmd = [
         _HELM_BINARY_,
-        cmd,
+        HelmCommand.Upgrade,
         name,
         chart,
         *_get_as_flags_(
-            namespace=namespace, values=values_yaml_path, version=version, timeout="300s",**kwargs
+            namespace=namespace,
+            values=values_yaml_path,
+            version=version,
+            timeout="300s",
+            **kwargs,
         ),
-        "--wait"
+        "--wait",
+        "-i",
     ]
     print(f"\n{Color.BLUE}{' '.join(helm_cmd)}{Color.END}")
     return subprocess.run(helm_cmd)

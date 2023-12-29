@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Union, Optional
+from typing import Union, Optional, List
 
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.serializable_yaml_model import (
     SerializableYAMLModel,

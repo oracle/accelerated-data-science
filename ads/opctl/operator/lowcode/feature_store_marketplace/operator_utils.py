@@ -139,6 +139,10 @@ def detect_or_create_stack(apigw_config: APIGatewayConfig):
         print(
             f"Auto-detected feature store APIGW stack: {stacks[0].display_name}({stacks[0].id}"
         )
+        click.prompt(
+            f"Auto detected existing feature store stack: '{stacks[0].display_name}({stacks[0].id}'\n.Provide an OCID to use or",
+            default=stacks[0].id,
+        )
         return stacks[0].id
     elif len(stacks) == 0:
         if not click.confirm(
@@ -268,7 +272,7 @@ def update_resource_manager_stack(
         )
     )
     update_stack_details = oci.resource_manager.models.UpdateStackDetails()
-    groups = ",".join(apigw_config.authorized_user_groups)
+    groups = ",".join(apigw_config.authorized_user_groups.split(","))
     update_stack_details.variables = {
         "nlb_id": nlb_id,
         "tenancy_ocid": apigw_config.root_compartment_id,

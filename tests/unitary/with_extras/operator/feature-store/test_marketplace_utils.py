@@ -6,7 +6,7 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     get_docker_bearer_token,
     _export_helm_chart_,
     list_container_images,
-    get_tags_map,
+    _get_tags_map,
 )
 
 
@@ -18,13 +18,14 @@ def test_set_kubernetes_session_token_env():
     assert os.getenv("OCI_CLI_PROFILE") == profile_name
 
 
+@patch("ads.common.auth.default_signer")
 @patch("ads.opctl.backend.marketplace.marketplace_utils.OCIClientFactory")
-def test_get_docker_bearer_token(client_factory: Mock):
+def test_get_docker_bearer_token(client_factory: Mock, signer_mock: Mock):
     mock_token = '{"token":"TOKEN"}'
     token_client = Mock()
     token_client.call_api.return_value.data = mock_token
     client_factory.return_value.create_client.return_value = token_client
-    ocir_repo = "iad.ocir.io/idogsu2ylimg/feature-store-data-plane-api-helidon/"
+    ocir_repo = "iad.ocir.io/namespace/feature-store-data-plane-api-helidon/"
     assert get_docker_bearer_token(ocir_repo) == mock_token
     token_client.call_api.assert_called_once_with(
         resource_path="/docker/token", method="GET", response_type="SecurityToken"
@@ -62,6 +63,6 @@ def test_export_helm_chart_to_container_registry(list_api: Mock, export_api: Moc
     )
     listing_details = Mock()
     listing_details.container_tag_pattern = [pattern]
-    result = get_tags_map(listing_details)
+    result = _get_tags_map(listing_details)
     assert pattern in result
     assert result[pattern] == f"{pattern}-1"
