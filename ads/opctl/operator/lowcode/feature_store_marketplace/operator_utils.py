@@ -314,7 +314,8 @@ def apply_stack(stack_id: str):
             waiter_kwargs={
                 "wait_callback": lambda times_checked, _: print_ticker(
                     "Waiting for stack to apply", iteration=times_checked - 1
-                )
+                ),
+                "max_interval_seconds": 1,
             },
         )
     ).data
@@ -326,7 +327,7 @@ def apply_stack(stack_id: str):
 
 
 def prompt_security_rules(stack_id: str):
-    if not click.prompt(
+    if not click.confirm(
         "Do you want to attach required security rules to subnets automatically?",
         default=True,
     ):
@@ -362,6 +363,9 @@ def add_security_list_to_subnet(sec_list_id: str, subnet_id: str):
         oci.core.VirtualNetworkClient
     )
     subnet: oci.core.models.Subnet = network_client.get_subnet(subnet_id=subnet_id).data
+    print(
+        f"Adding security list ({sec_list_id}) to subnet: '{subnet.display_name}'({subnet.id})"
+    )
     if sec_list_id not in subnet.security_list_ids:
         update_subnet_details = oci.core.models.UpdateSubnetDetails()
         subnet.security_list_ids.append(sec_list_id)

@@ -77,8 +77,7 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
     import kubernetes
 
     print(
-        f"Starting docker registry secret verification for secret: {get_highlighted_text(listing_details.docker_registry_secret)} in namespace: {get_highlighted_text(listing_details.namespace)}",
-        end="\r",
+        f"Starting docker registry secret verification for secret: {get_highlighted_text(listing_details.docker_registry_secret)} in namespace: {get_highlighted_text(listing_details.namespace)}"
     )
     create_secret = True
     kubernetes.config.load_kube_config()

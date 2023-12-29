@@ -129,6 +129,7 @@ def _export_helm_chart_(listing_details: HelmMarketplaceListingDetails):
         wait_callback=lambda times_checked, _: print_ticker(
             "Waiting for marketplace export to finish", iteration=times_checked - 1
         ),
+        max_interval_seconds=1,
     ).data
     if export_listing_work_request.status == "FAILED":
         print(f"Couldn't export images from marketplace to OCIR {StatusIcons.CROSS}")
