@@ -1,6 +1,4 @@
 import os
-import time
-from collections import defaultdict
 import oci
 from typing import List, Dict
 from ads.opctl.backend.marketplace.models.bearer_token import BearerToken
@@ -175,11 +173,11 @@ def export_if_tags_not_exist(
                 colors=[Color.RED],
             )
 
-    tags_map = _get_tags_map(listing_details)
+    tags_map = _get_tags_map_(listing_details)
 
     if not tags_map:
         _export_helm_chart_(listing_details)
-        tags_map = _get_tags_map(listing_details)
+        tags_map = _get_tags_map_(listing_details)
         if not tags_map:
             raise ImageTagPatternNotFound(pattern=listing_details.container_tag_pattern)
     else:
@@ -200,7 +198,7 @@ def get_kubernetes_service(listings_details: HelmMarketplaceListingDetails):
     )
 
 
-def _get_tags_map(
+def _get_tags_map_(
     listing_details: HelmMarketplaceListingDetails,
 ) -> Dict[str, str]:
     images = list_container_images(

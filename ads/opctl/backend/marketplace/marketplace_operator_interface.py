@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
 from enum import Enum
 
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
 
-try:
+if TYPE_CHECKING:
     from kubernetes.client import V1ServiceList
-except ImportError:
-    pass
+
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     MarketplaceListingDetails,
 )

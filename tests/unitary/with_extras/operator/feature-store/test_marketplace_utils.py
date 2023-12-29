@@ -6,7 +6,7 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     get_docker_bearer_token,
     _export_helm_chart_,
     list_container_images,
-    _get_tags_map,
+    _get_tags_map_,
 )
 
 
@@ -63,6 +63,6 @@ def test_export_helm_chart_to_container_registry(list_api: Mock, export_api: Moc
     )
     listing_details = Mock()
     listing_details.container_tag_pattern = [pattern]
-    result = _get_tags_map(listing_details)
+    result = _get_tags_map_(listing_details)
     assert pattern in result
     assert result[pattern] == f"{pattern}-1"

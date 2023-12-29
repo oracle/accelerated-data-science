@@ -2,12 +2,10 @@ import runpy
 import sys
 import types
 
-from typing import Dict, List
+from typing import Dict, TYPE_CHECKING
 
-try:
+if TYPE_CHECKING:
     from kubernetes.client import V1ServiceList
-except ImportError:
-    pass
 
 from ads.common.auth import AuthState
 

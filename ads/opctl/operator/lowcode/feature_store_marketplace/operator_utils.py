@@ -10,6 +10,7 @@ from typing import Optional, List, Dict
 
 import oci
 import requests
+from typing import TYPE_CHECKING
 
 try:
     from kubernetes.client import (
@@ -19,7 +20,13 @@ try:
         V1LoadBalancerIngress,
     )
 except ImportError:
-    pass
+    if TYPE_CHECKING:
+        from kubernetes.client import (
+            V1ServiceStatus,
+            V1Service,
+            V1LoadBalancerStatus,
+            V1LoadBalancerIngress,
+        )
 
 from oci.resource_manager.models import StackSummary, AssociatedResourceSummary
 
@@ -223,10 +230,10 @@ def get_api_gw_details(compartment_id: str) -> APIGatewayConfig:
     return apigw_config
 
 
-def get_nlb_id_from_service(service: V1Service, apigw_config: APIGatewayConfig):
-    status: V1ServiceStatus = service.status
-    lb_status: V1LoadBalancerStatus = status.load_balancer
-    lb_ingress: V1LoadBalancerIngress = lb_status.ingress[0]
+def get_nlb_id_from_service(service: "V1Service", apigw_config: APIGatewayConfig):
+    status: "V1ServiceStatus" = service.status
+    lb_status: "V1LoadBalancerStatus" = status.load_balancer
+    lb_ingress: "V1LoadBalancerIngress" = lb_status.ingress[0]
     resource_client = OCIClientFactory(**authutil.default_signer()).create_client(
         oci.resource_search.ResourceSearchClient
     )
