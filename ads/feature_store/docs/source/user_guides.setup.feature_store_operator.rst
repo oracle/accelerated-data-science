@@ -24,8 +24,10 @@ After having set up ads opctl on your desired machine using ads opctl configure,
 
 - The path to the OCIR repository where Feature Store container images are cloned.
 - The compartment ID where Feature Store is set up.
+
 .. seealso::
    :ref:`Database configuration`
+
 - The app name to use for Helm.
 - The namespace to use in the Kubernetes cluster.
 - The version of the Feature Store stack to install.

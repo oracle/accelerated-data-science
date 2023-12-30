@@ -965,10 +965,7 @@ class FeatureGroup(Builder):
             timeout: Only relevant in combination with `await_termination=True`.
                 Defaults to `None`.
             checkpoint_dir: Checkpoint directory location. This will be used to as a reference to
-                from where to resume the streaming job. If `None` then hsfs will construct as
-                "insert_stream_" + online_topic_name. Defaults to `None`.
-                write_options: Additional write options for Spark as key-value pairs.
-                Defaults to `{}`.
+                from where to resume the streaming job.
 
         # Returns
             `StreamingQuery`: Spark Structured Streaming Query object.
