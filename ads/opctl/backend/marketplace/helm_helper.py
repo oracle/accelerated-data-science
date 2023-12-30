@@ -41,11 +41,6 @@ _HELM_BINARY_ = "helm"
 def run_helm_install(
     name: str, chart: str, version: str, namespace: str, values_yaml_path: str, **kwargs
 ) -> subprocess.CompletedProcess:
-    cmd = (
-        HelmCommand.Install
-        if not _check_if_chart_already_exists_(name, namespace)
-        else HelmCommand.Upgrade
-    )
     helm_cmd = [
         _HELM_BINARY_,
         HelmCommand.Upgrade,

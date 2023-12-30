@@ -25,36 +25,8 @@ kwargs = {"key": "value"}
 
 
 @patch("ads.opctl.backend.marketplace.helm_helper.subprocess.run")
-@patch("ads.opctl.backend.marketplace.helm_helper._check_if_chart_already_exists_")
-def test_helm_install(mock_check_chart_exist: Mock, subprocess_mock: Mock):
-    mock_check_chart_exist.return_value = False
+def test_helm_install(subprocess_mock: Mock):
     run_helm_install(name, chart, version, namespace, values_yaml_path, **kwargs)
-    mock_check_chart_exist.assert_called_with(name, namespace)
-
-    helm_cmd = [
-        _HELM_BINARY_,
-        HelmCommand.Install,
-        name,
-        chart,
-        *_get_as_flags_(
-            namespace=namespace,
-            values=values_yaml_path,
-            version=version,
-            timeout="300s",
-            **kwargs,
-        ),
-        "--wait",
-    ]
-
-    subprocess_mock.assert_called_with(helm_cmd)
-
-
-@patch("ads.opctl.backend.marketplace.helm_helper.subprocess.run")
-@patch("ads.opctl.backend.marketplace.helm_helper._check_if_chart_already_exists_")
-def test_helm_upgrade(mock_check_chart_exist: Mock, subprocess_mock: Mock):
-    mock_check_chart_exist.return_value = True
-    run_helm_install(name, chart, version, namespace, values_yaml_path, **kwargs)
-    mock_check_chart_exist.assert_called_with(name, namespace)
     helm_cmd = [
         _HELM_BINARY_,
         HelmCommand.Upgrade,
@@ -68,7 +40,9 @@ def test_helm_upgrade(mock_check_chart_exist: Mock, subprocess_mock: Mock):
             **kwargs,
         ),
         "--wait",
+        "-i",
     ]
+
     subprocess_mock.assert_called_with(helm_cmd)
 
 

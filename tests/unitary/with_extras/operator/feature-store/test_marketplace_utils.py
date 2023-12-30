@@ -56,7 +56,7 @@ def test_export_helm_chart_to_container_registry(list_api: Mock, export_api: Moc
     pattern = "feature-store-dataplane-api"
 
     mock_container_summary = Mock()
-    mock_container_summary.display_name = f"{pattern}-1"
+    mock_container_summary.display_name = f"{pattern}:1"
 
     list_api.return_value.items.__iter__ = Mock(
         return_value=iter([mock_container_summary])
@@ -65,4 +65,4 @@ def test_export_helm_chart_to_container_registry(list_api: Mock, export_api: Moc
     listing_details.container_tag_pattern = [pattern]
     result = _get_tags_map_(listing_details)
     assert pattern in result
-    assert result[pattern] == f"{pattern}-1"
+    assert result[pattern] == f"1"
