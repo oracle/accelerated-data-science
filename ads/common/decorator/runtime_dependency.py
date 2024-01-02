@@ -41,9 +41,7 @@ from .utils import _get_original_func
 
 logger = logging.getLogger(__name__)
 
-MODULE_NOT_FOUND_ERROR = (
-    "The `{module}` module was not found. Please run `pip install {package}`."
-)
+MODULE_NOT_FOUND_ERROR = "The `{module}` module was not found. Please run `pip install {package}`. If this does not work, then install module `{module}` via pypi."
 IMPORT_ERROR = "Cannot import name `{object}` from `{module}`."
 
 
