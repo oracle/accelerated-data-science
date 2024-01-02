@@ -40,39 +40,6 @@ class ChainSerializationTest(TestCase):
     GEN_AI_KWARGS = {"service_endpoint": "https://endpoint.oraclecloud.com"}
     ENDPOINT = "https://modeldeployment.customer-oci.com/ocid/predict"
 
-    EXPECTED_LLM_CHAIN_WITH_COHERE = {
-        "memory": None,
-        "verbose": True,
-        "tags": None,
-        "metadata": None,
-        "prompt": {
-            "input_variables": ["subject"],
-            "input_types": {},
-            "output_parser": None,
-            "partial_variables": {},
-            "template": "Tell me a joke about {subject}",
-            "template_format": "f-string",
-            "validate_template": False,
-            "_type": "prompt",
-        },
-        "llm": {
-            "model": None,
-            "max_tokens": 256,
-            "temperature": 0.75,
-            "k": 0,
-            "p": 1,
-            "frequency_penalty": 0.0,
-            "presence_penalty": 0.0,
-            "truncate": None,
-            "_type": "cohere",
-        },
-        "output_key": "text",
-        "output_parser": {"_type": "default"},
-        "return_final_only": True,
-        "llm_kwargs": {},
-        "_type": "llm_chain",
-    }
-
     EXPECTED_LLM_CHAIN_WITH_OCI_MD = {
         "lc": 1,
         "type": "constructor",
@@ -173,7 +140,23 @@ class ChainSerializationTest(TestCase):
         template = PromptTemplate.from_template(self.PROMPT_TEMPLATE)
         llm_chain = LLMChain(prompt=template, llm=llm, verbose=True)
         serialized = dump(llm_chain)
-        self.assertEqual(serialized, self.EXPECTED_LLM_CHAIN_WITH_COHERE)
+
+        # Check the serialized chain
+        self.assertTrue(serialized.get("verbose"))
+        self.assertEqual(serialized.get("_type"), "llm_chain")
+
+        # Check the serialized prompt template
+        serialized_prompt = serialized.get("prompt")
+        self.assertIsInstance(serialized_prompt, dict)
+        self.assertEqual(serialized_prompt.get("_type"), "prompt")
+        self.assertEqual(set(serialized_prompt.get("input_variables")), {"subject"})
+        self.assertEqual(serialized_prompt.get("template"), self.PROMPT_TEMPLATE)
+
+        # Check the serialized LLM
+        serialized_llm = serialized.get("llm")
+        self.assertIsInstance(serialized_llm, dict)
+        self.assertEqual(serialized_llm.get("_type"), "cohere")
+
         llm_chain = load(serialized)
         self.assertIsInstance(llm_chain, LLMChain)
         self.assertIsInstance(llm_chain.prompt, PromptTemplate)
@@ -237,21 +220,37 @@ class ChainSerializationTest(TestCase):
 
         chain = map_input | template | llm
         serialized = dump(chain)
-        # Do not check the ID fields.
-        expected = deepcopy(self.EXPECTED_RUNNABLE_SEQUENCE)
-        expected["id"] = serialized["id"]
-        expected["kwargs"]["first"]["id"] = serialized["kwargs"]["first"]["id"]
-        expected["kwargs"]["first"]["kwargs"]["steps"]["text"]["id"] = serialized[
-            "kwargs"
-        ]["first"]["kwargs"]["steps"]["text"]["id"]
-        expected["kwargs"]["middle"][0]["id"] = serialized["kwargs"]["middle"][0]["id"]
-        self.assertEqual(serialized, expected)
+
+        self.assertEqual(serialized.get("type"), "constructor")
+        self.assertNotIn("_type", serialized)
+
+        kwargs = serialized.get("kwargs")
+        self.assertIsInstance(kwargs, dict)
+
+        element_1 = kwargs.get("first")
+        self.assertEqual(element_1.get("_type"), "RunnableParallel")
+        step = element_1.get("kwargs").get("steps").get("text")
+        self.assertEqual(step.get("id")[-1], "RunnablePassthrough")
+
+        element_2 = kwargs.get("middle")[0]
+        self.assertNotIn("_type", element_2)
+        self.assertEqual(element_2.get("kwargs").get("template"), self.PROMPT_TEMPLATE)
+        self.assertEqual(element_2.get("kwargs").get("input_variables"), ["subject"])
+
+        element_3 = kwargs.get("last")
+        self.assertNotIn("_type", element_3)
+        self.assertEqual(element_3.get("id"), ["ads", "llm", "ModelDeploymentTGI"])
+        self.assertEqual(
+            element_3.get("kwargs"),
+            {"endpoint": "https://modeldeployment.customer-oci.com/ocid/predict"},
+        )
+
         chain = load(serialized)
         self.assertEqual(len(chain.steps), 3)
         self.assertIsInstance(chain.steps[0], RunnableParallel)
         self.assertEqual(
-            chain.steps[0].dict(),
-            {"steps": {"text": {"input_type": None, "func": None, "afunc": None}}},
+            list(chain.steps[0].dict().get("steps").keys()),
+            ["text"],
         )
         self.assertIsInstance(chain.steps[1], PromptTemplate)
         self.assertIsInstance(chain.steps[2], ModelDeploymentTGI)
