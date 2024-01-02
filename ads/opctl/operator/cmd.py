@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -69,7 +69,11 @@ def list() -> None:
     )
 
 
-@runtime_dependency(module="rich", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(
+    module="rich",
+    install_from=OptionalDependency.OPCTL,
+    err_msg="The library `rich` cannot be found. Please pip install rich.",
+)
 def info(
     type: str,
     **kwargs: Dict[str, Any],
@@ -220,7 +224,11 @@ def init(
     logger.info("#" * 50)
 
 
-@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(
+    module="docker",
+    install_from=OptionalDependency.OPCTL,
+    err_msg="The library `docker` cannot be found. Please pip install docker.",
+)
 @validate_environment
 def build_image(
     type: str = None,
@@ -318,7 +326,11 @@ def build_image(
         )
 
 
-@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(
+    module="docker",
+    install_from=OptionalDependency.OPCTL,
+    err_msg="The library `docker` cannot be found. Please pip install docker.",
+)
 @validate_environment
 def publish_image(
     type: str,

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
@@ -252,7 +252,11 @@ def suppress_traceback(debug: bool = True) -> None:
     return decorator
 
 
-@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(
+    module="docker",
+    install_from=OptionalDependency.OPCTL,
+    err_msg="The library `docker` cannot be found. Please pip install docker.",
+)
 def get_docker_client() -> "docker.client.DockerClient":
     import docker
 
@@ -265,7 +269,11 @@ def get_docker_client() -> "docker.client.DockerClient":
     return docker.from_env()
 
 
-@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(
+    module="docker",
+    install_from=OptionalDependency.OPCTL,
+    err_msg="The library `docker` cannot be found. Please pip install docker.",
+)
 def run_container(
     image: str,
     bind_volumes: Dict,

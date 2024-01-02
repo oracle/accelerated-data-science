@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import copy
@@ -110,7 +110,11 @@ class LocalBackend(Backend):
                     f"Run with the --debug argument to view container logs."
                 )
 
-    @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+    @runtime_dependency(
+        module="docker",
+        install_from=OptionalDependency.OPCTL,
+        err_msg="The library `docker` cannot be found. Please pip install docker.",
+    )
     def init_vscode_container(self) -> None:
         """
         Create a .devcontainer.json file for development with VSCode.
@@ -415,7 +419,11 @@ class LocalBackend(Backend):
         return bind_volumes
 
     @staticmethod
-    @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
+    @runtime_dependency(
+        module="docker",
+        install_from=OptionalDependency.OPCTL,
+        err_msg="The library `docker` cannot be found. Please pip install docker.",
+    )
     def _activate_conda_env_and_run(
         image: str, slug: str, command: List[str], bind_volumes: Dict, env_vars: Dict
     ) -> int:
