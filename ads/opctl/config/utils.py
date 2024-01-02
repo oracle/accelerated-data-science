@@ -42,16 +42,8 @@ def read_from_ini(path: str) -> configparser.ConfigParser:
     return parser
 
 
-@runtime_dependency(
-    module="nbformat",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `nbformat` cannot be found. Please pip install nbformat.",
-)
-@runtime_dependency(
-    module="nbconvert",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `nbconvert` cannot be found. Please pip install nbconvert.",
-)
+@runtime_dependency(module="nbformat", install_from=OptionalDependency.OPCTL)
+@runtime_dependency(module="nbconvert", install_from=OptionalDependency.OPCTL)
 def convert_notebook(
     input_path,
     auth,

@@ -252,11 +252,7 @@ def suppress_traceback(debug: bool = True) -> None:
     return decorator
 
 
-@runtime_dependency(
-    module="docker",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `docker` cannot be found. Please pip install docker.",
-)
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def get_docker_client() -> "docker.client.DockerClient":
     import docker
 
@@ -269,11 +265,7 @@ def get_docker_client() -> "docker.client.DockerClient":
     return docker.from_env()
 
 
-@runtime_dependency(
-    module="docker",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `docker` cannot be found. Please pip install docker.",
-)
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def run_container(
     image: str,
     bind_volumes: Dict,

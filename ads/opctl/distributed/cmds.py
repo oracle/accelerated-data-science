@@ -141,11 +141,7 @@ def show_config_info(job_id, work_dir, cluster_file_name, worker_info, **kwargs)
         )
 
 
-@runtime_dependency(
-    module="docker",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `docker` cannot be found. Please pip install docker.",
-)
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def verify_image(img_name):
     """
     Verify if the input image exists in OCI registry

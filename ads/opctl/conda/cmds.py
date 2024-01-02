@@ -58,11 +58,7 @@ def _fetch_manifest_template() -> Dict:
     return manifest_template
 
 
-@runtime_dependency(
-    module="docker",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `docker` cannot be found. Please pip install docker.",
-)
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 def _check_job_image_exists(gpu: bool) -> None:
     if gpu:
         image = ML_JOB_GPU_IMAGE

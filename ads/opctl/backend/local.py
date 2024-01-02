@@ -110,11 +110,7 @@ class LocalBackend(Backend):
                     f"Run with the --debug argument to view container logs."
                 )
 
-    @runtime_dependency(
-        module="docker",
-        install_from=OptionalDependency.OPCTL,
-        err_msg="The library `docker` cannot be found. Please pip install docker.",
-    )
+    @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
     def init_vscode_container(self) -> None:
         """
         Create a .devcontainer.json file for development with VSCode.
@@ -419,11 +415,7 @@ class LocalBackend(Backend):
         return bind_volumes
 
     @staticmethod
-    @runtime_dependency(
-        module="docker",
-        install_from=OptionalDependency.OPCTL,
-        err_msg="The library `docker` cannot be found. Please pip install docker.",
-    )
+    @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
     def _activate_conda_env_and_run(
         image: str, slug: str, command: List[str], bind_volumes: Dict, env_vars: Dict
     ) -> int:

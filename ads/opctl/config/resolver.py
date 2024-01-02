@@ -121,11 +121,7 @@ class ConfigResolver(ConfigProcessor):
             "operator_name"
         ) or self.config.get("name")
 
-    @runtime_dependency(
-        module="inflection",
-        install_from=OptionalDependency.OPCTL,
-        err_msg="The library `inflection` cannot be found. Please pip install inflection.",
-    )
+    @runtime_dependency(module="inflection", install_from=OptionalDependency.OPCTL)
     def _resolve_source_folder_path(self) -> None:
         # this should be run after resolve_operator_name()
         # resolve ADS operator source folder path

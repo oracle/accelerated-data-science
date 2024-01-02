@@ -69,11 +69,7 @@ def list() -> None:
     )
 
 
-@runtime_dependency(
-    module="rich",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `rich` cannot be found. Please pip install rich.",
-)
+@runtime_dependency(module="rich", install_from=OptionalDependency.OPCTL)
 def info(
     type: str,
     **kwargs: Dict[str, Any],
@@ -224,11 +220,7 @@ def init(
     logger.info("#" * 50)
 
 
-@runtime_dependency(
-    module="docker",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `docker` cannot be found. Please pip install docker.",
-)
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 @validate_environment
 def build_image(
     type: str = None,
@@ -326,11 +318,7 @@ def build_image(
         )
 
 
-@runtime_dependency(
-    module="docker",
-    install_from=OptionalDependency.OPCTL,
-    err_msg="The library `docker` cannot be found. Please pip install docker.",
-)
+@runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
 @validate_environment
 def publish_image(
     type: str,
