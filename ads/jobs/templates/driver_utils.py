@@ -397,6 +397,7 @@ class JobRunner:
             shell=True,
         )
         # Stream the outputs
+        logger.debug("Streaming command output from subprocess %s", process.pid)
         while True:
             output = process.stdout.readline()
             if process.poll() is not None and output == b"":
@@ -411,9 +412,15 @@ class JobRunner:
                     # logging will add line break
                     msg = msg.rstrip("\n")
                     logger.log(level=level, msg=msg)
+                if "pdsh@" in msg and "ssh exited with exit code 1" in msg:
+                    print("DeepSpeed Failed.")
+                    sys.exit(1)
             # Add a small delay so that
             # outputs from the subsequent code will have different timestamp for oci logging
             time.sleep(0.02)
+        logger.debug(
+            "subprocess %s returned exit code %s", process.pid, process.returncode
+        )
         if check and process.returncode != 0:
             # If there is an error, exit the main process with the same return code.
             sys.exit(process.returncode)
