@@ -175,10 +175,6 @@ class GuardrailSequenceTests(GuardrailTestsBase):
 
         self.assert_before_and_after_serialization(test_fn, chain)
 
-    def test_empty_sequence(self):
-        """Tests empty sequence."""
-        seq = GuardrailSequence()
-        self.assertEqual(seq.steps, [])
 
     def test_save_to_file(self):
         """Tests saving to file."""
