@@ -673,7 +673,49 @@ class DeepSpeedRunner(Runner):
             self.run_deepspeed_worker()
 
 
+class GenericRunner(TorchRunner, DeepSpeedRunner):
+    """Runner for running command other than ``torchrun``, ``deepspeed`` or ``accelerate``."""
+
+    def use_deepspeed(self) -> bool:
+        """Indicate if DeepSpeed is used."""
+        if os.environ.get(CONST_ENV_DEEPSPEED):
+            return True
+        return False
+
+    def set_env_var(self):
+        """Set default environment variables."""
+        defaults = {
+            "WORLD_SIZE": self.node_count,
+            "MASTER_ADDR": self.host_ip,
+            "MASTER_PORT": self.RDZV_PORT,
+        }
+        for k, v in defaults.items():
+            if k not in os.environ:
+                os.environ[k] = v
+
+    def run(self):
+        """Runs the user's command.
+        Note that for TorchRunner or DeepSpeedRunner,
+        we automatically add arguments for some settings,
+        like the number of nodes and the host node address.
+
+        This generic runner does not modify the command specified by the user.
+        User needs to make sure the command can work on all nodes.
+        User may use the environment variables in the command.
+        """
+        self.set_env_var()
+        if self.use_deepspeed():
+            if self.is_host:
+                self.run_deepspeed_host()
+            else:
+                self.run_deepspeed_worker()
+        else:
+            self.time_cmd(cmd=self.prepare_cmd(prefix=self.env_ld_preload()))
+
+
 class AccelerateRunner(TorchRunner, DeepSpeedRunner):
+    """Runner for HuggingFace Accelerate."""
+
     # accelerate launch will add main_process_port for deepspeed cmd even if it is not needed.
     # https://github.com/huggingface/accelerate/blob/70920895e80f78d96d8f91e0beeb3ebdb8e5e5d6/src/accelerate/utils/launch.py#L233
     DEFAULT_ARGS = [
@@ -704,11 +746,18 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.main_process_ip = None
 
     def use_deepspeed(self):
-        return os.environ.get(CONST_ENV_DEEPSPEED) or self.launch_cmd_contains(
+        """Indicate if DeepSpeed is used."""
+        # Accelerate support using DeepSpeed by adding the "--use_deepspeed" argument.
+        if os.environ.get(CONST_ENV_DEEPSPEED) or self.launch_cmd_contains(
             "use_deepspeed"
-        )
+        ):
+            return True
+        return False
 
     def accelerate_args(self):
+        """Gets the default arguments for the accelerate command.
+        The value of the default arguments are assigned in ``__init__()``.
+        """
         args = []
         for arg in self.DEFAULT_ARGS:
             arg_val = getattr(self, arg, None)
@@ -720,6 +769,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         return args
 
     def run_with_torchrun(self):
+        """Runs the job with torchrun."""
         launch_args = self.accelerate_args()
         for arg in self.TORCHRUN_ARGS:
             if not self.launch_cmd_contains(arg):
@@ -728,6 +778,7 @@ class AccelerateRunner(TorchRunner, DeepSpeedRunner):
         self.time_cmd(cmd=cmd)
 
     def run_with_deepspeed(self):
+        """Runs the job with DeepSpeed."""
         if self.is_host:
             launch_args = self.accelerate_args()
             if self.num_machines > 1:
@@ -758,6 +809,8 @@ def main():
         runner_class = DeepSpeedRunner
     elif launch_cmd.startswith("accelerate "):
         runner_class = AccelerateRunner
+    else:
+        runner_class = GenericRunner
 
     runner = runner_class()
     runner: Runner
