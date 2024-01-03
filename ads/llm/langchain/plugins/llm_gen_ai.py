@@ -149,8 +149,8 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
         self._print_request(prompt, params)
 
         try:
-            response = (
-                self.completion_with_retry(prompts=[prompt], **params)
+            completion = (
+                self.completion_with_retry(prompt=prompt, **params)
                 if self.task == Task.TEXT_GENERATION
                 else self.completion_with_retry(input=prompt, **params)
             )
@@ -164,8 +164,8 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
             )
             raise
 
-        completion = self._process_response(response, params.get("num_generations", 1))
-        self._print_response(completion, response)
+        # completion = self._process_response(response, params.get("num_generations", 1))
+        # self._print_response(completion, response)
         return completion
 
     def _process_response(self, response: Any, num_generations: int = 1) -> str:
@@ -178,7 +178,7 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
             else [gen.text for gen in response.data.generated_texts[0]]
         )
 
-    def completion_with_retry(self, **kwargs: Any) -> Any:
+    def _completion_with_retry_v1(self, **kwargs: Any):
         from oci.generative_ai.models import (
             GenerateTextDetails,
             OnDemandServingMode,
@@ -188,15 +188,79 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
         # TODO: Add retry logic for OCI
         # Convert the ``model`` parameter to OCI ``ServingMode``
         # Note that "ServingMode` is not JSON serializable.
+        kwargs["prompts"] = [kwargs.pop("prompt")]
         kwargs["serving_mode"] = OnDemandServingMode(model_id=self.model)
         if self.task == Task.TEXT_GENERATION:
-            return self.client.generate_text(
+            response = self.client.generate_text(
                 GenerateTextDetails(**kwargs), **self.endpoint_kwargs
             )
+            if kwargs.get("num_generations", 1) == 1:
+                completion = response.data.generated_texts[0][0].text
+            else:
+                completion = [gen.text for gen in response.data.generated_texts[0]]
         else:
-            return self.client.summarize_text(
+            response = self.client.summarize_text(
                 SummarizeTextDetails(**kwargs), **self.endpoint_kwargs
             )
+            completion = response.data.summary
+        self._print_response(completion, response)
+        return completion
+
+    def _completion_with_retry_v2(self, **kwargs: Any):
+        from oci.generative_ai_inference.models import (
+            GenerateTextDetails,
+            OnDemandServingMode,
+            SummarizeTextDetails,
+            CohereLlmInferenceRequest,
+            LlamaLlmInferenceRequest,
+        )
+
+        request_class_mapping = {
+            "cohere": CohereLlmInferenceRequest,
+            "llama": LlamaLlmInferenceRequest,
+        }
+
+        request_class = None
+        for prefix, oci_request_class in request_class_mapping.items():
+            if self.model.startswith(prefix):
+                request_class = oci_request_class
+        if not request_class:
+            raise ValueError(f"Model {self.model} is not supported.")
+
+        if self.model.startswith("llama"):
+            kwargs.pop("truncate", None)
+            kwargs.pop("stop_sequences", None)
+
+        serving_mode = OnDemandServingMode(model_id=self.model)
+        if self.task == Task.TEXT_GENERATION:
+            compartment_id = kwargs.pop("compartment_id")
+            inference_request = request_class(**kwargs)
+            response = self.client.generate_text(
+                GenerateTextDetails(
+                    compartment_id=compartment_id,
+                    serving_mode=serving_mode,
+                    inference_request=inference_request,
+                ),
+                **self.endpoint_kwargs,
+            )
+            if kwargs.get("num_generations", 1) == 1:
+                completion = response.data.inference_response.generated_texts[0].text
+            else:
+                completion = [gen.text for gen in response.data.generated_texts]
+
+        else:
+            response = self.client.summarize_text(
+                SummarizeTextDetails(serving_mode=serving_mode, **kwargs),
+                **self.endpoint_kwargs,
+            )
+            completion = response.data.summary
+        self._print_response(completion, response)
+        return completion
+
+    def completion_with_retry(self, **kwargs: Any) -> Any:
+        if self.client.__class__.__name__ == "GenerativeAiClient":
+            return self._completion_with_retry_v1(**kwargs)
+        return self._completion_with_retry_v2(**kwargs)
 
     def batch_completion(
         self,
