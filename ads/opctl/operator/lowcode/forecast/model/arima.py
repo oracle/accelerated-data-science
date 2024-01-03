@@ -15,7 +15,7 @@ from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 import traceback
 from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ..const import ForecastOutputColumns
+from ..const import ForecastOutputColumns, SupportedModels
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -82,8 +82,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             if len(additional_regressors):
                 X_in = data_i.drop(target, axis=1)
 
-            # Build and fit model
-            model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
+            model = self.loaded_models[i] if self.loaded_models is not None else None
+            if model is None:
+                # Build and fit model
+                model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
 
             fitted_values[target] = model.predict_in_sample(X=X_in)
             actual_values[target] = y
@@ -117,13 +119,22 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
 
             # Collect all outputs
-            models.append(model)
+            if self.loaded_models is None:
+                models.append(model)
             outputs_legacy.append(
                 forecast.reset_index().rename(columns={"index": "ds"})
             )
             outputs[target] = forecast
 
-        self.models = models
+            params = vars(model).copy()
+            params.pop("arima_res_")
+            params.pop("endog_index_")
+            self.model_parameters[target] = {
+                "framework": SupportedModels.Arima,
+                **params,
+            }
+
+        self.models = self.loaded_models if self.loaded_models is not None else models
 
         logger.debug("===========Done===========")
 

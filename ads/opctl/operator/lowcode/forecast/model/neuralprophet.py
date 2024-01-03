@@ -22,7 +22,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.opctl import logger
 
-from ..const import DEFAULT_TRIALS, ForecastOutputColumns
+from ..const import DEFAULT_TRIALS, ForecastOutputColumns, SupportedModels
 from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
@@ -83,16 +83,20 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         # convert to neural prophets equivalent - quantiles
         model_kwargs = self.spec.model_kwargs
 
-        if self.spec.confidence_interval_width is None:
-            quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
-            self.spec.confidence_interval_width = float(quantiles[1]) - float(
-                quantiles[0]
-            )
-        else:
-            boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
-            quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
+        if self.loaded_models is None:
+            if self.spec.confidence_interval_width is None:
+                quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
+                self.spec.confidence_interval_width = float(quantiles[1]) - float(
+                    quantiles[0]
+                )
+            else:
+                boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
+                quantiles = [
+                    boundaries,
+                    self.spec.confidence_interval_width + boundaries,
+                ]
 
-        model_kwargs["quantiles"] = quantiles
+            model_kwargs["quantiles"] = quantiles
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width
         )
@@ -116,92 +120,97 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             additional_regressors = set(data_i.columns) - {"y", "ds"}
             training_data = data_i[["y", "ds"] + list(additional_regressors)]
 
-            if self.perform_tuning:
+            model = self.loaded_models[i] if self.loaded_models is not None else None
+            if model is None:
+                if self.perform_tuning:
 
-                def objective(trial):
-                    params = {
-                        # 'seasonality_mode': trial.suggest_categorical('seasonality_mode', ['additive', 'multiplicative']),
-                        # 'seasonality_reg': trial.suggest_float('seasonality_reg', 0.1, 500, log=True),
-                        # 'learning_rate': trial.suggest_float('learning_rate',  0.0001, 0.1, log=True),
-                        "newer_samples_start": trial.suggest_float(
-                            "newer_samples_start", 0.001, 0.999
-                        ),
-                        "newer_samples_weight": trial.suggest_float(
-                            "newer_samples_weight", 0, 100
-                        ),
-                        "changepoints_range": trial.suggest_float(
-                            "changepoints_range", 0.8, 0.95
-                        ),
-                    }
-                    # trend_reg, trend_reg_threshold, ar_reg, impute_rolling/impute_linear,
-                    params.update(model_kwargs_i)
+                    def objective(trial):
+                        params = {
+                            # 'seasonality_mode': trial.suggest_categorical('seasonality_mode', ['additive', 'multiplicative']),
+                            # 'seasonality_reg': trial.suggest_float('seasonality_reg', 0.1, 500, log=True),
+                            # 'learning_rate': trial.suggest_float('learning_rate',  0.0001, 0.1, log=True),
+                            "newer_samples_start": trial.suggest_float(
+                                "newer_samples_start", 0.001, 0.999
+                            ),
+                            "newer_samples_weight": trial.suggest_float(
+                                "newer_samples_weight", 0, 100
+                            ),
+                            "changepoints_range": trial.suggest_float(
+                                "changepoints_range", 0.8, 0.95
+                            ),
+                        }
+                        # trend_reg, trend_reg_threshold, ar_reg, impute_rolling/impute_linear,
+                        params.update(model_kwargs_i)
 
-                    folds = NeuralProphet(**params).crossvalidation_split_df(
-                        data_i, k=3
-                    )
-                    test_metrics_total_i = []
-                    for df_train, df_test in folds:
-                        m, accepted_regressors = _fit_model(
-                            data=df_train,
-                            params=params,
-                            additional_regressors=additional_regressors,
-                            select_metric=self.spec.metric,
+                        folds = NeuralProphet(**params).crossvalidation_split_df(
+                            data_i, k=3
                         )
-                        df_test = df_test[["y", "ds"] + accepted_regressors]
-
-                        test_forecast_i = m.predict(df=df_test)
-                        fold_metric_i = (
-                            m.metrics[self.spec.metric]
-                            .forward(
-                                Tensor(test_forecast_i["yhat1"]),
-                                Tensor(test_forecast_i["y"]),
+                        test_metrics_total_i = []
+                        for df_train, df_test in folds:
+                            m, accepted_regressors = _fit_model(
+                                data=df_train,
+                                params=params,
+                                additional_regressors=additional_regressors,
+                                select_metric=self.spec.metric,
                             )
-                            .item()
+                            df_test = df_test[["y", "ds"] + accepted_regressors]
+
+                            test_forecast_i = m.predict(df=df_test)
+                            fold_metric_i = (
+                                m.metrics[self.spec.metric]
+                                .forward(
+                                    Tensor(test_forecast_i["yhat1"]),
+                                    Tensor(test_forecast_i["y"]),
+                                )
+                                .item()
+                            )
+                            test_metrics_total_i.append(fold_metric_i)
+                        logger.debug(
+                            f"----------------------{np.asarray(test_metrics_total_i).mean()}----------------------"
                         )
-                        test_metrics_total_i.append(fold_metric_i)
-                    logger.debug(
-                        f"----------------------{np.asarray(test_metrics_total_i).mean()}----------------------"
+                        return np.asarray(test_metrics_total_i).mean()
+
+                    study = optuna.create_study(direction="minimize")
+                    m_params = NeuralProphet().parameters()
+                    study.enqueue_trial(
+                        {
+                            # 'seasonality_mode': m_params['seasonality_mode'],
+                            # 'seasonality_reg': m_params['seasonality_reg'],
+                            # 'learning_rate': m_params['learning_rate'],
+                            "newer_samples_start": m_params["newer_samples_start"],
+                            "newer_samples_weight": m_params["newer_samples_weight"],
+                            "changepoints_range": m_params["changepoints_range"],
+                        }
                     )
-                    return np.asarray(test_metrics_total_i).mean()
+                    study.optimize(
+                        objective,
+                        n_trials=self.spec.tuning.n_trials
+                        if self.spec.tuning
+                        else DEFAULT_TRIALS,
+                        n_jobs=-1,
+                    )
 
-                study = optuna.create_study(direction="minimize")
-                m_params = NeuralProphet().parameters()
-                study.enqueue_trial(
-                    {
-                        # 'seasonality_mode': m_params['seasonality_mode'],
-                        # 'seasonality_reg': m_params['seasonality_reg'],
-                        # 'learning_rate': m_params['learning_rate'],
-                        "newer_samples_start": m_params["newer_samples_start"],
-                        "newer_samples_weight": m_params["newer_samples_weight"],
-                        "changepoints_range": m_params["changepoints_range"],
-                    }
+                    selected_params = study.best_params
+                    selected_params.update(model_kwargs_i)
+                    model_kwargs_i = selected_params
+
+                # Build and fit model
+                model, accepted_regressors = _fit_model(
+                    data=training_data,
+                    params=model_kwargs_i,
+                    additional_regressors=additional_regressors,
+                    select_metric=self.spec.metric,
                 )
-                study.optimize(
-                    objective,
-                    n_trials=self.spec.tuning.n_trials
-                    if self.spec.tuning
-                    else DEFAULT_TRIALS,
-                    n_jobs=-1,
+                logger.debug(
+                    f"Found the following additional data columns: {additional_regressors}"
                 )
-
-                selected_params = study.best_params
-                selected_params.update(model_kwargs_i)
-                model_kwargs_i = selected_params
-
-            # Build and fit model
-            model, accepted_regressors = _fit_model(
-                data=training_data,
-                params=model_kwargs_i,
-                additional_regressors=additional_regressors,
-                select_metric=self.spec.metric,
-            )
-            logger.debug(
-                f"Found the following additional data columns: {additional_regressors}"
-            )
-            logger.debug(
-                f"While fitting the model, some additional data may have been "
-                f"discarded. Only using the columns: {accepted_regressors}"
-            )
+                logger.debug(
+                    f"While fitting the model, some additional data may have been "
+                    f"discarded. Only using the columns: {accepted_regressors}"
+                )
+            else:
+                accepted_regressors_config = model.config_regressors or dict()
+                accepted_regressors = list(accepted_regressors_config.keys())
 
             # Build future dataframe
             future = df_clean.reset_index(drop=True)
@@ -212,11 +221,36 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             forecast = model.predict(future)
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast.tail())
-            models.append(model)
+            if self.loaded_models is None:
+                models.append(model)
             outputs[target] = forecast
             outputs_legacy.append(forecast)
 
-        self.models = models
+            self.model_parameters[target] = {
+                "framework": SupportedModels.NeuralProphet,
+                "config": model.config,
+                "config_trend": model.config_trend,
+                "config_train": model.config_train,
+                "config_seasonality": model.config_seasonality,
+                "config_regressors": model.config_regressors,
+                "config_ar": model.config_ar,
+                "config_events": model.config_events,
+                "config_country_holidays": model.config_country_holidays,
+                "config_lagged_regressors": model.config_lagged_regressors,
+                "config_normalization": model.config_normalization,
+                "config_missing": model.config_missing,
+                "config_model": model.config_model,
+                "config_normalization": model.config_normalization,
+                "data_freq": model.data_freq,
+                "fitted": model.fitted,
+                "data_params": model.data_params,
+                "future_periods": model.future_periods,
+                "predict_steps": model.predict_steps,
+                "highlight_forecast_step_n": model.highlight_forecast_step_n,
+                "true_ar_weights": model.true_ar_weights,
+            }
+
+        self.models = self.loaded_models if self.loaded_models is not None else models
         self.outputs = outputs_legacy
 
         logger.debug("===========Done===========")
@@ -251,7 +285,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 -self.spec.horizon :,
                 output_i.columns.get_loc(yhat_upper_name),
             ] = (
-                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1]*100}%"]
+                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1] * 100}%"]
                 .iloc[-self.spec.horizon :]
                 .values
             )
@@ -259,7 +293,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 -self.spec.horizon :,
                 output_i.columns.get_loc(yhat_lower_name),
             ] = (
-                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0]*100}%"]
+                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0] * 100}%"]
                 .iloc[-self.spec.horizon :]
                 .values
             )

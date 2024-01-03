@@ -11,6 +11,7 @@ from typing import List
 import fsspec
 import numpy as np
 import pandas as pd
+import cloudpickle
 import plotly.express as px
 from plotly import graph_objects as go
 from sklearn.metrics import (
@@ -168,6 +169,26 @@ def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
+def load_pkl(filepath):
+    storage_options = dict()
+    if ObjectStorageDetails.is_oci_path(filepath):
+        storage_options = default_signer()
+
+    with fsspec.open(filepath, "rb", **storage_options) as f:
+        return cloudpickle.load(f)
+    return None
+
+
+def write_pkl(obj, filename, output_dir, storage_options):
+    pkl_path = os.path.join(output_dir, filename)
+    with fsspec.open(
+        pkl_path,
+        "wb",
+        **storage_options,
+    ) as f:
+        cloudpickle.dump(obj, f)
+
+
 def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
     if not format:
         _, format = os.path.splitext(filename)
@@ -194,7 +215,7 @@ def _write_data(data, filename, format, storage_options, index=False, **kwargs):
     if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
         write_fn = getattr(data, f"to_{format}")
         return _call_pandas_fsspec(
-            write_fn, filename, index=index, storage_options=storage_options
+            write_fn, filename, index=index, storage_options=storage_options, **kwargs
         )
     raise ForecastInputDataError(f"Unrecognized format: {format}")
 

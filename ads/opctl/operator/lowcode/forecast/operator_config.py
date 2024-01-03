@@ -15,6 +15,7 @@ from ads.opctl.operator.common.operator_config import OperatorConfig
 from .const import SupportedMetrics
 from .const import SupportedModels
 
+
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
     """Class representing operator specification input data details."""
@@ -92,6 +93,10 @@ class ForecastOperatorSpec(DataClassSerializable):
     freq: str = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
+    model_parameters: str = None
+    model_pickle: str = None
+    generate_model_parameters: bool = None
+    generate_model_pickle: bool = None
     confidence_interval_width: float = None
     metric: str = None
     tuning: Tuning = field(default_factory=Tuning)
@@ -99,7 +104,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     def __post_init__(self):
         """Adjusts the specification details."""
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
-        self.model = (self.model or SupportedModels.Auto)
+        self.model = self.model or SupportedModels.Auto
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (
@@ -117,6 +122,17 @@ class ForecastOperatorSpec(DataClassSerializable):
         self.generate_explanations = (
             self.generate_explanations
             if self.generate_explanations is not None
+            else False
+        )
+
+        self.generate_model_parameters = (
+            self.generate_model_parameters
+            if self.generate_model_parameters is not None
+            else False
+        )
+        self.generate_model_pickle = (
+            self.generate_model_pickle
+            if self.generate_model_pickle is not None
             else False
         )
         self.report_theme = self.report_theme or "light"

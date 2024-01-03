@@ -18,6 +18,7 @@ from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ..const import SupportedModels
 
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
@@ -45,6 +46,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
+        import automl
         from automl import init
         from sktime.forecasting.model_selection import temporal_train_test_split
 
@@ -55,7 +57,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         models = dict()
         outputs = dict()
         outputs_legacy = dict()
-        selected_models = dict()
         date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon
         self.datasets.datetime_col = date_column
@@ -64,20 +65,24 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             confidence_interval_width=self.spec.confidence_interval_width
         )
 
-        # Clean up kwargs for pass through
-        model_kwargs_cleaned = self.spec.model_kwargs.copy()
-        model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
-            "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
-        )
-        model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
-            self.spec.metric,
-            model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
-        )
-        model_kwargs_cleaned.pop("task", None)
-        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
-        model_kwargs_cleaned[
-            "preprocessing"
-        ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
+        model_kwargs_cleaned = None
+        if self.loaded_models is None:
+            # Clean up kwargs for pass through
+            model_kwargs_cleaned = self.spec.model_kwargs.copy()
+            model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
+                "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
+            )
+            model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
+                self.spec.metric,
+                model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
+            )
+            model_kwargs_cleaned.pop("task", None)
+            time_budget = model_kwargs_cleaned.pop("time_budget", 0)
+            model_kwargs_cleaned[
+                "preprocessing"
+            ] = self.spec.preprocessing or model_kwargs_cleaned.get(
+                "preprocessing", True
+            )
 
         for i, (target, df) in enumerate(full_data_dict.items()):
             logger.debug("Running automl for {} at position {}".format(target, i))
@@ -100,15 +105,19 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if y_train.index.is_monotonic
                 else "NOT" + "monotonic."
             )
-            model = automl.Pipeline(
-                task="forecasting",
-                **model_kwargs_cleaned,
+            model = (
+                self.loaded_models[target] if self.loaded_models is not None else None
             )
-            model.fit(
-                X=y_train.drop(target, axis=1),
-                y=pd.DataFrame(y_train[target]),
-                time_budget=time_budget,
-            )
+            if model is None:
+                model = automl.Pipeline(
+                    task="forecasting",
+                    **model_kwargs_cleaned,
+                )
+                model.fit(
+                    X=y_train.drop(target, axis=1),
+                    y=pd.DataFrame(y_train[target]),
+                    time_budget=time_budget,
+                )
             logger.debug("Selected model: {}".format(model.selected_model_))
             logger.debug(
                 "Selected model params: {}".format(model.selected_model_params_)
@@ -135,12 +144,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             )
 
             # Collect Outputs
-            selected_models[target] = {
-                "series_id": target,
-                "selected_model": model.selected_model_,
-                "model_params": model.selected_model_params_,
-            }
-            models[target] = model
+            if self.loaded_models is None:
+                models[target] = model
             summary_frame = summary_frame.rename_axis("ds").reset_index()
             summary_frame = summary_frame.rename(
                 columns={
@@ -155,6 +160,26 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 summary_frame["yhat_lower"] = np.NAN
             outputs[target] = summary_frame
             # outputs_legacy[target] = summary_frame
+
+            self.model_parameters[target] = {
+                "framework": SupportedModels.AutoMLX,
+                "score_metric": model.score_metric,
+                "random_state": model.random_state,
+                "model_list": model.model_list,
+                "n_algos_tuned": model.n_algos_tuned,
+                "adaptive_sampling": model.adaptive_sampling,
+                "min_features": model.min_features,
+                "optimization": model.optimization,
+                "preprocessing": model.preprocessing,
+                "search_space": model.search_space,
+                "time_series_period": model.time_series_period,
+                "min_class_instances": model.min_class_instances,
+                "max_tuning_trials": model.max_tuning_trials,
+                "contamination": model_kwargs_cleaned.get("contamination", 0.01),
+                "selected_model": model.selected_model_,
+                "selected_model_params": model.selected_model_params_,
+                "time_budget": time_budget,
+            }
 
         logger.debug("===========Forecast Generated===========")
         outputs_merged = pd.DataFrame()
@@ -181,8 +206,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
         # output_col = output_col.reset_index(drop=True)
         # outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
-
-        self.models = models
+        if self.loaded_models is None:
+            self.models = models
         return outputs_merged
 
     @runtime_dependency(
@@ -218,7 +243,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             "chosen model for each series and the corresponding parameters of the models."
         )
         selected_models = dict()
-        models = self.models
+        models = self.loaded_models if self.loaded_models is not None else self.models
         for i, (target, df) in enumerate(self.full_data_dict.items()):
             selected_models[target] = {
                 "series_id": target,

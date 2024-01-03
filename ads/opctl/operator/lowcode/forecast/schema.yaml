@@ -287,6 +287,18 @@ spec:
       type: dict
       required: false
 
+    model_pickle:
+      type: string
+      required: false
+
+    generate_model_parameters:
+      type: boolean
+      required: false
+
+    generate_model_pickle:
+      type: boolean
+      required: false
+
     confidence_interval_width:
       type: float
       required: false
