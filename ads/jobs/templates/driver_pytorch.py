@@ -341,13 +341,15 @@ class Runner(driver_utils.JobRunner):
             launch_args = []
         # Append launch cmd args specified by the user.
         if self.launch_cmd:
-            if not self.launch_cmd.startswith(self.LAUNCHER):
-                raise ValueError(
-                    f"Command not supported: '{self.launch_cmd}'. "
-                    f"The command should start with '{self.LAUNCHER}'."
-                )
+            if self.LAUNCHER:
+                if not self.launch_cmd.startswith(self.LAUNCHER):
+                    raise ValueError(
+                        f"Command not supported: '{self.launch_cmd}'. "
+                    )
 
-            launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
+                launch_args.append(self.launch_cmd[len(self.LAUNCHER) + 1 :])
+            else:
+                launch_args.append(self.launch_cmd)
         else:
             launch_args.append(self.get_cmd_with_entrypoint_and_args())
 
@@ -675,6 +677,8 @@ class DeepSpeedRunner(Runner):
 
 class GenericRunner(TorchRunner, DeepSpeedRunner):
     """Runner for running command other than ``torchrun``, ``deepspeed`` or ``accelerate``."""
+
+    LAUNCHER = ""
 
     def use_deepspeed(self) -> bool:
         """Indicate if DeepSpeed is used."""
