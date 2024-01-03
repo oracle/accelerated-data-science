@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Contains Mixins for integrating OCI data models
@@ -274,7 +274,7 @@ class OCISerializableMixin(OCIClientMixin):
         else:
             return cls.__deserialize_model(data, to_cls)
 
-    @classmethod
+    @class_or_instance_method
     def __deserialize_model(cls, data, to_cls):
         """De-serializes list or dict to model."""
         if isinstance(data, to_cls):
@@ -969,7 +969,8 @@ class OCIWorkRequestMixin:
                 logger.error(f"Max wait time ({max_wait_time} seconds) exceeded.")
             previous_percent_complete = 0
             while not exceed_max_time and (
-                not work_request_logs or previous_percent_complete <= WORK_REQUEST_PERCENTAGE
+                not work_request_logs
+                or previous_percent_complete <= WORK_REQUEST_PERCENTAGE
             ):
                 time.sleep(poll_interval)
                 new_work_request_logs = []
@@ -986,7 +987,9 @@ class OCIWorkRequestMixin:
                     work_request_logs[i:] if work_request_logs else []
                 )
 
-                percent_change = work_request.percent_complete - previous_percent_complete
+                percent_change = (
+                    work_request.percent_complete - previous_percent_complete
+                )
                 previous_percent_complete = work_request.percent_complete
 
                 if len(new_work_request_logs) > 0:

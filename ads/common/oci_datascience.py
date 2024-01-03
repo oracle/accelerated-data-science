@@ -20,6 +20,7 @@ class OCIDataScienceMixin(OCIModelMixin):
             client_kwargs.update(
                 dict(service_endpoint=os.environ.get(ENV_VAR_OCI_ODSC_SERVICE_ENDPOINT))
             )
+            kwargs.update(client_kwargs)
         return cls._init_client(client=oci.data_science.DataScienceClient, **kwargs)
 
     @property
