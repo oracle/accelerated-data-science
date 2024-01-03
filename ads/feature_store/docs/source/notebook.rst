@@ -49,6 +49,23 @@ Big data operations using OCI DataFlow
       - | * Ingestion of data using Spark Magic.
         | * Querying and exploration of data using Spark Magic.
 
+Streaming operations using Spark Streaming
+##########################################
+
+.. admonition:: Notebook Examples
+  :class: note
+
+  .. list-table::
+    :widths: 50 50
+    :header-rows: 1
+
+    * - Jupyter Notebook
+      - Description
+
+    * - `Streaming operations with feature store <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/feature_store_streaming_data_frame.ipynb>`__
+      - | * Ingestion of data using spark streaming.
+        | * Modes of ingestion: ``COMPLETE`` and ``APPEND``.
+
 LLM Use cases
 #############
 

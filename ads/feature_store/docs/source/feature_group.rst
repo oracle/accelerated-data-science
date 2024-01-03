@@ -145,6 +145,28 @@ The ``.materialise_stream()`` method takes the following parameter:
     - ``write_options``: Extra write options for Spark as key-value pairs.
         - Defaults to ``{}``.
 
+.. code-block:: python3
+
+  from ads.feature_store.feature_group import FeatureGroup
+
+  from ads.feature_store.common.spark_session_singleton import SparkSessionSingleton
+  from pyspark.sql.types import StructType
+
+  # Get the spark session managed by the feature store
+  spark = SparkSessionSingleton(metastore_id=metastore_id).get_spark_session()
+
+  df = spark.readStream \
+    .option("sep", ",") \
+    .option("header", True) \
+    .csv(f"{stream_data_dir}/")
+
+  feature_group = FeatureGroup.from_id("<unique_id>")
+
+  query = fg.materialise_stream(input_dataframe=df, checkpoint_dir=f"{stream_data_dir}chec")
+
+  query.awaitTermination()
+
+
 .. seealso::
    :ref:`Feature Group Job`
 
