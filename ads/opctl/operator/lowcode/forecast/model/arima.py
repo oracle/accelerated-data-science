@@ -7,6 +7,7 @@
 import pandas as pd
 import numpy as np
 import pmdarima as pm
+from joblib import Parallel, delayed
 
 from ads.opctl import logger
 
@@ -29,8 +30,18 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.formatted_global_explanation = None
         self.formatted_local_explanation = None
 
-    def _build_model(self) -> pd.DataFrame:
-        full_data_dict = self.datasets.full_data_dict
+    def _train_model(self, i, target, df):
+        """Trains the ARIMA model for a given target.
+
+        Parameters
+        ----------
+        i: int
+            The index of the target
+        target: str
+            The name of the target
+        df: pd.DataFrame
+            The dataframe containing the target data
+        """
 
         # Extract the Confidence Interval Width and convert to arima's equivalent - alpha
         if self.spec.confidence_interval_width is None:
@@ -42,90 +53,99 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         if "error_action" not in model_kwargs.keys():
             model_kwargs["error_action"] = "ignore"
 
-        models = []
+        # models = []
+
+        # format the dataframe for this target. Dropping NA on target[df] will remove all future data
+        le, df_encoded = utils._label_encode_dataframe(
+            df, no_encode={self.spec.datetime_column.name, target}
+        )
+
+        df_encoded[self.spec.datetime_column.name] = pd.to_datetime(
+            df_encoded[self.spec.datetime_column.name],
+            format=self.spec.datetime_column.format,
+        )
+        df_clean = df_encoded.set_index(self.spec.datetime_column.name)
+        data_i = df_clean[df_clean[target].notna()]
+
+        # Assume that all columns passed in should be used as additional data
+        additional_regressors = set(data_i.columns) - {
+            target,
+            self.spec.datetime_column.name,
+        }
+        logger.debug(f"Additional Regressors Detected {list(additional_regressors)}")
+
+        # Split data into X and y for arima tune method
+        y = data_i[target]
+        X_in = None
+        if len(additional_regressors):
+            X_in = data_i.drop(target, axis=1)
+
+        # Build and fit model
+        model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
+
+        self.fitted_values[target] = model.predict_in_sample(X=X_in)
+        self.actual_values[target] = y
+        self.actual_values[target].index = pd.to_datetime(y.index)
+
+        # Build future dataframe
+        start_date = y.index.values[-1]
+        n_periods = self.spec.horizon
+        if len(additional_regressors):
+            X = df_clean[df_clean[target].isnull()].drop(target, axis=1)
+        else:
+            X = pd.date_range(start=start_date, periods=n_periods, freq=self.spec.freq)
+
+        # Predict and format forecast
+        yhat, conf_int = model.predict(
+            n_periods=n_periods,
+            X=X,
+            return_conf_int=True,
+            alpha=model_kwargs["alpha"],
+        )
+        yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
+
+        self.dt_columns[target] = df_encoded[self.spec.datetime_column.name]
+        conf_int_clean = pd.DataFrame(
+            conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
+        )
+        forecast = pd.concat([yhat_clean, conf_int_clean], axis=1)
+        logger.debug(f"-----------------Model {i}----------------------")
+        logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
+
+        # Collect all outputs
+        # models.append(model)
+        self.outputs_legacy.append(
+            forecast.reset_index().rename(columns={"index": "ds"})
+        )
+        self.outputs[target] = forecast
+
+        self.models_dict[target] = model
+
+        logger.debug("===========Done===========")
+
+    def _build_model(self) -> pd.DataFrame:
+        full_data_dict = self.datasets.full_data_dict
+
         self.datasets.datetime_col = self.spec.datetime_column.name
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width
         )
 
-        outputs = dict()
-        outputs_legacy = []
-        fitted_values = dict()
-        actual_values = dict()
-        dt_columns = dict()
+        self.outputs = dict()
+        self.outputs_legacy = []
+        self.fitted_values = dict()
+        self.actual_values = dict()
+        self.dt_columns = dict()
+        self.models_dict = dict()
 
-        for i, (target, df) in enumerate(full_data_dict.items()):
-            # format the dataframe for this target. Dropping NA on target[df] will remove all future data
-            le, df_encoded = utils._label_encode_dataframe(
-                df, no_encode={self.spec.datetime_column.name, target}
+        Parallel(n_jobs=-1, require="sharedmem")(
+            delayed(ArimaOperatorModel._train_model)(self, i, target, df)
+            for self, (i, (target, df)) in zip(
+                [self] * len(full_data_dict), enumerate(full_data_dict.items())
             )
+        )
 
-            df_encoded[self.spec.datetime_column.name] = pd.to_datetime(
-                df_encoded[self.spec.datetime_column.name],
-                format=self.spec.datetime_column.format,
-            )
-            df_clean = df_encoded.set_index(self.spec.datetime_column.name)
-            data_i = df_clean[df_clean[target].notna()]
-
-            # Assume that all columns passed in should be used as additional data
-            additional_regressors = set(data_i.columns) - {
-                target,
-                self.spec.datetime_column.name,
-            }
-            logger.debug(
-                f"Additional Regressors Detected {list(additional_regressors)}"
-            )
-
-            # Split data into X and y for arima tune method
-            y = data_i[target]
-            X_in = None
-            if len(additional_regressors):
-                X_in = data_i.drop(target, axis=1)
-
-            # Build and fit model
-            model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
-
-            fitted_values[target] = model.predict_in_sample(X=X_in)
-            actual_values[target] = y
-            actual_values[target].index = pd.to_datetime(y.index)
-
-            # Build future dataframe
-            start_date = y.index.values[-1]
-            n_periods = self.spec.horizon
-            if len(additional_regressors):
-                X = df_clean[df_clean[target].isnull()].drop(target, axis=1)
-            else:
-                X = pd.date_range(
-                    start=start_date, periods=n_periods, freq=self.spec.freq
-                )
-
-            # Predict and format forecast
-            yhat, conf_int = model.predict(
-                n_periods=n_periods,
-                X=X,
-                return_conf_int=True,
-                alpha=model_kwargs["alpha"],
-            )
-            yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
-
-            dt_columns[target] = df_encoded[self.spec.datetime_column.name]
-            conf_int_clean = pd.DataFrame(
-                conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
-            )
-            forecast = pd.concat([yhat_clean, conf_int_clean], axis=1)
-            logger.debug(f"-----------------Model {i}----------------------")
-            logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
-
-            # Collect all outputs
-            models.append(model)
-            outputs_legacy.append(
-                forecast.reset_index().rename(columns={"index": "ds"})
-            )
-            outputs[target] = forecast
-
-        self.models = models
-
-        logger.debug("===========Done===========")
+        self.models = [self.models_dict[target] for target in self.target_columns]
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
@@ -134,15 +154,15 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
         for cat in self.categories:
             output_i = pd.DataFrame()
-            output_i["Date"] = dt_columns[f"{col}_{cat}"]
+            output_i["Date"] = self.dt_columns[f"{col}_{cat}"]
             output_i["Series"] = cat
             output_i = output_i.set_index("Date")
 
-            output_i["input_value"] = actual_values[f"{col}_{cat}"]
-            output_i["fitted_value"] = fitted_values[f"{col}_{cat}"]
-            output_i["forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
-            output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
-            output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
+            output_i["input_value"] = self.actual_values[f"{col}_{cat}"]
+            output_i["fitted_value"] = self.fitted_values[f"{col}_{cat}"]
+            output_i["forecast_value"] = self.outputs[f"{col}_{cat}"]["yhat"]
+            output_i[yhat_upper_name] = self.outputs[f"{col}_{cat}"]["yhat_upper"]
+            output_i[yhat_lower_name] = self.outputs[f"{col}_{cat}"]["yhat_lower"]
 
             output_i = output_i.reset_index(drop=False)
             output_col = pd.concat([output_col, output_i])
@@ -252,7 +272,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
         """
         date_col = self.spec.datetime_column.name
-        data[date_col] = pd.to_datetime(data[date_col], unit='s')
+        data[date_col] = pd.to_datetime(data[date_col], unit="s")
         data = data.set_index(date_col)
         # Get the index of the current series id
         series_index = self.target_columns.index(self.series_id)
