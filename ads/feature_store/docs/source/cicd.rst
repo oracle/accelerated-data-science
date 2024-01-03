@@ -78,6 +78,46 @@ Upsert mode, also known as merge mode, updates existing records in the dataset b
    feature_group = FeatureGroup.from_id("<unique_id>")
    feature_group.materialise(airports_df, ingestion_mode=BatchIngestionMode.UPSERT)
 
+Complete Mode
+#############
+
+Complete Mode involves rewriting the full output for each batch interval. It provides the complete result set for the computation performed on that batch interval. This mode is suitable when requiring a comprehensive, updated result set for every batch interval, regardless of whether it's a complete rewrite of the entire output.
+
+.. code-block:: python3
+
+   from ads.feature_store.feature_group_job import StreamingIngestionMode
+   from ads.feature_store.feature_group import FeatureGroup
+
+   feature_group = FeatureGroup.from_id("<unique_id>")
+   feature_group.materialise_stream(df, ingestion_mode=StreamingIngestionMode.COMPLETE)
+
+Update Mode
+###########
+
+Update Mode is specifically designed to capture only the changed records in the output. It outputs the rows that have been updated since the last batch, maintaining intermediate state and providing insights into the delta or changes between different batches. This mode is ideal for scenarios involving aggregations or incremental updates to the output data.
+
+.. code-block:: python3
+
+   from ads.feature_store.feature_group_job import StreamingIngestionMode
+   from ads.feature_store.feature_group import FeatureGroup
+
+   feature_group = FeatureGroup.from_id("<unique_id>")
+   feature_group.materialise_stream(df, ingestion_mode=StreamingIngestionMode.UPDATE)
+
+Append Mode
+###########
+
+Append Mode appends newly generated results from each micro-batch to the output sink. It works when the computation produces only new records and does not modify or update existing data in the output. This mode suits scenarios where the result set continuously grows, with each batch contributing new records without altering existing ones.
+
+.. code-block:: python3
+
+   from ads.feature_store.feature_group_job import StreamingIngestionMode
+   from ads.feature_store.feature_group import FeatureGroup
+
+   feature_group = FeatureGroup.from_id("<unique_id>")
+   feature_group.materialise_stream(df, ingestion_mode=StreamingIngestionMode.APPEND)
+
+
 Considerations for Usage
 ########################
 
