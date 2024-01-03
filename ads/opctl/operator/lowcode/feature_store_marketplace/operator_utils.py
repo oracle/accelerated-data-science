@@ -70,6 +70,7 @@ def get_db_details() -> DBConfig:
         prefix_newline_count=2,
     )
     mysql_db_config.username = click.prompt("Username", default="admin")
+
     mysql_db_config.auth_type = MySqlConfig.MySQLAuthType(
         click.prompt(
             "Is password provided as plain-text or via a Vault secret?\n"
@@ -128,7 +129,40 @@ def get_region() -> Optional[str]:
         return None
 
 
+def _create_new_stack(apigw_config: APIGatewayConfig):
+    resource_manager_client: oci.resource_manager.ResourceManagerClient = (
+        OCIClientFactory(**authutil.default_signer()).create_client(
+            oci.resource_manager.ResourceManagerClient
+        )
+    )
+    print("Creating new api gateway stack...")
+    response = requests.get(STACK_URL)
+    source_details = oci.resource_manager.models.CreateZipUploadConfigSourceDetails()
+    source_details.zip_file_base64_encoded = base64.b64encode(response.content).decode()
+    stack_details = oci.resource_manager.models.CreateStackDetails()
+    stack_details.compartment_id = apigw_config.root_compartment_id
+    stack_details.display_name = APIGW_STACK_NAME
+    stack_details.config_source = source_details
+    stack_details.variables = {
+        "nlb_id": "",
+        "tenancy_ocid": apigw_config.root_compartment_id,
+        "function_img_ocir_url": "",
+        "authorized_user_groups": apigw_config.authorized_user_groups,
+        "region": apigw_config.region,
+    }
+    stack: oci.resource_manager.models.Stack = resource_manager_client.create_stack(
+        stack_details
+    ).data
+    print(f"Created stack {stack.display_name} with id {stack.id}")
+    return stack.id
+
+
 def detect_or_create_stack(apigw_config: APIGatewayConfig):
+    def _print_stack_detail(stack: StackSummary):
+        print(
+            f"Detected stack :'{stack.display_name}' created on: '{stack.time_created}'"
+        )
+
     resource_manager_client: oci.resource_manager.ResourceManagerClient = (
         OCIClientFactory(**authutil.default_signer()).create_client(
             oci.resource_manager.ResourceManagerClient
@@ -142,46 +176,21 @@ def detect_or_create_stack(apigw_config: APIGatewayConfig):
         sort_order="DESC",
     ).data
 
-    if len(stacks) == 1:
-        print(
-            f"Auto-detected feature store APIGW stack: {stacks[0].display_name}({stacks[0].id}"
-        )
-        click.prompt(
-            f"Auto detected existing feature store stack: '{stacks[0].display_name}({stacks[0].id}'\n.Provide an OCID to use or",
-            default=stacks[0].id,
-        )
-        return stacks[0].id
-    elif len(stacks) == 0:
-        if not click.confirm(
-            f"Couldn't detect any existing feature store api gateway stack. Should we create one?",
-            default=True,
-        ):
-            return click.prompt(
-                "Enter the resource manager stack OCID of the stack to use"
-            )
-        print("Creating feature store API Gateway stack")
-        response = requests.get(STACK_URL)
-        source_details = (
-            oci.resource_manager.models.CreateZipUploadConfigSourceDetails()
-        )
-        source_details.zip_file_base64_encoded = base64.b64encode(
-            response.content
-        ).decode()
-        stack_details = oci.resource_manager.models.CreateStackDetails()
-        stack_details.compartment_id = apigw_config.root_compartment_id
-        stack_details.display_name = APIGW_STACK_NAME
-        stack_details.config_source = source_details
-        stack_details.variables = {
-            "nlb_id": "",
-            "tenancy_ocid": apigw_config.root_compartment_id,
-            "function_img_ocir_url": "",
-            "authorized_user_groups": apigw_config.authorized_user_groups,
-            "region": apigw_config.region,
-        }
-        return resource_manager_client.create_stack(stack_details).data.id
-    elif len(stacks) > 1:
+    if len(stacks) >= 1:
+        print(f"Auto-detected feature store stack(s) in tenancy:")
+        for stack in stacks:
+            _print_stack_detail(stack)
+    choices = {"1": "new", "2": "existing"}
+    stack_provision_method = click.prompt(
+        f"Select stack provisioning method:\n1.Create new stack\n2.Existing stack\n",
+        type=click.Choice(list(choices.keys())),
+    )
+    if choices[stack_provision_method] == "new":
+        return _create_new_stack(apigw_config)
+    else:
         return click.prompt(
-            "Multiple feature store apigw stacks detected. Please enter the resource manager stack OCID of the stack to use:"
+            "Enter the resource manager stack OCID of the stack to use",
+            show_choices=False,
         )
 
 

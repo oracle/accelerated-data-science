@@ -140,13 +140,6 @@ def _export_helm_chart_(listing_details: HelmMarketplaceListingDetails):
     # Get the data from response
 
 
-def get_marketplace_request_status(work_request_id):
-    get_work_request_response = get_marketplace_client().get_work_request(
-        work_request_id=work_request_id
-    )
-    return get_work_request_response.data
-
-
 def list_container_images(
     compartment_id: str, ocir_image_path: str
 ) -> oci.artifacts.models.ContainerImageCollection:

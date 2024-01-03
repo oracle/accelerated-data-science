@@ -10,12 +10,12 @@ import click
 from ads.opctl.operator.lowcode.feature_store_marketplace.operator_utils import (
     get_latest_listing_version,
     get_api_gw_details,
+    get_db_details,
 )
 
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.db_config import (
     DBConfig,
 )
-from ads.opctl.operator.lowcode.feature_store_marketplace.prompts import get_db_details
 from ads.opctl.backend.marketplace.marketplace_utils import Color, print_heading
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
