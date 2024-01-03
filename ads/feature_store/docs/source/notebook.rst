@@ -4,6 +4,8 @@
 Notebook Examples
 *****************
 
+Below is a compilation of tutorials focused on understanding and utilizing Feature Stores. You can find the raw notebook files in our `tutorials repository <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/tutorials/README.md>`_.
+
 Quick start examples
 ####################
 
