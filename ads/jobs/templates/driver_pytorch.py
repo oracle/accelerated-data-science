@@ -691,7 +691,7 @@ class GenericRunner(TorchRunner, DeepSpeedRunner):
         }
         for k, v in defaults.items():
             if k not in os.environ:
-                os.environ[k] = v
+                os.environ[k] = str(v)
 
     def run(self):
         """Runs the user's command.
