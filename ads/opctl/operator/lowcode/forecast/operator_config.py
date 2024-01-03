@@ -132,6 +132,7 @@ class ForecastOperatorSpec(DataClassSerializable):
             self.local_explanation_filename or "local_explanation.csv"
         )
         self.target_column = self.target_column or "Sales"
+        self.errors_dict_filename = "errors_dict.json"
         self.model_kwargs = self.model_kwargs or dict()
 
 
