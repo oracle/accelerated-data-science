@@ -157,12 +157,11 @@ def _create_new_stack(apigw_config: APIGatewayConfig):
     return stack.id
 
 
-def detect_or_create_stack(apigw_config: APIGatewayConfig):
-    def _print_stack_detail(stack: StackSummary):
-        print(
-            f"Detected stack :'{stack.display_name}' created on: '{stack.time_created}'"
-        )
+def _print_stack_detail(stack: StackSummary):
+    print(f"Detected stack :'{stack.display_name}' created on: '{stack.time_created}'")
 
+
+def detect_or_create_stack(apigw_config: APIGatewayConfig):
     resource_manager_client: oci.resource_manager.ResourceManagerClient = (
         OCIClientFactory(**authutil.default_signer()).create_client(
             oci.resource_manager.ResourceManagerClient
