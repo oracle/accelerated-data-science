@@ -5,9 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
+
 import oci.data_science
-from ads.common.oci_mixin import OCIModelMixin
+
 from ads.common.decorator.utils import class_or_instance_method
+from ads.common.oci_mixin import OCIModelMixin
 
 ENV_VAR_OCI_ODSC_SERVICE_ENDPOINT = "OCI_ODSC_SERVICE_ENDPOINT"
 
