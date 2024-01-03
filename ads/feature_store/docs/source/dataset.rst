@@ -27,7 +27,6 @@ The following example defines a dataset and gives it a name. A ``Dataset`` insta
         .with_feature_store_id("<feature_store_id>")
         .with_description("<dataset_description>")
         .with_compartment_id("<compartment_id>")
-        .with_dataset_ingestion_mode(DatasetIngestionMode.SQL)
         .with_query('SELECT col FROM <entity_id>.<feature_group_name>')
     )
 
@@ -56,12 +55,50 @@ Use the the ``create()`` method of the ``Dataset`` instance to create a dataset.
 
 .. important::
 
- This method doesn’t persist any metadata or feature data in the Feature Store. To persist the dataset and save feature data including the metadata in the Feature Store, use the ``materialise()`` method with a dataframe.
+ This method does not persist any metadata or feature data in the Feature Store. To persist the dataset and save feature data including the metadata in the Feature Store, use the ``materialise()`` method with a dataframe. For simple queries with only one level of nesting, users do not need to define ``with_feature_groups``. However, in complex queries involving more than one level of nesting, users are required to define ``with_feature_groups``.
 
-.. code-block:: python3
 
-  # Create an dataset
-  dataset.create()
+.. tabs::
+
+  .. code-tab:: Python3
+    :caption: Simple SQL
+
+    from ads.feature_store.dataset import Dataset
+
+    dataset = (
+        Dataset
+        .with_name("<dataset_name>")
+        .with_entity_id(<entity_id>)
+        .with_feature_store_id("<feature_store_id>")
+        .with_description("<dataset_description>")
+        .with_compartment_id("<compartment_id>")
+        .with_query('SELECT col FROM <entity_id>.<feature_group_name>')
+    )
+
+    dataset.create()
+
+
+  .. code-tab:: Python3
+    :caption: Complex SQL
+
+    from ads.feature_store.dataset import Dataset
+    from ads.feature_store.feature_group import FeatureGroup
+
+    feature_group = FeatureGroup.from_id("<unique_id>")
+
+    dataset = (
+        Dataset
+        .with_name("<dataset_name>")
+        .with_entity_id(<entity_id>)
+        .with_feature_store_id("<feature_store_id>")
+        .with_description("<dataset_description>")
+        .with_compartment_id("<compartment_id>")
+        .with_query('SELECT col FROM (SELECT col FROM <entity_id>.<feature_group_name> WHERE condition = 'some_condition') AS nested_table;')
+        .with_feature_groups([feature_group])
+    )
+
+    # Create an dataset
+    dataset.create()
 
 
 Load
