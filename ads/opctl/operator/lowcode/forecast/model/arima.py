@@ -262,6 +262,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             array-like: The predicted values.
 
         """
+        date_col = self.spec.datetime_column.name
+        data[date_col] = pd.to_datetime(data[date_col], unit='s')
+        data = data.set_index(date_col)
         # Get the index of the current series id
         series_index = self.target_columns.index(self.series_id)
 

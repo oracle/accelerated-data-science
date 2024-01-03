@@ -6,7 +6,6 @@
 
 from ads.common.extended_enum import ExtendedEnumMeta
 
-
 class SupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported forecast models."""
 
@@ -17,6 +16,18 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
     AutoTS = "autots"
     Auto = "auto"
 
+
+class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
+    """
+    Enum representing different modes based on time taken and accuracy for explainability.
+    """
+    HIGH_ACCURACY = "HIGH_ACCURACY"
+    BALANCED = "BALANCED"
+    FAST_APPROXIMATE = "FAST_APPROXIMATE"
+    ratio = dict()
+    ratio[HIGH_ACCURACY] = 1  # 100 % data used for generating explanations
+    ratio[BALANCED] = 0.5  # 50 % data used for generating explanations
+    ratio[FAST_APPROXIMATE] = 0   # constant
 
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     """Supported forecast metrics."""

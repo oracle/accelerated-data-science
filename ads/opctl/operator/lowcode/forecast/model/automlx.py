@@ -341,7 +341,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         -------
             numpy.ndarray: The predicted future values of the time series.
         """
-        temp = 0
         data_temp = pd.DataFrame(
             data,
             columns=[col for col in self.dataset_cols],

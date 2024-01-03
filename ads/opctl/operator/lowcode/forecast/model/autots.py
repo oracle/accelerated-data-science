@@ -351,41 +351,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         )
 
     def _custom_predict_autots(self, data):
-        """
-        Predicts the future values of a time series using the AutoTS model.
-
-        Parameters
-        ----------
-            data (numpy.ndarray): The input data to be used for prediction.
-
-        Returns
-        -------
-            numpy.ndarray: The predicted future values of the time series.
-        """
-
-        data.index = pd.to_datetime(data.index)
-        temp_model = copy.deepcopy(self.models)
-
-        if data.shape[0] > 1:
-            temp_model.fit_data(
-                data[~data.index.duplicated()],
-                future_regressor=self.future_regressor_train.head(-self.spec.horizon),
-            )
-            dedup_shape = data.shape[0] - data[~data.index.duplicated()].shape[0] + 1
-            return pd.Series(0, index=np.arange(dedup_shape)).append(
-                temp_model.back_forecast(
-                    tail=data[~data.index.duplicated()].shape[0] - 1
-                )
-                .forecast[self.spec.target_column]
-                .fillna(0)
-            )
-
-        return temp_model.predict(
-            future_regressor=self.future_regressor_train.loc[
-                self.future_regressor_train.index.isin(data.index)
-            ],
-            forecast_length=1,
-        ).forecast[self.series_id]
+        raise NotImplementedError("Autots does not yet support explanations.")
 
     def _generate_train_metrics(self) -> pd.DataFrame:
         """

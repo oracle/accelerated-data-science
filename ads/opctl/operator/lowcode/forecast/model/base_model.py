@@ -20,7 +20,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 
 from .. import utils
-from ..const import SUMMARY_METRICS_HORIZON_LIMIT, SupportedMetrics, SupportedModels
+from ..const import SUMMARY_METRICS_HORIZON_LIMIT, SupportedMetrics, SupportedModels, SpeedAccuracyMode
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -80,10 +80,10 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.model_pickle is not None:
                 self.loaded_models = utils.load_pkl(self.spec.model_pickle)
 
-            # load data and build models
             start_time = time.time()
             result_df = self._build_model()
             elapsed_time = time.time() - start_time
+            logger.info("Building the models completed in %s seconds", elapsed_time)
 
             # Generate metrics
             summary_metrics = None
@@ -601,49 +601,37 @@ class ForecastOperatorBaseModel(ABC):
             dict: A dictionary containing the global explanation for each feature in the dataset.
                     The keys are the feature names and the values are the average absolute SHAP values.
         """
-        from shap import KernelExplainer
-
+        from shap import PermutationExplainer
+        exp_start_time = time.time()
+        global_ex_time = 0
+        local_ex_time = 0
+        logger.info(f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode")
         for series_id in self.target_columns:
             self.series_id = series_id
-            if self.spec.model == SupportedModels.AutoTS:
-                self.dataset_cols = (
-                    self.full_data_long.loc[
-                        self.full_data_long.series_id == self.series_id
-                    ]
-                    .set_index(datetime_col_name)
-                    .columns
-                )
+            self.dataset_cols = (
+                self.full_data_dict.get(series_id)
+                .set_index(datetime_col_name)
+                .drop(series_id, axis=1)
+                .columns
+            )
 
-                self.bg_data = self.full_data_long.loc[
-                    self.full_data_long.series_id == self.series_id
-                ].set_index(datetime_col_name)
-
-            else:
-                self.dataset_cols = (
-                    self.full_data_dict.get(series_id)
-                    .set_index(datetime_col_name)
-                    .drop(series_id, axis=1)
-                    .columns
-                )
-
-                self.bg_data = self.full_data_dict.get(series_id).set_index(
-                    datetime_col_name
-                )
-
-            kernel_explnr = KernelExplainer(
+            self.bg_data = self.full_data_dict.get(series_id).set_index(
+                datetime_col_name
+            )
+            data = self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][
+                list(self.dataset_cols)]
+            ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
+            data_trimmed = data.tail(max(int(len(data) * ratio), 100)).reset_index()
+            data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(lambda x: x.timestamp())
+            kernel_explnr = PermutationExplainer(
                 model=explain_predict_fn,
-                data=self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][
-                    list(self.dataset_cols)
-                ],
+                masker=data_trimmed,
                 keep_index=False
                 if self.spec.model == SupportedModels.AutoMLX
                 else True,
             )
 
-            kernel_explnr_vals = kernel_explnr.shap_values(
-                self.bg_data[: -self.spec.horizon][list(self.dataset_cols)],
-                nsamples=50,
-            )
+            kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed)
 
             if not len(kernel_explnr_vals):
                 logger.warn(
@@ -652,14 +640,19 @@ class ForecastOperatorBaseModel(ABC):
             else:
                 self.global_explanation[series_id] = dict(
                     zip(
-                        self.dataset_cols,
-                        np.average(np.absolute(kernel_explnr_vals), axis=0),
+                        data_trimmed.columns[1:],
+                        np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
                     )
                 )
+            exp_end_time = time.time()
+            global_ex_time = global_ex_time + exp_end_time - exp_start_time
 
             self.local_explainer(
                 kernel_explnr, series_id=series_id, datetime_col_name=datetime_col_name
             )
+            local_ex_time = local_ex_time + time.time() - exp_end_time
+        logger.info("Global explanations generation completed in %s seconds", global_ex_time)
+        logger.info("Local explanations generation completed in %s seconds", local_ex_time)
 
     def local_explainer(self, kernel_explainer, series_id, datetime_col_name) -> None:
         """
@@ -671,18 +664,19 @@ class ForecastOperatorBaseModel(ABC):
         """
         # Get the data for the series ID and select the relevant columns
         # data = self.full_data_dict.get(series_id).set_index(datetime_col_name)
-        data = self.bg_data[-self.spec.horizon :][list(self.dataset_cols)]
-
+        data_horizon = self.bg_data[-self.spec.horizon:][list(self.dataset_cols)]
+        data = data_horizon.reset_index()
+        data[datetime_col_name] = data[datetime_col_name].apply(lambda x: x.timestamp())
         # Generate local SHAP values using the kernel explainer
-        local_kernel_explnr_vals = kernel_explainer.shap_values(data, nsamples=50)
+        local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 
         # Convert the SHAP values into a DataFrame
         local_kernel_explnr_df = pd.DataFrame(
-            local_kernel_explnr_vals, columns=self.dataset_cols
+            local_kernel_explnr_vals[:, 1:], columns=data.columns[1:]
         )
 
         # set the index of the DataFrame to the datetime column
-        local_kernel_explnr_df.index = data.index
+        local_kernel_explnr_df.index = data_horizon.index
 
         if self.spec.model == SupportedModels.AutoTS:
             local_kernel_explnr_df.drop(

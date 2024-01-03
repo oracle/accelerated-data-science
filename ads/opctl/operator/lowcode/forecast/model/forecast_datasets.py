@@ -12,7 +12,7 @@ from ads.opctl import logger
 import pandas as pd
 from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
 from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
-
+import time
 
 class ForecastDatasets:
     def __init__(self, config: ForecastOperatorConfig):
@@ -36,14 +36,19 @@ class ForecastDatasets:
     def _load_data(self, spec):
         """Loads forecasting input data."""
 
+        loading_start_time = time.time()
         raw_data = utils._load_data(
             filename=spec.historical_data.url,
             format=spec.historical_data.format,
             columns=spec.historical_data.columns,
         )
+        loading_end_time = time.time()
+        logger.info("Loading the data completed in %s seconds", loading_end_time - loading_start_time)
         self.original_user_data = raw_data.copy()
         data_transformer = Transformations(raw_data, spec)
         data = data_transformer.run()
+        transformation_end_time = time.time()
+        logger.info("Transformations are completed in %s seconds", transformation_end_time - loading_end_time)
         try:
             spec.freq = utils.get_frequency_of_datetime(data, spec)
         except TypeError as e:
