@@ -296,11 +296,7 @@ spec:
       type: dict
       required: false
 
-    model_pickle:
-      type: string
-      required: false
-
-    trainer_pickle:
+    previous_output_dir:
       type: string
       required: false
 
