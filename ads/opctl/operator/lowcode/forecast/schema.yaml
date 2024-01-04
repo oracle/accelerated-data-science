@@ -300,6 +300,10 @@ spec:
       type: string
       required: false
 
+    trainer_pickle:
+      type: string
+      required: false
+
     generate_model_parameters:
       type: boolean
       required: false

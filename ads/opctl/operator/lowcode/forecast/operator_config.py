@@ -95,6 +95,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     model_kwargs: Dict = field(default_factory=dict)
     model_parameters: str = None
     model_pickle: str = None
+    trainer_pickle: str = None
     generate_model_parameters: bool = None
     generate_model_pickle: bool = None
     confidence_interval_width: float = None

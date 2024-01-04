@@ -76,6 +76,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
         full_data_dict = self.datasets.full_data_dict
         models = []
+        trainers = []
+
         outputs = dict()
         outputs_legacy = []
 
@@ -83,20 +85,19 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         # convert to neural prophets equivalent - quantiles
         model_kwargs = self.spec.model_kwargs
 
-        if self.loaded_models is None:
-            if self.spec.confidence_interval_width is None:
-                quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
-                self.spec.confidence_interval_width = float(quantiles[1]) - float(
-                    quantiles[0]
-                )
-            else:
-                boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
-                quantiles = [
-                    boundaries,
-                    self.spec.confidence_interval_width + boundaries,
-                ]
+        if self.spec.confidence_interval_width is None:
+            quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
+            self.spec.confidence_interval_width = float(quantiles[1]) - float(
+                quantiles[0]
+            )
+        else:
+            boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
+            quantiles = [
+                boundaries,
+                self.spec.confidence_interval_width + boundaries,
+            ]
 
-            model_kwargs["quantiles"] = quantiles
+        model_kwargs["quantiles"] = quantiles
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width
         )
@@ -211,6 +212,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             else:
                 accepted_regressors_config = model.config_regressors or dict()
                 accepted_regressors = list(accepted_regressors_config.keys())
+                if self.loaded_trainers is not None:
+                    model.trainer = self.loaded_trainers[i]
 
             # Build future dataframe
             future = df_clean.reset_index(drop=True)
@@ -223,6 +226,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(forecast.tail())
             if self.loaded_models is None:
                 models.append(model)
+            if self.loaded_trainers is None and self.spec.generate_model_pickle:
+                trainers.append(model.trainer)
             outputs[target] = forecast
             outputs_legacy.append(forecast)
 
@@ -251,6 +256,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             }
 
         self.models = self.loaded_models if self.loaded_models is not None else models
+        self.trainers = self.loaded_trainers if self.loaded_trainers is not None else trainers
         self.outputs = outputs_legacy
 
         logger.debug("===========Done===========")
@@ -273,28 +279,28 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             output_i[yhat_upper_name] = float("nan")
 
             output_i.iloc[
-                : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
+            : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
             ] = (outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values)
             output_i.iloc[
-                -self.spec.horizon :,
-                output_i.columns.get_loc(f"forecast_value"),
+            -self.spec.horizon:,
+            output_i.columns.get_loc(f"forecast_value"),
             ] = (
-                outputs[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon :].values
+                outputs[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon:].values
             )
             output_i.iloc[
-                -self.spec.horizon :,
-                output_i.columns.get_loc(yhat_upper_name),
+            -self.spec.horizon:,
+            output_i.columns.get_loc(yhat_upper_name),
             ] = (
                 outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1] * 100}%"]
-                .iloc[-self.spec.horizon :]
+                .iloc[-self.spec.horizon:]
                 .values
             )
             output_i.iloc[
-                -self.spec.horizon :,
-                output_i.columns.get_loc(yhat_lower_name),
+            -self.spec.horizon:,
+            output_i.columns.get_loc(yhat_lower_name),
             ] = (
                 outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0] * 100}%"]
-                .iloc[-self.spec.horizon :]
+                .iloc[-self.spec.horizon:]
                 .values
             )
             output_col = pd.concat([output_col, output_i])
@@ -374,7 +380,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
                 self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
 
                 # Create a markdown section for the global explainability
