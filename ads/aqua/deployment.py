@@ -19,13 +19,13 @@ class AquaDeployment(ModelDeployment):
     Methods
     -------
     create(self, **kwargs) -> "AquaDeployment"
-        Creates an instance of Aqua deployment.
+        Creates an instance of model deployment via Aqua
     list(self, ..., **kwargs) -> List["AquaDeployment"]
         List existing model deployments created via Aqua
     clone()
         Clone an existing model deployment
     suggest()
-        Provide suggestions for model deployment
+        Provide suggestions for model deployment via Aqua
     stats()
         Get model deployment statistics
     """

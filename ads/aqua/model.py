@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class AquaModel(DataScienceModel):
-    """
+    """Represents an Aqua Model.
 
     Attributes
     ----------
