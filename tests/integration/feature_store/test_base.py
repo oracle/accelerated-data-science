@@ -10,6 +10,8 @@ from random import random
 
 import oci
 import pandas as pd
+
+from ads.common.auth import AuthType
 from ads.feature_store.entity import Entity
 from great_expectations.core import ExpectationSuite, ExpectationConfiguration
 import ads
@@ -25,7 +27,7 @@ client_kwargs = dict(
     retry_strategy=oci.retry.NoneRetryStrategy(),
     fs_service_endpoint=os.getenv("service_endpoint"),
 )
-ads.set_auth(client_kwargs=client_kwargs)
+ads.set_auth(auth=AuthType.INSTANCE_PRINCIPAL, client_kwargs=client_kwargs)
 
 try:
     from ads.feature_store.feature_store import FeatureStore
