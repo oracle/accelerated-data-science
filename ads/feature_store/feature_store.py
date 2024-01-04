@@ -367,9 +367,7 @@ class FeatureStore(Builder):
                 "FeatureStore Resource must be created or saved before creating the entity."
             )
 
-        self.oci_fs_entity = self._build_entity(
-            name, description, compartment_id
-        )
+        self.oci_fs_entity = self._build_entity(name, description, compartment_id)
         return self.oci_fs_entity.create()
 
     def delete_entity(self):
