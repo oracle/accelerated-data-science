@@ -115,8 +115,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                     )
 
                     # Manual workaround because pandas 1.x dropped support for M and Y
-                    interval = self.spec.horizon
-                    unit = "D"
+                    interval = self.spec.horizon.interval
+                    unit = self.spec.horizon.interval_unit
                     if unit == "M":
                         unit = "D"
                         interval = interval * 30.5
