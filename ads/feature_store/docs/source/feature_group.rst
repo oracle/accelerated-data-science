@@ -11,6 +11,9 @@ In feature group, three key types play crucial roles:
 - **Partition Keys**: These keys assist in distributing and organizing data across different partitions in the feature group. They enable efficient data retrieval by logically grouping related information, optimizing query performance, and minimizing resource utilization.
 - **Event Timestamp Keys**: These keys capture the temporal aspect of the data by indicating the time or timestamp associated with a specific event or entry in the feature group. They facilitate time-based querying, trend analysis, and time-series operations.
 
+.. important::
+    By default, special characters such as spaces and any of the characters ,;{}()\n\t= are not supported in feature group column names.
+
 Define
 ======
 
@@ -353,6 +356,17 @@ Feature store provides an API similar to Pandas to join feature groups together,
   # Filter feature group
   feature_group.filter(feature_group.col1 > 10).show()
 
+  # Filter feature group with get_feature
+  feature_group.filter(feature_group.get_feature("col1") > 10).show()
+
+
+Get Feature
+===========
+Use the ``get_feature()`` method of the ``FeatureGroup`` instance to return the description of feature.
+
+.. code-block:: python3
+
+    feature_group.get_feature("col1")
 
 Preview
 =======
