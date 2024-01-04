@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 
 class AquaDeployment(ModelDeployment):
-    """
+    """Represents an Aqua Model Deployment.
 
     Attributes
     ----------
