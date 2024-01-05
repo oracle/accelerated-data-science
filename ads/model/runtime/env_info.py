@@ -106,7 +106,7 @@ class EnvInfo(ABC):
                 env_path, python_version = service_pack_slug_mapping[env_slug]
             else:
                 warnings.warn(
-                    "The {env_slug} is not a service pack. Use `from_path` method by passing in the object storage path."
+                    f"The {env_slug} is not a service pack. Use `from_path` method by passing in the object storage path."
                 )
 
         return cls._populate_env_info(
@@ -157,9 +157,13 @@ class EnvInfo(ABC):
                     ).fetch_metadata_of_object()
                     python_version = metadata_json.get("python", None)
                     env_slug = metadata_json.get("slug", None)
+                    if not python_version:
+                        raise ValueError(
+                            f"The manifest metadata of {env_path} doesn't contains inforamtion for python version."
+                        )
                 except Exception as e:
-                    logging.warning(e)
-                    logging.warning(
+                    logging.debug(e)
+                    logging.debug(
                         "python version and slug are not found from the manifest metadata."
                     )
 
@@ -227,7 +231,7 @@ class TrainingEnvInfo(EnvInfo, DataClassSerializable):
         )
 
     @classmethod
-    def _validate_dict(cls,obj_dict: Dict) -> bool:
+    def _validate_dict(cls, obj_dict: Dict) -> bool:
         """Validate the content in the dictionary format from the yaml file.
 
         Parameters

@@ -975,17 +975,20 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             auth=self.auth,
             local_copy_dir=self.local_copy_dir,
         )
-        self.runtime_info = self.model_artifact.prepare_runtime_yaml(
-            inference_conda_env=self.properties.inference_conda_env,
-            inference_python_version=self.properties.inference_python_version,
-            training_conda_env=self.properties.training_conda_env,
-            training_python_version=self.properties.training_python_version,
-            force_overwrite=force_overwrite,
-            namespace=namespace,
-            bucketname=DEFAULT_CONDA_BUCKET_NAME,
-            auth=self.auth,
-            ignore_conda_error=self.ignore_conda_error,
-        )
+        try:
+            self.runtime_info = self.model_artifact.prepare_runtime_yaml(
+                inference_conda_env=self.properties.inference_conda_env,
+                inference_python_version=self.properties.inference_python_version,
+                training_conda_env=self.properties.training_conda_env,
+                training_python_version=self.properties.training_python_version,
+                force_overwrite=force_overwrite,
+                namespace=namespace,
+                bucketname=DEFAULT_CONDA_BUCKET_NAME,
+                auth=self.auth,
+                ignore_conda_error=self.ignore_conda_error,
+            )
+        except ValueError as e:
+            raise e
 
         self._summary_status.update_status(
             detail="Generated runtime.yaml", status=ModelState.DONE.value
@@ -1361,13 +1364,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         properties.with_dict(local_vars)
         auth = auth or authutil.default_signer()
         artifact_dir = _prepare_artifact_dir(artifact_dir)
+        reload = kwargs.pop("reload", False)
         model_artifact = ModelArtifact.from_uri(
             uri=uri,
             artifact_dir=artifact_dir,
-            model_file_name=model_file_name,
-            force_overwrite=force_overwrite,
             auth=auth,
+            force_overwrite=force_overwrite,
             ignore_conda_error=ignore_conda_error,
+            model_file_name=model_file_name,
+            reload=reload,
         )
         model = cls(
             estimator=model_artifact.model,
@@ -1380,22 +1385,33 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model.local_copy_dir = model_artifact.local_copy_dir
         model.model_artifact = model_artifact
         model.ignore_conda_error = ignore_conda_error
-        model.reload_runtime_info()
+
+        if reload:
+            model.reload_runtime_info()
+            model._summary_status.update_action(
+                detail="Populated metadata(Custom, Taxonomy and Provenance)",
+                action="Call .populate_metadata() to populate metadata.",
+            )
+
         model._summary_status.update_status(
             detail="Generated score.py",
-            status=ModelState.DONE.value,
+            status=ModelState.NOTAPPLICABLE.value,
         )
         model._summary_status.update_status(
             detail="Generated runtime.yaml",
-            status=ModelState.DONE.value,
+            status=ModelState.NOTAPPLICABLE.value,
         )
         model._summary_status.update_status(
-            detail="Serialized model", status=ModelState.DONE.value
+            detail="Serialized model",
+            status=ModelState.NOTAPPLICABLE.value,
         )
-        model._summary_status.update_action(
+        model._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            action=f"Call .populate_metadata() to populate metadata.",
+            status=ModelState.AVAILABLE.value
+            if reload
+            else ModelState.NOTAPPLICABLE.value,
         )
+
         return model
 
     def download_artifact(
