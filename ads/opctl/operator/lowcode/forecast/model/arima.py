@@ -127,8 +127,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             outputs[target] = forecast
 
             params = vars(model).copy()
-            params.pop("arima_res_")
-            params.pop("endog_index_")
+            for param in ['arima_res', 'endog_index_']:
+                if param in params:
+                    params.pop(param)
             self.model_parameters[target] = {
                 "framework": SupportedModels.Arima,
                 **params,
@@ -195,7 +196,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
                 self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
 
                 # Create a markdown section for the global explainability

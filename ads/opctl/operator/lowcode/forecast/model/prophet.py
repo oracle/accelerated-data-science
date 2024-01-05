@@ -213,7 +213,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
             params = vars(model).copy()
             for param in ["history", "history_dates", "stan_fit"]:
-                params.pop(param)
+                if param in params:
+                    params.pop(param)
             self.model_parameters[target] = {
                 "framework": SupportedModels.Prophet,
                 **params,

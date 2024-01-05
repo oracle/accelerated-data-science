@@ -70,6 +70,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config=config, datasets=datasets)
         self.train_metrics = True
         self.forecast_col_name = "yhat1"
+        self.loaded_trainers = None
+        self.trainers = None
 
     def _build_model(self) -> pd.DataFrame:
         from neuralprophet import NeuralProphet
@@ -318,6 +320,15 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         output_col = output_col.reset_index(drop=True)
 
         return output_col
+
+    def _save_model_specific_files(self, output_dir, storage_options):
+        if self.spec.generate_model_pickle and self.trainers is not None:
+            utils.write_pkl(
+                obj=self.trainers,
+                filename="trainer.pkl",
+                output_dir=output_dir,
+                storage_options=storage_options,
+            )
 
     def _generate_report(self):
         import datapane as dp

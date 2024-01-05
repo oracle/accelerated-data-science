@@ -218,7 +218,8 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 "validation_indexes",
                 "best_model",
             ]:
-                params.pop(param)
+                if param in params:
+                    params.pop(param)
             self.model_parameters[cat_target] = {
                 "framework": SupportedModels.AutoTS,
                 **params,
