@@ -547,14 +547,7 @@ class ForecastOperatorBaseModel(ABC):
 
         # model pickle
         if self.spec.generate_model_pickle:
-            utils.write_pkl(
-                obj=self.models,
-                filename="model.pkl",
-                output_dir=output_dir,
-                storage_options=storage_options,
-            )
-
-        self._save_model_specific_files(output_dir, storage_options)
+            self._save_model(output_dir, storage_options)
 
         logger.info(
             f"The outputs have been successfully "
@@ -595,11 +588,14 @@ class ForecastOperatorBaseModel(ABC):
         except:
             logger.info("model.pkl is not present")
 
-    def _save_model_specific_files(self, output_dir, storage_options):
-        """
-        The method that needs to be implemented on the particular model level
-        """
-        pass
+    def _save_model(self, output_dir, storage_options):
+        utils.write_pkl(
+            obj=self.models,
+            filename="model.pkl",
+            output_dir=output_dir,
+            storage_options=storage_options,
+        )
+
 
 
     @runtime_dependency(

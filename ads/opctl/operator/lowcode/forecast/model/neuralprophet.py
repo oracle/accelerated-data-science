@@ -323,14 +323,19 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
         return output_col
 
-    def _save_model_specific_files(self, output_dir, storage_options):
-        if self.spec.generate_model_pickle and self.trainers is not None:
-            utils.write_pkl(
-                obj=self.trainers,
-                filename="trainer.pkl",
-                output_dir=output_dir,
-                storage_options=storage_options,
-            )
+    def _save_model(self, output_dir, storage_options):
+        utils.write_pkl(
+            obj=self.models,
+            filename="model.pkl",
+            output_dir=output_dir,
+            storage_options=storage_options,
+        )
+        utils.write_pkl(
+            obj=self.trainers,
+            filename="trainer.pkl",
+            output_dir=output_dir,
+            storage_options=storage_options,
+        )
 
     def _generate_report(self):
         import datapane as dp

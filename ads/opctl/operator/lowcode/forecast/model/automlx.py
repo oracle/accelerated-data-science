@@ -175,10 +175,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 "time_series_period": model.time_series_period,
                 "min_class_instances": model.min_class_instances,
                 "max_tuning_trials": model.max_tuning_trials,
-                "contamination": model_kwargs_cleaned.get("contamination", 0.01),
                 "selected_model": model.selected_model_,
                 "selected_model_params": model.selected_model_params_,
-                "time_budget": time_budget,
             }
 
         logger.debug("===========Forecast Generated===========")
