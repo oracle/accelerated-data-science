@@ -73,18 +73,20 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.loaded_trainers = None
         self.trainers = None
 
+    def _load_model(self):
+        try:
+            self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
+            self.loaded_trainers = utils.load_pkl(self.spec.previous_output_dir + "/trainer.pkl")
+        except:
+            logger.info("model.pkl/trainer.pkl is not present")
+
+
     def _build_model(self) -> pd.DataFrame:
         from neuralprophet import NeuralProphet
 
         full_data_dict = self.datasets.full_data_dict
         models = []
         trainers = []
-
-        if self.loaded_models is not None:
-            try:
-                self.loaded_trainers = utils.load_pkl(self.spec.previous_output_dir + "/trainer.pkl")
-            except:
-                logger.info("trainer.pkl is not present")
 
         outputs = dict()
         outputs_legacy = []

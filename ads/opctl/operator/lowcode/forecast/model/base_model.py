@@ -79,10 +79,7 @@ class ForecastOperatorBaseModel(ABC):
 
             # load models if given
             if self.spec.previous_output_dir is not None:
-                try:
-                    self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
-                except:
-                    logger.info("model.pkl is not present")
+                self._load_model()
 
             start_time = time.time()
             result_df = self._build_model()
@@ -591,6 +588,12 @@ class ForecastOperatorBaseModel(ABC):
         The method that needs to be implemented on the particular model level.
         """
         raise NotImplementedError
+
+    def _load_model(self):
+        try:
+            self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
+        except:
+            logger.info("model.pkl is not present")
 
     def _save_model_specific_files(self, output_dir, storage_options):
         """
