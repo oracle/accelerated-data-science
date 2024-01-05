@@ -183,6 +183,7 @@ def detect_or_create_stack(apigw_config: APIGatewayConfig):
     stack_provision_method = click.prompt(
         f"Select stack provisioning method:\n1.Create new stack\n2.Existing stack\n",
         type=click.Choice(list(choices.keys())),
+        show_choices=False,
     )
     if choices[stack_provision_method] == "new":
         return _create_new_stack(apigw_config)
@@ -256,7 +257,7 @@ def get_nlb_id_from_service(service: "V1Service", apigw_config: APIGatewayConfig
     private_ips = list(filter(lambda obj: obj.resource_type == "PrivateIp", resources))
     if len(private_ips) != 1:
         return click.prompt(
-            f"Please enter ID of load balancer associated with ip: {lb_ingress.ip}"
+            f"Please enter OCID of load balancer associated with ip: {lb_ingress.ip}"
         )
     else:
         nlb_private_ip = private_ips[0]
@@ -271,7 +272,7 @@ def get_nlb_id_from_service(service: "V1Service", apigw_config: APIGatewayConfig
         ).data.items
         if len(nlbs) != 1:
             return click.prompt(
-                f"Please enter ID of load balancer associated with ip: {lb_ingress.ip}"
+                f"Please enter OCID of load balancer associated with ip: {lb_ingress.ip}"
             )
         else:
             return nlbs[0].id
