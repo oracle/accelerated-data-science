@@ -31,7 +31,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.formatted_local_explanation = None
 
     def _train_model(self, i, target, df):
-        # TODO : wrap it in try except and populate a errors_dict with the model name and the error
         """Trains the ARIMA model for a given target.
 
         Parameters
