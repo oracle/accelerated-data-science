@@ -14,6 +14,8 @@ Transformations in a Feature Store refer to the operations and processes applied
   .. code-tab:: Python3
     :caption: TransformationMode.SQL
 
+    from ads.feature_store.transformation import Transformation,TransformationMode
+
     def transactions_df(transactions_batch):
         sql_query = f"select id, cc_num, amount from {transactions_batch}"
         return sql_query

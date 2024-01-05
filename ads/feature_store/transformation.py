@@ -346,13 +346,14 @@ class Transformation(Builder):
         if not self.source_code_function:
             raise ValueError("Transformation source code function must be provided.")
 
+        if not self.transformation_mode:
+            raise ValueError("Transformation Mode must be provided.")
+
         if not self.name:
             self.name = self._transformation_function_name
 
         if self.name != self._transformation_function_name:
-            raise ValueError(
-                "Transformation name and function name must be same."
-            )
+            raise ValueError("Transformation name and function name must be same.")
 
         payload = deepcopy(self._spec)
         payload.pop("id", None)
