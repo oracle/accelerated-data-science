@@ -301,7 +301,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
     update_summary_status(...)
         Update the status in the summary table.
     update_summary_action(...)
-        Update the actions needed in the summary table.
+        Update the actions needed from the user in the summary table.
 
 
     Examples
@@ -366,7 +366,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         properties: (ModelProperties, optional). Defaults to None.
             ModelProperties object required to save and deploy model.
         auth :(Dict, optional). Defaults to None.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
         serialize: (bool, optional). Defaults to True.
@@ -619,7 +619,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         >>> # Register serializer by passing the name of it.
         >>> generic_model.set_model_save_serializer("cloudpickle")
 
-        >>> # Example of creating customized model save serializer and registering it.
+        >>> # Example of creating customized model save serializer and registing it.
         >>> from ads.model import SERDE
         >>> from ads.model.generic_model import GenericModel
 
@@ -869,7 +869,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         initial_types: (list[Tuple], optional).
             Defaults to None. Only used for SklearnModel, LightGBMModel and XGBoostModel.
             Each element is a tuple of a variable name and a type.
-            Check this link https://onnx.ai/sklearn-onnx/api_summary.html#id2 for
+            Check this link http://onnx.ai/sklearn-onnx/api_summary.html#id2 for
             more explanation and examples for `initial_types`.
         force_overwrite: (bool, optional). Defaults to False.
             Whether to overwrite existing files.
@@ -897,7 +897,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Parameter to ignore error when collecting conda information.
         score_py_uri: (str, optional). Defaults to None.
             The uri of the customized score.py, which can be local path or OCI object storage URI.
-            When provide with this attribute, the `score.py` will not be auto generated, and the
+            When provide with this attibute, the `score.py` will not be auto generated, and the
             provided `score.py` will be added into artifact_dir.
         kwargs:
             impute_values: (dict, optional).
@@ -1306,12 +1306,12 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         return prediction
 
     def introspect(self) -> pd.DataFrame:
-        """Conducts introspection.
+        """Conducts instrospection.
 
         Returns
         -------
         pandas.DataFrame
-            A pandas DataFrame which contains the introspection results.
+            A pandas DataFrame which contains the instrospection results.
         """
         df = self._introspect()
         return df
@@ -1334,7 +1334,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ----------
         uri: str
             The folder path, ZIP file path, or TAR file path. It could contain a
-            serialized model(required) as well as any files needed for deployment including:
+            seriliazed model(required) as well as any files needed for deployment including:
             serialized model, runtime.yaml, score.py and etc. The content of the folder will be
             copied to the `artifact_dir` folder.
         model_file_name: (str, optional). Defaults to `None`.
@@ -1344,7 +1344,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The artifact directory to store the files needed for deployment.
             Will be created if not exists.
         auth: (Dict, optional). Defaults to None.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
         force_overwrite: (bool, optional). Defaults to False.
@@ -1567,7 +1567,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The artifact directory to store the files needed for deployment.
             Will be created if not exists.
         auth: (Dict, optional). Defaults to None.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
         force_overwrite: (bool, optional). Defaults to False.
@@ -1579,7 +1579,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The `bucket_uri` is only necessary for downloading large artifacts with
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Whether artifacts uploaded to object storage bucket need to be removed or not.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
         download_artifact: (bool, optional). Defaults to True.
@@ -1739,7 +1739,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The artifact directory to store the files needed for deployment.
             Will be created if not exists.
         auth: (Dict, optional). Defaults to None.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
         force_overwrite: (bool, optional). Defaults to False.
@@ -1751,7 +1751,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The `bucket_uri` is only necessary for downloading large artifacts with
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Whether artifacts uploaded to object storage bucket need to be removed or not.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
         download_artifact: (bool, optional). Defaults to True.
@@ -1860,7 +1860,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Poll interval in seconds (Defaults to 10).
         kwargs:
             auth: (Dict, optional). Defaults to `None`.
-                The default authentication is set using `ads.set_auth` API.
+                The default authetication is set using `ads.set_auth` API.
                 If you need to override the default, use the `ads.common.auth.api_keys` or
                 `ads.common.auth.resource_principal` to create appropriate authentication signer
                 and kwargs required to instantiate IdentityClient object.
@@ -1937,7 +1937,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The artifact directory to store the files needed for deployment.
             Will be created if not exists.
         auth: (Dict, optional). Defaults to None.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
         force_overwrite: (bool, optional). Defaults to False.
@@ -1949,7 +1949,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The `bucket_uri` is only necessary for downloading large artifacts with
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Whether artifacts uploaded to object storage bucket need to be removed or not.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
         download_artifact: (bool, optional). Defaults to True.
@@ -2645,7 +2645,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         initial_types: (list[Tuple], optional).
             Defaults to None. Only used for SklearnModel, LightGBMModel and XGBoostModel.
             Each element is a tuple of a variable name and a type.
-            Check this link https://onnx.ai/sklearn-onnx/api_summary.html#id2 for
+            Check this link http://onnx.ai/sklearn-onnx/api_summary.html#id2 for
             more explanation and examples for `initial_types`.
         force_overwrite: (bool, optional). Defaults to False.
             Whether to overwrite existing files.
@@ -2719,7 +2719,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         overwrite_existing_artifact: (bool, optional). Defaults to `True`.
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Whether artifacts uploaded to object storage bucket need to be removed or not.
+            Wether artifacts uploaded to object storage bucket need to be removed or not.
         model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
             The Model version set OCID, or name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
@@ -3008,12 +3008,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         return self._summary_status.df.set_index(["Step", "Status", "Details"])
 
     def update_summary_status(self, detail: str, status: str):
-        """
+        """Update the status in the summary table.
 
         Parameters
         ----------
-        detail
-        status
+        detail: (str)
+            value of the detail in the details column of the summary status table. Used to locate which row to update.
+        status: (str)
+            new status to be updated for the row specified by detail.
+
 
         Returns
         -------
@@ -3022,12 +3025,14 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         self._summary_status.update_status(detail=detail, status=status)
 
     def update_summary_action(self, detail: str, action: str):
-        """
+        """Update the actions needed from the user in the summary table.
 
         Parameters
         ----------
-        detail
-        action
+        detail: (str)
+            value of the detail in the details column of the summary status table. Used to locate which row to update.
+        action: (str)
+            new action to be updated for the row specified by detail.
 
         Returns
         -------
@@ -3169,7 +3174,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             >>> upload_artifact(uri="oci://bucket@namespace/prefix/")
 
         auth: (Dict, optional). Defaults to `None`.
-            The default authentication is set using `ads.set_auth` API. If you need to override the
+            The default authetication is set using `ads.set_auth` API. If you need to override the
             default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
             authentication signer and kwargs required to instantiate IdentityClient object.
         force_overwrite: bool
@@ -3378,8 +3383,8 @@ class SummaryStatus:
         ----------
         detail: (str)
             Value of the detail in the Details column. Used to locate which row to update.
-        status: (str)
-            New status to be updated for the row specified by detail.
+        action: (str)
+            new action to be updated for the row specified by detail.
 
         Returns
         -------
