@@ -86,10 +86,6 @@ class ForecastOperatorBaseModel(ABC):
                     self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
                 except:
                     logger.info("model.pkl is not present")
-                try:
-                    self.loaded_trainers = utils.load_pkl(self.spec.previous_output_dir + "/trainer.pkl")
-                except:
-                    logger.info("trainer.pkl is not present")
 
             start_time = time.time()
             result_df = self._build_model()

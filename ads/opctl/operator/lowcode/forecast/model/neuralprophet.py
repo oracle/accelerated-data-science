@@ -78,6 +78,12 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         models = []
         trainers = []
 
+        if self.loaded_models is not None:
+            try:
+                self.loaded_trainers = utils.load_pkl(self.spec.previous_output_dir + "/trainer.pkl")
+            except:
+                logger.info("trainer.pkl is not present")
+
         outputs = dict()
         outputs_legacy = []
 
