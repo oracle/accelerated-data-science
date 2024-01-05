@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from unittest.mock import MagicMock, patch, call, PropertyMock
@@ -375,16 +375,19 @@ class TestOCIDataScienceModel:
             **{"kwargkey": "kwargvalue"},
         )
 
-    @patch("ads.model.service.oci_datascience_model.wait_work_request")
+    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request")
+    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.__init__")
     def test_import_model_artifact_success(
         self,
-        mock_wait_for_work_request,
+        mock_data_science_work_request,
+        mock_wait_work_request,
         mock_client,
     ):
         """Tests importing model artifact content from the model catalog."""
         test_bucket_uri = "oci://bucket@namespace/prefix"
         test_bucket_details = ObjectStorageDetails.from_path(test_bucket_uri)
         test_region = "test_region"
+        mock_data_science_work_request.return_value = None
         with patch.object(OCIDataScienceModel, "client", mock_client):
             self.mock_model.import_model_artifact(
                 bucket_uri=test_bucket_uri, region=test_region
@@ -400,7 +403,10 @@ class TestOCIDataScienceModel:
                     )
                 ),
             )
-            mock_wait_for_work_request.assert_called_with("work_request_id")
+            mock_data_science_work_request.assert_called_with("work_request_id")
+            mock_wait_work_request.assert_called_with(
+                progress_bar_description='Importing model artifacts.'
+            )
 
     @patch.object(OCIDataScienceModel, "client")
     def test_import_model_artifact_fail(self, mock_client):
@@ -416,16 +422,19 @@ class TestOCIDataScienceModel:
                 bucket_uri=test_bucket_uri, region="test_region"
             )
 
-    @patch("ads.model.service.oci_datascience_model.wait_work_request")
+    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.wait_work_request")
+    @patch("ads.model.service.oci_datascience_model.DataScienceWorkRequest.__init__")
     def test_export_model_artifact(
         self,
-        mock_wait_for_work_request,
+        mock_data_science_work_request,
+        mock_wait_work_request,
         mock_client,
     ):
         """Tests exporting model artifact to the model catalog."""
         test_bucket_uri = "oci://bucket@namespace/prefix"
         test_bucket_details = ObjectStorageDetails.from_path(test_bucket_uri)
         test_region = "test_region"
+        mock_data_science_work_request.return_value = None
         with patch.object(OCIDataScienceModel, "client", mock_client):
             self.mock_model.export_model_artifact(
                 bucket_uri=test_bucket_uri, region=test_region
@@ -441,4 +450,7 @@ class TestOCIDataScienceModel:
                     )
                 ),
             )
-            mock_wait_for_work_request.assert_called_with("work_request_id")
+            mock_data_science_work_request.assert_called_with("work_request_id")
+            mock_wait_work_request.assert_called_with(
+                progress_bar_description='Exporting model artifacts.'
+            )

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -26,7 +26,7 @@ WORK_REQUEST_PERCENTAGE = 100
 DEFAULT_BAR_FORMAT = '{l_bar}{bar}| [{elapsed}<{remaining}, ' '{rate_fmt}{postfix}]'
 
 
-class ADSWorkRequest(OCIDataScienceMixin):
+class DataScienceWorkRequest(OCIDataScienceMixin):
     """Class for monitoring OCI WorkRequest and representing on tqdm progress bar. This class inherits
     `OCIDataScienceMixin` so as to call its `client` attribute to interact with OCI backend.
     """
@@ -124,7 +124,7 @@ class ADSWorkRequest(OCIDataScienceMixin):
             percent_change = self._percentage - previous_percent_complete
             previous_percent_complete = self._percentage
             progress_callback(
-                progress=percent_change,
+                percent_change=percent_change,
                 description=self._description
             )
 
@@ -141,53 +141,49 @@ class ADSWorkRequest(OCIDataScienceMixin):
                 else:
                     break
 
-        progress_callback(progress=0, description="Done")
+        progress_callback(percent_change=0, description="Done")
 
+    def wait_work_request(
+        self,
+        progress_bar_description: str="Processing",
+        max_wait_time: int=DEFAULT_WAIT_TIME,
+        poll_interval: int=DEFAULT_POLL_INTERVAL
+    ):
+        """Waits for the work request progress bar to be completed.
+        
+        Parameters
+        ----------
+        progress_bar_description: str
+            Progress bar initial step description (Defaults to `Processing`).
+        max_wait_time: int
+            Maximum amount of time to wait in seconds (Defaults to 1200).
+            Negative implies infinite wait time.
+        poll_interval: int
+            Poll interval in seconds (Defaults to 10).
+        
+        Returns
+        -------
+        None
+        """
 
-def wait_work_request(
-    id: str, 
-    progress_bar_description: str="Processing", 
-    max_wait_time: int=DEFAULT_WAIT_TIME,
-    poll_interval: int=DEFAULT_POLL_INTERVAL
-):
-    """Waits for the work request progress bar to be completed.
-    
-    Parameters
-    ----------
-    id: str
-        Work Request OCID.
-    progress_bar_description: str
-        Progress bar initial step description (Defaults to `Processing`).
-    max_wait_time: int
-        Maximum amount of time to wait in seconds (Defaults to 1200).
-        Negative implies infinite wait time.
-    poll_interval: int
-        Poll interval in seconds (Defaults to 10).
-    
-    Returns
-    -------
-    None
-    """
-    ads_work_request = ADSWorkRequest(id)
+        with tqdm(
+            total=WORK_REQUEST_PERCENTAGE,
+            leave=False,
+            mininterval=0,
+            file=sys.stdout,
+            desc=progress_bar_description,
+            bar_format=DEFAULT_BAR_FORMAT
+        ) as pbar:
 
-    with tqdm(
-        total=WORK_REQUEST_PERCENTAGE,
-        leave=False,
-        mininterval=0,
-        file=sys.stdout,
-        desc=progress_bar_description,
-        bar_format=DEFAULT_BAR_FORMAT
-    ) as pbar:
+            def progress_callback(percent_change, description):
+                if percent_change != 0:
+                    pbar.update(percent_change)
+                if description:
+                    pbar.set_description(description)
 
-        def progress_callback(percent_change, description):
-            if percent_change != 0:
-                pbar.update(percent_change)
-            if description:
-                pbar.set_description(description)
-
-        ads_work_request.watch(
-            progress_callback,
-            max_wait_time,
-            poll_interval
-        )
+            self.watch(
+                progress_callback=progress_callback,
+                max_wait_time=max_wait_time,
+                poll_interval=poll_interval
+            )
  

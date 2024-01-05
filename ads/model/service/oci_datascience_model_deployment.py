@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from functools import wraps
 import logging
 from typing import Callable, List
 from ads.common.oci_datascience import OCIDataScienceMixin
-from ads.common.work_request import wait_work_request
+from ads.common.work_request import DataScienceWorkRequest
 from ads.config import PROJECT_OCID
 from ads.model.deployment.common.utils import OCIClientManager, State
 import oci
@@ -189,11 +189,10 @@ class OCIDataScienceModelDeployment(
                 self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
                 try:
-                    wait_work_request(
-                        self.workflow_req_id,
-                        "Activating model deployment",
-                        max_wait_time, 
-                        poll_interval
+                    DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                        progress_bar_description="Activating model deployment",
+                        max_wait_time=max_wait_time, 
+                        poll_interval=poll_interval
                     )
                 except Exception as e:
                     logger.error(
@@ -240,11 +239,10 @@ class OCIDataScienceModelDeployment(
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
             try:
-                wait_work_request(
-                    self.workflow_req_id,
-                    "Creating model deployment",
-                    max_wait_time, 
-                    poll_interval
+                DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                    progress_bar_description="Creating model deployment",
+                    max_wait_time=max_wait_time, 
+                    poll_interval=poll_interval
                 )
             except Exception as e:
                 logger.error("Error while trying to create model deployment: " + str(e))
@@ -294,11 +292,10 @@ class OCIDataScienceModelDeployment(
                 self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
                 try:
-                    wait_work_request(
-                        self.workflow_req_id,
-                        "Deactivating model deployment",
-                        max_wait_time, 
-                        poll_interval
+                    DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                        progress_bar_description="Deactivating model deployment",
+                        max_wait_time=max_wait_time, 
+                        poll_interval=poll_interval
                     )
                 except Exception as e:
                     logger.error(
@@ -363,11 +360,10 @@ class OCIDataScienceModelDeployment(
             self.workflow_req_id = response.headers.get("opc-work-request-id", None)
 
             try:
-                wait_work_request(
-                    self.workflow_req_id,
-                    "Deleting model deployment",
-                    max_wait_time, 
-                    poll_interval
+                DataScienceWorkRequest(self.workflow_req_id).wait_work_request(
+                    progress_bar_description="Deleting model deployment",
+                    max_wait_time=max_wait_time, 
+                    poll_interval=poll_interval
                 )
             except Exception as e:
                 logger.error("Error while trying to delete model deployment: " + str(e))
