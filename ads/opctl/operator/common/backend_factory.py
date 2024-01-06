@@ -28,7 +28,7 @@ from ads.opctl.constants import (
     RESOURCE_TYPE,
     RUNTIME_TYPE,
 )
-from ads.opctl.operator.common.const import PACK_TYPE
+from ads.opctl.operator.common.const import PACK_TYPE, OPERATOR_BACKEND_SECTION_NAME
 from ads.opctl.operator.common.dictionary_merger import DictionaryMerger
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 
@@ -124,14 +124,14 @@ class BackendFactory:
                 f"The `type` attribute must be specified in the operator's config."
             )
 
-        if not backend and not config.config.get("runtime"):
+        if not backend and not config.config.get(OPERATOR_BACKEND_SECTION_NAME):
             logger.info(
                 f"Backend config is not provided, the {BACKEND_NAME.LOCAL.value} "
                 "will be used by default. "
             )
             backend = BACKEND_NAME.LOCAL.value
         elif not backend:
-            backend = config.config.get("runtime")
+            backend = config.config.get(OPERATOR_BACKEND_SECTION_NAME)
 
         # extracting details about the operator
         operator_info = OperatorLoader.from_uri(uri=operator_type).load()
@@ -211,9 +211,9 @@ class BackendFactory:
         config.config["infrastructure"] = p_backend.config["infrastructure"]
         config.config["execution"] = p_backend.config["execution"]
 
-        return cls.BACKEND_MAP[p_backend.config["execution"]["backend"].lower()](
-            config=config.config, operator_info=operator_info
-        )
+        return cls.BACKEND_MAP[
+            p_backend.config["execution"][OPERATOR_BACKEND_SECTION_NAME].lower()
+        ](config=config.config, operator_info=operator_info)
 
     @classmethod
     def _extract_backend(
