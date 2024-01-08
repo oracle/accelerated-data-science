@@ -15,7 +15,7 @@ This page shows an example of fine-tuning the `Llama 2 <https://ai.meta.com/llam
   We recommend running the training on a private subnet.
   In this example, internet access is needed to download the source code and the pre-trained model.
 
-The `llama-recipes <llama-recipes>`_ repository contains example code to fine-tune llama2 model.
+The `llama-recipes <https://github.com/facebookresearch/llama-recipes>`_ repository contains example code to fine-tune llama2 model.
 The example `fine-tuning script <https://github.com/facebookresearch/llama-recipes/blob/1aecd00924738239f8d86f342b36bacad180d2b3/examples/finetuning.py>`_ supports both full parameter fine-tuning
 and `Parameter-Efficient Fine-Tuning (PEFT) <https://huggingface.co/blog/peft>`_.
 With ADS, you can start the training job by taking the source code directly from Github with no code change.
