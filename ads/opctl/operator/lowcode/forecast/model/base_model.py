@@ -598,10 +598,7 @@ class ForecastOperatorBaseModel(ABC):
             data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(lambda x: x.timestamp())
             kernel_explnr = PermutationExplainer(
                 model=explain_predict_fn,
-                masker=data_trimmed,
-                keep_index=False
-                if self.spec.model == SupportedModels.AutoMLX
-                else True,
+                masker=data_trimmed
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed)
