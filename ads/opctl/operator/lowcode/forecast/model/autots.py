@@ -176,6 +176,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         output_col = pd.DataFrame()
         yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
+        hist_df = model.back_forecast().forecast
 
         for cat in self.categories:
             output_i = pd.DataFrame()
@@ -194,6 +195,10 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             output_i["forecast_value"] = self.prediction.forecast[[cat_target]]
             output_i[yhat_upper_name] = self.prediction.upper_forecast[[cat_target]]
             output_i[yhat_lower_name] = self.prediction.lower_forecast[[cat_target]]
+            output_i.iloc[
+                -hist_df.shape[0] - self.spec.horizon : -self.spec.horizon,
+                output_i.columns.get_loc(f"fitted_value"),
+            ] = hist_df[cat_target]
 
             output_i = output_i.reset_index()
             output_col = pd.concat([output_col, output_i])
