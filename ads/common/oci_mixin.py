@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Contains Mixins for integrating OCI data models
@@ -13,18 +13,19 @@ import os
 import re
 import traceback
 from datetime import date, datetime
-from typing import Callable, Optional, Union
 from enum import Enum
+from typing import Callable, Optional, Union
 
 import oci
 import yaml
+from dateutil import tz
+from dateutil.parser import parse
+from oci._vendor import six
+
 from ads.common import auth
 from ads.common.decorator.utils import class_or_instance_method
 from ads.common.utils import camel_to_snake
 from ads.config import COMPARTMENT_OCID
-from dateutil import tz
-from dateutil.parser import parse
-from oci._vendor import six
 
 logger = logging.getLogger(__name__)
 
@@ -273,7 +274,7 @@ class OCISerializableMixin(OCIClientMixin):
         else:
             return cls.__deserialize_model(data, to_cls)
 
-    @classmethod
+    @class_or_instance_method
     def __deserialize_model(cls, data, to_cls):
         """De-serializes list or dict to model."""
         if isinstance(data, to_cls):

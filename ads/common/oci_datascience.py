@@ -1,17 +1,28 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import os
+
 import oci.data_science
-from ads.common.oci_mixin import OCIModelMixin
+
 from ads.common.decorator.utils import class_or_instance_method
+from ads.common.oci_mixin import OCIModelMixin
+
+ENV_VAR_OCI_ODSC_SERVICE_ENDPOINT = "OCI_ODSC_SERVICE_ENDPOINT"
 
 
 class OCIDataScienceMixin(OCIModelMixin):
     @class_or_instance_method
     def init_client(cls, **kwargs) -> oci.data_science.DataScienceClient:
+        client_kwargs = kwargs.get("client_kwargs", {})
+        if os.environ.get(ENV_VAR_OCI_ODSC_SERVICE_ENDPOINT):
+            client_kwargs.update(
+                dict(service_endpoint=os.environ.get(ENV_VAR_OCI_ODSC_SERVICE_ENDPOINT))
+            )
+            kwargs.update(client_kwargs)
         return cls._init_client(client=oci.data_science.DataScienceClient, **kwargs)
 
     @property
