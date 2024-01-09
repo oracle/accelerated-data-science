@@ -7,6 +7,7 @@
 import numpy as np
 import optuna
 import pandas as pd
+from joblib import Parallel, delayed
 from torch import Tensor
 from torchmetrics.regression import (
     MeanAbsoluteError,
@@ -71,33 +72,30 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.train_metrics = True
         self.forecast_col_name = "yhat1"
 
-    def _build_model(self) -> pd.DataFrame:
-        from neuralprophet import NeuralProphet
 
-        full_data_dict = self.datasets.full_data_dict
-        models = []
-        outputs = dict()
-        outputs_legacy = []
+    def _train_model(self, i, target, df):
 
-        # Extract the Confidence Interval Width and
-        # convert to neural prophets equivalent - quantiles
-        model_kwargs = self.spec.model_kwargs
+        try:
+            from neuralprophet import NeuralProphet
 
-        if self.spec.confidence_interval_width is None:
-            quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
-            self.spec.confidence_interval_width = float(quantiles[1]) - float(
-                quantiles[0]
+            # Extract the Confidence Interval Width and
+            # convert to neural prophets equivalent - quantiles
+            model_kwargs = self.spec.model_kwargs
+
+            if self.spec.confidence_interval_width is None:
+                self.quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
+                self.spec.confidence_interval_width = float(self.quantiles[1]) - float(
+                    self.quantiles[0]
+                )
+            else:
+                boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
+                self.quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
+
+            model_kwargs["quantiles"] = self.quantiles
+            self.forecast_output = ForecastOutput(
+                confidence_interval_width=self.spec.confidence_interval_width
             )
-        else:
-            boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
-            quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
 
-        model_kwargs["quantiles"] = quantiles
-        self.forecast_output = ForecastOutput(
-            confidence_interval_width=self.spec.confidence_interval_width
-        )
-
-        for i, (target, df) in enumerate(full_data_dict.items()):
             le, df_encoded = utils._label_encode_dataframe(
                 df, no_encode={self.spec.datetime_column.name, target}
             )
@@ -212,14 +210,34 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             forecast = model.predict(future)
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast.tail())
-            models.append(model)
-            outputs[target] = forecast
-            outputs_legacy.append(forecast)
+            # models.append(model)
+            self.outputs_dict[target] = forecast
+            self.outputs_legacy.append(forecast)
 
-        self.models = models
-        self.outputs = outputs_legacy
+            self.models_dict[target] = model
+            self.outputs = self.outputs_legacy
 
-        logger.debug("===========Done===========")
+            logger.debug("===========Done===========")
+        except Exception as e:
+            self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
+
+    def _build_model(self) -> pd.DataFrame:
+        # from neuralprophet import NeuralProphet
+
+        full_data_dict = self.datasets.full_data_dict
+        self.models_dict = dict()
+        self.outputs_dict = dict()
+        self.outputs_legacy = []
+        self.errors_dict = dict()
+
+        Parallel(n_jobs=-1, require="sharedmem")(
+            delayed(NeuralProphetOperatorModel._train_model)(self, i, target, df)
+            for self, (i, (target, df)) in zip(
+                [self] * len(full_data_dict), enumerate(full_data_dict.items())
+            )
+        )
+
+        self.models = [self.models_dict[target] for target in self.target_columns]
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
@@ -229,7 +247,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         for cat in self.categories:
             output_i = pd.DataFrame()
 
-            output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
+            output_i["Date"] = self.outputs_dict[f"{col}_{cat}"]["ds"]
             output_i["Series"] = cat
             output_i[f"input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
 
@@ -240,18 +258,18 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i.iloc[
                 : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values)
+            ] = (self.outputs_dict[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values)
             output_i.iloc[
                 -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
             ] = (
-                outputs[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon :].values
+                self.outputs_dict[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon :].values
             )
             output_i.iloc[
                 -self.spec.horizon :,
                 output_i.columns.get_loc(yhat_upper_name),
             ] = (
-                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[1]*100}%"]
+                self.outputs_dict[f"{col}_{cat}"][f"yhat1 {self.quantiles[1]*100}%"]
                 .iloc[-self.spec.horizon :]
                 .values
             )
@@ -259,7 +277,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 -self.spec.horizon :,
                 output_i.columns.get_loc(yhat_lower_name),
             ] = (
-                outputs[f"{col}_{cat}"][f"yhat1 {quantiles[0]*100}%"]
+                self.outputs_dict[f"{col}_{cat}"][f"yhat1 {self.quantiles[0]*100}%"]
                 .iloc[-self.spec.horizon :]
                 .values
             )
