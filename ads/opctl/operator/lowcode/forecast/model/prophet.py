@@ -65,7 +65,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 confidence_interval_width=self.spec.confidence_interval_width
             )
 
-            # for i, (target, df) in enumerate(full_data_dict.items()):
             le, df_encoded = utils._label_encode_dataframe(
                 df, no_encode={self.spec.datetime_column.name, target}
             )
