@@ -36,7 +36,7 @@ repos:
             files: ^docs/
     # Hardcoded secrets and ocids detector
     - repo: https://github.com/gitleaks/gitleaks
-      rev: v8.18.1
+      rev: v8.17.0
       hooks:
           - id: gitleaks
             exclude: .github/workflows/reusable-actions/set-dummy-conf.yml
