@@ -23,7 +23,7 @@ class ContainerRuntime(Runtime):
     >>> ContainerRuntime()
     >>> .with_image(
     >>>     "iad.ocir.io/<your_tenancy>/<your_image>",
-    >>>     entrypoint=["/bin/sh", -c],
+    >>>     entrypoint=["/bin/sh", "-c"],
     >>>     cmd="sleep 5 && echo Hello World",
     >>> )
     >>> .with_environment_variable(MY_ENV="MY_VALUE")

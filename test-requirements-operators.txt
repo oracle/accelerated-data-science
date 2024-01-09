@@ -1,0 +1,4 @@
+-r test-requirements.txt
+-e ".[forecast]"
+darts
+plotly

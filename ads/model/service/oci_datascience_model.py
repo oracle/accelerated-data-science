@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -17,6 +17,7 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIWorkRequestMixin
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.utils import extract_region
+from ads.common.work_request import DataScienceWorkRequest
 from ads.model.deployment import ModelDeployment
 from oci.data_science.models import (
     ArtifactExportDetailsObjectStorage,
@@ -361,9 +362,8 @@ class OCIDataScienceModel(
             ).headers["opc-work-request-id"]
 
             # Show progress of importing artifacts
-            self._wait_for_work_request(
-                work_request_id=work_request_id,
-                num_steps=2,
+            DataScienceWorkRequest(work_request_id).wait_work_request(
+                progress_bar_description="Importing model artifacts."
             )
         except ServiceError as ex:
             if ex.status == 404:
@@ -408,9 +408,8 @@ class OCIDataScienceModel(
         ).headers["opc-work-request-id"]
 
         # Show progress of exporting model artifacts
-        self._wait_for_work_request(
-            work_request_id=work_request_id,
-            num_steps=2,
+        DataScienceWorkRequest(work_request_id).wait_work_request(
+            progress_bar_description="Exporting model artifacts."
         )
 
     @check_for_model_id(
@@ -540,63 +539,3 @@ class OCIDataScienceModel(
         if not ocid:
             raise ValueError("Model OCID not provided.")
         return super().from_ocid(ocid)
-
-    def _wait_for_work_request(self, work_request_id: str, num_steps: int = 3) -> None:
-        """Waits for the work request to be completed.
-
-        Parameters
-        ----------
-        work_request_id: str
-            Work Request OCID.
-        num_steps: (int, optional). Defaults to 3.
-            Number of steps for the progress indicator.
-
-        Returns
-        -------
-        None
-        """
-        STOP_STATE = (
-            WorkRequest.STATUS_SUCCEEDED,
-            WorkRequest.STATUS_CANCELED,
-            WorkRequest.STATUS_FAILED,
-        )
-        work_request_logs = []
-
-        i = 0
-        with utils.get_progress_bar(num_steps) as progress:
-            while not work_request_logs or len(work_request_logs) < num_steps:
-                time.sleep(_REQUEST_INTERVAL_IN_SEC)
-                new_work_request_logs = []
-
-                try:
-                    work_request = self.client.get_work_request(work_request_id).data
-                    work_request_logs = self.client.list_work_request_logs(
-                        work_request_id
-                    ).data
-                except Exception as ex:
-                    logger.warn(ex)
-
-                new_work_request_logs = (
-                    work_request_logs[i:] if work_request_logs else []
-                )
-
-                for wr_item in new_work_request_logs:
-                    progress.update(wr_item.message)
-                    i += 1
-
-                if work_request and work_request.status in STOP_STATE:
-                    if work_request.status != WorkRequest.STATUS_SUCCEEDED:
-                        if new_work_request_logs:
-                            raise Exception(new_work_request_logs[-1].message)
-                        else:
-                            raise Exception(
-                                "Error occurred in attempt to perform the operation. "
-                                "Check the service logs to get more details. "
-                                f"{work_request}"
-                            )
-                    else:
-                        break
-
-            while i < num_steps:
-                progress.update()
-                i += 1

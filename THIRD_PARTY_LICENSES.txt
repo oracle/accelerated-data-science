@@ -54,6 +54,12 @@ docker
 * Source code: https://github.com/docker
 * Project home: https://www.docker.com/
 
+evaluate
+* Copyright 2023 HuggingFace Inc.
+* License: Apache-2.0 license
+* Source code: https://github.com/huggingface/evaluate
+* Project home: https://huggingface.co/docs/evaluate/index
+
 fastavro
 * Copyright (c) 2011 Miki Tebeka
 * License: MIT License
@@ -132,6 +138,12 @@ jinja2
 * License: BSD 3-Clause "New" or "Revised" License
 * Source code: https://github.com/pallets/jinja/
 * Project home: https://palletsprojects.com/p/jinja/
+
+langchain
+* Copyright (c) 2023 LangChain, Inc.
+* License: MIT license
+* Source code: https://github.com/langchain-ai/langchain
+* Project home: https://www.langchain.com/
 
 lightgbm
 * Copyright (c) 2023 Microsoft Corporation

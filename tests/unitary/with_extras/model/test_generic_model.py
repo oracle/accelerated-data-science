@@ -6,53 +6,48 @@
 """Unit tests for model frameworks. Includes tests for:
  - GenericModel
 """
+import glob
 import os
 import random
 import shutil
-from copy import copy
-import glob
 import tempfile
+from copy import copy
 from unittest.mock import MagicMock, PropertyMock, patch
+from zipfile import ZipFile
 
+import numpy as np
 import pandas as pd
 import pytest
 import yaml
-import numpy as np
-from ads.common import utils
-from ads.config import (
-    JOB_RUN_COMPARTMENT_OCID,
-    NB_SESSION_COMPARTMENT_OCID,
-)
-from ads.model.artifact import ModelArtifact
-from ads.model.deployment import (
-    DEFAULT_POLL_INTERVAL,
-    DEFAULT_WAIT_TIME,
-    ModelDeployer,
-    ModelDeployment,
-    ModelDeploymentProperties,
-)
-from ads.model.deployment.common.utils import State as ModelDeploymentState
-from ads.model.deployment import (
-    ModelDeploymentInfrastructure,
-    ModelDeploymentContainerRuntime,
-)
-from ads.model.generic_model import (
-    _ATTRIBUTES_TO_SHOW_,
-    GenericModel,
-    NotActiveDeploymentError,
-    SummaryStatus,
-    _prepare_artifact_dir,
-)
-from ads.model.model_properties import ModelProperties
-from ads.model.runtime.runtime_info import RuntimeInfo
-from ads.model.datascience_model import DataScienceModel, OCIDataScienceModel
 from joblib import dump
 from oci.data_science.models.model_provenance import ModelProvenance
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from zipfile import ZipFile
-from ads.model.deployment.common.utils import State
+
+from ads.common import utils
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.config import JOB_RUN_COMPARTMENT_OCID, NB_SESSION_COMPARTMENT_OCID
+from ads.model.artifact import ModelArtifact
+from ads.model.datascience_model import DataScienceModel, OCIDataScienceModel
+from ads.model.deployment import (
+    ModelDeployer,
+    ModelDeployment,
+    ModelDeploymentContainerRuntime,
+    ModelDeploymentInfrastructure,
+    ModelDeploymentProperties,
+)
+from ads.model.deployment.common.utils import State as ModelDeploymentState
+from ads.model.generic_model import (
+    _ATTRIBUTES_TO_SHOW_,
+    GenericModel,
+    NotActiveDeploymentError,
+    ArtifactsNotAvailableError,
+    SummaryStatus,
+    _prepare_artifact_dir,
+)
+from ads.model.model_properties import ModelProperties
+from ads.model.runtime.runtime_info import RuntimeInfo
 
 try:
     from yaml import CDumper as dumper
@@ -279,23 +274,38 @@ class TestGenericModel:
                 "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
             )
 
+    @patch.object(
+        ObjectStorageDetails,
+        "fetch_metadata_of_object",
+        side_effect=Exception("Connection Error."),
+    )
+    def test_prepare_fail_missing_python_version_field(
+        self, mock_fetch_metadata_of_object
+    ):
+        """Ensures that prepare method fails in case if python version not provided and cannot be resolved automatically."""
+        with pytest.raises(
+            ValueError,
+            match="Cannot automatically detect the inference python version. `inference_python_version` must be provided.",
+        ):
+            self.generic_model.prepare(inference_conda_env=INFERENCE_CONDA_ENV)
+
     @patch("ads.model.runtime.env_info.get_service_packs")
     @patch("ads.common.auth.default_signer")
     def test_prepare_both_conda_env(self, mock_signer, mock_get_service_packs):
         """prepare a model by only providing inference conda env."""
-        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
-        inference_python_version="3.6"
-        training_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
-        training_python_version="3.7"
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/General_Machine_Learning_for_CPUs/1.0/mlcpuv1"
+        inference_python_version = "3.6"
+        training_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Oracle_Database_for_CPU_Python_3.7/1.0/database_p37_cpu_v1"
+        training_python_version = "3.7"
         mock_get_service_packs.return_value = (
             {
-                inference_conda_env : ("mlcpuv1", inference_python_version),
-                training_conda_env : ("database_p37_cpu_v1", training_python_version)
+                inference_conda_env: ("mlcpuv1", inference_python_version),
+                training_conda_env: ("database_p37_cpu_v1", training_python_version),
             },
             {
-                "mlcpuv1" : (inference_conda_env, inference_python_version),
-                "database_p37_cpu_v1" : (training_conda_env, training_python_version)
-            }
+                "mlcpuv1": (inference_conda_env, inference_python_version),
+                "database_p37_cpu_v1": (training_conda_env, training_python_version),
+            },
         )
         self.generic_model.prepare(
             inference_conda_env=inference_conda_env,
@@ -332,7 +342,8 @@ class TestGenericModel:
     def test_prepare_with_custom_scorepy(self, mock_signer):
         """Test prepare a trained model with custom score.py."""
         self.generic_model.prepare(
-            INFERENCE_CONDA_ENV,
+            inference_conda_env=INFERENCE_CONDA_ENV,
+            inference_python_version=DEFAULT_PYTHON_VERSION,
             model_file_name="fake_model_name",
             score_py_uri=f"{os.path.dirname(os.path.abspath(__file__))}/test_files/custom_score.py",
         )
@@ -365,17 +376,19 @@ class TestGenericModel:
     @patch.object(GenericModel, "_random_display_name", return_value="test_name")
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.runtime.env_info.get_service_packs")
-    def test_save(self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name):
+    def test_save(
+        self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name
+    ):
         """test saving a model to artifact."""
-        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
-        inference_python_version="3.7"
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
         mock_get_service_packs.return_value = (
             {
-                inference_conda_env : ("dataexpl_p37_cpu_v3", inference_python_version),
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
             },
             {
-                "dataexpl_p37_cpu_v3" : (inference_conda_env, inference_python_version),
-            }
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
         )
         mock_dsc_model_create.return_value = MagicMock(id="fake_id")
         self.generic_model.prepare(
@@ -400,15 +413,15 @@ class TestGenericModel:
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_save_not_implemented_error(self, mock_get_service_packs):
         """test saving a model to artifact."""
-        inference_conda_env="oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
-        inference_python_version="3.7"
+        inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
         mock_get_service_packs.return_value = (
             {
-                inference_conda_env : ("dataexpl_p37_cpu_v3", inference_python_version),
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
             },
             {
-                "dataexpl_p37_cpu_v3" : (inference_conda_env, inference_python_version),
-            }
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
         )
         self.generic_model._serialize = False
         self.generic_model.prepare(
@@ -429,13 +442,47 @@ class TestGenericModel:
         with pytest.raises(NotImplementedError):
             self.generic_model.save()
 
+    @patch.object(GenericModel, "_random_display_name", return_value="test_name")
+    @patch.object(DataScienceModel, "create")
+    @patch("ads.model.runtime.env_info.get_service_packs")
+    @patch("ads.model.GenericModel.reload")
+    def test_save_not_reload(
+        self,
+        mock_reload,
+        mock_get_service_packs,
+        mock_dsc_model_create,
+        mock__random_display_name,
+    ):
+        """test saving a model to artifact without verify score.py."""
+        inference_conda_env = "oci://bucket@tenancy/prefix/dataexpl_p37_cpu_v3"
+        inference_python_version = "3.7"
+        mock_get_service_packs.return_value = (
+            {
+                inference_conda_env: ("dataexpl_p37_cpu_v3", inference_python_version),
+            },
+            {
+                "dataexpl_p37_cpu_v3": (inference_conda_env, inference_python_version),
+            },
+        )
+        mock_dsc_model_create.return_value = MagicMock(id="fake_id")
+        self.generic_model.prepare(
+            inference_conda_env="dataexpl_p37_cpu_v3",
+            namespace="ociodscdev",
+            inference_python_version="3.7",
+            model_file_name="model.joblib",
+            force_overwrite=True,
+            training_id=None,
+        )
+        self.generic_model.save(ignore_introspection=True, reload=False)
+        mock_reload.assert_not_called()
+
     def test_set_model_input_serializer(self):
         """Tests set_model_input_serializer() with different input types."""
+        from ads.model.serde.common import SERDE
         from ads.model.serde.model_input import (
             CloudpickleModelInputSERDE,
             JsonModelInputSERDE,
         )
-        from ads.model.serde.common import SERDE
 
         generic_model = GenericModel(estimator=self.clr, artifact_dir="fake_folder")
         # set by passing str
@@ -771,7 +818,6 @@ class TestGenericModel:
                 # )
                 assert test_result == {"result": "result"}
 
-    # @pytest.mark.skip(reason="need to fix later.")
     @pytest.mark.parametrize(
         "test_args",
         [
@@ -813,6 +859,7 @@ class TestGenericModel:
                 "uri": "src/folder",
                 "force_overwrite": True,
                 "auth": {"config": "value"},
+                "reload": True,
             },
         ],
     )
@@ -846,6 +893,7 @@ class TestGenericModel:
             auth=test_args.get("auth", {"config": "value"}),
             model_file_name=test_args.get("model_file_name"),
             ignore_conda_error=False,
+            reload=test_args.get("reload", False),
         )
 
         if not test_args.get("as_onnx"):
@@ -863,8 +911,10 @@ class TestGenericModel:
                 properties=ModelProperties(),
                 as_onnx=True,
             )
-
-        mock_reload_runtime_info.assert_called()
+        if test_args.get("reload", False):
+            mock_reload_runtime_info.assert_called()
+        else:
+            mock_reload_runtime_info.assert_not_called()
         assert test_result == None
 
     @patch("ads.common.auth.default_signer")
@@ -1033,6 +1083,7 @@ class TestGenericModel:
             bucket_uri="test_bucket_uri",
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
+            download_artifact=True,
         )
 
         mock_from_id.assert_called_with(test_model_deployment_id)
@@ -1047,6 +1098,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=False,
+            download_artifact=True,
         )
 
         assert test_result == test_model
@@ -1150,6 +1202,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         mock_from_model_deployment.assert_called_with(
@@ -1163,6 +1216,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         assert test_model_deployment_result == test_model
@@ -1198,6 +1252,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         mock_from_model_catalog.assert_called_with(
@@ -1211,6 +1266,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         assert test_model_result == mock_oci_model
@@ -1234,6 +1290,135 @@ class TestGenericModel:
                 compartment_id="test_compartment_id",
                 ignore_conda_error=True,
             )
+
+    @patch.object(GenericModel, "from_model_catalog")
+    def test_from_id_model_without_artifact(self, mock_from_model_catalog):
+        """Test to check model artifact is not loaded when download_artifact is set to False"""
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        mock_model = MagicMock(model_id=test_model_id, model_artifact=None)
+        mock_from_model_catalog.return_value = mock_model
+
+        test_model_result = GenericModel.from_id(
+            ocid=test_model_id,
+            compartment_id="test_compartment_id",
+            download_artifact=False,
+        )
+        mock_from_model_catalog.assert_called_with(
+            test_model_id,
+            model_file_name=None,
+            artifact_dir=None,
+            auth=None,
+            force_overwrite=False,
+            properties=None,
+            bucket_uri=None,
+            remove_existing_artifact=True,
+            compartment_id="test_compartment_id",
+            ignore_conda_error=False,
+            download_artifact=False,
+        )
+        assert test_model_result.model_artifact is None
+        assert test_model_result == mock_model
+
+    @patch.object(GenericModel, "from_model_catalog")
+    def test_from_id_with_artifact(self, mock_from_model_catalog):
+        """Test to check model artifact is loaded when download_artifact is set to True"""
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        artifact_dir = "test_dir"
+        model_artifact = MagicMock(artifact_dir=artifact_dir, reload=False)
+        mock_model = MagicMock(model_id=test_model_id, model_artifact=model_artifact)
+        mock_from_model_catalog.return_value = mock_model
+
+        test_model_result = GenericModel.from_id(
+            artifact_dir=artifact_dir,
+            ocid=test_model_id,
+            compartment_id="test_compartment_id",
+            remove_existing_artifact=True,
+            download_artifact=True,
+        )
+
+        mock_from_model_catalog.assert_called_with(
+            test_model_id,
+            model_file_name=None,
+            artifact_dir=artifact_dir,
+            auth=None,
+            force_overwrite=False,
+            properties=None,
+            bucket_uri=None,
+            remove_existing_artifact=True,
+            compartment_id="test_compartment_id",
+            ignore_conda_error=False,
+            download_artifact=True,
+        )
+        assert test_model_result.model_artifact is not None
+        assert test_model_result == mock_model
+
+    @patch("ads.common.auth.default_signer")
+    def test_verify_without_local_artifact(self, mock_signer):
+        """Test verify input data with model without artifacts loaded."""
+        _prepare(self.generic_model)
+        self.generic_model.model_artifact = None
+
+        with pytest.raises(
+            ArtifactsNotAvailableError,
+            match="Model artifacts are either not generated or "
+            "not available locally.",
+        ):
+            self.generic_model.verify(self.X_test.tolist())
+
+    def test_download_artifact_fail(self):
+        """Test to check if model is loaded first before downloading artifacts"""
+        with pytest.raises(
+            ValueError,
+            match="`model_id` is not available, load the GenericModel object first.",
+        ):
+            generic_model = GenericModel()
+            generic_model.download_artifact(uri="", auth={"config": "value"})
+
+    @patch.object(ModelArtifact, "from_uri")
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(GenericModel, "reload_runtime_info")
+    @patch.object(DataScienceModel, "download_artifact")
+    def test_download_artifact(
+        self,
+        mock_download_artifact,
+        mock_reload_runtime_info,
+        mock_dsc_model_from_id,
+        mock_from_uri,
+    ):
+        """Test to check if model artifacts are updated after download_artifact is called"""
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        artifact_dir = "test_dir"
+        self.generic_model.dsc_model = MagicMock(id=test_model_id)
+        self.generic_model.model_artifact = None
+        self.generic_model.artifact_dir = artifact_dir
+
+        mock_dsc_model_from_id.return_value = MagicMock(id=test_model_id)
+        mock_download_artifact.return_value = None
+        mock_artifact_instance = MagicMock(model="test_model")
+        mock_from_uri.return_value = mock_artifact_instance
+
+        assert self.generic_model.model_artifact is None
+
+        self.generic_model.download_artifact(
+            artifact_dir=artifact_dir,
+            auth={"config": {}},
+            force_overwrite=True,
+            bucket_uri="bucket_uri",
+            remove_existing_artifact=True,
+        )
+
+        mock_reload_runtime_info.assert_called()
+        assert self.generic_model.model_artifact is not None
+
+    def test_save_without_local_artifact(self):
+        """Test to check if model artifact is available before saving the model"""
+        self.generic_model.model_artifact = None
+        with pytest.raises(
+            ArtifactsNotAvailableError,
+            match="Model artifacts are either not generated or "
+            "not available locally.",
+        ):
+            self.generic_model.save()
 
     @patch.object(ModelDeployment, "activate")
     @patch.object(ModelDeployment, "deactivate")

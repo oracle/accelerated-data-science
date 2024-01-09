@@ -32,6 +32,7 @@ from ads.opctl.operator.common.const import (
     OPERATOR_BASE_DOCKER_GPU_FILE,
     OPERATOR_BASE_GPU_IMAGE,
     OPERATOR_BASE_IMAGE,
+    OPERATOR_BACKEND_SECTION_NAME
 )
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.utils import publish_image as publish_image_cmd
@@ -204,19 +205,20 @@ def init(
     ).items():
         tmp_config = value
         if merge_config and operator_config:
-            tmp_config = {**operator_config, "runtime": value}
+            tmp_config = {**operator_config, OPERATOR_BACKEND_SECTION_NAME: value}
 
         with fsspec.open(
             os.path.join(
-                output, f"{operator_info.type}_{'_'.join(key).replace('.','_')}.yaml"
+                output,
+                f"{operator_info.type}_{'_'.join(key).replace('.','_')}_backend.yaml",
             ),
             mode="w",
         ) as f:
             f.write(yaml.dump(tmp_config))
 
-    logger.info("#" * 100)
+    logger.info("#" * 50)
     logger.info(f"The auto-generated configs have been placed in: {output}")
-    logger.info("#" * 100)
+    logger.info("#" * 50)
 
 
 @runtime_dependency(module="docker", install_from=OptionalDependency.OPCTL)
@@ -565,7 +567,9 @@ def create(
     raise NotImplementedError()
 
 
-def run(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
+def run(
+    config: Dict, backend: Union[Dict, str] = None, **kwargs: Dict[str, Any]
+) -> None:
     """
     Runs the operator with the given specification on the targeted backend.
 
@@ -575,7 +579,7 @@ def run(config: Dict, backend: Union[Dict, str] = None, **kwargs) -> None:
         The operator's config.
     backend: (Union[Dict, str], optional)
         The backend config or backend name to run the operator.
-    kwargs: (Dict, optional)
+    kwargs: (Dict[str, Any], optional)
         Optional key value arguments to run the operator.
     """
     BackendFactory.backend(

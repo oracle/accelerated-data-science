@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import inspect
@@ -31,6 +31,7 @@ from ads.config import (
     NB_SESSION_OCID,
     PIPELINE_RUN_COMPARTMENT_OCID,
     PROJECT_OCID,
+    TMPDIR,
 )
 from ads.evaluations import EvaluatorMixin
 from ads.feature_engineering import ADSImage
@@ -152,6 +153,13 @@ class NotActiveDeploymentError(Exception):  # pragma: no cover
         super().__init__(msg)
 
 
+class ArtifactsNotAvailableError(Exception):
+    def __init__(
+        self, msg="Model artifacts are either not generated or not available locally."
+    ):
+        super().__init__(msg)
+
+
 class SerializeModelNotImplementedError(NotImplementedError):  # pragma: no cover
     pass
 
@@ -183,7 +191,7 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     if artifact_dir and isinstance(artifact_dir, str):
         return os.path.abspath(os.path.expanduser(artifact_dir))
 
-    artifact_dir = tempfile.mkdtemp()
+    artifact_dir = TMPDIR or tempfile.mkdtemp()
     logger.info(
         f"The `artifact_dir` was not provided and "
         f"automatically set to: {artifact_dir}"
@@ -280,6 +288,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         Tests if deployment works in local environment.
     upload_artifact(...)
         Uploads model artifacts to the provided `uri`.
+    download_artifact(...)
+        Downloads model artifacts from the model catalog.
 
 
     Examples
@@ -965,17 +975,20 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             auth=self.auth,
             local_copy_dir=self.local_copy_dir,
         )
-        self.runtime_info = self.model_artifact.prepare_runtime_yaml(
-            inference_conda_env=self.properties.inference_conda_env,
-            inference_python_version=self.properties.inference_python_version,
-            training_conda_env=self.properties.training_conda_env,
-            training_python_version=self.properties.training_python_version,
-            force_overwrite=force_overwrite,
-            namespace=namespace,
-            bucketname=DEFAULT_CONDA_BUCKET_NAME,
-            auth=self.auth,
-            ignore_conda_error=self.ignore_conda_error,
-        )
+        try:
+            self.runtime_info = self.model_artifact.prepare_runtime_yaml(
+                inference_conda_env=self.properties.inference_conda_env,
+                inference_python_version=self.properties.inference_python_version,
+                training_conda_env=self.properties.training_conda_env,
+                training_python_version=self.properties.training_python_version,
+                force_overwrite=force_overwrite,
+                namespace=namespace,
+                bucketname=DEFAULT_CONDA_BUCKET_NAME,
+                auth=self.auth,
+                ignore_conda_error=self.ignore_conda_error,
+            )
+        except ValueError as e:
+            raise e
 
         self._summary_status.update_status(
             detail="Generated runtime.yaml", status=ModelState.DONE.value
@@ -1245,6 +1258,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         Dict
             A dictionary which contains prediction results.
         """
+        if self.model_artifact is None:
+            raise ArtifactsNotAvailableError
+
         endpoint = f"http://127.0.0.1:8000/predict"
         data = self._handle_input_data(data, auto_serialize_data, **kwargs)
 
@@ -1348,13 +1364,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         properties.with_dict(local_vars)
         auth = auth or authutil.default_signer()
         artifact_dir = _prepare_artifact_dir(artifact_dir)
+        reload = kwargs.pop("reload", False)
         model_artifact = ModelArtifact.from_uri(
             uri=uri,
             artifact_dir=artifact_dir,
-            model_file_name=model_file_name,
-            force_overwrite=force_overwrite,
             auth=auth,
+            force_overwrite=force_overwrite,
             ignore_conda_error=ignore_conda_error,
+            model_file_name=model_file_name,
+            reload=reload,
         )
         model = cls(
             estimator=model_artifact.model,
@@ -1367,23 +1385,145 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model.local_copy_dir = model_artifact.local_copy_dir
         model.model_artifact = model_artifact
         model.ignore_conda_error = ignore_conda_error
-        model.reload_runtime_info()
+
+        if reload:
+            model.reload_runtime_info()
+            model._summary_status.update_action(
+                detail="Populated metadata(Custom, Taxonomy and Provenance)",
+                action="Call .populate_metadata() to populate metadata.",
+            )
+
         model._summary_status.update_status(
             detail="Generated score.py",
-            status=ModelState.DONE.value,
+            status=ModelState.NOTAPPLICABLE.value,
         )
         model._summary_status.update_status(
             detail="Generated runtime.yaml",
-            status=ModelState.DONE.value,
+            status=ModelState.NOTAPPLICABLE.value,
         )
         model._summary_status.update_status(
+            detail="Serialized model",
+            status=ModelState.NOTAPPLICABLE.value,
+        )
+        model._summary_status.update_status(
+            detail="Populated metadata(Custom, Taxonomy and Provenance)",
+            status=ModelState.AVAILABLE.value
+            if reload
+            else ModelState.NOTAPPLICABLE.value,
+        )
+
+        return model
+
+    def download_artifact(
+        self,
+        artifact_dir: Optional[str] = None,
+        auth: Optional[Dict] = None,
+        force_overwrite: Optional[bool] = False,
+        bucket_uri: Optional[str] = None,
+        remove_existing_artifact: Optional[bool] = True,
+        **kwargs,
+    ) -> "GenericModel":
+        """Downloads model artifacts from the model catalog.
+
+         Parameters
+         ----------
+        artifact_dir: (str, optional). Defaults to `None`.
+            The artifact directory to store the files needed for deployment.
+            Will be created if not exists.
+        auth: (Dict, optional). Defaults to None.
+            The default authentication is set using `ads.set_auth` API. If you need to override the
+            default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
+            authentication signer and kwargs required to instantiate IdentityClient object.
+        force_overwrite: (bool, optional). Defaults to False.
+            Whether to overwrite existing files or not.
+        bucket_uri: (str, optional). Defaults to None.
+            The OCI Object Storage URI where model artifacts will be copied to.
+            The `bucket_uri` is only necessary for downloading large artifacts with
+            size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
+        remove_existing_artifact: (bool, optional). Defaults to `True`.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
+
+         Returns
+         -------
+         Self
+             An instance of `GenericModel` class.
+
+         Raises
+         ------
+         ValueError
+             If `model_id` is not available in the GenericModel object.
+        """
+        model_id = self.model_id
+        if not model_id:
+            raise ValueError(
+                "`model_id` is not available, load the GenericModel object first."
+            )
+
+        if not artifact_dir:
+            artifact_dir = self.artifact_dir
+        artifact_dir = _prepare_artifact_dir(artifact_dir)
+
+        target_dir = (
+            _prepare_artifact_dir()
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else artifact_dir
+        )
+
+        dsc_model = DataScienceModel.from_id(model_id)
+        dsc_model.download_artifact(
+            target_dir=target_dir,
+            force_overwrite=force_overwrite,
+            bucket_uri=bucket_uri,
+            remove_existing_artifact=remove_existing_artifact,
+            auth=auth,
+            region=kwargs.pop("region", None),
+            timeout=kwargs.pop("timeout", None),
+        )
+        model_artifact = ModelArtifact.from_uri(
+            uri=target_dir,
+            artifact_dir=artifact_dir,
+            model_file_name=self.model_file_name,
+            force_overwrite=force_overwrite,
+            auth=auth,
+            ignore_conda_error=self.ignore_conda_error,
+        )
+        self.dsc_model = dsc_model
+        self.local_copy_dir = model_artifact.local_copy_dir
+        self.model_artifact = model_artifact
+        self.reload_runtime_info()
+
+        self._summary_status.update_status(
+            detail="Generated score.py",
+            status=ModelState.DONE.value,
+        )
+        self._summary_status.update_status(
+            detail="Generated runtime.yaml",
+            status=ModelState.DONE.value,
+        )
+        self._summary_status.update_status(
             detail="Serialized model", status=ModelState.DONE.value
         )
-        model._summary_status.update_action(
+        self._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            action=f"Call .populate_metadata() to populate metadata.",
+            status=ModelState.DONE.value,
         )
-        return model
+        self._summary_status.update_status(
+            detail="Local tested .predict from score.py",
+            status=ModelState.AVAILABLE.value,
+        )
+        self._summary_status.update_action(
+            detail="Local tested .predict from score.py",
+            action="",
+        )
+        self._summary_status.update_status(
+            detail="Conducted Introspect Test",
+            status=ModelState.AVAILABLE.value,
+        )
+        self._summary_status.update_status(
+            detail="Uploaded artifact to model catalog",
+            status=ModelState.AVAILABLE.value,
+        )
+        return self
 
     @classmethod
     def from_model_catalog(
@@ -1397,6 +1537,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
         ignore_conda_error: Optional[bool] = False,
+        download_artifact: Optional[bool] = True,
         **kwargs,
     ) -> Self:
         """Loads model from model catalog.
@@ -1426,6 +1567,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
+        download_artifact: (bool, optional). Defaults to True.
+            Whether to download the model pickle or checkpoints
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -1458,14 +1601,60 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         artifact_dir = _prepare_artifact_dir(artifact_dir)
 
         target_dir = (
-            artifact_dir
-            if not ObjectStorageDetails.is_oci_path(artifact_dir)
-            else tempfile.mkdtemp()
+            _prepare_artifact_dir()
+            if ObjectStorageDetails.is_oci_path(artifact_dir)
+            else artifact_dir
         )
         bucket_uri = bucket_uri or (
             artifact_dir if ObjectStorageDetails.is_oci_path(artifact_dir) else None
         )
         dsc_model = DataScienceModel.from_id(model_id)
+
+        if not download_artifact:
+            result_model = cls(
+                artifact_dir=artifact_dir,
+                bucket_uri=bucket_uri,
+                auth=auth,
+                properties=properties,
+                ignore_conda_error=ignore_conda_error,
+                **kwargs,
+            )
+            result_model._summary_status.update_status(
+                detail="Generated score.py",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Generated runtime.yaml",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Serialized model", status=ModelState.NOTAPPLICABLE.value
+            )
+            result_model._summary_status.update_status(
+                detail="Populated metadata(Custom, Taxonomy and Provenance)",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Local tested .predict from score.py",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_action(
+                detail="Local tested .predict from score.py",
+                action="Local artifact is not available. "
+                "Set load_artifact flag to True while loading the model or "
+                "call .download_artifact().",
+            )
+            result_model._summary_status.update_status(
+                detail="Conducted Introspect Test",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model._summary_status.update_status(
+                detail="Uploaded artifact to model catalog",
+                status=ModelState.NOTAPPLICABLE.value,
+            )
+            result_model.dsc_model = dsc_model
+            return result_model
+
         dsc_model.download_artifact(
             target_dir=target_dir,
             force_overwrite=force_overwrite,
@@ -1519,6 +1708,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
         ignore_conda_error: Optional[bool] = False,
+        download_artifact: Optional[bool] = True,
         **kwargs,
     ) -> Self:
         """Loads model from model deployment.
@@ -1548,6 +1738,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             Wether artifacts uploaded to object storage bucket need to be removed or not.
         ignore_conda_error: (bool, optional). Defaults to False.
             Parameter to ignore error when collecting conda information.
+        download_artifact: (bool, optional). Defaults to True.
+            Whether to download the model pickle or checkpoints
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -1591,6 +1783,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             bucket_uri=bucket_uri,
             remove_existing_artifact=remove_existing_artifact,
             ignore_conda_error=ignore_conda_error,
+            download_artifact=download_artifact,
             **kwargs,
         )
         model._summary_status.update_status(
@@ -1713,6 +1906,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         bucket_uri: Optional[str] = None,
         remove_existing_artifact: Optional[bool] = True,
         ignore_conda_error: Optional[bool] = False,
+        download_artifact: Optional[bool] = True,
         **kwargs,
     ) -> Self:
         """Loads model from model OCID or model deployment OCID.
@@ -1740,6 +1934,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             size is greater than 2GB. Example: `oci://<bucket_name>@<namespace>/prefix/`.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        ignore_conda_error: (bool, optional). Defaults to False.
+            Parameter to ignore error when collecting conda information.
+        download_artifact: (bool, optional). Defaults to True.
+            Whether to download the model pickle or checkpoints
         kwargs:
             compartment_id : (str, optional)
                 Compartment OCID. If not specified, the value will be taken from the environment variables.
@@ -1763,6 +1961,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
                 ignore_conda_error=ignore_conda_error,
+                download_artifact=download_artifact,
                 **kwargs,
             )
         elif DataScienceModelType.MODEL in ocid:
@@ -1776,6 +1975,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 bucket_uri=bucket_uri,
                 remove_existing_artifact=remove_existing_artifact,
                 ignore_conda_error=ignore_conda_error,
+                download_artifact=download_artifact,
                 **kwargs,
             )
         else:
@@ -1825,18 +2025,19 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     def save(
         self,
-        display_name: Optional[str] = None,
-        description: Optional[str] = None,
-        freeform_tags: Optional[dict] = None,
-        defined_tags: Optional[dict] = None,
-        ignore_introspection: Optional[bool] = False,
         bucket_uri: Optional[str] = None,
-        overwrite_existing_artifact: Optional[bool] = True,
-        remove_existing_artifact: Optional[bool] = True,
-        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
-        version_label: Optional[str] = None,
+        defined_tags: Optional[dict] = None,
+        description: Optional[str] = None,
+        display_name: Optional[str] = None,
         featurestore_dataset=None,
+        freeform_tags: Optional[dict] = None,
+        ignore_introspection: Optional[bool] = False,
+        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
+        overwrite_existing_artifact: Optional[bool] = True,
         parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        remove_existing_artifact: Optional[bool] = True,
+        reload: Optional[bool] = True,
+        version_label: Optional[str] = None,
         model_by_reference: Optional[bool] = False,
         **kwargs,
     ) -> str:
@@ -1864,7 +2065,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         overwrite_existing_artifact: (bool, optional). Defaults to `True`.
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Wether artifacts uploaded to object storage bucket need to be removed or not.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
         model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
             The model version set OCID, or model version set name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
@@ -1873,6 +2074,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The feature store dataset
         parallel_process_count: (int, optional)
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+        reload: (bool, optional)
+            Whether to reload to check if `load_model()` works in `score.py`. Default to `True`.
         model_by_reference: (bool, optional)
             Whether model artifact is made available to Model Store by reference.
         kwargs:
@@ -1911,6 +2114,9 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         ... )
 
         """
+        if self.model_artifact is None:
+            raise ArtifactsNotAvailableError
+
         # Set default display_name if not specified - randomly generated easy to remember name generated
         if not display_name:
             display_name = self._random_display_name()
@@ -1929,12 +2135,17 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 raise RuntimeInfoInconsistencyError(
                     "`.runtime_info` does not sync with runtime.yaml file. Call "
                     "`.runtime_info.save()` if you updated `runtime_info`. "
-                    "Call `.reload()` if you updated runtime.yaml file."
+                    "Call `.reload_runtime_info()` if you updated runtime.yaml file."
                 )
             # reload to check if load_model works in score.py, i.e.
             # whether the model file has been serialized, and whether it can be loaded
             # successfully.
-            self.reload()
+            if reload:
+                self.reload()
+            else:
+                logger.warning(
+                    "The score.py file has not undergone testing, and this could result in deployment errors. To verify its functionality, please set `reload=True`."
+                )
         except:
             if not self.ignore_conda_error:
                 raise
@@ -3028,6 +3239,7 @@ class ModelState(Enum):
     AVAILABLE = "Available"
     NOTAVAILABLE = "Not Available"
     NEEDSACTION = "Needs Action"
+    NOTAPPLICABLE = "Not Applicable"
 
 
 class SummaryStatus:
