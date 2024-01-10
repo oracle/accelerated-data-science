@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import cgi
@@ -1129,13 +1129,7 @@ class DataScienceModel(Builder):
         None
         """
         # Supports OCI object storage only
-        parsed = urlparse(output_uri)
-
-        bucket = parsed.username
-        namespace = parsed.hostname
-        prefix = parsed.path
-        if prefix.startswith("/"):
-            prefix = path[1:]
+        bucket_details = ObjectStorageDetails.from_path(bucket_uri)
 
         self.custom_metadata_list.add(
             key=self.CONST_MODEL_ARTIFACT_SOURCE_TYPE,
@@ -1146,21 +1140,21 @@ class DataScienceModel(Builder):
         )
         self.custom_metadata_list.add(
             key=self.CONST_OBJECT_STORAGE_NAMESPACE,
-            value=namespace,
+            value=bucket_details.namespace,
             category=MetadataCustomCategory.OTHER,
             description="oss bucket namespace",
             replace=True,
         )
         self.custom_metadata_list.add(
             key=self.CONST_OBJECT_STORAGE_BUCKET,
-            value=bucket,
+            value=bucket_details.bucket,
             category=MetadataCustomCategory.OTHER,
             description="oss bucket location",
             replace=True,
         )
         self.custom_metadata_list.add(
             key=self.CONST_FILE_PREFIX,
-            value=prefix,
+            value=bucket_details.filepath,
             category=MetadataCustomCategory.OTHER,
             description="prefix value",
             replace=True,
