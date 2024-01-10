@@ -1470,15 +1470,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         )
 
         dsc_model = DataScienceModel.from_id(model_id)
-        dsc_model.download_artifact(
-            target_dir=target_dir,
-            force_overwrite=force_overwrite,
-            bucket_uri=bucket_uri,
-            remove_existing_artifact=remove_existing_artifact,
-            auth=auth,
-            region=kwargs.pop("region", None),
-            timeout=kwargs.pop("timeout", None),
-        )
+        # load mode from catalog if model artifact were passed by reference
+        custom_metadata = dsc_model.custom_metadata_list
+        artifact_uri = GenericModel.get_model_artifact_by_reference_uri(custom_metadata)
+        if artifact_uri:
+            target_dir = artifact_uri
+        else:
+            dsc_model.download_artifact(
+                target_dir=target_dir,
+                force_overwrite=force_overwrite,
+                bucket_uri=bucket_uri,
+                remove_existing_artifact=remove_existing_artifact,
+                auth=auth,
+                region=kwargs.pop("region", None),
+                timeout=kwargs.pop("timeout", None),
+            )
         model_artifact = ModelArtifact.from_uri(
             uri=target_dir,
             artifact_dir=artifact_dir,
@@ -1655,15 +1661,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             result_model.dsc_model = dsc_model
             return result_model
 
-        dsc_model.download_artifact(
-            target_dir=target_dir,
-            force_overwrite=force_overwrite,
-            bucket_uri=bucket_uri,
-            remove_existing_artifact=remove_existing_artifact,
-            auth=auth,
-            region=kwargs.pop("region", None),
-            timeout=kwargs.pop("timeout", None),
-        )
+        # load mode from catalog if model artifact were passed by reference
+        custom_metadata = dsc_model.custom_metadata_list
+        artifact_uri = GenericModel.get_model_artifact_by_reference_uri(custom_metadata)
+        if artifact_uri:
+            target_dir = artifact_uri
+        else:
+            dsc_model.download_artifact(
+                target_dir=target_dir,
+                force_overwrite=force_overwrite,
+                bucket_uri=bucket_uri,
+                remove_existing_artifact=remove_existing_artifact,
+                auth=auth,
+                region=kwargs.pop("region", None),
+                timeout=kwargs.pop("timeout", None),
+            )
         result_model = cls.from_model_artifact(
             uri=target_dir,
             model_file_name=model_file_name,
@@ -1695,6 +1707,52 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             else ModelState.NOTAVAILABLE.value,
         )
         return result_model
+
+    @staticmethod
+    def get_model_artifact_by_reference_uri(
+        custom_metadata_list: ModelCustomMetadata,
+    ) -> str:
+        """
+        Retrieves the location of the model artifact if model was created by reference
+
+        Parameters
+        ----------
+        custom_metadata_list: ModelCustomMetadata
+            Model custom metadata.
+
+        Raises
+        ------
+        ValueError
+            When model artifact source type is OSS but uri details are missing in the metadata.
+
+        Returns
+        -------
+        artifact_uri: str
+            Location of the artifact uri
+        """
+        artifact_uri = None
+        try:
+            if custom_metadata_list.contains(
+                DataScienceModel.CONST_MODEL_ARTIFACT_SOURCE_TYPE
+            ):
+                model_artifact_source = custom_metadata_list.get(
+                    DataScienceModel.CONST_MODEL_ARTIFACT_SOURCE_TYPE
+                )
+                if model_artifact_source == "OSS":
+                    namespace = custom_metadata_list.get(
+                        DataScienceModel.CONST_OBJECT_STORAGE_NAMESPACE
+                    )
+                    bucket_name = custom_metadata_list.get(
+                        DataScienceModel.CONST_OBJECT_STORAGE_BUCKET
+                    )
+                    prefix = custom_metadata_list.get(
+                        DataScienceModel.CONST_FILE_PREFIX
+                    )
+                    artifact_uri = f"oci://{bucket_name}@{namespace}/{prefix}/"
+        except ValueError as e:
+            logger.error(f"Unable to fetch the model artifact location due to: {e}.")
+            raise e
+        return artifact_uri
 
     @classmethod
     def from_model_deployment(
