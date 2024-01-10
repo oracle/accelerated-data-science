@@ -1738,7 +1738,10 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 model_artifact_source = custom_metadata_list.get(
                     DataScienceModel.CONST_MODEL_ARTIFACT_SOURCE_TYPE
                 )
-                if model_artifact_source == "OSS":
+                if (
+                    model_artifact_source
+                    == DataScienceModel.CONST_OBJECT_STORAGE_SERVICE
+                ):
                     namespace = custom_metadata_list.get(
                         DataScienceModel.CONST_OBJECT_STORAGE_NAMESPACE
                     )

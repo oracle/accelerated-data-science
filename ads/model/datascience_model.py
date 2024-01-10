@@ -174,6 +174,7 @@ class DataScienceModel(Builder):
     CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
     CONST_MODEL_VERSION_LABEL = "versionLabel"
     CONST_MODEL_ARTIFACT_SOURCE_TYPE = "modelArtifactSourceType"
+    CONST_OBJECT_STORAGE_SERVICE = "OSS"
     CONST_OBJECT_STORAGE_NAMESPACE = "objectStorageNamespace"
     CONST_OBJECT_STORAGE_BUCKET = "objectStorageBucket"
     CONST_FILE_PREFIX = "prefix"
@@ -1133,7 +1134,7 @@ class DataScienceModel(Builder):
 
         self.custom_metadata_list.add(
             key=self.CONST_MODEL_ARTIFACT_SOURCE_TYPE,
-            value="OSS",
+            value=DataScienceModel.CONST_OBJECT_STORAGE_SERVICE,
             category=MetadataCustomCategory.OTHER,
             description="model by reference storage type",
             replace=True,
