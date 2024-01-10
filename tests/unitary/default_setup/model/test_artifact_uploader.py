@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import glob
@@ -303,3 +303,23 @@ class TestArtifactUploader:
             assert sorted(test_files) == sorted(expected_files)
 
         shutil.rmtree(test_result, ignore_errors=True)
+
+    @patch("ads.common.utils.is_path_exists", return_value=True)
+    @patch(
+        "ads.model.service.oci_datascience_model.OCIDataScienceModel.export_model_artifact"
+    )
+    def test_skip_export_model_artifact_for_model_by_reference(
+        self, mock_export_model_artifact, mock_is_path_exists
+    ):
+        """Tests case when model artifact location is passed by reference"""
+        artifact_uploader = LargeArtifactUploader(
+            dsc_model=self.mock_dsc_model,
+            artifact_path=self.mock_oci_artifact_path,
+            auth=default_signer(),
+            region=self.mock_region,
+            overwrite_existing_artifact=False,
+            remove_existing_artifact=False,
+            model_by_reference=True,
+        )
+        artifact_uploader.upload()
+        mock_export_model_artifact.assert_not_called()
