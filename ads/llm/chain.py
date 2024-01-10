@@ -261,12 +261,8 @@ class GuardrailSequence(RunnableSequence):
         from ads.llm.serialize import load
 
         chain_spec = chain_dict[SPEC_CHAIN]
-        chain = cls()
-        for config in chain_spec:
-            step = load(config, **kwargs)
-            # Chain the step
-            chain |= step
-        return chain
+        steps = [load(config, **kwargs) for config in chain_spec]
+        return cls(*steps)
 
     def __str__(self) -> str:
         return "\n".join([str(step.__class__) for step in self.steps])
