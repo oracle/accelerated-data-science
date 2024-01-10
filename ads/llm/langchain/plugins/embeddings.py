@@ -38,7 +38,10 @@ class GenerativeAIEmbeddings(GenerativeAiClientModel, Embeddings, Serializable):
         Returns:
             List of embeddings, one for each text.
         """
-        from oci.generative_ai.models import EmbedTextDetails, OnDemandServingMode
+        from oci.generative_ai_inference.models import (
+            EmbedTextDetails,
+            OnDemandServingMode,
+        )
 
         details = EmbedTextDetails(
             compartment_id=self.compartment_id,

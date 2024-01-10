@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -10,7 +10,7 @@ from typing import Any, Dict, List, Optional
 from langchain.callbacks.manager import CallbackManagerForLLMRun
 
 from ads.llm.langchain.plugins.base import BaseLLM, GenerativeAiClientModel
-from ads.llm.langchain.plugins.contant import *
+from ads.llm.langchain.plugins.contant import Task
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +32,7 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
     """
 
     task: str = "text_generation"
-    """Indicates the task."""
+    """Task can be either text_generation or text_summarization."""
 
     model: Optional[str] = "cohere.command"
     """Model name to use."""
@@ -106,7 +106,7 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
 
     def _invocation_params(self, stop: Optional[List[str]], **kwargs: Any) -> dict:
         params = self._default_params
-        if self.task == Task.SUMMARY_TEXT:
+        if self.task == Task.TEXT_SUMMARIZATION:
             return {**params}
 
         if self.stop is not None and stop is not None:
@@ -149,11 +149,7 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
         self._print_request(prompt, params)
 
         try:
-            completion = (
-                self.completion_with_retry(prompt=prompt, **params)
-                if self.task == Task.TEXT_GENERATION
-                else self.completion_with_retry(input=prompt, **params)
-            )
+            completion = self.completion_with_retry(prompt=prompt, **params)
         except Exception:
             logger.error(
                 "Error occur when invoking oci service api."
@@ -164,103 +160,95 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
             )
             raise
 
-        # completion = self._process_response(response, params.get("num_generations", 1))
-        # self._print_response(completion, response)
         return completion
 
-    def _process_response(self, response: Any, num_generations: int = 1) -> str:
-        if self.task == Task.SUMMARY_TEXT:
-            return response.data.summary
-
-        return (
-            response.data.generated_texts[0][0].text
-            if num_generations == 1
-            else [gen.text for gen in response.data.generated_texts[0]]
-        )
-
-    def _completion_with_retry_v1(self, **kwargs: Any):
-        from oci.generative_ai.models import (
-            GenerateTextDetails,
-            OnDemandServingMode,
-            SummarizeTextDetails,
-        )
-
-        # TODO: Add retry logic for OCI
-        # Convert the ``model`` parameter to OCI ``ServingMode``
-        # Note that "ServingMode` is not JSON serializable.
-        kwargs["prompts"] = [kwargs.pop("prompt")]
-        kwargs["serving_mode"] = OnDemandServingMode(model_id=self.model)
-        if self.task == Task.TEXT_GENERATION:
-            response = self.client.generate_text(
-                GenerateTextDetails(**kwargs), **self.endpoint_kwargs
-            )
-            if kwargs.get("num_generations", 1) == 1:
-                completion = response.data.generated_texts[0][0].text
-            else:
-                completion = [gen.text for gen in response.data.generated_texts[0]]
-        else:
-            response = self.client.summarize_text(
-                SummarizeTextDetails(**kwargs), **self.endpoint_kwargs
-            )
-            completion = response.data.summary
-        self._print_response(completion, response)
-        return completion
-
-    def _completion_with_retry_v2(self, **kwargs: Any):
+    def _text_generation(self, request_class, serving_mode, **kwargs):
         from oci.generative_ai_inference.models import (
             GenerateTextDetails,
-            OnDemandServingMode,
-            SummarizeTextDetails,
-            CohereLlmInferenceRequest,
-            LlamaLlmInferenceRequest,
+            GenerateTextResult,
         )
 
-        request_class_mapping = {
-            "cohere": CohereLlmInferenceRequest,
-            "llama": LlamaLlmInferenceRequest,
-        }
+        compartment_id = kwargs.pop("compartment_id")
+        inference_request = request_class(**kwargs)
+        response = self.client.generate_text(
+            GenerateTextDetails(
+                compartment_id=compartment_id,
+                serving_mode=serving_mode,
+                inference_request=inference_request,
+            ),
+            **self.endpoint_kwargs,
+        ).data
+        response: GenerateTextResult
+        return response.inference_response
 
-        request_class = None
-        for prefix, oci_request_class in request_class_mapping.items():
-            if self.model.startswith(prefix):
-                request_class = oci_request_class
-        if not request_class:
-            raise ValueError(f"Model {self.model} is not supported.")
+    def _cohere_completion(self, serving_mode, **kwargs) -> str:
+        from oci.generative_ai_inference.models import (
+            CohereLlmInferenceRequest,
+            CohereLlmInferenceResponse,
+        )
 
-        if self.model.startswith("llama"):
-            kwargs.pop("truncate", None)
-            kwargs.pop("stop_sequences", None)
-
-        serving_mode = OnDemandServingMode(model_id=self.model)
-        if self.task == Task.TEXT_GENERATION:
-            compartment_id = kwargs.pop("compartment_id")
-            inference_request = request_class(**kwargs)
-            response = self.client.generate_text(
-                GenerateTextDetails(
-                    compartment_id=compartment_id,
-                    serving_mode=serving_mode,
-                    inference_request=inference_request,
-                ),
-                **self.endpoint_kwargs,
-            )
-            if kwargs.get("num_generations", 1) == 1:
-                completion = response.data.inference_response.generated_texts[0].text
-            else:
-                completion = [gen.text for gen in response.data.generated_texts]
-
+        response = self._text_generation(
+            CohereLlmInferenceRequest, serving_mode, **kwargs
+        )
+        response: CohereLlmInferenceResponse
+        if kwargs.get("num_generations", 1) == 1:
+            completion = response.generated_texts[0].text
         else:
-            response = self.client.summarize_text(
-                SummarizeTextDetails(serving_mode=serving_mode, **kwargs),
-                **self.endpoint_kwargs,
-            )
-            completion = response.data.summary
+            completion = [result.text for result in response.generated_texts]
         self._print_response(completion, response)
         return completion
 
+    def _llama_completion(self, serving_mode, **kwargs) -> str:
+        from oci.generative_ai_inference.models import (
+            LlamaLlmInferenceRequest,
+            LlamaLlmInferenceResponse,
+        )
+
+        # truncate and stop_sequence are not supported.
+        kwargs.pop("truncate", None)
+        kwargs.pop("stop_sequences", None)
+        # top_k must be >1 or -1
+        if "top_k" in kwargs and kwargs["top_k"] == 0:
+            kwargs.pop("top_k")
+
+        # top_p must be 1 when temperature is 0
+        if kwargs.get("temperature") == 0:
+            kwargs["top_p"] = 1
+
+        response = self._text_generation(
+            LlamaLlmInferenceRequest, serving_mode, **kwargs
+        )
+        response: LlamaLlmInferenceResponse
+        if kwargs.get("num_generations", 1) == 1:
+            completion = response.choices[0].text
+        else:
+            completion = [result.text for result in response.choices]
+        self._print_response(completion, response)
+        return completion
+
+    def _cohere_summarize(self, serving_mode, **kwargs) -> str:
+        from oci.generative_ai_inference.models import SummarizeTextDetails
+
+        kwargs["input"] = kwargs.pop("prompt")
+
+        response = self.client.summarize_text(
+            SummarizeTextDetails(serving_mode=serving_mode, **kwargs),
+            **self.endpoint_kwargs,
+        )
+        return response.data.summary
+
     def completion_with_retry(self, **kwargs: Any) -> Any:
-        if self.client.__class__.__name__ == "GenerativeAiClient":
-            return self._completion_with_retry_v1(**kwargs)
-        return self._completion_with_retry_v2(**kwargs)
+        from oci.generative_ai_inference.models import OnDemandServingMode
+
+        serving_mode = OnDemandServingMode(model_id=self.model)
+
+        if self.task == Task.TEXT_SUMMARIZATION:
+            return self._cohere_summarize(serving_mode, **kwargs)
+        elif self.model.startswith("cohere"):
+            return self._cohere_completion(serving_mode, **kwargs)
+        elif self.model.startswith("meta.llama"):
+            return self._llama_completion(serving_mode, **kwargs)
+        raise ValueError(f"Model {self.model} is not supported.")
 
     def batch_completion(
         self,
@@ -299,9 +287,9 @@ class GenerativeAI(GenerativeAiClientModel, BaseLLM):
                 responses = gen_ai.batch_completion("Tell me a joke.", num_generations=5)
 
         """
-        if self.task == Task.SUMMARY_TEXT:
+        if self.task == Task.TEXT_SUMMARIZATION:
             raise NotImplementedError(
-                f"task={Task.SUMMARY_TEXT} does not support batch_completion. "
+                f"task={Task.TEXT_SUMMARIZATION} does not support batch_completion. "
             )
 
         return self._call(

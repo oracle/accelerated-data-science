@@ -78,35 +78,15 @@ class GenerativeAiClientModel(BaseModel):
     """Holds any client parameters for creating GenerativeAiClient"""
 
     @staticmethod
-    def _import_client_v1():
-        from oci.generative_ai import GenerativeAiClient
-
-        return GenerativeAiClient
-
-    @staticmethod
-    def _import_client_v2():
-        from oci.generative_ai_inference import GenerativeAiInferenceClient
-
-        return GenerativeAiInferenceClient
-
-    @staticmethod
     def _import_client():
-        import_methods = [
-            GenerativeAiClientModel._import_client_v1,
-            GenerativeAiClientModel._import_client_v2,
-        ]
-        client_class = None
-        for import_client_method in import_methods:
-            try:
-                client_class = import_client_method()
-            except ImportError:
-                pass
-        if not client_class:
+        try:
+            from oci.generative_ai_inference import GenerativeAiInferenceClient
+        except ImportError as ex:
             raise ImportError(
-                "Could not import GenerativeAIClient or GenerativeAiInferenceClient from oci. "
+                "Could not import GenerativeAiInferenceClient from oci. "
                 "The OCI SDK installed does not support generative AI service."
-            )
-        return client_class
+            ) from ex
+        return GenerativeAiInferenceClient
 
     @root_validator()
     def validate_environment(  # pylint: disable=no-self-argument
