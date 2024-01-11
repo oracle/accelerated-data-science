@@ -7,9 +7,12 @@
 from typing import Dict
 
 import click
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.apigw_config import (
+    APIGatewayConfig,
+)
+
 from ads.opctl.operator.lowcode.feature_store_marketplace.operator_utils import (
     get_latest_listing_version,
-    get_api_gw_details,
     get_db_details,
 )
 
@@ -63,7 +66,9 @@ def init(**kwargs: Dict) -> dict:
         "Version of feature store stack to install",
         default=get_latest_listing_version(compartment_id),
     )
-    api_gw_config = get_api_gw_details(compartment_id)
+    # api_gw_config = get_api_gw_details(compartment_id)
+    api_gw_config = APIGatewayConfig()
+    api_gw_config.enabled = False
     yaml_dict: Dict = YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
     ).generate_example_dict(
