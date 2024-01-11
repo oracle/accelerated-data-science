@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import datetime
@@ -600,7 +600,9 @@ class TestDataScienceModel:
                 with patch(
                     "ads.common.utils.folder_size",
                     return_value=_MAX_ARTIFACT_SIZE_IN_BYTES + 100,
-                ):
+                ), patch(
+                    "ads.model.datascience_model.DataScienceModel.update_custom_metadata_with_model_path"
+                ) as mock_update_metadata_method:
                     # If artifact is large and bucket_uri not provided
                     with pytest.raises(ModelArtifactSizeError):
                         self.mock_dsc_model.upload_artifact()
@@ -628,6 +630,7 @@ class TestDataScienceModel:
                         model_by_reference=False,
                     )
                     mock_upload.assert_called()
+                    mock_update_metadata_method.assert_not_called()
 
         # Artifact size less than 2GB
         with patch.object(
@@ -714,3 +717,55 @@ class TestDataScienceModel:
                 )
                 assert self.mock_dsc_model.dsc_model.__class__.kwargs == {"timeout": 2}
                 mock_download.assert_called()
+
+    def test_custom_metadata_update_for_model_by_reference(self):
+        # Artifact size greater than 2GB
+        mock_get_artifact_info = MagicMock(
+            return_value={"content-length": _MAX_ARTIFACT_SIZE_IN_BYTES + 100}
+        )
+        self.mock_dsc_model.dsc_model = MagicMock(
+            id="test_id",
+            get_artifact_info=mock_get_artifact_info,
+            __class__=MagicMock(),
+        )
+        with patch.object(LargeArtifactUploader, "__init__", return_value=None):
+            with patch.object(LargeArtifactUploader, "upload") as mock_upload:
+                with patch(
+                    "ads.common.utils.folder_size",
+                    return_value=_MAX_ARTIFACT_SIZE_IN_BYTES + 100,
+                ):
+                    self.mock_dsc_model.upload_artifact(
+                        bucket_uri="oci://my-bucket@my-namespace/my-artifact-path",
+                        auth={"config": {}},
+                        region="test_region",
+                        overwrite_existing_artifact=False,
+                        remove_existing_artifact=False,
+                        timeout=1,
+                        model_by_reference=True,
+                    )
+                    custom_metadata = self.mock_dsc_model.custom_metadata_list
+
+                    assert (
+                        custom_metadata.get(
+                            DataScienceModel.CONST_MODEL_ARTIFACT_SOURCE_TYPE
+                        ).value
+                        == "OSS"
+                    )
+                    assert (
+                        custom_metadata.get(
+                            DataScienceModel.CONST_OBJECT_STORAGE_NAMESPACE
+                        ).value
+                        == "my-namespace"
+                    )
+                    assert (
+                        custom_metadata.get(
+                            DataScienceModel.CONST_OBJECT_STORAGE_BUCKET
+                        ).value
+                        == "my-bucket"
+                    )
+                    assert (
+                        custom_metadata.get(
+                            DataScienceModel.CONST_OBJECT_STORAGE_FILE_PREFIX
+                        ).value
+                        == "my-artifact-path"
+                    )

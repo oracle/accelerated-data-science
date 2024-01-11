@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
@@ -373,11 +373,28 @@ class TestGenericModel:
         """test the reload."""
         pass
 
+    @pytest.mark.parametrize(
+        "test_args",
+        [
+            {
+                "ignore_introspection": True,
+                "model_by_reference": False,
+            },
+            {
+                "ignore_introspection": True,
+                "model_by_reference": True,
+            },
+        ],
+    )
     @patch.object(GenericModel, "_random_display_name", return_value="test_name")
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_save(
-        self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name
+        self,
+        mock_get_service_packs,
+        mock_dsc_model_create,
+        mock__random_display_name,
+        test_args,
     ):
         """test saving a model to artifact."""
         inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
@@ -399,7 +416,7 @@ class TestGenericModel:
             force_overwrite=True,
             training_id=None,
         )
-        self.generic_model.save(ignore_introspection=True)
+        self.generic_model.save(**test_args)
         assert self.generic_model.model_id is not None and isinstance(
             self.generic_model.model_id, str
         )
@@ -408,6 +425,7 @@ class TestGenericModel:
             overwrite_existing_artifact=True,
             remove_existing_artifact=True,
             parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+            model_by_reference=test_args.get("model_by_reference"),
         )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
@@ -1419,6 +1437,9 @@ class TestGenericModel:
             "not available locally.",
         ):
             self.generic_model.save()
+
+    def test_save_with_model_by_reference(self):
+        """Test saving a model artifact by reference."""
 
     @patch.object(ModelDeployment, "activate")
     @patch.object(ModelDeployment, "deactivate")

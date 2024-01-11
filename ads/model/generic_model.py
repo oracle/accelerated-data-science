@@ -1749,7 +1749,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                         DataScienceModel.CONST_OBJECT_STORAGE_BUCKET
                     )
                     prefix = custom_metadata_list.get(
-                        DataScienceModel.CONST_FILE_PREFIX
+                        DataScienceModel.CONST_OBJECT_STORAGE_FILE_PREFIX
                     )
                     artifact_uri = f"oci://{bucket_name}@{namespace}/{prefix}/"
         except ValueError as e:

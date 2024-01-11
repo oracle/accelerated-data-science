@@ -177,7 +177,7 @@ class DataScienceModel(Builder):
     CONST_OBJECT_STORAGE_SERVICE = "OSS"
     CONST_OBJECT_STORAGE_NAMESPACE = "objectStorageNamespace"
     CONST_OBJECT_STORAGE_BUCKET = "objectStorageBucket"
-    CONST_FILE_PREFIX = "prefix"
+    CONST_OBJECT_STORAGE_FILE_PREFIX = "prefix"
 
     attribute_map = {
         CONST_ID: "id",
@@ -1154,7 +1154,7 @@ class DataScienceModel(Builder):
             replace=True,
         )
         self.custom_metadata_list.add(
-            key=self.CONST_FILE_PREFIX,
+            key=self.CONST_OBJECT_STORAGE_FILE_PREFIX,
             value=bucket_details.filepath,
             category=MetadataCustomCategory.OTHER,
             description="prefix value",
