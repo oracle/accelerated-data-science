@@ -1737,21 +1737,21 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             ):
                 model_artifact_source = custom_metadata_list.get(
                     DataScienceModel.CONST_MODEL_ARTIFACT_SOURCE_TYPE
-                )
+                ).value
                 if (
                     model_artifact_source
                     == DataScienceModel.CONST_OBJECT_STORAGE_SERVICE
                 ):
                     namespace = custom_metadata_list.get(
                         DataScienceModel.CONST_OBJECT_STORAGE_NAMESPACE
-                    )
+                    ).value
                     bucket_name = custom_metadata_list.get(
                         DataScienceModel.CONST_OBJECT_STORAGE_BUCKET
-                    )
+                    ).value
                     prefix = custom_metadata_list.get(
                         DataScienceModel.CONST_OBJECT_STORAGE_FILE_PREFIX
-                    )
-                    artifact_uri = f"oci://{bucket_name}@{namespace}/{prefix}/"
+                    ).value
+                    artifact_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
         except ValueError as e:
             logger.error(f"Unable to fetch the model artifact location due to: {e}.")
             raise e
