@@ -1469,7 +1469,6 @@ class TestGenericModel:
             self.generic_model.save()
 
     @patch.object(GenericModel, "from_model_artifact")
-    @patch("ads.common.auth.default_signer")
     @patch("ads.model.generic_model.GenericModel.__init__")
     @patch("ads.model.datascience_model.DataScienceModel.download_artifact")
     @patch.object(DataScienceModel, "from_id")
@@ -1478,17 +1477,14 @@ class TestGenericModel:
         mock_dsc_model_from_id,
         mock_download_artifact,
         mock_genericmodel_init,
-        mock_default_signer,
         mock_from_model_artifact,
     ):
         """Tests loading model from model catalog created using pass by reference."""
-
         DSC_MODEL_PAYLOAD["customMetadataList"]["data"].extend(
             CUSTOM_METADATA_FOR_MODEL_BY_REFERENCE["data"]
         )
         self.mock_dsc_model = DataScienceModel(**DSC_MODEL_PAYLOAD)
 
-        mock_default_signer.return_value = {"config": "value"}
         mock_genericmodel_init.return_value = None
         mock_dsc_model_from_id.return_value = self.mock_dsc_model
         mock_from_model_artifact.return_value = self.generic_model
