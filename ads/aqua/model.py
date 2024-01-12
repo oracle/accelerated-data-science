@@ -37,5 +37,29 @@ class AquaModel(DataScienceModel):
     def deploy(self, **kwargs) -> "AquaModel":
         pass
 
-    def list(self, **kwargs) -> List["AquaModel"]:
-        pass
+    @classmethod
+    def list(
+        cls, compartment_id: str = None, project_id: str = None, **kwargs
+    ) -> List["AquaModel"]:
+        """List Aqua models in a given compartment.
+
+        Parameters
+        ----------
+        compartment_id: (str, optional). Defaults to `None`.
+            The compartment OCID.
+        project_id: (str, optional). Defaults to `None`.
+            The project OCID.
+        kwargs
+            Additional keyword arguments for filtering models.
+
+        Returns
+        -------
+        List[AquaModel]
+            The list of the Aqua models.
+        """
+
+        kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
+        all_models = cls.list(kwargs)
+        # TODO: filter by free-form tags
+        aqua_models = [cls()._update_from_oci_dsc_model(model) for model in all_models]
+        return kwargs
