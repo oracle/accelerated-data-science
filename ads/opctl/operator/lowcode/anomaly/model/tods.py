@@ -59,7 +59,8 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         predictions_test = {}
         prediction_score_test = {}
         dataset = self.datasets
-        anomaly_output = AnomalyOutput()
+        date_column = self.spec.datetime_column.name
+        anomaly_output = AnomalyOutput(date_column=date_column)
 
         # Iterate over the full_data_dict items
         for target, df in self.datasets.full_data_dict.items():
@@ -91,12 +92,14 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
                 OutputColumns.ANOMALY_COL
             ] = predictions_train[target]
 
-            score = pd.DataFrame(
-                data=prediction_score_train[target], columns=[OutputColumns.SCORE_COL]
-            )
-            anomaly = pd.DataFrame(
-                data=predictions_train[target], columns=[OutputColumns.ANOMALY_COL]
-            )
+            anomaly = pd.DataFrame({
+                date_column: df[date_column],
+                OutputColumns.ANOMALY_COL: predictions_train[target]
+            })
+            score = pd.DataFrame({
+                date_column: df[date_column],
+                OutputColumns.SCORE_COL: prediction_score_train[target]
+            })
             anomaly_output.add_output(target, anomaly, score)
 
         return anomaly_output
