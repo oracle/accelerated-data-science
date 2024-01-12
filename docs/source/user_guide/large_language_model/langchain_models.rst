@@ -26,7 +26,7 @@ To use the text generation model as LLM in LangChain:
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -50,7 +50,7 @@ Here is an example of using prompt template and OCI generative AI LLM to build a
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -71,7 +71,7 @@ Similarly, you can use the embedding model:
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -115,7 +115,7 @@ By default, the integration uses the same authentication method configured with 
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -132,6 +132,6 @@ Alternatively, you may use specific authentication for the model:
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
