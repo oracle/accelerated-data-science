@@ -29,7 +29,7 @@ from ads.common.object_storage_details import ObjectStorageDetails
 from ads.dataset.label_encoder import DataFrameLabelEncoder
 from ads.opctl import logger
 
-from .const import SupportedMetrics, SupportedModels
+from .const import SupportedMetrics, SupportedModels, RENDER_LIMIT
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
 
@@ -438,6 +438,23 @@ def get_forecast_plots(
     def plot_forecast_plotly(idx, col):
         fig = go.Figure()
         forecast_i = forecast_output.get_target_category(col)
+        actual_length = len(forecast_i)
+        if actual_length > RENDER_LIMIT:
+            forecast_i = forecast_i.tail(RENDER_LIMIT)
+            text = f"<i>To improve rendering speed, subsampled the data from {actual_length}" \
+                   f" rows to {RENDER_LIMIT} rows for this plot.</i>"
+            fig.update_layout(
+                annotations=[
+                    go.layout.Annotation(
+                        x=0.01,
+                        y=1.1,
+                        xref="paper",
+                        yref="paper",
+                        text=text,
+                        showarrow=False
+                    )
+                ]
+            )
         upper_bound = forecast_output.upper_bound_name
         lower_bound = forecast_output.lower_bound_name
         if upper_bound is not None and lower_bound is not None:

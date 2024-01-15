@@ -18,7 +18,6 @@ from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ..const import SupportedModels
 
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
@@ -46,17 +45,22 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-        import automl
+
         from automl import init
         from sktime.forecasting.model_selection import temporal_train_test_split
 
-        init(engine="local", check_deprecation_warnings=False)
+        init(
+            engine="local",
+            engine_opts={"n_jobs": -1, "model_n_jobs": -1},
+            check_deprecation_warnings=False,
+        )
 
         full_data_dict = self.datasets.full_data_dict
 
         models = dict()
         outputs = dict()
         outputs_legacy = dict()
+        selected_models = dict()
         date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon
         self.datasets.datetime_col = date_column
@@ -64,51 +68,45 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width
         )
+        self.errors_dict = dict()
 
-        model_kwargs_cleaned = None
-        if self.loaded_models is None:
-            # Clean up kwargs for pass through
-            model_kwargs_cleaned = self.spec.model_kwargs.copy()
-            model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
-                "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
-            )
-            model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
-                self.spec.metric,
-                model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
-            )
-            model_kwargs_cleaned.pop("task", None)
-            time_budget = model_kwargs_cleaned.pop("time_budget", 0)
-            model_kwargs_cleaned[
-                "preprocessing"
-            ] = self.spec.preprocessing or model_kwargs_cleaned.get(
-                "preprocessing", True
-            )
+        # Clean up kwargs for pass through
+        model_kwargs_cleaned = self.spec.model_kwargs.copy()
+        model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
+            "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
+        )
+        model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
+            self.spec.metric,
+            model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
+        )
+        model_kwargs_cleaned.pop("task", None)
+        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
+        model_kwargs_cleaned[
+            "preprocessing"
+        ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
 
         for i, (target, df) in enumerate(full_data_dict.items()):
-            logger.debug("Running automl for {} at position {}".format(target, i))
-            series_values = df[df[target].notna()]
-            # drop NaNs for the time period where data wasn't recorded
-            series_values.dropna(inplace=True)
-            df[date_column] = pd.to_datetime(
-                df[date_column], format=self.spec.datetime_column.format
-            )
-            df = df.set_index(date_column)
-            # if len(df.columns) > 1:
-            # when additional columns are present
-            y_train, y_test = temporal_train_test_split(df, test_size=horizon)
-            forecast_x = y_test.drop(target, axis=1)
-            # else:
-            #     y_train = df
-            #     forecast_x = None
-            logger.debug(
-                "Time Index is" + ""
-                if y_train.index.is_monotonic
-                else "NOT" + "monotonic."
-            )
-            model = (
-                self.loaded_models[target] if self.loaded_models is not None else None
-            )
-            if model is None:
+            try:
+                logger.debug("Running automl for {} at position {}".format(target, i))
+                series_values = df[df[target].notna()]
+                # drop NaNs for the time period where data wasn't recorded
+                series_values.dropna(inplace=True)
+                df[date_column] = pd.to_datetime(
+                    df[date_column], format=self.spec.datetime_column.format
+                )
+                df = df.set_index(date_column)
+                # if len(df.columns) > 1:
+                # when additional columns are present
+                y_train, y_test = temporal_train_test_split(df, test_size=horizon)
+                forecast_x = y_test.drop(target, axis=1)
+                # else:
+                #     y_train = df
+                #     forecast_x = None
+                logger.debug(
+                    "Time Index is" + ""
+                    if y_train.index.is_monotonic
+                    else "NOT" + "monotonic."
+                )
                 model = automl.Pipeline(
                     task="forecasting",
                     **model_kwargs_cleaned,
@@ -118,66 +116,54 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     y=pd.DataFrame(y_train[target]),
                     time_budget=time_budget,
                 )
-            logger.debug("Selected model: {}".format(model.selected_model_))
-            logger.debug(
-                "Selected model params: {}".format(model.selected_model_params_)
-            )
-            summary_frame = model.forecast(
-                X=forecast_x,
-                periods=horizon,
-                alpha=1 - (self.spec.confidence_interval_width / 100),
-            )
-            input_values = pd.Series(
-                y_train[target].values,
-                name="input_value",
-                index=y_train.index,
-            )
-            fitted_values_raw = model.predict(y_train.drop(target, axis=1))
-            fitted_values = pd.Series(
-                fitted_values_raw[target].values,
-                name="fitted_value",
-                index=y_train.index,
-            )
+                logger.debug("Selected model: {}".format(model.selected_model_))
+                logger.debug(
+                    "Selected model params: {}".format(model.selected_model_params_)
+                )
+                summary_frame = model.forecast(
+                    X=forecast_x,
+                    periods=horizon,
+                    alpha=1 - (self.spec.confidence_interval_width / 100),
+                )
+                input_values = pd.Series(
+                    y_train[target].values,
+                    name="input_value",
+                    index=y_train.index,
+                )
+                fitted_values_raw = model.predict(y_train.drop(target, axis=1))
+                fitted_values = pd.Series(
+                    fitted_values_raw[target].values,
+                    name="fitted_value",
+                    index=y_train.index,
+                )
 
-            summary_frame = pd.concat(
-                [input_values, fitted_values, summary_frame], axis=1
-            )
+                summary_frame = pd.concat(
+                    [input_values, fitted_values, summary_frame], axis=1
+                )
 
-            # Collect Outputs
-            if self.loaded_models is None:
-                models[target] = model
-            summary_frame = summary_frame.rename_axis("ds").reset_index()
-            summary_frame = summary_frame.rename(
-                columns={
-                    f"{target}_ci_upper": "yhat_upper",
-                    f"{target}_ci_lower": "yhat_lower",
-                    f"{target}": "yhat",
+                # Collect Outputs
+                selected_models[target] = {
+                    "series_id": target,
+                    "selected_model": model.selected_model_,
+                    "model_params": model.selected_model_params_,
                 }
-            )
-            # In case of Naive model, model.forecast function call does not return confidence intervals.
-            if "yhat_upper" not in summary_frame:
-                summary_frame["yhat_upper"] = np.NAN
-                summary_frame["yhat_lower"] = np.NAN
-            outputs[target] = summary_frame
-            # outputs_legacy[target] = summary_frame
-
-            self.model_parameters[target] = {
-                "framework": SupportedModels.AutoMLX,
-                "score_metric": model.score_metric,
-                "random_state": model.random_state,
-                "model_list": model.model_list,
-                "n_algos_tuned": model.n_algos_tuned,
-                "adaptive_sampling": model.adaptive_sampling,
-                "min_features": model.min_features,
-                "optimization": model.optimization,
-                "preprocessing": model.preprocessing,
-                "search_space": model.search_space,
-                "time_series_period": model.time_series_period,
-                "min_class_instances": model.min_class_instances,
-                "max_tuning_trials": model.max_tuning_trials,
-                "selected_model": model.selected_model_,
-                "selected_model_params": model.selected_model_params_,
-            }
+                models[target] = model
+                summary_frame = summary_frame.rename_axis("ds").reset_index()
+                summary_frame = summary_frame.rename(
+                    columns={
+                        f"{target}_ci_upper": "yhat_upper",
+                        f"{target}_ci_lower": "yhat_lower",
+                        f"{target}": "yhat",
+                    }
+                )
+                # In case of Naive model, model.forecast function call does not return confidence intervals.
+                if "yhat_upper" not in summary_frame:
+                    summary_frame["yhat_upper"] = np.NAN
+                    summary_frame["yhat_lower"] = np.NAN
+                outputs[target] = summary_frame
+                # outputs_legacy[target] = summary_frame
+            except Exception as e:
+                self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
 
         logger.debug("===========Forecast Generated===========")
         outputs_merged = pd.DataFrame()
@@ -204,8 +190,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
         # output_col = output_col.reset_index(drop=True)
         # outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
-        if self.loaded_models is None:
-            self.models = models
+
+        self.models = models
         return outputs_merged
 
     @runtime_dependency(
@@ -241,7 +227,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             "chosen model for each series and the corresponding parameters of the models."
         )
         selected_models = dict()
-        models = self.loaded_models if self.loaded_models is not None else self.models
+        models = self.models
         for i, (target, df) in enumerate(self.full_data_dict.items()):
             selected_models[target] = {
                 "series_id": target,
