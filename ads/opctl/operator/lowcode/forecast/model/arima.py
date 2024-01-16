@@ -16,7 +16,7 @@ from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 import traceback
 from .forecast_datasets import ForecastDatasets, ForecastOutput
-from ..const import ForecastOutputColumns
+from ..const import ForecastOutputColumns, SupportedModels
 
 
 class ArimaOperatorModel(ForecastOperatorBaseModel):
@@ -80,8 +80,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             if len(additional_regressors):
                 X_in = data_i.drop(target, axis=1)
 
-            # Build and fit model
-            model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
+            model = self.loaded_models[target] if self.loaded_models is not None else None
+            if model is None:
+                # Build and fit model
+                model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
 
             self.fitted_values[target] = model.predict_in_sample(X=X_in)
             self.actual_values[target] = y
@@ -119,7 +121,17 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             )
             self.outputs[target] = forecast
 
-            self.models_dict[target] = model
+            if self.loaded_models is None:
+                self.models[target] = model
+
+            params = vars(model).copy()
+            for param in ['arima_res_', 'endog_index_']:
+                if param in params:
+                    params.pop(param)
+            self.model_parameters[target] = {
+                "framework": SupportedModels.Arima,
+                **params,
+            }
 
             logger.debug("===========Done===========")
         except Exception as e:
@@ -133,12 +145,12 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             confidence_interval_width=self.spec.confidence_interval_width
         )
 
+        self.models = dict()
         self.outputs = dict()
         self.outputs_legacy = []
         self.fitted_values = dict()
         self.actual_values = dict()
         self.dt_columns = dict()
-        self.models_dict = dict()
         self.errors_dict = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
@@ -148,13 +160,15 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             )
         )
 
-        self.models = [self.models_dict[target] for target in self.target_columns]
+        if self.loaded_models is not None:
+            self.models = self.loaded_models
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
         output_col = pd.DataFrame()
         yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
+
         for cat in self.categories:
             output_i = pd.DataFrame()
             output_i["Date"] = self.dt_columns[f"{col}_{cat}"]
@@ -183,8 +197,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
         sec5_text = dp.Text(f"## ARIMA Model Parameters")
         blocks = [
-            dp.HTML(m.summary().as_html(), label=self.target_columns[i])
-            for i, m in enumerate(self.models)
+            dp.HTML(m.summary().as_html(), label=target)
+            for i, (target, m) in enumerate(self.models.items())
         ]
         sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
         all_sections = [sec5_text, sec5]
@@ -196,7 +210,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                     datetime_col_name=self.spec.datetime_column.name,
                     explain_predict_fn=self._custom_predict_arima,
                 )
-
                 # Create a markdown text block for the global explanation section
                 global_explanation_text = dp.Text(
                     f"## Global Explanation of Models \n "
@@ -277,10 +290,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         date_col = self.spec.datetime_column.name
         data[date_col] = pd.to_datetime(data[date_col], unit="s")
         data = data.set_index(date_col)
-        # Get the index of the current series id
-        series_index = self.target_columns.index(self.series_id)
 
         # Use the ARIMA model to predict the values
-        predictions = self.models[series_index].predict(X=data, n_periods=len(data))
+        predictions = self.models[self.series_id].predict(X=data, n_periods=len(data))
 
         return predictions
