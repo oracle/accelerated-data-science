@@ -32,6 +32,7 @@ from ads.opctl.operator.common.const import (
     OPERATOR_BASE_DOCKER_GPU_FILE,
     OPERATOR_BASE_GPU_IMAGE,
     OPERATOR_BASE_IMAGE,
+    OPERATOR_BACKEND_SECTION_NAME
 )
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.utils import publish_image as publish_image_cmd
@@ -204,7 +205,7 @@ def init(
     ).items():
         tmp_config = value
         if merge_config and operator_config:
-            tmp_config = {**operator_config, "runtime": value}
+            tmp_config = {**operator_config, OPERATOR_BACKEND_SECTION_NAME: value}
 
         with fsspec.open(
             os.path.join(

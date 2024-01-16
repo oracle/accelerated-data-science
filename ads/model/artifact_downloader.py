@@ -63,7 +63,7 @@ class ArtifactDownloader(ABC):
                     "Set `force_overwrite` to `True` if you wish to overwrite."
                 )
             shutil.rmtree(self.target_dir)
-            os.mkdir(self.target_dir)
+        os.makedirs(self.target_dir, exist_ok=True)
         with utils.get_progress_bar(
             ArtifactDownloader.PROGRESS_STEPS_COUNT + self.PROGRESS_STEPS_COUNT
         ) as progress:

@@ -19,6 +19,9 @@ Integration with LangChain
 **************************
 ADS is designed to work with LangChain, enabling developers to incorporate various LangChain components and models deployed on OCI seamlessly into their applications. Additionally, ADS can package LangChain applications and deploy it as a REST API endpoint using OCI Data Science Model Deployment.
 
+* `Bridging cloud and conversational AI: LangChain and OCI Data Science platform <https://blogs.oracle.com/ai-and-datascience/post/cloud-conversational-ai-langchain-oci-data-science>`_
+* `Deploy LangChain applications as OCI model deployments <https://blogs.oracle.com/ai-and-datascience/post/deploy-langchain-application-as-model-deployment>`_
+
 
 .. admonition:: Installation
   :class: note
