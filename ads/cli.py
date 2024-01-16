@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import traceback
 import sys
 
+import fire
 from ads.common import logger
+from ads.aqua import AquaCommand
 
 try:
     import click
@@ -37,14 +39,29 @@ ADS_VERSION = metadata.version("oracle_ads")
 @click.group()
 @click.version_option(version=ADS_VERSION, prog_name="ads")
 @click.help_option("--help", "-h")
-def cli():
+def click_cli():
     pass
 
 
-cli.add_command(ads.opctl.cli.commands)
-cli.add_command(ads.jobs.cli.commands)
-cli.add_command(ads.pipeline.cli.commands)
-cli.add_command(ads.opctl.operator.cli.commands)
+@click.command
+def aqua_cli():
+    """CLI for AQUA."""
+    # This is a dummy entry for click.
+    # The `ads aqua` commands are handled by AquaCommand
+
+
+click_cli.add_command(ads.opctl.cli.commands)
+click_cli.add_command(ads.jobs.cli.commands)
+click_cli.add_command(ads.pipeline.cli.commands)
+click_cli.add_command(ads.opctl.operator.cli.commands)
+click_cli.add_command(aqua_cli, name="aqua")
+
+
+def cli():
+    if len(sys.argv) > 1 and sys.argv[1] == "aqua":
+        fire.Fire(AquaCommand, command=sys.argv[2:], name="ads aqua")
+    else:
+        click_cli()
 
 
 if __name__ == "__main__":
