@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 from typing import Any, Dict, List, Optional
 
@@ -77,27 +77,32 @@ class GenerativeAiClientModel(BaseModel):
     client_kwargs: Dict[str, Any] = {}
     """Holds any client parameters for creating GenerativeAiClient"""
 
+    @staticmethod
+    def _import_client():
+        try:
+            from oci.generative_ai_inference import GenerativeAiInferenceClient
+        except ImportError as ex:
+            raise ImportError(
+                "Could not import GenerativeAiInferenceClient from oci. "
+                "The OCI SDK installed does not support generative AI service."
+            ) from ex
+        return GenerativeAiInferenceClient
+
     @root_validator()
     def validate_environment(  # pylint: disable=no-self-argument
         cls, values: Dict
     ) -> Dict:
         """Validate that python package exists in environment."""
-        try:
-            # Import the GenerativeAIClient here so that there will be no error when user import ads.llm
-            # and the install OCI SDK does not support generative AI service yet.
-            from oci.generative_ai import GenerativeAiClient
-        except ImportError as ex:
-            raise ImportError(
-                "Could not import GenerativeAIClient from oci. "
-                "The OCI SDK installed does not support generative AI service."
-            ) from ex
         # Initialize client only if user does not pass in client.
         # Users may choose to initialize the OCI client by themselves and pass it into this model.
         if not values.get("client"):
             auth = values.get("auth", {})
             client_kwargs = auth.get("client_kwargs") or {}
             client_kwargs.update(values["client_kwargs"])
-            values["client"] = GenerativeAiClient(**auth, **client_kwargs)
+            # Import the GenerativeAIClient here so that there will be no error when user import ads.llm
+            # and the install OCI SDK does not support generative AI service yet.
+            client_class = cls._import_client()
+            values["client"] = client_class(**auth, **client_kwargs)
         # Set default compartment ID
         if not values.get("compartment_id"):
             if COMPARTMENT_OCID:
