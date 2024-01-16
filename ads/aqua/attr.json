@@ -1,0 +1,32 @@
+{
+  "models": [
+    {
+      "icon": "TBD",
+      "license": "Apache",
+      "model": "Misteral",
+      "organization": "",
+      "task": "text_generation"
+    },
+    {
+      "icon": "TBD",
+      "license": "Apache",
+      "model": "Misteral",
+      "organization": "",
+      "task": "text_generation"
+    },
+    {
+      "icon": "TBD",
+      "license": "Apache",
+      "model": "Misteral",
+      "organization": "",
+      "task": "text_generation"
+    },
+    {
+      "icon": "TBD",
+      "license": "Apache",
+      "model": "Misteral",
+      "organization": "",
+      "task": "text_generation"
+    }
+  ]
+}
