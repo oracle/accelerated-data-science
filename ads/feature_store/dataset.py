@@ -25,6 +25,7 @@ from ads.feature_store.common.enums import (
 )
 from ads.feature_store.common.exceptions import NotMaterializedError
 from ads.feature_store.common.feature_store_singleton import FeatureStoreSingleton
+from ads.feature_store.common.utils.base64_encoder_decoder import Base64EncoderDecoder
 from ads.feature_store.common.utils.utility import (
     get_metastore_id,
     validate_delta_format_parameters,
@@ -50,6 +51,7 @@ from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
 from ads.feature_store.service.oci_lineage import OCILineage
 from ads.feature_store.model_details import ModelDetails
+from ads.feature_store.transformation import Transformation
 from ads.jobs.builders.base import Builder
 from ads.feature_store.feature_lineage.graphviz_service import (
     GraphService,
@@ -134,6 +136,7 @@ class Dataset(Builder):
     CONST_IS_ONLINE_ENABLED = "isOnlineEnabled"
     CONST_IS_OFFLINE_ENABLED = "isOfflineEnabled"
     CONST_PRIMARY_KEYS = "primaryKeys"
+    CONST_ON_DEMAND_TRANSFORMATION_ID = "onDemandTransformationId"
 
     attribute_map = {
         CONST_ID: "id",
@@ -155,6 +158,7 @@ class Dataset(Builder):
         CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
         CONST_PRIMARY_KEYS: "primary_keys",
         CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
+        CONST_ON_DEMAND_TRANSFORMATION_ID: "on_demand_transformation_id"
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -245,6 +249,30 @@ class Dataset(Builder):
             The Dataset instance (self)
         """
         return self.set_spec(self.CONST_COMPARTMENT_ID, compartment_id)
+
+    @property
+    def on_demand_transformation_id(self) -> str:
+        return self.get_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID)
+
+    @on_demand_transformation_id.setter
+    def on_demand_transformation_id(self, value: str):
+        self.with_on_demand_transformation_id(value)
+
+    def with_on_demand_transformation_id(self, on_demand_transformation_id: str) -> "FeatureGroup":
+        """Sets the transformation_id.
+
+        Parameters
+        ----------
+        transformation_id: str
+            The transformation_id.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+
+        return self.set_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id)
 
     @property
     def name(self) -> str:
@@ -816,7 +844,7 @@ class Dataset(Builder):
                 "Online serving/embedding is not enabled for this Dataset."
             )
 
-    def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str]):
+    def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str], **kwargs):
         """
         Get serving vector based on primary key.
 
@@ -834,9 +862,28 @@ class Dataset(Builder):
                 )
             )
 
-            return online_execution_engine.read(
+            serving_vector = online_execution_engine.read(
                 self, primary_key_vector, http_auth=http_auth
             )
+
+            transformed_data = serving_vector
+
+            if self.on_demand_transformation_id:
+                on_demand_transformation = Transformation.from_id(self.on_demand_transformation_id)
+                transformation_function = Base64EncoderDecoder.decode(
+                    on_demand_transformation.source_code_function
+                )
+
+                # Execute the function under namespace
+                execution_namespace = {}
+                exec(transformation_function, execution_namespace)
+                transformation_function_caller = execution_namespace.get(on_demand_transformation.name)
+
+                transformed_data = transformation_function_caller(
+                    serving_vector, **kwargs
+                )
+
+            return transformed_data
         else:
             raise ValueError("Online serving is not enabled for this Dataset.")
 

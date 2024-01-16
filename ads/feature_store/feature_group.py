@@ -58,6 +58,7 @@ from ads.feature_store.service.oci_feature_group_job import OCIFeatureGroupJob
 from ads.feature_store.service.oci_lineage import OCILineage
 from ads.feature_store.statistics.statistics import Statistics
 from ads.feature_store.statistics_config import StatisticsConfig
+from ads.feature_store.transformation import Transformation
 from ads.feature_store.validation_output import ValidationOutput
 
 from ads.jobs.builders.base import Builder
@@ -146,6 +147,7 @@ class FeatureGroup(Builder):
     CONST_FREEFORM_TAG = "freeformTags"
     CONST_DEFINED_TAG = "definedTags"
     CONST_TRANSFORMATION_ID = "transformationId"
+    CONST_ON_DEMAND_TRANSFORMATION_ID = "onDemandTransformationId"
     CONST_STATISTICS_CONFIG = "statisticsConfig"
     CONST_LIFECYCLE_STATE = "lifecycleState"
     CONST_LAST_JOB_ID = "jobId"
@@ -168,6 +170,7 @@ class FeatureGroup(Builder):
         CONST_FREEFORM_TAG: "freeform_tags",
         CONST_DEFINED_TAG: "defined_tags",
         CONST_TRANSFORMATION_ID: "transformation_id",
+        CONST_ON_DEMAND_TRANSFORMATION_ID: "on_demand_transformation_id",
         CONST_LIFECYCLE_STATE: "lifecycle_state",
         CONST_OUTPUT_FEATURE_DETAILS: "output_feature_details",
         CONST_STATISTICS_CONFIG: "statistics_config",
@@ -429,12 +432,36 @@ class FeatureGroup(Builder):
         return self.set_spec(self.CONST_FEATURE_STORE_ID, feature_store_id)
 
     @property
+    def on_demand_transformation_id(self) -> str:
+        return self.get_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID)
+
+    @on_demand_transformation_id.setter
+    def on_demand_transformation_id(self, value: str):
+        self.with_on_demand_transformation_id(value)
+
+    def with_on_demand_transformation_id(self, on_demand_transformation_id: str) -> "FeatureGroup":
+        """Sets the transformation_id.
+
+        Parameters
+        ----------
+        transformation_id: str
+            The transformation_id.
+
+        Returns
+        -------
+        FeatureGroup
+            The FeatureGroup instance (self)
+        """
+
+        return self.set_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id)
+
+    @property
     def transformation_id(self) -> str:
         return self.get_spec(self.CONST_TRANSFORMATION_ID)
 
     @transformation_id.setter
     def transformation_id(self, value: str):
-        self.with_feature_store_id(value)
+        self.with_transformation_id(value)
 
     def with_transformation_id(self, transformation_id: str) -> "FeatureGroup":
         """Sets the transformation_id.
@@ -1145,7 +1172,7 @@ class FeatureGroup(Builder):
                 "Online serving/embedding is not enabled for this FeatureGroup."
             )
 
-    def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str]):
+    def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str], **kwargs):
         """
         Get serving vector based on primary key.
 
@@ -1164,9 +1191,28 @@ class FeatureGroup(Builder):
                 )
             )
 
-            return online_execution_engine.read(
+            serving_vector = online_execution_engine.read(
                 self, primary_key_vector, http_auth=http_auth
             )
+
+            transformed_data = serving_vector
+
+            if self.on_demand_transformation_id:
+                on_demand_transformation = Transformation.from_id(self.on_demand_transformation_id)
+                transformation_function = Base64EncoderDecoder.decode(
+                    on_demand_transformation.source_code_function
+                )
+
+                # Execute the function under namespace
+                execution_namespace = {}
+                exec(transformation_function, execution_namespace)
+                transformation_function_caller = execution_namespace.get(on_demand_transformation.name)
+
+                transformed_data = transformation_function_caller(
+                    serving_vector, **kwargs
+                )
+
+            return transformed_data
         else:
             raise ValueError("Online serving is not enabled for this FeatureGroup.")
 
