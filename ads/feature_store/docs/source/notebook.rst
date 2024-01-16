@@ -4,6 +4,8 @@
 Notebook Examples
 *****************
 
+Below is a compilation of tutorials focused on understanding and utilizing Feature Stores. You can find the raw notebook files in our `tutorials repository <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/tutorials/README.md>`_.
+
 Quick start examples
 ####################
 
@@ -30,7 +32,7 @@ Quick start examples
         | * ``Schema enforcement``, also known as schema validation, is a safeguard in Delta Lake that ensures data quality by rejecting writes to a table that don't match the table's schema.
 
     * - `Storage of medical records in feature store <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/feature_store_ehr_data.ipynb>`__
-      - | Example to demonstrate storage of medical records in feature store
+      - | Example to demonstrate storage of medical records in Feature Store.
 
 Big data operations using OCI DataFlow
 ######################################
@@ -48,6 +50,23 @@ Big data operations using OCI DataFlow
     * - `Big data operations with feature store <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/feature_store_spark_magic.ipynb>`__
       - | * Ingestion of data using Spark Magic.
         | * Querying and exploration of data using Spark Magic.
+
+Streaming operations using Spark Streaming
+##########################################
+
+.. admonition:: Notebook Examples
+  :class: note
+
+  .. list-table::
+    :widths: 50 50
+    :header-rows: 1
+
+    * - Jupyter Notebook
+      - Description
+
+    * - `Streaming operations with feature store <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/notebook_examples/feature_store_streaming_data_frame.ipynb>`__
+      - | * Ingestion of data using spark streaming.
+        | * Modes of ingestion: ``COMPLETE`` and ``APPEND``.
 
 LLM Use cases
 #############

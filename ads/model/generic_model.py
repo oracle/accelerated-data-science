@@ -31,6 +31,7 @@ from ads.config import (
     NB_SESSION_OCID,
     PIPELINE_RUN_COMPARTMENT_OCID,
     PROJECT_OCID,
+    TMPDIR,
 )
 from ads.evaluations import EvaluatorMixin
 from ads.feature_engineering import ADSImage
@@ -67,7 +68,8 @@ from ads.model.model_metadata import (
     Framework,
     ModelCustomMetadata,
     ModelProvenanceMetadata,
-    ModelTaxonomyMetadata, MetadataCustomCategory,
+    ModelTaxonomyMetadata,
+    MetadataCustomCategory,
 )
 from ads.model.model_metadata_mixin import MetadataMixin
 from ads.model.model_properties import ModelProperties
@@ -182,7 +184,7 @@ def _prepare_artifact_dir(artifact_dir: str = None) -> str:
     if artifact_dir and isinstance(artifact_dir, str):
         return os.path.abspath(os.path.expanduser(artifact_dir))
 
-    artifact_dir = tempfile.mkdtemp()
+    artifact_dir = TMPDIR or tempfile.mkdtemp()
     logger.info(
         f"The `artifact_dir` was not provided and "
         f"automatically set to: {artifact_dir}"
@@ -964,17 +966,20 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             auth=self.auth,
             local_copy_dir=self.local_copy_dir,
         )
-        self.runtime_info = self.model_artifact.prepare_runtime_yaml(
-            inference_conda_env=self.properties.inference_conda_env,
-            inference_python_version=self.properties.inference_python_version,
-            training_conda_env=self.properties.training_conda_env,
-            training_python_version=self.properties.training_python_version,
-            force_overwrite=force_overwrite,
-            namespace=namespace,
-            bucketname=DEFAULT_CONDA_BUCKET_NAME,
-            auth=self.auth,
-            ignore_conda_error=self.ignore_conda_error,
-        )
+        try:
+            self.runtime_info = self.model_artifact.prepare_runtime_yaml(
+                inference_conda_env=self.properties.inference_conda_env,
+                inference_python_version=self.properties.inference_python_version,
+                training_conda_env=self.properties.training_conda_env,
+                training_python_version=self.properties.training_python_version,
+                force_overwrite=force_overwrite,
+                namespace=namespace,
+                bucketname=DEFAULT_CONDA_BUCKET_NAME,
+                auth=self.auth,
+                ignore_conda_error=self.ignore_conda_error,
+            )
+        except ValueError as e:
+            raise e
 
         self._summary_status.update_status(
             detail="Generated runtime.yaml", status=ModelState.DONE.value
@@ -1347,13 +1352,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         properties.with_dict(local_vars)
         auth = auth or authutil.default_signer()
         artifact_dir = _prepare_artifact_dir(artifact_dir)
+        reload = kwargs.pop("reload", False)
         model_artifact = ModelArtifact.from_uri(
             uri=uri,
             artifact_dir=artifact_dir,
-            model_file_name=model_file_name,
-            force_overwrite=force_overwrite,
             auth=auth,
+            force_overwrite=force_overwrite,
             ignore_conda_error=ignore_conda_error,
+            model_file_name=model_file_name,
+            reload=reload,
         )
         model = cls(
             estimator=model_artifact.model,
@@ -1366,22 +1373,33 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         model.local_copy_dir = model_artifact.local_copy_dir
         model.model_artifact = model_artifact
         model.ignore_conda_error = ignore_conda_error
-        model.reload_runtime_info()
+
+        if reload:
+            model.reload_runtime_info()
+            model._summary_status.update_action(
+                detail="Populated metadata(Custom, Taxonomy and Provenance)",
+                action="Call .populate_metadata() to populate metadata.",
+            )
+
         model._summary_status.update_status(
             detail="Generated score.py",
-            status=ModelState.DONE.value,
+            status=ModelState.NOTAPPLICABLE.value,
         )
         model._summary_status.update_status(
             detail="Generated runtime.yaml",
-            status=ModelState.DONE.value,
+            status=ModelState.NOTAPPLICABLE.value,
         )
         model._summary_status.update_status(
-            detail="Serialized model", status=ModelState.DONE.value
+            detail="Serialized model",
+            status=ModelState.NOTAPPLICABLE.value,
         )
-        model._summary_status.update_action(
+        model._summary_status.update_status(
             detail="Populated metadata(Custom, Taxonomy and Provenance)",
-            action=f"Call .populate_metadata() to populate metadata.",
+            status=ModelState.AVAILABLE.value
+            if reload
+            else ModelState.NOTAPPLICABLE.value,
         )
+
         return model
 
     @classmethod
@@ -1824,18 +1842,19 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
 
     def save(
         self,
-        display_name: Optional[str] = None,
-        description: Optional[str] = None,
-        freeform_tags: Optional[dict] = None,
-        defined_tags: Optional[dict] = None,
-        ignore_introspection: Optional[bool] = False,
         bucket_uri: Optional[str] = None,
-        overwrite_existing_artifact: Optional[bool] = True,
-        remove_existing_artifact: Optional[bool] = True,
-        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
-        version_label: Optional[str] = None,
+        defined_tags: Optional[dict] = None,
+        description: Optional[str] = None,
+        display_name: Optional[str] = None,
         featurestore_dataset=None,
+        freeform_tags: Optional[dict] = None,
+        ignore_introspection: Optional[bool] = False,
+        model_version_set: Optional[Union[str, ModelVersionSet]] = None,
+        overwrite_existing_artifact: Optional[bool] = True,
         parallel_process_count: int = utils.DEFAULT_PARALLEL_PROCESS_COUNT,
+        remove_existing_artifact: Optional[bool] = True,
+        reload: Optional[bool] = True,
+        version_label: Optional[str] = None,
         **kwargs,
     ) -> str:
         """Saves model artifacts to the model catalog.
@@ -1862,7 +1881,7 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         overwrite_existing_artifact: (bool, optional). Defaults to `True`.
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
-            Wether artifacts uploaded to object storage bucket need to be removed or not.
+            Whether artifacts uploaded to object storage bucket need to be removed or not.
         model_version_set: (Union[str, ModelVersionSet], optional). Defaults to None.
             The model version set OCID, or model version set name, or `ModelVersionSet` instance.
         version_label: (str, optional). Defaults to None.
@@ -1871,6 +1890,8 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
             The feature store dataset
         parallel_process_count: (int, optional)
             The number of worker processes to use in parallel for uploading individual parts of a multipart upload.
+        reload: (bool, optional)
+            Whether to reload to check if `load_model()` works in `score.py`. Default to `True`.
         kwargs:
             project_id: (str, optional).
                 Project OCID. If not specified, the value will be taken either
@@ -1926,12 +1947,17 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
                 raise RuntimeInfoInconsistencyError(
                     "`.runtime_info` does not sync with runtime.yaml file. Call "
                     "`.runtime_info.save()` if you updated `runtime_info`. "
-                    "Call `.reload()` if you updated runtime.yaml file."
+                    "Call `.reload_runtime_info()` if you updated runtime.yaml file."
                 )
             # reload to check if load_model works in score.py, i.e.
             # whether the model file has been serialized, and whether it can be loaded
             # successfully.
-            self.reload()
+            if reload:
+                self.reload()
+            else:
+                logger.warning(
+                    "The score.py file has not undergone testing, and this could result in deployment errors. To verify its functionality, please set `reload=True`."
+                )
         except:
             if not self.ignore_conda_error:
                 raise
@@ -1967,11 +1993,15 @@ class GenericModel(MetadataMixin, Introspectable, EvaluatorMixin):
         if featurestore_dataset:
             dataset_details = {
                 "dataset-id": featurestore_dataset.id,
-                "dataset-name": featurestore_dataset.name
+                "dataset-name": featurestore_dataset.name,
             }
-            self.metadata_custom.add("featurestore.dataset", value=str(dataset_details),
-                                     category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
-                                     description="feature store dataset", replace=True)
+            self.metadata_custom.add(
+                "featurestore.dataset",
+                value=str(dataset_details),
+                category=MetadataCustomCategory.TRAINING_AND_VALIDATION_DATASETS,
+                description="feature store dataset",
+                replace=True,
+            )
 
         self.dsc_model = (
             self.dsc_model.with_compartment_id(self.properties.compartment_id)
@@ -3020,6 +3050,7 @@ class ModelState(Enum):
     AVAILABLE = "Available"
     NOTAVAILABLE = "Not Available"
     NEEDSACTION = "Needs Action"
+    NOTAPPLICABLE = "Not Applicable"
 
 
 class SummaryStatus:

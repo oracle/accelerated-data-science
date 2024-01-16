@@ -1,16 +1,14 @@
 import os
-import time
 import oci
-from typing import List
-
+from typing import List, Dict
 from ads.opctl.backend.marketplace.models.bearer_token import BearerToken
-
 from ads.common.oci_client import OCIClientFactory
-
 from ads.common import auth as authutil
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
 )
+
+
 class Color:
     PURPLE = "\033[95m"
     CYAN = "\033[96m"
@@ -23,7 +21,9 @@ class Color:
     UNDERLINE = "\033[4m"
     END = "\033[0m"
 
-WARNING=f"{Color.RED}{Color.BOLD}WARNING: {Color.END}"
+
+WARNING = f"{Color.RED}{Color.BOLD}WARNING: {Color.END}"
+
 
 class StatusIcons:
     CHECK = "\u2705 "
@@ -52,7 +52,7 @@ def print_heading(
     heading: str,
     prefix_newline_count: int = 0,
     suffix_newline_count: int = 0,
-    colors: List[Color] = (Color.BOLD,),
+    colors: List[str] = (Color.BOLD,),
 ) -> None:
     colors = [f"{color}" for color in colors]
     colors = " ".join(colors)
@@ -66,34 +66,6 @@ def print_heading(
         + f"{Color.END}"
     )
 
-def wait_for_pod_ready(namespace: str, pod_name: str):
-    import kubernetes as k8
-    # Configs can be set in Configuration class directly or using helper utility
-    # self._set_kubernetes_env()
-    k8.config.load_kube_config()
-    v1 = k8.client.CoreV1Api()
-
-    def is_pod_ready(pod):
-        for condition in pod.status.conditions:
-            if condition.type == "Ready":
-                return condition.status == "True"
-        return False
-
-    for i in range(1, 120):
-        pod = v1.list_namespaced_pod(
-            namespace=namespace,
-            label_selector=f"app.kubernetes.io/instance={pod_name}",
-        ).items[0]
-
-        if is_pod_ready(pod):
-            return 0
-        print(
-            f"Waiting for pod '{pod_name}' to be ready." + "." * i,
-            end="\r",
-            )
-        time.sleep(5)
-    print("Timed out waiting for pod to get ready.")
-    return -1
 
 def set_kubernetes_session_token_env(profile: str = "DEFAULT") -> None:
     os.environ["OCI_CLI_AUTH"] = "security_token"
@@ -134,7 +106,7 @@ def get_docker_bearer_token(ocir_repo: str) -> BearerToken:
     return token
 
 
-def export_helm_chart(listing_details: HelmMarketplaceListingDetails):
+def _export_helm_chart_(listing_details: HelmMarketplaceListingDetails):
     client = get_marketplace_client()
     export_listing_work_request: oci.marketplace.models.WorkRequest = (
         client.export_listing(
@@ -155,6 +127,7 @@ def export_helm_chart(listing_details: HelmMarketplaceListingDetails):
         wait_callback=lambda times_checked, _: print_ticker(
             "Waiting for marketplace export to finish", iteration=times_checked - 1
         ),
+        max_interval_seconds=1,
     ).data
     if export_listing_work_request.status == "FAILED":
         print(f"Couldn't export images from marketplace to OCIR {StatusIcons.CROSS}")
@@ -167,21 +140,68 @@ def export_helm_chart(listing_details: HelmMarketplaceListingDetails):
     # Get the data from response
 
 
-def get_marketplace_request_status(work_request_id):
-    get_work_request_response = get_marketplace_client().get_work_request(
-        work_request_id=work_request_id
-    )
-    return get_work_request_response.data
-
-
 def list_container_images(
-    listing_details: HelmMarketplaceListingDetails,
+    compartment_id: str, ocir_image_path: str
 ) -> oci.artifacts.models.ContainerImageCollection:
     artifact_client = OCIClientFactory(**authutil.default_signer()).artifacts
     list_container_images_response = artifact_client.list_container_images(
-        compartment_id=listing_details.compartment_id,
+        compartment_id=compartment_id,
         compartment_id_in_subtree=True,
         sort_by="TIMECREATED",
-        repository_name=listing_details.ocir_image_path,
+        repository_name=ocir_image_path,
     )
     return list_container_images_response.data
+
+
+def export_if_tags_not_exist(
+    listing_details: HelmMarketplaceListingDetails,
+) -> Dict[str, str]:
+    class ImageTagPatternNotFound(Exception):
+        def __init__(self, pattern: List[str]):
+            self.pattern = pattern
+
+        def __repr__(self):
+            print_heading(
+                f"Couldn't find images with tags: {listing_details.container_tag_pattern} requested by the operator.",
+                colors=[Color.RED],
+            )
+
+    tags_map = _get_tags_map_(listing_details)
+
+    if not tags_map:
+        _export_helm_chart_(listing_details)
+        tags_map = _get_tags_map_(listing_details)
+        if not tags_map:
+            raise ImageTagPatternNotFound(pattern=listing_details.container_tag_pattern)
+    else:
+        print(
+            f"Images already exist in the path. Continuing without export.{StatusIcons.CHECK}"
+        )
+    return tags_map
+
+
+def get_kubernetes_service(listings_details: HelmMarketplaceListingDetails):
+    import kubernetes
+
+    kubernetes.config.load_kube_config()
+    k8 = kubernetes.client.CoreV1Api()
+    return k8.list_namespaced_service(
+        namespace=listings_details.namespace,
+        label_selector=f"app.kubernetes.io/instance={listings_details.helm_app_name}",
+    )
+
+
+def _get_tags_map_(
+    listing_details: HelmMarketplaceListingDetails,
+) -> Dict[str, str]:
+    images = list_container_images(
+        compartment_id=listing_details.compartment_id,
+        ocir_image_path=listing_details.ocir_image_path,
+    )
+    tags_map = {}
+    for image in images.items:
+        for container_tag_pattern in listing_details.container_tag_pattern:
+            if container_tag_pattern in image.display_name:
+                tags_map[container_tag_pattern] = image.display_name.split(":")[1]
+                break
+    return tags_map

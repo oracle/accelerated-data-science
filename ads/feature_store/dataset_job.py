@@ -54,7 +54,7 @@ class DatasetJob(Builder):
     >>> dataset_run = dataset_run.DatasetJob()
     >>>     .with_compartment_id(os.environ["PROJECT_COMPARTMENT_OCID"])
     >>>     .with_dataset_id("dataset_id")
-    >>>     .with_ingestion_mode(IngestionMode.SQL)
+    >>>     .with_ingestion_mode(BatchIngestionMode.SQL)
     >>> dataset_run.create()
     """
 

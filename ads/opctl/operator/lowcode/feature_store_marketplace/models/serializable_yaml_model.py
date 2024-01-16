@@ -22,6 +22,7 @@ class SerializableYAMLModel:
     def from_dict(cls: Type["SerializableYAMLModel"], d: dict):
         instance = cls()
         yaml_mapping = instance.yaml_mapping
-        for yaml_key, obj_value in d:
+        for yaml_key, obj_value in d.items():
             if yaml_key in yaml_mapping:
                 instance.__setattr__(yaml_mapping.get(yaml_key), obj_value)
+        return instance

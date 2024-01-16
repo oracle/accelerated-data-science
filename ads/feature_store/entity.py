@@ -194,7 +194,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             The Entity instance (self)
         """
         return self.set_spec(self.CONST_NAME, name)
@@ -224,7 +224,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             The Entity instance (self)
         """
         return self.set_spec(self.CONST_DESCRIPTION, description)
@@ -240,7 +240,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             An instance of Entity resource.
         """
         return cls()._update_from_oci_fs_entity_model(OCIEntity.from_id(id))
@@ -256,7 +256,7 @@ class Entity(Builder):
 
         Returns
         -------
-        FeatureStore
+        Entity
             The Entity instance (self)
 
         Raises

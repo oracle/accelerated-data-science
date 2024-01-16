@@ -2,7 +2,12 @@ import runpy
 import sys
 import types
 
-from typing import Dict
+from typing import Dict, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from kubernetes.client import V1ServiceList
+
+from ads.common.auth import AuthState
 
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     MarketplaceListingDetails,
@@ -10,6 +15,7 @@ from ads.opctl.backend.marketplace.models.marketplace_type import (
 
 from ads.opctl.backend.marketplace.marketplace_operator_interface import (
     MarketplaceInterface,
+    Status,
 )
 
 
@@ -18,7 +24,7 @@ def runpy_backend_runner(func: types.FunctionType):
         if kwargs:
             raise RuntimeError("Kwargs are not supported")
         else:
-            sys.argv = [f"{func.__name__}", *args]
+            sys.argv = [AuthState(), f"{func.__name__}", *args]
             try:
                 result = runpy.run_module(runner.module_name, run_name="__main__")
             except SystemExit as exception:
@@ -41,5 +47,19 @@ class MarketplaceBackendRunner(MarketplaceInterface):
         pass
 
     @runpy_backend_runner
-    def get_oci_meta(self, container_map: Dict[str, str], operator_config: str) -> dict:
+    def get_oci_meta(
+        self,
+        operator_config: str,
+        tags_map: Dict[str, str],
+    ) -> dict:
+        pass
+
+    @runpy_backend_runner
+    def finalise_installation(
+        self,
+        operator_config: str,
+        status: Status,
+        tags_map: Dict[str, str],
+        kubernetes_service_list: "V1ServiceList",
+    ):
         pass

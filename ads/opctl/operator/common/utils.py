@@ -5,8 +5,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import argparse
+import logging
 import os
+import sys
 import time
+import traceback
 from string import Template
 from typing import Any, Dict, List, Tuple
 
@@ -161,3 +164,8 @@ def remove_prefix(text: str, prefix: str):
         return text[len(prefix) :]
     else:
         return text
+
+def print_traceback():
+    if logger.level == logging.DEBUG:
+        ex_type, ex, tb = sys.exc_info()
+        traceback.print_tb(tb)

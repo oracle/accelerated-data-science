@@ -67,7 +67,11 @@ class TestBackendFactory:
             conda="example_v1",
             conda_type=PACK_TYPE.CUSTOM,
             path="/fake/path/to/operator",
-            backends=[BACKEND_NAME.JOB.value, BACKEND_NAME.DATAFLOW.value],
+            backends=[
+                BACKEND_NAME.JOB.value,
+                BACKEND_NAME.DATAFLOW.value,
+                BACKEND_NAME.OPERATOR_LOCAL.value,
+            ],
         )
 
         # mock operator config
@@ -81,13 +85,7 @@ class TestBackendFactory:
         # expected backends
         self.mock_supported_backends = tuple(
             set(BackendFactory.BACKENDS + BackendFactory.LOCAL_BACKENDS)
-            & set(
-                self.mock_operator_info.backends
-                + [
-                    BACKEND_NAME.OPERATOR_LOCAL.value,
-                    BACKEND_NAME.LOCAL.value,
-                ]
-            )
+            & set(self.mock_operator_info.backends)
         )
 
     @pytest.mark.parametrize(

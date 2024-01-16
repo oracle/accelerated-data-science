@@ -13,7 +13,7 @@ import shutil
 import sys
 import tempfile
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict, List
 from urllib.parse import urlparse
 
@@ -32,6 +32,74 @@ from .errors import OperatorNotFoundError
 
 LOCAL_SCHEME = "local"
 MAIN_BRANCH = "main"
+
+DEFAULT_SHAPE = "VM.Standard.E4.Flex"
+DEFAULT_OCPUS = 32
+DEFAULT_MEMORY_IN_GBS = 512
+DEFAULT_BLOCK_STORAGE_SIZE_IN_GBS = 512
+DEFAULT_SPARK_VERSION = "3.2.1"
+DEFAULT_NUM_OF_EXECUTORS = 1
+
+
+@dataclass(repr=True)
+class JobsDefaultParams(DataClassSerializable):
+    """Class representing the default params for the DataScience Job.
+
+    Attributes
+    ----------
+    shape_name (str)
+        The name of the shape.
+    ocpus (int)
+        The OCPUs count.
+    memory_in_gbs (int)
+        The size of the memory in GBs.
+    block_storage_size_in_GBs (int)
+        Size of the block storage drive.
+    """
+
+    shape_name: str = DEFAULT_SHAPE
+    ocpus: int = DEFAULT_OCPUS
+    memory_in_gbs: int = DEFAULT_MEMORY_IN_GBS
+    block_storage_size_in_GBs: int = DEFAULT_BLOCK_STORAGE_SIZE_IN_GBS
+
+    @classmethod
+    def from_dict(cls, *args, **kwargs: Dict) -> "JobsDefaultParams":
+        return super().from_dict(*args, **{**kwargs, **{"side_effect": None}})
+
+
+@dataclass(repr=True)
+class DataFlowDefaultParams(DataClassSerializable):
+    """Class representing the default params for the Data Flow Application.
+
+    Attributes
+    ----------
+    driver_shape (str)
+        The name of the driver shape.
+    driver_shape_ocpus (int)
+        The OCPUs count for the driver shape.
+    driver_shape_memory_in_gbs (int)
+        The size of the memory in GBs for the driver shape.
+    executor_shape (str)
+        The name of the executor shape.
+    executor_shape_ocpus (int)
+        The OCPUs count for the executor shape.
+    executor_shape_memory_in_gbs (int)
+        The size of the memory in GBs for the executor shape.
+    num_executors (int)
+        The number of executors.
+    spark_version (str)
+        The version of the SPARK.
+    """
+
+    spark_version: str = DEFAULT_SPARK_VERSION
+    driver_shape: str = DEFAULT_SHAPE
+    driver_shape_ocpus: int = DEFAULT_OCPUS
+    driver_shape_memory_in_gbs: int = DEFAULT_MEMORY_IN_GBS
+
+    num_executors: int = DEFAULT_NUM_OF_EXECUTORS
+    executor_shape: str = DEFAULT_SHAPE
+    executor_shape_ocpus: int = DEFAULT_OCPUS
+    executor_shape_memory_in_gbs: int = DEFAULT_MEMORY_IN_GBS
 
 
 @dataclass(repr=True)
@@ -57,11 +125,20 @@ class OperatorInfo(DataClassSerializable):
     conda_type (str)
         The type of conda pack (e.g., PACK_TYPE.CUSTOM).
     path (str)
-        The location of the operator.
+        The physical location of the operator.
     keywords (List[str])
         Keywords associated with the operator.
     backends (List[str])
         List of supported backends.
+    jobs_default_params (JobsDefaultParams)
+        The default params for the Jobs service.
+        Will be used when operator run on the Jobs service.
+    dataflow_default_params (DataFlowDefaultParams)
+        The default params for the DataFlow service.
+        Will be used when operator run on the DataFlow service.
+    logo: str
+        The logo of the operator.
+        Needs to be attached in the "svg+xml;base64" format.
 
     Properties
     ----------
@@ -79,6 +156,11 @@ class OperatorInfo(DataClassSerializable):
     path: str = ""
     keywords: List[str] = None
     backends: List[str] = None
+    jobs_default_params: JobsDefaultParams = field(default_factory=JobsDefaultParams)
+    dataflow_default_params: DataFlowDefaultParams = field(
+        default_factory=DataFlowDefaultParams
+    )
+    logo: str = ""
 
     @property
     def conda_prefix(self) -> str:
@@ -107,6 +189,10 @@ class OperatorInfo(DataClassSerializable):
         self.version = self.version or "v1"
         self.conda_type = self.conda_type or PACK_TYPE.CUSTOM
         self.conda = self.conda or f"{self.type}_{self.version}"
+        self.jobs_default_params = self.jobs_default_params or JobsDefaultParams()
+        self.dataflow_default_params = (
+            self.dataflow_default_params or DataFlowDefaultParams()
+        )
 
     @classmethod
     def from_yaml(

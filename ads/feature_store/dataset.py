@@ -437,8 +437,8 @@ class Dataset(Builder):
 
         Returns
         -------
-        Pipeline
-            The Expectation instance (self).
+        Dataset
+            The Dataset instance (self).
         """
         return self.set_spec(
             self.CONST_EXPECTATION_DETAILS,

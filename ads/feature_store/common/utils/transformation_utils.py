@@ -52,9 +52,7 @@ class TransformationUtils:
         # Execute the function under namespace
         execution_namespace = {}
         exec(transformation_function, execution_namespace)
-        transformation_function_caller = execution_namespace.get(
-            transformation.display_name
-        )
+        transformation_function_caller = execution_namespace.get(transformation.name)
         transformed_data = None
 
         transformation_kwargs_dict = json.loads(transformation_kwargs)

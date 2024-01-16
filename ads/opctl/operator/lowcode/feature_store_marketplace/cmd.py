@@ -7,12 +7,18 @@
 from typing import Dict
 
 import click
+from ads.opctl.operator.lowcode.feature_store_marketplace.models.apigw_config import (
+    APIGatewayConfig,
+)
+
+from ads.opctl.operator.lowcode.feature_store_marketplace.operator_utils import (
+    get_latest_listing_version,
+    get_db_details,
+)
+
 from ads.opctl.operator.lowcode.feature_store_marketplace.models.db_config import (
     DBConfig,
 )
-
-from ads.opctl.operator.lowcode.feature_store_marketplace.prompts import get_db_details
-
 from ads.opctl.backend.marketplace.marketplace_utils import Color, print_heading
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.common.operator_yaml_generator import YamlGenerator
@@ -56,7 +62,13 @@ def init(**kwargs: Dict) -> dict:
     )
     helm_app_name = click.prompt("Helm app name", default="feature-store-api")
     kubernetes_namespace = click.prompt("Kubernetes namespace", default="feature-store")
-
+    version = click.prompt(
+        "Version of feature store stack to install",
+        default=get_latest_listing_version(compartment_id),
+    )
+    # api_gw_config = get_api_gw_details(compartment_id)
+    api_gw_config = APIGatewayConfig()
+    api_gw_config.enabled = False
     yaml_dict: Dict = YamlGenerator(
         schema=_load_yaml_from_uri(__file__.replace("cmd.py", "schema.yaml"))
     ).generate_example_dict(
@@ -66,6 +78,10 @@ def init(**kwargs: Dict) -> dict:
             "clusterDetails.namespace": kubernetes_namespace,
             "compartmentId": compartment_id,
             "ocirURL": f"{ocir_url.rstrip('/')}/{ocir_image}",
-        }
+            "version": version,
+            "apiGatewayDeploymentDetails": api_gw_config.to_dict(),
+        },
+        required_keys=[],
     )
+
     return yaml_dict

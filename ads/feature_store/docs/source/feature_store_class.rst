@@ -1,19 +1,30 @@
 feature_store package
-=====================
-
-Subpackages
------------
-
-.. toctree::
-   :maxdepth: 4
-
-   ads.feature_store.query
+*********************
 
 Submodules
-----------
+==========
+
+ads.feature_store.query package
+###############################
+
+.. automodule:: ads.feature_store.query.filter
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: ads.feature_store.query.join
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: ads.feature_store.query.query
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 
 ads.feature_store package
--------------------------
+#########################
 .. automodule:: ads.feature_store.dataset
    :members:
    :undoc-members:
@@ -85,6 +96,28 @@ ads.feature_store package
    :show-inheritance:
 
 .. automodule:: ads.feature_store.validation_output
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+
+ads.feature_store.statistics package
+####################################
+
+.. automodule:: ads.feature_store.statistics.statistics
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+ads.feature_store.common package
+################################
+
+.. automodule:: ads.feature_store.common.enums
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: ads.feature_store.common.spark_session_singleton
    :members:
    :undoc-members:
    :show-inheritance:

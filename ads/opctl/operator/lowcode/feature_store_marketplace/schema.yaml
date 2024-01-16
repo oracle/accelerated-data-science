@@ -132,4 +132,29 @@ spec:
       required: true
       default: "latest"
       description: "Version of the listing to deploy"
+    apiGatewayDeploymentDetails:
+      required: true
+      type: dict
+      schema:
+        enabled:
+          type: bool
+          required: true
+          default: false
+          description: "Whether to deploy API gateway or not"
+        rootCompartmentId:
+          type: string
+          required: false
+          description: "Root compartment ID of the tenancy where api gateway needs to be deployed. This is needed to setup certain tenancy wide policies"
+        region:
+          type: string
+          required: false
+          description: "Region to deploy API gateway in"
+        authorizedUserGroups:
+          type: string
+          required: false
+          description: "List of comma separated user groups authorized to access feature store"
+        stackId:
+          type: string
+          required: false
+          description: "Stack id to use for api gateway deployment"
   type: dict

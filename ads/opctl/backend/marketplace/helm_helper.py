@@ -13,7 +13,9 @@ from ads.common.extended_enum import ExtendedEnumMeta
 from ads.opctl import logger
 from ads.opctl.backend.marketplace.marketplace_utils import (
     StatusIcons,
-    get_docker_bearer_token, WARNING, Color,
+    get_docker_bearer_token,
+    WARNING,
+    Color,
 )
 
 
@@ -39,19 +41,20 @@ _HELM_BINARY_ = "helm"
 def run_helm_install(
     name: str, chart: str, version: str, namespace: str, values_yaml_path: str, **kwargs
 ) -> subprocess.CompletedProcess:
-    cmd = (
-        HelmCommand.Install
-        if not _check_if_chart_already_exists_(name, namespace)
-        else HelmCommand.Upgrade
-    )
     helm_cmd = [
         _HELM_BINARY_,
-        cmd,
+        HelmCommand.Upgrade,
         name,
         chart,
         *_get_as_flags_(
-            namespace=namespace, values=values_yaml_path, version=version, **kwargs
+            namespace=namespace,
+            values=values_yaml_path,
+            version=version,
+            timeout="300s",
+            **kwargs,
         ),
+        "--wait",
+        "-i",
     ]
     print(f"\n{Color.BLUE}{' '.join(helm_cmd)}{Color.END}")
     return subprocess.run(helm_cmd)
@@ -98,6 +101,7 @@ def check_helm_login(listing_details: HelmMarketplaceListingDetails):
                 helm_chart_url=listing_details.helm_fully_qualified_url,
                 version=listing_details.helm_chart_tag,
             )
+            status = HelmPullStatus.SUCCESS
             if status != HelmPullStatus.SUCCESS:
                 print(f"Unable to setup helm authentication. {StatusIcons.CROSS}")
                 # Todo throw correct exception

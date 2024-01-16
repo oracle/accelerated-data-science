@@ -4,7 +4,7 @@ Statistics
 *************
 
 Feature Store provides functionality to compute statistics for feature groups and datasets, and then persists them including the metadata. These statistics can help you
-to derive insights about the data quality. These statistical metrics are computed during materialization time and persisting with other metadata.
+derive insights about the data quality. These statistical metrics are computed during materialisation time and persisting with other metadata.
 
 .. note::
 

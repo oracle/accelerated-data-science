@@ -1,23 +1,24 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*--
+
+# Copyright (c) 2023 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import json
 import os
 import tempfile
 from typing import Optional, Dict, Union, Any
 import fsspec
 import yaml
+from ads.opctl.backend.marketplace.prerequisite_checker import check_prerequisites
 
 from ads.common.decorator.runtime_dependency import (
     runtime_dependency,
     OptionalDependency,
 )
+from ads.opctl.backend.marketplace.helm_helper import check_helm_login, run_helm_install
+from ads.opctl.backend.marketplace.marketplace_operator_interface import Status
 
-from ads.opctl.backend.marketplace.prerequisite_checker import (
-    check_prerequisites,
-)
-
-from ads.opctl.backend.marketplace.helm_helper import (
-    run_helm_install,
-    check_helm_login,
-)
 from ads.opctl.backend.marketplace.models.marketplace_type import (
     HelmMarketplaceListingDetails,
     MarketplaceListingDetails,
@@ -31,12 +32,12 @@ from ads import logger
 
 from ads.common.auth import AuthContext, AuthType
 from ads.opctl.backend.marketplace.marketplace_utils import (
-    list_container_images,
     set_kubernetes_session_token_env,
     StatusIcons,
     print_heading,
     Color,
-    export_helm_chart, wait_for_pod_ready,
+    export_if_tags_not_exist,
+    get_kubernetes_service,
 )
 
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
@@ -93,7 +94,7 @@ class LocalMarketplaceOperatorBackend(Backend):
         self._RUNTIME_RUN_MAP = {
             operator_runtime.MarketplacePythonRuntime.type: self._run_with_python_,
         }
-
+        self.operator = None
         self.operator_info = operator_info
 
     @staticmethod
@@ -105,25 +106,55 @@ class LocalMarketplaceOperatorBackend(Backend):
             f.write(yaml.dump(helm_values))
         return temp_file_path
 
+    def process_helm_listing(self, listing_details: HelmMarketplaceListingDetails):
+        operator = MarketplaceBackendRunner(
+            module_name=self.operator_info.type,
+        )
+        check_prerequisites(listing_details)
+        print_heading(
+            f"Starting deployment",
+            prefix_newline_count=2,
+            suffix_newline_count=0,
+            colors=[Color.BLUE, Color.BOLD],
+        )
 
+        tags_map = export_if_tags_not_exist(listing_details)
+        check_helm_login(listing_details)
+        oci_meta = operator.get_oci_meta(json.dumps(self.operator_config), tags_map)
+        listing_details.helm_values["oci_meta"] = oci_meta
+        override_value_path = self._save_helm_values_to_yaml_(
+            listing_details.helm_values
+        )
+        helm_install_status = run_helm_install(
+            name=listing_details.helm_app_name,
+            chart=listing_details.helm_fully_qualified_url,
+            version=listing_details.helm_chart_tag,
+            namespace=listing_details.namespace,
+            values_yaml_path=override_value_path,
+        )
+        if helm_install_status.returncode == 0:
+            print_heading(
+                f"Completed deployment {StatusIcons.TADA}",
+                colors=[Color.BOLD, Color.BLUE],
+                prefix_newline_count=0,
+                suffix_newline_count=2,
+            )
 
-    @staticmethod
-    def _export_helm_chart_to_container_registry_(
-        listing_details: HelmMarketplaceListingDetails,
-    ) -> Dict[str, str]:
-        export_helm_chart(listing_details)
-        images = list_container_images(listing_details)
-        image_map = {}
-        for image in images.items:
-            for container_tag_pattern in listing_details.container_tag_pattern:
-                if (
-                    container_tag_pattern in image.display_name
-                    and image_map.get(container_tag_pattern, None) is None
-                ):
-                    image_map[container_tag_pattern] = image.display_name
-        return image_map
+            operator.finalise_installation(
+                json.dumps(self.operator_config),
+                Status.SUCCESS,
+                tags_map,
+                get_kubernetes_service(listing_details),
+            )
+        else:
+            operator.finalise_installation(
+                json.dumps(self.operator_config), Status.FAILURE, None, None
+            )
+        return helm_install_status.returncode
 
-    @runtime_dependency(module="kubernetes", install_from=OptionalDependency.FEATURE_STORE_MARKETPLACE)
+    @runtime_dependency(
+        module="kubernetes", install_from=OptionalDependency.FEATURE_STORE_MARKETPLACE
+    )
     def _run_with_python_(self, **kwargs: Dict) -> int:
         """
         Runs the operator within a local python environment.
@@ -133,69 +164,24 @@ class LocalMarketplaceOperatorBackend(Backend):
         int
             The operator's run exit code.
         """
+        self.operator = MarketplaceBackendRunner(module_name=self.operator_info.type)
 
         # build runtime object
         with AuthContext(auth=self.auth_type, profile=self.profile):
             if self.auth_type == AuthType.SECURITY_TOKEN:
                 set_kubernetes_session_token_env(profile=self.profile)
-            runtime = operator_runtime.MarketplacePythonRuntime.from_dict(
-                self.runtime_config, ignore_unknown=True
-            )
-
-            # run operator
-            operator_spec = json.dumps(self.operator_config)
-            operator = MarketplaceBackendRunner(
-                module_name=self.operator_info.type,
-            )
-
-            listing_details: MarketplaceListingDetails = operator.get_listing_details(
-                operator_spec
+            listing_details: MarketplaceListingDetails = (
+                self.operator.get_listing_details(json.dumps(self.operator_config))
             )
             if isinstance(listing_details, HelmMarketplaceListingDetails):
-                check_prerequisites(listing_details)
+                return self.process_helm_listing(listing_details)
+            else:
                 print_heading(
-                    f"Starting deployment",
-
-                    prefix_newline_count=2,
-                    suffix_newline_count=0,
-                    colors=[Color.BLUE, Color.BOLD]
+                    f"This type of listing is not supported currently via marketplace backend. "
+                    f"Currently only listings of type 'Helm charts' is supported",
+                    colors=[Color.BOLD, Color.RED],
                 )
-
-                container_map = self._export_helm_chart_to_container_registry_(
-                    listing_details
-                )
-                check_helm_login(listing_details)
-                oci_meta = operator.get_oci_meta(container_map, operator_spec)
-                listing_details.helm_values["oci_meta"] = oci_meta
-                override_value_path = self._save_helm_values_to_yaml_(
-                    listing_details.helm_values
-                )
-                helm_install_status = run_helm_install(
-                    name=listing_details.helm_app_name,
-                    ## TODO: Revert when marketplace listing is done
-                    chart=f"oci://iad.ocir.io/idogsu2ylimg/feature-store-api/feature-store-api-chart",
-                    ## TODO: Revert when marketplace listing is done
-                    # version=listing_details.helm_chart_tag,
-                    version="0.1.343",
-                    namespace=listing_details.namespace,
-                    values_yaml_path=override_value_path,
-                )
-                if helm_install_status.returncode == 0:
-                    status = wait_for_pod_ready(
-                        listing_details.namespace,
-                        listing_details.helm_app_name,
-                        # container_map.values(),
-                    )
-                    if status == 0:
-                        print_heading(
-                            f"Completed deployment {StatusIcons.TADA}",
-                            colors=[Color.BOLD, Color.BLUE],
-                            prefix_newline_count=0,
-                            suffix_newline_count=2,
-                        )
-                    return status
-                else:
-                    return -1
+                return -1
 
     def run(self, **kwargs: Dict) -> None:
         """Runs the operator."""

@@ -8,9 +8,7 @@ from typing import List
 
 import click
 from ads.opctl.backend.marketplace.models.bearer_token import BEARER_TOKEN_USERNAME
-from kubernetes.client import V1SecretList, V1Secret, V1ObjectMeta
 
-import kubernetes
 from ads.opctl import logger
 
 from ads.opctl.backend.marketplace.models.marketplace_type import (
@@ -25,10 +23,12 @@ from ads.opctl.backend.marketplace.marketplace_utils import (
     Color,
     StatusIcons,
     get_docker_bearer_token,
-    print_heading, WARNING,
+    print_heading,
+    WARNING,
 )
 
 DOCKER_SECRET_TYPE = "kubernetes.io/dockerconfigjson"
+
 
 class BinaryValidation:
     def __init__(self, binary: str, installation_path: str):
@@ -40,15 +40,24 @@ def get_highlighted_text(text: str, colors: List[Color] = (Color.BLUE,)) -> str:
     colors = [f"{color}" for color in colors]
     colors = " ".join(colors)
     return f"{colors}'{text}'{Color.END}"
+
+
 def check_prerequisites(listing_details: MarketplaceListingDetails):
     print_heading(f"Checking Prerequisites", colors=[Color.BLUE, Color.BOLD])
     _check_license_for_listing_(listing_details)
     if isinstance(listing_details, HelmMarketplaceListingDetails):
-        _check_binaries_([BinaryValidation("helm", "https://helm.sh/docs/intro/install/"),
-                          BinaryValidation("kubectl", "https://kubernetes.io/docs/tasks/tools/")])
+        _check_binaries_(
+            [
+                BinaryValidation("helm", "https://helm.sh/docs/intro/install/"),
+                BinaryValidation("kubectl", "https://kubernetes.io/docs/tasks/tools/"),
+            ]
+        )
         _prompt_kubernetes_confirmation_()
         _check_kubernetes_secret_(listing_details)
-    print_heading(f"Completed prerequisites check {StatusIcons.TADA}", colors=[Color.BLUE, Color.BOLD])
+    print_heading(
+        f"Completed prerequisites check {StatusIcons.TADA}",
+        colors=[Color.BLUE, Color.BOLD],
+    )
 
 
 def _prompt_kubernetes_confirmation_():
@@ -63,15 +72,21 @@ def _prompt_kubernetes_confirmation_():
 
 
 def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
+    from kubernetes.client import V1SecretList, V1Secret, V1ObjectMeta
+
+    import kubernetes
+
     print(
-        f"Starting docker registry secret verification for secret: {get_highlighted_text(listing_details.docker_registry_secret)} in namespace: {get_highlighted_text(listing_details.namespace)}",
-        end="\r",
+        f"Starting docker registry secret verification for secret: {get_highlighted_text(listing_details.docker_registry_secret)} in namespace: {get_highlighted_text(listing_details.namespace)}"
     )
     create_secret = True
     kubernetes.config.load_kube_config()
     v1 = kubernetes.client.CoreV1Api()
     secrets: V1SecretList = v1.list_namespaced_secret(
         namespace=listing_details.namespace
+    )
+    v1.list_namespaced_service(
+        namespace="feature-store",
     )
     secret_strategy: SecretStrategy = listing_details.secret_strategy
     for secret in secrets.items:
@@ -130,7 +145,6 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
             ),
             data={".dockerconfigjson": docker_config},
         )
-
         response = v1.create_namespaced_secret(
             namespace=listing_details.namespace, body=secret
         )
@@ -145,8 +159,11 @@ def _check_binaries_(binaries: List[BinaryValidation]):
         if result.returncode == 0:
             print(f"{binary.binary.capitalize()} is present {StatusIcons.CHECK}")
         else:
-            print(f"{binary.binary} is not present in PATH {StatusIcons.CROSS}.\nFor installation instructions please check: {binary.installation_path}")
+            print(
+                f"{binary.binary} is not present in PATH {StatusIcons.CROSS}.\nFor installation instructions please check: {binary.installation_path}"
+            )
             raise Exception
+
 
 def _check_license_for_listing_(listing_details: MarketplaceListingDetails):
     compartment_id = listing_details.compartment_id
