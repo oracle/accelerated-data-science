@@ -24,7 +24,7 @@ The following code snippet shows how to use the Generative AI Embedding Models:
 
     oci_embedings = GenerativeAIEmbeddings(
         compartment_id="ocid1.compartment.####",
-        client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
+        client_kwargs=dict(service_endpoint="https://inference.generativeai.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
 
 Retrieval QA with OpenSearch
@@ -74,7 +74,7 @@ Since the search result usually cannot be directly used to answer a specific que
     
     oci_llm = GenerativeAI(
         compartment_id="ocid1.compartment.####",
-        client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
+        client_kwargs=dict(service_endpoint="https://inference.generativeai.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
 
     retriever = opensearch_vector_search.as_retriever(search_kwargs={"vector_field": "embeds", 
@@ -137,7 +137,7 @@ Similarly, you can use FAISS Vector Store as a retriever to build a retrieval QA
     
     oci_llm = GenerativeAI(
         compartment_id="ocid1.compartment.####",
-        client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
+        client_kwargs=dict(service_endpoint="https://inference.generativeai.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
     retriever = db.as_retriever()
     qa = RetrievalQA.from_chain_type(
@@ -214,12 +214,12 @@ Here is an example code snippet for deployment of Retrieval QA using OpenSearch 
 
     oci_embedings = GenerativeAIEmbeddings(
         compartment_id="ocid1.compartment.####",
-        client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
+        client_kwargs=dict(service_endpoint="https://inference.generativeai.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
 
     oci_llm = GenerativeAI(
         compartment_id="ocid1.compartment.####",
-        client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
+        client_kwargs=dict(service_endpoint="https://inference.generativeai.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
 
     import os
@@ -288,12 +288,12 @@ Here is an example code snippet for deployment of Retrieval QA using FAISS as a 
     ads.set_auth("resource_principal")
     oci_embedings = GenerativeAIEmbeddings(
         compartment_id="ocid1.compartment.####",
-        client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
+        client_kwargs=dict(service_endpoint="https://inference.generativeai.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
 
     oci_llm = GenerativeAI(
         compartment_id="ocid1.compartment.####",
-        client_kwargs=dict(service_endpoint="https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
+        client_kwargs=dict(service_endpoint="https://inference.generativeai.us-chicago-1.oci.oraclecloud.com") # this can be omitted after Generative AI service is GA.
     )
 
     loader = TextLoader("your.txt")

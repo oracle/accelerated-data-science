@@ -15,6 +15,7 @@ OPERATOR_BASE_GPU_IMAGE = "ads-operator-gpu-base"
 OPERATOR_BASE_DOCKER_FILE = "Dockerfile"
 OPERATOR_BASE_DOCKER_GPU_FILE = "Dockerfile.gpu"
 
+OPERATOR_BACKEND_SECTION_NAME = "backend"
 
 class PACK_TYPE(str, metaclass=ExtendedEnumMeta):
     SERVICE = "service"
