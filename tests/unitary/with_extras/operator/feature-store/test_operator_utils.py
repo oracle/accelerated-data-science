@@ -140,7 +140,9 @@ def test_create_new_stack(requests_mock: Mock, auth_mock: Mock, client_factory: 
     def validate_stack_details(
         stack_details: oci.resource_manager.models.CreateStackDetails,
     ):
-        source_details: oci.resource_manager.models.CreateZipUploadConfigSourceDetails = (
+        import oci.resource_manager.models as models
+
+        source_details: models.CreateZipUploadConfigSourceDetails = (
             stack_details.config_source
         )
         assert (
