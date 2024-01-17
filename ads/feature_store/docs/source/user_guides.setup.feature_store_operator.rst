@@ -12,7 +12,7 @@ The Feature Store Marketplace Operator can be installed from PyPi using the foll
 
 .. code-block:: bash
 
-    python3 -m pip install "https://github.com/oracle/accelerated-data-science.git@oracle-ads[feature-store-marketplace]"
+    python3 -m pip install oracle-ads[feature-store-marketplace]
 
 
 After that, the Operator is ready to go!
@@ -35,7 +35,11 @@ Optionally you can specify details for the  API Gateway setup for Feature Store 
  - User group OCIDs authorized to use Feature Store
  - OCID of resource manager stack to use for API Gateway deployment
 
-These details can be easily configured in an interactive manner by running the command ``ads operator init --type feature_store_marketplace``
+These details can be easily configured in an interactive manner by running the command
+
+.. code-block:: bash
+
+    ads operator init --type feature_store_marketplace
 
 Prerequisites for running the operator
 ----------------------------------------
@@ -51,13 +55,12 @@ Before running the operator you need to configure the following requirements:
 Run
 ----
 
-After the feature_store_marketplace.yaml is written using the init step above, you can start the deployment using:
+After the ``feature_store_marketplace.yaml`` is written using the init step above, you can start the deployment using:
+
+.. important::
+
+ The installation will happen by default in ``default`` namespace. Ensure that NLB (Network Load Balancer) limit does not exceed the maximum limit.
 
 .. code-block:: bash
 
     ads operator run -f feature_store_marketplace.yaml -b marketplace.python
-
-
-
-
-
