@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """
@@ -13,6 +13,7 @@ writing serialized objects to and from files.
 import dataclasses
 import json
 from abc import ABC, abstractmethod
+from datetime import datetime
 from enum import Enum
 from typing import Dict, Optional, Union
 from urllib.parse import urlparse
@@ -94,6 +95,13 @@ class Serializable(ABC):
         pass
 
     @staticmethod
+    def serialize(obj):
+        """JSON serializer for objects not serializable by default json code."""
+        if isinstance(obj, datetime):
+            return obj.isoformat()
+        raise TypeError(f"Type {type(obj)} not serializable.")
+
+    @staticmethod
     def _write_to_file(s: str, uri: str, **kwargs) -> None:
         """Write string s into location specified by uri.
 
@@ -153,7 +161,11 @@ class Serializable(ABC):
             return f.read()
 
     def to_json(
-        self, uri: str = None, encoder: callable = json.JSONEncoder, **kwargs
+        self,
+        uri: str = None,
+        encoder: callable = json.JSONEncoder,
+        default: callable = None,
+        **kwargs,
     ) -> str:
         """Returns object serialized as a JSON string
 
@@ -163,6 +175,9 @@ class Serializable(ABC):
             URI location to save the JSON string. Defaults to None.
         encoder: (callable, optional)
             Encoder for custom data structures. Defaults to JSONEncoder.
+        default: (callable, optional)
+            A function that gets called for objects that can't otherwise be serialized.
+            It should return JSON-serializable version of the object or original object.
 
         kwargs
         ------
@@ -179,7 +194,9 @@ class Serializable(ABC):
             Serialized version of object.
             `None` in case when `uri` provided.
         """
-        json_string = json.dumps(self.to_dict(**kwargs), cls=encoder)
+        json_string = json.dumps(
+            self.to_dict(**kwargs), cls=encoder, default=default or self.serialize
+        )
         if uri:
             self._write_to_file(s=json_string, uri=uri, **kwargs)
             return None
@@ -337,12 +354,22 @@ class Serializable(ABC):
     def __repr__(self):
         """Returns printable version of object.
 
-        Parameters
+        Returns
         ----------
         string
             Serialized version of object as a YAML string
         """
         return self.to_yaml()
+
+    def __str__(self):
+        """Returns printable version of object.
+
+        Returns
+        ----------
+        string
+            Serialized version of object as a YAML string
+        """
+        return self.to_json()
 
 
 class DataClassSerializable(Serializable):
@@ -436,7 +463,9 @@ class DataClassSerializable(Serializable):
                 "These fields will be ignored."
             )
 
-        obj = cls(**{key: obj_dict.get(key) for key in allowed_fields})
+        obj = cls(
+            **{key: obj_dict.get(key) for key in allowed_fields if key in obj_dict}
+        )
 
         for key, value in obj_dict.items():
             if (
