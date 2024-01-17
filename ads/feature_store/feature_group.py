@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -439,7 +439,9 @@ class FeatureGroup(Builder):
     def on_demand_transformation_id(self, value: str):
         self.with_on_demand_transformation_id(value)
 
-    def with_on_demand_transformation_id(self, on_demand_transformation_id: str) -> "FeatureGroup":
+    def with_on_demand_transformation_id(
+        self, on_demand_transformation_id: str
+    ) -> "FeatureGroup":
         """Sets the transformation_id.
 
         Parameters
@@ -453,7 +455,9 @@ class FeatureGroup(Builder):
             The FeatureGroup instance (self)
         """
 
-        return self.set_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id)
+        return self.set_spec(
+            self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id
+        )
 
     @property
     def transformation_id(self) -> str:
@@ -1172,7 +1176,9 @@ class FeatureGroup(Builder):
                 "Online serving/embedding is not enabled for this FeatureGroup."
             )
 
-    def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str], **kwargs):
+    def get_serving_vector(
+        self, primary_key_vector, http_auth: Tuple[str, str], **kwargs
+    ):
         """
         Get serving vector based on primary key.
 
@@ -1198,7 +1204,9 @@ class FeatureGroup(Builder):
             transformed_data = serving_vector
 
             if self.on_demand_transformation_id:
-                on_demand_transformation = Transformation.from_id(self.on_demand_transformation_id)
+                on_demand_transformation = Transformation.from_id(
+                    self.on_demand_transformation_id
+                )
                 transformation_function = Base64EncoderDecoder.decode(
                     on_demand_transformation.source_code_function
                 )
@@ -1206,7 +1214,9 @@ class FeatureGroup(Builder):
                 # Execute the function under namespace
                 execution_namespace = {}
                 exec(transformation_function, execution_namespace)
-                transformation_function_caller = execution_namespace.get(on_demand_transformation.name)
+                transformation_function_caller = execution_namespace.get(
+                    on_demand_transformation.name
+                )
 
                 transformed_data = transformation_function_caller(
                     serving_vector, **kwargs
