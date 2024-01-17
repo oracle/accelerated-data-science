@@ -5,14 +5,26 @@
 
 
 import logging
+from dataclasses import dataclass
 from typing import List
-from ads.model.datascience_model import DataScienceModel
 
 logger = logging.getLogger(__name__)
 
+@dataclass
+class AquaModelSummary:
+    """Represents a summary of Aqua model."""
+    id: str
+    compartment_id: str
+    project_id: str
 
-class AquaModel(DataScienceModel):
-    """Represents an Aqua Model.
+
+@dataclass
+class AquaModel(AquaModelSummary):
+    """Represents an Aqua model."""
+    icon: str = None
+
+class AquaModelApp:
+    """Contains APIs for Aqua model.
 
     Attributes
     ----------
@@ -35,8 +47,13 @@ class AquaModel(DataScienceModel):
     def create(self, **kwargs) -> "AquaModel":
         pass
 
-    def deploy(self, **kwargs) -> "AquaModel":
-        pass
+    def get(self, model_id) -> "AquaModel":
+        """Gets the information of an Aqua model."""
+        return AquaModel(id=model_id, compartment_id="ocid1.compartment", project_id="ocid1.project")
 
-    def list(self, **kwargs) -> List["AquaModel"]:
-        pass
+    def list(self, compartment_id, project_id=None, **kwargs) -> List["AquaModelSummary"]:
+        """Lists Aqua models."""
+        return [
+            AquaModel(id=f"ocid{i}", compartment_id=compartment_id, project_id=project_id)
+            for i in range(5)
+        ]

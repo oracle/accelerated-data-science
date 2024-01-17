@@ -5,13 +5,18 @@
 
 import logging
 from typing import List, Dict
-from ads.model.deployment import ModelDeployment
+from ads.aqua.base import AquaApp
+
 
 logger = logging.getLogger(__name__)
 
 
-class AquaDeployment(ModelDeployment):
-    """Represents an Aqua Model Deployment.
+class AquaDeployment:
+    """Represents an Aqua Model Deployment"""
+
+
+class AquaDeploymentApp(AquaApp):
+    """Contains APIs for Aqua deployments.
 
     Attributes
     ----------
@@ -29,10 +34,6 @@ class AquaDeployment(ModelDeployment):
     stats()
         Get model deployment statistics
     """
-
-    def __init__(self, **kwargs):
-        """Initializes an Aqua model deployment."""
-        super().__init__(**kwargs)
 
     def create(self, **kwargs) -> "AquaDeployment":
         pass
