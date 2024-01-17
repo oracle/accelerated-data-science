@@ -48,8 +48,6 @@ def init(**kwargs: Dict) -> dict:
         "URL of the OCIR repository where the images will be cloned from marketplace \n"
         "(format: {region}.ocir.io/{tenancy_namespace}/{repository})",
     )
-    ocir_image = click.prompt("OCIR image name", default="feature-store-api")
-
     db_config: DBConfig = get_db_details()
 
     print_heading(
@@ -58,7 +56,7 @@ def init(**kwargs: Dict) -> dict:
         prefix_newline_count=2,
     )
     helm_app_name = click.prompt("Helm app name", default="feature-store-api")
-    kubernetes_namespace = click.prompt("Kubernetes namespace", default="feature-store")
+    kubernetes_namespace = click.prompt("Kubernetes namespace", default="default")
     version = click.prompt(
         "Version of feature store stack to install",
         default=get_latest_listing_version(compartment_id),
@@ -72,8 +70,8 @@ def init(**kwargs: Dict) -> dict:
             "helm.appName": helm_app_name,
             "clusterDetails.namespace": kubernetes_namespace,
             "compartmentId": compartment_id,
-            "ocirURL": f"{ocir_url.rstrip('/')}/{ocir_image}",
-            "version": version,
+            "ocirURL": f"{ocir_url.rstrip('/')}",
+            "spec.version": version,
             "apiGatewayDeploymentDetails": api_gw_config.to_dict(),
         },
         required_keys=[],

@@ -80,7 +80,7 @@ __________________________________________________________
 
 .. code-block:: yaml
 
-   db:
+    db:
       configuredDB: MYSQL
       mysql:
          authType: BASIC
@@ -88,9 +88,9 @@ __________________________________________________________
             password: #enter-db-password-here
          jdbcURL: jdbc:mysql://<db-ip>:3306/FeatureStore?createDatabaseIfNotExist=true
          username: #enter-db-username-here
-   imagePullSecrets:
-   - name: #enter secret name containing docker secret here
-   oci_meta:
+    imagePullSecrets:
+    - name: #enter secret name containing docker secret here
+    oci_meta:
       images:
       repo: #ocir repo: <region-key>.ocir.io/<tenancy-namespace>/repository
          api:
@@ -99,91 +99,91 @@ __________________________________________________________
          authoriser:
             image: na
             tag: na
-      
+
 
 
 - All available Helm values
 
 .. code-block:: yaml
 
-   oci_meta:
-   repo: #ocir repo: <region-key>.ocir.io/<tenancy-namespace>/repository
-   images:
-      api:
-         image: #ocir image: The name of image
-         tag: #API Image tag
-      authoriser: # We don't want to deploy this image. This image will be deployed with OCI functions
-            image: na
-            tag: na
+    oci_meta:
+        repo: #ocir repo: <region-key>.ocir.io/<tenancy-namespace>/repository
+        images:
+          api:
+             image: #ocir image: The name of image
+             tag: #API Image tag
+          authoriser: # We don't want to deploy this image. This image will be deployed with OCI functions
+                image: na
+                tag: na
 
-   imagePullSecrets:
+    imagePullSecrets:
     - name:  #name-of-docker-secret-with-credentials
 
-   db:
-   configuredDB: #type of DB configured. possible values: "MYSQL"
-   mysql:
-      authType: #Type of authentication to use for connecting to database.
-                # Possible values: 'BASIC', 'VAULT'
-      jdbcURL: #JDBC URL of the MySQL server
-      username: #Name of the user on MySQL server
-      basic:
-         password: #Password to mysql server in plain-text format
-      vault:
-         vaultOcid: #OCID of the vault where the secret is kept
-         secretName: #Name of the secret used for connecting to vault
+    db:
+        configuredDB: #Type of DB configured. Possible values: "MYSQL"
+        mysql:
+          authType: #Type of authentication to use for connecting to database.
+                    # Possible values: 'BASIC', 'VAULT'
+          jdbcURL: #JDBC URL of the MySQL server
+          username: #Name of the user on MySQL server
+          basic:
+             password: #Password to mysql server in plain-text format
+          vault:
+             vaultOcid: #OCID of the vault where the secret is kept
+             secretName: #Name of the secret used for connecting to vault
 
-   resources: #https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
+    resources: #https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/
 
-   nameOverride: #Value for label app.kubernetes.io/name
+    nameOverride: #Value for label app.kubernetes.io/name
 
-   podSecurityContext: #Pod security #https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+    podSecurityContext: #Pod security #https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 
-   securityContext: #Container Security context #https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
+    securityContext: #Container Security context #https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 
-   deploymentStrategy: #This block is directly inserted into pod spec
+    deploymentStrategy: #This block is directly inserted into pod spec
                       #https://kubernetes.io/docs/concepts/workloads/controllers/deployment/
 
 
-   nodeSelector: {} #Pod node selector
+    nodeSelector: {} #Pod node selector
                    #https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
 
-   tolerations: []  #Pod tolerations
+    tolerations: []  #Pod tolerations
                     #https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/
 
-   affinity: {}  #Pod affinity 
+    affinity: {}  #Pod affinity
                  #https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/
 
-   replicaCount: #Pod replicas
+    replicaCount: #Pod replicas
                  #https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 
-   autoscaling: #Horizontal pod scaling details
+    autoscaling: #Horizontal pod scaling details
                 #https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
       enabled:
       minReplicas:
       maxReplicas:
       targetCPUUtilizationPercentage:
       targetMemoryUtilizationPercentage:
-   scaleUp:
+    scaleUp:
       stabilizationWindowSeconds:
       periodSeconds:
       podCount:
       percentage:
-   scaleDown:
+    scaleDown:
       stabilizationWindowSeconds:
       periodSeconds:
       podCount:
       percentage:
 
-   applicationEnv:
-   containerName: #Container name
+    applicationEnv:
+    containerName: #Container name
 
-   livenessProbe: # Liveness probe details
+    livenessProbe: # Liveness probe details
       initialDelaySeconds:
       periodSeconds:
       timeoutSeconds:
       failureThreshold:
 
-   readinessProbe: # Readiness probe details
+    readinessProbe: # Readiness probe details
       initialDelaySeconds:
       periodSeconds:
       timeoutSeconds:
