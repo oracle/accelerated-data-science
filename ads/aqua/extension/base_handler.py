@@ -23,10 +23,14 @@ class AquaAPIhandler(APIHandler):
             return asdict(obj)
         return str(obj)
 
-    def finish(self, payload, status_code: int = 200):
-        """Ending the HTTP request by returning a payload and status code."""
-        # Set status code
-        self.set_status(status_code)
+    def finish(self, payload=None):  # pylint: disable=W0221
+        """Ending the HTTP request by returning a payload and status code.
+
+        Tornado finish() only takes one argument.
+        Calling finish() with more than one arguments will cause error.
+        """
+        if payload is None:
+            payload = {}
         # If the payload is a list, put into a dictionary with key=data
         if isinstance(payload, list):
             payload = {"data": payload}
