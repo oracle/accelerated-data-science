@@ -4,13 +4,11 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+from dataclasses import dataclass
 from typing import List
 
-from oci.data_science.data_science_client import DataScienceClient
-
 from ads.config import COMPARTMENT_OCID
-from ads.jobs.builders.base import Builder
-from ads.common import utils
+from ads.aqua.base import AquaApp
 
 logger = logging.getLogger(__name__)
 
@@ -22,24 +20,62 @@ AQUA_TAG = "OCI_AQUA"
 AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
 
 
-class AquaApp:
-    @property
-    def oci_client(self):
-        """Gets OCI client."""
-        if not hasattr(self, "_oci_client") or not self._oci_client:
-            self._oci_client = DataScienceClient(**self.auth)
-        return self._oci_client
+@dataclass
+class AquaModelSummary:
+    """Represents a summary of Aqua model."""
 
-    def list(self):
-        pass
+    name: str
+    ocid: str
+    time_created: int
+
+    icon: str = None
+    task: str
+    license: str
+    organization: str
+    is_fine_tuned_model: bool
+
+
+@dataclass
+class AquaModel(AquaModelSummary):
+    """Represents an Aqua model."""
+
+    model_card: str
 
 
 class AquaModelApp(AquaApp):
-    @classmethod
+    """Contains APIs for Aqua model.
+
+    Attributes
+    ----------
+
+    Methods
+    -------
+    create(self, **kwargs) -> "AquaModel"
+        Creates an instance of Aqua model.
+    deploy(..., **kwargs)
+        Deploys an Aqua model.
+    list(self, ..., **kwargs) -> List["AquaModel"]
+        List existing models created via Aqua
+
+    """
+
+    def __init__(self, **kwargs):
+        """Initializes an Aqua model."""
+        super().__init__(**kwargs)
+
+    def create(self, **kwargs) -> "AquaModel":
+        pass
+
+    def get(self, model_id) -> "AquaModel":
+        """Gets the information of an Aqua model."""
+        return AquaModel(
+            id=model_id, compartment_id="ocid1.compartment", project_id="ocid1.project"
+        )
+
     def list(
-        cls, compartment_id: str = None, project_id: str = None, **kwargs
-    ) -> List["AquaModelSummary"]:
-        """List Aqua models in a given compartment.
+        self, compartment_id: str = None, project_id: str = None, **kwargs
+    ) -> List[dict]:
+        """List Aqua models in a given compartment and under certain project.
 
         Parameters
         ----------
@@ -48,60 +84,22 @@ class AquaModelApp(AquaApp):
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
         kwargs
-            Additional keyword arguments for `list_models <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.list_models>`_
+            Additional keyword arguments for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
 
         Returns
         -------
-        List[AquaModelSummary]
+        List[dict]:
             The list of the Aqua models.
         """
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
 
-        try:
-            # https://docs.oracle.com/en-us/iaas/tools/python-sdk-examples/2.118.1/datascience/list_models.py.html
-            # list_call_get_all_results
-            response = cls.oci_client.list_models(**kwargs)
-            models = response.data
-        except Exception as e:
-            # show opc-request-id and status code
-            logger.error(f"Failing to retreive models in the given compartment. {e}")
-            return []
+        models = self.list_resource(kwargs)
 
         aqua_models = []
         for model in models:  # ModelSummary
             if model.freeform_tags.contains(
-                AQUA_TAG_KEY
-            ) and not model.freeform_tags.contains(AQUA_SERVICE_MODEL_TAG_KEY):
-                aqua_models.append(cls()._update_from_dsc_model_summary(model))
+                AQUA_TAG
+            ) and not model.freeform_tags.contains(AQUA_SERVICE_MODEL_TAG):
+                aqua_models.append(AquaModel(**model).to_dict())
         return aqua_models
-
-
-@dataclass
-class AquaModelSummary:
-    """
-    No custom metadata in this model
-    """
-
-    name: str
-    ocid: str
-    time_created: int
-
-    # From ADS or somewhere else
-    icon: str
-
-    # Following are embedded in tags
-    # text-classification
-    task: str
-    license: str
-    organization: str
-    is_fine_tuned_model: bool
-    # real freeform tags?
-    tags: list
-
-
-class AquaModel(AquaModelSummary):
-    # content from readme.md
-    model_card: str
-    model_path: str
-    metadata: dict
