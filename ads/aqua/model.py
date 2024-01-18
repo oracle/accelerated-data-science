@@ -13,6 +13,15 @@ from ads.aqua.base import AquaApp
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class AquaModelSummary:
+    """Represents a summary of Aqua model."""
+
+    id: str
+    compartment_id: str
+    project_id: str
+
+
 # Freeform-tag/Define-tag
 # key=OCI_AQUA (100 chars max), val = (256 chars max)
 
@@ -39,10 +48,10 @@ class AquaModelSummary:
 class AquaModel(AquaModelSummary):
     """Represents an Aqua model."""
 
-    model_card: str
+    icon: str = None
 
 
-class AquaModelApp(AquaApp):
+class AquaModelApp:
     """Contains APIs for Aqua model.
 
     Attributes
@@ -101,5 +110,11 @@ class AquaModelApp(AquaApp):
             if model.freeform_tags.contains(
                 AQUA_TAG
             ) and not model.freeform_tags.contains(AQUA_SERVICE_MODEL_TAG):
-                aqua_models.append(AquaModel(**model))
+                aqua_models.append(
+                    AquaModel(
+                        id=model_id,
+                        compartment_id="ocid1.compartment",
+                        project_id="ocid1.project",
+                    )
+                )
         return aqua_models
