@@ -74,7 +74,7 @@ class AquaModelApp(AquaApp):
 
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
-    ) -> List[dict]:
+    ) -> List["AquaModelSummary"]:
         """List Aqua models in a given compartment and under certain project.
 
         Parameters
@@ -101,5 +101,5 @@ class AquaModelApp(AquaApp):
             if model.freeform_tags.contains(
                 AQUA_TAG
             ) and not model.freeform_tags.contains(AQUA_SERVICE_MODEL_TAG):
-                aqua_models.append(AquaModel(**model).to_dict())
+                aqua_models.append(AquaModel(**model))
         return aqua_models
