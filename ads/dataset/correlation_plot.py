@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2022 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -26,7 +26,6 @@ class BokehHeatMap(object):
 
     @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
     def __init__(self, ds):
-
         from bokeh.io import output_notebook
         from bokeh.palettes import BuPu
 
@@ -120,8 +119,8 @@ class BokehHeatMap(object):
             y_range=yrange,
             toolbar_location="below",
             toolbar_sticky=False,
-            plot_width=600,
-            plot_height=600,
+            width=600,
+            height=600,
         )
 
         p.rect(
@@ -196,8 +195,8 @@ class BokehHeatMap(object):
             y_range=(0, len(matrix["Y"]) + 1),
             toolbar_location="below",
             toolbar_sticky=False,
-            plot_width=600,
-            plot_height=600,
+            width=600,
+            height=600,
         )
 
         p.hbar(
@@ -229,7 +228,6 @@ class BokehHeatMap(object):
             level="glyph",
             y_offset=-5,
             source=source,
-            render_mode="canvas",
         )
 
         p.add_layout(color_bar, "right")
@@ -264,7 +262,7 @@ class BokehHeatMap(object):
         from bokeh.plotting import figure
 
         if len(corr_matrix) == 0:
-            tab = bokeh.models.Panel(
+            tab = bokeh.models.TabPanel(
                 child=figure(title=msg + ", nothing to display"),
                 title=title,
             )
@@ -286,7 +284,7 @@ class BokehHeatMap(object):
             tool_tips=[("X", "@x"), ("Y", "@y"), ("Corr", "@corr")],
         )
 
-        tab = bokeh.models.Panel(child=p, title=title)
+        tab = bokeh.models.TabPanel(child=p, title=title)
         return tab
 
     @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
@@ -323,7 +321,7 @@ class BokehHeatMap(object):
         from bokeh.plotting import figure
 
         if len(corr_matrix) == 0:
-            tab = bokeh.models.Panel(
+            tab = bokeh.models.TabPanel(
                 child=figure(title=msg + ", nothing to display"),
                 title=title,
             )
@@ -333,7 +331,7 @@ class BokehHeatMap(object):
 
         assert correlation_target, "Correlation target is required for this plot"
         if correlation_target not in corr_matrix.columns:
-            tab = bokeh.models.Panel(
+            tab = bokeh.models.TabPanel(
                 child=figure(title="No Data to display"), title=title
             )
             return tab
@@ -382,7 +380,7 @@ class BokehHeatMap(object):
             column_name=correlation_target,
         )
 
-        tab = bokeh.models.Panel(child=p, title=title)
+        tab = bokeh.models.TabPanel(child=p, title=title)
         return tab
 
     @runtime_dependency(module="bokeh", install_from=OptionalDependency.VIZ)
