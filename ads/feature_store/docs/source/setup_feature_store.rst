@@ -47,8 +47,8 @@ Policies required by the user deploying:
     allow group <user-group> to manage marketplace-listings in compartment <compartment-name>
     allow group <user-group> to read compartments in compartment <compartment-name>
     allow group <user-group> to manage app-catalog-listing in compartment <compartment-name>
-    allow group <user-group> to read object-family in compartment <compartment-name>
-
+    allow group <user-group> to read object-family in tenancy
+    allow group <user-group> to read marketplace-workrequests in compartment FeatureStoreDeployment
 
 The policies required by the Feature Store API server are:
 
