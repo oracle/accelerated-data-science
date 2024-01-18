@@ -164,7 +164,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 outputs[target] = summary_frame
                 # outputs_legacy[target] = summary_frame
 
-                self.model_parameters[target] = {
+                self.model_parameters[utils.convert_target(target, self.original_target_column)] = {
                     "framework": SupportedModels.AutoMLX,
                     "score_metric": model.score_metric,
                     "random_state": model.random_state,
@@ -304,7 +304,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id,
+                        label=utils.convert_target(s_id, self.original_target_column),
                         )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

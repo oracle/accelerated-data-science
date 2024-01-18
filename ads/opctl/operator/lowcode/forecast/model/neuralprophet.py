@@ -81,7 +81,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         except:
             logger.info("model.pkl/trainer.pkl is not present")
 
-
     def _train_model(self, i, target, df):
 
         try:
@@ -236,7 +235,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 self.models[target] = model
                 self.trainers[target] = model.trainer
 
-            self.model_parameters[target] = {
+            self.model_parameters[utils.convert_target(target, self.original_target_column)] = {
                 "framework": SupportedModels.NeuralProphet,
                 "config": model.config,
                 "config_trend": model.config_trend,
@@ -259,7 +258,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 "highlight_forecast_step_n": model.highlight_forecast_step_n,
                 "true_ar_weights": model.true_ar_weights,
             }
-            
+
             logger.debug("===========Done===========")
         except Exception as e:
             self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
@@ -285,7 +284,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
         if self.loaded_trainers is not None:
             self.trainers = self.loaded_trainers
-
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
@@ -349,18 +347,21 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         sec1 = utils._select_plot_list(
             lambda idx, target, *args: self.models[target].plot(self.outputs[target]),
             target_columns=self.target_columns,
+            original_target_column=self.original_target_column
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
         sec2 = utils._select_plot_list(
             lambda idx, target, *args: self.models[target].plot_components(self.outputs[target]),
             target_columns=self.target_columns,
+            original_target_column=self.original_target_column
         )
 
         sec3_text = dp.Text(f"## Forecast Parameter Plots")
         sec3 = utils._select_plot_list(
             lambda idx, target, *args: self.models[target].plot_parameters(),
             target_columns=self.target_columns,
+            original_target_column=self.original_target_column
         )
 
         sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
@@ -370,7 +371,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 pd.Series(
                     m.state_dict(),
                     index=m.state_dict().keys(),
-                    name=target,
+                    name=utils.convert_target(target, self.original_target_column),
                 )
             )
         all_model_states = pd.concat(model_states, axis=1)
@@ -406,7 +407,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
                 self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
 
                 # Create a markdown section for the global explainability
@@ -428,7 +429,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id,
+                        label=utils.convert_target(s_id, self.original_target_column),
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

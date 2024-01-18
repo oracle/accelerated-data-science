@@ -78,7 +78,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 drop_data_older_than_periods=self.spec.model_kwargs.get(
                     "drop_data_older_than_periods", None
                 ),
-            model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
+                model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
                 transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
                 transformer_max_depth=self.spec.model_kwargs.get(
                     "transformer_max_depth", 6
@@ -225,7 +225,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 category=cat, target_category_column=cat_target, forecast=output_i
             )
 
-            self.model_parameters[cat_target] = {
+            self.model_parameters[utils.convert_target(cat_target, self.original_target_column)] = {
                 "framework": SupportedModels.AutoTS,
                 **params,
             }
@@ -266,6 +266,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 ].min(),
             ),
             target_columns=self.target_columns,
+            original_target_column=self.original_target_column
         )
 
         # Section 2: AutoTS Model Parameters
@@ -323,7 +324,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id,
+                        label=utils.convert_target(s_id, self.original_target_column),
                         )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

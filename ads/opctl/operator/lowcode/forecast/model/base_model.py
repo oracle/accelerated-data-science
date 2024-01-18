@@ -105,6 +105,7 @@ class ForecastOperatorBaseModel(ABC):
                         self.datasets,
                         self.forecast_output,
                         self.spec.datetime_column.name,
+                        self.original_target_column,
                         target_col=self.forecast_col_name,
                     )
                 else:
@@ -125,6 +126,7 @@ class ForecastOperatorBaseModel(ABC):
                             target_columns=self.target_columns,
                             test_filename=self.spec.test_data.url,
                             output=self.forecast_output,
+                            original_target_column=self.original_target_column,
                             target_col=self.forecast_col_name,
                             elapsed_time=elapsed_time,
                         )
@@ -144,12 +146,13 @@ class ForecastOperatorBaseModel(ABC):
 
                 title_text = dp.Text("# Forecast Report")
 
-                md_columns = " * ".join([f"{x} \n" for x in self.target_columns])
+                md_columns = " * ".join([f"{utils.convert_target(x,self.original_target_column)} \n"
+                                         for x in self.target_columns])
                 first_10_rows_blocks = [
                     dp.DataTable(
                         df.head(10).rename({col: self.spec.target_column}, axis=1),
                         caption="Start",
-                        label=col,
+                        label=utils.convert_target(col, self.original_target_column),
                     )
                     for col, df in self.full_data_dict.items()
                 ]
@@ -158,7 +161,7 @@ class ForecastOperatorBaseModel(ABC):
                     dp.DataTable(
                         df.tail(10).rename({col: self.spec.target_column}, axis=1),
                         caption="End",
-                        label=col,
+                        label=utils.convert_target(col, self.original_target_column),
                     )
                     for col, df in self.full_data_dict.items()
                 ]
@@ -167,7 +170,7 @@ class ForecastOperatorBaseModel(ABC):
                     dp.DataTable(
                         df.rename({col: self.spec.target_column}, axis=1).describe(),
                         caption="Summary Statistics",
-                        label=col,
+                        label=utils.convert_target(col, self.original_target_column),
                     )
                     for col, df in self.full_data_dict.items()
                 ]
@@ -254,6 +257,7 @@ class ForecastOperatorBaseModel(ABC):
                 forecast_sec = utils.get_forecast_plots(
                     self.forecast_output,
                     self.target_columns,
+                    self.original_target_column,
                     horizon=self.spec.horizon,
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
@@ -280,7 +284,7 @@ class ForecastOperatorBaseModel(ABC):
             )
 
     def _test_evaluate_metrics(
-            self, target_columns, test_filename, output, target_col="yhat", elapsed_time=0
+            self, target_columns, test_filename, output, original_target_column, target_col="yhat", elapsed_time=0
     ):
         total_metrics = pd.DataFrame()
         summary_metrics = pd.DataFrame()
@@ -335,7 +339,7 @@ class ForecastOperatorBaseModel(ABC):
                 metrics_df = utils._build_metrics_df(
                     y_true=y_true[-self.spec.horizon:],
                     y_pred=y_pred[-self.spec.horizon:],
-                    column_name=target_column_i,
+                    column_name=utils.convert_target(target_column_i, original_target_column),
                 )
                 total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
             else:
@@ -675,7 +679,7 @@ class ForecastOperatorBaseModel(ABC):
                     f"No explanations generated. Ensure that additional data has been provided."
                 )
             else:
-                self.global_explanation[series_id] = dict(
+                self.global_explanation[utils.convert_target(series_id, self.original_target_column)] = dict(
                     zip(
                         data_trimmed.columns[1:],
                         np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
@@ -724,4 +728,4 @@ class ForecastOperatorBaseModel(ABC):
                 ["series_id", self.spec.target_column], axis=1, inplace=True
             )
 
-        self.local_explanation[series_id] = local_kernel_explnr_df
+        self.local_explanation[utils.convert_target(series_id, self.original_target_column)] = local_kernel_explnr_df
