@@ -9,6 +9,8 @@ as it is much simpler to do the setup via the operator.
 Prerequisites
 _____________
 
+- Helm: Helm is required to be installed on the machine for deploying Feature Store helm chart to the Kubernetes cluster. Ref: `Installing Helm   <https://helm.sh/docs/intro/install/>`_
+- Kubectl: Kubectl is required to be installed to deploy the helm chart to the cluster. Ref: `Installing Kubectl <https://kubernetes.io/docs/tasks/tools/>`_
 - Setup `MySQL Database <https://docs.public.oneportal.content.oci.oraclecloud.com/en-us/iaas/mysql-database/doc/overview-mysql-database-service.html>`_  so that it is reachable from the API server
 .. seealso::
    :ref:`Database configuration`
@@ -33,7 +35,7 @@ ________________________________
 
 .. code-block:: bash
 
-   helm upgrade feature-store-api oci://<helm-chart-image-path> --namespace feature-store --values <path-to-values-yaml> --timeout 300s --wait -i
+   helm upgrade <app-name> oci://<helm-chart-image-path> --namespace <kubernetes-namespace> --values <path-to-values-yaml> --timeout 300s --wait -i --version <marketplace-version>
 - (Optional) `Setup Feature Store API Gateway <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/feature_store/apigw_terraform>`_
 
 
@@ -63,7 +65,7 @@ To login to Container Registry using the Helm CLI:
 
 Kubernetes Docker Secret Configuration
 __________________________________________________________
-- If you don't already have an auth token refer :ref:`<helm setup>`
+- If you don't already have an auth token refer :ref:`Helm configuration  <Helm Setup>`
 - `Login to Kubernetes cluster <https://docs.oracle.com/en-us/iaas/Content/ContEng/Tasks/contengdownloadkubeconfigfile.htm#:~:text=Under%20Containers%20%26%20Artifacts%2C%20click%20Kubernetes,shows%20details%20of%20the%20cluster>`_
 - Run command
 
@@ -92,13 +94,13 @@ __________________________________________________________
     - name: #enter secret name containing docker secret here
     oci_meta:
       images:
-      repo: #ocir repo: <region-key>.ocir.io/<tenancy-namespace>/repository
          api:
-            image: #ocir image: The name of image>
+            image: #ocir image: The name of image
             tag: #API Image tag
          authoriser:
             image: na
             tag: na
+      repo: #ocir repo: <region-key>.ocir.io/<tenancy-namespace>/repository
 
 
 

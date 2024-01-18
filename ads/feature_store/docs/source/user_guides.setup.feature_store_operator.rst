@@ -20,7 +20,7 @@ After that, the Operator is ready to go!
 Configuration
 -------------
 
-After having set up `ads opctl` on your desired machine using `ads opctl configure`, you are ready to begin setting up Feature Store. At a minimum, you need to provide the following details about your infrastructure:
+After having set up `ads opctl` on your desired machine using ``ads opctl configure``, you are ready to begin setting up Feature Store. At a minimum, you need to provide the following details about your infrastructure:
 
 - The path to the OCIR repository where Feature Store container images are cloned.
 - The compartment ID where Feature Store is set up.
