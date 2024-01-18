@@ -158,7 +158,7 @@ class Dataset(Builder):
         CONST_IS_ONLINE_ENABLED: "isOnlineEnabled",
         CONST_PRIMARY_KEYS: "primary_keys",
         CONST_IS_OFFLINE_ENABLED: "is_offline_enabled",
-        CONST_ON_DEMAND_TRANSFORMATION_ID: "on_demand_transformation_id"
+        CONST_ON_DEMAND_TRANSFORMATION_ID: "on_demand_transformation_id",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -258,7 +258,9 @@ class Dataset(Builder):
     def on_demand_transformation_id(self, value: str):
         self.with_on_demand_transformation_id(value)
 
-    def with_on_demand_transformation_id(self, on_demand_transformation_id: str) -> "FeatureGroup":
+    def with_on_demand_transformation_id(
+        self, on_demand_transformation_id: str
+    ) -> "FeatureGroup":
         """Sets the transformation_id.
 
         Parameters
@@ -272,7 +274,9 @@ class Dataset(Builder):
             The FeatureGroup instance (self)
         """
 
-        return self.set_spec(self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id)
+        return self.set_spec(
+            self.CONST_ON_DEMAND_TRANSFORMATION_ID, on_demand_transformation_id
+        )
 
     @property
     def name(self) -> str:
@@ -844,7 +848,9 @@ class Dataset(Builder):
                 "Online serving/embedding is not enabled for this Dataset."
             )
 
-    def get_serving_vector(self, primary_key_vector, http_auth=Tuple[str, str], **kwargs):
+    def get_serving_vector(
+        self, primary_key_vector, http_auth=Tuple[str, str], **kwargs
+    ):
         """
         Get serving vector based on primary key.
 
@@ -869,7 +875,9 @@ class Dataset(Builder):
             transformed_data = serving_vector
 
             if self.on_demand_transformation_id:
-                on_demand_transformation = Transformation.from_id(self.on_demand_transformation_id)
+                on_demand_transformation = Transformation.from_id(
+                    self.on_demand_transformation_id
+                )
                 transformation_function = Base64EncoderDecoder.decode(
                     on_demand_transformation.source_code_function
                 )
@@ -877,7 +885,9 @@ class Dataset(Builder):
                 # Execute the function under namespace
                 execution_namespace = {}
                 exec(transformation_function, execution_namespace)
-                transformation_function_caller = execution_namespace.get(on_demand_transformation.name)
+                transformation_function_caller = execution_namespace.get(
+                    on_demand_transformation.name
+                )
 
                 transformed_data = transformation_function_caller(
                     serving_vector, **kwargs
