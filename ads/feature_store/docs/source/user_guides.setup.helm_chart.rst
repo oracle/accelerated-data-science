@@ -54,7 +54,7 @@ To login to Container Registry using the Helm CLI:
    - Click Generate Token. The new auth token is displayed.
    - Copy the auth token immediately to a secure location from where you can retrieve it later, because you won't see the auth token again in the Console.
    - Close the Generate Token dialog.
-  
+
 - In a terminal window on the client machine running Docker, log in to Container Registry by entering  ``helm registry login <region-key>.ocir.io``, where <region-key> corresponds to the key for the Container Registry region you're using. For example, ``helm registry login iad.ocir.io``. See `Availability by Region <https://docs.oracle.com/en-us/iaas/Content/Registry/Concepts/registryprerequisites.htm#regional-availability>`_.
 - When prompted for a username, enter your username in the format <tenancy-namespace>/<username>, where <tenancy-namespace> is the auto-generated Object Storage namespace string of your tenancy (as shown on the Tenancy Information page). For example, ansh81vru1zp/jdoe@acme.com. If your tenancy is federated with Oracle Identity Cloud Service, use the format <tenancy-namespace>/oracleidentitycloudservice/<username>.
 - When prompted for a password, enter the auth token you copied earlier.
@@ -188,4 +188,3 @@ __________________________________________________________
       periodSeconds:
       timeoutSeconds:
       failureThreshold:
-

@@ -69,7 +69,7 @@ Known Issues
 -------------
 
 1. Deployment doesn't work in Virtual Nodepool as the Feature Store API server relies on Instance Principal authentication.
- 
+
 
 .. toctree::
   :maxdepth: 1

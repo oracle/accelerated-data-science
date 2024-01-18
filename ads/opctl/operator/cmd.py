@@ -34,7 +34,7 @@ from ads.opctl.operator.common.const import (
     OPERATOR_BASE_DOCKER_GPU_FILE,
     OPERATOR_BASE_GPU_IMAGE,
     OPERATOR_BASE_IMAGE,
-    OPERATOR_BACKEND_SECTION_NAME
+    OPERATOR_BACKEND_SECTION_NAME,
 )
 from ads.opctl.operator.common.operator_loader import OperatorInfo, OperatorLoader
 from ads.opctl.utils import publish_image as publish_image_cmd
@@ -189,7 +189,6 @@ def init(
         )
         logger.debug(ex)
         print_traceback()
-
 
     # copy README and original schema files into a destination folder
     for src_file in ("README.md", "schema.yaml", "environment.yaml"):

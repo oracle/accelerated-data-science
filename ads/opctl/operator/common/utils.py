@@ -159,11 +159,14 @@ def default_signer(**kwargs):
     from ads.common.auth import default_signer
 
     return default_signer(**kwargs)
+
+
 def remove_prefix(text: str, prefix: str):
     if text.startswith(prefix):
         return text[len(prefix) :]
     else:
         return text
+
 
 def print_traceback():
     if logger.level == logging.DEBUG:

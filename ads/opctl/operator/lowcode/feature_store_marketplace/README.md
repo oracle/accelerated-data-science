@@ -1,5 +1,5 @@
 # Feature Store Marketplace Operator
-The Feature Store Marketplace Operator simplifies the process of deploying Feature Store stack from Marketplace to your existing OKE cluster. 
+The Feature Store Marketplace Operator simplifies the process of deploying Feature Store stack from Marketplace to your existing OKE cluster.
 
 Below are the steps to configure and run the Marketplace Operator:
 ## 1. Prerequisites
