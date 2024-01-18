@@ -26,7 +26,7 @@ To use the text generation model as LLM in LangChain:
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -44,13 +44,13 @@ Here is an example of using prompt template and OCI generative AI LLM to build a
     map_input = RunnableParallel(text=RunnablePassthrough())
     # Template for the input text.
     template = PromptTemplate.from_template(
-        "Translate the text into French.\nText:{text}\nFrench translation: "
+        "Translate English into French. Do not ask any questions.\nEnglish: Hello!\nFrench: "
     )
     llm = GenerativeAI(
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -58,8 +58,8 @@ Here is an example of using prompt template and OCI generative AI LLM to build a
     translation_app = map_input | template | llm
 
     # Now you have a translation app.
-    translation_app.invoke("How are you?")
-    # "Comment ça va?"
+    translation_app.invoke("Hello!")
+    # "Bonjour!"
 
 Similarly, you can use the embedding model:
 
@@ -71,7 +71,7 @@ Similarly, you can use the embedding model:
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -79,6 +79,11 @@ Similarly, you can use the embedding model:
 
 Integration with Model Deployment
 =================================
+
+.. admonition:: Available in LangChain
+  :class: note
+
+  The same ``OCIModelDeploymentVLLM`` and ``ModelDeploymentTGI`` classes are also `available from LangChain <https://python.langchain.com/docs/integrations/llms/oci_model_deployment_endpoint>`_.
 
 If you deploy open-source or your own LLM on OCI model deployment service using `vLLM <https://docs.vllm.ai/en/latest/>`_ or `HuggingFace TGI <https://huggingface.co/docs/text-generation-inference/index>`_ , you can use the ``ModelDeploymentVLLM`` or ``ModelDeploymentTGI`` to integrate your model with LangChain.
 
@@ -115,7 +120,7 @@ By default, the integration uses the same authentication method configured with 
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )
 
@@ -132,6 +137,6 @@ Alternatively, you may use specific authentication for the model:
         compartment_id="<compartment_ocid>",
         # Optionally you can specify keyword arguments for the OCI client, e.g. service_endpoint.
         client_kwargs={
-            "service_endpoint": "https://generativeai.aiservice.us-chicago-1.oci.oraclecloud.com"
+            "service_endpoint": "https://inference.generativeai.us-chicago-1.oci.oraclecloud.com"
         },
     )

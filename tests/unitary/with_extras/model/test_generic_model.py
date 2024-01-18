@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Unit tests for model frameworks. Includes tests for:
@@ -42,6 +42,7 @@ from ads.model.generic_model import (
     _ATTRIBUTES_TO_SHOW_,
     GenericModel,
     NotActiveDeploymentError,
+    ArtifactsNotAvailableError,
     SummaryStatus,
     _prepare_artifact_dir,
 )
@@ -1082,6 +1083,7 @@ class TestGenericModel:
             bucket_uri="test_bucket_uri",
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
+            download_artifact=True,
         )
 
         mock_from_id.assert_called_with(test_model_deployment_id)
@@ -1096,6 +1098,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=False,
+            download_artifact=True,
         )
 
         assert test_result == test_model
@@ -1150,6 +1153,7 @@ class TestGenericModel:
     def test_update_deployment_instance_level_with_id(
         self, mock_client, mock_signer, mock_update
     ):
+        mock_signer.return_value = {}
         test_model_deployment_id = "xxxx.datasciencemodeldeployment.xxxx"
         md_props = ModelDeploymentProperties(model_id=test_model_deployment_id)
         md = ModelDeployment(properties=md_props)
@@ -1157,8 +1161,7 @@ class TestGenericModel:
         test_model = MagicMock(model_deployment=md, _summary_status=SummaryStatus())
         mock_update.return_value = test_model
 
-        generic_model = GenericModel(estimator=TestEstimator())
-        test_result = generic_model.update_deployment(
+        test_result = self.generic_model.update_deployment(
             model_deployment_id=test_model_deployment_id,
             properties=None,
             wait_for_completion=True,
@@ -1199,6 +1202,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         mock_from_model_deployment.assert_called_with(
@@ -1212,6 +1216,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         assert test_model_deployment_result == test_model
@@ -1247,6 +1252,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         mock_from_model_catalog.assert_called_with(
@@ -1260,6 +1266,7 @@ class TestGenericModel:
             remove_existing_artifact=True,
             compartment_id="test_compartment_id",
             ignore_conda_error=True,
+            download_artifact=True,
         )
 
         assert test_model_result == mock_oci_model
@@ -1284,6 +1291,135 @@ class TestGenericModel:
                 ignore_conda_error=True,
             )
 
+    @patch.object(GenericModel, "from_model_catalog")
+    def test_from_id_model_without_artifact(self, mock_from_model_catalog):
+        """Test to check model artifact is not loaded when download_artifact is set to False"""
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        mock_model = MagicMock(model_id=test_model_id, model_artifact=None)
+        mock_from_model_catalog.return_value = mock_model
+
+        test_model_result = GenericModel.from_id(
+            ocid=test_model_id,
+            compartment_id="test_compartment_id",
+            download_artifact=False,
+        )
+        mock_from_model_catalog.assert_called_with(
+            test_model_id,
+            model_file_name=None,
+            artifact_dir=None,
+            auth=None,
+            force_overwrite=False,
+            properties=None,
+            bucket_uri=None,
+            remove_existing_artifact=True,
+            compartment_id="test_compartment_id",
+            ignore_conda_error=False,
+            download_artifact=False,
+        )
+        assert test_model_result.model_artifact is None
+        assert test_model_result == mock_model
+
+    @patch.object(GenericModel, "from_model_catalog")
+    def test_from_id_with_artifact(self, mock_from_model_catalog):
+        """Test to check model artifact is loaded when download_artifact is set to True"""
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        artifact_dir = "test_dir"
+        model_artifact = MagicMock(artifact_dir=artifact_dir, reload=False)
+        mock_model = MagicMock(model_id=test_model_id, model_artifact=model_artifact)
+        mock_from_model_catalog.return_value = mock_model
+
+        test_model_result = GenericModel.from_id(
+            artifact_dir=artifact_dir,
+            ocid=test_model_id,
+            compartment_id="test_compartment_id",
+            remove_existing_artifact=True,
+            download_artifact=True,
+        )
+
+        mock_from_model_catalog.assert_called_with(
+            test_model_id,
+            model_file_name=None,
+            artifact_dir=artifact_dir,
+            auth=None,
+            force_overwrite=False,
+            properties=None,
+            bucket_uri=None,
+            remove_existing_artifact=True,
+            compartment_id="test_compartment_id",
+            ignore_conda_error=False,
+            download_artifact=True,
+        )
+        assert test_model_result.model_artifact is not None
+        assert test_model_result == mock_model
+
+    @patch("ads.common.auth.default_signer")
+    def test_verify_without_local_artifact(self, mock_signer):
+        """Test verify input data with model without artifacts loaded."""
+        _prepare(self.generic_model)
+        self.generic_model.model_artifact = None
+
+        with pytest.raises(
+            ArtifactsNotAvailableError,
+            match="Model artifacts are either not generated or "
+            "not available locally.",
+        ):
+            self.generic_model.verify(self.X_test.tolist())
+
+    def test_download_artifact_fail(self):
+        """Test to check if model is loaded first before downloading artifacts"""
+        with pytest.raises(
+            ValueError,
+            match="`model_id` is not available, load the GenericModel object first.",
+        ):
+            generic_model = GenericModel()
+            generic_model.download_artifact(uri="", auth={"config": "value"})
+
+    @patch.object(ModelArtifact, "from_uri")
+    @patch.object(DataScienceModel, "from_id")
+    @patch.object(GenericModel, "reload_runtime_info")
+    @patch.object(DataScienceModel, "download_artifact")
+    def test_download_artifact(
+        self,
+        mock_download_artifact,
+        mock_reload_runtime_info,
+        mock_dsc_model_from_id,
+        mock_from_uri,
+    ):
+        """Test to check if model artifacts are updated after download_artifact is called"""
+        test_model_id = "xxxx.datasciencemodel.xxxx"
+        artifact_dir = "test_dir"
+        self.generic_model.dsc_model = MagicMock(id=test_model_id)
+        self.generic_model.model_artifact = None
+        self.generic_model.artifact_dir = artifact_dir
+
+        mock_dsc_model_from_id.return_value = MagicMock(id=test_model_id)
+        mock_download_artifact.return_value = None
+        mock_artifact_instance = MagicMock(model="test_model")
+        mock_from_uri.return_value = mock_artifact_instance
+
+        assert self.generic_model.model_artifact is None
+
+        self.generic_model.download_artifact(
+            artifact_dir=artifact_dir,
+            auth={"config": {}},
+            force_overwrite=True,
+            bucket_uri="bucket_uri",
+            remove_existing_artifact=True,
+        )
+
+        mock_reload_runtime_info.assert_called()
+        assert self.generic_model.model_artifact is not None
+
+    def test_save_without_local_artifact(self):
+        """Test to check if model artifact is available before saving the model"""
+        self.generic_model.model_artifact = None
+        with pytest.raises(
+            ArtifactsNotAvailableError,
+            match="Model artifacts are either not generated or "
+            "not available locally.",
+        ):
+            self.generic_model.save()
+
     @patch.object(ModelDeployment, "activate")
     @patch.object(ModelDeployment, "deactivate")
     @patch("ads.common.auth.default_signer")
@@ -1294,11 +1430,10 @@ class TestGenericModel:
         test_model_deployment_id = "xxxx.datasciencemodeldeployment.xxxx"
         md_props = ModelDeploymentProperties(model_id=test_model_deployment_id)
         md = ModelDeployment(properties=md_props)
-        generic_model = GenericModel(estimator=TestEstimator())
-        generic_model.model_deployment = md
+        self.generic_model.model_deployment = md
         mock_deactivate.return_value = md
         mock_activate.return_value = md
-        generic_model.restart_deployment(max_wait_time=2000, poll_interval=50)
+        self.generic_model.restart_deployment(max_wait_time=2000, poll_interval=50)
         mock_deactivate.assert_called_with(max_wait_time=2000, poll_interval=50)
         mock_activate.assert_called_with(max_wait_time=2000, poll_interval=50)
 
