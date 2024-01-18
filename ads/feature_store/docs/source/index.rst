@@ -27,9 +27,9 @@ Feature Store
 .. toctree::
     :maxdepth: 2
     :caption: Getting started:
-
+    
     overview
-    user_guides.setup.feature_store_operator
+    setup_feature_store
     quickstart
 
 .. toctree::

@@ -146,7 +146,6 @@ def list_container_images(
     artifact_client = OCIClientFactory(**authutil.default_signer()).artifacts
     list_container_images_response = artifact_client.list_container_images(
         compartment_id=compartment_id,
-        compartment_id_in_subtree=True,
         sort_by="TIMECREATED",
         repository_name=ocir_image_path,
     )
