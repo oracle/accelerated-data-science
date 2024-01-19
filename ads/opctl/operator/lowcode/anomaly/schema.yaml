@@ -282,6 +282,13 @@ spec:
       meta:
         description: "The model to be used for anomaly detection"
 
+    contamination:
+      required: false
+      default: 0.1
+      type: float
+      meta:
+        description: "Fraction of training dataset corresponding to anomalies (between 0.0 and 0.5)"
+
     model_kwargs:
       type: dict
       required: false
@@ -293,33 +300,4 @@ spec:
       meta:
         description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
-    time_budget:
-      type: float
-      required: false
-      default: 0
-      meta:
-        description: "Time budget for optimization in seconds, defaults to 0 which means no limit & optimization continues till convergence."
-
-    training_ratio:
-      type: float
-      required: false
-      default: 0.7
-      meta:
-        description: "Ratio of data to be used for training, rest of the data is used for validation. defaults to 0.7"
-
-    false_alarm_ratio:
-      type: float
-      required: false
-      default: 0.01
-      meta:
-        description: "False alarm ratio is the ratio of the expected anomaly in the train dataset, defaults to 0.01"
-
-    metric:
-      type: string
-      required: false
-      default: F1_MACRO
-      allowed:
-        - F1_MACRO
-        - unsupervised_unify95
-        - unsupervised_unify95_log_loss
   type: dict
