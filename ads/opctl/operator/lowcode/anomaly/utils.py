@@ -8,6 +8,27 @@ import os
 import pandas as pd
 import fsspec
 from .operator_config import AnomalyOperatorSpec
+from .const import SupportedMetrics
+
+
+def _build_metrics_df(y_true, y_pred, column_name):
+    from sklearn.metrics import recall_score, precision_score, accuracy_score, f1_score, confusion_matrix, \
+        roc_auc_score, precision_recall_curve, auc, matthews_corrcoef
+    metrics = dict()
+    metrics[SupportedMetrics.RECALL] = recall_score(y_true, y_pred)
+    metrics[SupportedMetrics.PRECISION] = precision_score(y_true, y_pred)
+    metrics[SupportedMetrics.ACCURACY] = accuracy_score(y_true, y_pred)
+    metrics[SupportedMetrics.F1_SCORE] = f1_score(y_true, y_pred)
+    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    metrics[SupportedMetrics.FP] = fp
+    metrics[SupportedMetrics.FN] = fn
+    metrics[SupportedMetrics.TP] = tp
+    metrics[SupportedMetrics.TN] = tn
+    metrics[SupportedMetrics.ROC_AUC] = roc_auc_score(y_true, y_pred)
+    precision, recall, thresholds = precision_recall_curve(y_true, y_pred)
+    metrics[SupportedMetrics.PRC_AUC] = auc(recall, precision)
+    metrics[SupportedMetrics.MCC] = matthews_corrcoef(y_true, y_pred)
+    return pd.DataFrame.from_dict(metrics, orient="index", columns=[column_name])
 
 
 def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):

@@ -63,15 +63,15 @@ class AnomalyOperatorSpec(DataClassSerializable):
     input_data: InputData = field(default_factory=InputData)
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
     test_data: TestData = field(default_factory=TestData)
+    validation_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
     report_file_name: str = None
     report_title: str = None
     report_theme: str = None
     metrics_filename: str = None
-    test_metrics_filename: str = None
+    validation_metrics_filename: str = None
     inliers_filename: str = None
     outliers_filename: str = None
-    scores_filename: str = None
     global_explanation_filename: str = None
     local_explanation_filename: str = None
     target_column: str = None
@@ -80,6 +80,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
     generate_report: bool = None
     generate_metrics: bool = None
     generate_explanations: bool = None
+    generate_inliers: bool = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
     metric: str = None
@@ -90,7 +91,13 @@ class AnomalyOperatorSpec(DataClassSerializable):
         self.report_theme = self.report_theme or "light"
         self.inliers_filename = self.inliers_filename or "inliers.csv"
         self.outliers_filename = self.outliers_filename or "outliers.csv"
-        self.scores_filename = self.scores_filename or "scores.csv"
+        self.validation_metrics_filename = self.validation_metrics_filename or "validation_metrics.csv"
+
+        self.generate_inliers = (
+            self.generate_inliers
+            if self.generate_inliers is not None
+            else False
+        )
         self.model_kwargs = self.model_kwargs or dict()
 
 

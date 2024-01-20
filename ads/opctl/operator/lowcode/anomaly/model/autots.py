@@ -48,13 +48,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
 
         full_data_dict = dataset.full_data_dict
 
-        target_category_column = (
-            self.spec.target_category_columns[0]
-            if self.spec.target_category_columns is not None
-            else None
-        )
-
-        anomaly_output = AnomalyOutput()
+        anomaly_output = AnomalyOutput(date_column=date_column)
 
         # Iterate over the full_data_dict items
         for target, df in full_data_dict.items():
@@ -70,6 +64,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
                     columns={score.columns.values[0]: OutputColumns.SCORE_COL},
                     inplace=True,
                 )
+                score = 1-score
                 score = score.reset_index(drop=False)
 
                 col = anomaly.columns.values[0]

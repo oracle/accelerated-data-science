@@ -69,8 +69,9 @@ class AnomalyDatasets:
 
 
 class AnomalyOutput:
-    def __init__(self):
+    def __init__(self, date_column):
         self.category_map = dict()
+        self.date_column = date_column
 
     def add_output(self, category: str, anomalies: pd.DataFrame, scores: pd.DataFrame):
         self.category_map[category] = (anomalies, scores)
@@ -83,15 +84,29 @@ class AnomalyOutput:
 
     def get_inliers_by_cat(self, category: str, data: pd.DataFrame):
         anomaly = self.get_anomalies_by_cat(category)
+        scores = self.get_scores_by_cat(category)
         inlier_indices = anomaly.index[anomaly[OutputColumns.ANOMALY_COL] == 0]
-
-        return data.iloc[inlier_indices]
+        inliers = data.iloc[inlier_indices]
+        if scores is not None and not scores.empty:
+            inliers = pd.merge(
+                inliers,
+                scores,
+                on=self.date_column,
+                how='inner')
+        return inliers
 
     def get_outliers_by_cat(self, category: str, data: pd.DataFrame):
         anomaly = self.get_anomalies_by_cat(category)
+        scores = self.get_scores_by_cat(category)
         outliers_indices = anomaly.index[anomaly[OutputColumns.ANOMALY_COL] == 1]
-
-        return data.iloc[outliers_indices]
+        outliers = data.iloc[outliers_indices]
+        if scores is not None and not scores.empty:
+            outliers = pd.merge(
+                outliers,
+                scores,
+                on=self.date_column,
+                how='inner')
+        return outliers
 
     def get_inliers(self, full_data_dict):
         inliers = pd.DataFrame()
@@ -128,3 +143,6 @@ class AnomalyOutput:
             score[target_category_columns[0]] = category
             scores = pd.concat([scores, score], axis=0, ignore_index=True)
         return scores
+
+    def get_num_anomalies_by_cat(self, category: str):
+        return (self.category_map[category][0][OutputColumns.ANOMALY_COL] == 1).sum()

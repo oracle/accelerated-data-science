@@ -113,6 +113,45 @@ spec:
           type: dict
       type: dict
 
+    validation_data:
+      required: false
+      meta:
+        description: "Optional, only if evaluation is needed."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          required: false
+          type: string
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - hdf
+            - sql
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        url:
+          required: true
+          type: string
+          default: test.csv
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        name:
+          required: false
+          type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+      type: dict
+
     output_directory:
       required: false
       schema:
@@ -167,10 +206,10 @@ spec:
       default: metrics.csv
       meta:
         description: "Placed into output_directory location. Defaults to metrics.csv"
-    test_metrics_filename:
+    validation_metrics_filename:
       required: false
       type: string
-      default: test_metrics.csv
+      default: validation_metrics.csv
       meta:
         description: "Placed into output_directory location. Defaults to test_metrics.csv"
     global_explanation_filename:
@@ -206,6 +245,14 @@ spec:
       default: true
       meta:
         description: "Metrics files generation can be enabled using this flag. Defaults to true."
+
+    generate_inliers:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "Generates inliers.csv"
+
 
     target_column:
       type: string
