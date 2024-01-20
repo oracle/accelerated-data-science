@@ -1,0 +1,12 @@
+name: Anomaly
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - pip
+  - pip:
+      - datapane
+      - cerberus
+      - oracle-automlx==23.2.3
+      - "git+https://github.com/datamllab/tods.git"
+      - "git+https://github.com/oracle/accelerated-data-science.git@feature/anomaly#egg=oracle-ads"

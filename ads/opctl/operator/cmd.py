@@ -161,7 +161,7 @@ def init(
             )
     else:
         overwrite = True
-        output = os.path.join(tempfile.TemporaryDirectory().name, "")
+        output = operator_utils.create_output_folder(name=type + "/")
 
     # generating operator specification
     operator_config = {}
