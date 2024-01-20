@@ -4,10 +4,10 @@
 ## Check README-development.md and Makefile for instruction how to install or build ADS locally.
 
 [build-system]
-# These are the assumed default build requirements from pip:
-# https://pip.pypa.io/en/stable/reference/pip/#pep-517-and-518-support
 # PEP 517 – A build-system independent format for source trees - https://peps.python.org/pep-0517/
-requires = ["flit-core >= 3.8"]
+# Till recently flit-core library was suggested by pip, so we used it. In future, cosider to change to
+# other, if better, build-backend library.
+requires = ["flit-core >=3.8,<4"]  # should specify <4, so won’t be impacted by changes in the next major version
 build-backend = "flit_core.buildapi"
 
 
@@ -19,7 +19,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads"  # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.9.0"
+version = "2.9.1"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -194,6 +194,10 @@ pii = [
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
 ]
+llm = [
+  "langchain>=0.0.295",
+  "evaluate>=0.4.0",
+]
 
 [project.urls]
 "Github" = "https://github.com/oracle/accelerated-data-science"
@@ -204,3 +208,8 @@ ads = "ads.cli:cli"
 
 [tool.flit.module]
 name = "ads"  # name for local build and import, see https://flit.pypa.io/en/latest/pyproject_toml.html#module-section
+
+[tool.flit.sdist]
+# By default `ads` folder and `LICENSE.txt` file included in sdist. Folders `docs` and `tests` are excluded, as weel as other project files
+# Use this section to include/exclude files and folders. See doc: https://flit.pypa.io/en/latest/pyproject_toml.html#sdist-section
+include = ["THIRD_PARTY_LICENSES.txt"]

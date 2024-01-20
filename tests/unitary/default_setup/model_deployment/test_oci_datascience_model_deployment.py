@@ -15,10 +15,6 @@ from ads.common.oci_datascience import OCIDataScienceMixin
 from ads.common.oci_mixin import OCIModelMixin, OCIWorkRequestMixin
 
 from ads.model.service.oci_datascience_model_deployment import (
-    ACTIVATE_WORKFLOW_STEPS,
-    CREATE_WORKFLOW_STEPS,
-    DEACTIVATE_WORKFLOW_STEPS,
-    DELETE_WORKFLOW_STEPS,
     OCIDataScienceModelDeployment,
 )
 
@@ -163,7 +159,6 @@ class TestOCIDataScienceModelDeployment:
                     mock_activate.assert_called_with(self.mock_model_deployment.id)
                     mock_wait.assert_called_with(
                         "test",
-                        ACTIVATE_WORKFLOW_STEPS,
                         1,
                         1,
                     )
@@ -248,7 +243,6 @@ class TestOCIDataScienceModelDeployment:
                     )
                     mock_wait.assert_called_with(
                         "test",
-                        DEACTIVATE_WORKFLOW_STEPS,
                         1,
                         1,
                     )
@@ -330,7 +324,6 @@ class TestOCIDataScienceModelDeployment:
                                 mock_update_from_oci_model.assert_called()
                                 mock_wait.assert_called_with(
                                     "test",
-                                    CREATE_WORKFLOW_STEPS,                                    
                                     1,
                                     1,
                                 )
@@ -468,7 +461,6 @@ class TestOCIDataScienceModelDeployment:
                         mock_delete.assert_called_with(self.mock_model_deployment.id)
                         mock_wait.assert_called_with(
                             "test",
-                            DELETE_WORKFLOW_STEPS,
                             1,
                             1,
                         )

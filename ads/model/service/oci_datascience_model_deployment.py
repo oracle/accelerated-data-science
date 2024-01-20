@@ -20,10 +20,6 @@ from oci.data_science.models import (
 
 DEFAULT_WAIT_TIME = 1200
 DEFAULT_POLL_INTERVAL = 10
-DEACTIVATE_WORKFLOW_STEPS = 2
-DELETE_WORKFLOW_STEPS = 2
-ACTIVATE_WORKFLOW_STEPS = 6
-CREATE_WORKFLOW_STEPS = 6
 ALLOWED_STATUS = [
     State.ACTIVE.name,
     State.CREATING.name,
@@ -203,7 +199,6 @@ class OCIDataScienceModelDeployment(
                 try:
                     self.wait_for_progress(
                         self.workflow_req_id, 
-                        ACTIVATE_WORKFLOW_STEPS, 
                         max_wait_time, 
                         poll_interval
                     )
@@ -254,7 +249,6 @@ class OCIDataScienceModelDeployment(
             try:
                 self.wait_for_progress(
                     self.workflow_req_id, 
-                    CREATE_WORKFLOW_STEPS, 
                     max_wait_time, 
                     poll_interval
                 )
@@ -317,7 +311,6 @@ class OCIDataScienceModelDeployment(
                 try:
                     self.wait_for_progress(
                         self.workflow_req_id, 
-                        DEACTIVATE_WORKFLOW_STEPS, 
                         max_wait_time, 
                         poll_interval
                     )
@@ -387,7 +380,6 @@ class OCIDataScienceModelDeployment(
             try:
                 self.wait_for_progress(
                     self.workflow_req_id, 
-                    DELETE_WORKFLOW_STEPS, 
                     max_wait_time, 
                     poll_interval
                 )

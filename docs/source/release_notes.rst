@@ -2,6 +2,17 @@
 Release Notes
 =============
 
+2.9.1
+-----
+Release date: December 6, 2023
+
+* Added support for deploying LangChain application as OCI Model Deployment.
+* Added support for using HuggingFace Evaluation as LLM guardrail.
+* Added deployment support for RetrievalQA when using OpenSearchVectorSearch or FAISS vector DB as retriever.
+* Added reload parameters in ``GenericModel.save()`` to provide option to not reload score.py.
+* Fixed a bug in model deployment progress bar due to fixed number of steps.
+* Fixed a bug in ``ads opctl build-image job-local`` command.
+
 2.9.0
 -----
 Release date: November 16, 2023
