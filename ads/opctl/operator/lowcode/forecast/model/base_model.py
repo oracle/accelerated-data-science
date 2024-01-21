@@ -83,7 +83,7 @@ class ForecastOperatorBaseModel(ABC):
             warnings.simplefilter(action="ignore", category=UserWarning)
             warnings.simplefilter(action="ignore", category=RuntimeWarning)
             warnings.simplefilter(action="ignore", category=ConvergenceWarning)
-            import datapane as dp
+            import report_creator as dp
 
             # load models if given
             if self.spec.previous_output_dir is not None:
@@ -233,8 +233,8 @@ class ForecastOperatorBaseModel(ABC):
 
                 test_metrics_sections = []
                 if (
-                        self.test_eval_metrics is not None
-                        and not self.test_eval_metrics.empty
+                    self.test_eval_metrics is not None
+                    and not self.test_eval_metrics.empty
                 ):
                     sec7_text = dp.Text(f"## Test Data Evaluation Metrics")
                     sec7 = dp.DataTable(self.test_eval_metrics)
@@ -264,12 +264,12 @@ class ForecastOperatorBaseModel(ABC):
                 yaml_appendix_title = dp.Text(f"## Reference: YAML File")
                 yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
                 report_sections = (
-                        [title_text, summary]
-                        + forecast_plots
-                        + other_sections
-                        + test_metrics_sections
-                        + train_metrics_sections
-                        + [yaml_appendix_title, yaml_appendix]
+                    [title_text, summary]
+                    + forecast_plots
+                    + other_sections
+                    + test_metrics_sections
+                    + train_metrics_sections
+                    + [yaml_appendix_title, yaml_appendix]
                 )
 
             # save the report and result CSV
@@ -281,7 +281,7 @@ class ForecastOperatorBaseModel(ABC):
             )
 
     def _test_evaluate_metrics(
-            self, target_columns, test_filename, output, target_col="yhat", elapsed_time=0
+        self, target_columns, test_filename, output, target_col="yhat", elapsed_time=0
     ):
         total_metrics = pd.DataFrame()
         summary_metrics = pd.DataFrame()
@@ -331,11 +331,11 @@ class ForecastOperatorBaseModel(ABC):
                     for date in dates
                 ]
                 y_pred_i = output_forecast_i["forecast_value"].values
-                y_pred = np.asarray(y_pred_i[-len(y_true):])
+                y_pred = np.asarray(y_pred_i[-len(y_true) :])
 
                 metrics_df = utils._build_metrics_df(
-                    y_true=y_true[-self.spec.horizon:],
-                    y_pred=y_pred[-self.spec.horizon:],
+                    y_true=y_true[-self.spec.horizon :],
+                    y_pred=y_pred[-self.spec.horizon :],
                     column_name=target_column_i,
                 )
                 total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
@@ -389,7 +389,7 @@ class ForecastOperatorBaseModel(ABC):
         target_columns_in_output = set(target_columns).intersection(data.columns)
         if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT:
             if set(self.forecast_output.list_target_category_columns()) != set(
-                    target_columns_in_output
+                target_columns_in_output
             ):
                 logger.warn(
                     f"Column Mismatch between Forecast Output and Target Columns"
@@ -424,14 +424,14 @@ class ForecastOperatorBaseModel(ABC):
         return total_metrics, summary_metrics, data
 
     def _save_report(
-            self,
-            report_sections: Tuple,
-            result_df: pd.DataFrame,
-            metrics_df: pd.DataFrame,
-            test_metrics_df: pd.DataFrame,
+        self,
+        report_sections: Tuple,
+        result_df: pd.DataFrame,
+        metrics_df: pd.DataFrame,
+        test_metrics_df: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
-        import datapane as dp
+        import report_creator as dp
 
         if self.spec.output_directory:
             output_dir = self.spec.output_directory.url
@@ -460,9 +460,9 @@ class ForecastOperatorBaseModel(ABC):
                 report_path = os.path.join(output_dir, self.spec.report_filename)
                 with open(report_local_path) as f1:
                     with fsspec.open(
-                            report_path,
-                            "w",
-                            **storage_options,
+                        report_path,
+                        "w",
+                        **storage_options,
                     ) as f2:
                         f2.write(f1.read())
 
@@ -564,17 +564,13 @@ class ForecastOperatorBaseModel(ABC):
         if self.errors_dict:
             utils._write_data(
                 data=pd.DataFrame(self.errors_dict.items(), columns=["model", "error"]),
-                filename=os.path.join(
-                    output_dir, self.spec.errors_dict_filename
-                ),
+                filename=os.path.join(output_dir, self.spec.errors_dict_filename),
                 format="csv",
                 storage_options=storage_options,
                 index=True,
             )
         else:
-            logger.info(
-                f"No model failures found for the selected forecasting model"
-            )
+            logger.info(f"No model failures found for the selected forecasting model")
 
     def _preprocess(self, data, ds_column, datetime_format):
         """The method that needs to be implemented on the particular model level."""
@@ -606,7 +602,9 @@ class ForecastOperatorBaseModel(ABC):
 
     def _load_model(self):
         try:
-            self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
+            self.loaded_models = utils.load_pkl(
+                self.spec.previous_output_dir + "/model.pkl"
+            )
         except:
             logger.info("model.pkl is not present")
 
@@ -618,12 +616,10 @@ class ForecastOperatorBaseModel(ABC):
             storage_options=storage_options,
         )
 
-
-
     @runtime_dependency(
         module="shap",
         err_msg=(
-                "Please run `pip3 install shap` to install the required dependencies for model explanation."
+            "Please run `pip3 install shap` to install the required dependencies for model explanation."
         ),
     )
     def explain_model(self, datetime_col_name, explain_predict_fn) -> dict:
@@ -665,8 +661,7 @@ class ForecastOperatorBaseModel(ABC):
                 lambda x: x.timestamp()
             )
             kernel_explnr = PermutationExplainer(
-                model=explain_predict_fn,
-                masker=data_trimmed
+                model=explain_predict_fn, masker=data_trimmed
             )
 
             kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed)

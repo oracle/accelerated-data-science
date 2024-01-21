@@ -76,14 +76,16 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
     def _load_model(self):
         try:
-            self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
-            self.loaded_trainers = utils.load_pkl(self.spec.previous_output_dir + "/trainer.pkl")
+            self.loaded_models = utils.load_pkl(
+                self.spec.previous_output_dir + "/model.pkl"
+            )
+            self.loaded_trainers = utils.load_pkl(
+                self.spec.previous_output_dir + "/trainer.pkl"
+            )
         except:
             logger.info("model.pkl/trainer.pkl is not present")
 
-
     def _train_model(self, i, target, df):
-
         try:
             from neuralprophet import NeuralProphet
 
@@ -97,7 +99,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 )
             else:
                 boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
-                self.quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
+                self.quantiles = [
+                    boundaries,
+                    self.spec.confidence_interval_width + boundaries,
+                ]
 
             if self.loaded_models is None:
                 model_kwargs = self.spec.model_kwargs
@@ -123,7 +128,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             additional_regressors = set(data_i.columns) - {"y", "ds"}
             training_data = data_i[["y", "ds"] + list(additional_regressors)]
 
-            model = self.loaded_models[target] if self.loaded_models is not None else None
+            model = (
+                self.loaded_models[target] if self.loaded_models is not None else None
+            )
             accepted_regressors = None
             if model is None:
                 model_kwargs_i = model_kwargs.copy()
@@ -259,7 +266,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 "highlight_forecast_step_n": model.highlight_forecast_step_n,
                 "true_ar_weights": model.true_ar_weights,
             }
-            
+
             logger.debug("===========Done===========")
         except Exception as e:
             self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
@@ -286,7 +293,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         if self.loaded_trainers is not None:
             self.trainers = self.loaded_trainers
 
-
         # Merge the outputs from each model into 1 df with all outputs by target and category
         col = self.original_target_column
         output_col = pd.DataFrame()
@@ -306,7 +312,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i.iloc[
                 : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (self.outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values)
+            ] = (
+                self.outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values
+            )
             output_i.iloc[
                 -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
@@ -340,7 +348,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         return output_col
 
     def _generate_report(self):
-        import datapane as dp
+        import report_creator as dp
 
         sec1_text = dp.Text(
             "## Forecast Overview \nThese plots show your "
@@ -353,7 +361,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
         sec2 = utils._select_plot_list(
-            lambda idx, target, *args: self.models[target].plot_components(self.outputs[target]),
+            lambda idx, target, *args: self.models[target].plot_components(
+                self.outputs[target]
+            ),
             target_columns=self.target_columns,
         )
 

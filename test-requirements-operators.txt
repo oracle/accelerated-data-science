@@ -2,3 +2,4 @@
 -e ".[forecast]"
 darts
 plotly
+report_creator @ git+https://github.com/darenr/report_creator@main

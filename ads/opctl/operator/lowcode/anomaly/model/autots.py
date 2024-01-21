@@ -64,7 +64,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
                     columns={score.columns.values[0]: OutputColumns.SCORE_COL},
                     inplace=True,
                 )
-                score = 1-score
+                score = 1 - score
                 score = score.reset_index(drop=False)
 
                 col = anomaly.columns.values[0]
@@ -82,7 +82,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         return anomaly_output
 
     def _generate_report(self):
-        import datapane as dp
+        import report_creator as dp
 
         """The method that needs to be implemented on the particular model level."""
         selected_models_text = dp.Text(

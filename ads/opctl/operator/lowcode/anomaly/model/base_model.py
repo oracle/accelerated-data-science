@@ -44,7 +44,7 @@ class AnomalyOperatorBaseModel(ABC):
 
     def generate_report(self):
         """Generates the report."""
-        import datapane as dp
+        import report_creator as dp
         import matplotlib.pyplot as plt
 
         start_time = time.time()
@@ -56,8 +56,13 @@ class AnomalyOperatorBaseModel(ABC):
         validation_data = None
 
         if self.spec.validation_data:
-            total_metrics, summary_metrics, validation_data = \
-                self._validation_data_evaluate_metrics(anomaly_output, self.spec.validation_data.url, elapsed_time)
+            (
+                total_metrics,
+                summary_metrics,
+                validation_data,
+            ) = self._validation_data_evaluate_metrics(
+                anomaly_output, self.spec.validation_data.url, elapsed_time
+            )
         table_blocks = [
             dp.DataTable(df, label=col)
             for col, df in self.datasets.full_data_dict.items()
@@ -129,19 +134,19 @@ class AnomalyOperatorBaseModel(ABC):
             validation_metrics_sections = validation_metrics_sections + [sec_text, sec]
 
         report_sections = (
-                [title_text, summary]
-                + [plots]
-                + [data_table]
-                + evaluation_metrics_sec
-                + validation_metrics_sections
-                + [yaml_appendix_title, yaml_appendix]
+            [title_text, summary]
+            + [plots]
+            + [data_table]
+            + evaluation_metrics_sec
+            + validation_metrics_sections
+            + [yaml_appendix_title, yaml_appendix]
         )
 
         # save the report and result CSV
         self._save_report(
             report_sections=report_sections,
             anomaly_output=anomaly_output,
-            validation_metrics=total_metrics
+            validation_metrics=total_metrics,
         )
 
     def _evaluation_metrics(self, anomaly_output):
@@ -149,11 +154,8 @@ class AnomalyOperatorBaseModel(ABC):
         for cat in anomaly_output.category_map:
             num_anomalies = anomaly_output.get_num_anomalies_by_cat(cat)
             metrics_df = pd.DataFrame.from_dict(
-                {
-                    'Num of Anomalies': num_anomalies
-                },
-                orient="index",
-                columns=[cat])
+                {"Num of Anomalies": num_anomalies}, orient="index", columns=[cat]
+            )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         return total_metrics
 
@@ -163,9 +165,7 @@ class AnomalyOperatorBaseModel(ABC):
         data = None
         try:
             storage_options = (
-                default_signer()
-                if ObjectStorageDetails.is_oci_path(filename)
-                else {}
+                default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
             )
             data = utils._load_data(
                 filename=filename,
@@ -190,9 +190,11 @@ class AnomalyOperatorBaseModel(ABC):
             dates = output[output[date_col].isin(val_data[date_col])][date_col]
 
             metrics_df = utils._build_metrics_df(
-                val_data[val_data[date_col].isin(dates)][OutputColumns.ANOMALY_COL].values,
+                val_data[val_data[date_col].isin(dates)][
+                    OutputColumns.ANOMALY_COL
+                ].values,
                 output[output[date_col].isin(dates)][OutputColumns.ANOMALY_COL].values,
-                cat
+                cat,
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
@@ -255,13 +257,13 @@ class AnomalyOperatorBaseModel(ABC):
         )
 
     def _save_report(
-            self,
-            report_sections: Tuple,
-            anomaly_output: AnomalyOutput,
-            validation_metrics: pd.DataFrame
+        self,
+        report_sections: Tuple,
+        anomaly_output: AnomalyOutput,
+        validation_metrics: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
-        import datapane as dp
+        import report_creator as dp
 
         if self.spec.output_directory:
             output_dir = self.spec.output_directory.url
@@ -284,9 +286,9 @@ class AnomalyOperatorBaseModel(ABC):
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                        os.path.join(output_dir, self.spec.report_file_name),
-                        "w",
-                        **default_signer(),
+                    os.path.join(output_dir, self.spec.report_file_name),
+                    "w",
+                    **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
 
@@ -299,7 +301,7 @@ class AnomalyOperatorBaseModel(ABC):
                 storage_options=storage_options,
             )
 
-        outliers=anomaly_output.get_outliers(self.datasets.full_data_dict)
+        outliers = anomaly_output.get_outliers(self.datasets.full_data_dict)
         utils._write_data(
             data=outliers,
             filename=os.path.join(output_dir, self.spec.outliers_filename),
@@ -310,7 +312,9 @@ class AnomalyOperatorBaseModel(ABC):
         if validation_metrics is not None and not validation_metrics.empty:
             utils._write_data(
                 data=validation_metrics.rename_axis("metrics").reset_index(),
-                filename=os.path.join(output_dir, self.spec.validation_metrics_filename),
+                filename=os.path.join(
+                    output_dir, self.spec.validation_metrics_filename
+                ),
                 format="csv",
                 storage_options=storage_options,
             )

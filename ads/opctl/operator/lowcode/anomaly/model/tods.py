@@ -92,20 +92,24 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
                 OutputColumns.ANOMALY_COL
             ] = predictions_train[target]
 
-            anomaly = pd.DataFrame({
-                date_column: df[date_column],
-                OutputColumns.ANOMALY_COL: predictions_train[target]
-            })
-            score = pd.DataFrame({
-                date_column: df[date_column],
-                OutputColumns.SCORE_COL: prediction_score_train[target]
-            })
+            anomaly = pd.DataFrame(
+                {
+                    date_column: df[date_column],
+                    OutputColumns.ANOMALY_COL: predictions_train[target],
+                }
+            )
+            score = pd.DataFrame(
+                {
+                    date_column: df[date_column],
+                    OutputColumns.SCORE_COL: prediction_score_train[target],
+                }
+            )
             anomaly_output.add_output(target, anomaly, score)
 
         return anomaly_output
 
     def _generate_report(self):
-        import datapane as dp
+        import report_creator as dp
 
         """The method that needs to be implemented on the particular model level."""
         selected_models_text = dp.Text(

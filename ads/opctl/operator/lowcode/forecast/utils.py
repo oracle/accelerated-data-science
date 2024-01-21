@@ -418,7 +418,7 @@ def evaluate_train_metrics(
 
 
 def _select_plot_list(fn, target_columns):
-    import datapane as dp
+    import report_creator as dp
 
     blocks = [dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
     return dp.Select(blocks=blocks) if len(target_columns) > 1 else blocks[0]
@@ -441,8 +441,10 @@ def get_forecast_plots(
         actual_length = len(forecast_i)
         if actual_length > RENDER_LIMIT:
             forecast_i = forecast_i.tail(RENDER_LIMIT)
-            text = f"<i>To improve rendering speed, subsampled the data from {actual_length}" \
-                   f" rows to {RENDER_LIMIT} rows for this plot.</i>"
+            text = (
+                f"<i>To improve rendering speed, subsampled the data from {actual_length}"
+                f" rows to {RENDER_LIMIT} rows for this plot.</i>"
+            )
             fig.update_layout(
                 annotations=[
                     go.layout.Annotation(
@@ -451,7 +453,7 @@ def get_forecast_plots(
                         xref="paper",
                         yref="paper",
                         text=text,
-                        showarrow=False
+                        showarrow=False,
                     )
                 ]
             )

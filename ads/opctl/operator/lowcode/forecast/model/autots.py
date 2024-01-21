@@ -78,7 +78,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 drop_data_older_than_periods=self.spec.model_kwargs.get(
                     "drop_data_older_than_periods", None
                 ),
-            model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
+                model_list=self.spec.model_kwargs.get("model_list", "fast_parallel"),
                 transformer_list=self.spec.model_kwargs.get("transformer_list", "auto"),
                 transformer_max_depth=self.spec.model_kwargs.get(
                     "transformer_max_depth", 6
@@ -88,7 +88,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 models_to_validate=self.spec.model_kwargs.get(
                     "models_to_validate", AUTOTS_MODELS_TO_VALIDATE
                 ),
-                max_per_model_class=self.spec.model_kwargs.get("max_per_model_class", None),
+                max_per_model_class=self.spec.model_kwargs.get(
+                    "max_per_model_class", None
+                ),
                 validation_method=self.spec.model_kwargs.get(
                     "validation_method", "backwards"
                 ),
@@ -102,8 +104,12 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 introduce_na=self.spec.model_kwargs.get("introduce_na", None),
                 preclean=self.spec.model_kwargs.get("preclean", None),
                 model_interrupt=self.spec.model_kwargs.get("model_interrupt", True),
-                generation_timeout=self.spec.model_kwargs.get("generation_timeout", None),
-                current_model_file=self.spec.model_kwargs.get("current_model_file", None),
+                generation_timeout=self.spec.model_kwargs.get(
+                    "generation_timeout", None
+                ),
+                current_model_file=self.spec.model_kwargs.get(
+                    "current_model_file", None
+                ),
                 verbose=self.spec.model_kwargs.get("verbose", 1),
                 n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
             )
@@ -161,7 +167,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 if self.spec.additional_data
                 else None,
                 id_col="series_id",
-                )
+            )
 
             # Store the trained model and generate forecasts
             self.models = copy.deepcopy(model)
@@ -215,8 +221,8 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             output_i[yhat_upper_name] = self.prediction.upper_forecast[[cat_target]]
             output_i[yhat_lower_name] = self.prediction.lower_forecast[[cat_target]]
             output_i.iloc[
-            -hist_df.shape[0] - self.spec.horizon : -self.spec.horizon,
-            output_i.columns.get_loc(f"fitted_value"),
+                -hist_df.shape[0] - self.spec.horizon : -self.spec.horizon,
+                output_i.columns.get_loc(f"fitted_value"),
             ] = hist_df[cat_target]
 
             output_i = output_i.reset_index()
@@ -250,7 +256,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             - ds_forecast_col (pd.Index): A pandas Index containing the forecast column values.
             - ci_col_names (list): A list of column names for confidence intervals.
         """
-        import datapane as dp
+        import report_creator as dp
 
         # Section 1: Forecast Overview
         sec1_text = dp.Text(
@@ -301,7 +307,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 )
 
                 self.formatted_global_explanation = (
-                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
 
                 # Create a markdown section for the global explainability
@@ -324,7 +330,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
                         label=s_id,
-                        )
+                    )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = (
