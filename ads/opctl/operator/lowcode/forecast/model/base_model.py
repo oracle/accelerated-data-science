@@ -435,6 +435,8 @@ class ForecastOperatorBaseModel(ABC):
 
         if self.spec.output_directory:
             output_dir = self.spec.output_directory.url
+            # set the unique directory path as the requested path by the user
+            unique_output_dir = output_dir
         else:
             output_dir = "results"
 
