@@ -420,14 +420,21 @@ class ForecastOperatorBaseModel(ABC):
         if self.spec.output_directory:
             output_dir = self.spec.output_directory.url
         else:
-            output_dir = "tmp_fc_operator_result"
+            output_dir = "results"
+
+            # If the directory exists, find the next unique directory name by appending an incrementing suffix
+            counter = 1
+            unique_output_dir = f"{output_dir}"
+            while os.path.exists(unique_output_dir):
+                unique_output_dir = f"{output_dir}_{counter}"
+                counter += 1
             logger.warn(
                 "Since the output directory was not specified, the output will be saved to {} directory.".format(
-                    output_dir
+                    unique_output_dir
                 )
             )
 
-        if ObjectStorageDetails.is_oci_path(output_dir):
+        if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
         else:
             storage_options = dict()
@@ -441,7 +448,7 @@ class ForecastOperatorBaseModel(ABC):
                 dp.save_report(report_sections, report_local_path)
                 utils.enable_print()
 
-                report_path = os.path.join(output_dir, self.spec.report_filename)
+                report_path = os.path.join(unique_output_dir, self.spec.report_filename)
                 with open(report_local_path) as f1:
                     with fsspec.open(
                         report_path,
@@ -453,7 +460,7 @@ class ForecastOperatorBaseModel(ABC):
         # forecast csv report
         utils._write_data(
             data=result_df,
-            filename=os.path.join(output_dir, self.spec.forecast_filename),
+            filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
             format="csv",
             storage_options=storage_options,
         )
@@ -463,7 +470,7 @@ class ForecastOperatorBaseModel(ABC):
             if metrics_df is not None:
                 utils._write_data(
                     data=metrics_df.rename_axis("metrics").reset_index(),
-                    filename=os.path.join(output_dir, self.spec.metrics_filename),
+                    filename=os.path.join(unique_output_dir, self.spec.metrics_filename),
                     format="csv",
                     storage_options=storage_options,
                     index=False,
@@ -479,7 +486,7 @@ class ForecastOperatorBaseModel(ABC):
                     utils._write_data(
                         data=test_metrics_df.rename_axis("metrics").reset_index(),
                         filename=os.path.join(
-                            output_dir, self.spec.test_metrics_filename
+                            unique_output_dir, self.spec.test_metrics_filename
                         ),
                         format="csv",
                         storage_options=storage_options,
@@ -496,7 +503,7 @@ class ForecastOperatorBaseModel(ABC):
                     utils._write_data(
                         data=self.formatted_global_explanation,
                         filename=os.path.join(
-                            output_dir, self.spec.global_explanation_filename
+                            unique_output_dir, self.spec.global_explanation_filename
                         ),
                         format="csv",
                         storage_options=storage_options,
@@ -511,7 +518,7 @@ class ForecastOperatorBaseModel(ABC):
                     utils._write_data(
                         data=self.formatted_local_explanation,
                         filename=os.path.join(
-                            output_dir, self.spec.local_explanation_filename
+                            unique_output_dir, self.spec.local_explanation_filename
                         ),
                         format="csv",
                         storage_options=storage_options,
@@ -527,7 +534,7 @@ class ForecastOperatorBaseModel(ABC):
                 )
         logger.info(
             f"The outputs have been successfully "
-            f"generated and placed into the directory: {output_dir}."
+            f"generated and placed into the directory: {unique_output_dir}."
         )
 
     def _preprocess(self, data, ds_column, datetime_format):
