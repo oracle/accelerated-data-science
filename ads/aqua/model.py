@@ -4,29 +4,25 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
+import fsspec
 from dataclasses import dataclass
 from typing import List
-
+from enum import Enum
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
 
 logger = logging.getLogger(__name__)
 
-
-@dataclass
-class AquaModelSummary:
-    """Represents a summary of Aqua model."""
-
-    id: str
-    compartment_id: str
-    project_id: str
+ICON_FILE_NAME = "icon.txt"
 
 
-# Freeform-tag/Define-tag
-# key=OCI_AQUA (100 chars max), val = (256 chars max)
-
-AQUA_TAG = "OCI_AQUA"
-AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
+class Tags(Enum):
+    TASK = "task"
+    LICENSE = "license"
+    ORGANIZATION = "organization"
+    AQUA_TAG = "OCI_AQUA"
+    AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
+    AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
 
 
 @dataclass
@@ -34,14 +30,10 @@ class AquaModelSummary:
     """Represents a summary of Aqua model."""
 
     name: str
-    ocid: str
+    id: str
+    compartment_id: str
+    project_id: str
     time_created: int
-
-    icon: str = None
-    task: str
-    license: str
-    organization: str
-    is_fine_tuned_model: bool
 
 
 @dataclass
@@ -49,6 +41,10 @@ class AquaModel(AquaModelSummary):
     """Represents an Aqua model."""
 
     icon: str = None
+    task: str
+    license: str
+    organization: str
+    is_fine_tuned_model: bool
 
 
 class AquaModelApp:
@@ -103,18 +99,40 @@ class AquaModelApp:
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
 
-        models = self.list_resource(kwargs)
+        models = self.list_resource(self.client.list_models, **kwargs)
 
         aqua_models = []
         for model in models:  # ModelSummary
             if model.freeform_tags.contains(
-                AQUA_TAG
-            ) and not model.freeform_tags.contains(AQUA_SERVICE_MODEL_TAG):
-                aqua_models.append(
-                    AquaModel(
-                        id=model_id,
-                        compartment_id="ocid1.compartment",
-                        project_id="ocid1.project",
+                Tags.AQUA_TAG
+            ) and not model.freeform_tags.contains(Tags.AQUA_SERVICE_MODEL_TAG):
+                custom_metadata_list = self.client.get_model(
+                    model.id
+                ).custom_metadata_list
+
+                for custom_metadata in custom_metadata_list:
+                    if custom_metadata.key == "Object Storage Path":
+                        os_path = custom_metadata.value
+                        break
+
+                with fsspec.open(
+                    f"{os_path}/{ICON_FILE_NAME}", "rb", **self._auth
+                ) as f:
+                    icon = f.read()
+                    aqua_models.append(
+                        AquaModel(
+                            name=model.display_name,
+                            id=model.id,
+                            compartment_id=model.compartment_id,
+                            project_id=model.project_id,
+                            time_created=model.time_created,
+                            icon=icon,
+                            task=model.freeform_tags.get(Tags.TASK),
+                            license=model.freeform_tags.get(Tags.LICENSE),
+                            organization=model.freeform_tags.get(Tags.ORGANIZATION),
+                            is_fine_tuned_model=True
+                            if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
+                            else False,
+                        )
                     )
-                )
         return aqua_models
