@@ -111,7 +111,7 @@ class AquaModelApp(AquaApp):
                 try:
                     custom_metadata_list = self.client.get_model(
                         model.id
-                    ).custom_metadata_list
+                    ).data.custom_metadata_list
                 except Exception as e:
                     # show opc-request-id and status code
                     logger.error(f"Failing to retreive model information. {e}")
@@ -161,7 +161,9 @@ class AquaModelApp(AquaApp):
 
         return (
             True
-            if Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS
-            or Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS
+            if (
+                Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS
+                or Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS
+            )
             else False
         )
