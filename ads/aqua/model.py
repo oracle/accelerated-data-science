@@ -6,11 +6,8 @@
 
 import logging
 from dataclasses import dataclass
-import tempfile
 from typing import List
 from ads.aqua.base import AquaApp
-from ads.config import COMPARTMENT_OCID
-from ads.model.datascience_model import DataScienceModel
 
 logger = logging.getLogger(__name__)
 

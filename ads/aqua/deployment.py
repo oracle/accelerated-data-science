@@ -8,8 +8,6 @@ from typing import List, Dict
 
 from dataclasses import dataclass
 from ads.aqua.base import AquaApp
-from ads.config import COMPARTMENT_OCID
-from ads.model.deployment.model_deployment import ModelDeployment
 
 
 logger = logging.getLogger(__name__)
