@@ -250,7 +250,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         models = self.models
         for i, (target, df) in enumerate(self.full_data_dict.items()):
             selected_models[target] = {
-                "series_id": target,
+                "series_id": utils.convert_target(target, self.original_target_column),
                 "selected_model": models[target].selected_model_,
                 "model_params": models[target].selected_model_params_,
             }
