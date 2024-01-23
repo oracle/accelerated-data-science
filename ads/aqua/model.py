@@ -108,14 +108,20 @@ class AquaModelApp(AquaApp):
             if self._if_show(model):
                 # TODO: need to update after model by reference release
                 artifact_path = ""
-                custom_metadata_list = self.client.get_model(
-                    model.id
-                ).custom_metadata_list
+                try:
+                    custom_metadata_list = self.client.get_model(
+                        model.id
+                    ).custom_metadata_list
+                except Exception as e:
+                    # show opc-request-id and status code
+                    logger.error(f"Failing to retreive model information. {e}")
+                    return []
 
                 for custom_metadata in custom_metadata_list:
                     if custom_metadata.key == "Object Storage Path":
                         artifact_path = custom_metadata.value
                         break
+
                 if not artifact_path:
                     raise FileNotFoundError("Failed to retrieve model artifact path.")
 
