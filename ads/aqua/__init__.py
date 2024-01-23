@@ -5,7 +5,6 @@
 
 
 from ads.aqua.model import AquaModelApp
-from ads.aqua.deployment import AquaDeployment
 from ads.aqua.job import AquaFineTuningApp
 from ads.aqua.deployment import AquaDeploymentApp
 
@@ -14,6 +13,5 @@ class AquaCommand:
     """Contains the command groups for project Aqua."""
 
     model = AquaModelApp
-    deployment = AquaDeployment
     fine_tuning = AquaFineTuningApp
     deployment = AquaDeploymentApp
