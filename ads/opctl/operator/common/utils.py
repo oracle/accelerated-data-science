@@ -26,6 +26,22 @@ class OperatorValidator(Validator):
     pass
 
 
+def create_output_folder(name):
+    output_folder = name
+    protocol = fsspec.utils.get_protocol(output_folder)
+    storage_options = {}
+    if protocol != "file":
+        storage_options = auth or default_signer()
+
+    fs = fsspec.filesystem(protocol, **storage_options)
+    name_suffix = 1
+    while fs.exists(output_folder):
+        name_suffix = name_suffix + 1
+        output_folder = f"{name}_{name_suffix}"
+    fs.mkdirs(output_folder)
+    return output_folder
+
+
 def _build_image(
     dockerfile: str,
     image_name: str,
@@ -156,3 +172,23 @@ def default_signer(**kwargs):
     from ads.common.auth import default_signer
 
     return default_signer(**kwargs)
+
+
+def human_time_friendly(seconds):
+    TIME_DURATION_UNITS = (
+        ("week", 60 * 60 * 24 * 7),
+        ("day", 60 * 60 * 24),
+        ("hour", 60 * 60),
+        ("min", 60),
+    )
+    if seconds == 0:
+        return "inf"
+    accumulator = []
+    for unit, div in TIME_DURATION_UNITS:
+        amount, seconds = divmod(float(seconds), div)
+        if amount > 0:
+            accumulator.append(
+                "{} {}{}".format(int(amount), unit, "" if amount == 1 else "s")
+            )
+    accumulator.append("{} secs".format(round(seconds, 2)))
+    return ", ".join(accumulator)

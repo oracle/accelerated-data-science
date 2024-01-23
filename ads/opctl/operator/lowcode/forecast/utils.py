@@ -528,26 +528,6 @@ def get_forecast_plots(
     return _select_plot_list(plot_forecast_plotly, target_columns, original_target_column)
 
 
-def human_time_friendly(seconds):
-    TIME_DURATION_UNITS = (
-        ("week", 60 * 60 * 24 * 7),
-        ("day", 60 * 60 * 24),
-        ("hour", 60 * 60),
-        ("min", 60),
-    )
-    if seconds == 0:
-        return "inf"
-    accumulator = []
-    for unit, div in TIME_DURATION_UNITS:
-        amount, seconds = divmod(float(seconds), div)
-        if amount > 0:
-            accumulator.append(
-                "{} {}{}".format(int(amount), unit, "" if amount == 1 else "s")
-            )
-    accumulator.append("{} secs".format(round(seconds, 2)))
-    return ", ".join(accumulator)
-
-
 def select_auto_model(
     datasets: "ForecastDatasets", operator_config: ForecastOperatorConfig
 ) -> str:

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from darts import datasets as d_datasets
@@ -183,10 +183,10 @@ def test_load_datasets(model, dataset_name):
 @pytest.mark.parametrize("model", MODELS)
 def test_rossman(model):
     curr_dir = pathlib.Path(__file__).parent.resolve()
-    data_folder = f"{curr_dir}/data/"
-    historical_data_path = f"{curr_dir}/data/rs_10_prim.csv"
-    additional_data_path = f"{curr_dir}/data/rs_10_add.csv"
-    test_data_path = f"{curr_dir}/data/rs_10_test.csv"
+    data_folder = f"{curr_dir}/../data/"
+    historical_data_path = f"{data_folder}/rs_10_prim.csv"
+    additional_data_path = f"{data_folder}/rs_10_add.csv"
+    test_data_path = f"{data_folder}/rs_10_test.csv"
 
     with tempfile.TemporaryDirectory() as tmpdirname:
         output_data_path = f"{tmpdirname}/results"

@@ -177,6 +177,11 @@ forecast = [
   "statsmodels",
   "plotly",
 ]
+anomaly  = [
+  "tods @ git+https://github.com/datamllab/tods.git",
+  "autots",
+  "oracle-automlx[anomaly]==23.2.3",
+]
 pii = [
   "aiohttp",
   "datapane",

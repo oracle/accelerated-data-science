@@ -19,18 +19,18 @@ version:
 type:
   required: true
   type: string
-  default: forecast
+  default: anomaly
   meta:
-    description: "Type should always be `forecast` when using a forecast operator"
+    description: "Type should always be `anomaly` when using a anomaly detection operator"
 
 spec:
   required: true
   schema:
-    historical_data:
+    input_data:
       required: true
       type: dict
       meta:
-        description: "This should be indexed by date and target category (optionally). It should include all targets and endogeneous data."
+        description: "The input data."
       schema:
         format:
           allowed:
@@ -62,42 +62,58 @@ spec:
           required: false
           type: integer
 
-    additional_data:
-      required: false
+    datetime_column:
       type: dict
-      meta:
-        description: "Additional datasets must be indexed by the same targets and target categories as the historical data. Also is must have datapoints for each date/category for your horizon. This must be exogeneous data."
+      required: true
       schema:
+        name:
+          type: string
+          required: true
+          default: Date
         format:
+          type: string
+          required: false
+
+    test_data:
+      required: false
+      meta:
+        description: "Optional, only if evaluation is needed."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          required: false
+          type: string
           allowed:
             - csv
             - json
             - clipboard
             - excel
             - hdf
-            - feather
-            - load_files
-          required: false
-          type: string
+            - sql
         columns:
           required: false
           type: list
           schema:
             type: string
+        url:
+          required: true
+          type: string
+          default: test.csv
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        name:
+          required: false
+          type: string
         options:
           nullable: true
           required: false
           type: dict
-        url:
-          required: false
-          type: string
-          meta:
-            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
-        limit:
-          required: false
-          type: integer
+      type: dict
 
-    test_data:
+    validation_data:
       required: false
       meta:
         description: "Optional, only if evaluation is needed."
@@ -190,18 +206,12 @@ spec:
       default: metrics.csv
       meta:
         description: "Placed into output_directory location. Defaults to metrics.csv"
-    test_metrics_filename:
+    validation_metrics_filename:
       required: false
       type: string
-      default: test_metrics.csv
+      default: validation_metrics.csv
       meta:
         description: "Placed into output_directory location. Defaults to test_metrics.csv"
-    forecast_filename:
-      required: false
-      type: string
-      default: forecast.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to forecast.csv"
     global_explanation_filename:
       required: false
       type: string
@@ -215,33 +225,12 @@ spec:
       meta:
         description: "Placed into output_directory location. Defaults to local_explanations.csv"
 
-    target_column:
-      type: string
-      required: true
-      default: target
-
-    preprocessing:
-      type: boolean
-      required: false
-      default: true
-      meta:
-        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
-
     generate_explanations:
       type: boolean
       required: false
       default: false
       meta:
         description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
-
-    explanations_accuracy_mode:
-      type: string
-      required: false
-      default: FAST_APPROXIMATE
-      allowed:
-        - HIGH_ACCURACY
-        - BALANCED
-        - FAST_APPROXIMATE
 
     generate_report:
       type: boolean
@@ -257,17 +246,20 @@ spec:
       meta:
         description: "Metrics files generation can be enabled using this flag. Defaults to true."
 
-    datetime_column:
-      type: dict
+    generate_inliers:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "Generates inliers.csv"
+
+
+    target_column:
+      type: string
       required: true
-      schema:
-        name:
-          type: string
-          required: true
-          default: Date
-        format:
-          type: string
-          required: false
+      default: target
+      meta:
+        description: "Identifier column for the series in the dataset"
 
     target_category_columns:
       type: list
@@ -275,61 +267,59 @@ spec:
       schema:
         type: string
       default: ["Column1"]
-
-    horizon:
-      required: true
-      type: integer
-      default: 1
+      meta:
+        description: "Column [list] to be used to model for anomaly detection"
 
     model:
       type: string
-      required: false
-      default: auto
+      required: true
+      default: automlx
       allowed:
-        - prophet
-        - arima
-        - neuralprophet
         - automlx
+        - tods
         - autots
         - auto
+      meta:
+        description: "The model to be used for anomaly detection"
 
     model_kwargs:
       type: dict
       required: false
 
-    previous_output_dir:
-      type: string
-      required: false
-
-    generate_model_parameters:
+    preprocessing:
       type: boolean
       required: false
+      default: true
+      meta:
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
-    generate_model_pickle:
-      type: boolean
-      required: false
-
-    confidence_interval_width:
+    time_budget:
       type: float
       required: false
-      default: 0.80
+      default: 0
+      meta:
+        description: "Time budget for optimization in seconds, defaults to 0 which means no limit & optimization continues till convergence."
 
-    tuning:
-      type: dict
+    training_ratio:
+      type: float
       required: false
-      schema:
-        n_trials:
-          type: integer
-          required: false
-          default: 10
+      default: 0.7
+      meta:
+        description: "Ratio of data to be used for training, rest of the data is used for validation. defaults to 0.7"
+
+    false_alarm_ratio:
+      type: float
+      required: false
+      default: 0.01
+      meta:
+        description: "False alarm ratio is the ratio of the expected anomaly in the train dataset, defaults to 0.01"
 
     metric:
       type: string
       required: false
-      default: MAPE
+      default: F1_MACRO
       allowed:
-        - MAPE
-        - RMSE
-        - MSE
-        - SMAPE
+        - F1_MACRO
+        - unsupervised_unify95
+        - unsupervised_unify95_log_loss
   type: dict
