@@ -17,7 +17,8 @@ class AquaApp:
     """Base Aqua App to contain common components."""
 
     def __init__(self) -> None:
-        self.client = oci.data_science.DataScienceClient(**default_signer())
+        self._auth = default_signer()
+        self.client = oci.data_science.DataScienceClient(**self._auth)
 
     def list_resource(
         self,
