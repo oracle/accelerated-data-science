@@ -47,7 +47,7 @@ class AquaModel(AquaModelSummary):
     is_fine_tuned_model: bool
 
 
-class AquaModelApp:
+class AquaModelApp(AquaApp):
     """Contains APIs for Aqua model.
 
     Attributes
