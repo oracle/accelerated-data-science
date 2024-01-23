@@ -21,18 +21,15 @@ class AquaApp:
 
     def list_resource(
         self,
-        compartment_id: str = None,
+        list_func_ref: function,
+        **kwargs,
     ) -> List[dict]:
         """Generic method to list OCI Data Science resources.
 
         Parameters
         ----------
-        compartment_id : str
-            Compartment ID of the OCI resources. Defaults to None.
-            If compartment_id is not specified,
-            the value of NB_SESSION_COMPARTMENT_OCID in environment variable will be used.
-        limit : int
-            The maximum number of items to return. Defaults to 0, All items will be returned
+        list_func_ref : function
+            A reference to the list operation which will be called.
         **kwargs :
             Additional keyword arguments to filter the resource.
             The kwargs are passed into OCI API.
@@ -40,25 +37,16 @@ class AquaApp:
         Returns
         -------
         list
-            A list of OCI resources
-
-        Raises
-        ------
-        NotImplementedError
-            List method is not supported or implemented.
-
+            A list of OCI Data Science resources.
         """
         try:
-            # https://docs.oracle.com/en-us/iaas/tools/python-sdk-examples/2.118.1/datascience/list_models.py.html
-            # list_call_get_all_results
             items = oci.pagination.list_call_get_all_results(
-                self._find_oci_method("list"),
-                self.check_compartment_id(compartment_id),
+                list_func_ref,
                 **kwargs,
             ).data
 
             return items
         except Exception as e:
             # show opc-request-id and status code
-            logger.error(f"Failing to retreive models in the given compartment. {e}")
+            logger.error(f"Failing to retreive resources in the given compartment. {e}")
             return []
