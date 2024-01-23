@@ -22,7 +22,7 @@ class AquaApp:
 
     def list_resource(
         self,
-        list_func_ref: function,
+        list_func_ref,
         **kwargs,
     ) -> List[dict]:
         """Generic method to list OCI Data Science resources.

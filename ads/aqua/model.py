@@ -137,26 +137,31 @@ class AquaModelApp(AquaApp):
                             project_id=model.project_id,
                             time_created=model.time_created,
                             icon=icon,
-                            task=model.freeform_tags.get(Tags.TASK, UNKNOWN),
-                            license=model.freeform_tags.get(Tags.LICENSE, UNKNOWN),
+                            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                            license=model.freeform_tags.get(
+                                Tags.LICENSE.value, UNKNOWN
+                            ),
                             organization=model.freeform_tags.get(
-                                Tags.ORGANIZATION, UNKNOWN
+                                Tags.ORGANIZATION.value, UNKNOWN
                             ),
                             is_fine_tuned_model=True
-                            if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
+                            if model.freeform_tags.get(
+                                Tags.AQUA_FINE_TUNED_MODEL_TAG.value
+                            )
                             else False,
                         )
                     )
         return aqua_models
 
-    def _if_show(model: "ModelSummary") -> bool:
+    def _if_show(self, model: "ModelSummary") -> bool:
         """Determine if the given model should be return by `list`."""
-        if not model.freeform_tags.contains(Tags.AQUA_TAG):
+        TARGET_TAGS = model.freeform_tags.keys()
+        if not Tags.AQUA_TAG.value in TARGET_TAGS:
             return False
 
         return (
             True
-            if model.freeform_tags.contains(Tags.AQUA_SERVICE_MODEL_TAG)
-            or model.freeform_tags.contains(Tags.AQUA_FINE_TUNED_MODEL_TAG)
+            if Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS
+            or Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS
             else False
         )
