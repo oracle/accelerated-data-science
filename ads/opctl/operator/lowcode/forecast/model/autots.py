@@ -137,10 +137,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                     columns="series_id",
                     values=list(
                         self.original_additional_data.set_index(
-                            [
-                                self.spec.target_category_columns[0],
-                                self.spec.datetime_column.name,
-                            ]
+                            self.spec.target_category_columns + [self.spec.datetime_column.name]
                         ).columns
                     ),
                 ),
