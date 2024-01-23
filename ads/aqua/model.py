@@ -14,6 +14,7 @@ from ads.aqua.base import AquaApp
 logger = logging.getLogger(__name__)
 
 ICON_FILE_NAME = "icon.txt"
+UNKNOWN = "Unknown"
 
 
 class Tags(Enum):
@@ -34,7 +35,7 @@ class AquaModelSummary:
     compartment_id: str
     project_id: str
     time_created: int
-    icon: str = None
+    icon: str
     task: str
     license: str
     organization: str
@@ -130,9 +131,11 @@ class AquaModelApp(AquaApp):
                             project_id=model.project_id,
                             time_created=model.time_created,
                             icon=icon,
-                            task=model.freeform_tags.get(Tags.TASK),
-                            license=model.freeform_tags.get(Tags.LICENSE),
-                            organization=model.freeform_tags.get(Tags.ORGANIZATION),
+                            task=model.freeform_tags.get(Tags.TASK, UNKNOWN),
+                            license=model.freeform_tags.get(Tags.LICENSE, UNKNOWN),
+                            organization=model.freeform_tags.get(
+                                Tags.ORGANIZATION, UNKNOWN
+                            ),
                             is_fine_tuned_model=True
                             if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG)
                             else False,
