@@ -14,6 +14,7 @@ from copy import deepcopy
 from pathlib import Path
 import random
 import pathlib
+import datetime
 
 
 DATASETS_LIST = [
@@ -180,16 +181,15 @@ def test_load_datasets(model, dataset_name):
         return test_metrics.iloc[0][f"{columns[0]}_A"]
 
 
-@pytest.mark.parametrize("model", MODELS)
-def test_rossman(model):
-    curr_dir = pathlib.Path(__file__).parent.resolve()
-    data_folder = f"{curr_dir}/../data/"
-    historical_data_path = f"{data_folder}/rs_10_prim.csv"
-    additional_data_path = f"{data_folder}/rs_10_add.csv"
-    test_data_path = f"{data_folder}/rs_10_test.csv"
-
+def run_operator(
+    historical_data_path,
+    additional_data_path,
+    test_data_path,
+    generate_train_metrics=True,
+    output_data_path=None,
+):
     with tempfile.TemporaryDirectory() as tmpdirname:
-        output_data_path = f"{tmpdirname}/results"
+        output_data_path = output_data_path or f"{tmpdirname}/results"
         yaml_i = deepcopy(TEMPLATE_YAML)
         generate_train_metrics = True
 
@@ -224,6 +224,67 @@ def test_rossman(model):
         print(test_metrics)
         train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
         print(train_metrics)
+
+
+parameters_datetime = []
+DATETIME_FORMATS_TO_TEST = [
+    ["%Y", datetime.timedelta()],
+    [
+        "%y",
+    ],
+    [
+        "%b-%d-%Y",
+    ],
+    [
+        "%d-%m-%y",
+    ],
+    [
+        "%d/%m/%y %H:%M:%S",
+    ],
+]
+
+for dt_format in DATETIME_FORMATS_TO_TEST:
+    for model in MODELS:
+        parameters_datetime.append((model, dt_format))
+
+
+@pytest.mark.parametrize("model, dt_format", parameters_datetime)
+def test_datetime_formats(model=model, dt_format=dt_format):
+    curr_dir = pathlib.Path(__file__).parent.resolve()
+    data_folder = f"{curr_dir}/../data/"
+    np.arrange((1000, 12))
+    d1 = np.random.multivariate_normal(
+        mean=np.array([-0.5, 0, 2]),
+        cov=np.array([[1, 0, 0.5], [0, 1, 0.7], [0.5, 0.7, 1]]),
+        size=len,
+    )
+    now = datetime.datetime.now()
+    now_formatted = now.strftime(dt_format)
+
+    historical_data_path = f"{data_folder}/rs_10_prim.csv"
+    additional_data_path = f"{data_folder}/rs_10_add.csv"
+    test_data_path = f"{data_folder}/rs_10_test.csv"
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_data_path = f"{tmpdirname}/results"
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        generate_train_metrics = True
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_rossman(model):
+    curr_dir = pathlib.Path(__file__).parent.resolve()
+    data_folder = f"{curr_dir}/../data/"
+    historical_data_path = f"{data_folder}/rs_10_prim.csv"
+    additional_data_path = f"{data_folder}/rs_10_add.csv"
+    test_data_path = f"{data_folder}/rs_10_test.csv"
+    generate_train_metrics = True
+    run_operator(
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+        test_data_path=test_data_path,
+        generate_train_metrics=generate_train_metrics,
+    )
 
 
 if __name__ == "__main__":
