@@ -227,7 +227,7 @@ class ForecastOperatorBaseModel(ABC):
                             ),
                             dp.Text(
                                 "The following report compares a variety of metrics and plots "
-                                f"for your target columns: \n {md_columns}.\n",
+                                f"for your target columns: \n * {md_columns}.\n",
                                 label="Target Columns",
                             ),
                         ]
