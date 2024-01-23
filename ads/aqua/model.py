@@ -60,11 +60,11 @@ class AquaModelApp(AquaApp):
         """Gets the information of an Aqua model."""        
         return AquaModel(
             **{
-                "compartment_id": "ocid1.compartment.oc1..aaaaaaaaktvnqqbjs6tiwhoy7vfgjnikzz6gz322sg3nxqmvyyv4h4sokxia",
-                "project_id": "ocid1.datascienceproject.oc1.eu-frankfurt-1.amaaaaaay75uckqaxkxeqtztujrlwjxh3fdywnjvlidbwdhue3jik2bq4elq",
-                "created_by": "ocid1.user.oc1..aaaaaaaaodynsttry7fz5xttwsogkeegy55qrrmyshxehogqlureuahe4ala",
+                "compartment_id": "ocid1.compartment.oc1..xxxx",
+                "project_id": "ocid1.datascienceproject.oc1.eu-frankfurt-1.xxxx",
+                "created_by": "ocid1.user.oc1..xxxx",
                 "display_name": "codellama/CodeLlama-7b-Instruct-hf",
-                "id": "ocid1.datasciencemodel.oc1.eu-frankfurt-1.amaaaaaay75uckqalphbxlkaxzncdkun5c67gnmpqzd6wdjfgaydbuuqzlka",
+                "id": "ocid1.datasciencemodel.oc1.eu-frankfurt-1.xxxx",
                 "lifecycle_state": "ACTIVE",
                 "time_created": "2024-01-08T22:45:42.443000+00:00",
                 "icon": "The icon of the model",
