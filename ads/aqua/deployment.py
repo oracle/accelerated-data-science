@@ -5,14 +5,24 @@
 
 import logging
 from typing import List, Dict
+
+from dataclasses import dataclass
 from ads.aqua.base import AquaApp
+from ads.config import COMPARTMENT_OCID
+from ads.model.deployment.model_deployment import ModelDeployment
 
 
 logger = logging.getLogger(__name__)
 
-
+@dataclass
 class AquaDeployment:
     """Represents an Aqua Model Deployment"""
+    display_name: str
+    aqua_service_model: str
+    state: str
+    description: str
+    created_on: str
+    created_by: str
 
 
 class AquaDeploymentApp(AquaApp):
@@ -39,7 +49,18 @@ class AquaDeploymentApp(AquaApp):
         pass
 
     def list(self, **kwargs) -> List["AquaDeployment"]:
-        pass
+        return [
+            AquaDeployment(
+                **{
+                    "display_name": f"aqua model deployment {i}",
+                    "aqua_service_model": f"aqua service model {i}",
+                    "state": "ACTIVE" if i%2==0 else "FAILED",
+                    "description": "test description",
+                    "created_on": "test created on",
+                    "created_by": "test created by"
+                }
+            ) for i in range(8)
+        ]
 
     def clone(self, **kwargs) -> "AquaDeployment":
         pass
