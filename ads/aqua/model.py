@@ -34,17 +34,18 @@ class AquaModelSummary:
     compartment_id: str
     project_id: str
     time_created: int
+    icon: str = None
+    task: str
+    license: str
+    organization: str
+    is_fine_tuned_model: bool
 
 
 @dataclass
 class AquaModel(AquaModelSummary):
     """Represents an Aqua model."""
 
-    icon: str = None
-    task: str
-    license: str
-    organization: str
-    is_fine_tuned_model: bool
+    model_card: str
 
 
 class AquaModelApp(AquaApp):
@@ -103,24 +104,26 @@ class AquaModelApp(AquaApp):
 
         aqua_models = []
         for model in models:  # ModelSummary
-            if model.freeform_tags.contains(
-                Tags.AQUA_TAG
-            ) and not model.freeform_tags.contains(Tags.AQUA_SERVICE_MODEL_TAG):
+            if self._if_show(model):
+                # TODO: need to update after model by reference release
+                artifact_path = ""
                 custom_metadata_list = self.client.get_model(
                     model.id
                 ).custom_metadata_list
 
                 for custom_metadata in custom_metadata_list:
                     if custom_metadata.key == "Object Storage Path":
-                        os_path = custom_metadata.value
+                        artifact_path = custom_metadata.value
                         break
+                if not artifact_path:
+                    raise FileNotFoundError("Failed to retrieve model artifact path.")
 
                 with fsspec.open(
-                    f"{os_path}/{ICON_FILE_NAME}", "rb", **self._auth
+                    f"{artifact_path}/{ICON_FILE_NAME}", "rb", **self._auth
                 ) as f:
                     icon = f.read()
                     aqua_models.append(
-                        AquaModel(
+                        AquaModelSummary(
                             name=model.display_name,
                             id=model.id,
                             compartment_id=model.compartment_id,
@@ -136,3 +139,15 @@ class AquaModelApp(AquaApp):
                         )
                     )
         return aqua_models
+
+    def _if_show(model: "ModelSummary") -> bool:
+        """Determine if the given model should be return by `list`."""
+        if not model.freeform_tags.contains(Tags.AQUA_TAG):
+            return False
+
+        return (
+            True
+            if model.freeform_tags.contains(Tags.AQUA_SERVICE_MODEL_TAG)
+            or model.freeform_tags.contains(Tags.AQUA_FINE_TUNED_MODEL_TAG)
+            else False
+        )
