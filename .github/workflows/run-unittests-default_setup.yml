@@ -3,7 +3,6 @@ name: "[Py3.8][Py3.9][Py3.10] tests/unitary/default_setup/**"
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
   pull_request:
     types: [opened, reopened]
     branches: [ "main" ]
