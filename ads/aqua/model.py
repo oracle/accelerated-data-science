@@ -7,6 +7,8 @@ import logging
 import fsspec
 from dataclasses import dataclass
 from typing import List
+from enum import Enum
+from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,7 @@ class AquaModelSummary:
     license: str
     organization: str
     is_fine_tuned_model: bool
+
 
 @dataclass
 class AquaModel(AquaModelSummary):
@@ -104,16 +107,14 @@ This model is released under the MIT License.
             **{
                 "compartment_id": "ocid1.compartment.oc1..xxxx",
                 "project_id": "ocid1.datascienceproject.oc1.eu-frankfurt-1.xxxx",
-                "created_by": "ocid1.user.oc1..xxxx",
-                "display_name": "codellama/CodeLlama-7b-Instruct-hf",
+                "name": "codellama/CodeLlama-7b-Instruct-hf",
                 "id": "ocid1.datasciencemodel.oc1.eu-frankfurt-1.xxxx",
-                "lifecycle_state": "ACTIVE",
                 "time_created": "2024-01-08T22:45:42.443000+00:00",
                 "icon": "The icon of the model",
                 "task": "text_generation",
                 "license": "Apache 2.0",
                 "organization": "Meta AI",
-                "is_fine_tuned": False,
+                "is_fine_tuned_model": False,
                 "model_card": model_card
             }
         )
