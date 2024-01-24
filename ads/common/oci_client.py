@@ -51,7 +51,9 @@ class OCIClientFactory:
     oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
 
-    def __init__(self, config=(), signer=None, client_kwargs=None):
+    def __init__(self, config=None, signer=None, client_kwargs=None):
+        if not config:
+            config = {}
         self.config = config
         self.signer = signer
         self.client_kwargs = client_kwargs
