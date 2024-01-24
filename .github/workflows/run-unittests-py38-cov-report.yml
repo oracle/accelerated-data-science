@@ -2,6 +2,8 @@ name: "[Py3.8][COV REPORT] tests/unitary/**"
 
 on:
   workflow_dispatch:
+  push:
+    branches: [ "main" ]
   pull_request:
     types: [opened, reopened]
     branches: [ "main" ]
