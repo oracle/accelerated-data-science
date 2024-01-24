@@ -1,0 +1,13 @@
+type: feature_store_marketplace
+version: v1
+name: Feature store deployment Operator
+gpu: no
+keywords:
+  - Helm
+  - marketplace
+  - Feature store
+backends:
+  - marketplace
+description: |
+  Feature store deployment operator helps ease the operational burden of deploying feature store helm charts from marketplace
+  to OKE cluster of your choice!!

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -21,7 +21,6 @@ from ads.feature_store.common.enums import (
     ExpectationType,
     EntityType,
     StreamingIngestionMode,
-    IngestionType,
     BatchIngestionMode,
 )
 from ads.feature_store.common.exceptions import (
@@ -69,7 +68,6 @@ except ModuleNotFoundError:
     )
 except Exception as e:
     raise
-from pyspark.sql import DataFrame
 
 logger = logging.getLogger(__name__)
 
@@ -967,10 +965,7 @@ class FeatureGroup(Builder):
             timeout: Only relevant in combination with `await_termination=True`.
                 Defaults to `None`.
             checkpoint_dir: Checkpoint directory location. This will be used to as a reference to
-                from where to resume the streaming job. If `None` then hsfs will construct as
-                "insert_stream_" + online_topic_name. Defaults to `None`.
-                write_options: Additional write options for Spark as key-value pairs.
-                Defaults to `{}`.
+                from where to resume the streaming job.
 
         # Returns
             `StreamingQuery`: Spark Structured Streaming Query object.

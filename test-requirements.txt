@@ -7,3 +7,4 @@ pip
 pytest
 pytest-cov
 pytest-xdist
+kubernetes

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import configparser
@@ -11,6 +11,9 @@ from typing import Dict, List, Union
 import click
 import fsspec
 import yaml
+from ads.opctl.backend.marketplace.local_marketplace import (
+    LocalMarketplaceOperatorBackend,
+)
 
 import ads
 from ads.common.auth import AuthContext, AuthType
@@ -102,6 +105,7 @@ class _BackendFactory:
         BACKEND_NAME.PIPELINE.value: PipelineBackend,
         BACKEND_NAME.MODEL_DEPLOYMENT.value: ModelDeploymentBackend,
         BACKEND_NAME.OPERATOR_LOCAL.value: LocalOperatorBackend,
+        BACKEND_NAME.MARKETPLACE.value: LocalMarketplaceOperatorBackend,
     }
 
     LOCAL_BACKENDS_MAP = {

@@ -71,7 +71,9 @@ jobs:
       - name: "Install Forecasting dependencies"
         run: |
           pip install -e ".[forecast]"
-
+      - name: "Install featurestore marketplace dependencies"
+        run: |
+          pip install -e ".[feature-store-marketplace]"
       - name: "Run unitary tests folder with maximum ADS dependencies"
         timeout-minutes: 40
         shell: bash

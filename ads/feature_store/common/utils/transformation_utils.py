@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import json
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
@@ -52,9 +56,7 @@ class TransformationUtils:
         # Execute the function under namespace
         execution_namespace = {}
         exec(transformation_function, execution_namespace)
-        transformation_function_caller = execution_namespace.get(
-            transformation.display_name
-        )
+        transformation_function_caller = execution_namespace.get(transformation.name)
         transformed_data = None
 
         transformation_kwargs_dict = json.loads(transformation_kwargs)
