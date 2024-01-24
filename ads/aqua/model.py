@@ -3,34 +3,48 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
 import logging
+import fsspec
 from dataclasses import dataclass
 from typing import List
 from ads.aqua.base import AquaApp
 
 logger = logging.getLogger(__name__)
 
+ICON_FILE_NAME = "icon.txt"
+UNKNOWN = "Unknown"
+
+
+class Tags(Enum):
+    TASK = "task"
+    LICENSE = "license"
+    ORGANIZATION = "organization"
+    AQUA_TAG = "OCI_AQUA"
+    AQUA_SERVICE_MODEL_TAG = "aqua_service_model"
+    AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
+
+
 @dataclass
 class AquaModelSummary:
     """Represents a summary of Aqua model."""
+
+    name: str
     id: str
     compartment_id: str
     project_id: str
-    created_by: str
-    display_name: str
-    lifecycle_state: str
-    time_created: str
+    time_created: int
+    icon: str
     task: str
     license: str
     organization: str
-    is_fine_tuned: bool
-    model_card: str
+    is_fine_tuned_model: bool
 
 @dataclass
 class AquaModel(AquaModelSummary):
     """Represents an Aqua model."""
-    icon: str = None
+
+    model_card: str
+
 
 class AquaModelApp(AquaApp):
     """Contains APIs for Aqua model.
@@ -104,9 +118,91 @@ This model is released under the MIT License.
             }
         )
 
-    def list(self, compartment_id, project_id=None, **kwargs) -> List["AquaModelSummary"]:
-        """Lists Aqua models."""
-        return [
-            AquaModel(id=f"ocid{i}", compartment_id=compartment_id, project_id=project_id)
-            for i in range(5)
-        ]
+    def list(
+        self, compartment_id: str = None, project_id: str = None, **kwargs
+    ) -> List["AquaModelSummary"]:
+        """List Aqua models in a given compartment and under certain project.
+
+        Parameters
+        ----------
+        compartment_id: (str, optional). Defaults to `None`.
+            The compartment OCID.
+        project_id: (str, optional). Defaults to `None`.
+            The project OCID.
+        kwargs
+            Additional keyword arguments for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+
+        Returns
+        -------
+        List[dict]:
+            The list of the Aqua models.
+        """
+        compartment_id = compartment_id or COMPARTMENT_OCID
+        kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
+
+        models = self.list_resource(self.client.list_models, **kwargs)
+
+        aqua_models = []
+        for model in models:  # ModelSummary
+            if self._if_show(model):
+                # TODO: need to update after model by reference release
+                artifact_path = ""
+                try:
+                    custom_metadata_list = self.client.get_model(
+                        model.id
+                    ).data.custom_metadata_list
+                except Exception as e:
+                    # show opc-request-id and status code
+                    logger.error(f"Failing to retreive model information. {e}")
+                    return []
+
+                for custom_metadata in custom_metadata_list:
+                    if custom_metadata.key == "Object Storage Path":
+                        artifact_path = custom_metadata.value
+                        break
+
+                if not artifact_path:
+                    raise FileNotFoundError("Failed to retrieve model artifact path.")
+
+                with fsspec.open(
+                    f"{artifact_path}/{ICON_FILE_NAME}", "rb", **self._auth
+                ) as f:
+                    icon = f.read()
+                    aqua_models.append(
+                        AquaModelSummary(
+                            name=model.display_name,
+                            id=model.id,
+                            compartment_id=model.compartment_id,
+                            project_id=model.project_id,
+                            time_created=model.time_created,
+                            icon=icon,
+                            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                            license=model.freeform_tags.get(
+                                Tags.LICENSE.value, UNKNOWN
+                            ),
+                            organization=model.freeform_tags.get(
+                                Tags.ORGANIZATION.value, UNKNOWN
+                            ),
+                            is_fine_tuned_model=True
+                            if model.freeform_tags.get(
+                                Tags.AQUA_FINE_TUNED_MODEL_TAG.value
+                            )
+                            else False,
+                        )
+                    )
+        return aqua_models
+
+    def _if_show(self, model: "ModelSummary") -> bool:
+        """Determine if the given model should be return by `list`."""
+        TARGET_TAGS = model.freeform_tags.keys()
+        if not Tags.AQUA_TAG.value in TARGET_TAGS:
+            return False
+
+        return (
+            True
+            if (
+                Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS
+                or Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS
+            )
+            else False
+        )
