@@ -112,7 +112,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: test
-    if: ${{ success() }} && && github.event_name == 'pull_request'
+    if: ${{ success() }} && github.event_name == 'pull_request'
     env:
       COMPARE_BRANCH: main
 
