@@ -5,9 +5,9 @@ Transformations in a Feature Store refer to the operations and processes applied
 
 .. image:: figures/transformation.png
 
-* ``TransformationMode.PANDAS``: Pandas Transformation lets users to do the transformation using native pandas functionality.
-* ``TransformationMode.SQL``: Spark SQL brings native support for SQL to Spark. Users generally can give the spark transformation that they wish to do using spark SQL.
-* ``TransformationMode.SPARK``: Spark Transformation lets users to do the transformation using native spark functionality.
+* ``TransformationMode.PANDAS``: Pandas Transformation lets users to do the transformation using native pandas functionality. The interface expects ``PANDAS`` dataframe as input and ``PANDAS`` dataframe as output.
+* ``TransformationMode.SQL``: Spark SQL brings native support for SQL to Spark. Users generally can give the spark transformation that they wish to do using spark SQL. The interface expects ``SPARK`` dataframe as input and ``SQL STRING`` as output.
+* ``TransformationMode.SPARK``: Spark Transformation lets users to do the transformation using native spark functionality. The interface expects ``SPARK`` dataframe as input and ``SPARK`` dataframe as output.
 
 .. tabs::
 
