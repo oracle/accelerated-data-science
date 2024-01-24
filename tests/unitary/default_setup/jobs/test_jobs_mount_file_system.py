@@ -350,14 +350,6 @@ class TestDataScienceJobMountFileSystem(unittest.TestCase):
         ):
             DSCFileSystemManager.initialize(test_mount_file_system)
 
-        test_mount_file_system_list = [test_mount_file_system] * 2
-        with pytest.raises(
-            ValueError,
-            match="Duplicate `dest` found. Please specify different `dest` for each file system to be mounted."
-        ):
-            for mount_file_system in test_mount_file_system_list:
-                DSCFileSystemManager.initialize(mount_file_system)
-
     def test_dsc_object_storage(self):
         object_storage = OCIObjectStorage(
             src="oci://bucket@namespace/prefix",

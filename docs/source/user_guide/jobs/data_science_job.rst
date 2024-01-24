@@ -85,6 +85,10 @@ to create the job on OCI. To start a job run, you can call the :py:meth:`~ads.jo
 which returns a :py:class:`~ads.jobs.DataScienceJobRun` instance.
 Once the job or job run is created, the job OCID can be accessed through ``job.id`` or ``run.id``.
 
+.. note::
+
+  Once a job is created, if you change the configuration, you will need to re-create a job for the new configuration.
+
 .. code-block:: python
 
   # Create the job on OCI Data Science
