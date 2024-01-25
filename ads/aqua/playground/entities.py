@@ -7,6 +7,7 @@
 import datetime
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
+from collections import defaultdict
 
 from ads.aqua.playground.const import MessageRate, Status
 
@@ -136,6 +137,8 @@ class Message(DataClassSerializable):
         Role of the message, based on the MessageRole enum.
     created: datetime.datetime
         Creation timestamp of the thread.
+    answers: List[Message]
+        List of system messages for the user message.
     """
 
     message_id: int = None
@@ -144,11 +147,12 @@ class Message(DataClassSerializable):
     thread_id: int = None
     content: str = None
     payload: Dict = None
-    model_params: Dict = None
+    model_params: VLLModelParams = field(default_factory=VLLModelParams)
     status: str = Status.ACTIVE
     rate: int = MessageRate.DEFAULT
     role: str = None
     created: datetime.datetime = None
+    answers: List["Message"] = field(default_factory=list)
 
     @classmethod
     def from_db_model(cls, data: MessageModel) -> "Message":
@@ -163,7 +167,8 @@ class Message(DataClassSerializable):
         Returns
         -------
         Message
-            The instance of the playground message.
+
+             The instance of the playground message.
         """
         return cls(
             message_id=data.id,
@@ -236,16 +241,32 @@ class Thread(DataClassSerializable):
         )
 
         if include_messages and data.messages:
-            obj.messages = [
+            # Assign the list of answers to the parent messages
+            messages = [
                 Message.from_db_model(data=message_model)
                 for message_model in data.messages
             ]
+
+            # Filter and return only root messages (those with parent_id == None)
+            result_messages = [msg for msg in messages if not msg.parent_message_id]
+
+            # Group messages by parent ID
+            message_map = defaultdict(list)
+            for msg in messages:
+                message_map[msg.parent_message_id].append(msg)
+
+            # Add child messages
+            for msg in result_messages:
+                msg.answers = message_map[msg.message_id]
+
+            obj.messages = result_messages
 
         return obj
 
 
 @dataclass(repr=False)
 class Session(DataClassSerializable):
+
     """
     Data class representing a session in the Aqua Playground.
 

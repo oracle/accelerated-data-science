@@ -15,7 +15,13 @@ from typing import Dict, List
 from ads.aqua import logger
 from ads.aqua.playground.const import MessageRole, Status
 from ads.aqua.playground.db_context import ObjectType, db_context
-from ads.aqua.playground.entities import SearchId, Session, Thread, VLLModelParams
+from ads.aqua.playground.entities import (
+    Message,
+    SearchId,
+    Session,
+    Thread,
+    VLLModelParams,
+)
 from ads.aqua.playground.errors import SessionNotFoundError
 from ads.common.decorator import require_nonempty_arg
 from ads.llm import ModelDeploymentVLLM
@@ -111,7 +117,7 @@ class SessionApp:
         """
 
         try:
-            session = self.get(id=model_id)
+            session = self.get(id=model_id, include_threads=True)
             logger.info(
                 "A Session with the provided model ID already exists. "
                 "Returning the existing session."
@@ -291,7 +297,7 @@ class ThreadApp:
         thread_id: int = None,
         session_id: int = None,
         model_params: Dict = None,
-    ):
+    ) -> Message:
         """
         Posts a message to the thread identified by the given ID.
         If session ID provided, then a new thread will be created.
@@ -308,6 +314,11 @@ class ThreadApp:
             Model parameters to be associated with the message.
 
             --model-params '{"max_tokens":500, "temperature": 0.5, "top_k": 10, "top_p": 0.5}'
+
+        Returns
+        -------
+        Message
+            The model response.
         """
         model_params = VLLModelParams.from_dict(
             model_params or {}, ignore_unknown=True
@@ -323,7 +334,7 @@ class ThreadApp:
         # get the session info by thread ID
         session_obj = SessionApp().get(id=thread.session_id, include_threads=False)
 
-        # Invoke the model
+        # invoke the model
         model_deployment = ModelDeploymentVLLM(
             endpoint=f"{session_obj.url.rstrip('/')}/predict", **model_params
         )
@@ -347,10 +358,7 @@ class ThreadApp:
         )
 
         # return the result
-        return [
-            user_message,
-            system_message,
-        ]
+        return system_message
 
 
 class PlaygroundApp:
