@@ -33,8 +33,8 @@ The following are brief descriptions of key concepts and the main components of 
         - Latest Version
       * - python
         - .. image:: https://img.shields.io/badge/python-3.8-blue?style=for-the-badge&logo=pypi&logoColor=white
-      * - fspyspark32_p38_cpu_v2
-        - .. image:: https://img.shields.io/badge/fspyspark32_p38_cpu_v2-1.0-blue?style=for-the-badge&logo=pypi&logoColor=white
+      * - fspyspark32_p38_cpu_v3
+        - .. image:: https://img.shields.io/badge/fspyspark32_p38_cpu_v3-1.0-blue?style=for-the-badge&logo=pypi&logoColor=white
       * - delta-spark
         - .. image:: https://img.shields.io/badge/delta-2.0.1-blue?style=for-the-badge&logo=pypi&logoColor=white
       * - pyspark

@@ -18,17 +18,17 @@ Release Notes
         - `fs_pyspark32_p38_cpu_v3`
         -
       * - ADS_VERSION
-        - oracle-ads==2.9.2
-        - `https://github.com/oracle/accelerated-data-science/releases/tag/v2.9.2`
+        - oracle-ads==2.10.0
+        - `https://github.com/oracle/accelerated-data-science/releases/tag/v2.10.0`
 
-Release notes: January 5, 2024
+Release notes: February 5, 2024
 
 * [FEATURE] Onboarding feature store to OCI marketplace
 * [MAINTENANCE] Upgrade to helidon based server
-* [MAINTENANCE] Upgrade of ``mlm`` version to ``1.0.3``
+* [MAINTENANCE] Upgrade of ``oracle-ml-insights`` version to ``1.0.4``
 * [UI] Addition of drift detection tab in UI
-* [CONDA] Release of feature store v2 conda pack ``fspyspark32_p38_cpu_v3``
-* [DOCS] Addition of examples to demonstrate Ci/Cd using ``Ml Jobs`` and ``OCI DataFlow``
+* [CONDA] Release of feature store v3 conda pack ``fspyspark32_p38_cpu_v3``
+* [DOCS] Addition of `examples <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/tutorials/README.md>`_ to demonstrate Ci/Cd using ``ML Jobs`` and ``OCI DataFlow``
 
 1.0.4
 -----
