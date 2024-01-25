@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from ads.aqua.base import AquaApp
 from ads.config import COMPARTMENT_OCID
 
+AQUA_SERVICE_MODEL = "aqua_service_model"
+
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,7 @@ class AquaDeploymentApp(AquaApp):
         return [
             AquaDeployment(
                 display_name=model_deployment.display_name,
-                aqua_service_model=model_deployment.model_deployment_configuration_details.model_configuration_details.model_id,
+                aqua_service_model=model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None),
                 state=model_deployment.lifecycle_state,
                 description=model_deployment.description,
                 created_on=str(model_deployment.time_created),
@@ -107,12 +109,12 @@ class AquaDeploymentApp(AquaApp):
             ).data
         except Exception as e:
             # show opc-request-id and status code
-            logger.error(f"Failing to retreive model deployment information. {e}")
+            logger.error(f"Failed to retreive model deployment information. {e}")
             return {}
 
         return {
             "display_name": model_deployment.display_name,
-            "aqua_service_model": model_deployment.model_deployment_configuration_details.model_configuration_details.model_id,
+            "aqua_service_model": model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None),
             "state": model_deployment.lifecycle_state,
             "description": model_deployment.description,
             "created_on": str(model_deployment.time_created),
