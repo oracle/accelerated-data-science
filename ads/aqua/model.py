@@ -74,50 +74,57 @@ class AquaModelApp(AquaApp):
         pass
 
     def get(self, model_id) -> "AquaModel":
-        """Gets the information of an Aqua model."""
-        model_card = """
-# Model Card: Dummy Text Generator
-## Description
-This is a simple dummy text generator model developed using Hugging Face's Transformers library. It generates random text based on a pre-trained language model.
-## Model Details
-- Model Name: DummyTextGenerator
-- Model Architecture: GPT-2
-- Model Size: 125M parameters
-- Training Data: Random text from the internet
-## Usage
-You can use this model to generate dummy text for various purposes, such as testing text processing pipelines or generating placeholder text for design mockups.
-Here's an example of how to use it in Python:
-```python
-from transformers import GPT2LMHeadModel, GPT2Tokenizer
-model_name = "dummy-text-generator"
-tokenizer = GPT2Tokenizer.from_pretrained(model_name)
-model = GPT2LMHeadModel.from_pretrained(model_name)
-prompt = "Once upon a time"
-input_ids = tokenizer.encode(prompt, return_tensors="pt")
-output = model.generate(input_ids, max_length=50, num_return_sequences=1, pad_token_id=tokenizer.eos_token_id)
-generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
-print(generated_text)
-```
-## Evaluation
-The model does not perform any meaningful text generation but can be used for basic testing purposes.
-## License
-This model is released under the MIT License.
-"""
-        return AquaModel(
-            **{
-                "compartment_id": "ocid1.compartment.oc1..xxxx",
-                "project_id": "ocid1.datascienceproject.oc1.eu-frankfurt-1.xxxx",
-                "name": "codellama/CodeLlama-7b-Instruct-hf",
-                "id": "ocid1.datasciencemodel.oc1.eu-frankfurt-1.xxxx",
-                "time_created": "2024-01-08T22:45:42.443000+00:00",
-                "icon": "The icon of the model",
-                "task": "text_generation",
-                "license": "Apache 2.0",
-                "organization": "Meta AI",
-                "is_fine_tuned_model": False,
-                "model_card": model_card
-            }
-        )
+        """Gets the information of an Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The model OCID.
+    
+        Returns
+        -------
+        AquaModel:
+            The instance of the Aqua model.
+        """
+        try:
+            oci_model = self.client.get_model(model_id).data
+        except Exception as e:
+            # show opc-request-id and status code
+            logger.error(f"Failing to retreive model information. {e}")
+            return None
+        
+        if not self._if_show(oci_model):
+            logger.info(f"Target model {oci_model.id} is not AQUA model. Skipped showing.")
+            return None
+        
+        custom_metadata_list = oci_model.custom_metadata_list
+        artifact_path = self._get_artifact_path(custom_metadata_list)
+
+        with fsspec.open(
+            f"{artifact_path}/{ICON_FILE_NAME}", "rb", **self._auth
+        ) as f:
+            icon = f.read()
+            return AquaModel(
+                compartment_id=oci_model.compartment_id,
+                project_id=oci_model.project_id,
+                name=oci_model.display_name,
+                id=oci_model.id,
+                time_created=oci_model.time_created,
+                icon=icon,
+                task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                license=oci_model.freeform_tags.get(
+                    Tags.LICENSE.value, UNKNOWN
+                ),
+                organization=oci_model.freeform_tags.get(
+                    Tags.ORGANIZATION.value, UNKNOWN
+                ),
+                is_fine_tuned_model=True
+                if oci_model.freeform_tags.get(
+                    Tags.AQUA_FINE_TUNED_MODEL_TAG.value
+                )
+                else False,
+                model_card="" #todo
+            )
 
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
@@ -147,7 +154,6 @@ This model is released under the MIT License.
         for model in models:  # ModelSummary
             if self._if_show(model):
                 # TODO: need to update after model by reference release
-                artifact_path = ""
                 try:
                     custom_metadata_list = self.client.get_model(
                         model.id
@@ -156,14 +162,8 @@ This model is released under the MIT License.
                     # show opc-request-id and status code
                     logger.error(f"Failing to retreive model information. {e}")
                     return []
-
-                for custom_metadata in custom_metadata_list:
-                    if custom_metadata.key == "Object Storage Path":
-                        artifact_path = custom_metadata.value
-                        break
-
-                if not artifact_path:
-                    raise FileNotFoundError("Failed to retrieve model artifact path.")
+                
+                artifact_path = self._get_artifact_path(custom_metadata_list)
 
                 with fsspec.open(
                     f"{artifact_path}/{ICON_FILE_NAME}", "rb", **self._auth
@@ -207,3 +207,22 @@ This model is released under the MIT License.
             )
             else False
         )
+    
+    def _get_artifact_path(self, custom_metadata_list: List) -> str:
+        """Get the artifact path from the custom metadata list of model.
+
+        Parameters
+        ----------
+        custom_metadata_list: List
+            A list of custom metadata of model.
+    
+        Returns
+        -------
+        str:
+            The artifact path from model.
+        """
+        for custom_metadata in custom_metadata_list:
+            if custom_metadata.key == "Object Storage Path":
+                return custom_metadata.value
+
+        raise FileNotFoundError("Failed to retrieve model artifact path from AQUA model.")

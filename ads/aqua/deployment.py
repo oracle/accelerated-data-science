@@ -8,6 +8,7 @@ from typing import List, Dict
 
 from dataclasses import dataclass
 from ads.aqua.base import AquaApp
+from ads.config import COMPARTMENT_OCID
 
 
 logger = logging.getLogger(__name__)
@@ -47,17 +48,31 @@ class AquaDeploymentApp(AquaApp):
         pass
 
     def list(self, **kwargs) -> List["AquaDeployment"]:
+        """List Aqua model deployments in a given compartment and under certain project.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+
+        Returns
+        -------
+        List[AquaDeployment]:
+            The list of the Aqua model deployments.
+        """
+        compartment_id = kwargs.get("compartment_id", None)
+        kwargs.update({"compartment_id": compartment_id or COMPARTMENT_OCID})
+
+        model_deployments = self.list_resource(self.client.list_model_deployments, **kwargs)
         return [
             AquaDeployment(
-                **{
-                    "display_name": f"aqua model deployment {i}",
-                    "aqua_service_model": f"aqua service model {i}",
-                    "state": "ACTIVE" if i%2==0 else "FAILED",
-                    "description": "test description",
-                    "created_on": "test created on",
-                    "created_by": "test created by"
-                }
-            ) for i in range(8)
+                display_name=model_deployment.display_name,
+                aqua_service_model=model_deployment.model_deployment_configuration_details.model_configuration_details.model_id,
+                state=model_deployment.lifecycle_state,
+                description=model_deployment.description,
+                created_on=str(model_deployment.time_created),
+                created_by=model_deployment.created_by
+            ) for model_deployment in model_deployments
         ]
 
     def clone(self, **kwargs) -> "AquaDeployment":
