@@ -63,4 +63,4 @@ After the ``feature_store_marketplace.yaml`` is written using the init step abov
 
 .. code-block:: bash
 
-    ads operator run -f feature_store_marketplace.yaml -b marketplace.python
+    ads operator run -f feature_store_marketplace.yaml -b marketplace
