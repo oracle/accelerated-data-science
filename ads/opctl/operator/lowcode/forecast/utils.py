@@ -394,8 +394,7 @@ def _build_metrics_df(y_true, y_pred, column_name):
 
 
 def evaluate_train_metrics(
-    target_columns, datasets, output, datetime_col, target_col="yhat"
-):
+    target_columns, datasets, output, datetime_col, original_target_column, target_col="yhat"):
     """
     Training metrics
     """
@@ -408,7 +407,7 @@ def evaluate_train_metrics(
             y_true = forecast_by_col["input_value"].values
             y_pred = forecast_by_col["fitted_value"].values
             metrics_df = _build_metrics_df(
-                y_true=y_true, y_pred=y_pred, column_name=col
+                y_true=y_true, y_pred=y_pred, column_name=convert_target(col, original_target_column)
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         except Exception as e:
@@ -417,10 +416,11 @@ def evaluate_train_metrics(
     return total_metrics
 
 
-def _select_plot_list(fn, target_columns):
+def _select_plot_list(fn, target_columns, original_target_column):
     import datapane as dp
 
-    blocks = [dp.Plot(fn(i, col), label=col) for i, col in enumerate(target_columns)]
+    blocks = [dp.Plot(fn(i, target), label=convert_target(target, original_target_column))
+              for i, target in enumerate(target_columns)]
     return dp.Select(blocks=blocks) if len(target_columns) > 1 else blocks[0]
 
 
@@ -431,6 +431,7 @@ def _add_unit(num, unit):
 def get_forecast_plots(
     forecast_output,
     target_columns,
+    original_target_column,
     horizon,
     test_data=None,
     ci_interval_width=0.95,
@@ -524,7 +525,7 @@ def get_forecast_plots(
         )
         return fig
 
-    return _select_plot_list(plot_forecast_plotly, target_columns)
+    return _select_plot_list(plot_forecast_plotly, target_columns, original_target_column)
 
 
 def select_auto_model(
@@ -605,6 +606,14 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
             )
             raise Exception(message)
     return freq
+
+
+def convert_target(target: str, target_col: str):
+    if target_col is not None and target_col!='':
+        temp = target_col + '_'
+        if temp in target:
+            target = target.replace(temp, '')
+    return target
 
 
 def default_signer(**kwargs):
