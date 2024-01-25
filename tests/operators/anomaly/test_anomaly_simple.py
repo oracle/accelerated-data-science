@@ -16,7 +16,7 @@ import numpy as np
 
 MODELS = ["automlx", "autots"]  # , "auto", "tods",
 
-
+# Mandatory YAML parameters
 TEMPLATE_YAML = {
     "kind": "operator",
     "type": "anomaly",
@@ -126,6 +126,7 @@ def test_artificial_small(model):
         yaml_i["spec"]["model"] = model
         yaml_i["spec"]["input_data"]["url"] = input_data
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
+        yaml_i["spec"]["contamination"] = 0.3
 
         with open(anomaly_yaml_filename, "w") as f:
             f.write(yaml.dump(yaml_i))
