@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import datetime
-from dateutil.tz import tzutc
 import logging
 import fsspec
 from dataclasses import dataclass
@@ -15,6 +13,7 @@ from ads.aqua.base import AquaApp
 logger = logging.getLogger(__name__)
 
 ICON_FILE_NAME = "icon.txt"
+README = "readme.md"
 UNKNOWN = "Unknown"
 
 
@@ -100,32 +99,28 @@ class AquaModelApp(AquaApp):
         
         custom_metadata_list = oci_model.custom_metadata_list
         artifact_path = self._get_artifact_path(custom_metadata_list)
-
-        with fsspec.open(
-            f"{artifact_path}/{ICON_FILE_NAME}", "rb", **self._auth
-        ) as f:
-            icon = f.read()
-            return AquaModel(
-                compartment_id=oci_model.compartment_id,
-                project_id=oci_model.project_id,
-                name=oci_model.display_name,
-                id=oci_model.id,
-                time_created=oci_model.time_created,
-                icon=icon,
-                task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-                license=oci_model.freeform_tags.get(
-                    Tags.LICENSE.value, UNKNOWN
-                ),
-                organization=oci_model.freeform_tags.get(
-                    Tags.ORGANIZATION.value, UNKNOWN
-                ),
-                is_fine_tuned_model=True
-                if oci_model.freeform_tags.get(
-                    Tags.AQUA_FINE_TUNED_MODEL_TAG.value
-                )
-                else False,
-                model_card="" #todo
+        
+        return AquaModel(
+            compartment_id=oci_model.compartment_id,
+            project_id=oci_model.project_id,
+            name=oci_model.display_name,
+            id=oci_model.id,
+            time_created=oci_model.time_created,
+            icon=self._read_file(f"{artifact_path}/{ICON_FILE_NAME}"),
+            task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            license=oci_model.freeform_tags.get(
+                Tags.LICENSE.value, UNKNOWN
+            ),
+            organization=oci_model.freeform_tags.get(
+                Tags.ORGANIZATION.value, UNKNOWN
+            ),
+            is_fine_tuned_model=True
+            if oci_model.freeform_tags.get(
+                Tags.AQUA_FINE_TUNED_MODEL_TAG.value
             )
+            else False,
+            model_card=self._read_file(f"{artifact_path}/{README}")
+        )
 
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
@@ -166,32 +161,28 @@ class AquaModelApp(AquaApp):
                 
                 artifact_path = self._get_artifact_path(custom_metadata_list)
 
-                with fsspec.open(
-                    f"{artifact_path}/{ICON_FILE_NAME}", "rb", **self._auth
-                ) as f:
-                    icon = f.read()
-                    aqua_models.append(
-                        AquaModelSummary(
-                            name=model.display_name,
-                            id=model.id,
-                            compartment_id=model.compartment_id,
-                            project_id=model.project_id,
-                            time_created=model.time_created,
-                            icon=icon,
-                            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-                            license=model.freeform_tags.get(
-                                Tags.LICENSE.value, UNKNOWN
-                            ),
-                            organization=model.freeform_tags.get(
-                                Tags.ORGANIZATION.value, UNKNOWN
-                            ),
-                            is_fine_tuned_model=True
-                            if model.freeform_tags.get(
-                                Tags.AQUA_FINE_TUNED_MODEL_TAG.value
-                            )
-                            else False,
+                aqua_models.append(
+                    AquaModelSummary(
+                        name=model.display_name,
+                        id=model.id,
+                        compartment_id=model.compartment_id,
+                        project_id=model.project_id,
+                        time_created=model.time_created,
+                        icon=self._read_file(f"{artifact_path}/{ICON_FILE_NAME}"),
+                        task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                        license=model.freeform_tags.get(
+                            Tags.LICENSE.value, UNKNOWN
+                        ),
+                        organization=model.freeform_tags.get(
+                            Tags.ORGANIZATION.value, UNKNOWN
+                        ),
+                        is_fine_tuned_model=True
+                        if model.freeform_tags.get(
+                            Tags.AQUA_FINE_TUNED_MODEL_TAG.value
                         )
+                        else False,
                     )
+                )
         return aqua_models
 
     def _if_show(self, model: "ModelSummary") -> bool:
@@ -227,3 +218,7 @@ class AquaModelApp(AquaApp):
                 return custom_metadata.value
 
         raise FileNotFoundError("Failed to retrieve model artifact path from AQUA model.")
+    
+    def _read_file(self, file_path: str) -> str:
+        with fsspec.open(file_path, "rb", **self._auth) as f:
+            return f.read()

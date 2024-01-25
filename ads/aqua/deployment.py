@@ -53,7 +53,8 @@ class AquaDeploymentApp(AquaApp):
         Parameters
         ----------
         kwargs
-            Keyword arguments for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+            Keyword arguments, such as compartment_id and project_id,
+            for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
 
         Returns
         -------
