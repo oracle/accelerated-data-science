@@ -83,4 +83,38 @@ class AquaDeploymentApp(AquaApp):
         pass
 
     def stats(self, **kwargs) -> Dict:
-        pass
+        """Gets the config of Aqua model deployment.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments, such as model_deployment_id,
+            for `get_model_deployment <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.get_model_deployment>`_
+
+        Returns
+        -------
+        Dict:
+            The dict of the Aqua model deployment.
+        """
+        model_deployment_id = kwargs.get("model_deployment_id", None)
+        if not model_deployment_id:
+            raise ValueError("Aqua model deployment ocid must be provided to fetch the stats.")
+        
+        try:
+            model_deployment = self.client.get_model_deployment(
+                model_deployment_id=model_deployment_id,
+                **kwargs
+            )
+        except Exception as e:
+            # show opc-request-id and status code
+            logger.error(f"Failing to retreive model deployment information. {e}")
+            return {}
+
+        return {
+            "display_name": model_deployment.display_name,
+            "aqua_service_model": model_deployment.model_deployment_configuration_details.model_configuration_details.model_id,
+            "state": model_deployment.lifecycle_state,
+            "description": model_deployment.description,
+            "created_on": str(model_deployment.time_created),
+            "created_by": model_deployment.created_by
+        }
