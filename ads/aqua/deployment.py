@@ -97,7 +97,6 @@ class AquaDeploymentApp(AquaApp):
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
-            .with_deployment_mode("HTTPS_ONLY")
             .with_model_uri(model_id)
             .with_region(region)
             .with_overwrite_existing_artifact(False)
