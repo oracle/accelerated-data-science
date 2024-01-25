@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
@@ -9,7 +10,7 @@ import pandas as pd
 import fsspec
 from .operator_config import AnomalyOperatorSpec
 from .const import SupportedMetrics
-
+from ads.opctl import logger
 
 def _build_metrics_df(y_true, y_pred, column_name):
     from sklearn.metrics import recall_score, precision_score, accuracy_score, f1_score, confusion_matrix, \
@@ -19,12 +20,18 @@ def _build_metrics_df(y_true, y_pred, column_name):
     metrics[SupportedMetrics.PRECISION] = precision_score(y_true, y_pred)
     metrics[SupportedMetrics.ACCURACY] = accuracy_score(y_true, y_pred)
     metrics[SupportedMetrics.F1_SCORE] = f1_score(y_true, y_pred)
-    tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
+    tn, *fn_fp_tp = confusion_matrix(y_true, y_pred).ravel()
+    fp, fn, tp = fn_fp_tp if fn_fp_tp else (0, 0, 0)
     metrics[SupportedMetrics.FP] = fp
     metrics[SupportedMetrics.FN] = fn
     metrics[SupportedMetrics.TP] = tp
     metrics[SupportedMetrics.TN] = tn
-    metrics[SupportedMetrics.ROC_AUC] = roc_auc_score(y_true, y_pred)
+    try:
+        # Throws exception if y_true has only one class
+        metrics[SupportedMetrics.ROC_AUC] = roc_auc_score(y_true, y_pred)
+    except Exception as e:
+        logger.warn(f"An exception occurred: {e}")
+        metrics[SupportedMetrics.ROC_AUC] = None
     precision, recall, thresholds = precision_recall_curve(y_true, y_pred)
     metrics[SupportedMetrics.PRC_AUC] = auc(recall, precision)
     metrics[SupportedMetrics.MCC] = matthews_corrcoef(y_true, y_pred)
@@ -63,6 +70,12 @@ def _write_data(data, filename, format, storage_options, index=False, **kwargs):
             write_fn, filename, index=index, storage_options=storage_options
         )
     raise ValueError(f"Unrecognized format: {format}")
+
+def _merge_category_columns(data, target_category_columns):
+    result = data.apply(
+        lambda x: "__".join([str(x[col]) for col in target_category_columns]), axis=1
+    )
+    return result if not result.empty else pd.Series([], dtype=str)
 
 
 def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: AnomalyOperatorSpec):

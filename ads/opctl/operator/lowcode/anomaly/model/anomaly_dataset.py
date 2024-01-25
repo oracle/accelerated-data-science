@@ -59,13 +59,18 @@ class AnomalyDatasets:
                 spec.target_column = target_col[0]
             self.full_data_dict = {spec.target_column: self.data}
         else:
-            # Group the data by target column
-            self.full_data_dict = dict(
-                tuple(
-                    (group, df.reset_index(drop=True))
-                    for group, df in self.data.groupby(spec.target_category_columns[0])
+            # Merge target category columns
+
+            self.data["__Series__"] = utils._merge_category_columns(self.data, spec.target_category_columns)
+            unique_categories = self.data["__Series__"].unique()
+            self.full_data_dict = dict()
+
+            for cat in unique_categories:
+                data_by_cat = (
+                    self.data[self.data["__Series__"] == cat].drop(spec.target_category_columns + ["__Series__"],
+                                                                   axis=1)
                 )
-            )
+                self.full_data_dict[cat] = data_by_cat
 
 
 class AnomalyOutput:
@@ -108,25 +113,32 @@ class AnomalyOutput:
                 how='inner')
         return outliers
 
-    def get_inliers(self, full_data_dict):
+    def get_inliers(self, data):
         inliers = pd.DataFrame()
 
         for category in self.category_map.keys():
             inliers = pd.concat(
-                [inliers, self.get_inliers_by_cat(category, full_data_dict[category])],
+                [
+                    inliers,
+                     self.get_inliers_by_cat(
+                        category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
+                     )
+                ],
                 axis=0,
                 ignore_index=True,
             )
         return inliers
 
-    def get_outliers(self, full_data_dict):
+    def get_outliers(self, data):
         outliers = pd.DataFrame()
 
         for category in self.category_map.keys():
             outliers = pd.concat(
                 [
                     outliers,
-                    self.get_outliers_by_cat(category, full_data_dict[category]),
+                    self.get_outliers_by_cat(
+                        category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
+                    )
                 ],
                 axis=0,
                 ignore_index=True,

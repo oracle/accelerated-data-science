@@ -42,11 +42,11 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
             anomaly = pd.DataFrame({
                 date_column: df[date_column],
                 OutputColumns.ANOMALY_COL: y_pred
-            })
+            }).reset_index(drop=True)
             score = pd.DataFrame({
                 date_column: df[date_column],
                 OutputColumns.SCORE_COL: [item[1] for item in scores]
-            })
+            }).reset_index(drop=True)
             anomaly_output.add_output(target, anomaly, score)
 
         return anomaly_output

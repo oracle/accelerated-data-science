@@ -69,8 +69,6 @@ class AnomalyOperatorBaseModel(ABC):
 
         blocks = []
         for target, df in self.datasets.full_data_dict.items():
-            if self.spec.target_category_columns is not None:
-                df = df.drop(columns=[self.spec.target_category_columns[0]])
             figure_blocks = []
             time_col = df[date_column].reset_index(drop=True)
             anomaly_col = anomaly_output.get_anomalies_by_cat(category=target)[
@@ -179,12 +177,12 @@ class AnomalyOperatorBaseModel(ABC):
 
         if data.empty:
             return total_metrics, summary_metrics, None
-
+        data["__Series__"] = utils._merge_category_columns(data, self.spec.target_category_columns)
         for cat in anomaly_output.category_map:
             output = anomaly_output.category_map[cat][0]
             date_col = self.spec.datetime_column.name
 
-            val_data = data[data[self.spec.target_category_columns[0]] == cat]
+            val_data = data[data["__Series__"] == cat]
             val_data[date_col] = pd.to_datetime(val_data[date_col])
 
             dates = output[output[date_col].isin(val_data[date_col])][date_col]
@@ -291,7 +289,7 @@ class AnomalyOperatorBaseModel(ABC):
                     f2.write(f1.read())
 
         if self.spec.generate_inliers:
-            inliers = anomaly_output.get_inliers(self.datasets.full_data_dict)
+            inliers = anomaly_output.get_inliers(self.datasets.data)
             utils._write_data(
                 data=inliers,
                 filename=os.path.join(output_dir, self.spec.inliers_filename),
@@ -299,7 +297,7 @@ class AnomalyOperatorBaseModel(ABC):
                 storage_options=storage_options,
             )
 
-        outliers=anomaly_output.get_outliers(self.datasets.full_data_dict)
+        outliers=anomaly_output.get_outliers(self.datasets.data)
         utils._write_data(
             data=outliers,
             filename=os.path.join(output_dir, self.spec.outliers_filename),

@@ -80,17 +80,6 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
 
             # Store the model and predictions in dictionaries
             models[target] = model
-            if self.spec.target_category_columns is None:
-                dataset.data[OutputColumns.ANOMALY_COL] = predictions_train[target]
-            else:
-                dataset.data.loc[
-                    dataset.data[self.spec.target_category_columns[0]] == target,
-                    OutputColumns.ANOMALY_COL,
-                ] = predictions_train[target]
-
-            self.datasets.full_data_dict[target][
-                OutputColumns.ANOMALY_COL
-            ] = predictions_train[target]
 
             anomaly = pd.DataFrame({
                 date_column: df[date_column],
