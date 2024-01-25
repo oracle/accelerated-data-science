@@ -7,7 +7,9 @@
 # PEP 517 – A build-system independent format for source trees - https://peps.python.org/pep-0517/
 # Till recently flit-core library was suggested by pip, so we used it. In future, cosider to change to
 # other, if better, build-backend library.
-requires = ["flit-core >=3.8,<4"]  # should specify <4, so won’t be impacted by changes in the next major version
+requires = [
+  "flit-core >=3.8,<4",
+] # should specify <4, so won’t be impacted by changes in the next major version
 build-backend = "flit_core.buildapi"
 
 
@@ -18,17 +20,15 @@ build-backend = "flit_core.buildapi"
 # PEP 518 – Specifying Minimum Build System Requirements for Python Projects https://peps.python.org/pep-0518/
 
 # Required
-name = "oracle_ads"  # the install (PyPI) name; name for local build in [tool.flit.module] section below
+name = "oracle_ads" # the install (PyPI) name; name for local build in [tool.flit.module] section below
 version = "2.9.1"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
-readme = {file = "README.md", content-type = "text/markdown"}
+readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.8"
-license = {file = "LICENSE.txt"}
-authors = [
-  {name = "Oracle Data Science"}
-]
+license = { file = "LICENSE.txt" }
+authors = [{ name = "Oracle Data Science" }]
 keywords = [
   "Oracle Cloud Infrastructure",
   "OCI",
@@ -54,7 +54,7 @@ classifiers = [
 # In dependencies se "<library>; platform_machine == 'aarch64'" to specify ARM underlying platform
 # Copied from install_requires list in setup.py, setup.py got removed in favor of this config file
 dependencies = [
-  "PyYAML>=6",  # pyyaml 5.4 is broken with cython 3
+  "PyYAML>=6",                         # pyyaml 5.4 is broken with cython 3
   "asteval>=0.9.25",
   "cerberus>=1.3.4",
   "cloudpickle>=1.6.0",
@@ -76,13 +76,9 @@ dependencies = [
 
 [project.optional-dependencies]
 # Copied from extras_require list in setup.py, setup.py got removed in favor of this config file
-bds = [
-  "hdfs[kerberos]",
-  "ibis-framework[impala]",
-  "sqlalchemy",
-]
+bds = ["hdfs[kerberos]", "ibis-framework[impala]", "sqlalchemy"]
 boosted = [
-  "lightgbm<4.0.0",  # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
+  "lightgbm<4.0.0", # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "xgboost",
 ]
 data = [
@@ -94,22 +90,14 @@ data = [
   "pandavro>=1.6.0",
   "sqlalchemy>=1.4.1, <=1.4.46",
 ]
-geo = [
-  "geopandas",
-  "oracle_ads[viz]",
-]
-huggingface = [
-  "transformers",
-]
-notebook = [
-  "ipython>=7.23.1, <8.0",
-  "ipywidgets~=7.6.3",
-]
+geo = ["geopandas", "oracle_ads[viz]"]
+huggingface = ["transformers"]
+notebook = ["ipython>=7.23.1, <8.0", "ipywidgets~=7.6.3"]
 onnx = [
-  "lightgbm<4.0.0",  # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
+  "lightgbm<4.0.0",            # relax when the official releases of skl2onnx (v1.16.0) and onnxmltools (1.11.3), https://github.com/sdpython/mlprodict/issues/488
   "onnx>=1.12.0",
   "onnxmltools>=1.10.0",
-  "onnxruntime>=1.10.0,<1.16",  # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
+  "onnxruntime>=1.10.0,<1.16", # v1.16 introduced issues https://github.com/microsoft/onnxruntime/issues/17631, revealed by unit tests
   "oracle_ads[viz]",
   "protobuf<=3.20",
   "skl2onnx>=1.10.4",
@@ -126,26 +114,11 @@ opctl = [
   "py-cpuinfo",
   "rich",
 ]
-optuna = [
-  "optuna==2.9.0",
-  "oracle_ads[viz]",
-]
-spark = [
-  "pyspark>=3.0.0",
-]
-tensorflow = [
-  "oracle_ads[viz]",
-  "tensorflow",
-]
-text = [
-  "spacy",
-  "wordcloud>=1.8.1",
-]
-torch = [
-  "oracle_ads[viz]",
-  "torch",
-  "torchvision",
-]
+optuna = ["optuna==2.9.0", "oracle_ads[viz]"]
+spark = ["pyspark>=3.0.0"]
+tensorflow = ["oracle_ads[viz]", "tensorflow"]
+text = ["spacy", "wordcloud>=1.8.1"]
+torch = ["oracle_ads[viz]", "torch", "torchvision"]
 viz = [
   "bokeh>=2.3.0, <=2.4.3",
   "folium>=0.12.1",
@@ -189,10 +162,8 @@ pii = [
   "spacy-transformers==1.2.5",
   "spacy==3.6.1",
 ]
-llm = [
-  "langchain>=0.0.295",
-  "evaluate>=0.4.0",
-]
+llm = ["langchain>=0.0.295", "evaluate>=0.4.0"]
+aqua = ["sqlalchemy>=2.0.25"]
 
 [project.urls]
 "Github" = "https://github.com/oracle/accelerated-data-science"
@@ -202,7 +173,7 @@ llm = [
 ads = "ads.cli:cli"
 
 [tool.flit.module]
-name = "ads"  # name for local build and import, see https://flit.pypa.io/en/latest/pyproject_toml.html#module-section
+name = "ads" # name for local build and import, see https://flit.pypa.io/en/latest/pyproject_toml.html#module-section
 
 [tool.flit.sdist]
 # By default `ads` folder and `LICENSE.txt` file included in sdist. Folders `docs` and `tests` are excluded, as weel as other project files
