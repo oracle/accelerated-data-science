@@ -104,7 +104,7 @@ class AquaDeploymentApp(AquaApp):
             model_deployment = self.client.get_model_deployment(
                 model_deployment_id=model_deployment_id,
                 **kwargs
-            )
+            ).data
         except Exception as e:
             # show opc-request-id and status code
             logger.error(f"Failing to retreive model deployment information. {e}")
