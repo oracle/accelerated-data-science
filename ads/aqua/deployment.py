@@ -27,6 +27,7 @@ class AquaDeployment:
     description: str
     created_on: str
     created_by: str
+    endpoint: str
 
 
 class AquaDeploymentApp(AquaApp):
@@ -55,6 +56,7 @@ class AquaDeploymentApp(AquaApp):
         project_id: str = None,
         region: str = None,
         model_id: str = None,
+        aqua_service_model_tag: str = None,
         display_name: str = None,
         description: str = None,
         instance_count: int = None,
@@ -116,11 +118,12 @@ class AquaDeploymentApp(AquaApp):
 
         return AquaDeployment(
             display_name=deployment.display_name,
-            aqua_service_model="",
+            aqua_service_model=aqua_service_model_tag,
             status=deployment.status.name,
             description=deployment.description,
             created_on=deployment.time_created,
             created_by=deployment.created_by,
+            endpoint=deployment.model_deployment_url,
         )
 
     def list(self, **kwargs) -> List["AquaDeployment"]:
