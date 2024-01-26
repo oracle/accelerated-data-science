@@ -90,7 +90,10 @@ class AquaDeploymentApp(AquaApp):
         pass
 
     def stats(self, **kwargs) -> Dict:
-        """Gets the config of Aqua model deployment.
+        pass
+
+    def get(self, **kwargs) -> Dict:
+        """Gets the information of Aqua model deployment.
 
         Parameters
         ----------
