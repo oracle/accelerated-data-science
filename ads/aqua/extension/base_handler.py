@@ -16,11 +16,14 @@ class AquaAPIhandler(APIHandler):
     @staticmethod
     def serialize(obj: Any):
         """Serialize the object.
-        If the object is a dataclass, convert it to dictionary.
-        Otherwise, convert it to string.
+        If the object is a dataclass, convert it to dictionary. Otherwise, convert it to string.
         """
+        if hasattr(obj, "to_dict") and callable(obj.to_dict):
+            return obj.to_dict()
+
         if is_dataclass(obj):
             return asdict(obj)
+
         return str(obj)
 
     def finish(self, payload=None):  # pylint: disable=W0221

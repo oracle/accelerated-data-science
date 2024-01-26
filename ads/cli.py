@@ -9,7 +9,7 @@ import sys
 
 import fire
 from ads.common import logger
-from ads.aqua import AquaCommand
+from ads.aqua.cli import AquaCommand
 
 try:
     import click

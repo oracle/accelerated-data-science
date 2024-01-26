@@ -34,3 +34,6 @@ class AquaFineTuneHandler(AquaAPIhandler):
         # project_id is optional.
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaFineTuningApp().list(compartment_id, project_id))
+
+
+__handlers__ = [("finetuning/?([^/]*)", AquaFineTuneHandler)]
