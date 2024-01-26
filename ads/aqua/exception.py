@@ -23,15 +23,14 @@ class AquaServiceError(AquaError):
 
     def __init__(self, opc_request_id: str, status_code: int):
         super().__init__(
-            f"Error occurred when invoking service. opc-request-id: {opc_request_id}. status code: {status_code}"
+            f"Error occurred when invoking service. opc-request-id: {opc_request_id}. status code: {status_code}."
         )
 
 
 class AquaClientError(AquaError):
     """Exception raised for client side error."""
 
-    def __init__(self, invalid_input: str):
-        super().__init__(f"Invalid input {invalid_input}.")
+    pass
 
 
 def exception_handler(func):
