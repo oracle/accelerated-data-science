@@ -92,7 +92,7 @@ class AquaDeploymentApp(AquaApp):
     def stats(self, **kwargs) -> Dict:
         pass
 
-    def get(self, **kwargs) -> Dict:
+    def get(self, **kwargs) -> "AquaDeployment":
         """Gets the information of Aqua model deployment.
 
         Parameters
@@ -103,8 +103,8 @@ class AquaDeploymentApp(AquaApp):
 
         Returns
         -------
-        Dict:
-            The dict of the Aqua model deployment.
+        AquaDeployment:
+            The instance of the Aqua model deployment.
         """
         import json
         import os
@@ -114,11 +114,13 @@ class AquaDeploymentApp(AquaApp):
         with open(f"{root}/oci_model_deployments.json", "rb") as f:
             model_deployment = json.loads(f.read())[0]
 
-        return {
-            "display_name": model_deployment["displayName"],
-            "aqua_service_model": model_deployment["freeformTags"].get(AQUA_SERVICE_MODEL, None),
-            "state": model_deployment["lifecycleState"],
-            "description": model_deployment["description"],
-            "created_on": str(model_deployment["timeCreated"]),
-            "created_by": model_deployment["createdBy"]
-        }
+        return AquaDeployment(
+            **{
+                "display_name": model_deployment["displayName"],
+                "aqua_service_model": model_deployment["freeformTags"].get(AQUA_SERVICE_MODEL, None),
+                "state": model_deployment["lifecycleState"],
+                "description": model_deployment["description"],
+                "created_on": str(model_deployment["timeCreated"]),
+                "created_by": model_deployment["createdBy"]
+            }
+        )
