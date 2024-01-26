@@ -8,6 +8,10 @@ from typing import List, Dict
 
 from dataclasses import dataclass
 from ads.aqua.base import AquaApp
+from ads.config import COMPARTMENT_OCID
+from ads.model.service.oci_datascience_model_deployment import OCIDataScienceModelDeployment
+
+AQUA_SERVICE_MODEL = "aqua_service_model"
 
 
 logger = logging.getLogger(__name__)
@@ -47,18 +51,37 @@ class AquaDeploymentApp(AquaApp):
         pass
 
     def list(self, **kwargs) -> List["AquaDeployment"]:
-        return [
-            AquaDeployment(
-                **{
-                    "display_name": f"aqua model deployment {i}",
-                    "aqua_service_model": f"aqua service model {i}",
-                    "state": "ACTIVE" if i%2==0 else "FAILED",
-                    "description": "test description",
-                    "created_on": "test created on",
-                    "created_by": "test created by"
-                }
-            ) for i in range(8)
-        ]
+        """List Aqua model deployments in a given compartment and under certain project.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments, such as compartment_id and project_id,
+            for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+
+        Returns
+        -------
+        List[AquaDeployment]:
+            The list of the Aqua model deployments.
+        """
+        import json
+        import os
+
+        root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dummy_data")
+
+        with open(f"{root}/oci_model_deployments.json", "rb") as f:
+            model_deployments = json.loads(f.read())
+
+            return [
+                AquaDeployment(
+                    display_name=model_deployment["displayName"],
+                    aqua_service_model=model_deployment["freeformTags"].get(AQUA_SERVICE_MODEL, None),
+                    state=model_deployment["lifecycleState"],
+                    description=model_deployment["description"],
+                    created_on=str(model_deployment["timeCreated"]),
+                    created_by=model_deployment["createdBy"]
+                ) for model_deployment in model_deployments
+            ]
 
     def clone(self, **kwargs) -> "AquaDeployment":
         pass
@@ -68,3 +91,36 @@ class AquaDeploymentApp(AquaApp):
 
     def stats(self, **kwargs) -> Dict:
         pass
+
+    def get(self, **kwargs) -> "AquaDeployment":
+        """Gets the information of Aqua model deployment.
+
+        Parameters
+        ----------
+        kwargs
+            Keyword arguments, such as model_deployment_id,
+            for `get_model_deployment <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.get_model_deployment>`_
+
+        Returns
+        -------
+        AquaDeployment:
+            The instance of the Aqua model deployment.
+        """
+        import json
+        import os
+
+        root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dummy_data")
+
+        with open(f"{root}/oci_model_deployments.json", "rb") as f:
+            model_deployment = json.loads(f.read())[0]
+
+        return AquaDeployment(
+            **{
+                "display_name": model_deployment["displayName"],
+                "aqua_service_model": model_deployment["freeformTags"].get(AQUA_SERVICE_MODEL, None),
+                "state": model_deployment["lifecycleState"],
+                "description": model_deployment["description"],
+                "created_on": str(model_deployment["timeCreated"]),
+                "created_by": model_deployment["createdBy"]
+            }
+        )
