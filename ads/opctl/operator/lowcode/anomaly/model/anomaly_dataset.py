@@ -5,8 +5,12 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ..operator_config import AnomalyOperatorConfig
-from .. import utils
-from ads.opctl.operator.common.utils import default_signer
+from ads.opctl.operator.lowcode.common.utils import (
+    default_signer,
+    load_data,
+    merge_category_columns,
+)
+from ads.opctl.operator.lowcode.anomaly.utils import get_frequency_of_datetime
 from ads.opctl import logger
 import pandas as pd
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
@@ -30,18 +34,20 @@ class AnomalyDatasets:
 
     def _load_data(self, spec):
         """Loads anomaly input data."""
-
-        self.data = utils._load_data(
-            filename=spec.input_data.url,
-            format=spec.input_data.format,
-            storage_options=default_signer(),
-            columns=spec.input_data.columns,
-        )
+        try:
+            self.data = load_data(
+                filename=spec.input_data.url,
+                format=spec.input_data.format,
+                columns=spec.input_data.columns,
+            )
+        except InvalidParameterError as e:
+            e.args = e.args + ("Invalid Parameter: input_data",)
+            raise e
         self.original_user_data = self.data.copy()
         date_col = spec.datetime_column.name
         self.data[date_col] = pd.to_datetime(self.data[date_col])
         try:
-            spec.freq = utils.get_frequency_of_datetime(self.data, spec)
+            spec.freq = get_frequency_of_datetime(self.data, spec)
         except TypeError as e:
             logger.warn(
                 f"Error determining frequency: {e.args}. Setting Frequency to None"
@@ -61,14 +67,15 @@ class AnomalyDatasets:
         else:
             # Merge target category columns
 
-            self.data["__Series__"] = utils._merge_category_columns(self.data, spec.target_category_columns)
+            self.data["__Series__"] = merge_category_columns(
+                self.data, spec.target_category_columns
+            )
             unique_categories = self.data["__Series__"].unique()
             self.full_data_dict = dict()
 
             for cat in unique_categories:
-                data_by_cat = (
-                    self.data[self.data["__Series__"] == cat].drop(spec.target_category_columns + ["__Series__"],
-                                                                   axis=1)
+                data_by_cat = self.data[self.data["__Series__"] == cat].drop(
+                    spec.target_category_columns + ["__Series__"], axis=1
                 )
                 self.full_data_dict[cat] = data_by_cat
 
@@ -93,11 +100,7 @@ class AnomalyOutput:
         inlier_indices = anomaly.index[anomaly[OutputColumns.ANOMALY_COL] == 0]
         inliers = data.iloc[inlier_indices]
         if scores is not None and not scores.empty:
-            inliers = pd.merge(
-                inliers,
-                scores,
-                on=self.date_column,
-                how='inner')
+            inliers = pd.merge(inliers, scores, on=self.date_column, how="inner")
         return inliers
 
     def get_outliers_by_cat(self, category: str, data: pd.DataFrame):
@@ -106,11 +109,7 @@ class AnomalyOutput:
         outliers_indices = anomaly.index[anomaly[OutputColumns.ANOMALY_COL] == 1]
         outliers = data.iloc[outliers_indices]
         if scores is not None and not scores.empty:
-            outliers = pd.merge(
-                outliers,
-                scores,
-                on=self.date_column,
-                how='inner')
+            outliers = pd.merge(outliers, scores, on=self.date_column, how="inner")
         return outliers
 
     def get_inliers(self, data):
@@ -120,9 +119,12 @@ class AnomalyOutput:
             inliers = pd.concat(
                 [
                     inliers,
-                     self.get_inliers_by_cat(
-                        category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
-                     )
+                    self.get_inliers_by_cat(
+                        category,
+                        data[data["__Series__"] == category]
+                        .reset_index(drop=True)
+                        .drop("__Series__", axis=1),
+                    ),
                 ],
                 axis=0,
                 ignore_index=True,
@@ -137,8 +139,11 @@ class AnomalyOutput:
                 [
                     outliers,
                     self.get_outliers_by_cat(
-                        category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
-                    )
+                        category,
+                        data[data["__Series__"] == category]
+                        .reset_index(drop=True)
+                        .drop("__Series__", axis=1),
+                    ),
                 ],
                 axis=0,
                 ignore_index=True,

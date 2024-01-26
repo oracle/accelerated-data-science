@@ -4,15 +4,28 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import time
 import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
+
 from ..operator_config import ForecastOperatorConfig
-from .. import utils
 from .transformations import Transformations
 from ads.opctl import logger
-import pandas as pd
 from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
-from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
-import time
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.opctl.operator.lowcode.common.utils import load_data
+from ads.opctl.operator.lowcode.forecast.utils import (
+    default_signer,
+    get_frequency_of_datetime,
+    _build_indexed_datasets,
+)
+from ads.opctl.operator.lowcode.common.errors import (
+    InputDataError,
+    InvalidParameterError,
+    PermissionsError,
+    DataMismatchError,
+)
+
 
 class ForecastDatasets:
     def __init__(self, config: ForecastOperatorConfig):
@@ -37,20 +50,31 @@ class ForecastDatasets:
         """Loads forecasting input data."""
 
         loading_start_time = time.time()
-        raw_data = utils._load_data(
-            filename=spec.historical_data.url,
-            format=spec.historical_data.format,
-            columns=spec.historical_data.columns,
-        )
+        try:
+            raw_data = load_data(
+                filename=spec.historical_data.url,
+                format=spec.historical_data.format,
+                columns=spec.historical_data.columns,
+            )
+        except InvalidParameterError as e:
+            e.args = e.args + ("Invalid Parameter: historical_data",)
+            raise e
+
         loading_end_time = time.time()
-        logger.info("Loading the data completed in %s seconds", loading_end_time - loading_start_time)
+        logger.info(
+            "Loading the data completed in %s seconds",
+            loading_end_time - loading_start_time,
+        )
         self.original_user_data = raw_data.copy()
         data_transformer = Transformations(raw_data, spec)
         data = data_transformer.run()
         transformation_end_time = time.time()
-        logger.info("Transformations are completed in %s seconds", transformation_end_time - loading_end_time)
+        logger.info(
+            "Transformations are completed in %s seconds",
+            transformation_end_time - loading_end_time,
+        )
         try:
-            spec.freq = utils.get_frequency_of_datetime(data, spec)
+            spec.freq = get_frequency_of_datetime(data, spec)
         except TypeError as e:
             logger.warn(
                 f"Error determining frequency: {e.args}. Setting Frequency to None"
@@ -71,12 +95,18 @@ class ForecastDatasets:
             )
 
         if spec.additional_data is not None:
-            additional_data = utils._load_data(
-                filename=spec.additional_data.url,
-                format=spec.additional_data.format,
-                columns=spec.additional_data.columns,
+            try:
+                additional_data = load_data(
+                    filename=spec.additional_data.url,
+                    format=spec.additional_data.format,
+                    columns=spec.additional_data.columns,
+                )
+            except InvalidParameterError as e:
+                e.args = e.args + ("Invalid Parameter: additional_data",)
+                raise e
+            additional_data = data_transformer.transform_additional_data(
+                additional_data
             )
-            additional_data = data_transformer._sort_by_datetime_col(additional_data)
             try:
                 additional_data[spec.datetime_column.name] = pd.to_datetime(
                     additional_data[spec.datetime_column.name],
@@ -140,7 +170,7 @@ class ForecastDatasets:
             self.full_data_dict,
             self.target_columns,
             self.categories,
-        ) = utils._build_indexed_datasets(
+        ) = _build_indexed_datasets(
             data=data,
             target_column=spec.target_column,
             datetime_column=spec.datetime_column.name,

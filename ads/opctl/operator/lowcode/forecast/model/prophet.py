@@ -7,20 +7,37 @@
 import numpy as np
 import optuna
 import pandas as pd
+import logging
 from joblib import Parallel, delayed
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl import logger
 from ads.opctl.operator.lowcode.forecast.operator_config import ForecastOperatorConfig
 
-from ..const import DEFAULT_TRIALS, PROPHET_INTERNAL_DATE_COL, ForecastOutputColumns, SupportedModels
-from .. import utils
+from ..const import (
+    DEFAULT_TRIALS,
+    PROPHET_INTERNAL_DATE_COL,
+    ForecastOutputColumns,
+    SupportedModels,
+)
+from ads.opctl.operator.lowcode.forecast.utils import (
+    convert_target,
+    _select_plot_list,
+    _label_encode_dataframe,
+)
+from ads.opctl.operator.lowcode.common.utils import set_log_level
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 import traceback
 import matplotlib as mpl
 
-mpl.rcParams["figure.max_open_warning"] = 100
+
+try:
+    set_log_level("prophet", logger.level)
+    set_log_level("cmdstanpy", logger.level)
+    mpl.rcParams["figure.max_open_warning"] = 100
+except:
+    pass
 
 
 def _add_unit(num, unit):
@@ -47,7 +64,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         self.local_explanation = {}
 
     def _train_model(self, i, target, df):
-
         try:
             from prophet import Prophet
             from prophet.diagnostics import cross_validation, performance_metrics
@@ -67,7 +83,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 confidence_interval_width=self.spec.confidence_interval_width
             )
 
-            le, df_encoded = utils._label_encode_dataframe(
+            le, df_encoded = _label_encode_dataframe(
                 df, no_encode={self.spec.datetime_column.name, target}
             )
 
@@ -85,7 +101,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 "y",
                 PROPHET_INTERNAL_DATE_COL,
             }
-            model = self.loaded_models[target] if self.loaded_models is not None else None
+            model = (
+                self.loaded_models[target] if self.loaded_models is not None else None
+            )
 
             if model is None:
                 model_kwargs_i = model_kwargs.copy()
@@ -119,15 +137,19 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                         # Manual workaround because pandas 1.x dropped support for M and Y
                         interval = self.spec.horizon
-                        unit = self.spec.freq.split('-')[0] if self.spec.freq else None
+                        unit = self.spec.freq.split("-")[0] if self.spec.freq else None
                         if unit == "M":
                             unit = "D"
                             interval = interval * 30.5
                         elif unit == "Y":
                             unit = "D"
                             interval = interval * 365.25
-                        horizon = _add_unit(int(self.spec.horizon * interval), unit=unit)
-                        initial = _add_unit((data_i.shape[0] * interval) // 2, unit=unit)
+                        horizon = _add_unit(
+                            int(self.spec.horizon * interval), unit=unit
+                        )
+                        initial = _add_unit(
+                            (data_i.shape[0] * interval) // 2, unit=unit
+                        )
                         period = _add_unit((data_i.shape[0] * interval) // 4, unit=unit)
 
                         logger.debug(
@@ -207,7 +229,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             for param in ["history", "history_dates", "stan_fit"]:
                 if param in params:
                     params.pop(param)
-            self.model_parameters[utils.convert_target(target, self.original_target_column)] = {
+            self.model_parameters[
+                convert_target(target, self.original_target_column)
+            ] = {
                 "framework": SupportedModels.Prophet,
                 **params,
             }
@@ -223,7 +247,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         full_data_dict = self.datasets.full_data_dict
         self.models = dict()
         self.outputs = dict()
-        self.errors_dict = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
             delayed(ProphetOperatorModel._train_model)(self, i, target, df)
@@ -264,12 +287,16 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             output_i.iloc[
                 -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
             ] = (
-                self.outputs[f"{col}_{cat}"]["yhat_upper"].iloc[-self.spec.horizon :].values
+                self.outputs[f"{col}_{cat}"]["yhat_upper"]
+                .iloc[-self.spec.horizon :]
+                .values
             )
             output_i.iloc[
                 -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
             ] = (
-                self.outputs[f"{col}_{cat}"]["yhat_lower"].iloc[-self.spec.horizon :].values
+                self.outputs[f"{col}_{cat}"]["yhat_lower"]
+                .iloc[-self.spec.horizon :]
+                .values
             )
             output_col = pd.concat([output_col, output_i])
             self.forecast_output.add_category(
@@ -288,19 +315,21 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "## Forecast Overview \n"
             "These plots show your forecast in the context of historical data."
         )
-        sec1 = utils._select_plot_list(
+        sec1 = _select_plot_list(
             lambda idx, target, *args: self.models[target].plot(
                 self.outputs[target], include_legend=True
             ),
             target_columns=self.target_columns,
-            original_target_column=self.original_target_column
+            original_target_column=self.original_target_column,
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-        sec2 = utils._select_plot_list(
-            lambda idx, target, *args: self.models[target].plot_components(self.outputs[target]),
+        sec2 = _select_plot_list(
+            lambda idx, target, *args: self.models[target].plot_components(
+                self.outputs[target]
+            ),
             target_columns=self.target_columns,
-            original_target_column=self.original_target_column
+            original_target_column=self.original_target_column,
         )
 
         sec3_text = dp.Text(f"## Forecast Changepoints")
@@ -310,14 +339,16 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         ]
         [
             add_changepoints_to_plot(
-                sec3_figs[idx].gca(), self.models[self.target_columns[idx]], self.outputs[self.target_columns[idx]]
+                sec3_figs[idx].gca(),
+                self.models[self.target_columns[idx]],
+                self.outputs[self.target_columns[idx]],
             )
             for idx in range(len(self.target_columns))
         ]
-        sec3 = utils._select_plot_list(
+        sec3 = _select_plot_list(
             lambda idx, *args: sec3_figs[idx],
             target_columns=self.target_columns,
-            original_target_column=self.original_target_column
+            original_target_column=self.original_target_column,
         )
 
         all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
@@ -378,7 +409,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=utils.convert_target(s_id,self.original_target_column),
+                        label=convert_target(s_id, self.original_target_column),
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
@@ -413,7 +444,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         )
 
     def _custom_predict_prophet(self, data):
-        data[PROPHET_INTERNAL_DATE_COL] = pd.to_datetime(data[PROPHET_INTERNAL_DATE_COL], unit='s')
-        return self.models[self.series_id].predict(
-            data.reset_index()
-        )["yhat"]
+        data[PROPHET_INTERNAL_DATE_COL] = pd.to_datetime(
+            data[PROPHET_INTERNAL_DATE_COL], unit="s"
+        )
+        return self.models[self.series_id].predict(data.reset_index())["yhat"]

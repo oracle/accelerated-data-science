@@ -11,7 +11,10 @@ from joblib import Parallel, delayed
 
 from ads.opctl import logger
 
-from .. import utils
+from ads.opctl.operator.lowcode.forecast.utils import (
+    _label_encode_dataframe,
+    convert_target,
+)
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 import traceback
@@ -56,7 +59,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             # models = []
 
             # format the dataframe for this target. Dropping NA on target[df] will remove all future data
-            le, df_encoded = utils._label_encode_dataframe(
+            le, df_encoded = _label_encode_dataframe(
                 df, no_encode={self.spec.datetime_column.name, target}
             )
 
@@ -72,7 +75,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 target,
                 self.spec.datetime_column.name,
             }
-            logger.debug(f"Additional Regressors Detected {list(additional_regressors)}")
+            logger.debug(
+                f"Additional Regressors Detected {list(additional_regressors)}"
+            )
 
             # Split data into X and y for arima tune method
             y = data_i[target]
@@ -80,7 +85,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             if len(additional_regressors):
                 X_in = data_i.drop(target, axis=1)
 
-            model = self.loaded_models[target] if self.loaded_models is not None else None
+            model = (
+                self.loaded_models[target] if self.loaded_models is not None else None
+            )
             if model is None:
                 # Build and fit model
                 model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
@@ -95,7 +102,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             if len(additional_regressors):
                 X = df_clean[df_clean[target].isnull()].drop(target, axis=1)
             else:
-                X = pd.date_range(start=start_date, periods=n_periods, freq=self.spec.freq)
+                X = pd.date_range(
+                    start=start_date, periods=n_periods, freq=self.spec.freq
+                )
 
             # Predict and format forecast
             yhat, conf_int = model.predict(
@@ -125,10 +134,12 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 self.models[target] = model
 
             params = vars(model).copy()
-            for param in ['arima_res_', 'endog_index_']:
+            for param in ["arima_res_", "endog_index_"]:
                 if param in params:
                     params.pop(param)
-            self.model_parameters[utils.convert_target(target, self.original_target_column)] = {
+            self.model_parameters[
+                convert_target(target, self.original_target_column)
+            ] = {
                 "framework": SupportedModels.Arima,
                 **params,
             }
@@ -151,7 +162,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.fitted_values = dict()
         self.actual_values = dict()
         self.dt_columns = dict()
-        self.errors_dict = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
             delayed(ArimaOperatorModel._train_model)(self, i, target, df)
@@ -197,7 +207,10 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
         sec5_text = dp.Text(f"## ARIMA Model Parameters")
         blocks = [
-            dp.HTML(m.summary().as_html(), label=utils.convert_target(target, self.original_target_column))
+            dp.HTML(
+                m.summary().as_html(),
+                label=convert_target(target, self.original_target_column),
+            )
             for i, (target, m) in enumerate(self.models.items())
         ]
         sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
@@ -242,7 +255,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=utils.convert_target(s_id, self.original_target_column),
+                        label=convert_target(s_id, self.original_target_column),
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

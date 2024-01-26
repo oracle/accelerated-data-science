@@ -42,7 +42,7 @@ from .common.backend_factory import BackendFactory
 from .common.errors import (
     OperatorCondaNotFoundError,
     OperatorImageNotFoundError,
-    OperatorSchemaYamlError,
+    InvalidParameterError,
 )
 from .common.operator_loader import _operator_info_list
 
@@ -415,7 +415,7 @@ def verify(
             run_name="verify",
         )
         operator_module.get("verify")(config, **kwargs)
-    except OperatorSchemaYamlError as ex:
+    except InvalidParameterError as ex:
         logger.debug(ex)
         raise ValueError(
             f"The operator's specification is not valid for the `{operator_info.type}` operator. "

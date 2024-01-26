@@ -24,7 +24,14 @@ from ads.common.decorator.runtime_dependency import (
 from ads.opctl import logger
 
 from ..const import DEFAULT_TRIALS, ForecastOutputColumns, SupportedModels
-from .. import utils
+from ads.opctl.operator.lowcode.forecast.utils import (
+    convert_target,
+    load_pkl,
+    write_pkl,
+    _select_plot_list,
+    _label_encode_dataframe,
+)
+from ads.opctl.operator.lowcode.common.utils import disable_print, enable_print
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -53,7 +60,11 @@ def _get_np_metrics_dict(selected_metric):
     install_from=OptionalDependency.FORECAST,
 )
 def _fit_model(data, params, additional_regressors, select_metric):
-    from neuralprophet import NeuralProphet
+    from neuralprophet import NeuralProphet, set_log_level
+
+    set_log_level(logger.level)
+
+    disable_print()
 
     m = NeuralProphet(**params)
     m.metrics = _get_np_metrics_dict(select_metric)
@@ -61,6 +72,8 @@ def _fit_model(data, params, additional_regressors, select_metric):
         m = m.add_future_regressor(name=add_reg)
     m.fit(df=data)
     accepted_regressors_config = m.config_regressors or dict()
+
+    enable_print()
     return m, list(accepted_regressors_config.keys())
 
 
@@ -76,15 +89,18 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
     def _load_model(self):
         try:
-            self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
-            self.loaded_trainers = utils.load_pkl(self.spec.previous_output_dir + "/trainer.pkl")
+            self.loaded_models = load_pkl(self.spec.previous_output_dir + "/model.pkl")
+            self.loaded_trainers = load_pkl(
+                self.spec.previous_output_dir + "/trainer.pkl"
+            )
         except:
-            logger.info("model.pkl/trainer.pkl is not present")
+            logger.debug("model.pkl/trainer.pkl is not present")
 
     def _train_model(self, i, target, df):
-
         try:
-            from neuralprophet import NeuralProphet
+            from neuralprophet import NeuralProphet, set_log_level
+
+            set_log_level(logger.level)
 
             # Extract the Confidence Interval Width and
             # convert to neural prophets equivalent - quantiles
@@ -96,7 +112,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 )
             else:
                 boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
-                self.quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
+                self.quantiles = [
+                    boundaries,
+                    self.spec.confidence_interval_width + boundaries,
+                ]
 
             if self.loaded_models is None:
                 model_kwargs = self.spec.model_kwargs
@@ -105,7 +124,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 confidence_interval_width=self.spec.confidence_interval_width
             )
 
-            le, df_encoded = utils._label_encode_dataframe(
+            le, df_encoded = _label_encode_dataframe(
                 df, no_encode={self.spec.datetime_column.name, target}
             )
 
@@ -122,7 +141,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             additional_regressors = set(data_i.columns) - {"y", "ds"}
             training_data = data_i[["y", "ds"] + list(additional_regressors)]
 
-            model = self.loaded_models[target] if self.loaded_models is not None else None
+            model = (
+                self.loaded_models[target] if self.loaded_models is not None else None
+            )
             accepted_regressors = None
             if model is None:
                 model_kwargs_i = model_kwargs.copy()
@@ -235,7 +256,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 self.models[target] = model
                 self.trainers[target] = model.trainer
 
-            self.model_parameters[utils.convert_target(target, self.original_target_column)] = {
+            self.model_parameters[
+                convert_target(target, self.original_target_column)
+            ] = {
                 "framework": SupportedModels.NeuralProphet,
                 "config": model.config,
                 "config_trend": model.config_trend,
@@ -264,8 +287,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
 
     def _build_model(self) -> pd.DataFrame:
-        # from neuralprophet import NeuralProphet
-
         full_data_dict = self.datasets.full_data_dict
         self.models = dict()
         self.trainers = dict()
@@ -304,7 +325,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             output_i.iloc[
                 : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (self.outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values)
+            ] = (
+                self.outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values
+            )
             output_i.iloc[
                 -self.spec.horizon :,
                 output_i.columns.get_loc(f"forecast_value"),
@@ -344,24 +367,26 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             "## Forecast Overview \nThese plots show your "
             "forecast in the context of historical data."
         )
-        sec1 = utils._select_plot_list(
+        sec1 = _select_plot_list(
             lambda idx, target, *args: self.models[target].plot(self.outputs[target]),
             target_columns=self.target_columns,
-            original_target_column=self.original_target_column
+            original_target_column=self.original_target_column,
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
-        sec2 = utils._select_plot_list(
-            lambda idx, target, *args: self.models[target].plot_components(self.outputs[target]),
+        sec2 = _select_plot_list(
+            lambda idx, target, *args: self.models[target].plot_components(
+                self.outputs[target]
+            ),
             target_columns=self.target_columns,
-            original_target_column=self.original_target_column
+            original_target_column=self.original_target_column,
         )
 
         sec3_text = dp.Text(f"## Forecast Parameter Plots")
-        sec3 = utils._select_plot_list(
+        sec3 = _select_plot_list(
             lambda idx, target, *args: self.models[target].plot_parameters(),
             target_columns=self.target_columns,
-            original_target_column=self.original_target_column
+            original_target_column=self.original_target_column,
         )
 
         sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
@@ -371,7 +396,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 pd.Series(
                     m.state_dict(),
                     index=m.state_dict().keys(),
-                    name=utils.convert_target(target, self.original_target_column),
+                    name=convert_target(target, self.original_target_column),
                 )
             )
         all_model_states = pd.concat(model_states, axis=1)
@@ -407,7 +432,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
                 self.formatted_global_explanation = (
-                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
 
                 # Create a markdown section for the global explainability
@@ -429,7 +454,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=utils.convert_target(s_id, self.original_target_column),
+                        label=convert_target(s_id, self.original_target_column),
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
@@ -463,13 +488,13 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         )
 
     def _save_model(self, output_dir, storage_options):
-        utils.write_pkl(
+        write_pkl(
             obj=self.models,
             filename="model.pkl",
             output_dir=output_dir,
             storage_options=storage_options,
         )
-        utils.write_pkl(
+        write_pkl(
             obj=self.trainers,
             filename="trainer.pkl",
             output_dir=output_dir,

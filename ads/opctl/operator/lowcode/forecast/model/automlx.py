@@ -10,11 +10,12 @@ import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl.operator.lowcode.forecast.const import (
     AUTOMLX_METRIC_MAP,
-    ForecastOutputColumns, SupportedModels,
+    ForecastOutputColumns,
+    SupportedModels,
 )
 from ads.opctl import logger
 
-from .. import utils
+from ads.opctl.operator.lowcode.forecast.utils import convert_target
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -45,7 +46,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-
         from automl import init
         from sktime.forecasting.model_selection import temporal_train_test_split
 
@@ -53,6 +53,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             engine="local",
             engine_opts={"n_jobs": -1, "model_n_jobs": -1},
             check_deprecation_warnings=False,
+            logger=logger,
         )
 
         full_data_dict = self.datasets.full_data_dict
@@ -67,7 +68,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width
         )
-        self.errors_dict = dict()
 
         # Clean up kwargs for pass through
         model_kwargs_cleaned = None
@@ -85,7 +85,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             time_budget = model_kwargs_cleaned.pop("time_budget", 0)
             model_kwargs_cleaned[
                 "preprocessing"
-            ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
+            ] = self.spec.preprocessing or model_kwargs_cleaned.get(
+                "preprocessing", True
+            )
 
         for i, (target, df) in enumerate(full_data_dict.items()):
             try:
@@ -109,7 +111,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     if y_train.index.is_monotonic
                     else "NOT" + "monotonic."
                 )
-                model = self.loaded_models[target] if self.loaded_models is not None else None
+                model = (
+                    self.loaded_models[target]
+                    if self.loaded_models is not None
+                    else None
+                )
 
                 if model is None:
                     model = automl.Pipeline(
@@ -164,7 +170,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 outputs[target] = summary_frame
                 # outputs_legacy[target] = summary_frame
 
-                self.model_parameters[utils.convert_target(target, self.original_target_column)] = {
+                self.model_parameters[
+                    convert_target(target, self.original_target_column)
+                ] = {
                     "framework": SupportedModels.AutoMLX,
                     "score_metric": model.score_metric,
                     "random_state": model.random_state,
@@ -182,7 +190,10 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "selected_model_params": model.selected_model_params_,
                 }
             except Exception as e:
-                self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
+                self.errors_dict[target] = {
+                    "model_name": self.spec.model,
+                    "error": str(e),
+                }
 
         logger.debug("===========Forecast Generated===========")
         outputs_merged = pd.DataFrame()
@@ -250,7 +261,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         models = self.models
         for i, (target, df) in enumerate(self.full_data_dict.items()):
             selected_models[target] = {
-                "series_id": utils.convert_target(target, self.original_target_column),
+                "series_id": convert_target(target, self.original_target_column),
                 "selected_model": models[target].selected_model_,
                 "model_params": models[target].selected_model_params_,
             }
@@ -282,7 +293,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 global_explanation_df = pd.DataFrame(self.global_explanation)
 
                 self.formatted_global_explanation = (
-                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
+                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
                 )
 
                 # Create a markdown section for the global explainability
@@ -304,8 +315,8 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=utils.convert_target(s_id, self.original_target_column),
-                        )
+                        label=convert_target(s_id, self.original_target_column),
+                    )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]
                 local_explanation_section = (

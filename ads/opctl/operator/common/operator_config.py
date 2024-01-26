@@ -13,7 +13,7 @@ from typing import Any, Dict
 from ads.common.serializer import DataClassSerializable
 
 from ads.opctl.operator.common.utils import OperatorValidator
-from ads.opctl.operator.common.errors import OperatorSchemaYamlError
+from ads.opctl.operator.common.errors import InvalidParameterError
 
 
 @dataclass(repr=True)
@@ -65,7 +65,7 @@ class OperatorConfig(DataClassSerializable):
         result = validator.validate(obj_dict)
 
         if not result:
-            raise OperatorSchemaYamlError(json.dumps(validator.errors, indent=2))
+            raise InvalidParameterError(json.dumps(validator.errors, indent=2))
         return True
 
     @classmethod

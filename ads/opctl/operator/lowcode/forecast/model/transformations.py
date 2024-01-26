@@ -20,6 +20,7 @@ class Transformations:
             dataset_info : ForecastOperatorConfig
         """
         self.data = data
+        self.artificial_series_column = False
         self.dataset_info = dataset_info
         self._set_series_id_column()
         self.series_id_column = self.dataset_info.target_category_columns
@@ -51,8 +52,9 @@ class Transformations:
             self.dataset_info.target_category_columns is None
             or len(self.dataset_info.target_category_columns) == 0
         ):
-            self.data["__Series"] = ""
-            self.dataset_info.target_category_columns = ["__Series"]
+            self.artificial_series_column = True
+            self.data["__Series__"] = ""
+            self.dataset_info.target_category_columns = ["__Series__"]
 
     def _remove_trailing_whitespace(self, df):
         return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
@@ -97,6 +99,11 @@ class Transformations:
         df.drop("z_score", axis=1, inplace=True)
         return df
 
+    def transform_additional_data(self, df):
+        if self.artificial_series_column:
+            df["__Series__"] = ""
+        return self._sort_by_datetime_col(df)
+
     def _sort_by_datetime_col(self, df):
         """
         Function sorts by date
@@ -115,11 +122,21 @@ class Transformations:
         df["tmp_col_for_sorting"] = pd.to_datetime(
             df[self.date_column], format=self.date_format
         )
-        df = (
-            df.groupby(self.series_id_column, group_keys=True)
-            .apply(lambda x: x.sort_values(by="tmp_col_for_sorting", ascending=True))
-            .reset_index(drop=True)
-        )
+        if not self.artificial_series_column:
+            # When there is a category column
+            df = (
+                df.groupby(self.series_id_column, group_keys=True)
+                .apply(
+                    lambda x: x.sort_values(by="tmp_col_for_sorting", ascending=True)
+                )
+                .reset_index(drop=True)
+            )
+        else:
+            # No category column to group by
+            df = df.sort_values(by="tmp_col_for_sorting", ascending=True).reset_index(
+                drop=True
+            )
+
         # Drop the temporary column
         df.drop(columns=["tmp_col_for_sorting"], inplace=True)
         return df

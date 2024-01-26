@@ -32,6 +32,7 @@ from ads.opctl import logger
 from .const import SupportedMetrics, SupportedModels, RENDER_LIMIT
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
+from ads.opctl.operator.lowcode.common.utils import merge_category_columns
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -156,19 +157,6 @@ def _build_metrics_per_horizon(
     return metrics_df
 
 
-def _call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
-    if fsspec.utils.get_protocol(filename) == "file":
-        return pd_fn(filename, **kwargs)
-    elif fsspec.utils.get_protocol(filename) in ["http", "https"]:
-        return pd_fn(filename, **kwargs)
-
-    storage_options = storage_options or (
-        default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
-    )
-
-    return pd_fn(filename, storage_options=storage_options, **kwargs)
-
-
 def load_pkl(filepath):
     storage_options = dict()
     if ObjectStorageDetails.is_oci_path(filepath):
@@ -189,47 +177,9 @@ def write_pkl(obj, filename, output_dir, storage_options):
         cloudpickle.dump(obj, f)
 
 
-def _load_data(filename, format, storage_options=None, columns=None, **kwargs):
-    if not format:
-        _, format = os.path.splitext(filename)
-        format = format[1:]
-    if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
-        read_fn = getattr(pd, f"read_{format}")
-        data = _call_pandas_fsspec(read_fn, filename, storage_options=storage_options)
-    elif format in ["tsv"]:
-        data = _call_pandas_fsspec(
-            pd.read_csv, filename, storage_options=storage_options, sep="\t"
-        )
-    else:
-        raise ForecastInputDataError(f"Unrecognized format: {format}")
-    if columns:
-        # keep only these columns, done after load because only CSV supports stream filtering
-        data = data[columns]
-    return data
-
-
-def _write_data(data, filename, format, storage_options, index=False, **kwargs):
-    if not format:
-        _, format = os.path.splitext(filename)
-        format = format[1:]
-    if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
-        write_fn = getattr(data, f"to_{format}")
-        return _call_pandas_fsspec(
-            write_fn, filename, index=index, storage_options=storage_options, **kwargs
-        )
-    raise ForecastInputDataError(f"Unrecognized format: {format}")
-
-
-def _merge_category_columns(data, target_category_columns):
-    result = data.apply(
-        lambda x: "__".join([str(x[col]) for col in target_category_columns]), axis=1
-    )
-    return result if not result.empty else pd.Series([], dtype=str)
-
-
-def _clean_data(data, target_column, datetime_column, target_category_columns=None):
+def clean_data(data, target_column, datetime_column, target_category_columns=None):
     if target_category_columns is not None:
-        data["__Series__"] = _merge_category_columns(data, target_category_columns)
+        data["__Series__"] = merge_category_columns(data, target_category_columns)
         unique_categories = data["__Series__"].unique()
 
         df = pd.DataFrame()
@@ -328,7 +278,7 @@ def _build_indexed_datasets(
             ).reset_index()
         return df_by_target, target_column, categories
 
-    data["__Series__"] = _merge_category_columns(data, target_category_columns)
+    data["__Series__"] = merge_category_columns(data, target_category_columns)
     unique_categories = data["__Series__"].unique()
     invalid_categories = []
 
@@ -345,7 +295,7 @@ def _build_indexed_datasets(
             .fillna(0)
         )
         if additional_data is not None:
-            additional_data["__Series__"] = _merge_category_columns(
+            additional_data["__Series__"] = merge_category_columns(
                 additional_data, target_category_columns
             )
             data_add_by_cat = additional_data[
@@ -394,7 +344,13 @@ def _build_metrics_df(y_true, y_pred, column_name):
 
 
 def evaluate_train_metrics(
-    target_columns, datasets, output, datetime_col, original_target_column, target_col="yhat"):
+    target_columns,
+    datasets,
+    output,
+    datetime_col,
+    original_target_column,
+    target_col="yhat",
+):
     """
     Training metrics
     """
@@ -407,7 +363,9 @@ def evaluate_train_metrics(
             y_true = forecast_by_col["input_value"].values
             y_pred = forecast_by_col["fitted_value"].values
             metrics_df = _build_metrics_df(
-                y_true=y_true, y_pred=y_pred, column_name=convert_target(col, original_target_column)
+                y_true=y_true,
+                y_pred=y_pred,
+                column_name=convert_target(col, original_target_column),
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         except Exception as e:
@@ -419,8 +377,10 @@ def evaluate_train_metrics(
 def _select_plot_list(fn, target_columns, original_target_column):
     import datapane as dp
 
-    blocks = [dp.Plot(fn(i, target), label=convert_target(target, original_target_column))
-              for i, target in enumerate(target_columns)]
+    blocks = [
+        dp.Plot(fn(i, target), label=convert_target(target, original_target_column))
+        for i, target in enumerate(target_columns)
+    ]
     return dp.Select(blocks=blocks) if len(target_columns) > 1 else blocks[0]
 
 
@@ -442,8 +402,10 @@ def get_forecast_plots(
         actual_length = len(forecast_i)
         if actual_length > RENDER_LIMIT:
             forecast_i = forecast_i.tail(RENDER_LIMIT)
-            text = f"<i>To improve rendering speed, subsampled the data from {actual_length}" \
-                   f" rows to {RENDER_LIMIT} rows for this plot.</i>"
+            text = (
+                f"<i>To improve rendering speed, subsampled the data from {actual_length}"
+                f" rows to {RENDER_LIMIT} rows for this plot.</i>"
+            )
             fig.update_layout(
                 annotations=[
                     go.layout.Annotation(
@@ -452,7 +414,7 @@ def get_forecast_plots(
                         xref="paper",
                         yref="paper",
                         text=text,
-                        showarrow=False
+                        showarrow=False,
                     )
                 ]
             )
@@ -525,7 +487,9 @@ def get_forecast_plots(
         )
         return fig
 
-    return _select_plot_list(plot_forecast_plotly, target_columns, original_target_column)
+    return _select_plot_list(
+        plot_forecast_plotly, target_columns, original_target_column
+    )
 
 
 def select_auto_model(
@@ -609,10 +573,10 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperator
 
 
 def convert_target(target: str, target_col: str):
-    if target_col is not None and target_col!='':
-        temp = target_col + '_'
+    if target_col is not None and target_col != "":
+        temp = target_col + "_"
         if temp in target:
-            target = target.replace(temp, '')
+            target = target.replace(temp, "")
     return target
 
 
@@ -621,13 +585,3 @@ def default_signer(**kwargs):
     from ads.common.auth import default_signer
 
     return default_signer(**kwargs)
-
-
-# Disable
-def block_print():
-    sys.stdout = open(os.devnull, "w")
-
-
-# Restore
-def enable_print():
-    sys.stdout = sys.__stdout__
