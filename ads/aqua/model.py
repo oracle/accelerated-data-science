@@ -94,7 +94,7 @@ class AquaModelApp(AquaApp):
             return None
         
         if not self._if_show(oci_model):
-            logger.info(f"Target model {oci_model.id} is not AQUA model. Skipped showing.")
+            logger.debug(f"Target model {oci_model.id} is not AQUA model. Skipped showing.")
             return None
         
         custom_metadata_list = oci_model.custom_metadata_list
@@ -220,5 +220,10 @@ class AquaModelApp(AquaApp):
         raise FileNotFoundError("Failed to retrieve model artifact path from AQUA model.")
     
     def _read_file(self, file_path: str) -> str:
-        with fsspec.open(file_path, "rb", **self._auth) as f:
-            return f.read()
+        try:
+            with fsspec.open(file_path, "rb", **self._auth) as f:
+                return f.read()
+        except Exception as e:
+            # show opc-request-id and status code
+            logger.error(f"Failed to retreive model icon. {e}")
+            return None

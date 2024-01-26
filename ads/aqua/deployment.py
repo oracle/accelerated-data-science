@@ -70,7 +70,10 @@ class AquaDeploymentApp(AquaApp):
         return [
             AquaDeployment(
                 display_name=model_deployment.display_name,
-                aqua_service_model=model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None),
+                aqua_service_model=(
+                    model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None)
+                    if model_deployment.freeform_tags else None
+                ),
                 state=model_deployment.lifecycle_state,
                 description=model_deployment.description,
                 created_on=str(model_deployment.time_created),
@@ -85,7 +88,10 @@ class AquaDeploymentApp(AquaApp):
         pass
 
     def stats(self, **kwargs) -> Dict:
-        """Gets the config of Aqua model deployment.
+        pass
+
+    def get(self, **kwargs) -> "AquaDeployment":
+        """Gets the information of Aqua model deployment.
 
         Parameters
         ----------
@@ -95,8 +101,8 @@ class AquaDeploymentApp(AquaApp):
 
         Returns
         -------
-        Dict:
-            The dict of the Aqua model deployment.
+        AquaDeployment:
+            The instance of the Aqua model deployment.
         """
         model_deployment_id = kwargs.get("model_deployment_id", None)
         if not model_deployment_id:
@@ -112,11 +118,14 @@ class AquaDeploymentApp(AquaApp):
             logger.error(f"Failed to retreive model deployment information. {e}")
             return {}
 
-        return {
-            "display_name": model_deployment.display_name,
-            "aqua_service_model": model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None),
-            "state": model_deployment.lifecycle_state,
-            "description": model_deployment.description,
-            "created_on": str(model_deployment.time_created),
-            "created_by": model_deployment.created_by
-        }
+        return AquaDeployment(
+            display_name=model_deployment.display_name,
+            aqua_service_model=(
+                model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None) 
+                if model_deployment.freeform_tags else None
+            ),
+            state=model_deployment.lifecycle_state,
+            description=model_deployment.description,
+            created_on=str(model_deployment.time_created),
+            created_by=model_deployment.created_by
+        )
