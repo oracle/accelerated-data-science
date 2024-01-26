@@ -5,6 +5,8 @@
 
 """Exception module."""
 
+from tornado.web import HTTPError
+
 
 class AquaError(Exception):
     """AquaError
@@ -30,3 +32,17 @@ class AquaClientError(AquaError):
 
     def __init__(self, invalid_input: str):
         super().__init__(f"Invalid input {invalid_input}.")
+
+
+def exception_handler(func):
+    def inner_function(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except AquaServiceError as service_error:
+            raise HTTPError(500, str(service_error))
+        except AquaClientError as client_error:
+            raise HTTPError(400, str(client_error))
+        except Exception as internal_error:
+            raise HTTPError(500, str(internal_error))
+
+    return inner_function

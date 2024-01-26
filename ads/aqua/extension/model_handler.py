@@ -5,52 +5,34 @@
 
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
-from ads.aqua.exception import AquaServiceError, AquaClientError
-from tornado.web import HTTPError
+from ads.aqua.exception import exception_handler
 
 
 class AquaModelHandler(AquaAPIhandler):
     """Handler for Aqua Model REST APIs."""
 
+    @exception_handler
     def get(self, model_id=""):
         """Handle GET request."""
-        try:
-            if not model_id:
-                return self.list()
-            return self.read(model_id)
-        except AquaServiceError as service_error:
-            raise HTTPError(500, str(service_error))
-        except AquaClientError as client_error:
-            raise HTTPError(400, str(client_error))
-        except Exception as internal_error:
-            raise HTTPError(500, str(internal_error))
 
+        if not model_id:
+            return self.list()
+        return self.read(model_id)
+
+    @exception_handler
     def read(self, model_id):
         """Read the information of an Aqua model."""
-        try:
-            return self.finish(AquaModelApp().get(model_id))
-        except AquaServiceError as service_error:
-            raise HTTPError(500, str(service_error))
-        except AquaClientError as client_error:
-            raise HTTPError(400, str(client_error))
-        except Exception as internal_error:
-            raise HTTPError(500, str(internal_error))
+        return self.finish(AquaModelApp().get(model_id))
 
+    @exception_handler
     def list(self):
         """List Aqua models."""
-        try:
-            # If default is not specified,
-            # jupyterlab will raise 400 error when argument is not provided by the HTTP request.
-            compartment_id = self.get_argument("compartment_id")
-            # project_id is optional.
-            project_id = self.get_argument("project_id", default=None)
-            return self.finish(AquaModelApp().list(compartment_id, project_id))
-        except AquaServiceError as service_error:
-            raise HTTPError(500, str(service_error))
-        except AquaClientError as client_error:
-            raise HTTPError(400, str(client_error))
-        except Exception as internal_error:
-            raise HTTPError(500, str(internal_error))
+        # If default is not specified,
+        # jupyterlab will raise 400 error when argument is not provided by the HTTP request.
+        compartment_id = self.get_argument("compartment_id")
+        # project_id is optional.
+        project_id = self.get_argument("project_id", default=None)
+        return self.finish(AquaModelApp().list(compartment_id, project_id))
 
 
 __handlers__ = [("model/?([^/]*)", AquaModelHandler)]
