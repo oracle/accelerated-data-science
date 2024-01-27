@@ -4,11 +4,14 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from dataclasses import dataclass
+
 from tornado.web import HTTPError
 
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.playground.entities import Message
 from ads.aqua.playground.playground import SessionApp, ThreadApp
+from ads.common.serializer import DataClassSerializable
 from ads.common.utils import batch_convert_case
 
 
@@ -16,6 +19,13 @@ class Errors(str):
     INVALID_INPUT_DATA_FORMAT = "Invalid format of input data."
     NO_INPUT_DATA = "No input data provided."
     MISSING_REQUIRED_PARAMETER = "Missing required parameter: '{}'"
+
+
+@dataclass
+class NewSessionRequest(DataClassSerializable):
+    """Dataclass representing the request on creating a new session."""
+
+    model_id: str = None
 
 
 class AquaPlaygroundSessionHandler(AquaAPIhandler):
@@ -72,8 +82,9 @@ class AquaPlaygroundSessionHandler(AquaAPIhandler):
 
     def post(self, *args, **kwargs):
         """
-        Creates a new Playground session.
+        Creates a new Playground session by model ID.
         The session data is extracted from the JSON body of the request.
+        If session for given model ID exists, then the existing session will be returned.
 
         Raises
         ------
@@ -88,14 +99,15 @@ class AquaPlaygroundSessionHandler(AquaAPIhandler):
         if not input_data:
             raise HTTPError(400, Errors.NO_INPUT_DATA)
 
-        model_id = input_data.get("model_id")
-        if not model_id:
-            raise HTTPError(
-                400, Errors.Errors.MISSING_REQUIRED_PARAMETER.format("model_id")
-            )
+        new_session_request = NewSessionRequest.from_dict(
+            batch_convert_case(input_data, to_fmt="snake")
+        )
+
+        if not new_session_request.model_id:
+            raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("modelId"))
 
         try:
-            self.finish(SessionApp().create(model_id=model_id))
+            self.finish(SessionApp().create(model_id=new_session_request.model_id))
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
@@ -122,7 +134,7 @@ class AquaPlaygroundThreadHandler(AquaAPIhandler):
     HTTPError: For various failure scenarios such as invalid input format, missing data, etc.
     """
 
-    def get(self, thread_id=""):
+    def get(self, thread_id: str = ""):
         """
         Retrieve a list of all threads or a specific thread by its ID.
 
@@ -150,7 +162,14 @@ class AquaPlaygroundThreadHandler(AquaAPIhandler):
             raise HTTPError(500, str(ex))
 
     def list(self):
-        """List playground threads."""
+        """
+        List playground threads.
+
+        Args
+        ----
+        session_id: str
+            The ID of the session to list associated threads.
+        """
         session_id = self.get_argument("session_id")
         try:
             return self.finish(ThreadApp().list(session_id=session_id))
@@ -180,22 +199,34 @@ class AquaPlaygroundThreadHandler(AquaAPIhandler):
                 batch_convert_case(input_data, to_fmt="snake")
             )
 
-            result = ThreadApp().post_message(
+            system_message = ThreadApp().post_message(
                 message=message_obj.content,
                 thread_id=message_obj.thread_id,
                 session_id=message_obj.session_id,
                 model_params=message_obj.model_params,
             )
 
-            self.finish(result)
+            self.finish(
+                ThreadApp().get(
+                    thread_id=system_message.thread_id, include_messages=True
+                )
+            )
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
     def delete(self):
-        thread_id = self.get_argument("thread_id")
+        """
+        Deletes (soft delete) the thread by ID.
+
+        Args
+        ----
+        thread_id: str
+            The ID of the thread to be deleted.
+        """
+        thread_id = self.get_argument("threadId")
         if not thread_id:
             raise HTTPError(
-                400, Errors.Errors.MISSING_REQUIRED_PARAMETER.format("thread_id")
+                400, Errors.Errors.MISSING_REQUIRED_PARAMETER.format("threadId")
             )
 
         # Only soft deleting with updating a status field.
