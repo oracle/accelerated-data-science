@@ -25,7 +25,7 @@ class AquaDeployment:
 
     display_name: str
     aqua_service_model: str
-    status: str
+    state: str
     description: str
     created_on: str
     created_by: str
@@ -153,7 +153,6 @@ class AquaDeploymentApp(AquaApp):
                 log_id=predict_log_id,
             )
         )
-        logger.info(f"Infra: {infrastructure}")
         # configure model deployment runtime
         # todo : any other runtime params needed?
         container_runtime = (
@@ -169,7 +168,6 @@ class AquaDeploymentApp(AquaApp):
             .with_overwrite_existing_artifact(False)
             .with_remove_existing_artifact(False)
         )
-        logger.info(f"Infra: {container_runtime}")
         # configure model deployment and deploy model on container runtime
         # todo : any other deployment params needed?
         deployment = (
@@ -184,7 +182,7 @@ class AquaDeploymentApp(AquaApp):
         return AquaDeployment(
             display_name=deployment.display_name,
             aqua_service_model=aqua_service_model,
-            status=deployment.status.name,
+            state=deployment.status.name,
             description=deployment.description,
             created_on=deployment.time_created,
             created_by=deployment.created_by,

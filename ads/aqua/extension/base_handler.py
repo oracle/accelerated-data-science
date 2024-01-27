@@ -42,6 +42,7 @@ class AquaAPIhandler(APIHandler):
         return super().finish(payload)
 
 
+# todo: remove after error handler is implemented
 class Errors(str):
     INVALID_INPUT_DATA_FORMAT = "Invalid format of input data."
     NO_INPUT_DATA = "No input data provided."

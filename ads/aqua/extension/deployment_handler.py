@@ -87,7 +87,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 400, Errors.MISSING_REQUIRED_PARAMETER.format("predict_log_id")
             )
 
-        # todo: remove this & replace with id from aqua model
+        # todo: remove this & replace with id from aqua model once AquaModelApp.create() is implemented
         model_id = input_data.get("model_id")
         if not instance_count:
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
@@ -99,10 +99,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
         try:
             # todo: call create method to create a catalog entry
             # aqua_model = AquaModelApp.create()
-            # get deployment_image from aqua model
+            # todo: hardcoded image, get deployment_image and aqua_service_model tag from aqua model?
+            #  Also, entrypoint would be added in the image
             deployment_image = "iad.ocir.io/ociodscdev/aqua_deploy:1.0.0"
             entrypoint = ["python", "/opt/api/api.py"]
-            aqua_service_model = f"xxx.xxx.xxx.xxx.xxx#Mistral-7B-Instruct-v0.1"
+            aqua_service_model = f"xxx.xxx.xxx.xxx.xxx#aqua_service_model_value"
 
             self.finish(
                 AquaDeploymentApp().create(
