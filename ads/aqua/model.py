@@ -7,8 +7,10 @@ import fsspec
 from dataclasses import dataclass
 from typing import List
 from enum import Enum
+from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
+from oci.excpetion import ServiceError, ClientError
 
 logger = logging.getLogger(__name__)
 
@@ -88,14 +90,13 @@ class AquaModelApp(AquaApp):
         """
         try:
             oci_model = self.client.get_model(model_id).data
-        except Exception as e:
-            # show opc-request-id and status code
-            logger.error(f"Failing to retreive model information. {e}")
-            return None
+        except ServiceError as se:
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        except ClientError as ce:
+            raise AquaClientError(str(ce))
         
         if not self._if_show(oci_model):
-            logger.debug(f"Target model {oci_model.id} is not AQUA model. Skipped showing.")
-            return None
+            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
         
         custom_metadata_list = oci_model.custom_metadata_list
         artifact_path = self._get_artifact_path(custom_metadata_list)
@@ -216,14 +217,14 @@ class AquaModelApp(AquaApp):
         for custom_metadata in custom_metadata_list:
             if custom_metadata.key == "Object Storage Path":
                 return custom_metadata.value
-
-        raise FileNotFoundError("Failed to retrieve model artifact path from AQUA model.")
+        
+        logger.debug("Failed to get artifact path from custom metadata.")
+        return None
     
     def _read_file(self, file_path: str) -> str:
         try:
             with fsspec.open(file_path, "rb", **self._auth) as f:
                 return f.read()
         except Exception as e:
-            # show opc-request-id and status code
             logger.error(f"Failed to retreive model icon. {e}")
             return None

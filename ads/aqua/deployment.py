@@ -8,7 +8,10 @@ from typing import List, Dict
 
 from dataclasses import dataclass
 from ads.aqua.base import AquaApp
+from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
+from oci.excpetion import ServiceError, ClientError
+
 
 AQUA_SERVICE_MODEL = "aqua_service_model"
 
@@ -106,17 +109,17 @@ class AquaDeploymentApp(AquaApp):
         """
         model_deployment_id = kwargs.get("model_deployment_id", None)
         if not model_deployment_id:
-            raise ValueError("Aqua model deployment ocid must be provided to fetch the stats.")
+            raise AquaClientError("Aqua model deployment ocid must be provided to fetch the deployment.")
         
         try:
             model_deployment = self.client.get_model_deployment(
                 model_deployment_id=model_deployment_id,
                 **kwargs
             ).data
-        except Exception as e:
-            # show opc-request-id and status code
-            logger.error(f"Failed to retreive model deployment information. {e}")
-            return {}
+        except ServiceError as se:
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        except ClientError as ce:
+            raise AquaClientError(str(ce))
 
         return AquaDeployment(
             display_name=model_deployment.display_name,
