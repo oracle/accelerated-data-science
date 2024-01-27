@@ -66,9 +66,6 @@ class AquaDeploymentApp(AquaApp):
         List[AquaDeployment]:
             The list of the Aqua model deployments.
         """
-        compartment_id = kwargs.get("compartment_id", None)
-        kwargs.update({"compartment_id": compartment_id or COMPARTMENT_OCID})
-
         model_deployments = self.list_resource(self.client.list_model_deployments, **kwargs)
         return [
             AquaDeployment(

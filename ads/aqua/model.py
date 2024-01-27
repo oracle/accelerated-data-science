@@ -36,7 +36,7 @@ class AquaModelSummary:
     id: str
     compartment_id: str
     project_id: str
-    time_created: int
+    time_created: str
     icon: str
     task: str
     license: str
@@ -168,7 +168,7 @@ class AquaModelApp(AquaApp):
                         id=model.id,
                         compartment_id=model.compartment_id,
                         project_id=model.project_id,
-                        time_created=model.time_created,
+                        time_created=str(model.time_created),
                         icon=self._read_file(f"{artifact_path}/{ICON_FILE_NAME}"),
                         task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
                         license=model.freeform_tags.get(
