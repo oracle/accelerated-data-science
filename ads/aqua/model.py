@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import logging
 import fsspec
 from dataclasses import dataclass
 from typing import List
@@ -13,8 +12,6 @@ from ads.aqua.base import AquaApp
 from oci.exceptions import ServiceError, ClientError
 import asyncio
 
-
-logger = logging.getLogger(__name__)
 
 ICON_FILE_NAME = "icon.txt"
 README = "readme.md"

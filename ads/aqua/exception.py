@@ -5,8 +5,9 @@
 
 """Exception module."""
 
-from oci.exceptions import ServiceError, ClientError
+from oci.exceptions import ServiceError
 from tornado.web import HTTPError
+from oci.exceptions import ServiceError
 
 
 class AquaError(Exception):
@@ -22,9 +23,10 @@ class AquaError(Exception):
 class AquaServiceError(AquaError):
     """Exception raised for server side error."""
 
-    def __init__(self, opc_request_id: str, status_code: int):
+    def __init__(self, opc_request_id: str, status_code: int, service_error: str):
         super().__init__(
             f"Error occurred when invoking service. opc-request-id: {opc_request_id}. status code: {status_code}."
+            f"{service_error}"
         )
 
 
@@ -35,6 +37,8 @@ class AquaClientError(AquaError):
 
 
 def exception_handler(func):
+    """Handles AquaError."""
+
     def inner_function(*args, **kwargs):
         try:
             func(*args, **kwargs)
@@ -49,12 +53,21 @@ def exception_handler(func):
 
 
 def oci_exception_handler(func):
+    """Handles OCI Service Error."""
+
     def inner_function(*args, **kwargs):
         try:
             func(*args, **kwargs)
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-        except ClientError as ce:
-            raise AquaClientError(str(ce))
+        except ServiceError as e:
+            if e.status >= 500:
+                raise AquaServiceError(
+                    opc_request_id=e.request_id,
+                    status_code=e.code,
+                    service_error=str(e),
+                )
+            else:
+                raise AquaClientError(str(e))
+        except Exception as ex:
+            raise AquaClientError(str(ex))
 
     return inner_function
