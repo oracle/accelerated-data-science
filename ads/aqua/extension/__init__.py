@@ -9,11 +9,12 @@ from jupyter_server.utils import url_path_join
 from ads.aqua.extension.job_handler import __handlers__ as __job_handlers__
 from ads.aqua.extension.model_handler import __handlers__ as __model_handlers__
 
-from ads.aqua.extension.playground_handler import (
-    __handlers__ as __playground_handlers__,
-)
+# from ads.aqua.extension.playground_handler import (
+#     __handlers__ as __playground_handlers__,
+# )
 
-__handlers__ = __playground_handlers__ + __job_handlers__ + __model_handlers__
+# __handlers__ = __playground_handlers__ + __job_handlers__ + __model_handlers__
+__handlers__ = __job_handlers__ + __model_handlers__
 
 
 def load_jupyter_server_extension(nb_server_app):

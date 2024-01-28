@@ -2,10 +2,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import os
 
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
 from ads.aqua.exception import exception_handler
+
+AQUA_MODEL_COMPARTMENT = "AQUA_MODEL_COMPARTMENT"
 
 
 class AquaModelHandler(AquaAPIhandler):
@@ -25,14 +28,27 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().get(model_id))
 
     @exception_handler
-    def list(self):
+    async def list(self):
         """List Aqua models."""
         # If default is not specified,
         # jupyterlab will raise 400 error when argument is not provided by the HTTP request.
-        compartment_id = self.get_argument("compartment_id")
+        # default compartment will be stored in env var: AQUA_MODEL_COMPARTMENT
+        compartment_id = self.get_argument(
+            "compartment_id", defaul=os.environ.get(AQUA_MODEL_COMPARTMENT)
+        )
         # project_id is optional.
         project_id = self.get_argument("project_id", default=None)
-        return self.finish(AquaModelApp().list(compartment_id, project_id))
+        model_app = AquaModelApp()
+        all_models = await model_app.list(compartment_id, project_id)
+        # return self.finish(models)
+
+        response_message = [
+            {"type": "SUCCESS", "msg": "Success"},
+            {"type": "ERROR", "msg": "No model found."},
+        ]
+        return self.finish(
+            {"models": all_models, "message": response_message[not all_models]}
+        )
 
 
 __handlers__ = [("model/?([^/]*)", AquaModelHandler)]

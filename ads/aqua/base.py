@@ -9,8 +9,7 @@ from typing import List
 import logging
 import oci
 from ads.common.auth import default_signer
-from ads.aqua.exception import AquaServiceError, AquaClientError
-from oci.excpetion import ServiceError, ClientError
+from ads.aqua.exception import oci_exception_handler
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +21,7 @@ class AquaApp:
         self._auth = default_signer()
         self.client = oci.data_science.DataScienceClient(**self._auth)
 
+    @oci_exception_handler
     def list_resource(
         self,
         list_func_ref,
@@ -42,14 +42,9 @@ class AquaApp:
         list
             A list of OCI Data Science resources.
         """
-        try:
-            items = oci.pagination.list_call_get_all_results(
-                list_func_ref,
-                **kwargs,
-            ).data
+        items = oci.pagination.list_call_get_all_results(
+            list_func_ref,
+            **kwargs,
+        ).data
 
-            return items
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-        except ClientError as ce:
-            raise AquaClientError(str(ce))
+        return items

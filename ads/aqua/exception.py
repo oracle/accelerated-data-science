@@ -5,6 +5,7 @@
 
 """Exception module."""
 
+from oci.exceptions import ServiceError, ClientError
 from tornado.web import HTTPError
 
 
@@ -43,5 +44,17 @@ def exception_handler(func):
             raise HTTPError(400, str(client_error))
         except Exception as internal_error:
             raise HTTPError(500, str(internal_error))
+
+    return inner_function
+
+
+def oci_exception_handler(func):
+    def inner_function(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except ServiceError as se:
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        except ClientError as ce:
+            raise AquaClientError(str(ce))
 
     return inner_function
