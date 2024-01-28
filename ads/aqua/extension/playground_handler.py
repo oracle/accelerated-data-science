@@ -203,7 +203,7 @@ class AquaPlaygroundThreadHandler(AquaAPIhandler):
                 message=message_obj.content,
                 thread_id=message_obj.thread_id,
                 session_id=message_obj.session_id,
-                model_params=message_obj.model_params,
+                model_params=message_obj.model_params.to_dict(),
             )
 
             self.finish(
@@ -214,7 +214,7 @@ class AquaPlaygroundThreadHandler(AquaAPIhandler):
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
-    def delete(self):
+    def delete(self, *args, **kwargs):
         """
         Deletes (soft delete) the thread by ID.
 

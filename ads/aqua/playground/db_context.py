@@ -134,7 +134,11 @@ class DBContext:
             return Session.from_db_model(session_model, include_threads=include_threads)
 
     def add_session(
-        self, model_id: str, name: str, url: str, status: str = Status.ACTIVE
+        self,
+        model_id: str,
+        model_name: str,
+        model_endpoint: str,
+        status: str = Status.ACTIVE,
     ) -> SessionModel:
         """
         Adds a new playground session to the database.
@@ -142,8 +146,8 @@ class DBContext:
         Parameters
         ----------
         model_id (str): The unique model identifier for the new db_session.
-        name (str): The name of the model.
-        url (str): The URL of the model.
+        model_name (str): The name of the model.
+        model_endpoint (str): The model endpoint.
         status (str): The status of the db_session.
 
         Returns
@@ -154,8 +158,8 @@ class DBContext:
         with self.DBSession() as db_session:
             new_session = SessionModel(
                 model_id=model_id,
-                name=name,
-                url=url,
+                model_name=model_name,
+                model_endpoint=model_endpoint,
                 created=datetime.now(),
                 status=status,
             )

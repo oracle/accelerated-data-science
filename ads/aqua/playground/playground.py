@@ -122,12 +122,12 @@ class SessionApp:
                 "A Session with the provided model ID already exists. "
                 "Returning the existing session."
             )
-        except SessionNotFoundError as ex:
+        except SessionNotFoundError:
             model_deployment = ModelDeployment.from_id(model_id)
             session = db_context.add_session(
                 model_id=model_deployment.model_deployment_id,
-                name=model_deployment.display_name,
-                url=model_deployment.url,
+                model_name=model_deployment.display_name,
+                model_endpoint=model_deployment.url,
             )
 
         return session
@@ -336,7 +336,8 @@ class ThreadApp:
 
         # invoke the model
         model_deployment = ModelDeploymentVLLM(
-            endpoint=f"{session_obj.url.rstrip('/')}/predict", **model_params
+            endpoint=f"{session_obj.model.endpoint.rstrip('/')}/predict",
+            **model_params,
         )
         model_response_content = model_deployment(message)
 

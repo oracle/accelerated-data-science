@@ -5,12 +5,11 @@
 
 
 import datetime
+from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
-from collections import defaultdict
 
 from ads.aqua.playground.const import MessageRate, Status
-
 from ads.aqua.playground.db_models import MessageModel, SessionModel, ThreadModel
 from ads.common.serializer import DataClassSerializable
 
@@ -109,6 +108,10 @@ class VLLModelParams(DataClassSerializable):
     stream: Optional[bool] = False
     min_p: Optional[float] = 0.0
 
+    def __post_init__(self):
+        if not self.model:
+            self.model = "/opt/ds/model/deployed_model"
+
 
 @dataclass(repr=False)
 class Message(DataClassSerializable):
@@ -181,7 +184,7 @@ class Message(DataClassSerializable):
             rate=data.rate,
             role=data.role,
             payload=data.payload,
-            model_params=data.model_params,
+            model_params=VLLModelParams.from_dict(data.model_params),
         )
 
 
@@ -265,6 +268,26 @@ class Thread(DataClassSerializable):
 
 
 @dataclass(repr=False)
+class ModelInfo(DataClassSerializable):
+    """
+    Data class representing model deployment details.
+
+    Attributes
+    ----------
+    id: (str, optional)
+        The model deployment ID.
+    name: (str, optional)
+        The model deployment name.
+    endpoint: (str, optional)
+        The model deployment endpoint.
+    """
+
+    id: Optional[str] = None
+    name: Optional[str] = None
+    endpoint: Optional[str] = None
+
+
+@dataclass(repr=False)
 class Session(DataClassSerializable):
 
     """
@@ -274,27 +297,21 @@ class Session(DataClassSerializable):
     ----------
     id: int
         Unique identifier of the session.
-    name: str
-        Name of the session/model.
-    url: str
-        URL of the model.
-    model_id: str
-        Identifier of the associated model deployment.
     created: datetime.datetime
         Creation timestamp of the session.
     status: str
         Status of the message. Can be `active` or `archived`.
     threads: List[Thread]
         List of threads in the session.
+    model: ModelInfo
+        Model deployment details.
     """
 
     session_id: int = None
-    name: str = None
-    url: str = None
-    model_id: str = None
     created: datetime.datetime = None
     status: str = Status.ACTIVE
     threads: List[Thread] = field(default_factory=list)
+    model: ModelInfo = field(default_factory=ModelInfo)
 
     @classmethod
     def from_db_model(
@@ -318,11 +335,11 @@ class Session(DataClassSerializable):
 
         obj = cls(
             session_id=data.id,
-            model_id=data.model_id,
-            name=data.name,
-            url=data.url,
             created=data.created,
             status=data.status,
+            model=ModelInfo(
+                id=data.model_id, name=data.model_name, endpoint=data.model_endpoint
+            ),
         )
 
         if include_threads and data.threads:

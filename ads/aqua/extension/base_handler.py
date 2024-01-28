@@ -7,6 +7,7 @@
 import json
 from dataclasses import asdict, is_dataclass
 from typing import Any
+
 from notebook.base.handlers import APIHandler
 
 
@@ -33,7 +34,7 @@ class AquaAPIhandler(APIHandler):
         Calling finish() with more than one arguments will cause error.
         """
         if payload is None:
-            payload = {}
+            return super().finish()
         # If the payload is a list, put into a dictionary with key=data
         if isinstance(payload, list):
             payload = {"data": payload}
