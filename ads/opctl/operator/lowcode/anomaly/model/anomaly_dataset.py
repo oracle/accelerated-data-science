@@ -133,16 +133,19 @@ class AnomalyOutput:
         outliers = pd.DataFrame()
 
         for category in self.category_map.keys():
-            outliers = pd.concat(
-                [
-                    outliers,
-                    self.get_outliers_by_cat(
-                        category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
-                    )
-                ],
-                axis=0,
-                ignore_index=True,
-            )
+            if '__Series__' in data.columns:
+                outliers = pd.concat(
+                    [
+                        outliers,
+                        self.get_outliers_by_cat(
+                            category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
+                        )
+                    ],
+                    axis=0,
+                    ignore_index=True,
+                )
+            else:
+                outliers = pd.concat([outliers, self.get_outliers_by_cat(category, data)], axis=0, ignore_index=True)
         return outliers
 
     def get_scores(self, target_category_columns):

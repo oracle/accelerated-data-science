@@ -83,11 +83,11 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
 
             anomaly = pd.DataFrame({
                 date_column: df[date_column],
-                OutputColumns.ANOMALY_COL: predictions_train[target]
+                OutputColumns.ANOMALY_COL: predictions_train[target].flatten()
             })
             score = pd.DataFrame({
                 date_column: df[date_column],
-                OutputColumns.SCORE_COL: prediction_score_train[target]
+                OutputColumns.SCORE_COL: prediction_score_train[target].flatten()
             })
             anomaly_output.add_output(target, anomaly, score)
 
