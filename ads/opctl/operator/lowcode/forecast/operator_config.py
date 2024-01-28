@@ -15,6 +15,7 @@ from ads.opctl.operator.common.operator_config import OperatorConfig
 from .const import SupportedMetrics, SpeedAccuracyMode
 from .const import SupportedModels
 
+
 @dataclass(repr=True)
 class InputData(DataClassSerializable):
     """Class representing operator specification input data details."""
@@ -90,7 +91,6 @@ class ForecastOperatorSpec(DataClassSerializable):
     generate_explanations: bool = None
     explanations_accuracy_mode: str = None
     horizon: int = None
-    freq: str = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
     model_parameters: str = None
@@ -124,7 +124,9 @@ class ForecastOperatorSpec(DataClassSerializable):
             if self.generate_explanations is not None
             else False
         )
-        self.explanations_accuracy_mode = self.explanations_accuracy_mode or SpeedAccuracyMode.FAST_APPROXIMATE
+        self.explanations_accuracy_mode = (
+            self.explanations_accuracy_mode or SpeedAccuracyMode.FAST_APPROXIMATE
+        )
 
         self.generate_model_parameters = (
             self.generate_model_parameters

@@ -48,8 +48,6 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         outputs = dict()
         outputs_legacy = []
         # Get the name of the datetime column
-        date_column = self.spec.datetime_column.name
-        self.datasets.datetime_col = date_column
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width
         )
@@ -58,7 +56,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             # Initialize the AutoTS model with specified parameters
             model = AutoTS(
                 forecast_length=self.spec.horizon,
-                frequency=self.spec.model_kwargs.get("frequency", "infer"),
+                frequency=self.spec.model_kwargs.get(
+                    "frequency", "infer"
+                ),  # TODO: Use datasets.get_datetime_frequency ?
                 prediction_interval=self.spec.confidence_interval_width,
                 max_generations=self.spec.model_kwargs.get(
                     "max_generations", AUTOTS_MAX_GENERATION
@@ -114,19 +114,23 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
             )
 
-        # Prepare the data for model training
-        full_data_dict = self.datasets.full_data_dict
-        temp_list = [full_data_dict[i] for i in full_data_dict.keys()]
-        melt_temp = [
-            temp_list[i].melt(
-                temp_list[i].columns.difference(self.target_columns),
-                var_name="series_id",
-                value_name=self.original_target_column,
-            )
-            for i in range(len(self.target_columns))
-        ]
+        # # Prepare the data for model training
+        # full_data_dict = self.datasets.get_all_data_by_series()
+        # temp_list = [full_data_dict[i] for i in full_data_dict.keys()]
+        # melt_temp = [
+        #     temp_list[i].melt(
+        #         temp_list[i].columns.difference(self.target_columns),
+        #         var_name="series_id",
+        #         value_name=self.original_target_column,
+        #     )
+        #     for i in range(len(self.target_columns))
+        # ]
 
-        self.full_data_long = pd.concat(melt_temp)
+        # self.full_data_long = pd.concat(melt_temp)
+
+        print(f"self.target_columns: {self.target_columns}")
+        print(f"self.data long: {self.datasets.get_all_data_long()}")
+        self.full_data_long = self.datasets.get_all_data_long()
 
         if self.spec.additional_data:
             df_temp = (
@@ -140,13 +144,8 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             r_tr, _ = create_regressor(
                 df_temp.pivot(
                     [self.spec.datetime_column.name],
-                    columns="series_id",
-                    values=list(
-                        self.original_additional_data.set_index(
-                            self.spec.target_category_columns
-                            + [self.spec.datetime_column.name]
-                        ).columns
-                    ),
+                    columns=ForecastOutputColumns.SERIES,
+                    values=self.datasets.get_additional_data_column_names(),
                 ),
                 forecast_length=self.spec.horizon,
             )
@@ -156,7 +155,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         if self.loaded_models is None:
             # Fit the model to the training data
             model = model.fit(
-                self.full_data_long.groupby("series_id")
+                self.full_data_long.groupby(ForecastOutputColumns.SERIES)
                 .head(-self.spec.horizon)
                 .reset_index(drop=True),
                 date_col=self.spec.datetime_column.name,
@@ -164,7 +163,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 future_regressor=r_tr.head(-self.spec.horizon)
                 if self.spec.additional_data
                 else None,
-                id_col="series_id",
+                id_col=ForecastOutputColumns.SERIES,
             )
 
             # Store the trained model and generate forecasts
@@ -201,37 +200,34 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             if param in params:
                 params.pop(param)
 
-        for cat in self.categories:
+        for cat in self.datasets.list_categories():
             output_i = pd.DataFrame()
-            cat_target = f"{self.original_target_column}_{cat}"
-            input_data_i = full_data_dict[cat_target]
+            input_data_i = self.datasets.get_all_data_for_category(cat)
 
             output_i["Date"] = pd.to_datetime(
                 input_data_i[self.spec.datetime_column.name],
-                format=self.spec.datetime_column.format,
+                format=self.spec.datetime_column.format,  # TODO: could format be different?
             )
             output_i["Series"] = cat
-            output_i["input_value"] = input_data_i[cat_target]
+            output_i["input_value"] = input_data_i[self.original_target_column]
             output_i["fitted_value"] = float("nan")
             output_i = output_i.set_index("Date")
 
-            output_i["forecast_value"] = self.prediction.forecast[[cat_target]]
-            output_i[yhat_upper_name] = self.prediction.upper_forecast[[cat_target]]
-            output_i[yhat_lower_name] = self.prediction.lower_forecast[[cat_target]]
+            output_i["forecast_value"] = self.prediction.forecast[[cat]]
+            output_i[yhat_upper_name] = self.prediction.upper_forecast[[cat]]
+            output_i[yhat_lower_name] = self.prediction.lower_forecast[[cat]]
             output_i.iloc[
                 -hist_df.shape[0] - self.spec.horizon : -self.spec.horizon,
                 output_i.columns.get_loc(f"fitted_value"),
-            ] = hist_df[cat_target]
+            ] = hist_df[cat]
 
             output_i = output_i.reset_index()
             output_col = pd.concat([output_col, output_i])
             self.forecast_output.add_category(
-                category=cat, target_category_column=cat_target, forecast=output_i
+                category=cat, target_category_column=cat, forecast=output_i
             )
 
-            self.model_parameters[
-                utils.convert_target(cat_target, self.original_target_column)
-            ] = {
+            self.model_parameters[cat] = {
                 "framework": SupportedModels.AutoTS,
                 **params,
             }
@@ -317,7 +313,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
                 # Convert the global explanation data to a DataFrame
                 global_explanation_df = pd.DataFrame(self.global_explanation).drop(
-                    index=["series_id", self.spec.target_column]
+                    index=[ForecastOutputColumns.SERIES, self.spec.target_column]
                 )
 
                 self.formatted_global_explanation = (

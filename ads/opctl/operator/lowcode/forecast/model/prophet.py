@@ -63,7 +63,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         self.global_explanation = {}
         self.local_explanation = {}
 
-    def _train_model(self, i, target, df):
+    def _train_model(self, i, series_id, df):
         try:
             from prophet import Prophet
             from prophet.diagnostics import cross_validation, performance_metrics
@@ -83,6 +83,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 confidence_interval_width=self.spec.confidence_interval_width
             )
 
+            target = self.original_target_column
             le, df_encoded = _label_encode_dataframe(
                 df, no_encode={self.spec.datetime_column.name, target}
             )
@@ -102,7 +103,9 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 PROPHET_INTERNAL_DATE_COL,
             }
             model = (
-                self.loaded_models[target] if self.loaded_models is not None else None
+                self.loaded_models[series_id]
+                if self.loaded_models is not None
+                else None
             )
 
             if model is None:
@@ -137,7 +140,8 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                         # Manual workaround because pandas 1.x dropped support for M and Y
                         interval = self.spec.horizon
-                        unit = self.spec.freq.split("-")[0] if self.spec.freq else None
+                        freq = self.datasets.get_datetime_frequency()
+                        unit = freq.split("-")[0] if freq else None
                         if unit == "M":
                             unit = "D"
                             interval = interval * 30.5
@@ -206,7 +210,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             else:
                 future = model.make_future_dataframe(
                     periods=self.spec.horizon,
-                    freq=self.spec.freq,
+                    freq=self.datasets.get_datetime_frequency(),
                 )
             # Make Prediction
             forecast = model.predict(future)
@@ -220,37 +224,38 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             # Collect Outputs
             # models.append(model)
 
-            self.outputs[target] = forecast
+            self.outputs[series_id] = forecast
 
             if self.loaded_models is None:
-                self.models[target] = model
+                self.models[series_id] = model
 
             params = vars(model).copy()
             for param in ["history", "history_dates", "stan_fit"]:
                 if param in params:
                     params.pop(param)
-            self.model_parameters[
-                convert_target(target, self.original_target_column)
-            ] = {
+            self.model_parameters[series_id] = {
                 "framework": SupportedModels.Prophet,
                 **params,
             }
 
             logger.debug("===========Done===========")
         except Exception as e:
-            self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
+            self.errors_dict[series_id] = {
+                "model_name": self.spec.model,
+                "error": str(e),
+            }
 
     def _build_model(self) -> pd.DataFrame:
         from prophet import Prophet
         from prophet.diagnostics import cross_validation, performance_metrics
 
-        full_data_dict = self.datasets.full_data_dict
+        full_data_dict = self.datasets.get_all_data_by_series()
         self.models = dict()
         self.outputs = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
-            delayed(ProphetOperatorModel._train_model)(self, i, target, df)
-            for self, (i, (target, df)) in zip(
+            delayed(ProphetOperatorModel._train_model)(self, i, series_id, df)
+            for self, (i, (series_id, df)) in zip(
                 [self] * len(full_data_dict), enumerate(full_data_dict.items())
             )
         )
@@ -259,49 +264,45 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             self.models = self.loaded_models
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
-        col = self.original_target_column
+        target = self.original_target_column
         output_col = pd.DataFrame()
         yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for cat in self.categories:
-            output_i = pd.DataFrame()
+        for cat in self.datasets.list_categories():
+            try:
+                output_i = pd.DataFrame()
 
-            output_i["Date"] = self.outputs[f"{col}_{cat}"][PROPHET_INTERNAL_DATE_COL]
-            output_i["Series"] = cat
-            output_i["input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
+                output_i["Date"] = self.outputs[cat][PROPHET_INTERNAL_DATE_COL]
+                output_i["Series"] = cat
+                output_i["input_value"] = full_data_dict[cat][target]
 
-            output_i[f"fitted_value"] = float("nan")
-            output_i[f"forecast_value"] = float("nan")
-            output_i[yhat_upper_name] = float("nan")
-            output_i[yhat_lower_name] = float("nan")
+                output_i[f"fitted_value"] = float("nan")
+                output_i[f"forecast_value"] = float("nan")
+                output_i[yhat_upper_name] = float("nan")
+                output_i[yhat_lower_name] = float("nan")
 
-            output_i.iloc[
-                : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (self.outputs[f"{col}_{cat}"]["yhat"].iloc[: -self.spec.horizon].values)
-            output_i.iloc[
-                -self.spec.horizon :,
-                output_i.columns.get_loc(f"forecast_value"),
-            ] = (
-                self.outputs[f"{col}_{cat}"]["yhat"].iloc[-self.spec.horizon :].values
-            )
-            output_i.iloc[
-                -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
-            ] = (
-                self.outputs[f"{col}_{cat}"]["yhat_upper"]
-                .iloc[-self.spec.horizon :]
-                .values
-            )
-            output_i.iloc[
-                -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
-            ] = (
-                self.outputs[f"{col}_{cat}"]["yhat_lower"]
-                .iloc[-self.spec.horizon :]
-                .values
-            )
-            output_col = pd.concat([output_col, output_i])
-            self.forecast_output.add_category(
-                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
-            )
+                output_i.iloc[
+                    : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
+                ] = (self.outputs[cat]["yhat"].iloc[: -self.spec.horizon].values)
+                output_i.iloc[
+                    -self.spec.horizon :,
+                    output_i.columns.get_loc(f"forecast_value"),
+                ] = (
+                    self.outputs[cat]["yhat"].iloc[-self.spec.horizon :].values
+                )
+                output_i.iloc[
+                    -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
+                ] = (self.outputs[cat]["yhat_upper"].iloc[-self.spec.horizon :].values)
+                output_i.iloc[
+                    -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
+                ] = (self.outputs[cat]["yhat_lower"].iloc[-self.spec.horizon :].values)
+                output_col = pd.concat([output_col, output_i])
+                self.forecast_output.add_category(
+                    category=cat, target_category_column=cat, forecast=output_i
+                )
+            except Exception as e:
+                # TODO: should we do something special in this case?
+                pass
 
         output_col = output_col.reset_index(drop=True)
 
@@ -315,6 +316,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             "## Forecast Overview \n"
             "These plots show your forecast in the context of historical data."
         )
+        print(f"self.models: {self.models}")
         sec1 = _select_plot_list(
             lambda idx, target, *args: self.models[target].plot(
                 self.outputs[target], include_legend=True

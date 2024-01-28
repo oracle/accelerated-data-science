@@ -3,7 +3,6 @@
 # Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from darts import datasets as d_datasets
 import yaml
 import tempfile
 import subprocess
@@ -87,10 +86,10 @@ TEST_TARGET_COL = pd.Series(
 
 ADD_COLS = pd.DataFrame(BASE_DATA[:, :2], columns=["var1", "var2"])
 
-HISTORICAL_SERIES_COL = pd.Series(
+ADDITIONAL_SERIES_COL = pd.Series(
     np.concatenate([[i] * NUM_ROWS for i in range(NUM_SERIES)]), name="Store"
 )
-ADDITIONAL_SERIES_COL = pd.Series(
+HISTORICAL_SERIES_COL = pd.Series(
     np.concatenate([[i] * (NUM_ROWS - HORIZON) for i in range(NUM_SERIES)]),
     name="Store",
 )
@@ -258,7 +257,7 @@ def setup_artificial_data(tmpdirname, hist_data=None, add_data=None, test_data=N
     add_data.to_csv(additional_data_path, index=False)
 
     test_data_path = f"{tmpdirname}/test_data.csv"
-    test_data.to_csv(additional_data_path, index=False)
+    test_data.to_csv(test_data_path, index=False)
 
     return historical_data_path, additional_data_path, test_data_path
 
@@ -271,8 +270,8 @@ def test_rossman(operator_setup, model):
     )
 
 
-# @pytest.mark.parametrize("model", MODELS)
-def test_historical_data(operator_setup):
+@pytest.mark.parametrize("model", MODELS)
+def test_historical_data(operator_setup, model):
     tmpdirname = operator_setup
     historical_data_path, additional_data_path, _ = setup_artificial_data(tmpdirname)
     yaml_i, output_data_path = populate_yaml(
@@ -338,18 +337,18 @@ def test_historical_data(operator_setup):
         )
 
 
-def test_data_mismatch(operator_setup):
-    tmpdirname = operator_setup
-    historical_data_path, additional_data_path, _ = setup_artificial_data(tmpdirname)
-    yaml_i, output_data_path = populate_yaml(
-        tmpdirname=tmpdirname,
-        historical_data_path=historical_data_path,
-        additional_data_path=additional_data_path,
-    )
+# def test_data_mismatch(operator_setup):
+#     tmpdirname = operator_setup
+#     historical_data_path, additional_data_path, _ = setup_artificial_data(tmpdirname)
+#     yaml_i, output_data_path = populate_yaml(
+#         tmpdirname=tmpdirname,
+#         historical_data_path=historical_data_path,
+#         additional_data_path=additional_data_path,
+#     )
 
 
-# @pytest.mark.parametrize("model", MODELS)
-def test_0_series(operator_setup, model="prophet"):
+@pytest.mark.parametrize("model", MODELS)
+def test_0_series(operator_setup, model):
     tmpdirname = operator_setup
     hist_data_0 = pd.concat(
         [
@@ -389,9 +388,63 @@ def test_0_series(operator_setup, model="prophet"):
         additional_data_path=additional_data_path,
         test_data_path=test_data_path,
     )
-    # with pytest.raises(InvalidParameterError):
-    #     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    with pytest.raises(DataMismatchError):
+        run_yaml(
+            tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
+        )
     yaml_i["spec"].pop("target_category_columns")
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    add_data = yaml_i["spec"].pop("additional_data")
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    test_data = yaml_i["spec"].pop("test_data")
+    run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
+    # Todo test horizon mismatch with add data and/or test data
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_2_series(operator_setup, model):
+    # Test w and w/o add data
+    tmpdirname = operator_setup
+
+    def split_df(df):
+        # Splits Store col into Store and Store_test
+        idx_split = df.shape[0] // 2
+        df_a = df[:idx_split]
+        df_a["Store_test"] = "A"
+
+        df_b = df[idx_split:]
+        df_b = df_b.rename({"Store": "Store_test"}, axis=1).reset_index(drop=True)
+        df_b["Store"] = "A"
+        return pd.concat([df_a, df_b]).reset_index(drop=True)
+
+    hist_data = split_df(HISTORICAL_DATA)
+    add_data = split_df(ADDITIONAL_DATA)
+    test_data = split_df(TEST_DATA)
+
+    print(f"hist_data: {hist_data}\nadd_data:{add_data}\ntest_data:{test_data}\n")
+
+    historical_data_path, additional_data_path, test_data_path = setup_artificial_data(
+        tmpdirname, hist_data, add_data, test_data
+    )
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        model=model,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+        test_data_path=test_data_path,
+    )
+    with pytest.raises(DataMismatchError):
+        # 4 columns in historical data, but only 1 cat col specified
+        run_yaml(
+            tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
+        )
+    yaml_i["spec"].pop("target_category_columns")
+    with pytest.raises(DataMismatchError):
+        # 4 columns in historical data, but only no cat col specified
+        run_yaml(
+            tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
+        )
+    yaml_i["spec"]["target_category_columns"] = ["Store", "Store_test"]
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
 
 

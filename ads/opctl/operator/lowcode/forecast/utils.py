@@ -33,6 +33,7 @@ from .const import SupportedMetrics, SupportedModels, RENDER_LIMIT
 from .errors import ForecastInputDataError, ForecastSchemaYamlError
 from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
 from ads.opctl.operator.lowcode.common.utils import merge_category_columns
+from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
 
 
 def _label_encode_dataframe(df, no_encode=set()):
@@ -179,19 +180,21 @@ def write_pkl(obj, filename, output_dir, storage_options):
 
 def clean_data(data, target_column, datetime_column, target_category_columns=None):
     if target_category_columns is not None:
-        data["__Series__"] = merge_category_columns(data, target_category_columns)
-        unique_categories = data["__Series__"].unique()
+        data[ForecastOutputColumns.SERIES] = merge_category_columns(
+            data, target_category_columns
+        )
+        unique_categories = data[ForecastOutputColumns.SERIES].unique()
 
         df = pd.DataFrame()
         new_target_columns = []
 
         for cat in unique_categories:
-            data_cat = data[data["__Series__"] == cat].rename(
+            data_cat = data[data[ForecastOutputColumns.SERIES] == cat].rename(
                 {target_column: f"{target_column}_{cat}"}, axis=1
             )
-            data_cat_clean = data_cat.drop("__Series__", axis=1).set_index(
-                datetime_column
-            )
+            data_cat_clean = data_cat.drop(
+                ForecastOutputColumns.SERIES, axis=1
+            ).set_index(datetime_column)
             df = pd.concat([df, data_cat_clean], axis=1)
             new_target_columns.append(f"{target_column}_{cat}")
         df = df.reset_index()
@@ -244,6 +247,7 @@ def _validate_and_clean_data(
     # Dates in primary data should be subset of additional data
     dates_in_data = primary.index.tolist()
     dates_in_additional = additional.index.tolist()
+
     if not set(dates_in_data).issubset(set(dates_in_additional)):
         logger.warn(
             "Forecast for {} will not be generated since the dates in primary and additional do not"
@@ -253,79 +257,83 @@ def _validate_and_clean_data(
     return primary, additional
 
 
-def _build_indexed_datasets(
-    data,
-    target_column,
-    datetime_column,
-    horizon,
-    target_category_columns=None,
-    additional_data=None,
-    metadata_data=None,
-):
-    df_by_target = dict()
-    categories = []
+# def _build_indexed_datasets(
+#     data,
+#     target_column,
+#     datetime_column,
+#     horizon,
+#     target_category_columns=None,
+#     additional_data=None,
+#     metadata_data=None,
+# ):
+#     df_by_target = dict()
 
-    if target_category_columns is None:
-        if additional_data is None:
-            df_by_target[target_column] = data.fillna(0)
-        else:
-            df_by_target[target_column] = pd.concat(
-                [
-                    data.set_index(datetime_column).fillna(0),
-                    additional_data.set_index(datetime_column).fillna(0),
-                ],
-                axis=1,
-            ).reset_index()
-        return df_by_target, target_column, categories
+#     print(f"additional_data0: {additional_data}")
+#     # if target_category_columns is None:
+#     #     if additional_data is None:
+#     #         df_by_target[target_column] = data.fillna(0)
+#     #     else:
+#     #         df_by_target[target_column] = pd.concat(
+#     #             [
+#     #                 data.set_index(datetime_column).fillna(0),
+#     #                 additional_data.set_index(datetime_column).fillna(0),
+#     #             ],
+#     #             axis=1,
+#     #         ).reset_index()
+#     #     return df_by_target, target_column
 
-    data["__Series__"] = merge_category_columns(data, target_category_columns)
-    unique_categories = data["__Series__"].unique()
-    invalid_categories = []
+#     print(f"data0: {data}")
+#     data[ForecastOutputColumns.SERIES] = merge_category_columns(data, target_category_columns)
+#     unique_categories = data[ForecastOutputColumns.SERIES].unique()
+#     invalid_categories = []
 
-    if additional_data is not None and target_column in additional_data.columns:
-        logger.warn(f"Dropping column '{target_column}' from additional_data")
-        additional_data.drop(target_column, axis=1, inplace=True)
-    for cat in unique_categories:
-        data_by_cat = data[data["__Series__"] == cat].rename(
-            {target_column: f"{target_column}_{cat}"}, axis=1
-        )
-        data_by_cat_clean = (
-            data_by_cat.drop(target_category_columns + ["__Series__"], axis=1)
-            .set_index(datetime_column)
-            .fillna(0)
-        )
-        if additional_data is not None:
-            additional_data["__Series__"] = merge_category_columns(
-                additional_data, target_category_columns
-            )
-            data_add_by_cat = additional_data[
-                additional_data["__Series__"] == cat
-            ].rename({target_column: f"{target_column}_{cat}"}, axis=1)
-            data_add_by_cat_clean = (
-                data_add_by_cat.drop(target_category_columns + ["__Series__"], axis=1)
-                .set_index(datetime_column)
-                .fillna(0)
-            )
-            valid_primary, valid_add = _validate_and_clean_data(
-                cat, horizon, data_by_cat_clean, data_add_by_cat_clean
-            )
+#     print(f"data1: {data}")
+#     print(f"additional_data1: {additional_data}")
 
-            if valid_primary is None:
-                invalid_categories.append(cat)
-                data_by_cat_clean = None
-            else:
-                data_by_cat_clean = pd.concat([valid_add, valid_primary], axis=1)
-        if data_by_cat_clean is not None:
-            df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
+#     if additional_data is not None and target_column in additional_data.columns:
+#         logger.warn(f"Dropping column '{target_column}' from additional_data")
+#         additional_data.drop(target_column, axis=1, inplace=True)
+#     for cat in unique_categories:
+#         data_by_cat = data[data[ForecastOutputColumns.SERIES] == cat].rename(
+#             {target_column: f"{target_column}_{cat}"}, axis=1
+#         )
+#         data_by_cat_clean = (
+#             data_by_cat.drop(target_category_columns + ["__Series__"], axis=1)
+#             .set_index(datetime_column)
+#             .fillna(0)
+#         )
+#         if additional_data is not None:
+#             additional_data["__Series__"] = merge_category_columns(
+#                 additional_data, target_category_columns
+#             )
+#             data_add_by_cat = additional_data[
+#                 additional_data["__Series__"] == cat
+#             ].rename({target_column: f"{target_column}_{cat}"}, axis=1)
+#             data_add_by_cat_clean = (
+#                 data_add_by_cat.drop(target_category_columns + ["__Series__"], axis=1)
+#                 .set_index(datetime_column)
+#                 .fillna(0)
+#             )
+#             valid_primary, valid_add = _validate_and_clean_data(
+#                 cat, horizon, data_by_cat_clean, data_add_by_cat_clean
+#             )
 
-    new_target_columns = list(df_by_target.keys())
-    remaining_categories = set(unique_categories) - set(invalid_categories)
+#             if valid_primary is None:
+#                 invalid_categories.append(cat)
+#                 data_by_cat_clean = None
+#             else:
+#                 data_by_cat_clean = pd.concat([valid_add, valid_primary], axis=1)
+#         if data_by_cat_clean is not None:
+#             df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
 
-    if not len(remaining_categories):
-        raise ForecastInputDataError(
-            "Stopping forecast operator as there is no data that meets the validation criteria."
-        )
-    return df_by_target, new_target_columns, remaining_categories
+#     new_target_columns = list(df_by_target.keys())
+#     remaining_categories = set(unique_categories) - set(invalid_categories)
+
+#     if not len(remaining_categories):
+#         raise ForecastInputDataError(
+#             "Stopping forecast operator as there is no data that meets the validation criteria."
+#         )
+#     return df_by_target, new_target_columns
 
 
 def _build_metrics_df(y_true, y_pred, column_name):
@@ -345,11 +353,8 @@ def _build_metrics_df(y_true, y_pred, column_name):
 
 def evaluate_train_metrics(
     target_columns,
-    datasets,
     output,
-    datetime_col,
     original_target_column,
-    target_col="yhat",
 ):
     """
     Training metrics
@@ -511,17 +516,10 @@ def select_auto_model(
     str
         The type of the model.
     """
-    date_column = operator_config.spec.datetime_column.name
-    datetimes = pd.to_datetime(
-        datasets.original_user_data[date_column].drop_duplicates()
-    )
-    freq_in_secs = datetimes.tail().diff().min().total_seconds()
-    if datasets.original_additional_data is not None:
-        num_of_additional_cols = len(datasets.original_additional_data.columns) - 2
-    else:
-        num_of_additional_cols = 0
-    row_count = len(datasets.original_user_data.index)
-    number_of_series = len(datasets.categories)
+    freq_in_secs = datasets.get_datetime_frequency_in_seconds()
+    num_of_additional_cols = len(datasets.get_additional_data_column_names())
+    row_count = datasets.get_num_rows()
+    number_of_series = len(datasets.list_categories())
     if (
         num_of_additional_cols < 15
         and row_count < 10000
@@ -530,46 +528,11 @@ def select_auto_model(
     ):
         return SupportedModels.AutoMLX
     elif row_count < 10000 and number_of_series > 10:
-        operator_config.spec.model_kwargs["model_list"] = "fast_parallel"
-        return SupportedModels.AutoTS
-    elif row_count < 20000 and number_of_series > 10:
-        operator_config.spec.model_kwargs["model_list"] = "superfast"
         return SupportedModels.AutoTS
     elif row_count > 20000:
         return SupportedModels.NeuralProphet
     else:
         return SupportedModels.NeuralProphet
-
-
-def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: ForecastOperatorSpec):
-    """
-    Function checks if the data is compatible with the model selected
-
-    Parameters
-    ------------
-    data:  pd.DataFrame
-            primary dataset
-    dataset_info:  ForecastOperatorSpec
-
-    Returns
-    --------
-    None
-
-    """
-    date_column = dataset_info.datetime_column.name
-    datetimes = pd.to_datetime(
-        data[date_column].drop_duplicates(), format=dataset_info.datetime_column.format
-    )
-    freq = pd.DatetimeIndex(datetimes).inferred_freq
-    if dataset_info.model == SupportedModels.AutoMLX:
-        freq_in_secs = datetimes.tail().diff().min().total_seconds()
-        if abs(freq_in_secs) < 3600:
-            message = (
-                "{} requires data with a frequency of at least one hour. Please try using a different model,"
-                " or select the 'auto' option.".format(SupportedModels.AutoMLX, freq)
-            )
-            raise Exception(message)
-    return freq
 
 
 def convert_target(target: str, target_col: str):

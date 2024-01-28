@@ -5,12 +5,19 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.errors import (
+    InvalidParameterError,
+    DataMismatchError,
+)
+from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
+from ads.opctl.operator.lowcode.common.utils import merge_category_columns
+import pandas as pd
 
 
 class Transformations:
     """A class which implements transformation for forecast operator"""
 
-    def __init__(self, data, dataset_info):
+    def __init__(self, dataset_info):
         """
         Initializes the transformation.
 
@@ -19,45 +26,106 @@ class Transformations:
             data: The Pandas DataFrame.
             dataset_info : ForecastOperatorConfig
         """
-        self.data = data
-        self.artificial_series_column = False
         self.dataset_info = dataset_info
-        self._set_series_id_column()
-        self.series_id_column = self.dataset_info.target_category_columns
-        self.target_variables = dataset_info.target_column
-        self.date_column = dataset_info.datetime_column.name
-        self.date_format = dataset_info.datetime_column.format
+        self.target_category_columns = dataset_info.target_category_columns
+        self.target_column_name = dataset_info.target_column
+        self.dt_column_name = dataset_info.datetime_column.name
+        self.dt_column_format = dataset_info.datetime_column.format
         self.preprocessing = dataset_info.preprocessing
 
-    def run(self):
+    def run(self, data):
         """
         The function runs all the transformation in a particular order.
 
         Returns
         -------
-            A new Pandas DataFrame with treated / transformed target values.
+            A new Pandas DataFrame with treated / transformed target values. Specifically:
+            - Data will be in a multiIndex with Datetime always first (level 0)
+            - whether 0, 1 or 2+, all target_category_columns will be merged into a single index column: Series
+            - All datetime columns will be formatted as such
+            - all data will be imputed (unless preprocessing disabled)
+            - all trailing whitespace will be removed
+            - the data will be sorted by Datetime then Series
+
         """
-        imputed_df = self._missing_value_imputation(self.data)
-        sorted_df = self._sort_by_datetime_col(imputed_df)
-        clean_strs_df = self._remove_trailing_whitespace(sorted_df)
+        clean_df = self._remove_trailing_whitespace(data)
+        self._check_historical_dataset(clean_df)
+        clean_df = self._set_series_id_column(clean_df)
+        clean_df = self._format_datetime_col(clean_df)
+        clean_df = self._set_multi_index(clean_df)
+
+        clean_df = self._missing_value_imputation(clean_df)
         if self.preprocessing:
-            treated_df = self._outlier_treatment(clean_strs_df)
+            clean_df = self._outlier_treatment(clean_df)
         else:
             logger.debug("Skipping outlier treatment as preprocessing is disabled")
-            treated_df = imputed_df
-        return treated_df
 
-    def _set_series_id_column(self):
-        if (
-            self.dataset_info.target_category_columns is None
-            or len(self.dataset_info.target_category_columns) == 0
-        ):
-            self.artificial_series_column = True
-            self.data["__Series__"] = ""
-            self.dataset_info.target_category_columns = ["__Series__"]
+        return clean_df
+
+    def transform_additional_data(self, data):
+        clean_df = self._remove_trailing_whitespace(data)
+        clean_df = self._set_series_id_column(clean_df)
+        try:
+            clean_df = self._format_datetime_col(clean_df)
+        except InvalidParameterError as e:
+            raise DataMismatchError(
+                f"Unable to determine the datetime type for column: {self.dt_column_name} in additional data. Likely, the format of column {self.dt_column_name} differs between historical and additional. Please ensure they follow the same format. If they do, please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {clean_df[self.dt_column_name].values[0]})"
+            )
+        clean_df = self._set_multi_index(clean_df)
+        return clean_df
+
+    def transform_test_data(self, data):
+        clean_df = self._remove_trailing_whitespace(data)
+        clean_df = self._set_series_id_column(clean_df)
+        try:
+            clean_df = self._format_datetime_col(clean_df)
+        except InvalidParameterError as e:
+            raise DataMismatchError(
+                f"Unable to determine the datetime type for column: {self.dt_column_name} in test data. Likely, the format of column {self.dt_column_name} differs between historical and test data. Please ensure they follow the same format. If they do, please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {clean_df[self.dt_column_name].values[0]})"
+            )
+        clean_df = self._set_multi_index(clean_df)
+        return clean_df
 
     def _remove_trailing_whitespace(self, df):
         return df.apply(lambda x: x.str.strip() if x.dtype == "object" else x)
+
+    def _set_series_id_column(self, df):
+        if not self.target_category_columns:
+            df[ForecastOutputColumns.SERIES] = "1"
+        else:
+            df[ForecastOutputColumns.SERIES] = merge_category_columns(
+                df, self.target_category_columns
+            )
+            df = df.drop(self.target_category_columns, axis=1)
+        return df
+
+    def _format_datetime_col(self, df):
+        try:
+            df[self.dt_column_name] = pd.to_datetime(
+                df[self.dt_column_name], format=self.dt_column_format
+            )
+        except:
+            raise InvalidParameterError(
+                f"Unable to determine the datetime type for column: {self.dt_column_name}. Please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {df[self.dt_column_name].values[0]}"
+            )
+        return df
+
+    def _set_multi_index(self, df):
+        """
+        Function sorts by date
+
+        Parameters
+        ----------
+            df : The Pandas DataFrame.
+
+        Returns
+        -------
+            A new Pandas DataFrame with sorted dates for each category
+        """
+        df = df.set_index([self.dt_column_name, ForecastOutputColumns.SERIES])
+        return df.sort_values(
+            [self.dt_column_name, ForecastOutputColumns.SERIES], ascending=True
+        )
 
     def _missing_value_imputation(self, df):
         """
@@ -72,9 +140,11 @@ class Transformations:
             A new Pandas DataFrame without missing values.
         """
         # missing value imputation using linear interpolation
-        df[self.target_variables] = df.groupby(self.series_id_column)[
-            self.target_variables
-        ].transform(lambda x: x.interpolate(limit_direction="both"))
+        df[self.target_column_name] = (
+            df[self.target_column_name]
+            .groupby(ForecastOutputColumns.SERIES)
+            .transform(lambda x: x.interpolate(limit_direction="both"))
+        )
         return df
 
     def _outlier_treatment(self, df):
@@ -89,54 +159,24 @@ class Transformations:
         -------
             A new Pandas DataFrame with treated outliears.
         """
-        df["z_score"] = df.groupby(self.series_id_column)[
-            self.target_variables
-        ].transform(lambda x: (x - x.mean()) / x.std())
-        outliers_mask = df["z_score"].abs() > 3
-        df.loc[outliers_mask, self.target_variables] = df.groupby(
-            self.series_id_column
-        )[self.target_variables].transform(lambda x: x.mean())
-        df.drop("z_score", axis=1, inplace=True)
-        return df
-
-    def transform_additional_data(self, df):
-        if self.artificial_series_column:
-            df["__Series__"] = ""
-        return self._sort_by_datetime_col(df)
-
-    def _sort_by_datetime_col(self, df):
-        """
-        Function sorts by date
-
-        Parameters
-        ----------
-            df : The Pandas DataFrame.
-
-        Returns
-        -------
-            A new Pandas DataFrame with sorted dates for each category
-        """
-        import pandas as pd
-
-        # Temporary column for sorting
-        df["tmp_col_for_sorting"] = pd.to_datetime(
-            df[self.date_column], format=self.date_format
+        df["z_score"] = (
+            df[self.target_column_name]
+            .groupby(ForecastOutputColumns.SERIES)
+            .transform(lambda x: (x - x.mean()) / x.std())
         )
-        if not self.artificial_series_column:
-            # When there is a category column
-            df = (
-                df.groupby(self.series_id_column, group_keys=True)
-                .apply(
-                    lambda x: x.sort_values(by="tmp_col_for_sorting", ascending=True)
-                )
-                .reset_index(drop=True)
-            )
-        else:
-            # No category column to group by
-            df = df.sort_values(by="tmp_col_for_sorting", ascending=True).reset_index(
-                drop=True
-            )
+        outliers_mask = df["z_score"].abs() > 3
+        df.loc[outliers_mask, self.target_column_name] = (
+            df[self.target_column_name]
+            .groupby(ForecastOutputColumns.SERIES)
+            .transform(lambda x: x.mean())
+        )
+        return df.drop("z_score", axis=1)
 
-        # Drop the temporary column
-        df.drop(columns=["tmp_col_for_sorting"], inplace=True)
-        return df
+    def _check_historical_dataset(self, df):
+        expected_names = [self.target_column_name, self.dt_column_name] + (
+            self.target_category_columns if self.target_category_columns else []
+        )
+        if set(df.columns) != set(expected_names):
+            raise DataMismatchError(
+                f"Expected historical data to have columns: {expected_names}, but instead found column names: {df.columns}. Is the historical data path correct?"
+            )

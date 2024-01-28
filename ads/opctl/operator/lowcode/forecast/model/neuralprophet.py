@@ -96,7 +96,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         except:
             logger.debug("model.pkl/trainer.pkl is not present")
 
-    def _train_model(self, i, target, df):
+    def _train_model(self, i, cat, df):
         try:
             from neuralprophet import NeuralProphet, set_log_level
 
@@ -124,6 +124,8 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 confidence_interval_width=self.spec.confidence_interval_width
             )
 
+            target = self.original_target_column
+
             le, df_encoded = _label_encode_dataframe(
                 df, no_encode={self.spec.datetime_column.name, target}
             )
@@ -141,9 +143,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             additional_regressors = set(data_i.columns) - {"y", "ds"}
             training_data = data_i[["y", "ds"] + list(additional_regressors)]
 
-            model = (
-                self.loaded_models[target] if self.loaded_models is not None else None
-            )
+            model = self.loaded_models[cat] if self.loaded_models is not None else None
             accepted_regressors = None
             if model is None:
                 model_kwargs_i = model_kwargs.copy()
@@ -230,7 +230,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 accepted_regressors_config = model.config_regressors or dict()
                 accepted_regressors = list(accepted_regressors_config.keys())
                 if self.loaded_trainers is not None:
-                    model.trainer = self.loaded_trainers[target]
+                    model.trainer = self.loaded_trainers[cat]
 
             logger.debug(
                 f"Found the following additional data columns: {additional_regressors}"
@@ -250,15 +250,13 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast.tail())
             # models.append(model)
-            self.outputs[target] = forecast
+            self.outputs[cat] = forecast
 
             if self.loaded_models is None:
-                self.models[target] = model
-                self.trainers[target] = model.trainer
+                self.models[cat] = model
+                self.trainers[cat] = model.trainer
 
-            self.model_parameters[
-                convert_target(target, self.original_target_column)
-            ] = {
+            self.model_parameters[cat] = {
                 "framework": SupportedModels.NeuralProphet,
                 "config": model.config,
                 "config_trend": model.config_trend,
@@ -284,18 +282,18 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
             logger.debug("===========Done===========")
         except Exception as e:
-            self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
+            self.errors_dict[cat] = {"model_name": self.spec.model, "error": str(e)}
 
     def _build_model(self) -> pd.DataFrame:
-        full_data_dict = self.datasets.full_data_dict
+        full_data_dict = self.datasets.get_all_data_by_series()
         self.models = dict()
         self.trainers = dict()
         self.outputs = dict()
         self.errors_dict = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
-            delayed(NeuralProphetOperatorModel._train_model)(self, i, target, df)
-            for self, (i, (target, df)) in zip(
+            delayed(NeuralProphetOperatorModel._train_model)(self, i, cat, df)
+            for self, (i, (cat, df)) in zip(
                 [self] * len(full_data_dict), enumerate(full_data_dict.items())
             )
         )
@@ -307,54 +305,56 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             self.trainers = self.loaded_trainers
 
         # Merge the outputs from each model into 1 df with all outputs by target and category
-        col = self.original_target_column
+        target = self.original_target_column
         output_col = pd.DataFrame()
         yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for cat in self.categories:
-            output_i = pd.DataFrame()
+        for cat in self.datasets.list_categories():
+            try:
+                output_i = pd.DataFrame()
 
-            output_i["Date"] = self.outputs[f"{col}_{cat}"]["ds"]
-            output_i["Series"] = cat
-            output_i[f"input_value"] = full_data_dict[f"{col}_{cat}"][f"{col}_{cat}"]
+                output_i["Date"] = self.outputs[cat]["ds"]
+                output_i["Series"] = cat
+                output_i[f"input_value"] = full_data_dict[cat][target]
 
-            output_i[f"fitted_value"] = float("nan")
-            output_i[f"forecast_value"] = float("nan")
-            output_i[yhat_lower_name] = float("nan")
-            output_i[yhat_upper_name] = float("nan")
+                output_i[f"fitted_value"] = float("nan")
+                output_i[f"forecast_value"] = float("nan")
+                output_i[yhat_lower_name] = float("nan")
+                output_i[yhat_upper_name] = float("nan")
 
-            output_i.iloc[
-                : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-            ] = (
-                self.outputs[f"{col}_{cat}"]["yhat1"].iloc[: -self.spec.horizon].values
-            )
-            output_i.iloc[
-                -self.spec.horizon :,
-                output_i.columns.get_loc(f"forecast_value"),
-            ] = (
-                self.outputs[f"{col}_{cat}"]["yhat1"].iloc[-self.spec.horizon :].values
-            )
-            output_i.iloc[
-                -self.spec.horizon :,
-                output_i.columns.get_loc(yhat_upper_name),
-            ] = (
-                self.outputs[f"{col}_{cat}"][f"yhat1 {self.quantiles[1]*100}%"]
-                .iloc[-self.spec.horizon :]
-                .values
-            )
-            output_i.iloc[
-                -self.spec.horizon :,
-                output_i.columns.get_loc(yhat_lower_name),
-            ] = (
-                self.outputs[f"{col}_{cat}"][f"yhat1 {self.quantiles[0]*100}%"]
-                .iloc[-self.spec.horizon :]
-                .values
-            )
-            output_col = pd.concat([output_col, output_i])
+                output_i.iloc[
+                    : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
+                ] = (self.outputs[cat]["yhat1"].iloc[: -self.spec.horizon].values)
+                output_i.iloc[
+                    -self.spec.horizon :,
+                    output_i.columns.get_loc(f"forecast_value"),
+                ] = (
+                    self.outputs[cat]["yhat1"].iloc[-self.spec.horizon :].values
+                )
+                output_i.iloc[
+                    -self.spec.horizon :,
+                    output_i.columns.get_loc(yhat_upper_name),
+                ] = (
+                    self.outputs[cat][f"yhat1 {self.quantiles[1]*100}%"]
+                    .iloc[-self.spec.horizon :]
+                    .values
+                )
+                output_i.iloc[
+                    -self.spec.horizon :,
+                    output_i.columns.get_loc(yhat_lower_name),
+                ] = (
+                    self.outputs[cat][f"yhat1 {self.quantiles[0]*100}%"]
+                    .iloc[-self.spec.horizon :]
+                    .values
+                )
+                output_col = pd.concat([output_col, output_i])
 
-            self.forecast_output.add_category(
-                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
-            )
+                self.forecast_output.add_category(
+                    category=cat, target_category_column=cat, forecast=output_i
+                )
+            except Exception as e:
+                # TODO: should we do something special in this case?
+                pass
 
         output_col = output_col.reset_index(drop=True)
 
@@ -368,35 +368,33 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             "forecast in the context of historical data."
         )
         sec1 = _select_plot_list(
-            lambda idx, target, *args: self.models[target].plot(self.outputs[target]),
+            lambda idx, cat, *args: self.models[cat].plot(self.outputs[cat]),
             target_columns=self.target_columns,
             original_target_column=self.original_target_column,
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
         sec2 = _select_plot_list(
-            lambda idx, target, *args: self.models[target].plot_components(
-                self.outputs[target]
-            ),
+            lambda idx, cat, *args: self.models[cat].plot_components(self.outputs[cat]),
             target_columns=self.target_columns,
             original_target_column=self.original_target_column,
         )
 
         sec3_text = dp.Text(f"## Forecast Parameter Plots")
         sec3 = _select_plot_list(
-            lambda idx, target, *args: self.models[target].plot_parameters(),
+            lambda idx, cat, *args: self.models[cat].plot_parameters(),
             target_columns=self.target_columns,
             original_target_column=self.original_target_column,
         )
 
         sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
         model_states = []
-        for i, (target, m) in enumerate(self.models.items()):
+        for i, (cat, m) in enumerate(self.models.items()):
             model_states.append(
                 pd.Series(
                     m.state_dict(),
                     index=m.state_dict().keys(),
-                    name=convert_target(target, self.original_target_column),
+                    name=cat,
                 )
             )
         all_model_states = pd.concat(model_states, axis=1)
@@ -454,7 +452,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=convert_target(s_id, self.original_target_column),
+                        label=cat,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

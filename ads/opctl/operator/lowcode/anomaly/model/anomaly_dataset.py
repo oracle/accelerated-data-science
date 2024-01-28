@@ -25,7 +25,6 @@ class AnomalyDatasets:
         config: AnomalyOperatorConfig
             The anomaly operator configuration.
         """
-        self.original_user_data = None
         self.data = None
         self.test_data = None
         self.target_columns = None
@@ -43,7 +42,6 @@ class AnomalyDatasets:
         except InvalidParameterError as e:
             e.args = e.args + ("Invalid Parameter: input_data",)
             raise e
-        self.original_user_data = self.data.copy()
         date_col = spec.datetime_column.name
         self.data[date_col] = pd.to_datetime(self.data[date_col])
         try:

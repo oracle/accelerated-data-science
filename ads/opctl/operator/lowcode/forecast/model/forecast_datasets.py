@@ -13,11 +13,13 @@ from .transformations import Transformations
 from ads.opctl import logger
 from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
 from ads.common.object_storage_details import ObjectStorageDetails
-from ads.opctl.operator.lowcode.common.utils import load_data
+from ads.opctl.operator.lowcode.common.utils import (
+    load_data,
+    get_frequency_in_seconds,
+    get_frequency_of_datetime,
+)
 from ads.opctl.operator.lowcode.forecast.utils import (
     default_signer,
-    get_frequency_of_datetime,
-    _build_indexed_datasets,
 )
 from ads.opctl.operator.lowcode.common.errors import (
     InputDataError,
@@ -25,6 +27,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     PermissionsError,
     DataMismatchError,
 )
+from ..const import SupportedModels
 
 
 class ForecastDatasets:
@@ -36,19 +39,28 @@ class ForecastDatasets:
         config: ForecastOperatorConfig
             The forecast operator configuration.
         """
-        self.original_user_data = None
-        self.original_total_data = None
-        self.original_additional_data = None
-        self.full_data_dict = None
         self.target_columns = None
-        self.categories = None
-        self.datetime_col = PROPHET_INTERNAL_DATE_COL
-        self.datetime_format = config.spec.datetime_column.format
+        self._horizon = config.spec.horizon
+        self._datetime_column_name = config.spec.datetime_column.name
+        self._hist_dd = dict()
+        self._add_dd = dict()
+        self._data_long = None
         self._load_data(config.spec)
 
-    def _load_data(self, spec):
-        """Loads forecasting input data."""
+    def _verify_dt_col(self, spec):
+        # Check frequency is compatible with model type
+        self._freq_in_secs = get_frequency_in_seconds(
+            self._data.index.get_level_values(0)
+        )
+        if spec.model == SupportedModels.AutoMLX:
+            if abs(self._freq_in_secs) < 3600:
+                message = (
+                    "{} requires data with a frequency of at least one hour. Please try using a different model,"
+                    " or select the 'auto' option.".format(SupportedModels.AutoMLX)
+                )
+                raise InvalidParameterError(message)
 
+    def _load_transform_historical_data(self, spec):
         loading_start_time = time.time()
         try:
             raw_data = load_data(
@@ -62,122 +74,146 @@ class ForecastDatasets:
 
         loading_end_time = time.time()
         logger.info(
-            "Loading the data completed in %s seconds",
+            "Data loaded in %s seconds",
             loading_end_time - loading_start_time,
         )
-        self.original_user_data = raw_data.copy()
-        data_transformer = Transformations(raw_data, spec)
-        data = data_transformer.run()
+        self._data_transformer = Transformations(spec)
+        self._data = self._data_transformer.run(raw_data)
         transformation_end_time = time.time()
         logger.info(
-            "Transformations are completed in %s seconds",
+            "Data Transformations completed in %s seconds",
             transformation_end_time - loading_end_time,
         )
+
+    def _extract_historical_data_metadata(self, spec):
         try:
-            spec.freq = get_frequency_of_datetime(data, spec)
+            self._freq = get_frequency_of_datetime(self._data.index.get_level_values(0))
         except TypeError as e:
             logger.warn(
                 f"Error determining frequency: {e.args}. Setting Frequency to None"
             )
             logger.debug(f"Full traceback: {e}")
-            spec.freq = None
+            self._freq = None
 
-        self.original_total_data = data
-        additional_data = None
+        self._num_rows = self._data.shape[0]
+        self._verify_dt_col(spec)
+        # These are used in generating the report
+        self._min_time = self._data.index.get_level_values(0).min()
+        self._max_time = self._data.index.get_level_values(0).max()
+        self._categories = self._data.index.get_level_values(1).unique().tolist()
 
+    def _load_transform_additional_data(self, spec):
+        if spec.additional_data is None:
+            logger.debug("No additional data detected.")
+            self._additional_data = None
+        loading_start_time = time.time()
         try:
-            data[spec.datetime_column.name] = pd.to_datetime(
-                data[spec.datetime_column.name], format=self.datetime_format
+            raw_data = load_data(
+                filename=spec.additional_data.url,
+                format=spec.additional_data.format,
+                columns=spec.additional_data.columns,
             )
-        except:
-            raise ValueError(
-                f"Unable to determine the datetime type for column: {spec.datetime_column.name}. Please specify the format explicitly."
-            )
+        except InvalidParameterError as e:
+            e.args = e.args + ("Invalid Parameter: additional_data",)
+            raise e
 
-        if spec.additional_data is not None:
-            try:
-                additional_data = load_data(
-                    filename=spec.additional_data.url,
-                    format=spec.additional_data.format,
-                    columns=spec.additional_data.columns,
-                )
-            except InvalidParameterError as e:
-                e.args = e.args + ("Invalid Parameter: additional_data",)
-                raise e
-            additional_data = data_transformer.transform_additional_data(
-                additional_data
-            )
-            try:
-                additional_data[spec.datetime_column.name] = pd.to_datetime(
-                    additional_data[spec.datetime_column.name],
-                    format=self.datetime_format,
-                )
-            except:
-                raise ValueError(
-                    f"Unable to determine the datetime type for column: {spec.datetime_column.name}. Please specify the format explicitly."
-                )
-
-            self.original_additional_data = additional_data.copy()
-            self.original_total_data = pd.concat([data, additional_data], axis=1)
-        else:
-            # Need to add the horizon to the data for compatibility
-            additional_data_small = data[
-                [spec.datetime_column.name] + spec.target_category_columns
-            ].set_index(spec.datetime_column.name)
-            if is_datetime64_any_dtype(additional_data_small.index):
-                horizon_index = pd.date_range(
-                    start=additional_data_small.index.values[-1],
-                    freq=spec.freq,
-                    periods=spec.horizon + 1,
-                )[1:]
-            elif is_numeric_dtype(additional_data_small.index):
-                # If datetime column is just ints
-                assert (
-                    len(additional_data_small.index.values) > 1
-                ), "Dataset is too small to infer frequency. Please pass in the horizon explicitly through the additional data."
-                start = additional_data_small.index.values[-1]
-                step = (
-                    additional_data_small.index.values[-1]
-                    - additional_data_small.index.values[-2]
-                )
-                horizon_index = pd.RangeIndex(
-                    start, start + step * (spec.horizon + 1), step=step
-                )[1:]
-            else:
-                raise ValueError(
-                    f"Unable to determine the datetime type for column: {spec.datetime_column.name}. Please specify the format explicitly."
-                )
-
-            additional_data = pd.DataFrame()
-
-            for cat_col in spec.target_category_columns:
-                for cat in additional_data_small[cat_col].unique():
-                    add_data_i = additional_data_small[
-                        additional_data_small[cat_col] == cat
-                    ]
-                    horizon_df_i = pd.DataFrame([], index=horizon_index)
-                    horizon_df_i[cat_col] = cat
-                    additional_data = pd.concat(
-                        [additional_data, add_data_i, horizon_df_i]
-                    )
-            additional_data = additional_data.reset_index().rename(
-                {"index": spec.datetime_column.name}, axis=1
-            )
-
-            self.original_total_data = pd.concat([data, additional_data], axis=1)
-
-        (
-            self.full_data_dict,
-            self.target_columns,
-            self.categories,
-        ) = _build_indexed_datasets(
-            data=data,
-            target_column=spec.target_column,
-            datetime_column=spec.datetime_column.name,
-            horizon=spec.horizon,
-            target_category_columns=spec.target_category_columns,
-            additional_data=additional_data,
+        loading_end_time = time.time()
+        logger.info(
+            "Loading additional data completed in %s seconds",
+            loading_end_time - loading_start_time,
         )
+        self._additional_data = self._data_transformer.transform_additional_data(
+            raw_data
+        )
+        transformation_end_time = time.time()
+        logger.info(
+            "Transformations on additional data are completed in %s seconds",
+            transformation_end_time - loading_end_time,
+        )
+
+    def _extract_additional_data_metadata(self, spec):
+        if self._additional_data is None:
+            self._additional_col_names = []
+            return
+
+        self._additional_col_names = list(self._additional_data.columns)
+        if not self._additional_col_names:
+            logger.warn(
+                f"No additional variables found in the additional_data. Only columns found: {self._additional_data.columns}. Skipping for now."
+            )
+
+    # # TODO: delete me?
+    # def _create_horizon(self, spec):
+    #     if spec.additional_data is None:
+    #         # Need to add the horizon to the data for compatibility
+    #         additional_data_small = data[
+    #             [spec.datetime_column.name] + spec.target_category_columns
+    #         ].set_index(spec.datetime_column.name)
+    #         if is_datetime64_any_dtype(additional_data_small.index):
+    #             horizon_index = pd.date_range(
+    #                 start=additional_data_small.index.values[-1],
+    #                 freq=self._freq,
+    #                 periods=spec.horizon + 1,
+    #             )[1:]
+    #         elif is_numeric_dtype(additional_data_small.index):
+    #             # If datetime column is just ints
+    #             assert (
+    #                 len(additional_data_small.index.values) > 1
+    #             ), "Dataset is too small to infer frequency. Please pass in the horizon explicitly through the additional data."
+    #             start = additional_data_small.index.values[-1]
+    #             step = (
+    #                 additional_data_small.index.values[-1]
+    #                 - additional_data_small.index.values[-2]
+    #             )
+    #             horizon_index = pd.RangeIndex(
+    #                 start, start + step * (spec.horizon + 1), step=step
+    #             )[1:]
+    #         else:
+    #             raise ValueError(
+    #                 f"Unable to determine the datetime type for column: {spec.datetime_column.name}. Please specify the format explicitly."
+    #             )
+
+    #         additional_data = pd.DataFrame()
+
+    #         for cat_col in spec.target_category_columns:
+    #             for cat in additional_data_small[cat_col].unique():
+    #                 add_data_i = additional_data_small[
+    #                     additional_data_small[cat_col] == cat
+    #                 ]
+    #                 horizon_df_i = pd.DataFrame([], index=horizon_index)
+    #                 horizon_df_i[cat_col] = cat
+    #                 additional_data = pd.concat(
+    #                     [additional_data, add_data_i, horizon_df_i]
+    #                 )
+    #         additional_data = additional_data.reset_index().rename(
+    #             {"index": spec.datetime_column.name}, axis=1
+    #         )
+
+    def _load_data(self, spec):
+        """Loads forecasting input data."""
+        self._load_transform_historical_data(spec)
+        self._extract_historical_data_metadata(spec)
+        self._load_transform_additional_data(spec)
+        self._extract_additional_data_metadata(spec)
+
+        # Merge target category columns into 1 column
+        # make the merged series column + Datatime columns the multi index
+        # return the new column as ForecastOutputColumns.SERIES
+        # Have a class for converting back into the series if it exists
+
+        self.full_data_dict = self.get_all_data_by_series()
+        self.target_columns = self.list_categories()
+        # (
+        #     self.full_data_dict,
+        #     self.target_columns,
+        # ) = _build_indexed_datasets(
+        #     data=self._data,
+        #     target_column=spec.target_column,
+        #     datetime_column=spec.datetime_column.name,
+        #     horizon=spec.horizon,
+        #     target_category_columns=spec.target_category_columns,
+        #     additional_data=additional_data,
+        # )
         if spec.generate_explanations:
             if spec.additional_data is None:
                 logger.warn(
@@ -185,20 +221,114 @@ class ForecastDatasets:
                 )
                 spec.generate_explanations = False
 
+    def get_all_data_long(self):
+        return pd.merge(
+            self._data,
+            self._additional_data,
+            how="outer",
+            on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
+        ).reset_index()
+
+    def _get_data_by_series(self, data, include_horizon=True):
+        data_by_series = dict()
+        for cat in self.list_categories():
+            try:
+                data_by_series[cat] = data.xs(
+                    cat, level=ForecastOutputColumns.SERIES
+                ).reset_index()
+            except KeyError as ke:
+                logger.debug(
+                    f"Unable to extract cat: {cat} from data: {data}. This may occur due to significant missing data. Error message: {e.args}"
+                )
+                pass
+            if not include_horizon:
+                data_by_series[cat] = data_by_series[cat][: -self._horizon]
+        return data_by_series
+
+    def get_historical_data_by_series(self):
+        if self._hist_dd is not None:
+            self._hist_dd = self._get_data_by_series(self._data)
+        return self._hist_dd
+
+    def get_additional_data_by_series(self, include_horizon=True):
+        return self._get_data_by_series(
+            self._additional_data, include_horizon=include_horizon
+        )
+
+    def get_all_data_by_series(self, include_horizon=True):
+        total_dict = dict()
+        hist_data = self.get_historical_data_by_series()
+        add_data = self.get_additional_data_by_series(include_horizon=include_horizon)
+        for cat in self.list_categories():
+            # Note: ensure no duplicate column names
+            total_dict[cat] = pd.merge(
+                hist_data[cat],
+                add_data[cat],
+                how="outer",
+                on=[self._datetime_column_name],
+            )
+        return total_dict
+
+    def get_historical_data_for_category(self, category):
+        hist_data = self.get_historical_data_by_series()
+        try:
+            return hist_data[category]
+        except:
+            raise InvalidParameterError(
+                f"Unable to retrieve category {category} from historical data. Available categories are: {self.list_categories()}"
+            )
+
+    def get_additional_data_for_category(self, category, include_horizon=True):
+        add_data = self.get_additional_data_by_series(include_horizon=include_horizon)
+        try:
+            return add_data[category]
+        except:
+            raise InvalidParameterError(
+                f"Unable to retrieve category {category} from additional data. Available categories are: {self.list_categories()}"
+            )
+
+    def get_all_data_for_category(self, category, include_horizon=True):
+        all_data = self.get_all_data_by_series(include_horizon=include_horizon)
+        try:
+            return all_data[category]
+        except:
+            raise InvalidParameterError(
+                f"Unable to retrieve category {category} from data. Available categories are: {self.list_categories()}"
+            )
+
+    def get_earliest_timestamp(self):
+        return self._min_time
+
+    def get_latest_timestamp(self):
+        return self._max_time
+
+    def get_additional_data_column_names(self):
+        return self._additional_col_names
+
+    def get_datetime_frequency(self):
+        return self._freq
+
+    def get_datetime_frequency_in_seconds(self):
+        return self._freq_in_secs
+
+    def get_num_rows(self):
+        return self._num_rows
+
+    def list_categories(self):
+        return self._categories
+
     def format_wide(self):
         data_merged = pd.concat(
             [
-                v[v[k].notna()].set_index(self.datetime_col)
-                for k, v in self.full_data_dict.items()
+                v[v[k].notna()].set_index(self._datetime_column_name)
+                for k, v in self.get_all_data_by_series().items()
             ],
             axis=1,
         ).reset_index()
         return data_merged
 
     def get_longest_datetime_column(self):
-        return pd.to_datetime(
-            self.format_wide()[self.datetime_col], format=self.datetime_format
-        )
+        return self.format_wide()[self._datetime_column_name]
 
 
 class ForecastOutput:

@@ -90,6 +90,40 @@ def default_signer(**kwargs):
     return default_signer(**kwargs)
 
 
+def get_frequency_in_seconds(s: pd.Series, sample_size=100, ignore_duplicates=True):
+    """
+    Returns frequency of data in seconds
+
+    Parameters
+    ------------
+    dt_col:  pd.Series  Datetime column
+    ignore_duplicates: bool if True, duplicates will be dropped before computing frequency
+
+    Returns
+    --------
+    int   Minimum difference in seconds
+    """
+    s1 = pd.Series(s).drop_duplicates() if ignore_duplicates else s
+    return s1.tail(20).diff().min().total_seconds()
+
+
+def get_frequency_of_datetime(dt_col: pd.Series, ignore_duplicates=True):
+    """
+    Returns string frequency of data
+
+    Parameters
+    ------------
+    dt_col:  pd.Series  Datetime column
+    ignore_duplicates: bool if True, duplicates will be dropped before computing frequency
+
+    Returns
+    --------
+    str  Pandas Datetime Frequency
+    """
+    s = pd.Series(dt_col).drop_duplicates() if ignore_duplicates else dt_col
+    return pd.infer_freq(s)
+
+
 def human_time_friendly(seconds):
     TIME_DURATION_UNITS = (
         ("week", 60 * 60 * 24 * 7),

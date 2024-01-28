@@ -63,12 +63,8 @@ class ForecastOperatorBaseModel(ABC):
         self.spec: ForecastOperatorSpec = config.spec
         self.datasets: ForecastDatasets = datasets
 
-        self.original_user_data = datasets.original_user_data
-        self.original_total_data = datasets.original_total_data
-        self.original_additional_data = datasets.original_additional_data
-        self.full_data_dict = datasets.full_data_dict
+        self.full_data_dict = datasets.get_all_data_by_series()
         self.target_columns = datasets.target_columns
-        self.categories = datasets.categories
 
         self.test_eval_metrics = None
         self.original_target_column = self.spec.target_column
@@ -117,12 +113,9 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.generate_report or self.spec.generate_metrics:
                 if self.train_metrics:
                     self.eval_metrics = evaluate_train_metrics(
-                        self.target_columns,
-                        self.datasets,
-                        self.forecast_output,
-                        self.spec.datetime_column.name,
-                        self.original_target_column,
-                        target_col=self.forecast_col_name,
+                        target_columns=self.target_columns,
+                        output=self.forecast_output,
+                        original_target_column=self.original_target_column,
                     )
                 else:
                     try:
@@ -149,6 +142,7 @@ class ForecastOperatorBaseModel(ABC):
                     except Exception as e:
                         logger.warn("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
+                        raise e  # TODO remove
             report_sections = []
 
             if self.spec.generate_report:
@@ -157,8 +151,6 @@ class ForecastOperatorBaseModel(ABC):
                     model_description,
                     other_sections,
                 ) = self._generate_report()
-
-                ds_column_series = self.datasets.get_longest_datetime_column()
 
                 title_text = dp.Text("# Forecast Report")
 
@@ -213,13 +205,13 @@ class ForecastOperatorBaseModel(ABC):
                                     ),
                                     dp.BigNumber(
                                         heading="Starting time index",
-                                        value=ds_column_series.min().strftime(
+                                        value=self.datasets.get_earliest_timestamp().strftime(
                                             "%B %d, %Y"
                                         ),
                                     ),
                                     dp.BigNumber(
                                         heading="Ending time index",
-                                        value=ds_column_series.max().strftime(
+                                        value=self.datasets.get_latest_timestamp().strftime(
                                             "%B %d, %Y"
                                         ),
                                     ),
@@ -316,7 +308,7 @@ class ForecastOperatorBaseModel(ABC):
         summary_metrics = pd.DataFrame()
         data = None
         try:
-            data = load_data(
+            raw_data = load_data(
                 filename=test_filename,
                 format=self.spec.test_data.format,
                 columns=self.spec.test_data.columns,
@@ -331,18 +323,14 @@ class ForecastOperatorBaseModel(ABC):
             )
             return total_metrics, summary_metrics, None
 
-        if data.empty:
-            return total_metrics, summary_metrics, None
+        data = self.datasets._data_transformer.transform_test_data(raw_data)
 
-        data = self._preprocess(
-            data, self.spec.datetime_column.name, self.spec.datetime_column.format
-        )
-        data, confirm_targ_columns = clean_data(
-            data=data,
-            target_column=self.original_target_column,
-            target_category_columns=self.spec.target_category_columns,
-            datetime_column="ds",
-        )
+        # data, confirm_targ_columns = clean_data(
+        #     data=data,
+        #     target_column=self.original_target_column,
+        #     target_category_columns=self.spec.target_category_columns,
+        #     datetime_column="ds",
+        # )
 
         # Calculating Test Metrics
         for cat in self.forecast_output.list_categories():
@@ -619,7 +607,9 @@ class ForecastOperatorBaseModel(ABC):
 
     def _preprocess(self, data, ds_column, datetime_format):
         """The method that needs to be implemented on the particular model level."""
-        data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
+        data["ds"] = pd.to_datetime(
+            data[ds_column], format=datetime_format
+        )  # TODO: can we remove this?
         if ds_column != "ds":
             data.drop([ds_column], axis=1, inplace=True)
         return data
