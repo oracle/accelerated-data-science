@@ -8,3 +8,7 @@ import sys
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
+
+
+def get_logger():
+    return logger

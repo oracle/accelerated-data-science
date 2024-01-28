@@ -2,17 +2,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import datetime
-from dateutil.tz import tzutc
-import logging
 import fsspec
 from dataclasses import dataclass
 from typing import List
 from enum import Enum
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
-
-logger = logging.getLogger(__name__)
 
 ICON_FILE_NAME = "icon.txt"
 UNKNOWN = "Unknown"
@@ -155,8 +150,8 @@ This model is released under the MIT License.
                     ).data.custom_metadata_list
                 except Exception as e:
                     # show opc-request-id and status code
-                    logger.error(f"Failing to retreive model information. {e}")
-                    return []
+                    self.logger.error(f"Failing to retreive model information. {e}")
+                    raise
 
                 for custom_metadata in custom_metadata_list:
                     if custom_metadata.key == "Object Storage Path":
