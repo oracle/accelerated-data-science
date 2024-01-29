@@ -35,6 +35,8 @@ from .operator_config import ForecastOperatorSpec, ForecastOperatorConfig
 from ads.opctl.operator.lowcode.common.utils import merge_category_columns
 from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
 
+# from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData, ForecastOutput
+
 
 def _label_encode_dataframe(df, no_encode=set()):
     df_to_encode = df[list(set(df.columns) - no_encode)]
@@ -58,11 +60,8 @@ def smape(actual, predicted) -> float:
 
 
 def _build_metrics_per_horizon(
-    data: pd.DataFrame,
-    output: pd.DataFrame,
-    target_columns: List[str],
-    target_col: str,
-    horizon_periods: int,
+    data: "TestData",
+    output: "ForecastOutput",
 ) -> pd.DataFrame:
     """
     Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
@@ -73,12 +72,6 @@ def _build_metrics_per_horizon(
             Dataframe that has the actual data
     output: Pandas Dataframe
             Dataframe that has the forecasted data
-    target_columns: List
-            List of target category columns
-    target_col: str
-            Target column name (yhat)
-    horizon_periods: int
-            Horizon Periods
 
     Returns
     --------
@@ -88,24 +81,25 @@ def _build_metrics_per_horizon(
     """
     Assumptions:
     data and output have all the target columns.
-    yhats in output are in the same order as in target_columns.
+    yhats in output are in the same order as in series_ids.
     Test data might not have sorted dates and the order of series also might differ.
     """
 
-    # Select the data with correct order of target_columns.
-    target_columns = list(set.intersection(set(target_columns), set(data.columns)))
-
-    actuals_df = data[["ds"] + target_columns]
+    actuals_df = data[data.dt_column_name, data.target_name]
 
     # Concat the yhats in output and include only dates that are in test data
     forecasts_df = pd.DataFrame()
-    for cat in output.list_categories():
-        forecast_i = output.get_category(cat)[["Date", "forecast_value"]]
-        forecast_i = forecast_i[forecast_i["Date"].isin(actuals_df["ds"])]
+    for s_id in output.list_series_ids():
+        forecast_i = output.get_forecast(s_id)[["Date", "forecast_value"]]
+        forecast_i = forecast_i[
+            forecast_i["Date"].isin(actuals_df[data.dt_column_name])
+        ]
         forecasts_df = pd.concat([forecasts_df, forecast_i.set_index("Date")], axis=1)
 
     # Remove dates that are not there in output
-    actuals_df = actuals_df[actuals_df["ds"].isin(forecasts_df.index.values)]
+    actuals_df = actuals_df[
+        actuals_df[data.dt_column_name].isin(forecasts_df.index.values)
+    ]
 
     if actuals_df.empty or forecasts_df.empty:
         return pd.DataFrame()
@@ -113,7 +107,7 @@ def _build_metrics_per_horizon(
     totals = actuals_df.sum(numeric_only=True)
     wmape_weights = np.array((totals / totals.sum()).values)
 
-    actuals_df = actuals_df.set_index("ds")
+    actuals_df = actuals_df.set_index(data.dt_column_name)
 
     metrics_df = pd.DataFrame(
         columns=[
@@ -178,34 +172,6 @@ def write_pkl(obj, filename, output_dir, storage_options):
         cloudpickle.dump(obj, f)
 
 
-def clean_data(data, target_column, datetime_column, target_category_columns=None):
-    if target_category_columns is not None:
-        data[ForecastOutputColumns.SERIES] = merge_category_columns(
-            data, target_category_columns
-        )
-        unique_categories = data[ForecastOutputColumns.SERIES].unique()
-
-        df = pd.DataFrame()
-        new_target_columns = []
-
-        for cat in unique_categories:
-            data_cat = data[data[ForecastOutputColumns.SERIES] == cat].rename(
-                {target_column: f"{target_column}_{cat}"}, axis=1
-            )
-            data_cat_clean = data_cat.drop(
-                ForecastOutputColumns.SERIES, axis=1
-            ).set_index(datetime_column)
-            df = pd.concat([df, data_cat_clean], axis=1)
-            new_target_columns.append(f"{target_column}_{cat}")
-        df = df.reset_index()
-
-        return df.fillna(0), new_target_columns
-
-    raise ForecastSchemaYamlError(
-        f"Either target_columns, target_category_columns, or datetime_column not specified."
-    )
-
-
 def _validate_and_clean_data(
     cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame
 ):
@@ -257,85 +223,6 @@ def _validate_and_clean_data(
     return primary, additional
 
 
-# def _build_indexed_datasets(
-#     data,
-#     target_column,
-#     datetime_column,
-#     horizon,
-#     target_category_columns=None,
-#     additional_data=None,
-#     metadata_data=None,
-# ):
-#     df_by_target = dict()
-
-#     print(f"additional_data0: {additional_data}")
-#     # if target_category_columns is None:
-#     #     if additional_data is None:
-#     #         df_by_target[target_column] = data.fillna(0)
-#     #     else:
-#     #         df_by_target[target_column] = pd.concat(
-#     #             [
-#     #                 data.set_index(datetime_column).fillna(0),
-#     #                 additional_data.set_index(datetime_column).fillna(0),
-#     #             ],
-#     #             axis=1,
-#     #         ).reset_index()
-#     #     return df_by_target, target_column
-
-#     print(f"data0: {data}")
-#     data[ForecastOutputColumns.SERIES] = merge_category_columns(data, target_category_columns)
-#     unique_categories = data[ForecastOutputColumns.SERIES].unique()
-#     invalid_categories = []
-
-#     print(f"data1: {data}")
-#     print(f"additional_data1: {additional_data}")
-
-#     if additional_data is not None and target_column in additional_data.columns:
-#         logger.warn(f"Dropping column '{target_column}' from additional_data")
-#         additional_data.drop(target_column, axis=1, inplace=True)
-#     for cat in unique_categories:
-#         data_by_cat = data[data[ForecastOutputColumns.SERIES] == cat].rename(
-#             {target_column: f"{target_column}_{cat}"}, axis=1
-#         )
-#         data_by_cat_clean = (
-#             data_by_cat.drop(target_category_columns + ["__Series__"], axis=1)
-#             .set_index(datetime_column)
-#             .fillna(0)
-#         )
-#         if additional_data is not None:
-#             additional_data["__Series__"] = merge_category_columns(
-#                 additional_data, target_category_columns
-#             )
-#             data_add_by_cat = additional_data[
-#                 additional_data["__Series__"] == cat
-#             ].rename({target_column: f"{target_column}_{cat}"}, axis=1)
-#             data_add_by_cat_clean = (
-#                 data_add_by_cat.drop(target_category_columns + ["__Series__"], axis=1)
-#                 .set_index(datetime_column)
-#                 .fillna(0)
-#             )
-#             valid_primary, valid_add = _validate_and_clean_data(
-#                 cat, horizon, data_by_cat_clean, data_add_by_cat_clean
-#             )
-
-#             if valid_primary is None:
-#                 invalid_categories.append(cat)
-#                 data_by_cat_clean = None
-#             else:
-#                 data_by_cat_clean = pd.concat([valid_add, valid_primary], axis=1)
-#         if data_by_cat_clean is not None:
-#             df_by_target[f"{target_column}_{cat}"] = data_by_cat_clean.reset_index()
-
-#     new_target_columns = list(df_by_target.keys())
-#     remaining_categories = set(unique_categories) - set(invalid_categories)
-
-#     if not len(remaining_categories):
-#         raise ForecastInputDataError(
-#             "Stopping forecast operator as there is no data that meets the validation criteria."
-#         )
-#     return df_by_target, new_target_columns
-
-
 def _build_metrics_df(y_true, y_pred, column_name):
     metrics = dict()
     metrics["sMAPE"] = smape(actual=y_true, predicted=y_pred)
@@ -351,42 +238,37 @@ def _build_metrics_df(y_true, y_pred, column_name):
     return pd.DataFrame.from_dict(metrics, orient="index", columns=[column_name])
 
 
-def evaluate_train_metrics(
-    target_columns,
-    output,
-    original_target_column,
-):
+def evaluate_train_metrics(output):
     """
     Training metrics
     """
     total_metrics = pd.DataFrame()
-    for idx, col in enumerate(target_columns):
+    for s_id in output.list_series_ids():
         try:
-            forecast_by_col = output.get_target_category(col)[
+            forecast_by_s_id = output.get_forecast(s_id)[
                 ["input_value", "Date", "fitted_value"]
             ].dropna()
-            y_true = forecast_by_col["input_value"].values
-            y_pred = forecast_by_col["fitted_value"].values
+            y_true = forecast_by_s_id["input_value"].values
+            y_pred = forecast_by_s_id["fitted_value"].values
             metrics_df = _build_metrics_df(
                 y_true=y_true,
                 y_pred=y_pred,
-                column_name=convert_target(col, original_target_column),
+                column_name=s_id,
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         except Exception as e:
-            logger.warn(f"Failed to generate training metrics for target_series: {col}")
+            logger.warn(
+                f"Failed to generate training metrics for target_series: {s_id}"
+            )
             logger.debug(f"Recieved Error Statement: {e}")
     return total_metrics
 
 
-def _select_plot_list(fn, target_columns, original_target_column):
+def _select_plot_list(fn, series_ids):
     import datapane as dp
 
-    blocks = [
-        dp.Plot(fn(i, target), label=convert_target(target, original_target_column))
-        for i, target in enumerate(target_columns)
-    ]
-    return dp.Select(blocks=blocks) if len(target_columns) > 1 else blocks[0]
+    blocks = [dp.Plot(fn(s_id=s_id), label=s_id) for s_id in series_ids]
+    return dp.Select(blocks=blocks) if len(series_ids) > 1 else blocks[0]
 
 
 def _add_unit(num, unit):
@@ -395,15 +277,13 @@ def _add_unit(num, unit):
 
 def get_forecast_plots(
     forecast_output,
-    target_columns,
-    original_target_column,
     horizon,
     test_data=None,
     ci_interval_width=0.95,
 ):
-    def plot_forecast_plotly(idx, col):
+    def plot_forecast_plotly(s_id):
         fig = go.Figure()
-        forecast_i = forecast_output.get_target_category(col)
+        forecast_i = forecast_output.get_forecast(s_id)
         actual_length = len(forecast_i)
         if actual_length > RENDER_LIMIT:
             forecast_i = forecast_i.tail(RENDER_LIMIT)
@@ -446,16 +326,20 @@ def get_forecast_plots(
                     ),
                 ]
             )
-        if test_data is not None and col in test_data:
-            fig.add_trace(
-                go.Scatter(
-                    x=test_data["ds"],
-                    y=test_data[col],
-                    mode="markers",
-                    marker_color="green",
-                    name="Actual",
+        if test_data is not None:
+            try:
+                test_data_s_id = test_data.get_data_for_series(s_id)
+                fig.add_trace(
+                    go.Scatter(
+                        x=test_data_s_id[test_data.dt_column_name],
+                        y=test_data_s_id[test_data.target_name],
+                        mode="markers",
+                        marker_color="green",
+                        name="Actual",
+                    )
                 )
-            )
+            except Exception as e:
+                logger.debug(f"Unable to plot test data due to: {e.args}")
 
         fig.add_trace(
             go.Scatter(
@@ -492,9 +376,7 @@ def get_forecast_plots(
         )
         return fig
 
-    return _select_plot_list(
-        plot_forecast_plotly, target_columns, original_target_column
-    )
+    return _select_plot_list(plot_forecast_plotly, forecast_output.list_series_ids())
 
 
 def select_auto_model(
@@ -519,7 +401,7 @@ def select_auto_model(
     freq_in_secs = datasets.get_datetime_frequency_in_seconds()
     num_of_additional_cols = len(datasets.get_additional_data_column_names())
     row_count = datasets.get_num_rows()
-    number_of_series = len(datasets.list_categories())
+    number_of_series = len(datasets.list_series_ids())
     if (
         num_of_additional_cols < 15
         and row_count < 10000

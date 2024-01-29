@@ -221,9 +221,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 ].tail()
             )
 
-            # Collect Outputs
-            # models.append(model)
-
             self.outputs[series_id] = forecast
 
             if self.loaded_models is None:
@@ -263,18 +260,19 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         if self.loaded_models is not None:
             self.models = self.loaded_models
 
-        # Merge the outputs from each model into 1 df with all outputs by target and category
-        target = self.original_target_column
+        # Merge the outputs from each model into 1 df with all outputs by target and series
         output_col = pd.DataFrame()
         yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for cat in self.datasets.list_categories():
+        for s_id in self.datasets.list_series_ids():
             try:
                 output_i = pd.DataFrame()
 
-                output_i["Date"] = self.outputs[cat][PROPHET_INTERNAL_DATE_COL]
-                output_i["Series"] = cat
-                output_i["input_value"] = full_data_dict[cat][target]
+                output_i["Date"] = self.outputs[s_id][PROPHET_INTERNAL_DATE_COL]
+                output_i[ForecastOutputColumns.SERIES] = s_id
+                output_i["input_value"] = full_data_dict[s_id][
+                    self.original_target_column
+                ]
 
                 output_i[f"fitted_value"] = float("nan")
                 output_i[f"forecast_value"] = float("nan")
@@ -283,23 +281,21 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
                 output_i.iloc[
                     : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-                ] = (self.outputs[cat]["yhat"].iloc[: -self.spec.horizon].values)
+                ] = (self.outputs[s_id]["yhat"].iloc[: -self.spec.horizon].values)
                 output_i.iloc[
                     -self.spec.horizon :,
                     output_i.columns.get_loc(f"forecast_value"),
                 ] = (
-                    self.outputs[cat]["yhat"].iloc[-self.spec.horizon :].values
+                    self.outputs[s_id]["yhat"].iloc[-self.spec.horizon :].values
                 )
                 output_i.iloc[
                     -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
-                ] = (self.outputs[cat]["yhat_upper"].iloc[-self.spec.horizon :].values)
+                ] = (self.outputs[s_id]["yhat_upper"].iloc[-self.spec.horizon :].values)
                 output_i.iloc[
                     -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
-                ] = (self.outputs[cat]["yhat_lower"].iloc[-self.spec.horizon :].values)
+                ] = (self.outputs[s_id]["yhat_lower"].iloc[-self.spec.horizon :].values)
                 output_col = pd.concat([output_col, output_i])
-                self.forecast_output.add_category(
-                    category=cat, target_category_column=cat, forecast=output_i
-                )
+                self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
             except Exception as e:
                 # TODO: should we do something special in this case?
                 pass
@@ -312,46 +308,34 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         import datapane as dp
         from prophet.plot import add_changepoints_to_plot
 
+        series_ids = self.datasets.list_series_ids()
+
         sec1_text = dp.Text(
             "## Forecast Overview \n"
             "These plots show your forecast in the context of historical data."
         )
-        print(f"self.models: {self.models}")
         sec1 = _select_plot_list(
-            lambda idx, target, *args: self.models[target].plot(
-                self.outputs[target], include_legend=True
+            lambda s_id: self.models[s_id].plot(
+                self.outputs[s_id], include_legend=True
             ),
-            target_columns=self.target_columns,
-            original_target_column=self.original_target_column,
+            series_ids=series_ids,
         )
 
         sec2_text = dp.Text(f"## Forecast Broken Down by Trend Component")
         sec2 = _select_plot_list(
-            lambda idx, target, *args: self.models[target].plot_components(
-                self.outputs[target]
-            ),
-            target_columns=self.target_columns,
-            original_target_column=self.original_target_column,
+            lambda s_id: self.models[s_id].plot_components(self.outputs[s_id]),
+            series_ids=series_ids,
         )
 
         sec3_text = dp.Text(f"## Forecast Changepoints")
-        sec3_figs = [
-            self.models[target].plot(self.outputs[target])
-            for target in self.target_columns
-        ]
-        [
+        sec3_figs = {
+            s_id: self.models[s_id].plot(self.outputs[s_id]) for s_id in series_ids
+        }
+        for s_id in series_ids:
             add_changepoints_to_plot(
-                sec3_figs[idx].gca(),
-                self.models[self.target_columns[idx]],
-                self.outputs[self.target_columns[idx]],
+                sec3_figs[s_id].gca(), self.models[s_id], self.outputs[s_id]
             )
-            for idx in range(len(self.target_columns))
-        ]
-        sec3 = _select_plot_list(
-            lambda idx, *args: sec3_figs[idx],
-            target_columns=self.target_columns,
-            original_target_column=self.original_target_column,
-        )
+        sec3 = _select_plot_list(lambda s_id: sec3_figs[s_id], series_ids=series_ids)
 
         all_sections = [sec1_text, sec1, sec2_text, sec2, sec3_text, sec3]
 
@@ -401,7 +385,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 aggregate_local_explanations = pd.DataFrame()
                 for s_id, local_ex_df in self.local_explanation.items():
                     local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
+                    local_ex_df_copy[ForecastOutputColumns.SERIES] = s_id
                     aggregate_local_explanations = pd.concat(
                         [aggregate_local_explanations, local_ex_df_copy], axis=0
                     )
@@ -411,7 +395,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 blocks = [
                     dp.DataTable(
                         local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=convert_target(s_id, self.original_target_column),
+                        label=s_id,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
                 ]

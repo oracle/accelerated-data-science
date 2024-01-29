@@ -17,7 +17,7 @@ import pandas as pd
 class Transformations:
     """A class which implements transformation for forecast operator"""
 
-    def __init__(self, dataset_info):
+    def __init__(self, dataset_info, name="historical_data"):
         """
         Initializes the transformation.
 
@@ -26,6 +26,7 @@ class Transformations:
             data: The Pandas DataFrame.
             dataset_info : ForecastOperatorConfig
         """
+        self.name = name
         self.dataset_info = dataset_info
         self.target_category_columns = dataset_info.target_category_columns
         self.target_column_name = dataset_info.target_column
@@ -49,41 +50,17 @@ class Transformations:
 
         """
         clean_df = self._remove_trailing_whitespace(data)
-        self._check_historical_dataset(clean_df)
+        if self.name == "historical_data":
+            self._check_historical_dataset(clean_df)
         clean_df = self._set_series_id_column(clean_df)
         clean_df = self._format_datetime_col(clean_df)
         clean_df = self._set_multi_index(clean_df)
-
-        clean_df = self._missing_value_imputation(clean_df)
-        if self.preprocessing:
-            clean_df = self._outlier_treatment(clean_df)
-        else:
-            logger.debug("Skipping outlier treatment as preprocessing is disabled")
-
-        return clean_df
-
-    def transform_additional_data(self, data):
-        clean_df = self._remove_trailing_whitespace(data)
-        clean_df = self._set_series_id_column(clean_df)
-        try:
-            clean_df = self._format_datetime_col(clean_df)
-        except InvalidParameterError as e:
-            raise DataMismatchError(
-                f"Unable to determine the datetime type for column: {self.dt_column_name} in additional data. Likely, the format of column {self.dt_column_name} differs between historical and additional. Please ensure they follow the same format. If they do, please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {clean_df[self.dt_column_name].values[0]})"
-            )
-        clean_df = self._set_multi_index(clean_df)
-        return clean_df
-
-    def transform_test_data(self, data):
-        clean_df = self._remove_trailing_whitespace(data)
-        clean_df = self._set_series_id_column(clean_df)
-        try:
-            clean_df = self._format_datetime_col(clean_df)
-        except InvalidParameterError as e:
-            raise DataMismatchError(
-                f"Unable to determine the datetime type for column: {self.dt_column_name} in test data. Likely, the format of column {self.dt_column_name} differs between historical and test data. Please ensure they follow the same format. If they do, please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {clean_df[self.dt_column_name].values[0]})"
-            )
-        clean_df = self._set_multi_index(clean_df)
+        if self.name == "historical_data":
+            clean_df = self._missing_value_imputation(clean_df)
+            if self.preprocessing:
+                clean_df = self._outlier_treatment(clean_df)
+            else:
+                logger.debug("Skipping outlier treatment as preprocessing is disabled")
         return clean_df
 
     def _remove_trailing_whitespace(self, df):
@@ -91,7 +68,7 @@ class Transformations:
 
     def _set_series_id_column(self, df):
         if not self.target_category_columns:
-            df[ForecastOutputColumns.SERIES] = "1"
+            df[ForecastOutputColumns.SERIES] = "Series 1"
         else:
             df[ForecastOutputColumns.SERIES] = merge_category_columns(
                 df, self.target_category_columns
@@ -106,7 +83,7 @@ class Transformations:
             )
         except:
             raise InvalidParameterError(
-                f"Unable to determine the datetime type for column: {self.dt_column_name}. Please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {df[self.dt_column_name].values[0]}"
+                f"Unable to determine the datetime type for column: {self.dt_column_name} in dataset: {self.name}. Please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {df[self.dt_column_name].values[0]}"
             )
         return df
 
@@ -120,7 +97,7 @@ class Transformations:
 
         Returns
         -------
-            A new Pandas DataFrame with sorted dates for each category
+            A new Pandas DataFrame with sorted dates for each series
         """
         df = df.set_index([self.dt_column_name, ForecastOutputColumns.SERIES])
         return df.sort_values(
@@ -178,5 +155,5 @@ class Transformations:
         )
         if set(df.columns) != set(expected_names):
             raise DataMismatchError(
-                f"Expected historical data to have columns: {expected_names}, but instead found column names: {df.columns}. Is the historical data path correct?"
+                f"Expected {self.name} to have columns: {expected_names}, but instead found column names: {df.columns}. Is the {self.name} path correct?"
             )

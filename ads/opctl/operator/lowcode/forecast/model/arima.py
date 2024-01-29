@@ -33,15 +33,15 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.formatted_global_explanation = None
         self.formatted_local_explanation = None
 
-    def _train_model(self, i, cat, df):
-        """Trains the ARIMA model for a given category dataset.
+    def _train_model(self, i, s_id, df):
+        """Trains the ARIMA model for a given series of the dataset.
 
         Parameters
         ----------
         i: int
-            The index of the category
-        cat: str
-            The name of the category
+            The index of the series
+        s_id: str
+            The name of the series
         df: pd.DataFrame
             The dataframe containing the target data
         """
@@ -85,14 +85,14 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             if len(additional_regressors):
                 X_in = data_i.drop(target, axis=1)
 
-            model = self.loaded_models[cat] if self.loaded_models is not None else None
+            model = self.loaded_models[s_id] if self.loaded_models is not None else None
             if model is None:
                 # Build and fit model
                 model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
 
-            self.fitted_values[cat] = model.predict_in_sample(X=X_in)
-            self.actual_values[cat] = y
-            self.actual_values[cat].index = pd.to_datetime(y.index)
+            self.fitted_values[s_id] = model.predict_in_sample(X=X_in)
+            self.actual_values[s_id] = y
+            self.actual_values[s_id].index = pd.to_datetime(y.index)
 
             # Build future dataframe
             start_date = y.index.values[-1]
@@ -115,7 +115,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             )
             yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
 
-            self.dt_columns[cat] = df_encoded[self.spec.datetime_column.name]
+            self.dt_columns[s_id] = df_encoded[self.spec.datetime_column.name]
             conf_int_clean = pd.DataFrame(
                 conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
             )
@@ -128,23 +128,23 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             self.outputs_legacy.append(
                 forecast.reset_index().rename(columns={"index": "ds"})
             )
-            self.outputs[cat] = forecast
+            self.outputs[s_id] = forecast
 
             if self.loaded_models is None:
-                self.models[cat] = model
+                self.models[s_id] = model
 
             params = vars(model).copy()
             for param in ["arima_res_", "endog_index_"]:
                 if param in params:
                     params.pop(param)
-            self.model_parameters[cat] = {
+            self.model_parameters[s_id] = {
                 "framework": SupportedModels.Arima,
                 **params,
             }
 
             logger.debug("===========Done===========")
         except Exception as e:
-            self.errors_dict[cat] = {"model_name": self.spec.model, "error": str(e)}
+            self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_all_data_by_series()
@@ -161,8 +161,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.dt_columns = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
-            delayed(ArimaOperatorModel._train_model)(self, i, cat, df)
-            for self, (i, (cat, df)) in zip(
+            delayed(ArimaOperatorModel._train_model)(self, i, s_id, df)
+            for self, (i, (s_id, df)) in zip(
                 [self] * len(full_data_dict), enumerate(full_data_dict.items())
             )
         )
@@ -170,28 +170,26 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         if self.loaded_models is not None:
             self.models = self.loaded_models
 
-        # Merge the outputs from each model into 1 df with all outputs by target and category
+        # Merge the outputs from each model into 1 df with all outputs by target and series
         output_col = pd.DataFrame()
         yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
 
-        for cat in self.datasets.list_categories():
+        for s_id in self.datasets.list_series_ids():
             output_i = pd.DataFrame()
-            output_i["Date"] = self.dt_columns[cat]
-            output_i["Series"] = cat
+            output_i["Date"] = self.dt_columns[s_id]
+            output_i["Series"] = s_id
             output_i = output_i.set_index("Date")
 
-            output_i["input_value"] = self.actual_values[cat]
-            output_i["fitted_value"] = self.fitted_values[cat]
-            output_i["forecast_value"] = self.outputs[cat]["yhat"]
-            output_i[yhat_upper_name] = self.outputs[cat]["yhat_upper"]
-            output_i[yhat_lower_name] = self.outputs[cat]["yhat_lower"]
+            output_i["input_value"] = self.actual_values[s_id]
+            output_i["fitted_value"] = self.fitted_values[s_id]
+            output_i["forecast_value"] = self.outputs[s_id]["yhat"]
+            output_i[yhat_upper_name] = self.outputs[s_id]["yhat_upper"]
+            output_i[yhat_lower_name] = self.outputs[s_id]["yhat_lower"]
 
             output_i = output_i.reset_index(drop=False)
             output_col = pd.concat([output_col, output_i])
-            self.forecast_output.add_category(
-                category=cat, target_category_column=cat, forecast=output_i
-            )
+            self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
 
         output_col = output_col.reset_index(drop=True)
 
@@ -205,9 +203,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         blocks = [
             dp.HTML(
                 m.summary().as_html(),
-                label=cat,
+                label=s_id,
             )
-            for i, (cat, m) in enumerate(self.models.items())
+            for i, (s_id, m) in enumerate(self.models.items())
         ]
         sec5 = dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
         all_sections = [sec5_text, sec5]

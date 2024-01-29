@@ -21,7 +21,6 @@ from ads.opctl.operator.lowcode.forecast.utils import (
     evaluate_train_metrics,
     convert_target,
     get_forecast_plots,
-    clean_data,
     _build_metrics_df,
     _build_metrics_per_horizon,
     load_pkl,
@@ -45,7 +44,8 @@ from ..const import (
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
-from .forecast_datasets import ForecastDatasets, ForecastOutput
+from .forecast_datasets import ForecastDatasets
+from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 
 
 class ForecastOperatorBaseModel(ABC):
@@ -64,7 +64,6 @@ class ForecastOperatorBaseModel(ABC):
         self.datasets: ForecastDatasets = datasets
 
         self.full_data_dict = datasets.get_all_data_by_series()
-        self.target_columns = datasets.target_columns
 
         self.test_eval_metrics = None
         self.original_target_column = self.spec.target_column
@@ -113,9 +112,7 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.generate_report or self.spec.generate_metrics:
                 if self.train_metrics:
                     self.eval_metrics = evaluate_train_metrics(
-                        target_columns=self.target_columns,
-                        output=self.forecast_output,
-                        original_target_column=self.original_target_column,
+                        output=self.forecast_output
                     )
                 else:
                     try:
@@ -132,11 +129,6 @@ class ForecastOperatorBaseModel(ABC):
                             summary_metrics,
                             test_data,
                         ) = self._test_evaluate_metrics(
-                            target_columns=self.target_columns,
-                            test_filename=self.spec.test_data.url,
-                            output=self.forecast_output,
-                            original_target_column=self.original_target_column,
-                            target_col=self.forecast_col_name,
                             elapsed_time=elapsed_time,
                         )
                     except Exception as e:
@@ -155,36 +147,33 @@ class ForecastOperatorBaseModel(ABC):
                 title_text = dp.Text("# Forecast Report")
 
                 md_columns = " * ".join(
-                    [
-                        f"{convert_target(x,self.original_target_column)} \n"
-                        for x in self.target_columns
-                    ]
+                    [f"{s_id} \n" for s_id in self.datasets.list_series_ids()]
                 )
                 first_10_rows_blocks = [
                     dp.DataTable(
-                        df.head(10).rename({col: self.spec.target_column}, axis=1),
+                        df.head(10).rename({s_id: self.spec.target_column}, axis=1),
                         caption="Start",
-                        label=convert_target(col, self.original_target_column),
+                        label=s_id,
                     )
-                    for col, df in self.full_data_dict.items()
+                    for s_id, df in self.full_data_dict.items()
                 ]
 
                 last_10_rows_blocks = [
                     dp.DataTable(
-                        df.tail(10).rename({col: self.spec.target_column}, axis=1),
+                        df.tail(10).rename({s_id: self.spec.target_column}, axis=1),
                         caption="End",
-                        label=convert_target(col, self.original_target_column),
+                        label=s_id,
                     )
-                    for col, df in self.full_data_dict.items()
+                    for s_id, df in self.full_data_dict.items()
                 ]
 
                 data_summary_blocks = [
                     dp.DataTable(
-                        df.rename({col: self.spec.target_column}, axis=1).describe(),
+                        df.rename({s_id: self.spec.target_column}, axis=1).describe(),
                         caption="Summary Statistics",
-                        label=convert_target(col, self.original_target_column),
+                        label=s_id,
                     )
-                    for col, df in self.full_data_dict.items()
+                    for s_id, df in self.full_data_dict.items()
                 ]
                 summary = dp.Blocks(
                     dp.Select(
@@ -217,7 +206,7 @@ class ForecastOperatorBaseModel(ABC):
                                     ),
                                     dp.BigNumber(
                                         heading="Num series",
-                                        value=len(self.target_columns),
+                                        value=len(self.datasets.list_series_ids()),
                                     ),
                                     columns=4,
                                 ),
@@ -268,8 +257,6 @@ class ForecastOperatorBaseModel(ABC):
                 forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
                 forecast_sec = get_forecast_plots(
                     self.forecast_output,
-                    self.target_columns,
-                    self.original_target_column,
                     horizon=self.spec.horizon,
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
@@ -295,71 +282,27 @@ class ForecastOperatorBaseModel(ABC):
                 test_metrics_df=self.test_eval_metrics,
             )
 
-    def _test_evaluate_metrics(
-        self,
-        target_columns,
-        test_filename,
-        output,
-        original_target_column,
-        target_col="yhat",
-        elapsed_time=0,
-    ):
+    def _test_evaluate_metrics(self, elapsed_time=0):
         total_metrics = pd.DataFrame()
         summary_metrics = pd.DataFrame()
-        data = None
-        try:
-            raw_data = load_data(
-                filename=test_filename,
-                format=self.spec.test_data.format,
-                columns=self.spec.test_data.columns,
-            )
-        except pd.errors.EmptyDataError:
-            logger.warn("The provided test data file was empty. Skipping test data.")
-            return total_metrics, summary_metrics, None
-        except InvalidParameterError as e:
-            e.args = e.args + ("Invalid Parameter: test_data",)
-            logger.warn(
-                f"The provided test data file was Invalid. Skipping test data. Full error message: {e.args}"
-            )
-            return total_metrics, summary_metrics, None
+        data = TestData(self.spec)
 
-        data = self.datasets._data_transformer.transform_test_data(raw_data)
-
-        # data, confirm_targ_columns = clean_data(
-        #     data=data,
-        #     target_column=self.original_target_column,
-        #     target_category_columns=self.spec.target_category_columns,
-        #     datetime_column="ds",
-        # )
-
-        # Calculating Test Metrics
-        for cat in self.forecast_output.list_categories():
-            target_column_i = self.forecast_output.category_to_target[cat]
-            output_forecast_i = self.forecast_output.get_category(cat)
-            # Only columns present in test file will be used to generate test error
-            if target_column_i in data:
-                # Assuming that predictions have all forecast values
-                dates = output_forecast_i["Date"]
-                # Filling zeros for any date missing in test data to maintain consistency in metric calculation as in all other missing values cases it comes as 0
-                y_true = [
-                    data.loc[data["ds"] == date, target_column_i].values[0]
-                    if date in data["ds"].values
-                    else 0
-                    for date in dates
-                ]
-                y_pred_i = output_forecast_i["forecast_value"].values
-                y_pred = np.asarray(y_pred_i[-len(y_true) :])
-
-                metrics_df = _build_metrics_df(
-                    y_true=y_true[-self.spec.horizon :],
-                    y_pred=y_pred[-self.spec.horizon :],
-                    column_name=convert_target(target_column_i, original_target_column),
-                )
-                total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
-            else:
+        # Generate y_pred and y_true for each series
+        for s_id in self.forecast_output.list_series_ids():
+            try:
+                y_true = data.get_data_for_series(s_id)[data.target_name]
+            except KeyError as ke:
                 logger.warn(
-                    f"Error Generating Metrics: Unable to find {target_column_i} in the test data."
+                    f"Error Generating Metrics: Unable to find {s_id} in the test data. Error: {ke.args}"
                 )
+            y_pred = self.forecast_output.get_forecast(s_id)["forecast_value"].values
+
+            metrics_df = _build_metrics_df(
+                y_true=y_true[-self.spec.horizon :],
+                y_pred=y_pred[-self.spec.horizon :],
+                column_name=s_id,
+            )
+            total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
         if total_metrics.empty:
             return total_metrics, summary_metrics, data
@@ -401,42 +344,34 @@ class ForecastOperatorBaseModel(ABC):
             index=["All Targets"],
         )
 
-        """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
-        if horizon <= 10."""
-        target_columns_in_output = set(target_columns).intersection(data.columns)
-        if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT:
-            if set(self.forecast_output.list_target_category_columns()) != set(
-                target_columns_in_output
-            ):
-                logger.warn(
-                    f"Column Mismatch between Forecast Output and Target Columns"
-                )
-            metrics_per_horizon = _build_metrics_per_horizon(
-                data=data,
-                output=self.forecast_output,
-                target_columns=target_columns,
-                target_col=target_col,
-                horizon_periods=self.spec.horizon,
-            )
-            if not metrics_per_horizon.empty:
-                summary_metrics = pd.concat([summary_metrics, metrics_per_horizon])
+        # TODO: needs to be re-implemented
 
-                new_column_order = [
-                    SupportedMetrics.MEAN_SMAPE,
-                    SupportedMetrics.MEDIAN_SMAPE,
-                    SupportedMetrics.MEAN_MAPE,
-                    SupportedMetrics.MEDIAN_MAPE,
-                    SupportedMetrics.MEAN_WMAPE,
-                    SupportedMetrics.MEDIAN_WMAPE,
-                    SupportedMetrics.MEAN_RMSE,
-                    SupportedMetrics.MEDIAN_RMSE,
-                    SupportedMetrics.MEAN_R2,
-                    SupportedMetrics.MEDIAN_R2,
-                    SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
-                    SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
-                    SupportedMetrics.ELAPSED_TIME,
-                ]
-                summary_metrics = summary_metrics[new_column_order]
+        # """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
+        # if horizon <= 10."""
+        # if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT:
+        #     metrics_per_horizon = _build_metrics_per_horizon(
+        #         data=data,
+        #         output=self.forecast_output,
+        #     )
+        #     if not metrics_per_horizon.empty:
+        #         summary_metrics = pd.concat([summary_metrics, metrics_per_horizon])
+
+        #         new_column_order = [
+        #             SupportedMetrics.MEAN_SMAPE,
+        #             SupportedMetrics.MEDIAN_SMAPE,
+        #             SupportedMetrics.MEAN_MAPE,
+        #             SupportedMetrics.MEDIAN_MAPE,
+        #             SupportedMetrics.MEAN_WMAPE,
+        #             SupportedMetrics.MEDIAN_WMAPE,
+        #             SupportedMetrics.MEAN_RMSE,
+        #             SupportedMetrics.MEDIAN_RMSE,
+        #             SupportedMetrics.MEAN_R2,
+        #             SupportedMetrics.MEDIAN_R2,
+        #             SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
+        #             SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
+        #             SupportedMetrics.ELAPSED_TIME,
+        #         ]
+        #         summary_metrics = summary_metrics[new_column_order]
 
         return total_metrics, summary_metrics, data
 
@@ -673,7 +608,7 @@ class ForecastOperatorBaseModel(ABC):
         logger.info(
             f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode"
         )
-        for series_id in self.target_columns:
+        for series_id in self.datasets.list_series_ids():
             self.series_id = series_id
             self.dataset_cols = (
                 self.full_data_dict.get(series_id)
@@ -704,9 +639,7 @@ class ForecastOperatorBaseModel(ABC):
                     f"No explanations generated. Ensure that additional data has been provided."
                 )
             else:
-                self.global_explanation[
-                    convert_target(series_id, self.original_target_column)
-                ] = dict(
+                self.global_explanation[series_id] = dict(
                     zip(
                         data_trimmed.columns[1:],
                         np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
@@ -755,6 +688,4 @@ class ForecastOperatorBaseModel(ABC):
                 ["series_id", self.spec.target_column], axis=1, inplace=True
             )
 
-        self.local_explanation[
-            convert_target(series_id, self.original_target_column)
-        ] = local_kernel_explnr_df
+        self.local_explanation[series_id] = local_kernel_explnr_df

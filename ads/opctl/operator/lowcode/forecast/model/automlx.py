@@ -88,10 +88,10 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 "preprocessing", True
             )
 
-        for i, (cat, df) in enumerate(full_data_dict.items()):
+        for i, (s_id, df) in enumerate(full_data_dict.items()):
             try:
                 target = self.original_target_column
-                logger.debug("Running automl for {} at position {}".format(cat, i))
+                logger.debug("Running automl for {} at position {}".format(s_id, i))
                 series_values = df[df[target].notna()]
                 # drop NaNs for the time period where data wasn't recorded
                 series_values.dropna(inplace=True)
@@ -113,7 +113,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     else "NOT" + "monotonic."
                 )
                 model = (
-                    self.loaded_models[cat] if self.loaded_models is not None else None
+                    self.loaded_models[s_id] if self.loaded_models is not None else None
                 )
 
                 if model is None:
@@ -153,7 +153,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
                 # Collect Outputs
                 if self.loaded_models is None:
-                    models[cat] = model
+                    models[s_id] = model
                 summary_frame = summary_frame.rename_axis("ds").reset_index()
                 summary_frame = summary_frame.rename(
                     columns={
@@ -166,9 +166,9 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if "yhat_upper" not in summary_frame:
                     summary_frame["yhat_upper"] = np.NAN
                     summary_frame["yhat_lower"] = np.NAN
-                outputs[cat] = summary_frame
+                outputs[s_id] = summary_frame
 
-                self.model_parameters[cat] = {
+                self.model_parameters[s_id] = {
                     "framework": SupportedModels.AutoMLX,
                     "score_metric": model.score_metric,
                     "random_state": model.random_state,
@@ -186,7 +186,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "selected_model_params": model.selected_model_params_,
                 }
             except Exception as e:
-                self.errors_dict[cat] = {
+                self.errors_dict[s_id] = {
                     "model_name": self.spec.model,
                     "error": str(e),
                 }
@@ -194,27 +194,21 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         logger.debug("===========Forecast Generated===========")
         outputs_merged = pd.DataFrame()
 
-        # Merge the outputs from each model into 1 df with all outputs by target and category
+        # Merge the outputs from each model into 1 df with all outputs by target and series
         yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
         yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for cat in self.datasets.list_categories():
+        for s_id in self.datasets.list_series_ids():
             output_i = pd.DataFrame()
-            output_i["Date"] = outputs[cat]["ds"]
-            output_i["Series"] = cat
-            output_i["input_value"] = outputs[cat]["input_value"]
-            output_i[f"fitted_value"] = outputs[cat]["fitted_value"]
-            output_i[f"forecast_value"] = outputs[cat]["yhat"]
-            output_i[yhat_upper_name] = outputs[cat]["yhat_upper"]
-            output_i[yhat_lower_name] = outputs[cat]["yhat_lower"]
+            output_i["Date"] = outputs[s_id]["ds"]
+            output_i["Series"] = s_id
+            output_i["input_value"] = outputs[s_id]["input_value"]
+            output_i[f"fitted_value"] = outputs[s_id]["fitted_value"]
+            output_i[f"forecast_value"] = outputs[s_id]["yhat"]
+            output_i[yhat_upper_name] = outputs[s_id]["yhat_upper"]
+            output_i[yhat_lower_name] = outputs[s_id]["yhat_lower"]
             outputs_merged = pd.concat([outputs_merged, output_i])
-            outputs_legacy[cat] = output_i
-            self.forecast_output.add_category(
-                category=cat, target_category_column=cat, forecast=output_i
-            )
-
-        # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
-        # output_col = output_col.reset_index(drop=True)
-        # outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
+            outputs_legacy[s_id] = output_i
+            self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
 
         self.models = models if self.loaded_models is None else self.loaded_models
 
@@ -254,11 +248,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         selected_models = dict()
         models = self.models
-        for i, (cat, df) in enumerate(self.full_data_dict.items()):
-            selected_models[cat] = {
-                "series_id": cat,
-                "selected_model": models[cat].selected_model_,
-                "model_params": models[cat].selected_model_params_,
+        for i, (s_id, df) in enumerate(self.full_data_dict.items()):
+            selected_models[s_id] = {
+                "series_id": s_id,
+                "selected_model": models[s_id].selected_model_,
+                "model_params": models[s_id].selected_model_params_,
             }
         selected_models_df = pd.DataFrame(
             selected_models.items(), columns=["series_id", "best_selected_model"]
