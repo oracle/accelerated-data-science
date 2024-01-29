@@ -425,10 +425,25 @@ def select_auto_model(
 
 
 def convert_target(target: str, target_col: str):
-    if target_col is not None and target_col != "":
-        temp = target_col + "_"
+    """
+    Removes the target_column that got appended to target.
+
+    Parameters
+    ------------
+    target: str
+        value in target_columns. i.e., "Sales_Product_Category_117"
+
+    target_col: str
+        target_column provided in yaml. i.e., "Sales"
+
+    Returns
+    --------
+        Original target. i.e., "Product_Category_117"
+    """
+    if target_col is not None and target_col!='':
+        temp = target_col + '_'
         if temp in target:
-            target = target.replace(temp, "")
+            target = target.replace(temp, '', 1)
     return target
 
 
