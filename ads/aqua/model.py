@@ -62,8 +62,8 @@ class AquaModelApp(AquaApp):
         Creates an instance of Aqua model.
     deploy(..., **kwargs)
         Deploys an Aqua model.
-    list(self, ..., **kwargs) -> List["AquaModel"]
-        List existing models created via Aqua
+    list(...) -> List["AquaModelSummary"]
+        List existing models created via Aqua.
 
     """
 
@@ -89,10 +89,17 @@ class AquaModelApp(AquaApp):
         """
         try:
             oci_model = self.client.get_model(model_id).data
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-        except ClientError as ce:
-            raise AquaClientError(str(ce))
+        except ServiceError as e:
+            if e.status >= 500:
+                raise AquaServiceError(
+                    opc_request_id=e.request_id,
+                    status_code=e.code,
+                    service_error=str(e),
+                )
+            else:
+                raise AquaClientError(str(e))
+        except Exception as ex:
+            raise AquaClientError(str(ex))
 
         if not self._if_show(oci_model):
             raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
@@ -116,31 +123,24 @@ class AquaModelApp(AquaApp):
             model_card=self._read_file(f"{artifact_path}/{README}"),
         )
 
-    async def list(
+    def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List["AquaModelSummary"]:
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
 
         models = self.list_resource(self.client.list_models, **kwargs)
-        tasks = []
+        if not models:
+            self.logger.error(
+                f"No model found in compartment_id={compartment_id}, project_id={compartment_id}."
+            )
 
-        async def process_model(model):
-            # TODO: the way to fetch icon will be updated after model by reference release
-            icon = None
-            try:
-                thismodel = await self._client_get_model(model.id)
-                custom_metadata_list = thismodel.data.custom_metadata_list
+        aqua_models = []
+        # TODO: build index.json locally as caching
 
-                artifact_path = self._get_artifact_path(custom_metadata_list)
-                if artifact_path:
-                    icon = await self._read_file_async(
-                        f"{artifact_path}/{ICON_FILE_NAME}"
-                    )
-
-            except Exception as e:
-                # Failed to retrieve icon, icon remains None
-                pass
+        def process_model(model):
+            # TODO:
+            icon = self._load_icon(model.name)
 
             return AquaModelSummary(
                 name=model.display_name,
@@ -148,7 +148,7 @@ class AquaModelApp(AquaApp):
                 compartment_id=model.compartment_id,
                 project_id=model.project_id,
                 time_created=model.time_created,
-                icon=icon,
+                icon=icon,  # follow Daren, remove icon
                 task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
                 license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
                 organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
@@ -159,14 +159,19 @@ class AquaModelApp(AquaApp):
 
         for model in models:  # ModelSummary
             if self._if_show(model):
-                tasks.append(process_model(model))
+                aqua_models.append(process_model(model))
 
-        aqua_models = await asyncio.gather(*tasks)
         return aqua_models
+
+    # @oci_exception_handler
+    # def _client_get_model(self, model_id):
+    #     # get_model is blocking code
+    #     return self.client.get_model(model_id)
 
     @oci_exception_handler
     async def _client_get_model(self, model_id):
-        return await asyncio.to_thread(self.client.get_model, model_id)
+        # get_model is blocking code
+        return asyncio.to_thread(self.client.get_model, model_id)
 
     def _if_show(self, model: "ModelSummary") -> bool:
         """Determine if the given model should be return by `list`."""
@@ -200,7 +205,7 @@ class AquaModelApp(AquaApp):
             if custom_metadata.key == "Object Storage Path":
                 return custom_metadata.value
 
-        logger.debug("Failed to get artifact path from custom metadata.")
+        self.logger.debug("Failed to get artifact path from custom metadata.")
         return None
 
     def _read_file(self, file_path: str) -> str:
@@ -220,17 +225,17 @@ class AquaModelApp(AquaApp):
             with fsspec.open(file_path, "rb", **self._auth) as f:
                 return f.read()
         except Exception as e:
-            logger.debug(
+            self.logger.debug(
                 f"Failed to retreive content from `file_path={file_path}`. {e}"
             )
             return None
 
-    async def _read_file_async(self, file_path) -> str:
-        try:
-            with fsspec.open(file_path, "rb", **self._auth) as f:
-                return f.read()
-        except Exception as e:
-            logger.debug(
-                f"Failed to retreive content from `file_path={file_path}`. {e}"
-            )
-            return None
+    # async def _read_file_async(self, file_path) -> str:
+    #     try:
+    #         with fsspec.open(file_path, "rb", **self._auth) as f:
+    #             return f.read()
+    #     except Exception as e:
+    #         self.logger.debug(
+    #             f"Failed to retreive content from `file_path={file_path}`. {e}"
+    #         )
+    #         return None

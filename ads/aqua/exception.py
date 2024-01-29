@@ -8,6 +8,15 @@
 from oci.exceptions import ServiceError
 from tornado.web import HTTPError
 from oci.exceptions import ServiceError
+from dataclasses import asdict, dataclass
+
+
+@dataclass
+class ErrorPayload:
+    # reply
+    messages: str
+    reasons: str
+    oci_payload: dict
 
 
 class AquaError(Exception):
@@ -17,23 +26,51 @@ class AquaError(Exception):
     will inherit.
     """
 
-    pass
+    # TODO:
+    # convert error -> reply format
+    def to_jupylab(self):
+        """build payload"""
+        return asdict(
+            ErrorPayload(
+                messages=self.messages,
+                reasons=self.reasons,
+                oci_payload=self.oci_payload,
+            )
+        )
 
 
 class AquaServiceError(AquaError):
     """Exception raised for server side error."""
 
-    def __init__(self, opc_request_id: str, status_code: int, service_error: str):
-        super().__init__(
-            f"Error occurred when invoking service. opc-request-id: {opc_request_id}. status code: {status_code}."
-            f"{service_error}"
-        )
+    def __init__(
+        self,
+        messages: str,
+        oci_payload: dict,
+        status: int,
+        reasons: str = "aquamodelapp.get",
+    ):
+        # messazge: from oci
+        self.messages = messages
+        self.oci_payload = oci_payload
+        self.status = status
+        self.reasons = reasons
 
 
 class AquaClientError(AquaError):
     """Exception raised for client side error."""
 
-    pass
+    def __init__(
+        self,
+        messages: str,
+        oci_payload: dict = None,
+        status: int = None,
+        reasons: str = "aquamodelapp.get",
+    ):
+        # messazge: from oci
+        self.messages = messages
+        self.oci_payload = oci_payload
+        self.status = status
+        self.reasons = reasons
 
 
 def exception_handler(func):
@@ -43,9 +80,9 @@ def exception_handler(func):
         try:
             func(*args, **kwargs)
         except AquaServiceError as service_error:
-            raise HTTPError(500, str(service_error))
+            raise HTTPError(service_error.status or 500, service_error.to_jupylab())
         except AquaClientError as client_error:
-            raise HTTPError(400, str(client_error))
+            raise HTTPError(client_error.status or 400, client_error.to_jupylab())
         except Exception as internal_error:
             raise HTTPError(500, str(internal_error))
 
@@ -61,12 +98,13 @@ def oci_exception_handler(func):
         except ServiceError as e:
             if e.status >= 500:
                 raise AquaServiceError(
-                    opc_request_id=e.request_id,
-                    status_code=e.code,
-                    service_error=str(e),
+                    messages="this is error.",
+                    oci_payload=e.__dict__,
+                    status=e.status,
+                    reasons="aquamodelapp.get",
                 )
             else:
-                raise AquaClientError(str(e))
+                raise AquaClientError(messages="THisis error")
         except Exception as ex:
             raise AquaClientError(str(ex))
 
