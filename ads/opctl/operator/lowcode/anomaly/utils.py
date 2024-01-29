@@ -1,5 +1,4 @@
-
-#!/usr/bin/env python
+# !/usr/bin/env python
 # -*- coding: utf-8 -*--
 
 # Copyright (c) 2023 Oracle and/or its affiliates.
@@ -72,6 +71,9 @@ def _write_data(data, filename, format, storage_options, index=False, **kwargs):
     raise ValueError(f"Unrecognized format: {format}")
 
 def _merge_category_columns(data, target_category_columns):
+
+    """ Merges target category columns into a single column and returns the column values """
+
     result = data.apply(
         lambda x: "__".join([str(x[col]) for col in target_category_columns]), axis=1
     )

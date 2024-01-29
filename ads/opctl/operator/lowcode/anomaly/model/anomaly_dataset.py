@@ -59,7 +59,7 @@ class AnomalyDatasets:
                 spec.target_column = target_col[0]
             self.full_data_dict = {spec.target_column: self.data}
         else:
-            # Merge target category columns
+            # Merge target category columns into a single column __Series__
 
             self.data["__Series__"] = utils._merge_category_columns(self.data, spec.target_category_columns)
             unique_categories = self.data["__Series__"].unique()
@@ -117,16 +117,19 @@ class AnomalyOutput:
         inliers = pd.DataFrame()
 
         for category in self.category_map.keys():
-            inliers = pd.concat(
-                [
-                    inliers,
-                     self.get_inliers_by_cat(
-                        category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
-                     )
-                ],
-                axis=0,
-                ignore_index=True,
-            )
+            if '__Series__' in data.columns:
+                inliers = pd.concat(
+                    [
+                        inliers,
+                         self.get_inliers_by_cat(
+                            category, data[data['__Series__'] == category].reset_index(drop=True).drop('__Series__', axis=1)
+                         )
+                    ],
+                    axis=0,
+                    ignore_index=True,
+                )
+            else:
+                inliers = pd.concat([inliers, self.get_inliers_by_cat(category, data)], axis=0, ignore_index=True)
         return inliers
 
     def get_outliers(self, data):
@@ -147,17 +150,6 @@ class AnomalyOutput:
             else:
                 outliers = pd.concat([outliers, self.get_outliers_by_cat(category, data)], axis=0, ignore_index=True)
         return outliers
-
-    def get_scores(self, target_category_columns):
-        if target_category_columns is None:
-            return self.get_scores_by_cat(list(self.category_map.keys())[0])
-
-        scores = pd.DataFrame()
-        for category in self.category_map.keys():
-            score = self.get_scores_by_cat(category)
-            score[target_category_columns[0]] = category
-            scores = pd.concat([scores, score], axis=0, ignore_index=True)
-        return scores
 
     def get_num_anomalies_by_cat(self, category: str):
         return (self.category_map[category][0][OutputColumns.ANOMALY_COL] == 1).sum()

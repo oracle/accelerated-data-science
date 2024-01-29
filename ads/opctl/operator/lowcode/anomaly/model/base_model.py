@@ -177,12 +177,15 @@ class AnomalyOperatorBaseModel(ABC):
 
         if data.empty:
             return total_metrics, summary_metrics, None
-        data["__Series__"] = utils._merge_category_columns(data, self.spec.target_category_columns)
+
+        if self.spec.target_category_columns is not None:
+            data["__Series__"] = utils._merge_category_columns(data, self.spec.target_category_columns)
+
         for cat in anomaly_output.category_map:
             output = anomaly_output.category_map[cat][0]
             date_col = self.spec.datetime_column.name
 
-            val_data = data[data["__Series__"] == cat]
+            val_data = data[data["__Series__"] == cat] if '__Series__' in data else data
             val_data[date_col] = pd.to_datetime(val_data[date_col])
 
             dates = output[output[date_col].isin(val_data[date_col])][date_col]
