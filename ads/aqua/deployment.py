@@ -54,22 +54,22 @@ class AquaDeploymentApp(AquaApp):
 
     def create(
         self,
-        compartment_id: str = None,
+        compartment_id: str,
+        model_id: str,
+        aqua_service_model: str,
+        instance_count: int,
+        instance_shape: str,
+        log_group_id: str,
+        access_log_id: str,
+        predict_log_id: str,
+        deployment_image: str,
+        entrypoint: List[str],
         project_id: str = None,
         region: str = None,
-        model_id: str = None,
-        aqua_service_model: str = None,
         display_name: str = None,
         description: str = None,
-        instance_count: int = None,
-        instance_shape: str = None,
-        log_group_id: str = None,
-        access_log_id: str = None,
-        predict_log_id: str = None,
         bandwidth_mbps: int = None,
         web_concurrency: int = None,
-        deployment_image: str = None,
-        entrypoint: List[str] = None,
         server_port: int = 5000,
         health_check_port: int = 5000,
         env_var: Dict = None,
@@ -221,6 +221,7 @@ class AquaDeploymentApp(AquaApp):
                     description=model_deployment["description"],
                     created_on=str(model_deployment["timeCreated"]),
                     created_by=model_deployment["createdBy"],
+                    endpoint=model_deployment["modelDeploymentUrl"],
                 )
                 for model_deployment in model_deployments
             ]
@@ -257,5 +258,6 @@ class AquaDeploymentApp(AquaApp):
                 "description": model_deployment["description"],
                 "created_on": str(model_deployment["timeCreated"]),
                 "created_by": model_deployment["createdBy"],
+                "endpoint": model_deployment["modelDeploymentUrl"],
             }
         )

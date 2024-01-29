@@ -6,6 +6,7 @@
 from tornado.web import HTTPError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.deployment import AquaDeploymentApp
+from ads.config import PROJECT_OCID
 from ads.aqua.model import AquaModelApp
 
 
@@ -32,7 +33,9 @@ class AquaDeploymentHandler(AquaAPIhandler):
     def get(self, id=""):
         """Handle GET request."""
         # todo: handle list, read and logs for model deployment
-        pass
+        if not id:
+            return self.list()
+        return self.read(id)
 
     def post(self, *args, **kwargs):
         """
@@ -99,7 +102,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         try:
             # todo: call create method to create a catalog entry
             # aqua_model = AquaModelApp.create()
-            # todo: hardcoded image, get deployment_image and aqua_service_model tag from aqua model?
+            # todo: hardcoded image, get deployment_image and aqua_service_model tag from aqua model
             #  Also, entrypoint would be added in the image
             deployment_image = "iad.ocir.io/ociodscdev/aqua_deploy:1.0.0"
             entrypoint = ["python", "/opt/api/api.py"]
@@ -127,14 +130,29 @@ class AquaDeploymentHandler(AquaAPIhandler):
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
+    def read(self, id):
+        """Read the information of an Aqua model deployment."""
+        try:
+            return self.finish(AquaDeploymentApp().get())
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
+
     def list(self):
         """List Aqua models."""
         # If default is not specified,
         # jupyterlab will raise 400 error when argument is not provided by the HTTP request.
         compartment_id = self.get_argument("compartment_id")
+        if not compartment_id:
+            raise HTTPError(
+                400, Errors.MISSING_REQUIRED_PARAMETER.format("compartment_id")
+            )
         # project_id is optional.
-        project_id = self.get_argument("project_id", default=None)
-        return self.finish(AquaDeploymentApp().list(compartment_id, project_id))
+        project_id = self.get_argument("project_id", default=PROJECT_OCID)
+        try:
+            # todo: update below after list is implemented
+            return self.finish(AquaDeploymentApp().list())
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
 
 
 __handlers__ = [("deployments/?([^/]*)", AquaDeploymentHandler)]
