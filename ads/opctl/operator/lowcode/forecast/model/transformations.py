@@ -27,6 +27,7 @@ class Transformations:
             dataset_info : ForecastOperatorConfig
         """
         self.name = name
+        self.has_artificial_series = False
         self.dataset_info = dataset_info
         self.target_category_columns = dataset_info.target_category_columns
         self.target_column_name = dataset_info.target_column
@@ -69,6 +70,7 @@ class Transformations:
     def _set_series_id_column(self, df):
         if not self.target_category_columns:
             df[ForecastOutputColumns.SERIES] = "Series 1"
+            self.has_artificial_series = True
         else:
             df[ForecastOutputColumns.SERIES] = merge_category_columns(
                 df, self.target_category_columns

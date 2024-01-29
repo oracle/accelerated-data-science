@@ -56,7 +56,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             logger=logger,
         )
 
-        full_data_dict = self.datasets.get_all_data_by_series()
+        full_data_dict = self.datasets.get_data_by_series()
 
         models = dict()
         outputs = dict()
@@ -130,6 +130,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 logger.debug(
                     "Selected model params: {}".format(model.selected_model_params_)
                 )
+                print(f"data: {forecast_x}, len(data): {horizon}")
                 summary_frame = model.forecast(
                     X=forecast_x,
                     periods=horizon,
@@ -267,10 +268,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
-                self.explain_model(
-                    datetime_col_name=self.spec.datetime_column.name,
-                    explain_predict_fn=self._custom_predict_automlx,
-                )
+                self.explain_model()
 
                 # Create a markdown text block for the global explanation section
                 global_explanation_text = dp.Text(
@@ -333,6 +331,34 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             model_description,
             other_sections,
         )
+
+    def get_explain_predict_fn(self, series_id):
+        selected_model = self.models[series_id]
+
+        def _custom_predict_fn(
+            data,
+            model=selected_model,
+            dt_column_name=self.datasets._datetime_column_name,
+            target_col=self.original_target_column,
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data = data.drop(target_col, axis=1)
+            data[dt_column_name] = pd.to_datetime(data[dt_column_name], unit="s")
+            data = data.set_index(dt_column_name)
+            print(f"data: {data}, len(data): {data.shape[0]}")
+            return model.predict(X=data)[target_col]
+            # forecast = pd.DataFrame()
+            # for idx in range(data.shape[0]):
+            #     forecast_i = model.forecast(X=data[idx:idx+1], periods=1)
+            #     print(f"Looking at forecasts")
+            #     print(type(forecast_i))
+            #     print(forecast_i)
+            #     forecast = pd.concat([forecast, forecast_i])
+            # return forecast
+
+        return _custom_predict_fn
 
     def _custom_predict_automlx(self, data):
         """

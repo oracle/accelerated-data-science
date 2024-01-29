@@ -238,9 +238,16 @@ def _build_metrics_df(y_true, y_pred, column_name):
     return pd.DataFrame.from_dict(metrics, orient="index", columns=[column_name])
 
 
-def evaluate_train_metrics(output):
+def evaluate_train_metrics(output, metrics_col_name=None):
     """
     Training metrics
+
+    Parameters:
+    output: ForecastOutputs
+
+    metrics_col_name: str
+            Only passed in if the series column was created artifically.
+            When passed in, replaces s_id as the column name in the metrics table
     """
     total_metrics = pd.DataFrame()
     for s_id in output.list_series_ids():
@@ -253,7 +260,7 @@ def evaluate_train_metrics(output):
             metrics_df = _build_metrics_df(
                 y_true=y_true,
                 y_pred=y_pred,
-                column_name=s_id,
+                column_name=metrics_col_name,
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         except Exception as e:

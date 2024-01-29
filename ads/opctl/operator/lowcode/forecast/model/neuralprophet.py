@@ -285,7 +285,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
 
     def _build_model(self) -> pd.DataFrame:
-        full_data_dict = self.datasets.get_all_data_by_series()
+        full_data_dict = self.datasets.get_data_by_series()
         self.models = dict()
         self.trainers = dict()
         self.outputs = dict()
@@ -418,10 +418,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
-                self.explain_model(
-                    datetime_col_name="ds",
-                    explain_predict_fn=self._custom_predict_neuralprophet,
-                )
+                self.explain_model()
 
                 # Create a markdown text block for the global explanation section
                 global_explanation_text = dp.Text(
@@ -501,6 +498,24 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             output_dir=output_dir,
             storage_options=storage_options,
         )
+
+    def get_explain_predict_fn(self, series_id):
+        selected_model = self.models[series_id]
+
+        def _custom_predict_fn(
+            data,
+            model=selected_model,
+            dt_column_name=self.datasets._datetime_column_name,
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data["ds"] = pd.to_datetime(data[dt_column_name], unit="s")
+            if dt_column_name != "ds":
+                data = data.drop([dt_column_name], axis=1)
+            return model.predict(data)["yhat1"]
+
+        return _custom_predict_fn
 
     def _custom_predict_neuralprophet(self, data):
         raise NotImplementedError("NeuralProphet does not yet support explanations.")

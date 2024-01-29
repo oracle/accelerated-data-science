@@ -186,7 +186,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
         for s_id in self.datasets.list_series_ids():
             output_i = pd.DataFrame()
-            input_data_i = self.datasets.get_all_data_for_series_id(s_id)
+            input_data_i = self.datasets.get_data_at_series(s_id)
 
             output_i["Date"] = input_data_i[self.spec.datetime_column.name]
             output_i["Series"] = s_id
@@ -283,10 +283,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         if self.spec.generate_explanations:
             # If the key is present, call the "explain_model" method
             try:
-                self.explain_model(
-                    datetime_col_name=self.spec.datetime_column.name,
-                    explain_predict_fn=self._custom_predict_autots,
-                )
+                self.explain_model()
 
                 # Create a markdown text block for the global explanation section
                 global_explanation_text = dp.Text(
@@ -357,6 +354,22 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
 
     def _custom_predict_autots(self, data):
         raise NotImplementedError("Autots does not yet support explanations.")
+
+    def get_explain_predict_fn(self, series_id):
+        selected_model = self.models[series_id]
+
+        def _custom_predict_fn(
+            data,
+            model=selected_model,
+            dt_column_name=self.datasets._datetime_column_name,
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data[dt_column_name] = pd.to_datetime(data[dt_column_name], unit="s")
+            return model.predict(data)["yhat"]
+
+        return _custom_predict_fn
 
     def _generate_train_metrics(self) -> pd.DataFrame:
         """

@@ -246,7 +246,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         from prophet import Prophet
         from prophet.diagnostics import cross_validation, performance_metrics
 
-        full_data_dict = self.datasets.get_all_data_by_series()
+        full_data_dict = self.datasets.get_data_by_series()
         self.models = dict()
         self.outputs = dict()
 
@@ -358,10 +358,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
-                self.explain_model(
-                    datetime_col_name=PROPHET_INTERNAL_DATE_COL,
-                    explain_predict_fn=self._custom_predict_prophet,
-                )
+                self.explain_model()
 
                 # Create a markdown text block for the global explanation section
                 global_explanation_text = dp.Text(
@@ -429,8 +426,20 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             other_sections,
         )
 
-    def _custom_predict_prophet(self, data):
-        data[PROPHET_INTERNAL_DATE_COL] = pd.to_datetime(
-            data[PROPHET_INTERNAL_DATE_COL], unit="s"
-        )
-        return self.models[self.series_id].predict(data.reset_index())["yhat"]
+    def get_explain_predict_fn(self, series_id):
+        selected_model = self.models[series_id]
+
+        def _custom_predict_prophet(
+            data,
+            model=selected_model,
+            dt_column_name=self.datasets._datetime_column_name,
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data["ds"] = pd.to_datetime(data[dt_column_name], unit="s")
+            if dt_column_name != "ds":
+                data = data.drop([dt_column_name], axis=1)
+            return model.predict(data)["yhat"]
+
+        return _custom_predict_prophet

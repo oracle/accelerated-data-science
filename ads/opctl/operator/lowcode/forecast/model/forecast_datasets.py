@@ -224,7 +224,7 @@ class ForecastDatasets:
             on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
         ).reset_index()
 
-    def get_all_data_by_series(self, include_horizon=True):
+    def get_data_by_series(self, include_horizon=True):
         total_dict = dict()
         hist_data = self.historical_data.get_dict_by_series()
         add_data = self.additional_data.get_dict_by_series()
@@ -239,14 +239,17 @@ class ForecastDatasets:
             )
         return total_dict
 
-    def get_all_data_for_series_id(self, s_id, include_horizon=True):
-        all_data = self.get_all_data_by_series(include_horizon=include_horizon)
+    def get_data_at_series(self, s_id, include_horizon=True):
+        all_data = self.get_data_by_series(include_horizon=include_horizon)
         try:
             return all_data[s_id]
         except:
             raise InvalidParameterError(
                 f"Unable to retrieve series id: {s_id} from data. Available series ids are: {self.list_series_ids()}"
             )
+
+    def has_artificial_series(self):
+        return self.historical_data._data_transformer.has_artificial_series
 
     def get_earliest_timestamp(self):
         return self.historical_data.get_min_time()
@@ -273,7 +276,7 @@ class ForecastDatasets:
         data_merged = pd.concat(
             [
                 v[v[k].notna()].set_index(self._datetime_column_name)
-                for k, v in self.get_all_data_by_series().items()
+                for k, v in self.get_data_by_series().items()
             ],
             axis=1,
         ).reset_index()

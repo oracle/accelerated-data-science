@@ -147,7 +147,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
 
     def _build_model(self) -> pd.DataFrame:
-        full_data_dict = self.datasets.get_all_data_by_series()
+        full_data_dict = self.datasets.get_data_by_series()
 
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width
@@ -213,10 +213,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         if self.spec.generate_explanations:
             try:
                 # If the key is present, call the "explain_model" method
-                self.explain_model(
-                    datetime_col_name=self.spec.datetime_column.name,
-                    explain_predict_fn=self._custom_predict_arima,
-                )
+                self.explain_model()
                 # Create a markdown text block for the global explanation section
                 global_explanation_text = dp.Text(
                     f"## Global Explanation of Models \n "
@@ -302,3 +299,22 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         predictions = self.models[self.series_id].predict(X=data, n_periods=len(data))
 
         return predictions
+
+    def get_explain_predict_fn(self, series_id):
+        selected_model = self.models[series_id]
+
+        def _custom_predict_prophet(
+            data,
+            model=selected_model,
+            dt_column_name=self.datasets._datetime_column_name,
+            target_col=self.original_target_column,
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data = data.drop([target_col], axis=1)
+            data[dt_column_name] = pd.to_datetime(data[dt_column_name], unit="s")
+            data = data.set_index(dt_column_name)
+            return model.predict(X=data, n_periods=len(data))
+
+        return _custom_predict_prophet

@@ -63,7 +63,7 @@ class ForecastOperatorBaseModel(ABC):
         self.spec: ForecastOperatorSpec = config.spec
         self.datasets: ForecastDatasets = datasets
 
-        self.full_data_dict = datasets.get_all_data_by_series()
+        self.full_data_dict = datasets.get_data_by_series()
 
         self.test_eval_metrics = None
         self.original_target_column = self.spec.target_column
@@ -112,7 +112,7 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.generate_report or self.spec.generate_metrics:
                 if self.train_metrics:
                     self.eval_metrics = evaluate_train_metrics(
-                        output=self.forecast_output
+                        output=self.forecast_output,
                     )
                 else:
                     try:
@@ -437,9 +437,16 @@ class ForecastOperatorBaseModel(ABC):
 
         # metrics csv report
         if self.spec.generate_metrics:
+            metrics_col_name = (
+                self.original_target_column
+                if self.datasets.has_artificial_series()
+                else "Series 1"
+            )
             if metrics_df is not None:
                 write_data(
-                    data=metrics_df.rename_axis("metrics").reset_index(),
+                    data=metrics_df.reset_index().rename(
+                        {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                    ),
                     filename=os.path.join(
                         unique_output_dir, self.spec.metrics_filename
                     ),
@@ -456,7 +463,9 @@ class ForecastOperatorBaseModel(ABC):
             if self.spec.test_data is not None:
                 if test_metrics_df is not None:
                     write_data(
-                        data=test_metrics_df.rename_axis("metrics").reset_index(),
+                        data=test_metrics_df.reset_index().rename(
+                            {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                        ),
                         filename=os.path.join(
                             unique_output_dir, self.spec.test_metrics_filename
                         ),
@@ -590,7 +599,7 @@ class ForecastOperatorBaseModel(ABC):
             "Please run `python3 -m pip install shap` to install the required dependencies for model explanation."
         ),
     )
-    def explain_model(self, datetime_col_name, explain_predict_fn) -> dict:
+    def explain_model(self):
         """
         Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
         This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
@@ -602,36 +611,31 @@ class ForecastOperatorBaseModel(ABC):
         """
         from shap import PermutationExplainer
 
+        datetime_col_name = self.datasets._datetime_column_name
+
         exp_start_time = time.time()
         global_ex_time = 0
         local_ex_time = 0
         logger.info(
             f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode"
         )
-        for series_id in self.datasets.list_series_ids():
-            self.series_id = series_id
-            self.dataset_cols = (
-                self.full_data_dict.get(series_id)
-                .set_index(datetime_col_name)
-                .drop(series_id, axis=1)
-                .columns
-            )
+        ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
 
-            self.bg_data = self.full_data_dict.get(series_id).set_index(
-                datetime_col_name
+        for s_id, data_i in self.datasets.get_data_by_series(
+            include_horizon=False
+        ).items():
+            explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
+
+            data_trimmed = data_i.tail(max(int(len(data_i) * ratio), 5)).reset_index(
+                drop=True
             )
-            data = self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][
-                list(self.dataset_cols)
-            ]
-            ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
-            data_trimmed = data.tail(max(int(len(data) * ratio), 100)).reset_index()
             data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(
                 lambda x: x.timestamp()
             )
+
             kernel_explnr = PermutationExplainer(
                 model=explain_predict_fn, masker=data_trimmed
             )
-
             kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed)
 
             if not len(kernel_explnr_vals):
@@ -639,7 +643,7 @@ class ForecastOperatorBaseModel(ABC):
                     f"No explanations generated. Ensure that additional data has been provided."
                 )
             else:
-                self.global_explanation[series_id] = dict(
+                self.global_explanation[s_id] = dict(
                     zip(
                         data_trimmed.columns[1:],
                         np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
@@ -649,7 +653,7 @@ class ForecastOperatorBaseModel(ABC):
             global_ex_time = global_ex_time + exp_end_time - exp_start_time
 
             self.local_explainer(
-                kernel_explnr, series_id=series_id, datetime_col_name=datetime_col_name
+                kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
             )
             local_ex_time = local_ex_time + time.time() - exp_end_time
         logger.info(
@@ -667,21 +671,21 @@ class ForecastOperatorBaseModel(ABC):
         ----------
             kernel_explainer: The kernel explainer object to use for generating explanations.
         """
-        # Get the data for the series ID and select the relevant columns
-        # data = self.full_data_dict.get(series_id).set_index(datetime_col_name)
-        data_horizon = self.bg_data[-self.spec.horizon :][list(self.dataset_cols)]
-        data = data_horizon.reset_index()
+        data = self.datasets.get_data_at_series(s_id=series_id, include_horizon=True)[
+            -self.spec.horizon :
+        ]
         data[datetime_col_name] = data[datetime_col_name].apply(lambda x: x.timestamp())
+        data = data.reset_index(drop=True)
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 
         # Convert the SHAP values into a DataFrame
         local_kernel_explnr_df = pd.DataFrame(
-            local_kernel_explnr_vals[:, 1:], columns=data.columns[1:]
+            local_kernel_explnr_vals, columns=data.columns
         )
 
         # set the index of the DataFrame to the datetime column
-        local_kernel_explnr_df.index = data_horizon.index
+        # local_kernel_explnr_df.index = data_horizon.index
 
         if self.spec.model == SupportedModels.AutoTS:
             local_kernel_explnr_df.drop(

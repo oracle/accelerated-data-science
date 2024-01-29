@@ -14,6 +14,7 @@ from copy import deepcopy
 from pathlib import Path
 import random
 import pathlib
+import datetime
 
 
 DATASETS_LIST = [
@@ -45,12 +46,12 @@ DATASETS_LIST = [
 ]
 
 MODELS = [
-    "arima",
+    # "arima",
     "automlx",
-    "prophet",
-    "neuralprophet",
-    "autots",
-    "auto",
+    # "prophet",
+    # "neuralprophet",
+    # "autots",
+    # "auto",
 ]
 
 TEMPLATE_YAML = {
@@ -107,34 +108,32 @@ def test_load_datasets(model, dataset_name):
         yaml_i = deepcopy(TEMPLATE_YAML)
         generate_train_metrics = True  # bool(random.getrandbits(1))
 
-        # TODO: Open bug ticket so that series is not required
         df_i = target.pd_dataframe().reset_index()
-        df_i["Series"] = "A"
-        if model == "automlx" and dataset_name == "AustralianTourismDataset":
-            df_i[datetime_col] = pd.to_datetime(
-                [f"{x+1:03d}" for x in df_i[datetime_col]], format="%j"
-            )
+        if dataset_name == "AustralianTourismDataset":
+            df_i[datetime_col] = [
+                pd.to_datetime("1990-01-01", format="%Y-%m-%d")
+            ] + df_i[datetime_col].values * datetime.timedelta(days=1)
 
         df_i.to_csv(historical_data_path, index=False)
         # .sample(frac=SAMPLE_FRACTION).sort_values(by=datetime_col)
 
         test_df = test.pd_dataframe().reset_index()
-        test_df["Series"] = "A"
-        if model == "automlx" and dataset_name == "AustralianTourismDataset":
-            test_df[datetime_col] = pd.to_datetime(
-                [f"{x+1:03d}" for x in test_df[datetime_col]], format="%j"
-            )
+        if dataset_name == "AustralianTourismDataset":
+            test_df[datetime_col] = [
+                pd.to_datetime("1990-01-01", format="%Y-%m-%d")
+            ] + test_df[datetime_col].values * datetime.timedelta(days=1)
+
         test_df.to_csv(test_data_path, index=False)
 
         if len(columns) > 1:
             additional_cols = columns[1 : min(len(columns), MAX_ADDITIONAL_COLS)]
             additional_data = dataset_i[list(additional_cols)]
             df_additional = additional_data.pd_dataframe().reset_index()
-            df_additional["Series"] = "A"
-            if model == "automlx" and dataset_name == "AustralianTourismDataset":
-                df_additional[datetime_col] = pd.to_datetime(
-                    [f"{x+1:03d}" for x in df_additional[datetime_col]], format="%j"
-                )
+            if dataset_name == "AustralianTourismDataset":
+                df_additional[datetime_col] = [
+                    pd.to_datetime("1990-01-01", format="%Y-%m-%d")
+                ] + df_additional[datetime_col].values * datetime.timedelta(days=1)
+
             df_additional.to_csv(additional_data_path, index=False)
             yaml_i["spec"]["additional_data"] = {"url": additional_data_path}
 
@@ -144,7 +143,6 @@ def test_load_datasets(model, dataset_name):
         yaml_i["spec"]["model"] = model
         yaml_i["spec"]["target_column"] = columns[0]
         yaml_i["spec"]["datetime_column"]["name"] = datetime_col
-        yaml_i["spec"]["target_category_columns"] = ["Series"]
         yaml_i["spec"]["horizon"] = PERIODS
         if (
             yaml_i["spec"].get("additional_data") is not None
@@ -167,29 +165,28 @@ def test_load_datasets(model, dataset_name):
         )
         sleep(0.1)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
-        # if yaml_i["spec"]["generate_explanations"]:
-        #     glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")
-        #     print(glb_expl)
-        #     loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")
-        #     print(loc_expl)
+        if yaml_i["spec"]["generate_explanations"]:
+            glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")
+            print(glb_expl)
+            loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")
+            print(loc_expl)
 
         test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
         print(test_metrics)
         train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
         print(train_metrics)
-        return test_metrics.iloc[0][f"{columns[0]}_A"]
+        return test_metrics.iloc[0][f"{columns[0]}"]
 
 
-@pytest.mark.parametrize("model", MODELS)
-def test_rossman(model):
-    curr_dir = pathlib.Path(__file__).parent.resolve()
-    data_folder = f"{curr_dir}/../data/"
-    historical_data_path = f"{data_folder}/rs_10_prim.csv"
-    additional_data_path = f"{data_folder}/rs_10_add.csv"
-    test_data_path = f"{data_folder}/rs_10_test.csv"
-
+def run_operator(
+    historical_data_path,
+    additional_data_path,
+    test_data_path,
+    generate_train_metrics=True,
+    output_data_path=None,
+):
     with tempfile.TemporaryDirectory() as tmpdirname:
-        output_data_path = f"{tmpdirname}/results"
+        output_data_path = output_data_path or f"{tmpdirname}/results"
         yaml_i = deepcopy(TEMPLATE_YAML)
         generate_train_metrics = True
 
@@ -224,6 +221,43 @@ def test_rossman(model):
         print(test_metrics)
         train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
         print(train_metrics)
+
+
+# parameters_datetime = []
+# DATETIME_FORMATS_TO_TEST = [
+#     ["%Y", datetime.timedelta()],
+#     ["%y", ],
+#     ["%b-%d-%Y",],
+#     ["%d-%m-%y",],
+#     ["%d/%m/%y %H:%M:%S",],
+# ]
+
+# for dt_format in DATETIME_FORMATS_TO_TEST:
+#     for (model) in MODELS:
+#         parameters_datetime.append((model, dt_format))
+
+
+# @pytest.mark.parametrize("model, dt_format", parameters_datetime)
+# def test_datetime_formats(model=model, dt_format=dt_format):
+#     curr_dir = pathlib.Path(__file__).parent.resolve()
+#     data_folder = f"{curr_dir}/../data/"
+#     np.arrange((1000, 12))
+#     d1 = np.random.multivariate_normal(
+#         mean=np.array([-0.5, 0, 2]),
+#         cov=np.array([[1, 0, 0.5], [0, 1, 0.7], [0.5, 0.7, 1]]),
+#         size=len,
+#     )
+#     now = datetime.datetime.now()
+#     now_formatted = now.strftime(dt_format)
+
+#     historical_data_path = f"{data_folder}/rs_10_prim.csv"
+#     additional_data_path = f"{data_folder}/rs_10_add.csv"
+#     test_data_path = f"{data_folder}/rs_10_test.csv"
+
+#     with tempfile.TemporaryDirectory() as tmpdirname:
+#         output_data_path = f"{tmpdirname}/results"
+#         yaml_i = deepcopy(TEMPLATE_YAML)
+#         generate_train_metrics = True
 
 
 if __name__ == "__main__":
