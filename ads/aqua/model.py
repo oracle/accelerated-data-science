@@ -10,7 +10,7 @@ from enum import Enum
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
-from oci.excpetion import ServiceError, ClientError
+from oci.exceptions import ServiceError, ClientError
 
 logger = logging.getLogger(__name__)
 

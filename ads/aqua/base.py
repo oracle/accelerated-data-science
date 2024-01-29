@@ -10,7 +10,7 @@ import logging
 import oci
 from ads.common.auth import default_signer
 from ads.aqua.exception import AquaServiceError, AquaClientError
-from oci.excpetion import ServiceError, ClientError
+from oci.exceptions import ServiceError, ClientError
 
 logger = logging.getLogger(__name__)
 
