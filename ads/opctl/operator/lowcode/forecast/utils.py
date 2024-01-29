@@ -56,11 +56,11 @@ def smape(actual, predicted) -> float:
 
 
 def _build_metrics_per_horizon(
-    data: pd.DataFrame,
-    output: pd.DataFrame,
-    target_columns: List[str],
-    target_col: str,
-    horizon_periods: int,
+        data: pd.DataFrame,
+        output: pd.DataFrame,
+        target_columns: List[str],
+        target_col: str,
+        horizon_periods: int,
 ) -> pd.DataFrame:
     """
     Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE for each horizon
@@ -125,7 +125,7 @@ def _build_metrics_per_horizon(
     )
 
     for i, (y_true, y_pred) in enumerate(
-        zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False))
+            zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False))
     ):
         y_true, y_pred = np.array(y_true), np.array(y_pred)
 
@@ -182,9 +182,9 @@ def load_pkl(filepath):
 def write_pkl(obj, filename, output_dir, storage_options):
     pkl_path = os.path.join(output_dir, filename)
     with fsspec.open(
-        pkl_path,
-        "wb",
-        **storage_options,
+            pkl_path,
+            "wb",
+            **storage_options,
     ) as f:
         cloudpickle.dump(obj, f)
 
@@ -254,7 +254,7 @@ def _clean_data(data, target_column, datetime_column, target_category_columns=No
 
 
 def _validate_and_clean_data(
-    cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame
+        cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame
 ):
     """
     Checks compatibility between primary and additional dataframe for a category.
@@ -304,13 +304,13 @@ def _validate_and_clean_data(
 
 
 def _build_indexed_datasets(
-    data,
-    target_column,
-    datetime_column,
-    horizon,
-    target_category_columns=None,
-    additional_data=None,
-    metadata_data=None,
+        data,
+        target_column,
+        datetime_column,
+        horizon,
+        target_category_columns=None,
+        additional_data=None,
+        metadata_data=None,
 ):
     df_by_target = dict()
     categories = []
@@ -350,7 +350,7 @@ def _build_indexed_datasets(
             )
             data_add_by_cat = additional_data[
                 additional_data["__Series__"] == cat
-            ].rename({target_column: f"{target_column}_{cat}"}, axis=1)
+                ].rename({target_column: f"{target_column}_{cat}"}, axis=1)
             data_add_by_cat_clean = (
                 data_add_by_cat.drop(target_category_columns + ["__Series__"], axis=1)
                 .set_index(datetime_column)
@@ -394,7 +394,7 @@ def _build_metrics_df(y_true, y_pred, column_name):
 
 
 def evaluate_train_metrics(
-    target_columns, datasets, output, datetime_col, original_target_column, target_col="yhat"):
+        target_columns, datasets, output, datetime_col, original_target_column, target_col="yhat"):
     """
     Training metrics
     """
@@ -429,12 +429,12 @@ def _add_unit(num, unit):
 
 
 def get_forecast_plots(
-    forecast_output,
-    target_columns,
-    original_target_column,
-    horizon,
-    test_data=None,
-    ci_interval_width=0.95,
+        forecast_output,
+        target_columns,
+        original_target_column,
+        horizon,
+        test_data=None,
+        ci_interval_width=0.95,
 ):
     def plot_forecast_plotly(idx, col):
         fig = go.Figure()
@@ -518,7 +518,7 @@ def get_forecast_plots(
             )
         )
         fig.add_vline(
-            x=forecast_i["Date"][-(horizon + 1) :].values[0],
+            x=forecast_i["Date"][-(horizon + 1):].values[0],
             line_width=1,
             line_dash="dash",
             line_color="gray",
@@ -529,7 +529,7 @@ def get_forecast_plots(
 
 
 def select_auto_model(
-    datasets: "ForecastDatasets", operator_config: ForecastOperatorConfig
+        datasets: "ForecastDatasets", operator_config: ForecastOperatorConfig
 ) -> str:
     """
     Selects AutoMLX or Arima model based on column count.
@@ -559,10 +559,10 @@ def select_auto_model(
     row_count = len(datasets.original_user_data.index)
     number_of_series = len(datasets.categories)
     if (
-        num_of_additional_cols < 15
-        and row_count < 10000
-        and number_of_series < 10
-        and freq_in_secs > 3600
+            num_of_additional_cols < 15
+            and row_count < 10000
+            and number_of_series < 10
+            and freq_in_secs > 3600
     ):
         return SupportedModels.AutoMLX
     elif row_count < 10000 and number_of_series > 10:
@@ -624,7 +624,7 @@ def convert_target(target: str, target_col: str):
     --------
         Original target. i.e., "Product_Category_117"
     """
-    if target_col is not None and target_col!='':
+    if target_col is not None and target_col != '':
         temp = target_col + '_'
         if temp in target:
             target = target.replace(temp, '', 1)
