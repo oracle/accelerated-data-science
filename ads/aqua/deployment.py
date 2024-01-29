@@ -123,13 +123,9 @@ class AquaDeploymentApp(AquaApp):
             Environment variable for the deployment, by default None.
         Returns
         -------
-        Session
-            The playground session instance.
+        AquaDeployment
+            An Aqua deployment instance
 
-        Raises
-        ------
-        ValueError
-            If model ID not provided.
         """
         # todo: create a model catalog entry with model path pointing to service bucket
 
