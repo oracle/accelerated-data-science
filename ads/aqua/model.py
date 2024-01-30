@@ -7,9 +7,10 @@ import fsspec
 from dataclasses import dataclass
 from typing import List
 from enum import Enum
+from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
-from ads.model.service.oci_datascience_model import OCIDataScienceModel
+from oci.exceptions import ServiceError, ClientError
 
 logger = logging.getLogger(__name__)
 
@@ -87,35 +88,40 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of the Aqua model.
         """
-        import json
-        import os
-
-        root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dummy_data")
-
-        with open(f"{root}/oci_models.json", "rb") as f:
-            oci_model = OCIDataScienceModel(**json.loads(f.read())[0])
-
-            return AquaModel(
-                compartment_id=oci_model.compartment_id,
-                project_id=oci_model.project_id,
-                name=oci_model.display_name,
-                id=oci_model.id,
-                time_created=str(oci_model.time_created),
-                icon=self._read_file(f"{root}/{ICON_FILE_NAME}"),
-                task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-                license=oci_model.freeform_tags.get(
-                    Tags.LICENSE.value, UNKNOWN
-                ),
-                organization=oci_model.freeform_tags.get(
-                    Tags.ORGANIZATION.value, UNKNOWN
-                ),
-                is_fine_tuned_model=True
-                if oci_model.freeform_tags.get(
-                    Tags.AQUA_FINE_TUNED_MODEL_TAG.value
-                )
-                else False,
-                model_card=self._read_file(f"{root}/{README}")
+        try:
+            oci_model = self.client.get_model(model_id).data
+        except ServiceError as se:
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        except ClientError as ce:
+            raise AquaClientError(str(ce))
+        
+        if not self._if_show(oci_model):
+            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+        
+        custom_metadata_list = oci_model.custom_metadata_list
+        artifact_path = self._get_artifact_path(custom_metadata_list)
+        
+        return AquaModel(
+            compartment_id=oci_model.compartment_id,
+            project_id=oci_model.project_id,
+            name=oci_model.display_name,
+            id=oci_model.id,
+            time_created=oci_model.time_created,
+            icon=self._read_file(f"{artifact_path}/{ICON_FILE_NAME}"),
+            task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            license=oci_model.freeform_tags.get(
+                Tags.LICENSE.value, UNKNOWN
+            ),
+            organization=oci_model.freeform_tags.get(
+                Tags.ORGANIZATION.value, UNKNOWN
+            ),
+            is_fine_tuned_model=True
+            if oci_model.freeform_tags.get(
+                Tags.AQUA_FINE_TUNED_MODEL_TAG.value
             )
+            else False,
+            model_card=self._read_file(f"{artifact_path}/{README}")
+        )
 
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
@@ -211,9 +217,14 @@ class AquaModelApp(AquaApp):
         for custom_metadata in custom_metadata_list:
             if custom_metadata.key == "Object Storage Path":
                 return custom_metadata.value
-
-        raise FileNotFoundError("Failed to retrieve model artifact path from AQUA model.")
+        
+        logger.debug("Failed to get artifact path from custom metadata.")
+        return None
     
     def _read_file(self, file_path: str) -> str:
-        with fsspec.open(file_path, "rb", **self._auth) as f:
-            return f.read()
+        try:
+            with fsspec.open(file_path, "rb", **self._auth) as f:
+                return f.read()
+        except Exception as e:
+            logger.error(f"Failed to retreive model icon. {e}")
+            return None
