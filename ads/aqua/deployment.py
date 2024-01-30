@@ -98,27 +98,27 @@ class AquaDeploymentApp(AquaApp):
             The description of the deployment.
         instance_count: (int, optional). Defaults to 1.
             The number of instance used for deployment.
-        instance_shape: (str, optional). Default to `VM.Standard2.1`.
+        instance_shape: (str). Default to `VM.Standard2.1`.
             The shape of the instance used for deployment.
-        log_group_id: (str, optional)
+        log_group_id: (str)
             The oci logging group id. The access log and predict log share the same log group.
-        access_log_id: (str, optional). Defaults to None.
+        access_log_id: (str).
             The access log OCID for the access logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
-        predict_log_id: (str, optional). Defaults to None.
+        predict_log_id: (str).
             The predict log OCID for the predict logs. https://docs.oracle.com/en-us/iaas/data-science/using/model_dep_using_logging.htm
-        bandwidth_mbps: (int, optional). Defaults to 10.
+        bandwidth_mbps: (int). Defaults to 10.
             The bandwidth limit on the load balancer in Mbps.
         web_concurrency: str
             The number of worker processes/threads to handle incoming requests
-        deployment_image: (str, optional). Defaults to None.
+        deployment_image: (str).
             The OCIR path of docker container image. Required for deploying model on container runtime.
         with_bucket_uri(bucket_uri)
             Sets the bucket uri when uploading large size model.
-        entrypoint: (List, optional). Defaults to empty.
+        entrypoint: (List). Defaults to empty.
             The entrypoint for running docker container image.
-        server_port: (int, optional). Defaults to 8080.
+        server_port: (int). Defaults to 8080.
             The server port for docker container image.
-        health_check_port: (int, optional). Defaults to 8080.
+        health_check_port: (int). Defaults to 8080.
             The health check port for docker container image.
         env_var : dict, optional
             Environment variable for the deployment, by default None.
