@@ -5,8 +5,17 @@
 
 """Exception module."""
 
+from oci.exceptions import ServiceError
 from tornado.web import HTTPError
 from oci.exceptions import ServiceError
+from dataclasses import asdict, dataclass
+
+
+@dataclass
+class ErrorPayload:
+    message: str
+    reason: str
+    service_payload: dict
 
 
 class AquaError(Exception):
@@ -16,23 +25,69 @@ class AquaError(Exception):
     will inherit.
     """
 
-    pass
+    def to_payload(self) -> dict:
+        """Builds error payload."""
+        return asdict(
+            ErrorPayload(
+                message=self.message,
+                reason=self.reason,
+                service_payload=self.service_payload,
+            )
+        )
 
 
 class AquaServiceError(AquaError):
     """Exception raised for server side error."""
 
-    def __init__(self, opc_request_id: str, status_code: int, service_error: str):
-        super().__init__(
-            f"Error occurred when invoking service. opc-request-id: {opc_request_id}. status code: {status_code}."
-            f"{service_error}"
-        )
+    def __init__(
+        self, message: str, service_payload: dict, status: int, reason: str = None
+    ):
+        """Initializes an AquaServiceError.
+
+        Parameters
+        ----------
+        message: str
+            User friendly error message.
+        service_payload: dict
+            `oci.exceptions.ServiceError`.
+        status: int
+            status code
+        reason: (str, optional)
+            Where the error raises. Defaults to None. For example, `ads.aqua.model.AquaModelApp.get`.
+        """
+        self.message = message
+        self.service_payload = service_payload
+        self.status = status
+        self.reason = reason
 
 
 class AquaClientError(AquaError):
     """Exception raised for client side error."""
 
-    pass
+    def __init__(
+        self,
+        message: str,
+        service_payload: dict = None,
+        status: int = None,
+        reason: str = None,
+    ):
+        """Initializes an AquaServiceError.
+
+        Parameters
+        ----------
+        message: str
+            User friendly error message.
+        service_payload: (dict, optional)
+            `oci.exceptions.ServiceError`.
+        status: (int, optional)
+            status code
+        reason: (str, optional)
+            Where the error raises. Defaults to None. For example, `ads.aqua.model.AquaModelApp.get`.
+        """
+        self.message = message
+        self.service_payload = service_payload
+        self.status = status
+        self.reason = reason
 
 
 def exception_handler(func):
@@ -42,9 +97,17 @@ def exception_handler(func):
         try:
             func(*args, **kwargs)
         except AquaServiceError as service_error:
-            raise HTTPError(500, str(service_error))
+            raise HTTPError(
+                service_error.status or 500,
+                service_error.message,
+                **service_error.to_payload(),
+            )
         except AquaClientError as client_error:
-            raise HTTPError(400, str(client_error))
+            raise HTTPError(
+                client_error.status or 400,
+                client_error.message,
+                **client_error.to_payload(),
+            )
         except Exception as internal_error:
             raise HTTPError(500, str(internal_error))
 
@@ -58,15 +121,18 @@ def oci_exception_handler(func):
         try:
             func(*args, **kwargs)
         except ServiceError as e:
+            error_details = e.args[0]
             if e.status >= 500:
                 raise AquaServiceError(
-                    opc_request_id=e.request_id,
-                    status_code=e.code,
-                    service_error=str(e),
+                    message=e.message,
+                    service_payload=error_details,
+                    status=e.status,
                 )
             else:
-                raise AquaClientError(str(e))
+                raise AquaClientError(
+                    message=e.message, service_payload=error_details, status=e.status
+                )
         except Exception as ex:
-            raise AquaClientError(str(ex))
+            raise AquaClientError(message=str(ex))
 
     return inner_function
