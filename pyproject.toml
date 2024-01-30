@@ -147,7 +147,7 @@ torch = [
   "torchvision",
 ]
 viz = [
-  "bokeh>=2.3.0, <=2.4.3",
+  "bokeh>=3.0.0, <3.2.0",  # starting 3.2.0 bokeh not supporting python3.8; relax after ADS will drop py3.8 support
   "folium>=0.12.1",
   "graphviz<0.17",
   "scipy>=1.5.4",
