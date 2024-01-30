@@ -25,6 +25,7 @@ class AquaDeployment:
     description: str
     created_on: str
     created_by: str
+    endpoint: str
 
 
 class AquaDeploymentApp(AquaApp):
@@ -79,7 +80,8 @@ class AquaDeploymentApp(AquaApp):
                     state=model_deployment["lifecycleState"],
                     description=model_deployment["description"],
                     created_on=str(model_deployment["timeCreated"]),
-                    created_by=model_deployment["createdBy"]
+                    created_by=model_deployment["createdBy"],
+                    endpoint=model_deployment["modelDeploymentUrl"]
                 ) for model_deployment in model_deployments
             ]
 
@@ -121,6 +123,7 @@ class AquaDeploymentApp(AquaApp):
                 "state": model_deployment["lifecycleState"],
                 "description": model_deployment["description"],
                 "created_on": str(model_deployment["timeCreated"]),
-                "created_by": model_deployment["createdBy"]
+                "created_by": model_deployment["createdBy"],
+                "endpoint": model_deployment["modelDeploymentUrl"]
             }
         )
