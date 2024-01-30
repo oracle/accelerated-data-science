@@ -13,14 +13,15 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentContainerRuntime,
 )
+from ads.common.serializer import DataClassSerializable
 
 AQUA_SERVICE_MODEL = "aqua_service_model"
 
 logger = logging.getLogger(__name__)
 
 
-@dataclass
-class AquaDeployment:
+@dataclass(repr=False)
+class AquaDeployment(DataClassSerializable):
     """Represents an Aqua Model Deployment"""
 
     display_name: str
