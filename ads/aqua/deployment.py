@@ -223,7 +223,7 @@ class AquaDeploymentApp(AquaApp):
                 for model_deployment in model_deployments
             ]
 
-    def get(self, **kwargs) -> "AquaDeployment":
+    def get(self, model_deployment_id, **kwargs) -> "AquaDeployment":
         """Gets the information of Aqua model deployment.
 
         Parameters
