@@ -14,6 +14,7 @@ from typing import Dict, List, Tuple, Union
 
 import yaml
 
+from ads.common.auth import AuthType
 from ads.opctl import logger
 from ads.opctl.backend.ads_dataflow import DataFlowOperatorBackend
 from ads.opctl.backend.ads_ml_job import MLJobOperatorBackend
@@ -199,6 +200,13 @@ class BackendFactory:
                     "An error occurred while attempting to load the "
                     f"configuration for the `{backend_kind}.{runtime_type}` backend."
                 )
+            
+        # make auth as resource principal if ads operator -f <yaml> command is run inside job
+        if backend_kind == BACKEND_NAME.OPERATOR_LOCAL.value:
+            job_run_ocid = os.environ.get("JOB_RUN_OCID")
+            if job_run_ocid and 'datasciencejobrun' in job_run_ocid:
+                if kwargs.get('auth') != AuthType.RESOURCE_PRINCIPAL:
+                    kwargs['auth'] = AuthType.RESOURCE_PRINCIPAL
 
         p_backend = ConfigProcessor(
             {**backend, **{"execution": {"backend": backend_kind}}}
@@ -413,7 +421,7 @@ class BackendFactory:
         for resource_type in supported_backends:
             try:
                 for runtime_type_item in RUNTIME_TYPE_MAP.get(
-                    resource_type.lower(), []
+                        resource_type.lower(), []
                 ):
                     runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
 
