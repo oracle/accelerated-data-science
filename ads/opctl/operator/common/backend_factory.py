@@ -421,7 +421,7 @@ class BackendFactory:
         for resource_type in supported_backends:
             try:
                 for runtime_type_item in RUNTIME_TYPE_MAP.get(
-                        resource_type.lower(), []
+                    resource_type.lower(), []
                 ):
                     runtime_type, runtime_kwargs = next(iter(runtime_type_item.items()))
 
