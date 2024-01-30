@@ -106,30 +106,6 @@ class TestDataset:
     COMPARTMENT_ID = "ocid1.compartment.oc1..<OCID>"
     MOCK_ICON = "data:image/svg+xml;base64,########"
 
-    @classmethod
-    def client_list_response(cls):
-        return TestDataset.Response(
-            data=TestDataset.DataList(
-                objects=[
-                    ModelSummary(**item) for item in TestDataset.model_summary_objects
-                ]
-            ),
-            status=200,
-        )
-
-    @classmethod
-    def client_list_error(cls, status: int):
-        return oci.exceptions.ServiceError(
-            status=status, code="code", message="message", headers={}
-        )
-
-    @classmethod
-    def client_get_response(cls):
-        return TestDataset.Response(
-            data=TestDataset.DataList(objects=Model(**TestDataset.model_object)),
-            status=200,
-        )
-
 
 class TestAquaModel(unittest.TestCase):
     """Contains unittests for AquaModelApp."""
@@ -138,49 +114,35 @@ class TestAquaModel(unittest.TestCase):
         self.app = AquaModelApp()  # Replace with actual instantiation
 
     @patch("ads.common.auth.default_signer")
-    @patch.object(
-        oci.data_science.DataScienceClient,
-        "get_model",
-        return_value=TestDataset.client_get_response(),
-    )
-    @patch.object(
-        oci.pagination,
-        "list_call_get_all_results",
-        return_value=TestDataset.client_list_response(),
-    )
-    def test_list(self, mock_client_list, mock_client_get, mock_auth):
+    def test_list(self, mock_auth):
         """Tests list models succesfully."""
-        # mock_client_list.return_value = TestDataset.client_list_response()
-        # mock_client_get.return_value = TestDataset.client_get_response()
-        self.app._read_file = MagicMock(return_value=TestDataset.MOCK_ICON)
-
-        # self.app.list_resource = MagicMock(
-        #     return_value=[
-        #         ModelSummary(**item) for item in TestDataset.model_summary_objects
-        #     ]
-        # )
+        self.app.list_resource = MagicMock(
+            return_value=[
+                ModelSummary(**item) for item in TestDataset.model_summary_objects
+            ]
+        )
 
         results = self.app.list(TestDataset.COMPARTMENT_ID)
 
-        assert len(results == 2)
+        assert len(results) == 2
 
         attributes = AquaModelSummary.__annotations__.keys()
         for r in results:
             rdict = asdict(r)
-            print(rdict)
             for attr in attributes:
-                assert rdict.get(attr)
+                assert rdict.get(attr) is not None
 
     # def test_list_failed(self):
     #     """Tests raise exception when list models failed."""
-
-    #     with patch.object(
-    #         oci.pagination,
-    #         "list_call_get_all_results",
-    #         side_effect=TestDataset.client_list_error(500),
-    #     ):
-    #         with self.assertRaises(AquaServiceError):
-    #             self.app.list(compartment_id=TestDataset.COMPARTMENT_ID)
+    #     # TODO: add exception test once the exception PR has been finished.
+    #     pass
+    # with patch.object(
+    #     oci.pagination,
+    #     "list_call_get_all_results",
+    #     side_effect=TestDataset.client_list_error(500),
+    # ):
+    #     with self.assertRaises(AquaServiceError):
+    #         self.app.list(compartment_id=TestDataset.COMPARTMENT_ID)
 
     #     with patch.object(
     #         oci.pagination,
