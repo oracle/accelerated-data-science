@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
-from oci.excpetion import ServiceError, ClientError
+from oci.exceptions import ServiceError, ClientError
 
 
 AQUA_SERVICE_MODEL = "aqua_service_model"
@@ -18,9 +18,11 @@ AQUA_SERVICE_MODEL = "aqua_service_model"
 
 logger = logging.getLogger(__name__)
 
+
 @dataclass
 class AquaDeployment:
     """Represents an Aqua Model Deployment"""
+
     display_name: str
     aqua_service_model: str
     state: str
@@ -66,19 +68,23 @@ class AquaDeploymentApp(AquaApp):
         List[AquaDeployment]:
             The list of the Aqua model deployments.
         """
-        model_deployments = self.list_resource(self.client.list_model_deployments, **kwargs)
+        model_deployments = self.list_resource(
+            self.client.list_model_deployments, **kwargs
+        )
         return [
             AquaDeployment(
                 display_name=model_deployment.display_name,
                 aqua_service_model=(
                     model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None)
-                    if model_deployment.freeform_tags else None
+                    if model_deployment.freeform_tags
+                    else None
                 ),
                 state=model_deployment.lifecycle_state,
                 description=model_deployment.description,
                 created_on=str(model_deployment.time_created),
-                created_by=model_deployment.created_by
-            ) for model_deployment in model_deployments
+                created_by=model_deployment.created_by,
+            )
+            for model_deployment in model_deployments
         ]
 
     def clone(self, **kwargs) -> "AquaDeployment":
@@ -106,12 +112,13 @@ class AquaDeploymentApp(AquaApp):
         """
         model_deployment_id = kwargs.get("model_deployment_id", None)
         if not model_deployment_id:
-            raise AquaClientError("Aqua model deployment ocid must be provided to fetch the deployment.")
-        
+            raise AquaClientError(
+                "Aqua model deployment ocid must be provided to fetch the deployment."
+            )
+
         try:
             model_deployment = self.client.get_model_deployment(
-                model_deployment_id=model_deployment_id,
-                **kwargs
+                model_deployment_id=model_deployment_id, **kwargs
             ).data
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
@@ -121,11 +128,12 @@ class AquaDeploymentApp(AquaApp):
         return AquaDeployment(
             display_name=model_deployment.display_name,
             aqua_service_model=(
-                model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None) 
-                if model_deployment.freeform_tags else None
+                model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None)
+                if model_deployment.freeform_tags
+                else None
             ),
             state=model_deployment.lifecycle_state,
             description=model_deployment.description,
             created_on=str(model_deployment.time_created),
-            created_by=model_deployment.created_by
+            created_by=model_deployment.created_by,
         )

@@ -8,19 +8,17 @@ from typing import List
 
 import oci
 from ads.common.auth import default_signer
-from ads.aqua.exception import oci_exception_handler
 from ads.aqua.utils import get_logger
 
 
 class AquaApp:
     """Base Aqua App to contain common components."""
 
-    def __init__(self) -> None:
+    def __init__(self, **kwargs) -> None:
         self._auth = default_signer()
         self.client = oci.data_science.DataScienceClient(**self._auth)
         self.logger = get_logger()
 
-    @oci_exception_handler
     def list_resource(
         self,
         list_func_ref,
@@ -41,9 +39,9 @@ class AquaApp:
         list
             A list of OCI Data Science resources.
         """
-        response = oci.pagination.list_call_get_all_results(
+        items = oci.pagination.list_call_get_all_results(
             list_func_ref,
             **kwargs,
-        )
-        items = response.data
+        ).data
+
         return items

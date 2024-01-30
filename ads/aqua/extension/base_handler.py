@@ -38,5 +38,5 @@ class AquaAPIhandler(APIHandler):
         if isinstance(payload, list):
             payload = {"data": payload}
         # Convert the payload to a JSON serializable object
-        payload = json.loads(data=json.dumps(payload, default=self.serialize))
+        payload = json.loads(json.dumps(payload, default=self.serialize))
         return super().finish(payload)

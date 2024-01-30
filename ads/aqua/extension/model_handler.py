@@ -7,7 +7,6 @@ import os
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
 from ads.aqua.exception import exception_handler
-import asyncio
 
 AQUA_MODEL_COMPARTMENT = "AQUA_MODEL_COMPARTMENT"
 
@@ -28,7 +27,7 @@ class AquaModelHandler(AquaAPIhandler):
         """Read the information of an Aqua model."""
         return self.finish(AquaModelApp().get(model_id))
 
-    @exception_handler
+    # @exception_handler
     def list(self):
         """List Aqua models."""
         # If default is not specified,

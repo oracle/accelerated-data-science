@@ -6,11 +6,11 @@ import fsspec
 from dataclasses import dataclass
 from typing import List
 from enum import Enum
-from ads.aqua.exception import AquaClientError, AquaServiceError, oci_exception_handler
+from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
-from oci.exceptions import ServiceError, ClientError
-import asyncio
+from oci.exceptions import ServiceError
+from ads.aqua.utils import create_word_icon
 
 
 ICON_FILE_NAME = "icon.txt"
@@ -126,21 +126,35 @@ class AquaModelApp(AquaApp):
     def list(
         self, compartment_id: str = None, project_id: str = None, **kwargs
     ) -> List["AquaModelSummary"]:
+        """List Aqua models in a given compartment and under certain project.
+
+        Parameters
+        ----------
+        compartment_id: (str, optional). Defaults to `None`.
+            The compartment OCID.
+        project_id: (str, optional). Defaults to `None`.
+            The project OCID.
+        kwargs
+            Additional keyword arguments for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
+
+        Returns
+        -------
+        List[AquaModelSummary]:
+            The list of the `ads.aqua.model.AquaModelSummary`.
+        """
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
-
         models = self.list_resource(self.client.list_models, **kwargs)
         if not models:
             self.logger.error(
-                f"No model found in compartment_id={compartment_id}, project_id={compartment_id}."
+                f"No model found in compartment_id={compartment_id}, project_id={project_id}."
             )
 
         aqua_models = []
-        # TODO: build index.json locally as caching
+        # TODO: build index.json locally as caching if needed.
 
         def process_model(model):
-            # TODO:
-            icon = self._load_icon(model.name)
+            icon = self._load_icon(model.display_name)
 
             return AquaModelSummary(
                 name=model.display_name,
@@ -148,7 +162,7 @@ class AquaModelApp(AquaApp):
                 compartment_id=model.compartment_id,
                 project_id=model.project_id,
                 time_created=model.time_created,
-                icon=icon,  # follow Daren, remove icon
+                icon=icon,
                 task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
                 license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
                 organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
@@ -162,16 +176,6 @@ class AquaModelApp(AquaApp):
                 aqua_models.append(process_model(model))
 
         return aqua_models
-
-    # @oci_exception_handler
-    # def _client_get_model(self, model_id):
-    #     # get_model is blocking code
-    #     return self.client.get_model(model_id)
-
-    @oci_exception_handler
-    async def _client_get_model(self, model_id):
-        # get_model is blocking code
-        return asyncio.to_thread(self.client.get_model, model_id)
 
     def _if_show(self, model: "ModelSummary") -> bool:
         """Determine if the given model should be return by `list`."""
@@ -230,12 +234,12 @@ class AquaModelApp(AquaApp):
             )
             return None
 
-    # async def _read_file_async(self, file_path) -> str:
-    #     try:
-    #         with fsspec.open(file_path, "rb", **self._auth) as f:
-    #             return f.read()
-    #     except Exception as e:
-    #         self.logger.debug(
-    #             f"Failed to retreive content from `file_path={file_path}`. {e}"
-    #         )
-    #         return None
+    def _load_icon(self, model_name) -> str:
+        """Loads icon."""
+
+        # TODO: switch to the official logo
+        try:
+            return create_word_icon(model_name, return_as_datauri=True)
+        except Exception as e:
+            self.logger.error(f"Failed to load icon for the model={model_name}.")
+            return None
