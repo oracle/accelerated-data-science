@@ -20,7 +20,6 @@ from ..const import (
     SupportedModels,
 )
 from ads.opctl.operator.lowcode.forecast.utils import (
-    convert_target,
     _select_plot_list,
     _label_encode_dataframe,
 )

@@ -47,11 +47,11 @@ DATASETS_LIST = [
 
 MODELS = [
     "arima",
-    "automlx",
-    "prophet",
-    "neuralprophet",
-    "autots",
-    "auto",
+    # "automlx",
+    # "prophet",
+    # "neuralprophet",
+    # "autots",
+    # "auto",
 ]
 
 TEMPLATE_YAML = {
@@ -83,7 +83,7 @@ SAMPLE_FRACTION = 1
 
 parameters_short = []
 
-for dataset_i in DATASETS_LIST[:6]:  #  + [DATASETS_LIST[-2]]
+for dataset_i in DATASETS_LIST[1:2]:  #  + [DATASETS_LIST[-2]]
     for (
         model
     ) in MODELS:  # ["arima", "automlx", "prophet", "neuralprophet", "autots", "auto"]

@@ -172,57 +172,6 @@ def write_pkl(obj, filename, output_dir, storage_options):
         cloudpickle.dump(obj, f)
 
 
-def _validate_and_clean_data(
-    cat: str, horizon: int, primary: pd.DataFrame, additional: pd.DataFrame
-):
-    """
-    Checks compatibility between primary and additional dataframe for a category.
-
-    Parameters
-    ----------
-        cat: (str)
-         Category for which data is being validated.
-        horizon: (int)
-         horizon value for the forecast.
-        primary: (pd.DataFrame)
-         primary dataframe.
-        additional: (pd.DataFrame)
-         additional dataframe.
-
-    Returns
-    -------
-        (pd.DataFrame, pd.DataFrame) or (None, None)
-         Updated primary and additional dataframe or None values if the validation criteria does not satisfy.
-    """
-    # Additional data should have future values for horizon
-    data_row_count = primary.shape[0]
-    data_add_row_count = additional.shape[0]
-    additional_surplus = data_add_row_count - horizon - data_row_count
-    if additional_surplus < 0:
-        logger.warn(
-            "Forecast for {} will not be generated since additional data has fewer values({}) than"
-            " horizon({}) + primary data({})".format(
-                cat, data_add_row_count, horizon, data_row_count
-            )
-        )
-        return None, None
-    elif additional_surplus > 0:
-        # Removing surplus future data in additional
-        additional.drop(additional.tail(additional_surplus).index, inplace=True)
-
-    # Dates in primary data should be subset of additional data
-    dates_in_data = primary.index.tolist()
-    dates_in_additional = additional.index.tolist()
-
-    if not set(dates_in_data).issubset(set(dates_in_additional)):
-        logger.warn(
-            "Forecast for {} will not be generated since the dates in primary and additional do not"
-            " match".format(cat)
-        )
-        return None, None
-    return primary, additional
-
-
 def _build_metrics_df(y_true, y_pred, column_name):
     metrics = dict()
     metrics["sMAPE"] = smape(actual=y_true, predicted=y_pred)

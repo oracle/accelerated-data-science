@@ -19,7 +19,6 @@ import pandas as pd
 from ads.opctl.operator.lowcode.forecast.utils import (
     default_signer,
     evaluate_train_metrics,
-    convert_target,
     get_forecast_plots,
     _build_metrics_df,
     _build_metrics_per_horizon,

@@ -11,10 +11,7 @@ from joblib import Parallel, delayed
 
 from ads.opctl import logger
 
-from ads.opctl.operator.lowcode.forecast.utils import (
-    _label_encode_dataframe,
-    convert_target,
-)
+from ads.opctl.operator.lowcode.forecast.utils import _label_encode_dataframe
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 import traceback
@@ -90,9 +87,13 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 # Build and fit model
                 model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
 
-            self.fitted_values[s_id] = model.predict_in_sample(X=X_in)
-            self.actual_values[s_id] = y
-            self.actual_values[s_id].index = pd.to_datetime(y.index)
+            print(f"X_in: {X_in}, pred: {model.predict_in_sample(X=X_in)}")
+
+            self.fitted_values[s_id] = pd.Series(
+                model.predict_in_sample(X=X_in).values,
+                index=data_i.index,
+                name="fitted_values",
+            )
 
             # Build future dataframe
             start_date = y.index.values[-1]
@@ -157,7 +158,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         self.outputs = dict()
         self.outputs_legacy = []
         self.fitted_values = dict()
-        self.actual_values = dict()
         self.dt_columns = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
@@ -177,17 +177,18 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
 
         for s_id in self.datasets.list_series_ids():
             output_i = pd.DataFrame()
-            output_i["Date"] = self.dt_columns[s_id]
+            output_i["Date"] = full_data_dict[s_id][self.spec.datetime_column.name]
             output_i["Series"] = s_id
             output_i = output_i.set_index("Date")
 
-            output_i["input_value"] = self.actual_values[s_id]
+            output_i["input_value"] = full_data_dict[s_id][self.original_target_column]
+            print(f"output_i: {output_i}, self.fitted_values: {self.fitted_values}")
             output_i["fitted_value"] = self.fitted_values[s_id]
             output_i["forecast_value"] = self.outputs[s_id]["yhat"]
             output_i[yhat_upper_name] = self.outputs[s_id]["yhat_upper"]
             output_i[yhat_lower_name] = self.outputs[s_id]["yhat_lower"]
 
-            output_i = output_i.reset_index(drop=False)
+            # output_i = output_i.reset_index(drop=False)
             output_col = pd.concat([output_col, output_i])
             self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
 

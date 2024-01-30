@@ -15,7 +15,6 @@ from ads.opctl.operator.lowcode.forecast.const import (
 )
 from ads.opctl import logger
 
-from ads.opctl.operator.lowcode.forecast.utils import convert_target
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput

@@ -25,7 +25,6 @@ from ads.opctl import logger
 
 from ..const import DEFAULT_TRIALS, ForecastOutputColumns, SupportedModels
 from ads.opctl.operator.lowcode.forecast.utils import (
-    convert_target,
     load_pkl,
     write_pkl,
     _select_plot_list,
