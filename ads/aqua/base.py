@@ -9,6 +9,8 @@ from typing import List
 import logging
 import oci
 from ads.common.auth import default_signer
+from ads.aqua.exception import AquaServiceError, AquaClientError
+from oci.exceptions import ServiceError, ClientError
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +49,7 @@ class AquaApp:
             ).data
 
             return items
-        except Exception as e:
-            # show opc-request-id and status code
-            logger.error(f"Failing to retreive resources in the given compartment. {e}")
-            return []
+        except ServiceError as se:
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        except ClientError as ce:
+            raise AquaClientError(str(ce))

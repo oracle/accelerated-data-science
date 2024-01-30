@@ -14,6 +14,9 @@ from ads.model.deployment import (
     ModelDeploymentContainerRuntime,
 )
 from ads.common.serializer import DataClassSerializable
+from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.config import COMPARTMENT_OCID
+from oci.exceptions import ServiceError, ClientError
 
 AQUA_SERVICE_MODEL = "aqua_service_model"
 
@@ -45,18 +48,12 @@ class AquaDeploymentApp(AquaApp):
         Creates an instance of model deployment via Aqua
     list(self, ..., **kwargs) -> List["AquaDeployment"]
         List existing model deployments created via Aqua
-    clone()
-        Clone an existing model deployment
-    suggest()
-        Provide suggestions for model deployment via Aqua
-    stats()
-        Get model deployment statistics
     """
 
     def create(
         self,
-        compartment_id: str,
         model_id: str,
+        compartment_id: str,
         aqua_service_model: str,
         instance_count: int,
         instance_shape: str,
@@ -74,6 +71,7 @@ class AquaDeploymentApp(AquaApp):
         server_port: int = 5000,
         health_check_port: int = 5000,
         env_var: Dict = None,
+        **kwargs,
     ) -> "AquaDeployment":
         """
         Creates a new Aqua deployment
@@ -200,28 +198,34 @@ class AquaDeploymentApp(AquaApp):
         List[AquaDeployment]:
             The list of the Aqua model deployments.
         """
-        import json
-        import os
+        compartment_id = kwargs.get("compartment_id", None)
+        kwargs.update({"compartment_id": compartment_id or COMPARTMENT_OCID})
 
-        root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dummy_data")
+        model_deployments = self.list_resource(
+            self.client.list_model_deployments, **kwargs
+        )
 
-        with open(f"{root}/oci_model_deployments.json", "rb") as f:
-            model_deployments = json.loads(f.read())
-
-            return [
-                AquaDeployment(
-                    display_name=model_deployment["displayName"],
-                    aqua_service_model=model_deployment["freeformTags"].get(
-                        AQUA_SERVICE_MODEL, None
-                    ),
-                    state=model_deployment["lifecycleState"],
-                    description=model_deployment["description"],
-                    created_on=str(model_deployment["timeCreated"]),
-                    created_by=model_deployment["createdBy"],
-                    endpoint=model_deployment["modelDeploymentUrl"],
+        results = []
+        for model_deployment in model_deployments:
+            aqua_service_model = (
+                model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None)
+                if model_deployment.freeform_tags
+                else None
+            )
+            if aqua_service_model:
+                results.append(
+                    AquaDeployment(
+                        display_name=model_deployment.display_name,
+                        aqua_service_model=aqua_service_model,
+                        state=model_deployment.lifecycle_state,
+                        description=model_deployment.description,
+                        created_on=str(model_deployment.time_created),
+                        created_by=model_deployment.created_by,
+                        endpoint=model_deployment.model_deployment_url,
+                    )
                 )
-                for model_deployment in model_deployments
-            ]
+
+        return results
 
     def get(self, model_deployment_id, **kwargs) -> "AquaDeployment":
         """Gets the information of Aqua model deployment.
@@ -237,24 +241,35 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        import json
-        import os
+        if not model_deployment_id:
+            raise AquaClientError(
+                "Aqua model deployment ocid must be provided to fetch the deployment."
+            )
 
-        root = os.path.join(os.path.dirname(os.path.realpath(__file__)), "dummy_data")
+        try:
+            model_deployment = self.client.get_model_deployment(**kwargs).data
+        except ServiceError as se:
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        except ClientError as ce:
+            raise AquaClientError(str(ce))
 
-        with open(f"{root}/oci_model_deployments.json", "rb") as f:
-            model_deployment = json.loads(f.read())[0]
+        aqua_service_model = (
+            model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None)
+            if model_deployment.freeform_tags
+            else None
+        )
+
+        if not aqua_service_model:
+            raise AquaClientError(
+                f"Target deployment {model_deployment.id} is not Aqua deployment."
+            )
 
         return AquaDeployment(
-            **{
-                "display_name": model_deployment["displayName"],
-                "aqua_service_model": model_deployment["freeformTags"].get(
-                    AQUA_SERVICE_MODEL, None
-                ),
-                "state": model_deployment["lifecycleState"],
-                "description": model_deployment["description"],
-                "created_on": str(model_deployment["timeCreated"]),
-                "created_by": model_deployment["createdBy"],
-                "endpoint": model_deployment["modelDeploymentUrl"],
-            }
+            display_name=model_deployment.display_name,
+            aqua_service_model=aqua_service_model,
+            state=model_deployment.lifecycle_state,
+            description=model_deployment.description,
+            created_on=str(model_deployment.time_created),
+            created_by=model_deployment.created_by,
+            endpoint=model_deployment.model_deployment_url,
         )

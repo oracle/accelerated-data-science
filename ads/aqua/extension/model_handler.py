@@ -3,24 +3,28 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
+from ads.aqua.exception import exception_handler
 
 
 class AquaModelHandler(AquaAPIhandler):
     """Handler for Aqua Model REST APIs."""
 
+    @exception_handler
     def get(self, model_id=""):
         """Handle GET request."""
+
         if not model_id:
             return self.list()
         return self.read(model_id)
 
+    @exception_handler
     def read(self, model_id):
         """Read the information of an Aqua model."""
         return self.finish(AquaModelApp().get(model_id))
 
+    @exception_handler
     def list(self):
         """List Aqua models."""
         # If default is not specified,
