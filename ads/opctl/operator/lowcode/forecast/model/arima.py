@@ -239,7 +239,9 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             data: ForecastDatasets.get_data_at_series(s_id)
             """
             data = data.drop([target_col], axis=1)
-            data[dt_column_name] = seconds_to_datetime(data[dt_column_name])
+            data[dt_column_name] = seconds_to_datetime(
+                data[dt_column_name], dt_format=self.spec.datetime_column.format
+            )
             data = self.preprocess(data, series_id)
             return model.predict(X=data, n_periods=len(data))
 

@@ -104,7 +104,7 @@ def datetime_to_seconds(s: pd.Series):
     return s.apply(lambda x: x.timestamp())
 
 
-def seconds_to_datetime(s: pd.Series):
+def seconds_to_datetime(s: pd.Series, dt_format=None):
     """
     Inverse of `datetime_to_second`
     ------------
@@ -113,7 +113,10 @@ def seconds_to_datetime(s: pd.Series):
     Returns
     pd.Series of type datetime
     """
-    return pd.to_datetime(s, unit="s")
+    s = pd.to_datetime(s, unit="s")
+    if dt_format is not None:
+        return pd.to_datetime(s, format=dt_format)
+    return s
 
 
 def default_signer(**kwargs):

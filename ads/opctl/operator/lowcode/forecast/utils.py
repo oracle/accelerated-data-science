@@ -211,7 +211,8 @@ def evaluate_train_metrics(output, metrics_col_name=None):
         try:
             forecast_by_s_id = output.get_forecast(s_id)[
                 ["input_value", "Date", "fitted_value"]
-            ].dropna()
+            ]
+            forecast_by_s_id = forecast_by_s_id.dropna()
             y_true = forecast_by_s_id["input_value"].values
             y_pred = forecast_by_s_id["fitted_value"].values
             metrics_df = _build_metrics_df(
@@ -225,6 +226,7 @@ def evaluate_train_metrics(output, metrics_col_name=None):
                 f"Failed to generate training metrics for target_series: {s_id}"
             )
             logger.debug(f"Recieved Error Statement: {e}")
+            raise
     return total_metrics
 
 

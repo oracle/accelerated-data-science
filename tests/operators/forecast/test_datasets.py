@@ -15,6 +15,7 @@ from pathlib import Path
 import random
 import pathlib
 import datetime
+from ads.opctl.operator.cmd import run
 
 
 DATASETS_LIST = [
@@ -47,10 +48,10 @@ DATASETS_LIST = [
 
 MODELS = [
     "arima",
-    # "automlx",
-    # "prophet",
-    # "neuralprophet",
-    # "autots",
+    "automlx",
+    "prophet",
+    "neuralprophet",
+    "autots",
     # "auto",
 ]
 
@@ -83,10 +84,8 @@ SAMPLE_FRACTION = 1
 
 parameters_short = []
 
-for dataset_i in DATASETS_LIST[2:3]:  #  + [DATASETS_LIST[-2]]
-    for (
-        model
-    ) in MODELS:  # ["arima", "automlx", "prophet", "neuralprophet", "autots", "auto"]
+for dataset_i in DATASETS_LIST[1:3]:  #  + [DATASETS_LIST[-2]]
+    for model in MODELS:
         parameters_short.append((model, dataset_i))
 
 
@@ -144,10 +143,7 @@ def test_load_datasets(model, dataset_name):
         yaml_i["spec"]["target_column"] = columns[0]
         yaml_i["spec"]["datetime_column"]["name"] = datetime_col
         yaml_i["spec"]["horizon"] = PERIODS
-        if (
-            yaml_i["spec"].get("additional_data") is not None
-            and model != "neuralprophet"
-        ):
+        if yaml_i["spec"].get("additional_data") is not None:
             yaml_i["spec"]["generate_explanations"] = True
         if generate_train_metrics:
             yaml_i["spec"]["generate_metrics"] = generate_train_metrics
@@ -157,13 +153,14 @@ def test_load_datasets(model, dataset_name):
             yaml_i["spec"]["model_kwargs"] = {"time_budget": 1}
 
         forecast_yaml_filename = f"{tmpdirname}/forecast.yaml"
-        with open(f"{tmpdirname}/forecast.yaml", "w") as f:
-            f.write(yaml.dump(yaml_i))
-        sleep(0.5)
-        subprocess.run(
-            f"ads operator run -f {forecast_yaml_filename} --debug", shell=True
-        )
-        sleep(0.1)
+        # with open(f"{tmpdirname}/forecast.yaml", "w") as f:
+        #     f.write(yaml.dump(yaml_i))
+        # sleep(0.5)
+        # subprocess.run(
+        #     f"ads operator run -f {forecast_yaml_filename} --debug", shell=True  #  --debug
+        # )
+        # sleep(0.1)
+        run(yaml_i, backend="local", debug=True)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
         if yaml_i["spec"]["generate_explanations"]:
             glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")

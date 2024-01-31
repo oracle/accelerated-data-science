@@ -30,7 +30,11 @@ from ads.opctl.operator.lowcode.forecast.utils import (
     _select_plot_list,
     _label_encode_dataframe,
 )
-from ads.opctl.operator.lowcode.common.utils import disable_print, enable_print
+from ads.opctl.operator.lowcode.common.utils import (
+    disable_print,
+    enable_print,
+    seconds_to_datetime,
+)
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -61,9 +65,9 @@ def _get_np_metrics_dict(selected_metric):
 def _fit_model(data, params, additional_regressors, select_metric):
     from neuralprophet import NeuralProphet, set_log_level
 
-    set_log_level(logger.level)
-
-    disable_print()
+    if logger.level > 10:
+        set_log_level(logger.level)
+        disable_print()
 
     m = NeuralProphet(**params)
     m.metrics = _get_np_metrics_dict(select_metric)
@@ -111,10 +115,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
     def _train_model(self, i, s_id, df, model_kwargs):
         try:
-            from neuralprophet import NeuralProphet, set_log_level
-
-            set_log_level(logger.level)
-
             self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
 
             data = self.preprocess(df, s_id)
@@ -149,17 +149,25 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             # Build future dataframe
             future = data.reset_index(drop=True)
             future["y"] = None
-            future = future[["y", "ds"] + list(accepted_regressors)]
 
-            # Forecast model and collect outputs
             forecast = model.predict(future)
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast.tail())
 
+            # TODO; could also extract trend and seasonality?
+            cols_to_read = filter(
+                lambda x: x.startswith("future_regressor"), forecast.columns
+            )
+            self.explanations_info[s_id] = forecast[cols_to_read]
+            self.explanations_info[s_id]["Date"] = forecast["ds"]
+            self.explanations_info[s_id] = self.explanations_info[s_id].set_index(
+                "Date"
+            )
+
             self.outputs[s_id] = forecast
             self.forecast_output.populate_series_output(
                 series_id=s_id,
-                fit_val=self.drop_horizon(["yhat1"]).values,
+                fit_val=self.drop_horizon(forecast["yhat1"]).values,
                 forecast_val=self.get_horizon(forecast["yhat1"]).values,
                 upper_bound=self.get_horizon(
                     forecast[f"yhat1 {model_kwargs['quantiles'][1]*100}%"]
@@ -199,6 +207,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug("===========Done===========")
         except Exception as e:
             self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
+            raise e
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
@@ -206,6 +215,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.trainers = dict()
         self.outputs = dict()
         self.errors_dict = dict()
+        self.explanations_info = dict()
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
@@ -216,10 +226,10 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         )
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):
-            self._train_model(i=i, s_id=s_id, df=df, model_kwargs=model_kwargs.copy())
+            self._train_model(i, s_id, df, model_kwargs=model_kwargs.copy())
 
         # Parallel(n_jobs=-1, require="sharedmem")(
-        #     delayed(NeuralProphetOperatorModel._train_model)(self, i, s_id, df)
+        #     delayed(NeuralProphetOperatorModel._train_model)(self, i, s_id, df, model_kwargs=model_kwargs.copy())
         #     for self, (i, (s_id, df)) in zip(
         #         [self] * len(full_data_dict), enumerate(full_data_dict.items())
         #     )
@@ -360,32 +370,16 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     "The following tables provide the feature attribution for the global explainability."
                 )
 
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation)
-
-                self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-
                 # Create a markdown section for the global explainability
                 global_explanation_section = dp.Blocks(
                     "### Global Explainability ",
                     dp.DataTable(self.formatted_global_explanation),
                 )
 
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
                 local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
                 blocks = [
                     dp.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                        local_ex_df.drop("Series", axis=1),
                         label=s_id,
                     )
                     for s_id, local_ex_df in self.local_explanation.items()
@@ -405,6 +399,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 # Do not fail the whole run due to explanations failure
                 logger.warn(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
+                raise
 
         model_description = dp.Text(
             "NeuralProphet is an easy to learn framework for interpretable time "
@@ -433,5 +428,26 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             storage_options=storage_options,
         )
 
-    def get_explain_predict_fn(self, series_id, fcst_col_name="yhat1"):
-        return super().get_explain_predict_fn(series_id, fcst_col_name)
+    def explain_model(self):
+        self.local_explanation = dict()
+        global_expl = []
+        rename_cols = {
+            f"future_regressor_{col}": col
+            for col in self.datasets.get_additional_data_column_names()
+        }
+
+        for s_id, expl_df in self.explanations_info.items():
+            expl_df = expl_df.rename(rename_cols, axis=1)
+            # Local Expl
+            self.local_explanation[s_id] = self.get_horizon(expl_df)
+            self.local_explanation[s_id]["Series"] = s_id
+
+            # Global Expl
+            g_expl = self.drop_horizon(expl_df).mean()
+            g_expl.name = s_id
+            global_expl.append(g_expl)
+        self.global_explanation = pd.concat(global_expl, axis=1)
+        self.formatted_global_explanation = (
+            self.global_explanation / self.global_explanation.sum(axis=0) * 100
+        )
+        self.formatted_local_explanation = pd.concat(self.local_explanation.values())

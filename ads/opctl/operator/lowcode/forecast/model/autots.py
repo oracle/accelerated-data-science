@@ -331,7 +331,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             data: ForecastDatasets.get_data_at_series(s_id)
             """
             data[dt_column_name] = pd.to_datetime(data[dt_column_name], unit="s")
-            return model.predict(data)["yhat"]
+            return model.predict(future_regressor=data)["yhat"]
 
         return _custom_predict_fn
 

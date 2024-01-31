@@ -18,6 +18,10 @@ from ads.opctl import logger
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ads.opctl.operator.lowcode.common.utils import (
+    seconds_to_datetime,
+    datetime_to_seconds,
+)
 
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
@@ -30,6 +34,25 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets)
         self.global_explanation = {}
         self.local_explanation = {}
+
+    def set_kwargs(self):
+        model_kwargs_cleaned = self.spec.model_kwargs
+        model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
+            "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
+        )
+        model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
+            self.spec.metric,
+            model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
+        )
+        model_kwargs_cleaned.pop("task", None)
+        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
+        model_kwargs_cleaned[
+            "preprocessing"
+        ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
+        return model_kwargs_cleaned
+
+    def preprocess(self, data, series_id=None):
+        return data.set_index(self.spec.datetime_column.name)
 
     @runtime_dependency(
         module="automl",
@@ -56,7 +79,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         full_data_dict = self.datasets.get_data_by_series()
 
-        models = dict()
+        self.models = dict()
         date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon
         self.spec.confidence_interval_width = self.spec.confidence_interval_width or 0.8
@@ -68,81 +91,49 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
 
         # Clean up kwargs for pass through
-        model_kwargs_cleaned = None
-
-        if self.loaded_models is None:
-            model_kwargs_cleaned = self.spec.model_kwargs.copy()
-            model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
-                "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
-            )
-            model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
-                self.spec.metric,
-                model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
-            )
-            model_kwargs_cleaned.pop("task", None)
-            time_budget = model_kwargs_cleaned.pop("time_budget", 0)
-            model_kwargs_cleaned[
-                "preprocessing"
-            ] = self.spec.preprocessing or model_kwargs_cleaned.get(
-                "preprocessing", True
-            )
+        model_kwargs_cleaned = self.set_kwargs()
+        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):
             try:
+                logger.debug(f"Running automl on series {s_id}")
+                model_kwargs = model_kwargs_cleaned.copy()
                 target = self.original_target_column
                 self.forecast_output.init_series_output(
                     series_id=s_id, data_at_series=df
                 )
+                data = self.preprocess(df)
+                data_i = self.drop_horizon(data)
+                X_pred = self.get_horizon(data).drop(target, axis=1)
 
-                logger.debug("Running automl for {} at position {}".format(s_id, i))
-                series_values = df[df[target].notna()]
-                # drop NaNs for the time period where data wasn't recorded
-                series_values.dropna(inplace=True)
-                df_clean = df.reset_index(drop=True)
-                df_clean[date_column] = pd.to_datetime(
-                    df_clean[date_column],
-                    format=self.spec.datetime_column.format,  # TODO: could the format be different?
-                )
-                df_clean = df_clean.set_index(date_column)
+                logger.debug(f"Time Index Monotonic: {data_i.index.is_monotonic}")
 
-                y_train, y_test = temporal_train_test_split(df_clean, test_size=horizon)
-                forecast_x = y_test.drop(target, axis=1)
-
-                logger.debug(
-                    "Time Index is" + ""
-                    if y_train.index.is_monotonic
-                    else "NOT" + "monotonic."
-                )
-                model = (
-                    self.loaded_models[s_id] if self.loaded_models is not None else None
-                )
-
-                if model is None:
+                if self.loaded_models is not None:
+                    model = self.loaded_models[s_id]
+                else:
                     model = automl.Pipeline(
                         task="forecasting",
-                        **model_kwargs_cleaned,
+                        **model_kwargs,
                     )
                     model.fit(
-                        X=y_train.drop(target, axis=1),
-                        y=pd.DataFrame(y_train[target]),
+                        X=data_i.drop(target, axis=1),
+                        y=data_i[[target]],
                         time_budget=time_budget,
                     )
-                logger.debug("Selected model: {}".format(model.selected_model_))
-                logger.debug(
-                    "Selected model params: {}".format(model.selected_model_params_)
-                )
+                logger.debug(f"Selected model: {model.selected_model_}")
+                logger.debug(f"Selected model params: {model.selected_model_params_}")
+                print(X_pred)
                 summary_frame = model.forecast(
-                    X=forecast_x,
+                    X=X_pred,
                     periods=horizon,
                     alpha=1 - (self.spec.confidence_interval_width / 100),
                 )
 
-                fitted_values = model.predict(y_train.drop(target, axis=1))[
+                fitted_values = model.predict(data_i.drop(target, axis=1))[
                     target
                 ].values
 
-                if self.loaded_models is None:
-                    models[s_id] = model
+                self.models[s_id] = model
 
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
                 if f"{target}_ci_upper" not in summary_frame:
@@ -183,8 +174,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 raise
 
         logger.debug("===========Forecast Generated===========")
-
-        self.models = models if self.loaded_models is None else self.loaded_models
 
         return self.forecast_output.get_forecast_long()
 
@@ -308,20 +297,37 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
     def get_explain_predict_fn(self, series_id):
         selected_model = self.models[series_id]
 
+        # If training date, use method below. If future date, use forecast!
         def _custom_predict_fn(
             data,
             model=selected_model,
             dt_column_name=self.datasets._datetime_column_name,
             target_col=self.original_target_column,
+            last_train_date=self.datasets.historical_data.get_max_time(),
         ):
             """
             data: ForecastDatasets.get_data_at_series(s_id)
             """
             data = data.drop(target_col, axis=1)
-            data[dt_column_name] = pd.to_datetime(data[dt_column_name], unit="s")
-            data = data.set_index(dt_column_name)
-            print(f"data: {data}, len(data): {data.shape[0]}")
-            return model.predict(X=data)[target_col]
+            data[dt_column_name] = seconds_to_datetime(
+                data[dt_column_name], dt_format=self.spec.datetime_column.format
+            )
+            data = self.preprocess(data)
+            # print(f"data: {data}, len(data): {data.shape[0]}")
+
+            rows = []
+            print(data)
+            for i in range(data.shape[0]):
+                row = data.iloc[i : i + 1]
+                if row.index[0] < last_train_date:
+                    row_i = model.predict(X=row)
+                else:
+                    row_i = model.forecast(X=row, periods=1)
+                rows.append(row_i)
+            ret = pd.concat(rows)[target_col]  # .reset_index(drop=True)
+            ret.index = datetime_to_seconds(pd.Series(data.index))
+            # print(f"ret: {ret}")
+            return ret
             # forecast = pd.DataFrame()
             # for idx in range(data.shape[0]):
             #     forecast_i = model.forecast(X=data[idx:idx+1], periods=1)

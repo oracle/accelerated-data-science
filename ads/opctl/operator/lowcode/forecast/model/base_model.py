@@ -516,6 +516,7 @@ class ForecastOperatorBaseModel(ABC):
                 logger.warn(
                     "Unable to generate explanations for this model type or for this dataset."
                 )
+                raise
 
         if self.spec.generate_model_parameters:
             # model params
@@ -550,7 +551,7 @@ class ForecastOperatorBaseModel(ABC):
                 index=True,
             )
         else:
-            logger.info(f"No model failures found for the selected forecasting model")
+            logger.info(f"All modeling completed successfully.")
 
     def preprocess(self, df, series_id):
         """The method that needs to be implemented on the particular model level."""
@@ -705,7 +706,9 @@ class ForecastOperatorBaseModel(ABC):
             """
             data: ForecastDatasets.get_data_at_series(s_id)
             """
-            data[dt_column_name] = seconds_to_datetime(data[dt_column_name])
+            data[dt_column_name] = seconds_to_datetime(
+                data[dt_column_name], dt_format=self.spec.datetime_column.format
+            )
             data = self.preprocess(df=data, series_id=series_id)
             data[self.original_target_column] = None
             fcst = model.predict(data)[fcst_col_name]
