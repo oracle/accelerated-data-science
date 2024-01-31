@@ -576,6 +576,12 @@ class ForecastOperatorBaseModel(ABC):
         The method that needs to be implemented on the particular model level.
         """
 
+    def drop_horizon(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df.iloc[: -self.spec.horizon]
+
+    def get_horizon(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df.iloc[-self.spec.horizon :]
+
     def generate_train_metrics(self) -> pd.DataFrame:
         """
         Generate Training Metrics when fitted data is not available.

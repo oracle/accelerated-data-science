@@ -118,7 +118,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
 
             data = self.preprocess(df, s_id)
-            data_i = data[: -self.spec.horizon]
+            data_i = self.drop_horizon(data)
 
             if self.loaded_models is not None:
                 model = self.loaded_models[s_id]
@@ -159,14 +159,14 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             self.outputs[s_id] = forecast
             self.forecast_output.populate_series_output(
                 series_id=s_id,
-                fit_val=forecast["yhat1"].iloc[: -self.spec.horizon].values,
-                forecast_val=forecast["yhat1"].iloc[-self.spec.horizon :].values,
-                upper_bound=forecast[f"yhat1 {model_kwargs['quantiles'][1]*100}%"]
-                .iloc[-self.spec.horizon :]
-                .values,
-                lower_bound=forecast[f"yhat1 {model_kwargs['quantiles'][0]*100}%"]
-                .iloc[-self.spec.horizon :]
-                .values,
+                fit_val=self.drop_horizon(["yhat1"]).values,
+                forecast_val=self.get_horizon(forecast["yhat1"]).values,
+                upper_bound=self.get_horizon(
+                    forecast[f"yhat1 {model_kwargs['quantiles'][1]*100}%"]
+                ).values,
+                lower_bound=self.get_horizon(
+                    forecast[f"yhat1 {model_kwargs['quantiles'][0]*100}%"]
+                ).values,
             )
 
             self.models[s_id] = model
@@ -207,13 +207,13 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.outputs = dict()
         self.errors_dict = dict()
         self.additional_regressors = self.datasets.get_additional_data_column_names()
+        model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width,
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
         )
-        model_kwargs = self.set_kwargs()
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):
             self._train_model(i=i, s_id=s_id, df=df, model_kwargs=model_kwargs.copy())

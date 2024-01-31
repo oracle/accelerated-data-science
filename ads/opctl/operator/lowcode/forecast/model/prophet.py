@@ -81,7 +81,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             data = self.preprocess(df, series_id)
-            data_i = data[: -self.spec.horizon]
+            data_i = self.drop_horizon(data)
             if self.loaded_models is not None:
                 model = self.loaded_models[series_id]
             else:
@@ -109,10 +109,10 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             self.outputs[series_id] = forecast
             self.forecast_output.populate_series_output(
                 series_id=series_id,
-                fit_val=forecast["yhat"].iloc[: -self.spec.horizon].values,
-                forecast_val=forecast["yhat"].iloc[-self.spec.horizon :].values,
-                upper_bound=forecast["yhat_upper"].iloc[-self.spec.horizon :].values,
-                lower_bound=forecast["yhat_lower"].iloc[-self.spec.horizon :].values,
+                fit_val=self.drop_horizon(forecast["yhat"]).values,
+                forecast_val=self.get_horizon(forecast["yhat"]).values,
+                upper_bound=self.get_horizon(forecast["yhat_upper"]).values,
+                lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
             )
             self.models[series_id] = model
 
@@ -141,13 +141,13 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         self.models = dict()
         self.outputs = dict()
         self.additional_regressors = self.datasets.get_additional_data_column_names()
+        model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
             confidence_interval_width=self.spec.confidence_interval_width,
             horizon=self.spec.horizon,
             target_column=self.original_target_column,
             dt_column=self.spec.datetime_column.name,
         )
-        model_kwargs = self.set_kwargs()
 
         Parallel(n_jobs=-1, require="sharedmem")(
             delayed(ProphetOperatorModel._train_model)(
