@@ -4,13 +4,13 @@ Setup Feature Store
 
 Feature store is being provided by OCI as a stack based offering in user's own tenancy via OCI marketplace. It can be configured by the user primarily in two ways:
 
-:doc:`Setup via Feature Store Marketplace Operator (Recommended) <./user_guides.setup.feature_store_operator>`
-__________________________________________________________
+:doc:`Deployment using Feature Store Marketplace Operator (Recommended) <./user_guides.setup.feature_store_operator>`
+____________________________________________________________________________________________________________________
 
 The feature store marketplace operator can be used to setup the feature store api server in an existing OKE cluster while also utilising an existing MySQL database. It will also help setup authentication and authorization using OCI. For more details, see :doc:`Marketplace operator <./user_guides.setup.feature_store_operator>`. Optionally, we can also setup `Feature Store API Gateway stack <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ for authentication and authorization.
 
-:doc:`Setup via Helm Charts <./user_guides.setup.helm_chart>`
-_______________________________
+:doc:`Deployment using Helm Charts <./user_guides.setup.helm_chart>`
+_____________________________________________________________________
 
 We can manually export images to OCIR using Marketplace UI and then deploy the obtained Helm Chart. Optionally, we can also setup `Feature Store API Gateway stack <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ for authentication and authorization.
 
