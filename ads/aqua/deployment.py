@@ -12,6 +12,7 @@ from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentInfrastructure,
     ModelDeploymentContainerRuntime,
+    ModelDeploymentMode,
 )
 from ads.common.serializer import DataClassSerializable
 from ads.aqua.exception import AquaClientError, AquaServiceError
@@ -157,7 +158,7 @@ class AquaDeploymentApp(AquaApp):
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
-            .with_deployment_mode("HTTPS_ONLY")
+            .with_deployment_mode(ModelDeploymentMode.HTTPS)
             .with_model_uri(model_id)
             .with_region(region)
             .with_overwrite_existing_artifact(False)
@@ -198,11 +199,10 @@ class AquaDeploymentApp(AquaApp):
         List[AquaDeployment]:
             The list of the Aqua model deployments.
         """
-        compartment_id = kwargs.get("compartment_id", None)
-        kwargs.update({"compartment_id": compartment_id or COMPARTMENT_OCID})
+        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
 
         model_deployments = self.list_resource(
-            self.client.list_model_deployments, **kwargs
+            self.client.list_model_deployments, compartment_id=compartment_id, **kwargs
         )
 
         results = []
@@ -227,14 +227,17 @@ class AquaDeploymentApp(AquaApp):
 
         return results
 
-    def get(self, model_deployment_id, **kwargs) -> "AquaDeployment":
+    def get(self, model_deployment_id: str, **kwargs) -> "AquaDeployment":
         """Gets the information of Aqua model deployment.
 
         Parameters
         ----------
+        model_deployment_id: str
+            The OCID of the Aqua model deployment.
+
         kwargs
-            Keyword arguments, such as model_deployment_id,
-            for `get_model_deployment <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.get_model_deployment>`_
+            Keyword arguments, for `get_model_deployment
+            <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.get_model_deployment>`_
 
         Returns
         -------
@@ -247,7 +250,9 @@ class AquaDeploymentApp(AquaApp):
             )
 
         try:
-            model_deployment = self.client.get_model_deployment(**kwargs).data
+            model_deployment = self.client.get_model_deployment(
+                model_deployment_id=model_deployment_id, **kwargs
+            ).data
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
         except ClientError as ce:
@@ -261,7 +266,8 @@ class AquaDeploymentApp(AquaApp):
 
         if not aqua_service_model:
             raise AquaClientError(
-                f"Target deployment {model_deployment.id} is not Aqua deployment."
+                # todo: add link to point users to check the documentation
+                f"Target deployment {model_deployment.id} is not compatible with AI Quick Actions."
             )
 
         return AquaDeployment(
