@@ -55,10 +55,6 @@ def is_in_notebook_session():
     return "CONDA_PREFIX" in os.environ and "NB_SESSION_OCID" in os.environ
 
 
-def is_in_jobrun():
-    return "JOB_RUN_OCID" in os.environ
-
-
 def parse_conda_uri(uri: str) -> Tuple[str, str, str, str]:
     parsed = urllib.parse.urlparse(uri)
     path = parsed.path
