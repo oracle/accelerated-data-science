@@ -13,6 +13,7 @@ from typing import Tuple
 import fsspec
 import pandas as pd
 import numpy as np
+from sklearn import linear_model
 
 from ads.common.auth import default_signer
 from ads.opctl import logger
@@ -331,7 +332,7 @@ class AnomalyOperatorBaseModel(ABC):
             "The build_model method has failed for the model: {}. "
             "A fallback model will be built.".format(self.spec.model)
         )
-        from sklearn import linear_model
+
         date_column = self.spec.datetime_column.name
         dataset = self.datasets
 
