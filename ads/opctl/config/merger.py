@@ -15,7 +15,7 @@ from ads.common.auth import AuthType, ResourcePrincipal
 from ads.opctl import logger
 from ads.opctl.config.base import ConfigProcessor
 from ads.opctl.config.utils import read_from_ini, _DefaultNoneDict
-from ads.opctl.utils import is_in_notebook_session, is_in_jobrun, get_service_pack_prefix
+from ads.opctl.utils import is_in_notebook_session, get_service_pack_prefix
 from ads.opctl.constants import (
     DEFAULT_PROFILE,
     DEFAULT_OCI_CONFIG_FILE,
