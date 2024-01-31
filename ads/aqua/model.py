@@ -10,12 +10,13 @@ from enum import Enum
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
+from ads.common.serializer import DataClassSerializable
 from oci.exceptions import ServiceError, ClientError
 
 logger = logging.getLogger(__name__)
 
 ICON_FILE_NAME = "icon.txt"
-README = "readme.md"
+README = "README.md"
 UNKNOWN = "Unknown"
 
 
@@ -28,8 +29,8 @@ class Tags(Enum):
     AQUA_FINE_TUNED_MODEL_TAG = "aqua_fine_tuned_model"
 
 
-@dataclass
-class AquaModelSummary:
+@dataclass(repr=False)
+class AquaModelSummary(DataClassSerializable):
     """Represents a summary of Aqua model."""
 
     name: str
@@ -44,8 +45,8 @@ class AquaModelSummary:
     is_fine_tuned_model: bool
 
 
-@dataclass
-class AquaModel(AquaModelSummary):
+@dataclass(repr=False)
+class AquaModel(AquaModelSummary, DataClassSerializable):
     """Represents an Aqua model."""
 
     model_card: str
@@ -61,16 +62,12 @@ class AquaModelApp(AquaApp):
     -------
     create(self, **kwargs) -> "AquaModel"
         Creates an instance of Aqua model.
-    deploy(..., **kwargs)
-        Deploys an Aqua model.
+    get(..., **kwargs)
+        Gets the information of an Aqua model.
     list(self, ..., **kwargs) -> List["AquaModel"]
-        List existing models created via Aqua
+        List Aqua models in a given compartment and under certain project
 
     """
-
-    def __init__(self, **kwargs):
-        """Initializes an Aqua model."""
-        super().__init__(**kwargs)
 
     def create(self, **kwargs) -> "AquaModel":
         pass
@@ -82,7 +79,7 @@ class AquaModelApp(AquaApp):
         ----------
         model_id: str
             The model OCID.
-    
+
         Returns
         -------
         AquaModel:
@@ -94,33 +91,27 @@ class AquaModelApp(AquaApp):
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
         except ClientError as ce:
             raise AquaClientError(str(ce))
-        
+
         if not self._if_show(oci_model):
             raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
-        
+
         custom_metadata_list = oci_model.custom_metadata_list
         artifact_path = self._get_artifact_path(custom_metadata_list)
-        
+
         return AquaModel(
             compartment_id=oci_model.compartment_id,
             project_id=oci_model.project_id,
             name=oci_model.display_name,
             id=oci_model.id,
             time_created=oci_model.time_created,
-            icon=self._read_file(f"{artifact_path}/{ICON_FILE_NAME}"),
+            icon=str(self._read_file(f"{artifact_path}/{ICON_FILE_NAME}")),
             task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-            license=oci_model.freeform_tags.get(
-                Tags.LICENSE.value, UNKNOWN
-            ),
-            organization=oci_model.freeform_tags.get(
-                Tags.ORGANIZATION.value, UNKNOWN
-            ),
+            license=oci_model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+            organization=oci_model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
             is_fine_tuned_model=True
-            if oci_model.freeform_tags.get(
-                Tags.AQUA_FINE_TUNED_MODEL_TAG.value
-            )
+            if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
             else False,
-            model_card=self._read_file(f"{artifact_path}/{README}")
+            model_card=str(self._read_file(f"{artifact_path}/{README}")),
         )
 
     def list(
@@ -159,7 +150,7 @@ class AquaModelApp(AquaApp):
                     # show opc-request-id and status code
                     logger.error(f"Failing to retreive model information. {e}")
                     return []
-                
+
                 artifact_path = self._get_artifact_path(custom_metadata_list)
 
                 aqua_models.append(
@@ -169,18 +160,14 @@ class AquaModelApp(AquaApp):
                         compartment_id=model.compartment_id,
                         project_id=model.project_id,
                         time_created=str(model.time_created),
-                        icon=self._read_file(f"{artifact_path}/{ICON_FILE_NAME}"),
+                        icon=str(self._read_file(f"{artifact_path}/{ICON_FILE_NAME}")),
                         task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-                        license=model.freeform_tags.get(
-                            Tags.LICENSE.value, UNKNOWN
-                        ),
+                        license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
                         organization=model.freeform_tags.get(
                             Tags.ORGANIZATION.value, UNKNOWN
                         ),
                         is_fine_tuned_model=True
-                        if model.freeform_tags.get(
-                            Tags.AQUA_FINE_TUNED_MODEL_TAG.value
-                        )
+                        if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
                         else False,
                     )
                 )
@@ -200,7 +187,7 @@ class AquaModelApp(AquaApp):
             )
             else False
         )
-    
+
     def _get_artifact_path(self, custom_metadata_list: List) -> str:
         """Get the artifact path from the custom metadata list of model.
 
@@ -208,7 +195,7 @@ class AquaModelApp(AquaApp):
         ----------
         custom_metadata_list: List
             A list of custom metadata of model.
-    
+
         Returns
         -------
         str:
@@ -217,10 +204,9 @@ class AquaModelApp(AquaApp):
         for custom_metadata in custom_metadata_list:
             if custom_metadata.key == "Object Storage Path":
                 return custom_metadata.value
-        
         logger.debug("Failed to get artifact path from custom metadata.")
         return None
-    
+
     def _read_file(self, file_path: str) -> str:
         try:
             with fsspec.open(file_path, "rb", **self._auth) as f:

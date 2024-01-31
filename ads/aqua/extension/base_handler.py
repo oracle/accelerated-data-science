@@ -40,3 +40,10 @@ class AquaAPIhandler(APIHandler):
         # Convert the payload to a JSON serializable object
         payload = json.loads(json.dumps(payload, default=self.serialize))
         return super().finish(payload)
+
+
+# todo: remove after error handler is implemented
+class Errors(str):
+    INVALID_INPUT_DATA_FORMAT = "Invalid format of input data."
+    NO_INPUT_DATA = "No input data provided."
+    MISSING_REQUIRED_PARAMETER = "Missing required parameter: '{}'"
