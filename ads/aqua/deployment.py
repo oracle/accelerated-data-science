@@ -8,9 +8,7 @@ from typing import List, Dict
 
 from dataclasses import dataclass
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
-from oci.exceptions import ServiceError, ClientError
 
 
 AQUA_SERVICE_MODEL = "aqua_service_model"
@@ -21,6 +19,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AquaDeployment:
     """Represents an Aqua Model Deployment"""
+    id: str
     display_name: str
     aqua_service_model: str
     state: str
@@ -28,6 +27,9 @@ class AquaDeployment:
     created_on: str
     created_by: str
     endpoint: str
+    instance_shape: str
+    ocpus: float
+    memory_in_gbs: float
 
 
 class AquaDeploymentApp(AquaApp):
@@ -80,15 +82,7 @@ class AquaDeploymentApp(AquaApp):
             )
             if aqua_service_model:
                 results.append(
-                    AquaDeployment(
-                        display_name=model_deployment.display_name,
-                        aqua_service_model=aqua_service_model,
-                        state=model_deployment.lifecycle_state,
-                        description=model_deployment.description,
-                        created_on=str(model_deployment.time_created),
-                        created_by=model_deployment.created_by,
-                        endpoint=model_deployment.model_deployment_url
-                    )
+                    AquaDeploymentApp.from_oci_model_deployment(model_deployment)
                 )
 
         return results
@@ -116,30 +110,57 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        if not kwargs.get("model_deployment_id", None):
-            raise AquaClientError("Aqua model deployment ocid must be provided to fetch the deployment.")
+        # add error handler
+        # if not kwargs.get("model_deployment_id", None):
+        #     raise AquaClientError("Aqua model deployment ocid must be provided to fetch the deployment.")
         
-        try:
-            model_deployment = self.client.get_model_deployment(**kwargs).data
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-        except ClientError as ce:
-            raise AquaClientError(str(ce))
+        # add error handler
+        model_deployment = self.client.get_model_deployment(**kwargs).data
         
         aqua_service_model=(
             model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None) 
             if model_deployment.freeform_tags else None
         )
 
-        if not aqua_service_model:
-            raise AquaClientError(f"Target deployment {model_deployment.id} is not Aqua deployment.")
+        # add error handler
+        # if not aqua_service_model:
+        #     raise AquaClientError(f"Target deployment {model_deployment.id} is not Aqua deployment.")
 
-        return AquaDeployment(
-            display_name=model_deployment.display_name,
-            aqua_service_model=aqua_service_model,
-            state=model_deployment.lifecycle_state,
-            description=model_deployment.description,
-            created_on=str(model_deployment.time_created),
-            created_by=model_deployment.created_by,
-            endpoint=model_deployment.model_deployment_url
+        return AquaDeploymentApp.from_oci_model_deployment(model_deployment)
+    
+    @classmethod
+    def from_oci_model_deployment(cls, oci_model_deployment) -> "AquaDeployment":
+        """Converts oci model deployment response to AquaDeployment instance.
+
+        Parameters
+        ----------
+        oci_model_deployment: oci.data_science.models.ModelDeployment
+            The oci.data_science.models.ModelDeployment instance.
+
+        Returns
+        -------
+        AquaDeployment:
+            The instance of the Aqua model deployment.
+        """
+        instance_configuration = (
+            oci_model_deployment
+            .model_deployment_configuration_details
+            .model_configuration_details
+            .instance_configuration
         )
+        instance_shape_config_details = (
+            instance_configuration.model_deployment_instance_shape_config_details
+        )
+        return AquaDeployment(
+            id=oci_model_deployment.id,
+            display_name=oci_model_deployment.display_name,
+            aqua_service_model=oci_model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL),
+            state=oci_model_deployment.lifecycle_state,
+            description=oci_model_deployment.description,
+            created_on=str(oci_model_deployment.time_created),
+            created_by=oci_model_deployment.created_by,
+            endpoint=oci_model_deployment.model_deployment_url,
+            instance_shape=instance_configuration.instance_shape_name,
+            ocpus=instance_shape_config_details.ocpus,
+            memory_in_gbs=instance_shape_config_details.memory_in_gbs
+        ) 
