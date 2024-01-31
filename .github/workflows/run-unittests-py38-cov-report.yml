@@ -2,12 +2,10 @@ name: "[Py3.8][COV REPORT] tests/unitary/**"
 
 on:
   workflow_dispatch:
+  push:
   pull_request:
-    paths:
-      - "ads/**"
-      - pyproject.toml
-      - "**requirements.txt"
-      - ".github/workflows/run-unittests*.yml"
+    types: [opened, reopened]
+    branches: [ "main" ]
 
 # Cancel in progress workflows on pull_requests.
 # https://docs.github.com/en/actions/using-jobs/using-concurrency#example-using-a-fallback-value
@@ -116,7 +114,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     needs: test
-    if: ${{ success() }} && && github.event_name == 'pull_request'
+    if: ${{ success() }} && github.event_name == 'pull_request'
     env:
       COMPARE_BRANCH: main
 
@@ -155,7 +153,6 @@ jobs:
           fi
 
       - name: "Calculate coverage diff"
-        if: always()
         run: |
           set -x # print commands that are executed
 
@@ -186,7 +183,7 @@ jobs:
 
       - name: "Add comment with cov diff to PR"
         uses: actions/github-script@v6
-        if: always()
+        if: github.event_name == 'pull_request'
         with:
           github-token: ${{ github.token }}
           script: |
