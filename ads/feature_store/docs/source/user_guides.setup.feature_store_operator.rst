@@ -12,7 +12,7 @@ The Feature Store Marketplace Operator can be installed from PyPi using the foll
 
 .. code-block:: bash
 
-    python3 -m pip install oracle-ads[feature-store-marketplace]
+    python3 -m pip install "oracle-ads[feature-store-marketplace]"
 
 
 After that, the Operator is ready to go!

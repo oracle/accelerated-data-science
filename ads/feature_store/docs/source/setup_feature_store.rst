@@ -21,8 +21,8 @@ Database configuration
 
 Feature Store can be configured to use your existing MySQL database. It supports two types of authentication:
 
-1.  Basic (Not recommended): The password is stored as plaintext in the API server.
-2.  Vault (Recommended): The password is stored in an encrypted format inside `OCI Vault <https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Concepts/keyoverview.htm>`_.
+1.  ``Basic (Not recommended)``: The password is stored as plaintext in the API server.
+2.  ``Vault (Recommended)``: The password is stored in an encrypted format inside `OCI Vault <https://docs.oracle.com/en-us/iaas/Content/KeyManagement/Concepts/keyoverview.htm>`_.
 
 Storing the password in Vault:
 
@@ -58,9 +58,7 @@ The policies required by the Feature Store API server are:
 .. code-block:: text
 
     allow dynamic-group <feature-store-dynamic-group> to read compartments in tenancy
-
     allow dynamic-group <feature-store-dynamic-group> to manage data-catalog-family in tenancy
-
     allow dynamic-group <feature-store-dynamic-group> to inspect data-science-models in tenancy
 
 
