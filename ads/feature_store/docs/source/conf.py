@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -9,14 +9,14 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../../"))
 
-version = "1.0.4"
+version = "1.1.0"
 release = version
 
 
 # -- Project information -----------------------------------------------------
 
 project = "oci_feature_store"
-copyright = "Oracle and/or its affiliates 2022, 2023"
+copyright = "Oracle and/or its affiliates 2022, 2023, 2024"
 author = "Oracle Corporation"
 
 # -- General configuration ---------------------------------------------------
