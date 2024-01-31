@@ -4,11 +4,18 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 """Exception module."""
-
-from oci.exceptions import ServiceError
-from tornado.web import HTTPError
-from oci.exceptions import ServiceError
+import sys
 from dataclasses import asdict, dataclass
+from functools import wraps
+
+from oci.exceptions import (
+    ServiceError,
+    ClientError,
+    MultipartUploadError,
+    CompositeOperationError,
+    BaseConnectTimeout,
+)
+from ads.aqua.extension.base_handler import AquaAPIhandler
 
 
 @dataclass
@@ -25,114 +32,79 @@ class AquaError(Exception):
     will inherit.
     """
 
-    def to_payload(self) -> dict:
-        """Builds error payload."""
-        return asdict(
-            ErrorPayload(
-                message=self.message,
-                reason=self.reason,
-                service_payload=self.service_payload,
-            )
-        )
+    def __init__(
+        self,
+        reason: str,
+        service_payload: dict = None,
+        status: int = None,
+    ):
+        """Initializes an AquaError.
+
+        Parameters
+        ----------
+        reason: str
+            User friendly error message.
+        service_payload: dict
+            Payload to contain more details related to the error.
+        status: int
+            Http status code
+        """
+        self.service_payload = service_payload
+        if status is None and self.service_payload and "status" in self.service_payload:
+            self.status = self.service_payload["status"]
+        else:
+            self.status = status
+        self.reason = reason
 
 
 class AquaServiceError(AquaError):
     """Exception raised for server side error."""
 
-    def __init__(
-        self, message: str, service_payload: dict, status: int, reason: str = None
-    ):
-        """Initializes an AquaServiceError.
-
-        Parameters
-        ----------
-        message: str
-            User friendly error message.
-        service_payload: dict
-            `oci.exceptions.ServiceError`.
-        status: int
-            status code
-        reason: (str, optional)
-            Where the error raises. Defaults to None. For example, `ads.aqua.model.AquaModelApp.get`.
-        """
-        self.message = message
-        self.service_payload = service_payload
-        self.status = status
-        self.reason = reason
-
 
 class AquaClientError(AquaError):
     """Exception raised for client side error."""
-
-    def __init__(
-        self,
-        message: str,
-        service_payload: dict = None,
-        status: int = None,
-        reason: str = None,
-    ):
-        """Initializes an AquaServiceError.
-
-        Parameters
-        ----------
-        message: str
-            User friendly error message.
-        service_payload: (dict, optional)
-            `oci.exceptions.ServiceError`.
-        status: (int, optional)
-            status code
-        reason: (str, optional)
-            Where the error raises. Defaults to None. For example, `ads.aqua.model.AquaModelApp.get`.
-        """
-        self.message = message
-        self.service_payload = service_payload
-        self.status = status
-        self.reason = reason
 
 
 def exception_handler(func):
     """Handles AquaError."""
 
-    def inner_function(*args, **kwargs):
+    @wraps(func)
+    def inner_function(self: AquaAPIhandler, *args, **kwargs):
+        # we don't put exc_info into write_error by default because jupyter may write error without exception.
         try:
-            func(*args, **kwargs)
-        except AquaServiceError as service_error:
-            raise HTTPError(
-                service_error.status or 500,
-                service_error.message,
-                **service_error.to_payload(),
+            return func(self, *args, **kwargs)
+        except ServiceError as error:
+            self.write_error(
+                status_code=error.status or 500,
+                reason=error.message,
+                service_payload=error.args[0] if error.args else None,
+                exc_info=sys.exc_info(),
             )
-        except AquaClientError as client_error:
-            raise HTTPError(
-                client_error.status or 400,
-                client_error.message,
-                **client_error.to_payload(),
+        except ClientError as error:
+            self.write_error(
+                status_code=400,
+                reason=str(error),
+                service_payload={"args": error.args},
+                exc_info=sys.exc_info(),
             )
-        except Exception as internal_error:
-            raise HTTPError(500, str(internal_error))
-
-    return inner_function
-
-
-def oci_exception_handler(func):
-    """Handles OCI Service Error."""
-
-    def inner_function(*args, **kwargs):
-        try:
-            func(*args, **kwargs)
-        except ServiceError as e:
-            error_details = e.args[0]
-            if e.status >= 500:
-                raise AquaServiceError(
-                    message=e.message,
-                    service_payload=error_details,
-                    status=e.status,
-                )
-            else:
-                raise AquaClientError(
-                    message=e.message, service_payload=error_details, status=e.status
-                )
-        except Exception as ex:
-            raise AquaClientError(message=str(ex))
+        # TODO: need to catch other OCI exceptions
+        except AquaServiceError as error:
+            self.write_error(
+                status_code=error.status or 500,
+                reason=error.reason,
+                service_payload=error.service_payload,
+                exc_info=sys.exc_info(),
+            )
+        except AquaClientError as error:
+            self.write_error(
+                status_code=error.status or 400,
+                reason=error.reason,
+                service_payload=error.service_payload,
+                exc_info=sys.exc_info(),
+            )
+        except Exception:
+            self.write_error(
+                status_code=500, reason="Unknown AQUA Error", exc_info=sys.exc_info()
+            )
 
     return inner_function

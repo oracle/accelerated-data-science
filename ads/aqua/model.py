@@ -6,8 +6,12 @@ import fsspec
 from dataclasses import dataclass
 from typing import List
 from enum import Enum
+
+import oci
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
+from ads.aqua.exception import AquaClientError, AquaServiceError
+
 
 ICON_FILE_NAME = "icon.txt"
 UNKNOWN = "Unknown"
@@ -71,6 +75,82 @@ class AquaModelApp(AquaApp):
 
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model."""
+
+        if model_id == "x1":
+            # If the user give invalid parameter and we catch that before sending it to service
+            # then it is a client error.
+            # By default, we return 400
+            raise AquaClientError("Invalid Parameter", {"shape": "some_invalid_value"})
+        elif model_id == "x11":
+            # The service also catch things like invalid ocid
+            raise oci.exceptions.ServiceError(
+                **{
+                    "headers": {},
+                    "target_service": "data_science",
+                    "status": 404,
+                    "code": "NotAuthorizedOrNotFound",
+                    "opc-request-id": "FFF8",
+                    "message": "Authorization failed or requested resource not found.",
+                    "operation_name": "list_job_shapes",
+                    "timestamp": "2024-01-01T01:00:00.000000+00:00",
+                    "client_version": "Oracle-PythonSDK/2.118.1",
+                    "request_endpoint": "GET https://datascience.eu-frankfurt-1.oci.oraclecloud.com/20190101/jobShapes",
+                    "logging_tips": "To get more info on the failing request, refer to https://docs.oracle.com/en-us/iaas/tools/python/latest/logging.html for ways to log the request/response details.",
+                    "troubleshooting_tips": "See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_404__404_notauthorizedornotfound for more information about resolving this error. Also see https://docs.oracle.com/iaas/api/#/en/data-science/20190101/JobShapeSummary/ListJobShapes for details on this operation's requirements. If you are unable to resolve this data_science issue, please contact Oracle support and provide them this full error message.",
+                }
+            )
+        elif model_id == "x12":
+            # If the user is not authenticated, the service error has 401 status code
+            raise oci.exceptions.ServiceError(
+                **{
+                    "headers": {},
+                    "target_service": "data_science",
+                    "status": 401,
+                    "code": "NotAuthenticated",
+                    "opc-request-id": "16770",
+                    "message": "The required information to complete authentication was not provided or was incorrect.",
+                    "operation_name": "get_model",
+                    "timestamp": "2024-01-01T01:00:00.000000+00:00",
+                    "client_version": "Oracle-PythonSDK/2.118.1",
+                    "request_endpoint": "GET https://datascience.eu-frankfurt-1.oci.oraclecloud.com/20190101/projects",
+                    "logging_tips": "To get more info on the failing request, refer to https://docs.oracle.com/en-us/iaas/tools/python/latest/logging.html for ways to log the request/response details.",
+                    "troubleshooting_tips": "See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_401__401_notauthenticated for more information about resolving this error. Also see https://docs.oracle.com/iaas/api/#/en/data-science/20190101/ProjectSummary/ListProjects for details on this operation's requirements. If you are unable to resolve this data_science issue, please contact Oracle support and provide them this full error message.",
+                }
+            )
+        elif model_id == "x13":
+            # OCI may raise client error without reaching the service
+            raise oci.exceptions.ClientError("Invalid API key")
+        elif model_id == "x2":
+            # If the service has on issue but we have trouble handling the response from the service, which is unlikely.
+            # For example, some malfunction CM deleted the model card from object storage.
+            # We may return a payload from the service API, or a list of files available from the object storage.
+            raise AquaServiceError(
+                "Model Card not Found.",
+                {"files": ["file1.csv", "file2.json"]},
+                status=404,
+            )
+        elif model_id == "x22":
+            # This is a real service error with 500 code
+            raise oci.exceptions.ServiceError(
+                **{
+                    "headers": {},
+                    "target_service": "data_science",
+                    "status": 500,
+                    "code": "InternalError",
+                    "opc-request-id": "123",
+                    "message": "The required information to complete authentication was not provided or was incorrect.",
+                    "operation_name": "get_model",
+                    "timestamp": "2024-01-01T01:00:00.000000+00:00",
+                    "client_version": "Oracle-PythonSDK/2.118.1",
+                    "request_endpoint": "GET https://datascience.eu-frankfurt-1.oci.oraclecloud.com/20190101/projects",
+                    "logging_tips": "To get more info on the failing request, refer to https://docs.oracle.com/en-us/iaas/tools/python/latest/logging.html for ways to log the request/response details.",
+                    "troubleshooting_tips": "See https://docs.oracle.com/iaas/Content/API/References/apierrors.htm#apierrors_401__401_notauthenticated for more information about resolving this error. Also see https://docs.oracle.com/iaas/api/#/en/data-science/20190101/ProjectSummary/ListProjects for details on this operation's requirements. If you are unable to resolve this data_science issue, please contact Oracle support and provide them this full error message.",
+                }
+            )
+        elif model_id == "x3":
+            # This is an unhandled bug in ADS
+            raise ValueError("ADS Bug")
+
         model_card = """
 # Model Card: Dummy Text Generator
 ## Description

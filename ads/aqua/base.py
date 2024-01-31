@@ -8,7 +8,7 @@ from typing import List
 
 import oci
 from ads.common.auth import default_signer
-from ads.aqua.exception import oci_exception_handler
+from ads.aqua.exception import exception_handler
 from ads.aqua.utils import get_logger
 
 
@@ -20,7 +20,7 @@ class AquaApp:
         self.client = oci.data_science.DataScienceClient(**self._auth)
         self.logger = get_logger()
 
-    @oci_exception_handler
+    @exception_handler
     def list_resource(
         self,
         list_func_ref,
