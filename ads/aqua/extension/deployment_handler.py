@@ -133,7 +133,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
     def read(self, id):
         """Read the information of an Aqua model deployment."""
         try:
-            return self.finish(AquaDeploymentApp().get())
+            return self.finish(AquaDeploymentApp().get(model_deployment_id=id))
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
@@ -150,7 +150,11 @@ class AquaDeploymentHandler(AquaAPIhandler):
         project_id = self.get_argument("project_id", default=PROJECT_OCID)
         try:
             # todo: update below after list is implemented
-            return self.finish(AquaDeploymentApp().list())
+            return self.finish(
+                AquaDeploymentApp().list(
+                    compartment_id=compartment_id, project_id=project_id
+                )
+            )
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
