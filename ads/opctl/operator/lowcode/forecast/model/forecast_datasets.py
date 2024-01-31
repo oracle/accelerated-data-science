@@ -88,13 +88,16 @@ class AbstractForecastData(ABC):
         )
         return data
 
-    def _ingest_data(self, spec):
-        pass
-
     def load_transform_ingest_data(self, spec):
         raw_data = self._load_data(getattr(spec, self.name))
         self.data = self._transform_data(spec, raw_data)
         self._ingest_data(spec)
+
+    def _ingest_data(self, spec):
+        pass
+
+    def get_data_long(self):
+        return self.data.reset_index(drop=False)
 
     def get_min_time(self):
         return self.data.index.get_level_values(0).min()
@@ -151,7 +154,7 @@ class AdditionalData(AbstractForecastData):
         future_dates = pd.Series(
             pd.date_range(
                 start=historical_data.get_max_time(),
-                periods=spec.horizon,
+                periods=spec.horizon + 1,
                 freq=historical_data.freq,
             ),
             name=spec.datetime_column.name,
@@ -159,7 +162,7 @@ class AdditionalData(AbstractForecastData):
         add_dfs = []
         for s_id in historical_data.list_series_ids():
             df_i = historical_data.get_data_for_series(s_id)[spec.datetime_column.name]
-            df_i = pd.DataFrame(pd.concat([df_i, future_dates]))
+            df_i = pd.DataFrame(pd.concat([df_i, future_dates[1:]]))
             df_i[ForecastOutputColumns.SERIES] = s_id
             df_i = df_i.set_index(
                 [spec.datetime_column.name, ForecastOutputColumns.SERIES]
@@ -248,6 +251,9 @@ class ForecastDatasets:
                 f"Unable to retrieve series id: {s_id} from data. Available series ids are: {self.list_series_ids()}"
             )
 
+    def get_horizon_at_series(self, s_id):
+        return self.get_data_at_series(s_id)[-self._horizon :]
+
     def has_artificial_series(self):
         return self.historical_data._data_transformer.has_artificial_series
 
@@ -269,8 +275,14 @@ class ForecastDatasets:
     def get_num_rows(self):
         return self.historical_data.get_num_rows()
 
-    def list_series_ids(self):
-        return self.historical_data.list_series_ids()
+    def list_series_ids(self, sorted=True):
+        series_ids = self.historical_data.list_series_ids()
+        if sorted:
+            try:
+                series_ids.sort()
+            except:
+                pass
+        return series_ids
 
     def format_wide(self):
         data_merged = pd.concat(
@@ -287,17 +299,27 @@ class ForecastDatasets:
 
 
 class ForecastOutput:
-    def __init__(self, confidence_interval_width: float):
+    def __init__(
+        self,
+        confidence_interval_width: float,
+        horizon: int,
+        target_column: str,
+        dt_column: str,
+    ):
         """Forecast Output contains all of the details required to generate the forecast.csv output file.
 
-        Methods
-        ----------
-
+        init
+        -------
+        confidence_interval_width: float  value from OperatorSpec
+        horizon: int  length of horizon
+        target_column: str the name of the original target column
+        dt_column: the name of the original datetime column
         """
         self.series_id_map = dict()
-        self.confidence_interval_width = confidence_interval_width
-        self.upper_bound_name = None
-        self.lower_bound_name = None
+        self._set_ci_column_names(confidence_interval_width)
+        self.horizon = horizon
+        self.target_column_name = target_column
+        self.dt_column_name = dt_column
 
     def add_series_id(
         self,
@@ -310,26 +332,117 @@ class ForecastOutput:
                 f"Attempting to update ForecastOutput for series_id {series_id} when this already exists. Set overwrite to True."
             )
         forecast = self._check_forecast_format(forecast)
-        forecast = self._set_ci_column_names(forecast)
         self.series_id_map[series_id] = forecast
 
+    def init_series_output(self, series_id, data_at_series):
+        output_i = pd.DataFrame()
+
+        output_i["Date"] = data_at_series[self.dt_column_name]
+        output_i["Series"] = series_id
+        output_i["input_value"] = data_at_series[self.target_column_name]
+
+        output_i["fitted_value"] = float("nan")
+        output_i["forecast_value"] = float("nan")
+        output_i[self.lower_bound_name] = float("nan")
+        output_i[self.upper_bound_name] = float("nan")
+        self.series_id_map[series_id] = output_i
+
+    def populate_series_output(
+        self, series_id, fit_val, forecast_val, upper_bound, lower_bound
+    ):
+        """
+        This method should be run after init_series_output has been run on this series_id
+
+        Parameters:
+        -----------
+        series_id: [str, int] the series being forecasted
+        fit_val: numpy.array of length input_value - horizon
+        forecast_val: numpy.array of length horizon containing the forecasted values
+        upper_bound: numpy.array of length horizon containing the upper_bound values
+        lower_bound: numpy.array of length horizon containing the lower_bound values
+
+        Returns:
+        --------
+        None
+        """
+        try:
+            output_i = self.series_id_map[series_id]
+        except KeyError:
+            raise ValueError(
+                f"Attempting to update output for series: {series_id}, however no series output has been initialized."
+            )
+
+        if (output_i.shape[0] - self.horizon) == len(fit_val):
+            output_i["fitted_value"].iloc[
+                : -self.horizon
+            ] = fit_val  # Note: may need to do len(output_i) - (len(fit_val) + horizon) : -horizon
+        elif (output_i.shape[0] - self.horizon) > len(fit_val):
+            logger.debug(
+                f"Fitted Values were only generated on a subset ({len(fit_val)}/{(output_i.shape[0] - self.horizon)}) of the data for Series: {series_id}."
+            )
+            start_idx = output_i.shape[0] - self.horizon - len(fit_val)
+            output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val
+        else:
+            output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val[
+                -(output_i.shape[0] - self.horizon) :
+            ]
+
+        if len(forecast_val) != self.horizon:
+            raise ValueError(
+                f"Attempting to set forecast along horizon ({self.horizon}) for series: {series_id}, however forecast is only length {len(forecast_val)}"
+            )
+        output_i["forecast_value"].iloc[-self.horizon :] = forecast_val
+
+        if len(upper_bound) != self.horizon:
+            raise ValueError(
+                f"Attempting to set upper_bound along horizon ({self.horizon}) for series: {series_id}, however upper_bound is only length {len(upper_bound)}"
+            )
+        output_i[self.upper_bound_name].iloc[-self.horizon :] = upper_bound
+
+        if len(lower_bound) != self.horizon:
+            raise ValueError(
+                f"Attempting to set lower_bound along horizon ({self.horizon}) for series: {series_id}, however lower_bound is only length {len(lower_bound)}"
+            )
+        output_i[self.lower_bound_name].iloc[-self.horizon :] = lower_bound
+
+        self.series_id_map[series_id] = output_i
+        self.verify_series_output(series_id)
+
+    def verify_series_output(self, series_id):
+        forecast = self.series_id_map[series_id]
+        self._check_forecast_format(forecast)
+
+    def get_horizon_by_series(self, series_id):
+        return self.series_id_map[series_id][-self.horizon :]
+
+    def get_horizon_long(self):
+        df = pd.DataFrame()
+        for s_id in self.list_series_ids():
+            df = pd.concat([df, self.get_horizon_by_series(s_id)])
+        return df.reset_index(drop=True)
+
     def get_forecast(self, series_id):
-        return self.series_id_map[series_id]
+        try:
+            return self.series_id_map[series_id]
+        except KeyError as ke:
+            logger.debug(
+                f"No Forecast found for series_id: {series_id}. Returning empty DataFrame."
+            )
+            return pd.DataFrame()
 
-    def list_series_ids(self):
-        return list(self.series_id_map.keys())
+    def list_series_ids(self, sorted=True):
+        series_ids = list(self.series_id_map.keys())
+        if sorted:
+            try:
+                series_ids.sort()
+            except:
+                pass
+        return series_ids
 
-    def _set_ci_column_names(self, forecast_i):
-        yhat_lower_percentage = (100 - self.confidence_interval_width * 100) // 2
+    def _set_ci_column_names(self, confidence_interval_width):
+        yhat_lower_percentage = (100 - confidence_interval_width * 100) // 2
         self.upper_bound_name = "p" + str(int(100 - yhat_lower_percentage))
         self.lower_bound_name = "p" + str(int(yhat_lower_percentage))
-        return forecast_i.rename(
-            {
-                ForecastOutputColumns.UPPER_BOUND: self.upper_bound_name,
-                ForecastOutputColumns.LOWER_BOUND: self.lower_bound_name,
-            },
-            axis=1,
-        )
 
     def _check_forecast_format(self, forecast):
         assert isinstance(forecast, pd.DataFrame)
@@ -341,8 +454,8 @@ class ForecastOutput:
         assert ForecastOutputColumns.INPUT_VALUE in forecast.columns
         assert ForecastOutputColumns.FITTED_VALUE in forecast.columns
         assert ForecastOutputColumns.FORECAST_VALUE in forecast.columns
-        assert ForecastOutputColumns.UPPER_BOUND in forecast.columns
-        assert ForecastOutputColumns.LOWER_BOUND in forecast.columns
+        assert self.upper_bound_name in forecast.columns
+        assert self.lower_bound_name in forecast.columns
         assert not forecast.empty
         # forecast.columns = pd.Index([
         #     ForecastOutputColumns.DATE,
@@ -354,3 +467,9 @@ class ForecastOutput:
         #     ForecastOutputColumns.LOWER_BOUND,
         # ])
         return forecast
+
+    def get_forecast_long(self):
+        output = pd.DataFrame()
+        for df in self.series_id_map.values():
+            output = pd.concat([output, df])
+        return output.reset_index(drop=True)

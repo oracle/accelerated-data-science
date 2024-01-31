@@ -58,159 +58,45 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config=config, datasets=datasets)
-        self.train_metrics = True
         self.global_explanation = {}
         self.local_explanation = {}
 
-    def _train_model(self, i, series_id, df):
+    def set_kwargs(self):
+        # Extract the Confidence Interval Width and convert to prophet's equivalent - interval_width
+        if self.spec.confidence_interval_width is None:
+            self.spec.confidence_interval_width = 1 - self.spec.model_kwargs.get(
+                "alpha", 0.90
+            )
+        model_kwargs = self.spec.model_kwargs
+        model_kwargs["interval_width"] = self.spec.confidence_interval_width
+        return model_kwargs
+
+    def _train_model(self, i, series_id, df, model_kwargs):
         try:
             from prophet import Prophet
             from prophet.diagnostics import cross_validation, performance_metrics
 
-            # Extract the Confidence Interval Width and convert to prophet's equivalent - interval_width
-            if self.spec.confidence_interval_width is None:
-                self.spec.confidence_interval_width = 1 - self.spec.model_kwargs.get(
-                    "alpha", 0.90
-                )
-
-            model_kwargs = None
-            if self.loaded_models is None:
-                model_kwargs = self.spec.model_kwargs
-                model_kwargs["interval_width"] = self.spec.confidence_interval_width
-
-            self.forecast_output = ForecastOutput(
-                confidence_interval_width=self.spec.confidence_interval_width
+            self.forecast_output.init_series_output(
+                series_id=series_id, data_at_series=df
             )
 
-            target = self.original_target_column
-            le, df_encoded = _label_encode_dataframe(
-                df, no_encode={self.spec.datetime_column.name, target}
-            )
-
-            # format the dataframe for this target. Dropping NA on target[df] will remove all future data
-            df_clean = self._preprocess(
-                df_encoded,
-                self.spec.datetime_column.name,
-                self.spec.datetime_column.format,
-            )
-            data_i = df_clean[df_clean[target].notna()]
-            data_i.rename({target: "y"}, axis=1, inplace=True)
-
-            # Assume that all columns passed in should be used as additional data
-            additional_regressors = set(data_i.columns) - {
-                "y",
-                PROPHET_INTERNAL_DATE_COL,
-            }
-            model = (
-                self.loaded_models[series_id]
-                if self.loaded_models is not None
-                else None
-            )
-
-            if model is None:
-                model_kwargs_i = model_kwargs.copy()
-                if self.perform_tuning:
-
-                    def objective(trial):
-                        params = {
-                            "seasonality_mode": trial.suggest_categorical(
-                                "seasonality_mode", ["additive", "multiplicative"]
-                            ),
-                            "changepoint_prior_scale": trial.suggest_float(
-                                "changepoint_prior_scale", 0.001, 0.5, log=True
-                            ),
-                            "seasonality_prior_scale": trial.suggest_float(
-                                "seasonality_prior_scale", 0.01, 10, log=True
-                            ),
-                            "holidays_prior_scale": trial.suggest_float(
-                                "holidays_prior_scale", 0.01, 10, log=True
-                            ),
-                            "changepoint_range": trial.suggest_float(
-                                "changepoint_range", 0.8, 0.95
-                            ),
-                        }
-                        params.update(model_kwargs_i)
-
-                        model = _fit_model(
-                            data=data_i,
-                            params=params,
-                            additional_regressors=additional_regressors,
-                        )
-
-                        # Manual workaround because pandas 1.x dropped support for M and Y
-                        interval = self.spec.horizon
-                        freq = self.datasets.get_datetime_frequency()
-                        unit = freq.split("-")[0] if freq else None
-                        if unit == "M":
-                            unit = "D"
-                            interval = interval * 30.5
-                        elif unit == "Y":
-                            unit = "D"
-                            interval = interval * 365.25
-                        horizon = _add_unit(
-                            int(self.spec.horizon * interval), unit=unit
-                        )
-                        initial = _add_unit(
-                            (data_i.shape[0] * interval) // 2, unit=unit
-                        )
-                        period = _add_unit((data_i.shape[0] * interval) // 4, unit=unit)
-
-                        logger.debug(
-                            f"using: horizon: {horizon}. initial:{initial}, period: {period}"
-                        )
-
-                        df_cv = cross_validation(
-                            model,
-                            horizon=horizon,
-                            initial=initial,
-                            period=period,
-                            parallel="threads",
-                        )
-                        df_p = performance_metrics(df_cv)
-                        try:
-                            return np.mean(df_p[self.spec.metric])
-                        except KeyError:
-                            logger.warn(
-                                f"Could not find the metric {self.spec.metric} within "
-                                f"the performance metrics: {df_p.columns}. Defaulting to `rmse`"
-                            )
-                            return np.mean(df_p["rmse"])
-
-                    study = optuna.create_study(direction="minimize")
-                    m_temp = Prophet()
-                    study.enqueue_trial(
-                        {
-                            "seasonality_mode": m_temp.seasonality_mode,
-                            "changepoint_prior_scale": m_temp.changepoint_prior_scale,
-                            "seasonality_prior_scale": m_temp.seasonality_prior_scale,
-                            "holidays_prior_scale": m_temp.holidays_prior_scale,
-                            "changepoint_range": m_temp.changepoint_range,
-                        }
-                    )
-                    study.optimize(
-                        objective,
-                        n_trials=self.spec.tuning.n_trials
-                        if self.spec.tuning
-                        else DEFAULT_TRIALS,
-                        n_jobs=-1,
-                    )
-
-                    study.best_params.update(model_kwargs_i)
-                    model_kwargs_i = study.best_params
-                model = _fit_model(
-                    data=data_i,
-                    params=model_kwargs_i,
-                    additional_regressors=additional_regressors,
-                )
-
-            # Make future df for prediction
-            if len(additional_regressors):
-                future = df_clean.drop(target, axis=1)
+            data = self.preprocess(df, series_id)
+            data_i = data[: -self.spec.horizon]
+            if self.loaded_models is not None:
+                model = self.loaded_models[series_id]
             else:
-                future = model.make_future_dataframe(
-                    periods=self.spec.horizon,
-                    freq=self.datasets.get_datetime_frequency(),
+                if self.perform_tuning:
+                    model_kwargs = self.run_tuning(data_i, model_kwargs)
+
+                model = _fit_model(
+                    data=data,
+                    params=model_kwargs,
+                    additional_regressors=self.additional_regressors,
                 )
+
+            # Get future df for prediction
+            future = data.drop("y", axis=1)
+
             # Make Prediction
             forecast = model.predict(future)
             logger.debug(f"-----------------Model {i}----------------------")
@@ -221,9 +107,14 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             )
 
             self.outputs[series_id] = forecast
-
-            if self.loaded_models is None:
-                self.models[series_id] = model
+            self.forecast_output.populate_series_output(
+                series_id=series_id,
+                fit_val=forecast["yhat"].iloc[: -self.spec.horizon].values,
+                forecast_val=forecast["yhat"].iloc[-self.spec.horizon :].values,
+                upper_bound=forecast["yhat_upper"].iloc[-self.spec.horizon :].values,
+                lower_bound=forecast["yhat_lower"].iloc[-self.spec.horizon :].values,
+            )
+            self.models[series_id] = model
 
             params = vars(model).copy()
             for param in ["history", "history_dates", "stan_fit"]:
@@ -240,6 +131,7 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 "model_name": self.spec.model,
                 "error": str(e),
             }
+            raise
 
     def _build_model(self) -> pd.DataFrame:
         from prophet import Prophet
@@ -248,60 +140,108 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
         full_data_dict = self.datasets.get_data_by_series()
         self.models = dict()
         self.outputs = dict()
+        self.additional_regressors = self.datasets.get_additional_data_column_names()
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width,
+            horizon=self.spec.horizon,
+            target_column=self.original_target_column,
+            dt_column=self.spec.datetime_column.name,
+        )
+        model_kwargs = self.set_kwargs()
 
         Parallel(n_jobs=-1, require="sharedmem")(
-            delayed(ProphetOperatorModel._train_model)(self, i, series_id, df)
+            delayed(ProphetOperatorModel._train_model)(
+                self, i, series_id, df, model_kwargs.copy()
+            )
             for self, (i, (series_id, df)) in zip(
                 [self] * len(full_data_dict), enumerate(full_data_dict.items())
             )
         )
 
-        if self.loaded_models is not None:
-            self.models = self.loaded_models
+        return self.forecast_output.get_forecast_long()
 
-        # Merge the outputs from each model into 1 df with all outputs by target and series
-        output_col = pd.DataFrame()
-        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
-        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for s_id in self.datasets.list_series_ids():
+    def run_tuning(self, data_i, model_kwargs_i):
+        def objective(trial):
+            params = {
+                "seasonality_mode": trial.suggest_categorical(
+                    "seasonality_mode", ["additive", "multiplicative"]
+                ),
+                "changepoint_prior_scale": trial.suggest_float(
+                    "changepoint_prior_scale", 0.001, 0.5, log=True
+                ),
+                "seasonality_prior_scale": trial.suggest_float(
+                    "seasonality_prior_scale", 0.01, 10, log=True
+                ),
+                "holidays_prior_scale": trial.suggest_float(
+                    "holidays_prior_scale", 0.01, 10, log=True
+                ),
+                "changepoint_range": trial.suggest_float(
+                    "changepoint_range", 0.8, 0.95
+                ),
+            }
+            params.update(model_kwargs_i)
+
+            model = _fit_model(
+                data=data_i,
+                params=params,
+                additional_regressors=self.additional_regressors,
+            )
+
+            # Manual workaround because pandas 1.x dropped support for M and Y
+            interval = self.spec.horizon
+            freq = self.datasets.get_datetime_frequency()
+            unit = freq.split("-")[0] if freq else None
+            if unit == "M":
+                unit = "D"
+                interval = interval * 30.5
+            elif unit == "Y":
+                unit = "D"
+                interval = interval * 365.25
+            horizon = _add_unit(int(self.spec.horizon * interval), unit=unit)
+            initial = _add_unit((data_i.shape[0] * interval) // 2, unit=unit)
+            period = _add_unit((data_i.shape[0] * interval) // 4, unit=unit)
+
+            logger.debug(
+                f"using: horizon: {horizon}. initial:{initial}, period: {period}"
+            )
+
+            df_cv = cross_validation(
+                model,
+                horizon=horizon,
+                initial=initial,
+                period=period,
+                parallel="threads",
+            )
+            df_p = performance_metrics(df_cv)
             try:
-                output_i = pd.DataFrame()
-
-                output_i["Date"] = self.outputs[s_id][PROPHET_INTERNAL_DATE_COL]
-                output_i[ForecastOutputColumns.SERIES] = s_id
-                output_i["input_value"] = full_data_dict[s_id][
-                    self.original_target_column
-                ]
-
-                output_i[f"fitted_value"] = float("nan")
-                output_i[f"forecast_value"] = float("nan")
-                output_i[yhat_upper_name] = float("nan")
-                output_i[yhat_lower_name] = float("nan")
-
-                output_i.iloc[
-                    : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-                ] = (self.outputs[s_id]["yhat"].iloc[: -self.spec.horizon].values)
-                output_i.iloc[
-                    -self.spec.horizon :,
-                    output_i.columns.get_loc(f"forecast_value"),
-                ] = (
-                    self.outputs[s_id]["yhat"].iloc[-self.spec.horizon :].values
+                return np.mean(df_p[self.spec.metric])
+            except KeyError:
+                logger.warn(
+                    f"Could not find the metric {self.spec.metric} within "
+                    f"the performance metrics: {df_p.columns}. Defaulting to `rmse`"
                 )
-                output_i.iloc[
-                    -self.spec.horizon :, output_i.columns.get_loc(yhat_upper_name)
-                ] = (self.outputs[s_id]["yhat_upper"].iloc[-self.spec.horizon :].values)
-                output_i.iloc[
-                    -self.spec.horizon :, output_i.columns.get_loc(yhat_lower_name)
-                ] = (self.outputs[s_id]["yhat_lower"].iloc[-self.spec.horizon :].values)
-                output_col = pd.concat([output_col, output_i])
-                self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
-            except Exception as e:
-                # TODO: should we do something special in this case?
-                pass
+                return np.mean(df_p["rmse"])
 
-        output_col = output_col.reset_index(drop=True)
+        study = optuna.create_study(direction="minimize")
+        m_temp = Prophet()
+        study.enqueue_trial(
+            {
+                "seasonality_mode": m_temp.seasonality_mode,
+                "changepoint_prior_scale": m_temp.changepoint_prior_scale,
+                "seasonality_prior_scale": m_temp.seasonality_prior_scale,
+                "holidays_prior_scale": m_temp.holidays_prior_scale,
+                "changepoint_range": m_temp.changepoint_range,
+            }
+        )
+        study.optimize(
+            objective,
+            n_trials=self.spec.tuning.n_trials if self.spec.tuning else DEFAULT_TRIALS,
+            n_jobs=-1,
+        )
 
-        return output_col
+        study.best_params.update(model_kwargs_i)
+        model_kwargs_i = study.best_params
+        return model_kwargs_i
 
     def _generate_report(self):
         import datapane as dp
@@ -340,12 +280,13 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
 
         sec5_text = dp.Text(f"## Prophet Model Seasonality Components")
         model_states = []
-        for i, (target, m) in enumerate(self.models.items()):
+        for s_id in series_ids:
+            m = self.models[s_id]
             model_states.append(
                 pd.Series(
                     m.seasonalities,
                     index=pd.Index(m.seasonalities.keys(), dtype="object"),
-                    name=target,
+                    name=s_id,
                     dtype="object",
                 )
             )
@@ -424,21 +365,3 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
             model_description,
             other_sections,
         )
-
-    def get_explain_predict_fn(self, series_id):
-        selected_model = self.models[series_id]
-
-        def _custom_predict_prophet(
-            data,
-            model=selected_model,
-            dt_column_name=self.datasets._datetime_column_name,
-        ):
-            """
-            data: ForecastDatasets.get_data_at_series(s_id)
-            """
-            data["ds"] = pd.to_datetime(data[dt_column_name], unit="s")
-            if dt_column_name != "ds":
-                data = data.drop([dt_column_name], axis=1)
-            return model.predict(data)["yhat"]
-
-        return _custom_predict_prophet

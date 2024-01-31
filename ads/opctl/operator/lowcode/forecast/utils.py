@@ -60,7 +60,7 @@ def smape(actual, predicted) -> float:
 
 
 def _build_metrics_per_horizon(
-    data: "TestData",
+    test_data: "TestData",
     output: "ForecastOutput",
 ) -> pd.DataFrame:
     """
@@ -85,70 +85,78 @@ def _build_metrics_per_horizon(
     Test data might not have sorted dates and the order of series also might differ.
     """
 
-    actuals_df = data[data.dt_column_name, data.target_name]
-
-    # Concat the yhats in output and include only dates that are in test data
-    forecasts_df = pd.DataFrame()
-    for s_id in output.list_series_ids():
-        forecast_i = output.get_forecast(s_id)[["Date", "forecast_value"]]
-        forecast_i = forecast_i[
-            forecast_i["Date"].isin(actuals_df[data.dt_column_name])
-        ]
-        forecasts_df = pd.concat([forecasts_df, forecast_i.set_index("Date")], axis=1)
-
-    # Remove dates that are not there in output
-    actuals_df = actuals_df[
-        actuals_df[data.dt_column_name].isin(forecasts_df.index.values)
-    ]
-
-    if actuals_df.empty or forecasts_df.empty:
-        return pd.DataFrame()
-
-    totals = actuals_df.sum(numeric_only=True)
-    wmape_weights = np.array((totals / totals.sum()).values)
-
-    actuals_df = actuals_df.set_index(data.dt_column_name)
-
-    metrics_df = pd.DataFrame(
-        columns=[
-            SupportedMetrics.MEAN_SMAPE,
-            SupportedMetrics.MEDIAN_SMAPE,
-            SupportedMetrics.MEAN_MAPE,
-            SupportedMetrics.MEDIAN_MAPE,
-            SupportedMetrics.MEAN_WMAPE,
-            SupportedMetrics.MEDIAN_WMAPE,
-        ]
+    test_df = (
+        test_data.get_data_long()
+        .rename({test_data.dt_column_name: ForecastOutputColumns.DATE}, axis=1)
+        .set_index([ForecastOutputColumns.DATE, ForecastOutputColumns.SERIES])
+        .sort_index()
+    )
+    forecast_df = (
+        output.get_horizon_long()
+        .set_index([ForecastOutputColumns.DATE, ForecastOutputColumns.SERIES])
+        .sort_index()
     )
 
-    for i, (y_true, y_pred) in enumerate(
-        zip(actuals_df.itertuples(index=False), forecasts_df.itertuples(index=False))
-    ):
-        y_true, y_pred = np.array(y_true), np.array(y_pred)
+    dates = test_df.index.get_level_values(0).unique()
+    common_idx = test_df.index.intersection(forecast_df.index)
 
-        smapes = np.array(
-            [smape(actual=y_t, predicted=y_p) for y_t, y_p in zip(y_true, y_pred)]
-        )
-        mapes = np.array(
-            [
-                mean_absolute_percentage_error(y_true=[y_t], y_pred=[y_p])
-                for y_t, y_p in zip(y_true, y_pred)
-            ]
-        )
-        wmapes = np.array([mape * weight for mape, weight in zip(mapes, wmape_weights)])
+    if len(common_idx) != len(forecast_df.index):
+        if len(dates) > output.horizon:
+            logger.debug(
+                f"Found more unique dates ({len(dates)}) in the Test Data than expected given the horizon ({output.horizon})."
+            )
+        elif len(dates) < output.horizon:
+            logger.debug(
+                f"Found fewer unique dates ({len(dates)}) in the Test Data than expected given the horizon ({output.horizon}). This will impact the metrics."
+            )
+        elif test_df.index.get_level_values(1).unique() > output.list_series_ids():
+            logger.debug(
+                f"Found more Series Ids in test data ({len(dates)}) expected from the historical data ({output.list_series_ids()})."
+            )
+        else:
+            logger.debug(
+                f"Found fewer Series Ids in test data ({len(dates)}) expected from the historical data ({output.list_series_ids()}). This will impact the metrics."
+            )
 
-        metrics_row = {
-            SupportedMetrics.MEAN_SMAPE: np.mean(smapes),
-            SupportedMetrics.MEDIAN_SMAPE: np.median(smapes),
-            SupportedMetrics.MEAN_MAPE: np.mean(mapes),
-            SupportedMetrics.MEDIAN_MAPE: np.median(mapes),
-            SupportedMetrics.MEAN_WMAPE: np.mean(wmapes),
-            SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes),
-        }
+    test_df = test_df.loc[common_idx]
+    forecast_df = forecast_df.loc[common_idx]
+
+    totals = test_df.sum(numeric_only=True)
+    wmape_weights = np.array((totals / totals.sum()).values)
+
+    metrics_df = pd.DataFrame()
+    for date in dates:
+        y_true = np.array(
+            test_df.xs(date, level=ForecastOutputColumns.DATE)[
+                test_data.target_name
+            ].values
+        )
+        y_pred = np.array(
+            forecast_df.xs(date, level=ForecastOutputColumns.DATE)[
+                ForecastOutputColumns.FORECAST_VALUE
+            ].values
+        )
+
+        smapes = smape(actual=y_true, predicted=y_pred)
+        mapes = mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)
+        wmapes = mapes * wmape_weights
 
         metrics_df = pd.concat(
-            [metrics_df, pd.DataFrame(metrics_row, index=[actuals_df.index[i]])],
+            [
+                metrics_df,
+                pd.DataFrame(
+                    {
+                        SupportedMetrics.MEAN_SMAPE: np.mean(smapes),
+                        SupportedMetrics.MEDIAN_SMAPE: np.median(smapes),
+                        SupportedMetrics.MEAN_MAPE: np.mean(mapes),
+                        SupportedMetrics.MEDIAN_MAPE: np.median(mapes),
+                        SupportedMetrics.MEAN_WMAPE: np.mean(wmapes),
+                        SupportedMetrics.MEDIAN_WMAPE: np.median(wmapes),
+                    },
+                    index=[date],
+                ),
+            ]
         )
-
     return metrics_df
 
 
@@ -209,7 +217,7 @@ def evaluate_train_metrics(output, metrics_col_name=None):
             metrics_df = _build_metrics_df(
                 y_true=y_true,
                 y_pred=y_pred,
-                column_name=metrics_col_name,
+                column_name=s_id,
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         except Exception as e:
@@ -224,7 +232,7 @@ def _select_plot_list(fn, series_ids):
     import datapane as dp
 
     blocks = [dp.Plot(fn(s_id=s_id), label=s_id) for s_id in series_ids]
-    return dp.Select(blocks=blocks) if len(series_ids) > 1 else blocks[0]
+    return dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
 
 
 def _add_unit(num, unit):
@@ -389,10 +397,10 @@ def convert_target(target: str, target_col: str):
     --------
         Original target. i.e., "Product_Category_117"
     """
-    if target_col is not None and target_col!='':
-        temp = target_col + '_'
+    if target_col is not None and target_col != "":
+        temp = target_col + "_"
         if temp in target:
-            target = target.replace(temp, '', 1)
+            target = target.replace(temp, "", 1)
     return target
 
 

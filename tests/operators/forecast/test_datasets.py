@@ -47,10 +47,10 @@ DATASETS_LIST = [
 
 MODELS = [
     "arima",
-    # "automlx",
-    # "prophet",
-    # "neuralprophet",
-    # "autots",
+    "automlx",
+    "prophet",
+    "neuralprophet",
+    "autots",
     # "auto",
 ]
 
@@ -83,7 +83,7 @@ SAMPLE_FRACTION = 1
 
 parameters_short = []
 
-for dataset_i in DATASETS_LIST[1:2]:  #  + [DATASETS_LIST[-2]]
+for dataset_i in DATASETS_LIST[1:3]:  #  + [DATASETS_LIST[-2]]
     for (
         model
     ) in MODELS:  # ["arima", "automlx", "prophet", "neuralprophet", "autots", "auto"]

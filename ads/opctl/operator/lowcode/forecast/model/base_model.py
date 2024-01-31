@@ -24,16 +24,19 @@ from ads.opctl.operator.lowcode.forecast.utils import (
     _build_metrics_per_horizon,
     load_pkl,
     write_pkl,
+    _label_encode_dataframe,
 )
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 
 from ads.opctl.operator.lowcode.common.utils import (
     human_time_friendly,
-    load_data,
     enable_print,
     disable_print,
     write_data,
+    merged_category_column_name,
+    datetime_to_seconds,
+    seconds_to_datetime,
 )
 from ..const import (
     SUMMARY_METRICS_HORIZON_LIMIT,
@@ -43,7 +46,7 @@ from ..const import (
 )
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
-from .forecast_datasets import ForecastDatasets
+from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 
 
@@ -66,6 +69,7 @@ class ForecastOperatorBaseModel(ABC):
 
         self.test_eval_metrics = None
         self.original_target_column = self.spec.target_column
+        self.dt_column_name = self.spec.datetime_column.name
 
         self.model_parameters = dict()
         self.loaded_models = None
@@ -77,8 +81,8 @@ class ForecastOperatorBaseModel(ABC):
         self.outputs = None
         self.forecast_output = None
         self.errors_dict = dict()
+        self.le = dict()
 
-        self.train_metrics = False
         self.forecast_col_name = "yhat"
         self.perform_tuning = self.spec.tuning != None
 
@@ -109,17 +113,7 @@ class ForecastOperatorBaseModel(ABC):
             self.eval_metrics = None
 
             if self.spec.generate_report or self.spec.generate_metrics:
-                if self.train_metrics:
-                    self.eval_metrics = evaluate_train_metrics(
-                        output=self.forecast_output,
-                    )
-                else:
-                    try:
-                        self.eval_metrics = self._generate_train_metrics()
-                    except NotImplementedError:
-                        logger.warn(
-                            f"Training Metrics are not available for model type {self.spec.model}"
-                        )
+                self.eval_metrics = self.generate_train_metrics()
 
                 if self.spec.test_data:
                     try:
@@ -148,9 +142,42 @@ class ForecastOperatorBaseModel(ABC):
                 md_columns = " * ".join(
                     [f"{s_id} \n" for s_id in self.datasets.list_series_ids()]
                 )
+
+                header_section = [
+                    dp.Text(f"You selected the **`{self.spec.model}`** model."),
+                    model_description,
+                    dp.Text(
+                        "Based on your dataset, you could have also selected "
+                        f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                    ),
+                    dp.Group(
+                        dp.BigNumber(
+                            heading="Analysis was completed in ",
+                            value=human_time_friendly(elapsed_time),
+                        ),
+                        dp.BigNumber(
+                            heading="Starting time index",
+                            value=self.datasets.get_earliest_timestamp().strftime(
+                                "%B %d, %Y"
+                            ),
+                        ),
+                        dp.BigNumber(
+                            heading="Ending time index",
+                            value=self.datasets.get_latest_timestamp().strftime(
+                                "%B %d, %Y"
+                            ),
+                        ),
+                        dp.BigNumber(
+                            heading="Num series",
+                            value=len(self.datasets.list_series_ids()),
+                        ),
+                        columns=4,
+                    ),
+                ]
+
                 first_10_rows_blocks = [
                     dp.DataTable(
-                        df.head(10).rename({s_id: self.spec.target_column}, axis=1),
+                        df.head(10),
                         caption="Start",
                         label=s_id,
                     )
@@ -159,7 +186,7 @@ class ForecastOperatorBaseModel(ABC):
 
                 last_10_rows_blocks = [
                     dp.DataTable(
-                        df.tail(10).rename({s_id: self.spec.target_column}, axis=1),
+                        df.tail(10),
                         caption="End",
                         label=s_id,
                     )
@@ -168,69 +195,48 @@ class ForecastOperatorBaseModel(ABC):
 
                 data_summary_blocks = [
                     dp.DataTable(
-                        df.rename({s_id: self.spec.target_column}, axis=1).describe(),
+                        df.describe(),
                         caption="Summary Statistics",
                         label=s_id,
                     )
                     for s_id, df in self.full_data_dict.items()
                 ]
+
+                series_name = merged_category_column_name(
+                    self.spec.target_category_columns
+                )
+                series_subtext = dp.Text(f"Indexed by {series_name}")
+                first_10_title = dp.Text("### First 10 Rows of Data")
+                last_10_title = dp.Text("### Last 10 Rows of Data")
+                summary_title = dp.Text("### Data Summary Statistics")
+
+                if series_name is not None:
+                    first_10_section = [
+                        first_10_title,
+                        series_subtext,
+                        dp.Select(blocks=first_10_rows_blocks),
+                    ]
+                    last_10_section = [
+                        last_10_title,
+                        series_subtext,
+                        dp.Select(blocks=last_10_rows_blocks),
+                    ]
+                    summary_section = [
+                        summary_title,
+                        series_subtext,
+                        dp.Select(blocks=data_summary_blocks),
+                    ]
+                else:
+                    first_10_section = [first_10_title, first_10_rows_blocks[0]]
+                    last_10_section = [last_10_title, last_10_rows_blocks[0]]
+                    summary_section = [summary_title, data_summary_blocks[0]]
+
                 summary = dp.Blocks(
-                    dp.Select(
-                        blocks=[
-                            dp.Group(
-                                dp.Text(
-                                    f"You selected the **`{self.spec.model}`** model."
-                                ),
-                                model_description,
-                                dp.Text(
-                                    "Based on your dataset, you could have also selected "
-                                    f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                                ),
-                                dp.Group(
-                                    dp.BigNumber(
-                                        heading="Analysis was completed in ",
-                                        value=human_time_friendly(elapsed_time),
-                                    ),
-                                    dp.BigNumber(
-                                        heading="Starting time index",
-                                        value=self.datasets.get_earliest_timestamp().strftime(
-                                            "%B %d, %Y"
-                                        ),
-                                    ),
-                                    dp.BigNumber(
-                                        heading="Ending time index",
-                                        value=self.datasets.get_latest_timestamp().strftime(
-                                            "%B %d, %Y"
-                                        ),
-                                    ),
-                                    dp.BigNumber(
-                                        heading="Num series",
-                                        value=len(self.datasets.list_series_ids()),
-                                    ),
-                                    columns=4,
-                                ),
-                                dp.Text("### First 10 Rows of Data"),
-                                dp.Select(blocks=first_10_rows_blocks)
-                                if len(first_10_rows_blocks) > 1
-                                else first_10_rows_blocks[0],
-                                dp.Text("----"),
-                                dp.Text("### Last 10 Rows of Data"),
-                                dp.Select(blocks=last_10_rows_blocks)
-                                if len(last_10_rows_blocks) > 1
-                                else last_10_rows_blocks[0],
-                                dp.Text("### Data Summary Statistics"),
-                                dp.Select(blocks=data_summary_blocks)
-                                if len(data_summary_blocks) > 1
-                                else data_summary_blocks[0],
-                                label="Summary",
-                            ),
-                            dp.Text(
-                                "The following report compares a variety of metrics and plots "
-                                f"for your target columns: \n * {md_columns}.\n",
-                                label="Target Columns",
-                            ),
-                        ]
-                    ),
+                    blocks=header_section
+                    + first_10_section
+                    + last_10_section
+                    + summary_section
+                    + [dp.Text("----")]
                 )
 
                 test_metrics_sections = []
@@ -260,7 +266,7 @@ class ForecastOperatorBaseModel(ABC):
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
                 )
-                forecast_plots = [forecast_text, forecast_sec]
+                forecast_plots = [forecast_text, series_subtext, forecast_sec]
 
                 yaml_appendix_title = dp.Text(f"## Reference: YAML File")
                 yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
@@ -343,34 +349,32 @@ class ForecastOperatorBaseModel(ABC):
             index=["All Targets"],
         )
 
-        # TODO: needs to be re-implemented
+        """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
+        if horizon <= 10."""
+        if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT:
+            metrics_per_horizon = _build_metrics_per_horizon(
+                test_data=data,
+                output=self.forecast_output,
+            )
+            if not metrics_per_horizon.empty:
+                summary_metrics = pd.concat([summary_metrics, metrics_per_horizon])
 
-        # """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
-        # if horizon <= 10."""
-        # if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT:
-        #     metrics_per_horizon = _build_metrics_per_horizon(
-        #         data=data,
-        #         output=self.forecast_output,
-        #     )
-        #     if not metrics_per_horizon.empty:
-        #         summary_metrics = pd.concat([summary_metrics, metrics_per_horizon])
-
-        #         new_column_order = [
-        #             SupportedMetrics.MEAN_SMAPE,
-        #             SupportedMetrics.MEDIAN_SMAPE,
-        #             SupportedMetrics.MEAN_MAPE,
-        #             SupportedMetrics.MEDIAN_MAPE,
-        #             SupportedMetrics.MEAN_WMAPE,
-        #             SupportedMetrics.MEDIAN_WMAPE,
-        #             SupportedMetrics.MEAN_RMSE,
-        #             SupportedMetrics.MEDIAN_RMSE,
-        #             SupportedMetrics.MEAN_R2,
-        #             SupportedMetrics.MEDIAN_R2,
-        #             SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
-        #             SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
-        #             SupportedMetrics.ELAPSED_TIME,
-        #         ]
-        #         summary_metrics = summary_metrics[new_column_order]
+                new_column_order = [
+                    SupportedMetrics.MEAN_SMAPE,
+                    SupportedMetrics.MEDIAN_SMAPE,
+                    SupportedMetrics.MEAN_MAPE,
+                    SupportedMetrics.MEDIAN_MAPE,
+                    SupportedMetrics.MEAN_WMAPE,
+                    SupportedMetrics.MEDIAN_WMAPE,
+                    SupportedMetrics.MEAN_RMSE,
+                    SupportedMetrics.MEDIAN_RMSE,
+                    SupportedMetrics.MEAN_R2,
+                    SupportedMetrics.MEDIAN_R2,
+                    SupportedMetrics.MEAN_EXPLAINED_VARIANCE,
+                    SupportedMetrics.MEDIAN_EXPLAINED_VARIANCE,
+                    SupportedMetrics.ELAPSED_TIME,
+                ]
+                summary_metrics = summary_metrics[new_column_order]
 
         return total_metrics, summary_metrics, data
 
@@ -548,14 +552,15 @@ class ForecastOperatorBaseModel(ABC):
         else:
             logger.info(f"No model failures found for the selected forecasting model")
 
-    def _preprocess(self, data, ds_column, datetime_format):
+    def preprocess(self, df, series_id):
         """The method that needs to be implemented on the particular model level."""
-        data["ds"] = pd.to_datetime(
-            data[ds_column], format=datetime_format
-        )  # TODO: can we remove this?
-        if ds_column != "ds":
-            data.drop([ds_column], axis=1, inplace=True)
-        return data
+        data = df.rename(
+            {self.dt_column_name: "ds", self.original_target_column: "y"}, axis=1
+        )
+        self.le[series_id], df_encoded = _label_encode_dataframe(
+            data, no_encode={"ds", "y"}
+        )
+        return df_encoded
 
     @abstractmethod
     def _generate_report(self):
@@ -571,12 +576,12 @@ class ForecastOperatorBaseModel(ABC):
         The method that needs to be implemented on the particular model level.
         """
 
-    def _generate_train_metrics(self) -> pd.DataFrame:
+    def generate_train_metrics(self) -> pd.DataFrame:
         """
         Generate Training Metrics when fitted data is not available.
         The method that needs to be implemented on the particular model level.
         """
-        raise NotImplementedError
+        return evaluate_train_metrics(self.forecast_output)
 
     def _load_model(self):
         try:
@@ -670,11 +675,11 @@ class ForecastOperatorBaseModel(ABC):
         ----------
             kernel_explainer: The kernel explainer object to use for generating explanations.
         """
-        data = self.datasets.get_data_at_series(s_id=series_id, include_horizon=True)[
-            -self.spec.horizon :
-        ]
-        data[datetime_col_name] = data[datetime_col_name].apply(lambda x: x.timestamp())
+        data = self.datasets.get_horizon_at_series(s_id=series_id)
+
+        data[datetime_col_name] = datetime_to_seconds(data[datetime_col_name])
         data = data.reset_index(drop=True)
+        print(f"local expl data {data}")
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 
@@ -682,13 +687,22 @@ class ForecastOperatorBaseModel(ABC):
         local_kernel_explnr_df = pd.DataFrame(
             local_kernel_explnr_vals, columns=data.columns
         )
-
-        # set the index of the DataFrame to the datetime column
-        # local_kernel_explnr_df.index = data_horizon.index
-
-        if self.spec.model == SupportedModels.AutoTS:
-            local_kernel_explnr_df.drop(
-                ["series_id", self.spec.target_column], axis=1, inplace=True
-            )
-
+        print(f"local_kernel_explnr_df{local_kernel_explnr_df}")
         self.local_explanation[series_id] = local_kernel_explnr_df
+
+    def get_explain_predict_fn(self, series_id, fcst_col_name="yhat"):
+        def _custom_predict(
+            data,
+            model=self.models[series_id],
+            dt_column_name=self.datasets._datetime_column_name,
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data[dt_column_name] = seconds_to_datetime(data[dt_column_name])
+            data = self.preprocess(df=data, series_id=series_id)
+            data[self.original_target_column] = None
+            fcst = model.predict(data)[fcst_col_name]
+            return fcst
+
+        return _custom_predict

@@ -30,7 +30,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets)
         self.global_explanation = {}
         self.local_explanation = {}
-        self.train_metrics = True
 
     @runtime_dependency(
         module="automl",
@@ -58,13 +57,14 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         full_data_dict = self.datasets.get_data_by_series()
 
         models = dict()
-        outputs = dict()
-        outputs_legacy = dict()
         date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon
         self.spec.confidence_interval_width = self.spec.confidence_interval_width or 0.8
         self.forecast_output = ForecastOutput(
-            confidence_interval_width=self.spec.confidence_interval_width
+            confidence_interval_width=self.spec.confidence_interval_width,
+            horizon=self.spec.horizon,
+            target_column=self.original_target_column,
+            dt_column=self.spec.datetime_column.name,
         )
 
         # Clean up kwargs for pass through
@@ -90,22 +90,24 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         for i, (s_id, df) in enumerate(full_data_dict.items()):
             try:
                 target = self.original_target_column
+                self.forecast_output.init_series_output(
+                    series_id=s_id, data_at_series=df
+                )
+
                 logger.debug("Running automl for {} at position {}".format(s_id, i))
                 series_values = df[df[target].notna()]
                 # drop NaNs for the time period where data wasn't recorded
                 series_values.dropna(inplace=True)
-                df[date_column] = pd.to_datetime(
-                    df[date_column],
+                df_clean = df.reset_index(drop=True)
+                df_clean[date_column] = pd.to_datetime(
+                    df_clean[date_column],
                     format=self.spec.datetime_column.format,  # TODO: could the format be different?
                 )
-                df = df.set_index(date_column)
-                # if len(df.columns) > 1:
-                # when additional columns are present
-                y_train, y_test = temporal_train_test_split(df, test_size=horizon)
+                df_clean = df_clean.set_index(date_column)
+
+                y_train, y_test = temporal_train_test_split(df_clean, test_size=horizon)
                 forecast_x = y_test.drop(target, axis=1)
-                # else:
-                #     y_train = df
-                #     forecast_x = None
+
                 logger.debug(
                     "Time Index is" + ""
                     if y_train.index.is_monotonic
@@ -129,44 +131,32 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 logger.debug(
                     "Selected model params: {}".format(model.selected_model_params_)
                 )
-                print(f"data: {forecast_x}, len(data): {horizon}")
                 summary_frame = model.forecast(
                     X=forecast_x,
                     periods=horizon,
                     alpha=1 - (self.spec.confidence_interval_width / 100),
                 )
-                input_values = pd.Series(
-                    y_train[target].values,
-                    name="input_value",
-                    index=y_train.index,
-                )
-                fitted_values_raw = model.predict(y_train.drop(target, axis=1))
-                fitted_values = pd.Series(
-                    fitted_values_raw[target].values,
-                    name="fitted_value",
-                    index=y_train.index,
-                )
 
-                summary_frame = pd.concat(
-                    [input_values, fitted_values, summary_frame], axis=1
-                )
+                fitted_values = model.predict(y_train.drop(target, axis=1))[
+                    target
+                ].values
 
-                # Collect Outputs
                 if self.loaded_models is None:
                     models[s_id] = model
-                summary_frame = summary_frame.rename_axis("ds").reset_index()
-                summary_frame = summary_frame.rename(
-                    columns={
-                        f"{target}_ci_upper": "yhat_upper",
-                        f"{target}_ci_lower": "yhat_lower",
-                        f"{target}": "yhat",
-                    }
-                )
+
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
-                if "yhat_upper" not in summary_frame:
-                    summary_frame["yhat_upper"] = np.NAN
-                    summary_frame["yhat_lower"] = np.NAN
-                outputs[s_id] = summary_frame
+                if f"{target}_ci_upper" not in summary_frame:
+                    summary_frame[f"{target}_ci_upper"] = np.NAN
+                if f"{target}_ci_lower" not in summary_frame:
+                    summary_frame[f"{target}_ci_lower"] = np.NAN
+
+                self.forecast_output.populate_series_output(
+                    series_id=s_id,
+                    fit_val=fitted_values,
+                    forecast_val=summary_frame[target],
+                    upper_bound=summary_frame[f"{target}_ci_upper"],
+                    lower_bound=summary_frame[f"{target}_ci_lower"],
+                )
 
                 self.model_parameters[s_id] = {
                     "framework": SupportedModels.AutoMLX,
@@ -190,29 +180,13 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "model_name": self.spec.model,
                     "error": str(e),
                 }
+                raise
 
         logger.debug("===========Forecast Generated===========")
-        outputs_merged = pd.DataFrame()
-
-        # Merge the outputs from each model into 1 df with all outputs by target and series
-        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
-        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for s_id in self.datasets.list_series_ids():
-            output_i = pd.DataFrame()
-            output_i["Date"] = outputs[s_id]["ds"]
-            output_i["Series"] = s_id
-            output_i["input_value"] = outputs[s_id]["input_value"]
-            output_i[f"fitted_value"] = outputs[s_id]["fitted_value"]
-            output_i[f"forecast_value"] = outputs[s_id]["yhat"]
-            output_i[yhat_upper_name] = outputs[s_id]["yhat_upper"]
-            output_i[yhat_lower_name] = outputs[s_id]["yhat_lower"]
-            outputs_merged = pd.concat([outputs_merged, output_i])
-            outputs_legacy[s_id] = output_i
-            self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
 
         self.models = models if self.loaded_models is None else self.loaded_models
 
-        return outputs_merged
+        return self.forecast_output.get_forecast_long()
 
     @runtime_dependency(
         module="datapane",

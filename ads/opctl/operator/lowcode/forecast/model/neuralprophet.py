@@ -81,7 +81,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
 
     def __init__(self, config: ForecastOperatorConfig, datasets: ForecastDatasets):
         super().__init__(config=config, datasets=datasets)
-        self.train_metrics = True
         self.forecast_col_name = "yhat1"
         self.loaded_trainers = None
         self.trainers = None
@@ -95,152 +94,60 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         except:
             logger.debug("model.pkl/trainer.pkl is not present")
 
-    def _train_model(self, i, s_id, df):
+    def set_kwargs(self):
+        # Extract the Confidence Interval Width and convert to prophet's equivalent - interval_width
+        if self.spec.confidence_interval_width is None:
+            quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
+            self.spec.confidence_interval_width = float(quantiles[1]) - float(
+                quantiles[0]
+            )
+        else:
+            boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
+            quantiles = [boundaries, self.spec.confidence_interval_width + boundaries]
+
+        model_kwargs = self.spec.model_kwargs
+        model_kwargs["quantiles"] = quantiles
+        return model_kwargs
+
+    def _train_model(self, i, s_id, df, model_kwargs):
         try:
             from neuralprophet import NeuralProphet, set_log_level
 
             set_log_level(logger.level)
 
-            # Extract the Confidence Interval Width and
-            # convert to neural prophets equivalent - quantiles
-            model_kwargs = None
-            if self.spec.confidence_interval_width is None:
-                self.quantiles = model_kwargs.get("quantiles", [0.05, 0.95])
-                self.spec.confidence_interval_width = float(self.quantiles[1]) - float(
-                    self.quantiles[0]
-                )
-            else:
-                boundaries = round((1 - self.spec.confidence_interval_width) / 2, 2)
-                self.quantiles = [
-                    boundaries,
-                    self.spec.confidence_interval_width + boundaries,
-                ]
+            self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
 
-            if self.loaded_models is None:
-                model_kwargs = self.spec.model_kwargs
-                model_kwargs["quantiles"] = self.quantiles
-            self.forecast_output = ForecastOutput(
-                confidence_interval_width=self.spec.confidence_interval_width
-            )
+            data = self.preprocess(df, s_id)
+            data_i = data[: -self.spec.horizon]
 
-            target = self.original_target_column
-
-            le, df_encoded = _label_encode_dataframe(
-                df, no_encode={self.spec.datetime_column.name, target}
-            )
-
-            # format the dataframe for this target. Dropping NA on target[df] will remove all future data
-            df_clean = self._preprocess(
-                df_encoded,
-                self.spec.datetime_column.name,
-                self.spec.datetime_column.format,
-            )
-            data_i = df_clean[df_clean[target].notna()]
-            data_i.rename({target: "y"}, axis=1, inplace=True)
-
-            # Assume that all columns passed in should be used as additional data
-            additional_regressors = set(data_i.columns) - {"y", "ds"}
-            training_data = data_i[["y", "ds"] + list(additional_regressors)]
-
-            model = self.loaded_models[s_id] if self.loaded_models is not None else None
-            accepted_regressors = None
-            if model is None:
-                model_kwargs_i = model_kwargs.copy()
-                if self.perform_tuning:
-
-                    def objective(trial):
-                        params = {
-                            # 'seasonality_mode': trial.suggest_categorical('seasonality_mode', ['additive', 'multiplicative']),
-                            # 'seasonality_reg': trial.suggest_float('seasonality_reg', 0.1, 500, log=True),
-                            # 'learning_rate': trial.suggest_float('learning_rate',  0.0001, 0.1, log=True),
-                            "newer_samples_start": trial.suggest_float(
-                                "newer_samples_start", 0.001, 0.999
-                            ),
-                            "newer_samples_weight": trial.suggest_float(
-                                "newer_samples_weight", 0, 100
-                            ),
-                            "changepoints_range": trial.suggest_float(
-                                "changepoints_range", 0.8, 0.95
-                            ),
-                        }
-                        # trend_reg, trend_reg_threshold, ar_reg, impute_rolling/impute_linear,
-                        params.update(model_kwargs_i)
-
-                        folds = NeuralProphet(**params).crossvalidation_split_df(
-                            data_i, k=3
-                        )
-                        test_metrics_total_i = []
-                        for df_train, df_test in folds:
-                            m, accepted_regressors = _fit_model(
-                                data=df_train,
-                                params=params,
-                                additional_regressors=additional_regressors,
-                                select_metric=self.spec.metric,
-                            )
-                            df_test = df_test[["y", "ds"] + accepted_regressors]
-
-                            test_forecast_i = m.predict(df=df_test)
-                            fold_metric_i = (
-                                m.metrics[self.spec.metric]
-                                .forward(
-                                    Tensor(test_forecast_i["yhat1"]),
-                                    Tensor(test_forecast_i["y"]),
-                                )
-                                .item()
-                            )
-                            test_metrics_total_i.append(fold_metric_i)
-                        logger.debug(
-                            f"----------------------{np.asarray(test_metrics_total_i).mean()}----------------------"
-                        )
-                        return np.asarray(test_metrics_total_i).mean()
-
-                    study = optuna.create_study(direction="minimize")
-                    m_params = NeuralProphet().parameters()
-                    study.enqueue_trial(
-                        {
-                            # 'seasonality_mode': m_params['seasonality_mode'],
-                            # 'seasonality_reg': m_params['seasonality_reg'],
-                            # 'learning_rate': m_params['learning_rate'],
-                            "newer_samples_start": m_params["newer_samples_start"],
-                            "newer_samples_weight": m_params["newer_samples_weight"],
-                            "changepoints_range": m_params["changepoints_range"],
-                        }
-                    )
-                    study.optimize(
-                        objective,
-                        n_trials=self.spec.tuning.n_trials
-                        if self.spec.tuning
-                        else DEFAULT_TRIALS,
-                        n_jobs=-1,
-                    )
-
-                    selected_params = study.best_params
-                    selected_params.update(model_kwargs_i)
-                    model_kwargs_i = selected_params
-
-                # Build and fit model
-                model, accepted_regressors = _fit_model(
-                    data=training_data,
-                    params=model_kwargs_i,
-                    additional_regressors=additional_regressors,
-                    select_metric=self.spec.metric,
-                )
-            else:
+            if self.loaded_models is not None:
+                model = self.loaded_models[s_id]
                 accepted_regressors_config = model.config_regressors or dict()
                 accepted_regressors = list(accepted_regressors_config.keys())
                 if self.loaded_trainers is not None:
                     model.trainer = self.loaded_trainers[s_id]
+            else:
+                if self.perform_tuning:
+                    model_kwargs = self.run_tuning(data_i, model_kwargs)
+
+                # Build and fit model
+                model, accepted_regressors = _fit_model(
+                    data=data_i,
+                    params=model_kwargs,
+                    additional_regressors=self.additional_regressors,
+                    select_metric=self.spec.metric,
+                )
 
             logger.debug(
-                f"Found the following additional data columns: {additional_regressors}"
+                f"Found the following additional data columns: {self.additional_regressors}"
             )
-            logger.debug(
-                f"While fitting the model, some additional data may have been "
-                f"discarded. Only using the columns: {accepted_regressors}"
-            )
-
+            if set(self.additional_regressors) - set(accepted_regressors):
+                logger.debug(
+                    f"While fitting the model, some additional data may have been "
+                    f"discarded. Only using the columns: {accepted_regressors}"
+                )
             # Build future dataframe
-            future = df_clean.reset_index(drop=True)
+            future = data.reset_index(drop=True)
             future["y"] = None
             future = future[["y", "ds"] + list(accepted_regressors)]
 
@@ -248,12 +155,22 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             forecast = model.predict(future)
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast.tail())
-            # models.append(model)
-            self.outputs[s_id] = forecast
 
-            if self.loaded_models is None:
-                self.models[s_id] = model
-                self.trainers[s_id] = model.trainer
+            self.outputs[s_id] = forecast
+            self.forecast_output.populate_series_output(
+                series_id=s_id,
+                fit_val=forecast["yhat1"].iloc[: -self.spec.horizon].values,
+                forecast_val=forecast["yhat1"].iloc[-self.spec.horizon :].values,
+                upper_bound=forecast[f"yhat1 {model_kwargs['quantiles'][1]*100}%"]
+                .iloc[-self.spec.horizon :]
+                .values,
+                lower_bound=forecast[f"yhat1 {model_kwargs['quantiles'][0]*100}%"]
+                .iloc[-self.spec.horizon :]
+                .values,
+            )
+
+            self.models[s_id] = model
+            self.trainers[s_id] = model.trainer
 
             self.model_parameters[s_id] = {
                 "framework": SupportedModels.NeuralProphet,
@@ -289,9 +206,17 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.trainers = dict()
         self.outputs = dict()
         self.errors_dict = dict()
+        self.additional_regressors = self.datasets.get_additional_data_column_names()
+        self.forecast_output = ForecastOutput(
+            confidence_interval_width=self.spec.confidence_interval_width,
+            horizon=self.spec.horizon,
+            target_column=self.original_target_column,
+            dt_column=self.spec.datetime_column.name,
+        )
+        model_kwargs = self.set_kwargs()
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):
-            self._train_model(i=i, s_id=s_id, df=df)
+            self._train_model(i=i, s_id=s_id, df=df, model_kwargs=model_kwargs.copy())
 
         # Parallel(n_jobs=-1, require="sharedmem")(
         #     delayed(NeuralProphetOperatorModel._train_model)(self, i, s_id, df)
@@ -300,66 +225,76 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         #     )
         # )
 
-        if self.loaded_models is not None:
-            self.models = self.loaded_models
+        return self.forecast_output.get_forecast_long()
 
-        if self.loaded_trainers is not None:
-            self.trainers = self.loaded_trainers
+    def run_tuning(self, data, model_kwargs):
+        from neuralprophet import NeuralProphet
 
-        # Merge the outputs from each model into 1 df with all outputs by target and series
-        output_col = pd.DataFrame()
-        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
-        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for s_id in self.datasets.list_series_ids():
-            try:
-                output_i = pd.DataFrame()
+        def objective(trial):
+            params = {
+                # 'seasonality_mode': trial.suggest_categorical('seasonality_mode', ['additive', 'multiplicative']),
+                # 'seasonality_reg': trial.suggest_float('seasonality_reg', 0.1, 500, log=True),
+                # 'learning_rate': trial.suggest_float('learning_rate',  0.0001, 0.1, log=True),
+                "newer_samples_start": trial.suggest_float(
+                    "newer_samples_start", 0.001, 0.999
+                ),
+                "newer_samples_weight": trial.suggest_float(
+                    "newer_samples_weight", 0, 100
+                ),
+                "changepoints_range": trial.suggest_float(
+                    "changepoints_range", 0.8, 0.95
+                ),
+            }
+            # trend_reg, trend_reg_threshold, ar_reg, impute_rolling/impute_linear,
+            params.update(model_kwargs)
 
-                output_i["Date"] = self.outputs[s_id]["ds"]
-                output_i["Series"] = s_id
-                output_i[f"input_value"] = full_data_dict[s_id][
-                    self.original_target_column
-                ]
-
-                output_i[f"fitted_value"] = float("nan")
-                output_i[f"forecast_value"] = float("nan")
-                output_i[yhat_lower_name] = float("nan")
-                output_i[yhat_upper_name] = float("nan")
-
-                output_i.iloc[
-                    : -self.spec.horizon, output_i.columns.get_loc(f"fitted_value")
-                ] = (self.outputs[s_id]["yhat1"].iloc[: -self.spec.horizon].values)
-                output_i.iloc[
-                    -self.spec.horizon :,
-                    output_i.columns.get_loc(f"forecast_value"),
-                ] = (
-                    self.outputs[s_id]["yhat1"].iloc[-self.spec.horizon :].values
+            folds = NeuralProphet(**params).crossvalidation_split_df(data, k=3)
+            test_metrics_total_i = []
+            for df_train, df_test in folds:
+                m, accepted_regressors = _fit_model(
+                    data=df_train,
+                    params=params,
+                    additional_regressors=self.additional_regressors,
+                    select_metric=self.spec.metric,
                 )
-                output_i.iloc[
-                    -self.spec.horizon :,
-                    output_i.columns.get_loc(yhat_upper_name),
-                ] = (
-                    self.outputs[s_id][f"yhat1 {self.quantiles[1]*100}%"]
-                    .iloc[-self.spec.horizon :]
-                    .values
+                df_test = df_test[["y", "ds"] + accepted_regressors]
+
+                test_forecast_i = m.predict(df=df_test)
+                fold_metric_i = (
+                    m.metrics[self.spec.metric]
+                    .forward(
+                        Tensor(test_forecast_i["yhat1"]),
+                        Tensor(test_forecast_i["y"]),
+                    )
+                    .item()
                 )
-                output_i.iloc[
-                    -self.spec.horizon :,
-                    output_i.columns.get_loc(yhat_lower_name),
-                ] = (
-                    self.outputs[s_id][f"yhat1 {self.quantiles[0]*100}%"]
-                    .iloc[-self.spec.horizon :]
-                    .values
-                )
-                output_col = pd.concat([output_col, output_i])
+                test_metrics_total_i.append(fold_metric_i)
+            logger.debug(
+                f"----------------------{np.asarray(test_metrics_total_i).mean()}----------------------"
+            )
+            return np.asarray(test_metrics_total_i).mean()
 
-                self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
-            except Exception as e:
-                # TODO: should we do something special in this case?
-                pass
+        study = optuna.create_study(direction="minimize")
+        m_params = NeuralProphet().parameters()
+        study.enqueue_trial(
+            {
+                # 'seasonality_mode': m_params['seasonality_mode'],
+                # 'seasonality_reg': m_params['seasonality_reg'],
+                # 'learning_rate': m_params['learning_rate'],
+                "newer_samples_start": m_params["newer_samples_start"],
+                "newer_samples_weight": m_params["newer_samples_weight"],
+                "changepoints_range": m_params["changepoints_range"],
+            }
+        )
+        study.optimize(
+            objective,
+            n_trials=self.spec.tuning.n_trials if self.spec.tuning else DEFAULT_TRIALS,
+            n_jobs=-1,
+        )
 
-        output_col = output_col.reset_index(drop=True)
-
-        return output_col
+        selected_params = study.best_params
+        selected_params.update(model_kwargs)
+        return selected_params
 
     def _generate_report(self):
         import datapane as dp
@@ -400,7 +335,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(f"Failed to plot with exception: {e.args}")
 
         sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
-        model_states = []
+        model_states = [pd.Series()]
         for i, (s_id, m) in enumerate(self.models.items()):
             model_states.append(
                 pd.Series(
@@ -498,27 +433,5 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             storage_options=storage_options,
         )
 
-    def get_explain_predict_fn(self, series_id):
-        selected_model = self.models[series_id]
-
-        def _custom_predict_fn(
-            data,
-            model=selected_model,
-            dt_column_name=self.datasets._datetime_column_name,
-        ):
-            """
-            data: ForecastDatasets.get_data_at_series(s_id)
-            """
-            data["ds"] = pd.to_datetime(data[dt_column_name], unit="s")
-            if dt_column_name != "ds":
-                data = data.drop([dt_column_name], axis=1)
-            return model.predict(data)["yhat1"]
-
-        return _custom_predict_fn
-
-    def _custom_predict_neuralprophet(self, data):
-        raise NotImplementedError("NeuralProphet does not yet support explanations.")
-        # data_prepped = data.reset_index()
-        # data_prepped['y'] = None
-        # data_prepped['ds'] = pd.to_datetime(data_prepped['ds'])
-        # return self.models[self.datasets.list_series_ids().index(self.series_id)].predict(data_prepped)["yhat1"]
+    def get_explain_predict_fn(self, series_id, fcst_col_name="yhat1"):
+        return super().get_explain_predict_fn(series_id, fcst_col_name)

@@ -15,6 +15,7 @@ import pandas as pd
 
 import fsspec
 import yaml
+from typing import Union
 
 from ads.opctl.operator.lowcode.common.errors import (
     InputDataError,
@@ -81,6 +82,38 @@ def merge_category_columns(data, target_category_columns):
         lambda x: "__".join([str(x[col]) for col in target_category_columns]), axis=1
     )
     return result if not result.empty else pd.Series([], dtype=str)
+
+
+def merged_category_column_name(target_category_columns: Union[List, None]):
+    if not target_category_columns or len(target_category_columns) == 0:
+        return None
+    return "__".join([str(x) for x in target_category_columns])
+
+
+def datetime_to_seconds(s: pd.Series):
+    """
+    Method converts a datetime column into an integer number of seconds.
+    This method has many uses, most notably for enabling libraries like shap
+        to read datetime columns
+    ------------
+    s: pd.Series
+        A Series of type datetime
+    Returns
+    pd.Series of type int
+    """
+    return s.apply(lambda x: x.timestamp())
+
+
+def seconds_to_datetime(s: pd.Series):
+    """
+    Inverse of `datetime_to_second`
+    ------------
+    s: pd.Series
+        A Series of type int
+    Returns
+    pd.Series of type datetime
+    """
+    return pd.to_datetime(s, unit="s")
 
 
 def default_signer(**kwargs):

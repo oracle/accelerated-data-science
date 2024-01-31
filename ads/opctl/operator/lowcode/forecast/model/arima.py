@@ -26,7 +26,6 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets=datasets)
         self.global_explanation = {}
         self.local_explanation = {}
-        self.train_metrics = True
         self.formatted_global_explanation = None
         self.formatted_local_explanation = None
 
@@ -54,6 +53,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 model_kwargs["error_action"] = "ignore"
 
             target = self.original_target_column
+            self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
 
             # format the dataframe for this target. Dropping NA on target[df] will remove all future data
             le, df_encoded = _label_encode_dataframe(
@@ -87,13 +87,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
                 # Build and fit model
                 model = pm.auto_arima(y=y, X=X_in, **self.spec.model_kwargs)
 
-            print(f"X_in: {X_in}, pred: {model.predict_in_sample(X=X_in)}")
-
-            self.fitted_values[s_id] = pd.Series(
-                model.predict_in_sample(X=X_in).values,
-                index=data_i.index,
-                name="fitted_values",
-            )
+            fitted_values = model.predict_in_sample(X=X_in).values
 
             # Build future dataframe
             start_date = y.index.values[-1]
@@ -124,12 +118,18 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             logger.debug(f"-----------------Model {i}----------------------")
             logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
 
-            # Collect all outputs
-            # models.append(model)
-            self.outputs_legacy.append(
-                forecast.reset_index().rename(columns={"index": "ds"})
-            )
             self.outputs[s_id] = forecast
+            self.forecast_output.populate_series_output(
+                series_id=s_id,
+                fit_val=fitted_values,
+                forecast_val=forecast["yhat"].iloc[-self.spec.horizon :].values,
+                upper_bound=forecast["yhat_upper"]
+                .iloc[-self.spec.horizon :]
+                .values,  # TODO: do we need to limit to last few rows?
+                lower_bound=forecast["yhat_lower"]
+                .iloc[-self.spec.horizon :]
+                .values,  # TODO: do we need to limit to last few rows?
+            )
 
             if self.loaded_models is None:
                 self.models[s_id] = model
@@ -146,18 +146,20 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
             logger.debug("===========Done===========")
         except Exception as e:
             self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
+            raise
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
 
         self.forecast_output = ForecastOutput(
-            confidence_interval_width=self.spec.confidence_interval_width
+            confidence_interval_width=self.spec.confidence_interval_width,
+            horizon=self.spec.horizon,
+            target_column=self.original_target_column,
+            dt_column=self.spec.datetime_column.name,
         )
 
         self.models = dict()
         self.outputs = dict()
-        self.outputs_legacy = []
-        self.fitted_values = dict()
         self.dt_columns = dict()
 
         Parallel(n_jobs=-1, require="sharedmem")(
@@ -170,31 +172,7 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         if self.loaded_models is not None:
             self.models = self.loaded_models
 
-        # Merge the outputs from each model into 1 df with all outputs by target and series
-        output_col = pd.DataFrame()
-        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
-        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-
-        for s_id in self.datasets.list_series_ids():
-            output_i = pd.DataFrame()
-            output_i["Date"] = full_data_dict[s_id][self.spec.datetime_column.name]
-            output_i["Series"] = s_id
-            output_i = output_i.set_index("Date")
-
-            output_i["input_value"] = full_data_dict[s_id][self.original_target_column]
-            print(f"output_i: {output_i}, self.fitted_values: {self.fitted_values}")
-            output_i["fitted_value"] = self.fitted_values[s_id]
-            output_i["forecast_value"] = self.outputs[s_id]["yhat"]
-            output_i[yhat_upper_name] = self.outputs[s_id]["yhat_upper"]
-            output_i[yhat_lower_name] = self.outputs[s_id]["yhat_lower"]
-
-            # output_i = output_i.reset_index(drop=False)
-            output_col = pd.concat([output_col, output_i])
-            self.forecast_output.add_series_id(series_id=s_id, forecast=output_i)
-
-        output_col = output_col.reset_index(drop=True)
-
-        return output_col
+        return self.forecast_output.get_forecast_long()
 
     def _generate_report(self):
         """The method that needs to be implemented on the particular model level."""
