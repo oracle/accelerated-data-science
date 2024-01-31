@@ -689,7 +689,10 @@ class ResourcePrincipal(AuthSignerGenerator):
 
     @staticmethod
     def supported():
-        return any(os.environ.get(var) for var in ['JOB_RUN_OCID', 'NB_SESSION_OCID', 'DATAFLOW_RUN_ID'])
+        return any(
+            os.environ.get(var)
+            for var in ['JOB_RUN_OCID', 'NB_SESSION_OCID', 'DATAFLOW_RUN_ID', 'PIPELINE_RUN_OCID']
+        )
 
 
 class InstancePrincipal(AuthSignerGenerator):
