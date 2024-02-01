@@ -14,18 +14,16 @@ from ads.model.deployment import (
     ModelDeploymentContainerRuntime,
     ModelDeploymentMode,
 )
+from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
 from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.config import COMPARTMENT_OCID, ROOT_COMPARTMENT_OCID
+from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID
 from oci.exceptions import ServiceError, ClientError
 from oci.logging.models import LogGroupSummary, LogSummary
 from oci.identity.models import Compartment
 
 # todo: move this to constants or have separate functions
 AQUA_SERVICE_MODEL = "aqua_service_model"
-CONSOLE_LINK_URL = (
-    "https://cloud.oracle.com/data-science/model-deployments/{}?region={}"
-)
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +312,11 @@ class AquaDeploymentApp(AquaApp):
                 if instance_shape_config_details
                 else None
             ),
-            console_link=CONSOLE_LINK_URL.format(oci_model_deployment.id, region),
+            console_link=get_console_link(
+                resource="model-deployments",
+                ocid=oci_model_deployment.id,
+                region=region,
+            ),
         )
 
     def list_log_groups(self, **kwargs) -> List["LogGroupSummary"]:
@@ -384,14 +386,14 @@ class AquaDeploymentApp(AquaApp):
             oci.identity.models.Compartment
         """
         try:
-            if not ROOT_COMPARTMENT_OCID:
+            if not ODSC_MODEL_COMPARTMENT_OCID:
                 raise AquaClientError(
-                    f"ROOT_COMPARTMENT_OCID must be available in environment"
+                    f"ODSC_MODEL_COMPARTMENT_OCID must be available in environment"
                     " variables to list the sub compartments."
                 )
 
             return self.identity_client.list_compartments(
-                compartment_id=ROOT_COMPARTMENT_OCID, **kwargs
+                compartment_id=ODSC_MODEL_COMPARTMENT_OCID, **kwargs
             ).data.__repr__()
         # todo : update this once exception handling is set up
         except ServiceError as se:

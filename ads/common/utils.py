@@ -1713,3 +1713,30 @@ def upload_to_os(
         )
 
     return response
+
+
+def get_console_link(
+    resource: str,
+    ocid: str,
+    region: str,
+) -> str:
+    """
+    This method returns the web console link for the given resource.
+    Parameters
+    ----------
+    resource: str
+        identify the type of OCI resource. {model, model-deployments, notebook-sessions, jobs} is supported.
+    ocid: str
+        OCID of the resource
+    region: str
+        The Region Identifier that the client should connect to.
+
+    Returns
+    -------
+    console_link_url: str
+        a valid link to the console for the given resource
+    """
+    console_link_url = "https://cloud.oracle.com/data-science/{}/{}?region={}".format(
+        resource, ocid, region
+    )
+    return console_link_url

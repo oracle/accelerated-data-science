@@ -48,7 +48,7 @@ NO_CONTAINER = os.environ.get("NO_CONTAINER")
 TMPDIR = os.environ.get("TMPDIR")
 
 # Aqua config
-ROOT_COMPARTMENT_OCID = os.environ.get("ROOT_COMPARTMENT_OCID")
+ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
 
 
 def export(
