@@ -450,6 +450,9 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             g_expl.name = s_id
             global_expl.append(g_expl)
         self.global_explanation = pd.concat(global_expl, axis=1)
+        self.formatted_global_explanation = self.global_explanation.drop(
+            index=["future_regressors_additive"], axis=0
+        )
         self.formatted_global_explanation = (
             self.global_explanation / self.global_explanation.sum(axis=0) * 100
         )

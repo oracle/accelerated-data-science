@@ -15,7 +15,7 @@ from ads.opctl import logger
 from ads.opctl.operator.common.const import ENV_OPERATOR_ARGS
 from ads.opctl.operator.common.utils import _parse_input_args
 
-from .model.anomaly_dataset import AnomalyDatasets
+from .model.anomaly_dataset import AnomalyDatasets, AnomalyData
 from .operator_config import AnomalyOperatorConfig
 
 
@@ -23,7 +23,9 @@ def operate(operator_config: AnomalyOperatorConfig) -> None:
     """Runs the anomaly detection operator."""
     from .model.factory import AnomalyOperatorModelFactory
 
-    datasets = AnomalyDatasets(operator_config)
+    datasets = AnomalyDatasets(operator_config.spec)
+    datasets2 = AnomalyData(operator_config.spec)
+    print(f"d1: {datasets.data}\n\n d2: {datasets2.data}")
     AnomalyOperatorModelFactory.get_model(operator_config, datasets).generate_report()
 
 

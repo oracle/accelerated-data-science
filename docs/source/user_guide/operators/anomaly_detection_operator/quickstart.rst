@@ -39,10 +39,10 @@ Within the ``anomaly`` folder created above there will be a ``anomaly.yaml`` fil
     spec:
         datetime_column:
             name: ds
-        historical_data:
+        input_data:
             url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_yosemite_temps.csv
         horizon: 3
-        model: auto
+        model: automlx
         target_column: y
 
 There are many more options in this :doc:`YAML file <./yaml_schema>`.

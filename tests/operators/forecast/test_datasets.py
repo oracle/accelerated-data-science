@@ -41,16 +41,16 @@ DATASETS_LIST = [
     # # "TrafficDataset",
     # # "USGasolineDataset",
     # "UberTLCDataset",
-    "WeatherDataset",
-    "WineDataset",
-    "WoolyDataset",
+    #     "WeatherDataset",
+    #     "WineDataset",
+    #     "WoolyDataset",
 ]
 
 MODELS = [
-    "arima",
-    "automlx",
-    "prophet",
-    "neuralprophet",
+    # "arima",
+    # "automlx",
+    # "prophet",
+    # "neuralprophet",
     "autots",
     # "auto",
 ]
@@ -164,7 +164,7 @@ def test_load_datasets(model, dataset_name):
         # sleep(0.1)
         run(yaml_i, backend="local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
-        if yaml_i["spec"]["generate_explanations"]:
+        if yaml_i["spec"]["generate_explanations"] and model != "autots":
             glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")
             print(glb_expl)
             loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")

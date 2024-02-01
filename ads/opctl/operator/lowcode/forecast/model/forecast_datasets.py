@@ -9,7 +9,6 @@ import pandas as pd
 from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
 
 from ..operator_config import ForecastOperatorConfig
-from .transformations import Transformations
 from ads.opctl import logger
 from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
 from ads.common.object_storage_details import ObjectStorageDetails
@@ -18,6 +17,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     get_frequency_in_seconds,
     get_frequency_of_datetime,
 )
+from ads.opctl.operator.lowcode.common.data import AbstractData
 from ads.opctl.operator.lowcode.forecast.utils import (
     default_signer,
 )
@@ -31,88 +31,10 @@ from ..const import SupportedModels
 from abc import ABC, abstractmethod
 
 
-class AbstractForecastData(ABC):
-    def __init__(self, spec: dict, name="historical_data"):
-        self.data = None
-        self._data_dict = dict()
-        self.name = name
-        self.load_transform_ingest_data(spec)
+class HistoricalData(AbstractData):
+    def __init__(self, spec: dict):
+        super().__init__(spec=spec, name="historical_data")
 
-    def get_dict_by_series(self):
-        if not self._data_dict:
-            for s_id in self.list_series_ids():
-                try:
-                    self._data_dict[s_id] = self.data.xs(
-                        s_id, level=ForecastOutputColumns.SERIES
-                    ).reset_index()
-                except KeyError as ke:
-                    logger.debug(
-                        f"Unable to extract series: {s_id} from data: {self.data}. This may occur due to significant missing data. Error message: {ke.args}"
-                    )
-                    pass
-        return self._data_dict
-
-    def get_data_for_series(self, series_id):
-        data_dict = self.get_dict_by_series()
-        try:
-            return data_dict[series_id]
-        except:
-            raise InvalidParameterError(
-                f"Unable to retrieve series {series_id} from {self.name}. Available series ids are: {self.list_series_ids()}"
-            )
-
-    def _load_data(self, data_spec, **kwargs):
-        loading_start_time = time.time()
-        try:
-            raw_data = load_data(
-                filename=data_spec.url,
-                format=data_spec.format,
-                columns=data_spec.columns,
-            )
-        except InvalidParameterError as e:
-            e.args = e.args + (f"Invalid Parameter: {self.name}",)
-            raise e
-        loading_end_time = time.time()
-        logger.info(
-            f"{self.name} loaded in {loading_end_time - loading_start_time} seconds",
-        )
-        return raw_data
-
-    def _transform_data(self, spec, raw_data, **kwargs):
-        transformation_start_time = time.time()
-        self._data_transformer = Transformations(spec, name=self.name)
-        data = self._data_transformer.run(raw_data)
-        transformation_end_time = time.time()
-        logger.info(
-            f"{self.name} transformations completed in {transformation_end_time - transformation_start_time} seconds"
-        )
-        return data
-
-    def load_transform_ingest_data(self, spec):
-        raw_data = self._load_data(getattr(spec, self.name))
-        self.data = self._transform_data(spec, raw_data)
-        self._ingest_data(spec)
-
-    def _ingest_data(self, spec):
-        pass
-
-    def get_data_long(self):
-        return self.data.reset_index(drop=False)
-
-    def get_min_time(self):
-        return self.data.index.get_level_values(0).min()
-
-    def get_max_time(self):
-        return self.data.index.get_level_values(0).max()
-
-    def list_series_ids(self):
-        return self.data.index.get_level_values(1).unique().tolist()
-
-    def get_num_rows(self):
-        return self.data.shape[0]
-
-
-class HistoricalData(AbstractForecastData):
     def _ingest_data(self, spec):
         try:
             self.freq = get_frequency_of_datetime(self.data.index.get_level_values(0))
@@ -139,7 +61,7 @@ class HistoricalData(AbstractForecastData):
                 raise InvalidParameterError(message)
 
 
-class AdditionalData(AbstractForecastData):
+class AdditionalData(AbstractData):
     def __init__(self, spec, historical_data):
         if spec.additional_data is not None:
             super().__init__(spec=spec, name="additional_data")
@@ -183,7 +105,7 @@ class AdditionalData(AbstractForecastData):
         # Check that datetime column matches historical datetime column
 
 
-class TestData(AbstractForecastData):
+class TestData(AbstractData):
     def __init__(self, spec):
         super().__init__(spec=spec, name="test_data")
         self.dt_column_name = spec.datetime_column.name

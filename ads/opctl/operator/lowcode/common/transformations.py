@@ -9,12 +9,13 @@ from ads.opctl.operator.lowcode.common.errors import (
     InvalidParameterError,
     DataMismatchError,
 )
-from ads.opctl.operator.lowcode.forecast.const import ForecastOutputColumns
+from ads.opctl.operator.lowcode.common.const import DataColumns
 from ads.opctl.operator.lowcode.common.utils import merge_category_columns
 import pandas as pd
+from abc import ABC
 
 
-class Transformations:
+class Transformations(ABC):
     """A class which implements transformation for forecast operator"""
 
     def __init__(self, dataset_info, name="historical_data"):
@@ -72,10 +73,10 @@ class Transformations:
 
     def _set_series_id_column(self, df):
         if not self.target_category_columns:
-            df[ForecastOutputColumns.SERIES] = "Series 1"
+            df[DataColumns.Series] = "Series 1"
             self.has_artificial_series = True
         else:
-            df[ForecastOutputColumns.SERIES] = merge_category_columns(
+            df[DataColumns.Series] = merge_category_columns(
                 df, self.target_category_columns
             )
             df = df.drop(self.target_category_columns, axis=1)
@@ -104,10 +105,8 @@ class Transformations:
         -------
             A new Pandas DataFrame with sorted dates for each series
         """
-        df = df.set_index([self.dt_column_name, ForecastOutputColumns.SERIES])
-        return df.sort_values(
-            [self.dt_column_name, ForecastOutputColumns.SERIES], ascending=True
-        )
+        df = df.set_index([self.dt_column_name, DataColumns.Series])
+        return df.sort_values([self.dt_column_name, DataColumns.Series], ascending=True)
 
     def _missing_value_imputation_hist(self, df):
         """
@@ -124,7 +123,7 @@ class Transformations:
         # missing value imputation using linear interpolation
         df[self.target_column_name] = (
             df[self.target_column_name]
-            .groupby(ForecastOutputColumns.SERIES)
+            .groupby(DataColumns.Series)
             .transform(lambda x: x.interpolate(limit_direction="both"))
         )
         return df
@@ -165,13 +164,13 @@ class Transformations:
         """
         df["z_score"] = (
             df[self.target_column_name]
-            .groupby(ForecastOutputColumns.SERIES)
+            .groupby(DataColumns.Series)
             .transform(lambda x: (x - x.mean()) / x.std())
         )
         outliers_mask = df["z_score"].abs() > 3
         df.loc[outliers_mask, self.target_column_name] = (
             df[self.target_column_name]
-            .groupby(ForecastOutputColumns.SERIES)
+            .groupby(DataColumns.Series)
             .transform(lambda x: x.mean())
         )
         return df.drop("z_score", axis=1)
