@@ -43,7 +43,6 @@ class AquaModelSummary(DataClassSerializable):
     name: str
     organization: str
     project_id: str
-    search_text: str
     tags: dict
     task: str
     time_created: str
@@ -139,12 +138,22 @@ class AquaModelApp(AquaApp):
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
 
-        query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' && lifecycleState = 'ACTIVE' && (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'))"
-
-        models = OCIResource.search(
-            query,
-            type="Structured",
-        )
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
+        condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
+        # not support filtered by project_id
+        query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
+        logger.info(query)
+        try:
+            models = OCIResource.search(
+                query,
+                type="Structured",
+            )
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(
+                f"Failed to retreive model from the given compartment {compartment_id}"
+            )
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
         if not models:
             error_message = (
@@ -164,15 +173,15 @@ class AquaModelApp(AquaApp):
             tags.update(model.freeform_tags)
 
             return AquaModelSummary(
-                name=model.display_name,
-                id=model.identifier,
                 compartment_id=model.compartment_id,
-                project_id=project_id,
-                time_created=model.time_created,
                 icon=icon,
-                task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                id=model.identifier,
                 license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+                name=model.display_name,
                 organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
+                project_id=project_id,
+                task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                time_created=model.time_created,
                 is_fine_tuned_model=True
                 if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
                 else False,

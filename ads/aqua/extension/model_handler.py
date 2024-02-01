@@ -29,7 +29,7 @@ class AquaModelHandler(AquaAPIhandler):
         """Read the information of an Aqua model."""
         return self.finish(AquaModelApp().get(model_id))
 
-    @exception_handler
+    # @exception_handler
     def list(self):
         """List Aqua models."""
         # If default is not specified,
@@ -42,10 +42,4 @@ class AquaModelHandler(AquaAPIhandler):
         return self.finish(AquaModelApp().list(compartment_id, project_id))
 
 
-__handlers__ = [("model/?([^/]*)", AquaModelHandler)]
-
-__handlers__ = [("model/?([^/]*)", AquaModelHandler)]
-
-__handlers__ = [("model/?([^/]*)", AquaModelHandler)]
-__handlers__ = [("model/?([^/]*)", AquaModelHandler)]
 __handlers__ = [("model/?([^/]*)", AquaModelHandler)]
