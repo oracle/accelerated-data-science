@@ -20,6 +20,9 @@ from ads.config import COMPARTMENT_OCID
 from oci.exceptions import ServiceError, ClientError
 
 AQUA_SERVICE_MODEL = "aqua_service_model"
+CONSOLE_LINK_URL = (
+    "https://cloud.oracle.com/data-science/model-deployments/{}?region={}"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +31,7 @@ logger = logging.getLogger(__name__)
 class AquaDeployment(DataClassSerializable):
     """Represents an Aqua Model Deployment"""
 
+    id: str
     display_name: str
     aqua_service_model: str
     state: str
@@ -35,6 +39,7 @@ class AquaDeployment(DataClassSerializable):
     created_on: str
     created_by: str
     endpoint: str
+    console_link: str
 
 
 class AquaDeploymentApp(AquaApp):
@@ -160,7 +165,7 @@ class AquaDeploymentApp(AquaApp):
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
             .with_model_uri(model_id)
-            .with_region(region)
+            .with_region(self.region)
             .with_overwrite_existing_artifact(False)
             .with_remove_existing_artifact(False)
         )
@@ -176,6 +181,7 @@ class AquaDeploymentApp(AquaApp):
         ).deploy(wait_for_completion=False)
 
         return AquaDeployment(
+            id=deployment.model_deployment_id,
             display_name=deployment.display_name,
             aqua_service_model=aqua_service_model,
             state=deployment.status.name,
@@ -183,6 +189,9 @@ class AquaDeploymentApp(AquaApp):
             created_on=deployment.time_created,
             created_by=deployment.created_by,
             endpoint=deployment.url,
+            console_link=CONSOLE_LINK_URL.format(
+                deployment.model_deployment_id, self.region
+            ),
         )
 
     def list(self, **kwargs) -> List["AquaDeployment"]:
@@ -215,6 +224,7 @@ class AquaDeploymentApp(AquaApp):
             if aqua_service_model:
                 results.append(
                     AquaDeployment(
+                        id=model_deployment.id,
                         display_name=model_deployment.display_name,
                         aqua_service_model=aqua_service_model,
                         state=model_deployment.lifecycle_state,
@@ -222,6 +232,9 @@ class AquaDeploymentApp(AquaApp):
                         created_on=str(model_deployment.time_created),
                         created_by=model_deployment.created_by,
                         endpoint=model_deployment.model_deployment_url,
+                        console_link=CONSOLE_LINK_URL.format(
+                            model_deployment.id, self.region
+                        ),
                     )
                 )
 
@@ -271,6 +284,7 @@ class AquaDeploymentApp(AquaApp):
             )
 
         return AquaDeployment(
+            id=model_deployment.id,
             display_name=model_deployment.display_name,
             aqua_service_model=aqua_service_model,
             state=model_deployment.lifecycle_state,
@@ -278,4 +292,5 @@ class AquaDeploymentApp(AquaApp):
             created_on=str(model_deployment.time_created),
             created_by=model_deployment.created_by,
             endpoint=model_deployment.model_deployment_url,
+            console_link=CONSOLE_LINK_URL.format(model_deployment.id, self.region),
         )
