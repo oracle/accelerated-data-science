@@ -13,6 +13,7 @@ from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.aqua.utils import create_word_icon
+from ads.common.oci_resource import OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.config import COMPARTMENT_OCID
 
@@ -34,16 +35,18 @@ class Tags(Enum):
 class AquaModelSummary(DataClassSerializable):
     """Represents a summary of Aqua model."""
 
-    name: str
-    id: str
     compartment_id: str
-    project_id: str
-    time_created: str
     icon: str
-    task: str
-    license: str
-    organization: str
+    id: str
     is_fine_tuned_model: bool
+    license: str
+    name: str
+    organization: str
+    project_id: str
+    search_text: str
+    tags: dict
+    task: str
+    time_created: str
 
 
 @dataclass(repr=False)
@@ -135,23 +138,36 @@ class AquaModelApp(AquaApp):
         """
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
-        models = self.list_resource(self.client.list_models, **kwargs)
+
+        query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' && lifecycleState = 'ACTIVE' && (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG}'))"
+
+        models = OCIResource.search(
+            query,
+            type="Structured",
+        )
+
         if not models:
-            logger.error(
+            error_message = (
                 f"No model found in compartment_id={compartment_id}, project_id={project_id}."
+                if project_id
+                else f"No model found in compartment_id={compartment_id}."
             )
+            logger.error(error_message)
 
         aqua_models = []
         # TODO: build index.json locally as caching if needed.
 
         def process_model(model):
             icon = self._load_icon(model.display_name)
+            tags = {}
+            tags.update(model.defined_tags)
+            tags.update(model.freeform_tags)
 
             return AquaModelSummary(
                 name=model.display_name,
-                id=model.id,
+                id=model.identifier,
                 compartment_id=model.compartment_id,
-                project_id=model.project_id,
+                project_id=project_id,
                 time_created=model.time_created,
                 icon=icon,
                 task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
@@ -160,28 +176,13 @@ class AquaModelApp(AquaApp):
                 is_fine_tuned_model=True
                 if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
                 else False,
+                tags=tags,
             )
 
-        for model in models:  # ModelSummary
-            if self._if_show(model):
-                aqua_models.append(process_model(model))
+        for model in models:  # ResourceSummary
+            aqua_models.append(process_model(model))
 
         return aqua_models
-
-    def _if_show(self, model: "ModelSummary") -> bool:
-        """Determine if the given model should be return by `list`."""
-        TARGET_TAGS = model.freeform_tags.keys()
-        if not Tags.AQUA_TAG.value in TARGET_TAGS:
-            return False
-
-        return (
-            True
-            if (
-                Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS
-                or Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS
-            )
-            else False
-        )
 
     def _get_artifact_path(self, custom_metadata_list: List) -> str:
         """Get the artifact path from the custom metadata list of model.
