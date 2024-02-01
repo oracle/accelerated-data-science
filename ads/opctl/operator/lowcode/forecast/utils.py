@@ -126,17 +126,30 @@ def _build_metrics_per_horizon(
 
     metrics_df = pd.DataFrame()
     for date in dates:
-        y_true = np.array(
-            test_df.xs(date, level=ForecastOutputColumns.DATE)[
-                test_data.target_name
-            ].values
-        )
-        y_pred = np.array(
-            forecast_df.xs(date, level=ForecastOutputColumns.DATE)[
-                ForecastOutputColumns.FORECAST_VALUE
-            ].values
-        )
+        y_true = test_df.xs(date, level=ForecastOutputColumns.DATE)[
+            test_data.target_name
+        ]
+        y_pred = forecast_df.xs(date, level=ForecastOutputColumns.DATE)[
+            ForecastOutputColumns.FORECAST_VALUE
+        ]
+        y_true = np.array(y_true.values)
+        y_pred = np.array(y_pred.values)
 
+        print(f"Hello!!")
+        print(y_true, y_pred)
+        drop_na_mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
+        print(drop_na_mask)
+        if not drop_na_mask.all():  # There is a missing value
+            if drop_na_mask.any():  # All values are missing
+                logger.debug(
+                    f"No test data available for date: {date}. This will affect the test metrics."
+                )
+                continue
+            logger.debug(
+                f"Missing test data for date: {date}. This will affect the test metrics."
+            )
+            y_true = y_true[drop_na_mask]
+            y_pred = y_pred[drop_na_mask]
         smapes = smape(actual=y_true, predicted=y_pred)
         mapes = mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)
         wmapes = mapes * wmape_weights
@@ -180,7 +193,9 @@ def write_pkl(obj, filename, output_dir, storage_options):
         cloudpickle.dump(obj, f)
 
 
-def _build_metrics_df(y_true, y_pred, column_name):
+def _build_metrics_df(y_true, y_pred, series_id):
+    if len(y_true) == 0 or len(y_pred) == 0:
+        return pd.DataFrame()
     metrics = dict()
     metrics["sMAPE"] = smape(actual=y_true, predicted=y_pred)
     metrics["MAPE"] = mean_absolute_percentage_error(y_true=y_true, y_pred=y_pred)
@@ -192,7 +207,7 @@ def _build_metrics_df(y_true, y_pred, column_name):
     metrics["Explained Variance"] = explained_variance_score(
         y_true=y_true, y_pred=y_pred
     )
-    return pd.DataFrame.from_dict(metrics, orient="index", columns=[column_name])
+    return pd.DataFrame.from_dict(metrics, orient="index", columns=[series_id])
 
 
 def evaluate_train_metrics(output, metrics_col_name=None):
@@ -215,14 +230,26 @@ def evaluate_train_metrics(output, metrics_col_name=None):
             forecast_by_s_id = forecast_by_s_id.dropna()
             y_true = forecast_by_s_id["input_value"].values
             y_pred = forecast_by_s_id["fitted_value"].values
+            drop_na_mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
+            if not drop_na_mask.all():  # There is a missing value
+                if drop_na_mask.any():  # All values are missing
+                    logger.debug(
+                        f"No fitted values available for series: {s_id}. This will affect the training metrics."
+                    )
+                    continue
+                logger.debug(
+                    f"Missing fitted values for series: {s_id}. This will affect the training metrics."
+                )
+                y_true = y_true[drop_na_mask]
+                y_pred = y_pred[drop_na_mask]
             metrics_df = _build_metrics_df(
                 y_true=y_true,
                 y_pred=y_pred,
-                column_name=s_id,
+                series_id=s_id,
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         except Exception as e:
-            logger.warn(
+            logger.debug(
                 f"Failed to generate training metrics for target_series: {s_id}"
             )
             logger.debug(f"Recieved Error Statement: {e}")

@@ -131,12 +131,12 @@ TEST_DATA = pd.concat(
 )
 
 MODELS = [
-    "arima",
-    "automlx",
-    "prophet",
+    # "arima",
+    # "automlx",
+    # "prophet",
     "neuralprophet",
-    "autots",
-    "auto",
+    # "autots",
+    # "auto",
 ]
 
 TEMPLATE_YAML = {

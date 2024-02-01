@@ -23,10 +23,10 @@ DATASETS_LIST = [
     "AusBeerDataset",
     "AustralianTourismDataset",
     "ETTh1Dataset",
-    # 'ETTh2Dataset',
-    # 'ETTm1Dataset',
-    # 'ETTm2Dataset',
-    # 'ElectricityDataset',
+    "ETTh2Dataset",
+    "ETTm1Dataset",
+    "ETTm2Dataset",
+    "ElectricityDataset",
     "EnergyDataset",
     "ExchangeRateDataset",
     "GasRateCO2Dataset",
@@ -48,8 +48,8 @@ DATASETS_LIST = [
 
 MODELS = [
     # "arima",
-    "automlx",
-    # "prophet",
+    # "automlx",
+    "prophet",
     # "neuralprophet",
     # "autots",
     # "auto",
@@ -84,7 +84,7 @@ SAMPLE_FRACTION = 1
 
 parameters_short = []
 
-for dataset_i in DATASETS_LIST[1:4]:  #  + [DATASETS_LIST[-2]]
+for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
     for model in MODELS:
         parameters_short.append((model, dataset_i))
 
@@ -143,7 +143,7 @@ def test_load_datasets(model, dataset_name):
         yaml_i["spec"]["target_column"] = columns[0]
         yaml_i["spec"]["datetime_column"]["name"] = datetime_col
         yaml_i["spec"]["horizon"] = PERIODS
-        if yaml_i["spec"].get("additional_data") is not None:
+        if yaml_i["spec"].get("additional_data") is not None and model != "automlx":
             yaml_i["spec"]["generate_explanations"] = True
         if generate_train_metrics:
             yaml_i["spec"]["generate_metrics"] = generate_train_metrics
@@ -172,7 +172,6 @@ def test_load_datasets(model, dataset_name):
         print(test_metrics)
         train_metrics = pd.read_csv(f"{tmpdirname}/results/metrics.csv")
         print(train_metrics)
-        return test_metrics.iloc[0][f"{columns[0]}"]
 
 
 def run_operator(
@@ -256,26 +255,4 @@ def run_operator(
 
 
 if __name__ == "__main__":
-    failed_runs = []
-    results = dict()
-    timings = dict()
-    for dataset_name in DATASETS_LIST[2:3]:  # random.sample(DATASETS_LIST, 2):
-        results[dataset_name] = dict()
-        timings[dataset_name] = dict()
-        for m in [
-            "automlx"
-        ]:  # ["arima", "automlx", "prophet", "neuralprophet", "autots", "auto"]:
-            start_time = time()
-            try:
-                results[dataset_name][m] = test_load_datasets(
-                    model=m, dataset_name=dataset_name
-                )
-            except Exception as e:
-                print(f"Failed with the following error! {e}")
-                failed_runs.append((dataset_name, m))
-            elapsed = time() - start_time
-            timings[dataset_name][m] = elapsed
-    print(f"Failed Runs: {failed_runs}")
-    print(f"results: {pd.DataFrame(results)}")
-    print(f"timings: {timings}")
-    pd.DataFrame(results).to_csv("~/Desktop/AUTO_benchmark_darts.csv")
+    pass

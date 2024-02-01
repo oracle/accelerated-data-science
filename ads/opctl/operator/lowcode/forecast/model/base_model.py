@@ -295,17 +295,34 @@ class ForecastOperatorBaseModel(ABC):
         # Generate y_pred and y_true for each series
         for s_id in self.forecast_output.list_series_ids():
             try:
-                y_true = data.get_data_for_series(s_id)[data.target_name]
+                y_true = data.get_data_for_series(s_id)[data.target_name].values[
+                    -self.spec.horizon :
+                ]
             except KeyError as ke:
                 logger.warn(
                     f"Error Generating Metrics: Unable to find {s_id} in the test data. Error: {ke.args}"
                 )
-            y_pred = self.forecast_output.get_forecast(s_id)["forecast_value"].values
+            y_pred = self.forecast_output.get_forecast(s_id)["forecast_value"].values[
+                -self.spec.horizon :
+            ]
+
+            drop_na_mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
+            if not drop_na_mask.all():  # There is a missing value
+                if drop_na_mask.any():  # All values are missing
+                    logger.debug(
+                        f"No values in the test data for series: {s_id}. This will affect the test metrics."
+                    )
+                    continue
+                logger.debug(
+                    f"Missing values in the test data for series: {s_id}. This will affect the test metrics."
+                )
+                y_true = y_true[drop_na_mask]
+                y_pred = y_pred[drop_na_mask]
 
             metrics_df = _build_metrics_df(
-                y_true=y_true[-self.spec.horizon :],
-                y_pred=y_pred[-self.spec.horizon :],
-                column_name=s_id,
+                y_true=y_true,
+                y_pred=y_pred,
+                series_id=s_id,
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 

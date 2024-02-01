@@ -61,66 +61,66 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         df: pd.DataFrame
             The dataframe containing the target data
         """
-        try:
-            target = self.original_target_column
-            self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
+        # try:
+        target = self.original_target_column
+        self.forecast_output.init_series_output(series_id=s_id, data_at_series=df)
 
-            # format the dataframe for this target. Dropping NA on target[df] will remove all future data
-            data = self.preprocess(df, s_id)
-            data_i = self.drop_horizon(data)
+        # format the dataframe for this target. Dropping NA on target[df] will remove all future data
+        data = self.preprocess(df, s_id)
+        data_i = self.drop_horizon(data)
 
-            # Split data into X and y for arima tune method
-            y = data_i[target]
-            X_in = data_i.drop(target, axis=1)
-            X_pred = self.get_horizon(data).drop(target, axis=1)
+        # Split data into X and y for arima tune method
+        y = data_i[target]
+        X_in = data_i.drop(target, axis=1) if len(data_i.columns) > 1 else None
+        X_pred = self.get_horizon(data).drop(target, axis=1)
 
-            if self.loaded_models is not None:
-                model = self.loaded_models[s_id]
-            else:
-                # Build and fit model
-                model = pm.auto_arima(y=y, X=X_in, **model_kwargs)
+        if self.loaded_models is not None:
+            model = self.loaded_models[s_id]
+        else:
+            # Build and fit model
+            model = pm.auto_arima(y=y, X=X_in, **model_kwargs)
 
-            fitted_values = model.predict_in_sample(X=X_in).values
+        fitted_values = model.predict_in_sample(X=X_in).values
 
-            # Predict and format forecast
-            yhat, conf_int = model.predict(
-                n_periods=self.spec.horizon,
-                X=X_pred,
-                return_conf_int=True,
-                alpha=model_kwargs["alpha"],
-            )
-            yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
+        # Predict and format forecast
+        yhat, conf_int = model.predict(
+            n_periods=self.spec.horizon,
+            X=X_pred,
+            return_conf_int=True,
+            alpha=model_kwargs["alpha"],
+        )
+        yhat_clean = pd.DataFrame(yhat, index=yhat.index, columns=["yhat"])
 
-            conf_int_clean = pd.DataFrame(
-                conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
-            )
-            forecast = pd.concat([yhat_clean, conf_int_clean], axis=1)
-            logger.debug(f"-----------------Model {i}----------------------")
-            logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
+        conf_int_clean = pd.DataFrame(
+            conf_int, index=yhat.index, columns=["yhat_lower", "yhat_upper"]
+        )
+        forecast = pd.concat([yhat_clean, conf_int_clean], axis=1)
+        logger.debug(f"-----------------Model {i}----------------------")
+        logger.debug(forecast[["yhat", "yhat_lower", "yhat_upper"]].tail())
 
-            self.forecast_output.populate_series_output(
-                series_id=s_id,
-                fit_val=fitted_values,
-                forecast_val=self.get_horizon(forecast["yhat"]).values,
-                upper_bound=self.get_horizon(forecast["yhat_upper"]).values,
-                lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
-            )
+        self.forecast_output.populate_series_output(
+            series_id=s_id,
+            fit_val=fitted_values,
+            forecast_val=self.get_horizon(forecast["yhat"]).values,
+            upper_bound=self.get_horizon(forecast["yhat_upper"]).values,
+            lower_bound=self.get_horizon(forecast["yhat_lower"]).values,
+        )
 
-            self.models[s_id] = model
+        self.models[s_id] = model
 
-            params = vars(model).copy()
-            for param in ["arima_res_", "endog_index_"]:
-                if param in params:
-                    params.pop(param)
-            self.model_parameters[s_id] = {
-                "framework": SupportedModels.Arima,
-                **params,
-            }
+        params = vars(model).copy()
+        for param in ["arima_res_", "endog_index_"]:
+            if param in params:
+                params.pop(param)
+        self.model_parameters[s_id] = {
+            "framework": SupportedModels.Arima,
+            **params,
+        }
 
-            logger.debug("===========Done===========")
-        except Exception as e:
-            self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
-            raise
+        logger.debug("===========Done===========")
+        # except Exception as e:
+        #     self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
+        #     raise
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
@@ -135,12 +135,8 @@ class ArimaOperatorModel(ForecastOperatorBaseModel):
         )
 
         Parallel(n_jobs=-1, require="sharedmem")(
-            delayed(ArimaOperatorModel._train_model)(
-                self, i, s_id, df, model_kwargs.copy()
-            )
-            for self, (i, (s_id, df)) in zip(
-                [self] * len(full_data_dict), enumerate(full_data_dict.items())
-            )
+            delayed(self._train_model)(i, s_id, df, model_kwargs.copy())
+            for (i, (s_id, df)) in enumerate(full_data_dict.items())
         )
 
         return self.forecast_output.get_forecast_long()

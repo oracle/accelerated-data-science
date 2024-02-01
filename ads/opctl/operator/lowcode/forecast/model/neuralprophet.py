@@ -123,7 +123,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             if self.loaded_models is not None:
                 model = self.loaded_models[s_id]
                 accepted_regressors_config = model.config_regressors or dict()
-                accepted_regressors = list(accepted_regressors_config.keys())
+                self.accepted_regressors[s_id] = list(accepted_regressors_config.keys())
                 if self.loaded_trainers is not None:
                     model.trainer = self.loaded_trainers[s_id]
             else:
@@ -131,7 +131,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                     model_kwargs = self.run_tuning(data_i, model_kwargs)
 
                 # Build and fit model
-                model, accepted_regressors = _fit_model(
+                model, self.accepted_regressors[s_id] = _fit_model(
                     data=data_i,
                     params=model_kwargs,
                     additional_regressors=self.additional_regressors,
@@ -141,13 +141,15 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(
                 f"Found the following additional data columns: {self.additional_regressors}"
             )
-            if set(self.additional_regressors) - set(accepted_regressors):
+            if set(self.additional_regressors) - set(self.accepted_regressors[s_id]):
                 logger.debug(
                     f"While fitting the model, some additional data may have been "
-                    f"discarded. Only using the columns: {accepted_regressors}"
+                    f"discarded. Only using the columns: {self.accepted_regressors[s_id]}"
                 )
             # Build future dataframe
-            future = data.reset_index(drop=True)
+            future = data[self.accepted_regressors[s_id] + ["ds"]].reset_index(
+                drop=True
+            )
             future["y"] = None
 
             forecast = model.predict(future)
@@ -216,6 +218,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         self.outputs = dict()
         self.errors_dict = dict()
         self.explanations_info = dict()
+        self.accepted_regressors = dict()
         self.additional_regressors = self.datasets.get_additional_data_column_names()
         model_kwargs = self.set_kwargs()
         self.forecast_output = ForecastOutput(
