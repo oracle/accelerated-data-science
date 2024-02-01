@@ -104,13 +104,15 @@ class VLLModelParams(DataClassSerializable):
     ignore_eos: Optional[bool] = False
     n: Optional[int] = 1
     best_of: Optional[int] = 1
-    stop: Optional[List[str]] = None
-    stream: Optional[bool] = False
+    stop: Optional[List[str]] = field(default_factory=list)
+    stream: Optional[bool] = True
     min_p: Optional[float] = 0.0
 
     def __post_init__(self):
         if not self.model:
             self.model = "/opt/ds/model/deployed_model"
+        if self.stream is None:
+            self.stream = True
 
 
 @dataclass(repr=False)

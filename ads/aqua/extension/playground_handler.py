@@ -199,18 +199,14 @@ class AquaPlaygroundThreadHandler(AquaAPIhandler):
                 batch_convert_case(input_data, to_fmt="snake")
             )
 
-            system_message = ThreadApp().post_message(
+            thread_obj = ThreadApp().post_message(
                 message=message_obj.content,
                 thread_id=message_obj.thread_id,
                 session_id=message_obj.session_id,
                 model_params=message_obj.model_params.to_dict(),
             )
 
-            self.finish(
-                ThreadApp().get(
-                    thread_id=system_message.thread_id, include_messages=True
-                )
-            )
+            self.finish(ThreadApp().get(thread_id=thread_obj.id, include_messages=True))
         except Exception as ex:
             raise HTTPError(500, str(ex))
 

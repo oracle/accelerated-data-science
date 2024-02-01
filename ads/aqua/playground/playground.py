@@ -297,10 +297,11 @@ class ThreadApp:
         thread_id: int = None,
         session_id: int = None,
         model_params: Dict = None,
-    ) -> Message:
+    ) -> Thread:
         """
         Posts a message to the thread identified by the given ID.
         If session ID provided, then a new thread will be created.
+        By default the model will not be invoked and the result will be empty.
 
         Parameters
         ----------
@@ -312,13 +313,20 @@ class ThreadApp:
             The ID of the session to where the thread will be created.
         model_params: (Dict, optional)
             Model parameters to be associated with the message.
+            Currently supported VLLM+OpenAI parameters.
 
-            --model-params '{"max_tokens":500, "temperature": 0.5, "top_k": 10, "top_p": 0.5}'
+            --model-params '{
+                "max_tokens":500,
+                "temperature": 0.5,
+                "top_k": 10,
+                "top_p": 0.5,
+                "model": "/opt/ds/model/deployed_model",
+                ...}'
 
         Returns
         -------
-        Message
-            The model response.
+        Thread
+            The thread object containing only one question with answer.
         """
         model_params = VLLModelParams.from_dict(
             model_params or {}, ignore_unknown=True
@@ -334,6 +342,15 @@ class ThreadApp:
         # get the session info by thread ID
         session_obj = SessionApp().get(id=thread.session_id, include_threads=False)
 
+        # register query message
+        user_message = db_context.add_message_to_thread(
+            thread_id=thread.id,
+            content=message,
+            role=MessageRole.USER,
+            model_params=model_params,
+            status=Status.ACTIVE,
+        )
+
         # invoke the model
         model_deployment = ModelDeploymentVLLM(
             endpoint=f"{session_obj.model.endpoint.rstrip('/')}/predict",
@@ -341,25 +358,20 @@ class ThreadApp:
         )
         model_response_content = model_deployment(message)
 
-        # save request message to the DB
-        user_message = db_context.add_message_to_thread(
-            thread_id=thread.id,
-            content=message,
-            role=MessageRole.USER,
-            model_params=model_params,
-        )
-
-        # save response message to the DB
+        # register answer
         system_message = db_context.add_message_to_thread(
             thread_id=thread.id,
             parent_message_id=user_message.message_id,
             content=model_response_content,
             role=MessageRole.SYSTEM,
             model_params=model_params,
+            status=Status.PENDING,
         )
+        user_message.answers.append(system_message)
 
-        # return the result
-        return system_message
+        thread.messages = [user_message]
+
+        return thread
 
 
 class PlaygroundApp:

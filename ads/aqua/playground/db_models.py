@@ -38,6 +38,7 @@ class SessionModel(Base):
     model_name: Mapped[str] = mapped_column(String)
     model_endpoint: Mapped[str] = mapped_column(String)
     created: Mapped[datetime] = mapped_column(TIMESTAMP)
+    updated: Mapped[datetime] = mapped_column(TIMESTAMP)
     status: Mapped[str] = mapped_column(String)
 
     threads: Mapped[List["ThreadModel"]] = relationship(
@@ -96,6 +97,7 @@ class ThreadModel(Base):
     )
     name: Mapped[str] = mapped_column(String)
     created: Mapped[datetime] = mapped_column(TIMESTAMP)
+    updated: Mapped[datetime] = mapped_column(TIMESTAMP)
     status: Mapped[str] = mapped_column(String)
 
     session: Mapped["SessionModel"] = relationship(
@@ -133,6 +135,7 @@ class MessageModel(Base):
     payload: Mapped[dict] = mapped_column(JSON)
     model_params: Mapped[dict] = mapped_column(JSON)
     created: Mapped[datetime] = mapped_column(TIMESTAMP)
+    updated: Mapped[datetime] = mapped_column(TIMESTAMP)
     status: Mapped[str] = mapped_column(String)
     rate: Mapped[int] = mapped_column(Integer)
     role: Mapped[str] = mapped_column(String)
