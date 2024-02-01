@@ -687,6 +687,13 @@ class ResourcePrincipal(AuthSignerGenerator):
         logger.info(f"Using 'resource_principal' authentication.")
         return signer_dict
 
+    @staticmethod
+    def supported():
+        return any(
+            os.environ.get(var)
+            for var in ['JOB_RUN_OCID', 'NB_SESSION_OCID', 'DATAFLOW_RUN_ID', 'PIPELINE_RUN_OCID']
+        )
+
 
 class InstancePrincipal(AuthSignerGenerator):
     """
