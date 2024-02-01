@@ -32,3 +32,13 @@ class ThreadNotFoundError(Exception):
             f"The thread with provided ID: `{thread_id}` cannot be found. "
             "Please ensure that the thread with given ID exists."
         )
+
+
+class MessageNotFoundError(Exception):
+    """Exception raised when the message with the given ID cannot be found."""
+
+    def __init__(self, message_id: str):
+        super().__init__(
+            f"The message with provided ID: `{message_id}` cannot be found. "
+            "Please ensure that the message with given ID exists."
+        )

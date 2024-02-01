@@ -6,12 +6,12 @@
 
 from jupyter_server.utils import url_path_join
 
-from ads.aqua.extension.job_handler import __handlers__ as __job_handlers__
-from ads.aqua.extension.model_handler import __handlers__ as __model_handlers__
+from ads.aqua.extension.comon_handler import __handlers__ as __common_handlers__
 from ads.aqua.extension.deployment_handler import (
     __handlers__ as __deployment_handlers__,
 )
-
+from ads.aqua.extension.job_handler import __handlers__ as __job_handlers__
+from ads.aqua.extension.model_handler import __handlers__ as __model_handlers__
 from ads.aqua.extension.playground_handler import (
     __handlers__ as __playground_handlers__,
 )
@@ -20,6 +20,7 @@ __handlers__ = (
     __playground_handlers__
     + __job_handlers__
     + __model_handlers__
+    + __common_handlers__
     + __deployment_handlers__
 )
 

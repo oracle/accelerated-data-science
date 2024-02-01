@@ -19,6 +19,9 @@ from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID
 
 AQUA_SERVICE_MODEL = "aqua_service_model"
+CONSOLE_LINK_URL = (
+    "https://cloud.oracle.com/data-science/model-deployments/{}?region={}"
+)
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +40,7 @@ class AquaDeployment(DataClassSerializable):
     instance_shape: str
     ocpus: float
     memory_in_gbs: float
+    console_link: str
 
 
 class AquaDeploymentApp(AquaApp):
@@ -162,7 +166,7 @@ class AquaDeploymentApp(AquaApp):
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
             .with_model_uri(model_id)
-            .with_region(region)
+            .with_region(self.region)
             .with_overwrite_existing_artifact(False)
             .with_remove_existing_artifact(False)
         )
@@ -177,14 +181,8 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        return AquaDeployment(
-            display_name=deployment.display_name,
-            aqua_service_model=aqua_service_model,
-            state=deployment.status.name,
-            description=deployment.description,
-            created_on=deployment.time_created,
-            created_by=deployment.created_by,
-            endpoint=deployment.url,
+        return AquaDeploymentApp.from_oci_model_deployment(
+            deployment.dsc_model_deployment, self.region
         )
 
     def list(self, **kwargs) -> List["AquaDeployment"]:
@@ -216,7 +214,9 @@ class AquaDeploymentApp(AquaApp):
             )
             if aqua_service_model:
                 results.append(
-                    AquaDeploymentApp.from_oci_model_deployment(model_deployment)
+                    AquaDeploymentApp.from_oci_model_deployment(
+                        model_deployment, self.region
+                    )
                 )
 
         return results
@@ -243,7 +243,9 @@ class AquaDeploymentApp(AquaApp):
         #     raise AquaClientError("Aqua model deployment ocid must be provided to fetch the deployment.")
         
         # add error handler
-        model_deployment = self.client.get_model_deployment(**kwargs).data
+        model_deployment = self.client.get_model_deployment(
+            model_deployment_id=model_deployment_id, **kwargs
+        ).data
         
         aqua_service_model=(
             model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None) 
@@ -254,16 +256,20 @@ class AquaDeploymentApp(AquaApp):
         # if not aqua_service_model:
         #     raise AquaClientError(f"Target deployment {model_deployment.id} is not Aqua deployment.")
 
-        return AquaDeploymentApp.from_oci_model_deployment(model_deployment)
+        return AquaDeploymentApp.from_oci_model_deployment(
+            model_deployment, self.region
+        )
     
     @classmethod
-    def from_oci_model_deployment(cls, oci_model_deployment) -> "AquaDeployment":
+    def from_oci_model_deployment(cls, oci_model_deployment, region) -> "AquaDeployment":
         """Converts oci model deployment response to AquaDeployment instance.
 
         Parameters
         ----------
         oci_model_deployment: oci.data_science.models.ModelDeployment
             The oci.data_science.models.ModelDeployment instance.
+        region: str
+            The region of this model deployment.
 
         Returns
         -------
@@ -296,5 +302,6 @@ class AquaDeploymentApp(AquaApp):
             memory_in_gbs=(
                 instance_shape_config_details.memory_in_gbs
                 if instance_shape_config_details else None
-            )
+            ),
+            console_link=CONSOLE_LINK_URL.format(oci_model_deployment.id, region)
         ) 
