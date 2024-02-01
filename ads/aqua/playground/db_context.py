@@ -14,7 +14,11 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from ads.aqua.playground.const import MessageRate, MessageRole, ObjectType, Status
 from ads.aqua.playground.db_models import Base, MessageModel, SessionModel, ThreadModel
 from ads.aqua.playground.entities import Message, Session, Thread
-from ads.aqua.playground.errors import SessionNotFoundError, ThreadNotFoundError
+from ads.aqua.playground.errors import (
+    MessageNotFoundError,
+    SessionNotFoundError,
+    ThreadNotFoundError,
+)
 
 DATABASE_NAME = "playground.db"
 DATABASE_PATH = os.environ.get("AQUA_PLAYGROUND") or os.path.join(
@@ -59,7 +63,7 @@ class DBContext:
 
     def get_sessions(
         self, only_active: bool = True, include_threads: bool = False
-    ) -> List[ThreadModel]:
+    ) -> List[Session]:
         """
         Retrieves all threads for a specific playground db_session.
 
@@ -92,7 +96,7 @@ class DBContext:
         session_id: int = None,
         model_id: str = None,
         include_threads: bool = False,
-    ) -> Optional[SessionModel]:
+    ) -> Optional[Session]:
         """
         Retrieves a playground session by its session ID or model ID.
 
@@ -134,16 +138,20 @@ class DBContext:
             return Session.from_db_model(session_model, include_threads=include_threads)
 
     def add_session(
-        self, model_id: str, name: str, url: str, status: str = Status.ACTIVE
-    ) -> SessionModel:
+        self,
+        model_id: str,
+        model_name: str,
+        model_endpoint: str,
+        status: str = Status.ACTIVE,
+    ) -> Session:
         """
         Adds a new playground session to the database.
 
         Parameters
         ----------
         model_id (str): The unique model identifier for the new db_session.
-        name (str): The name of the model.
-        url (str): The URL of the model.
+        model_name (str): The name of the model.
+        model_endpoint (str): The model endpoint.
         status (str): The status of the db_session.
 
         Returns
@@ -154,9 +162,10 @@ class DBContext:
         with self.DBSession() as db_session:
             new_session = SessionModel(
                 model_id=model_id,
-                name=name,
-                url=url,
+                model_name=model_name,
+                model_endpoint=model_endpoint,
                 created=datetime.now(),
+                updated=datetime.now(),
                 status=status,
             )
             db_session.add(new_session)
@@ -168,7 +177,7 @@ class DBContext:
         self,
         session_id: int,
         only_active: bool = True,
-    ) -> List[ThreadModel]:
+    ) -> List[Thread]:
         """
         Retrieves all threads for a specific playground db_session.
 
@@ -198,7 +207,7 @@ class DBContext:
         self,
         thread_id: int = None,
         include_messages: bool = False,
-    ) -> Optional[ThreadModel]:
+    ) -> Optional[Thread]:
         """
         Retrieves a playground thread by its ID.
 
@@ -249,6 +258,7 @@ class DBContext:
                 playground_session_id=session_id,
                 name=name,
                 created=datetime.now(),
+                updated=datetime.now(),
                 status=status,
             )
             db_session.add(new_thread)
@@ -320,6 +330,7 @@ class DBContext:
                 parent_id=parent_message_id,
                 content=content or "",
                 created=datetime.now(),
+                updated=datetime.now(),
                 status=status or Status.ACTIVE,
                 role=role or MessageRole.USER,
                 rate=rate or MessageRate.DEFAULT,
@@ -329,6 +340,75 @@ class DBContext:
             db_session.add(new_message)
             db_session.commit()
             return Message.from_db_model(new_message)
+
+    def get_message(
+        self,
+        message_id: int = None,
+    ) -> Optional[Message]:
+        """
+        Retrieves a playground message by its ID.
+
+        Parameters
+        ----------
+        message_id: int
+            The unique message identifier.
+
+        Returns
+        -------
+        Optional[Message]
+            The retrieved playground message if found, else None.
+
+        Raises
+        ------
+        MessageNotFoundError
+            If message with provided ID doesn't exist.
+        """
+        with self.DBSession() as db_session:
+            message_model = (
+                db_session.query(MessageModel).filter_by(id=message_id).first()
+            )
+
+            if not message_model:
+                raise MessageNotFoundError(message_id == message_id)
+
+            return Message.from_db_model(message_model)
+
+    def update_message(
+        self, message_id: str, content: str = None, status: str = None, rate: int = None
+    ) -> Optional[Message]:
+        """
+        Updates a playground message by its ID.
+
+        Parameters
+        ----------
+        message_id: int
+            The unique message identifier.
+
+        Returns
+        -------
+        Optional[Message]
+            The retrieved playground message if found, else None.
+
+        Raises
+        ------
+        MessageNotFoundError
+            If message with provided ID doesn't exist.
+        """
+        with self.DBSession() as db_session:
+            message_model = (
+                db_session.query(MessageModel).filter_by(id=message_id).first()
+            )
+
+            if not message_model:
+                raise MessageNotFoundError(message_id == message_id)
+
+            message_model.content = content or message_model.content
+            message_model.status = status or message_model.status
+            message_model.rate = rate or message_model.rate
+            message_model.updated = datetime.now()
+
+            db_session.commit()
+            return message_model
 
     def update_status(self, object_type: str, object_id: int, status: str):
         """
@@ -344,7 +424,7 @@ class DBContext:
             if object_type in OBJECT_MODEL_MAP:
                 db_session.query(OBJECT_MODEL_MAP[object_type]).filter_by(
                     id=object_id
-                ).update({"status": status})
+                ).update({"status": status, "updated": datetime.now()})
                 db_session.commit()
 
     def delete_object(self, object_type: str, object_id: int):

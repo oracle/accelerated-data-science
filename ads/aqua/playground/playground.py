@@ -122,12 +122,12 @@ class SessionApp:
                 "A Session with the provided model ID already exists. "
                 "Returning the existing session."
             )
-        except SessionNotFoundError as ex:
+        except SessionNotFoundError:
             model_deployment = ModelDeployment.from_id(model_id)
             session = db_context.add_session(
                 model_id=model_deployment.model_deployment_id,
-                name=model_deployment.display_name,
-                url=model_deployment.url,
+                model_name=model_deployment.display_name,
+                model_endpoint=model_deployment.url,
             )
 
         return session
@@ -297,10 +297,11 @@ class ThreadApp:
         thread_id: int = None,
         session_id: int = None,
         model_params: Dict = None,
-    ) -> Message:
+    ) -> Thread:
         """
         Posts a message to the thread identified by the given ID.
         If session ID provided, then a new thread will be created.
+        By default the model will not be invoked and the result will be empty.
 
         Parameters
         ----------
@@ -312,13 +313,20 @@ class ThreadApp:
             The ID of the session to where the thread will be created.
         model_params: (Dict, optional)
             Model parameters to be associated with the message.
+            Currently supported VLLM+OpenAI parameters.
 
-            --model-params '{"max_tokens":500, "temperature": 0.5, "top_k": 10, "top_p": 0.5}'
+            --model-params '{
+                "max_tokens":500,
+                "temperature": 0.5,
+                "top_k": 10,
+                "top_p": 0.5,
+                "model": "/opt/ds/model/deployed_model",
+                ...}'
 
         Returns
         -------
-        Message
-            The model response.
+        Thread
+            The thread object containing only one question with answer.
         """
         model_params = VLLModelParams.from_dict(
             model_params or {}, ignore_unknown=True
@@ -334,31 +342,36 @@ class ThreadApp:
         # get the session info by thread ID
         session_obj = SessionApp().get(id=thread.session_id, include_threads=False)
 
-        # invoke the model
-        model_deployment = ModelDeploymentVLLM(
-            endpoint=f"{session_obj.url.rstrip('/')}/predict", **model_params
-        )
-        model_response_content = model_deployment(message)
-
-        # save request message to the DB
+        # register query message
         user_message = db_context.add_message_to_thread(
             thread_id=thread.id,
             content=message,
             role=MessageRole.USER,
             model_params=model_params,
+            status=Status.ACTIVE,
         )
 
-        # save response message to the DB
+        # invoke the model
+        model_deployment = ModelDeploymentVLLM(
+            endpoint=f"{session_obj.model.endpoint.rstrip('/')}/predict",
+            **model_params,
+        )
+        model_response_content = model_deployment(message)
+
+        # register answer
         system_message = db_context.add_message_to_thread(
             thread_id=thread.id,
             parent_message_id=user_message.message_id,
             content=model_response_content,
             role=MessageRole.SYSTEM,
             model_params=model_params,
+            status=Status.PENDING,
         )
+        user_message.answers.append(system_message)
 
-        # return the result
-        return system_message
+        thread.messages = [user_message]
+
+        return thread
 
 
 class PlaygroundApp:
