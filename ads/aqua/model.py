@@ -2,18 +2,19 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import logging
-import fsspec
 from dataclasses import dataclass
-from typing import List
 from enum import Enum
-from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.config import COMPARTMENT_OCID
-from ads.aqua.base import AquaApp
-from ads.common.serializer import DataClassSerializable
-from oci.exceptions import ServiceError, ClientError
+from typing import List
 
-logger = logging.getLogger(__name__)
+import fsspec
+from oci.exceptions import ClientError, ServiceError
+
+from ads.aqua import logger
+from ads.aqua.base import AquaApp
+from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.aqua.utils import create_word_icon
+from ads.common.serializer import DataClassSerializable
+from ads.config import COMPARTMENT_OCID
 
 ICON_FILE_NAME = "icon.txt"
 README = "README.md"
@@ -64,9 +65,8 @@ class AquaModelApp(AquaApp):
         Creates an instance of Aqua model.
     get(..., **kwargs)
         Gets the information of an Aqua model.
-    list(self, ..., **kwargs) -> List["AquaModel"]
-        List Aqua models in a given compartment and under certain project
-
+    list(...) -> List["AquaModelSummary"]
+        List existing models created via Aqua.
     """
 
     def create(self, **kwargs) -> "AquaModel":
@@ -130,47 +130,42 @@ class AquaModelApp(AquaApp):
 
         Returns
         -------
-        List[dict]:
-            The list of the Aqua models.
+        List[AquaModelSummary]:
+            The list of the `ads.aqua.model.AquaModelSummary`.
         """
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
-
         models = self.list_resource(self.client.list_models, **kwargs)
+        if not models:
+            logger.error(
+                f"No model found in compartment_id={compartment_id}, project_id={project_id}."
+            )
 
         aqua_models = []
+        # TODO: build index.json locally as caching if needed.
+
+        def process_model(model):
+            icon = self._load_icon(model.display_name)
+
+            return AquaModelSummary(
+                name=model.display_name,
+                id=model.id,
+                compartment_id=model.compartment_id,
+                project_id=model.project_id,
+                time_created=model.time_created,
+                icon=icon,
+                task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+                organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
+                is_fine_tuned_model=True
+                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                else False,
+            )
+
         for model in models:  # ModelSummary
             if self._if_show(model):
-                # TODO: need to update after model by reference release
-                try:
-                    custom_metadata_list = self.client.get_model(
-                        model.id
-                    ).data.custom_metadata_list
-                except Exception as e:
-                    # show opc-request-id and status code
-                    logger.error(f"Failing to retreive model information. {e}")
-                    return []
+                aqua_models.append(process_model(model))
 
-                artifact_path = self._get_artifact_path(custom_metadata_list)
-
-                aqua_models.append(
-                    AquaModelSummary(
-                        name=model.display_name,
-                        id=model.id,
-                        compartment_id=model.compartment_id,
-                        project_id=model.project_id,
-                        time_created=str(model.time_created),
-                        icon=str(self._read_file(f"{artifact_path}/{ICON_FILE_NAME}")),
-                        task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-                        license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
-                        organization=model.freeform_tags.get(
-                            Tags.ORGANIZATION.value, UNKNOWN
-                        ),
-                        is_fine_tuned_model=True
-                        if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                        else False,
-                    )
-                )
         return aqua_models
 
     def _if_show(self, model: "ModelSummary") -> bool:
@@ -213,4 +208,14 @@ class AquaModelApp(AquaApp):
                 return f.read()
         except Exception as e:
             logger.error(f"Failed to retreive model icon. {e}")
+            return None
+
+    def _load_icon(self, model_name) -> str:
+        """Loads icon."""
+
+        # TODO: switch to the official logo
+        try:
+            return create_word_icon(model_name, return_as_datauri=True)
+        except Exception as e:
+            logger.error(f"Failed to load icon for the model={model_name}.")
             return None
