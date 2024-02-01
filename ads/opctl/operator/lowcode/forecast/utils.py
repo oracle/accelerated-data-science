@@ -135,10 +135,7 @@ def _build_metrics_per_horizon(
         y_true = np.array(y_true.values)
         y_pred = np.array(y_pred.values)
 
-        print(f"Hello!!")
-        print(y_true, y_pred)
         drop_na_mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
-        print(drop_na_mask)
         if not drop_na_mask.all():  # There is a missing value
             if drop_na_mask.any():  # All values are missing
                 logger.debug(

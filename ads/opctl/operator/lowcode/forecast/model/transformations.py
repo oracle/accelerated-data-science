@@ -56,12 +56,15 @@ class Transformations:
         clean_df = self._set_series_id_column(clean_df)
         clean_df = self._format_datetime_col(clean_df)
         clean_df = self._set_multi_index(clean_df)
+
         if self.name == "historical_data":
-            clean_df = self._missing_value_imputation(clean_df)
+            clean_df = self._missing_value_imputation_hist(clean_df)
             if self.preprocessing:
                 clean_df = self._outlier_treatment(clean_df)
             else:
                 logger.debug("Skipping outlier treatment as preprocessing is disabled")
+        elif self.name == "additional_data":
+            clean_df = self._missing_value_imputation_add(clean_df)
         return clean_df
 
     def _remove_trailing_whitespace(self, df):
@@ -106,7 +109,7 @@ class Transformations:
             [self.dt_column_name, ForecastOutputColumns.SERIES], ascending=True
         )
 
-    def _missing_value_imputation(self, df):
+    def _missing_value_imputation_hist(self, df):
         """
         Function fills missing values in the pandas dataframe using liner interpolation
 
@@ -124,6 +127,28 @@ class Transformations:
             .groupby(ForecastOutputColumns.SERIES)
             .transform(lambda x: x.interpolate(limit_direction="both"))
         )
+        return df
+
+    def _missing_value_imputation_add(self, df):
+        """
+        Function fills missing values in the pandas dataframe using liner interpolation
+
+        Parameters
+        ----------
+            df : The Pandas DataFrame.
+
+        Returns
+        -------
+            A new Pandas DataFrame without missing values.
+        """
+        # find columns that all all NA and replace with 0
+        for col in df.columns:
+            # find next int not in list
+            i = 0
+            vals = df[col].unique()
+            while i in vals:
+                i = i + 1
+            df[col] = df[col].fillna(0)
         return df
 
     def _outlier_treatment(self, df):
