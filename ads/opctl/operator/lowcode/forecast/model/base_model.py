@@ -686,7 +686,6 @@ class ForecastOperatorBaseModel(ABC):
 
         data[datetime_col_name] = datetime_to_seconds(data[datetime_col_name])
         data = data.reset_index(drop=True)
-        print(f"local expl data {data}")
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 
@@ -694,7 +693,6 @@ class ForecastOperatorBaseModel(ABC):
         local_kernel_explnr_df = pd.DataFrame(
             local_kernel_explnr_vals, columns=data.columns
         )
-        print(f"local_kernel_explnr_df{local_kernel_explnr_df}")
         self.local_explanation[series_id] = local_kernel_explnr_df
 
     def get_explain_predict_fn(self, series_id, fcst_col_name="yhat"):

@@ -74,7 +74,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             engine="local",
             engine_opts={"n_jobs": -1, "model_n_jobs": -1},
             check_deprecation_warnings=False,
-            logger=logger,
+            logger=50,
         )
 
         full_data_dict = self.datasets.get_data_by_series()
@@ -122,7 +122,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     )
                 logger.debug(f"Selected model: {model.selected_model_}")
                 logger.debug(f"Selected model params: {model.selected_model_params_}")
-                print(X_pred)
                 summary_frame = model.forecast(
                     X=X_pred,
                     periods=horizon,
@@ -228,60 +227,60 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         all_sections = [selected_models_text, selected_models_section]
 
         if self.spec.generate_explanations:
-            try:
-                # If the key is present, call the "explain_model" method
-                self.explain_model()
+            # try:
+            # If the key is present, call the "explain_model" method
+            self.explain_model()
 
-                # Create a markdown text block for the global explanation section
-                global_explanation_text = dp.Text(
-                    f"## Global Explanation of Models \n "
-                    "The following tables provide the feature attribution for the global explainability."
+            # Create a markdown text block for the global explanation section
+            global_explanation_text = dp.Text(
+                f"## Global Explanation of Models \n "
+                "The following tables provide the feature attribution for the global explainability."
+            )
+
+            # Convert the global explanation data to a DataFrame
+            global_explanation_df = pd.DataFrame(self.global_explanation)
+
+            self.formatted_global_explanation = (
+                global_explanation_df / global_explanation_df.sum(axis=0) * 100
+            )
+
+            # Create a markdown section for the global explainability
+            global_explanation_section = dp.Blocks(
+                "### Global Explainability ",
+                dp.DataTable(self.formatted_global_explanation),
+            )
+
+            aggregate_local_explanations = pd.DataFrame()
+            for s_id, local_ex_df in self.local_explanation.items():
+                local_ex_df_copy = local_ex_df.copy()
+                local_ex_df_copy["Series"] = s_id
+                aggregate_local_explanations = pd.concat(
+                    [aggregate_local_explanations, local_ex_df_copy], axis=0
                 )
+            self.formatted_local_explanation = aggregate_local_explanations
 
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation)
-
-                self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
+            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+            blocks = [
+                dp.DataTable(
+                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                    label=s_id,
                 )
+                for s_id, local_ex_df in self.local_explanation.items()
+            ]
+            local_explanation_section = (
+                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            )
 
-                # Create a markdown section for the global explainability
-                global_explanation_section = dp.Blocks(
-                    "### Global Explainability ",
-                    dp.DataTable(self.formatted_global_explanation),
-                )
-
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
-                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
-                blocks = [
-                    dp.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id,
-                    )
-                    for s_id, local_ex_df in self.local_explanation.items()
-                ]
-                local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-                )
-
-                # Append the global explanation text and section to the "all_sections" list
-                all_sections = all_sections + [
-                    global_explanation_text,
-                    global_explanation_section,
-                    local_explanation_text,
-                    local_explanation_section,
-                ]
-            except Exception as e:
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
-                logger.debug(f"Full Traceback: {traceback.format_exc()}")
+            # Append the global explanation text and section to the "all_sections" list
+            all_sections = all_sections + [
+                global_explanation_text,
+                global_explanation_section,
+                local_explanation_text,
+                local_explanation_section,
+            ]
+            # except Exception as e:
+            #     logger.warn(f"Failed to generate Explanations with error: {e}.")
+            #     logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = dp.Text(
             "The AutoMLx model automatically preprocesses, selects and engineers "
@@ -304,6 +303,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             dt_column_name=self.datasets._datetime_column_name,
             target_col=self.original_target_column,
             last_train_date=self.datasets.historical_data.get_max_time(),
+            horizon_data=self.datasets.get_horizon_at_series(series_id),
         ):
             """
             data: ForecastDatasets.get_data_at_series(s_id)
@@ -313,29 +313,25 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
             data = self.preprocess(data)
-            # print(f"data: {data}, len(data): {data.shape[0]}")
+            horizon_data = horizon_data.drop(target_col, axis=1)
+            horizon_data[dt_column_name] = seconds_to_datetime(
+                horizon_data[dt_column_name], dt_format=self.spec.datetime_column.format
+            )
+            horizon_data = self.preprocess(horizon_data)
 
             rows = []
-            print(data)
             for i in range(data.shape[0]):
                 row = data.iloc[i : i + 1]
-                if row.index[0] < last_train_date:
-                    row_i = model.predict(X=row)
+                if row.index[0] > last_train_date:
+                    X_new = horizon_data.copy()
+                    X_new.loc[row.index[0]] = row.iloc[0]
+                    row_i = model.forecast(X=X_new, periods=self.spec.horizon)[
+                        [target_col]
+                    ].loc[row.index[0]]
                 else:
-                    row_i = model.forecast(X=row, periods=1)
+                    row_i = model.predict(X=row)
                 rows.append(row_i)
-            ret = pd.concat(rows)[target_col]  # .reset_index(drop=True)
-            ret.index = datetime_to_seconds(pd.Series(data.index))
-            # print(f"ret: {ret}")
-            return ret
-            # forecast = pd.DataFrame()
-            # for idx in range(data.shape[0]):
-            #     forecast_i = model.forecast(X=data[idx:idx+1], periods=1)
-            #     print(f"Looking at forecasts")
-            #     print(type(forecast_i))
-            #     print(forecast_i)
-            #     forecast = pd.concat([forecast, forecast_i])
-            # return forecast
+            return pd.concat(rows)[target_col].reset_index(drop=True)
 
         return _custom_predict_fn
 

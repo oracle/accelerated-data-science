@@ -227,6 +227,15 @@ class ForecastDatasets:
             on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
         ).reset_index()
 
+    def get_data_multi_indexed(self):
+        return pd.concat(
+            [
+                self.historical_data.data,
+                self.additional_data.data,
+            ],
+            axis=1,
+        )
+
     def get_data_by_series(self, include_horizon=True):
         total_dict = dict()
         hist_data = self.historical_data.get_dict_by_series()

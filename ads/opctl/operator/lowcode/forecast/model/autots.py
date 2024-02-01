@@ -11,7 +11,11 @@ import numpy as np
 import yaml
 
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.forecast.utils import convert_target
+from ads.opctl.operator.lowcode.common.utils import (
+    disable_print,
+    enable_print,
+    seconds_to_datetime,
+)
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from ads.common.decorator.runtime_dependency import runtime_dependency
@@ -117,52 +121,35 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
             )
 
-        self.full_data_long = self.datasets.get_all_data_long()
+        full_data_indexed = self.datasets.get_data_multi_indexed()
 
-        if self.spec.additional_data:
-            df_temp = (
-                self.full_data_long.set_index([self.spec.target_column])
-                .reset_index(drop=True)
-                .copy()
-            )
-            df_temp[self.spec.datetime_column.name] = pd.to_datetime(
-                df_temp[self.spec.datetime_column.name]
-            )
-            r_tr, _ = create_regressor(
-                df_temp.pivot(
-                    [self.spec.datetime_column.name],
-                    columns=ForecastOutputColumns.SERIES,
-                    values=self.datasets.get_additional_data_column_names(),
-                ),
-                forecast_length=self.spec.horizon,
-            )
+        dates = full_data_indexed.index.get_level_values(0).unique().tolist()
+        horizon_idx = dates[-self.spec.horizon :]
+        train_idx = dates[: -self.spec.horizon]
 
-            self.future_regressor_train = r_tr.copy()
+        regr_fcst = full_data_indexed[
+            full_data_indexed.index.get_level_values(0).isin(horizon_idx)
+        ].reset_index()
+        regr_train = full_data_indexed[
+            full_data_indexed.index.get_level_values(0).isin(train_idx)
+        ]
+        self.future_regressor_train = regr_train.copy()
 
         if self.loaded_models is None:
-            # Fit the model to the training data
             model = model.fit(
-                self.full_data_long.groupby(ForecastOutputColumns.SERIES)
-                .head(-self.spec.horizon)
-                .reset_index(drop=True),
+                full_data_indexed.reset_index(),
+                future_regressor=regr_train.reset_index(),
                 date_col=self.spec.datetime_column.name,
                 value_col=self.original_target_column,
-                future_regressor=r_tr.head(-self.spec.horizon)
-                if self.spec.additional_data
-                else None,
                 id_col=ForecastOutputColumns.SERIES,
             )
-
             # Store the trained model and generate forecasts
             self.models = copy.deepcopy(model)
         else:
             self.models = self.loaded_models
+
+        self.outputs = model.predict(future_regressor=regr_fcst)
         logger.debug("===========Forecast Generated===========")
-        self.outputs = model.predict(
-            future_regressor=r_tr.tail(self.spec.horizon)
-            if self.spec.additional_data
-            else None
-        )
 
         hist_df = model.back_forecast().forecast
 
@@ -244,63 +231,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         all_sections = [sec1_text, sec_1, sec2_text, sec2]
 
         if self.spec.generate_explanations:
-            # If the key is present, call the "explain_model" method
-            try:
-                self.explain_model()
-
-                # Create a markdown text block for the global explanation section
-                global_explanation_text = dp.Text(
-                    f"## Global Explanation of Models \n "
-                    "The following tables provide the feature attribution for the global explainability."
-                )
-
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation).drop(
-                    index=[ForecastOutputColumns.SERIES, self.spec.target_column]
-                )
-
-                self.formatted_global_explanation = (
-                    global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-
-                # Create a markdown section for the global explainability
-                global_explanation_section = dp.Blocks(
-                    "### Global Explainability ",
-                    dp.DataTable(self.formatted_global_explanation),
-                )
-
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
-                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
-                blocks = [
-                    dp.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=s_id,
-                    )
-                    for s_id, local_ex_df in self.local_explanation.items()
-                ]
-                local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-                )
-
-                # Append the global explanation text and section to the "all_sections" list
-                all_sections = all_sections + [
-                    global_explanation_text,
-                    global_explanation_section,
-                    local_explanation_text,
-                    local_explanation_section,
-                ]
-            except Exception as e:
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
-                logger.debug(f"Full Traceback: {traceback.format_exc()}")
-                raise e
+            logger.warn(f"Explanations not yet supported for the AutoTS Module")
 
         # Model Description
         model_description = dp.Text(
@@ -315,25 +246,6 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             model_description,
             other_sections,
         )
-
-    def _custom_predict_autots(self, data):
-        raise NotImplementedError("Autots does not yet support explanations.")
-
-    def get_explain_predict_fn(self, series_id):
-        selected_model = self.models
-
-        def _custom_predict_fn(
-            data,
-            model=selected_model,
-            dt_column_name=self.datasets._datetime_column_name,
-        ):
-            """
-            data: ForecastDatasets.get_data_at_series(s_id)
-            """
-            data[dt_column_name] = pd.to_datetime(data[dt_column_name], unit="s")
-            return model.predict(future_regressor=data)["yhat"]
-
-        return _custom_predict_fn
 
     def generate_train_metrics(self) -> pd.DataFrame:
         """
@@ -352,19 +264,4 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             self.models.best_model_per_series_score(), columns=["AutoTS Score"]
         ).T
         df = pd.concat([mapes, scores])
-        new_column_names = {
-            old_name: convert_target(old_name, self.original_target_column)
-            for old_name in df.columns
-        }
-        return df.rename(columns=new_column_names)
-
-    def local_explainer(self, kernel_explainer, series_id, datetime_col_name) -> None:
-        super().local_explainer(kernel_explainer, series_id, datetime_col_name)
-
-        # set the index of the DataFrame to the datetime column
-        # local_kernel_explnr_df.index = data_horizon.index
-        local_kernel_explnr_df = self.local_explanation[series_id]
-        local_kernel_explnr_df.drop(
-            ["series_id", self.spec.target_column], axis=1, inplace=True
-        )
-        self.local_explanation[series_id] = local_kernel_explnr_df
+        return df

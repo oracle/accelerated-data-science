@@ -47,11 +47,11 @@ DATASETS_LIST = [
 ]
 
 MODELS = [
-    "arima",
+    # "arima",
     "automlx",
-    "prophet",
-    "neuralprophet",
-    "autots",
+    # "prophet",
+    # "neuralprophet",
+    # "autots",
     # "auto",
 ]
 
@@ -84,7 +84,7 @@ SAMPLE_FRACTION = 1
 
 parameters_short = []
 
-for dataset_i in DATASETS_LIST[1:3]:  #  + [DATASETS_LIST[-2]]
+for dataset_i in DATASETS_LIST[1:4]:  #  + [DATASETS_LIST[-2]]
     for model in MODELS:
         parameters_short.append((model, dataset_i))
 
@@ -160,7 +160,7 @@ def test_load_datasets(model, dataset_name):
         #     f"ads operator run -f {forecast_yaml_filename} --debug", shell=True  #  --debug
         # )
         # sleep(0.1)
-        run(yaml_i, backend="local", debug=True)
+        run(yaml_i, backend="local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
         if yaml_i["spec"]["generate_explanations"]:
             glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")
@@ -208,9 +208,7 @@ def run_operator(
         with open(f"{tmpdirname}/forecast.yaml", "w") as f:
             f.write(yaml.dump(yaml_i))
         sleep(0.1)
-        subprocess.run(
-            f"ads operator run -f {forecast_yaml_filename} --debug", shell=True
-        )
+        subprocess.run(f"ads operator run -f {forecast_yaml_filename}", shell=True)
         sleep(0.1)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
 
