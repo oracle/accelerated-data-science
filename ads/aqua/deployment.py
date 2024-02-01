@@ -289,6 +289,12 @@ class AquaDeploymentApp(AquaApp):
             created_by=oci_model_deployment.created_by,
             endpoint=oci_model_deployment.model_deployment_url,
             instance_shape=instance_configuration.instance_shape_name,
-            ocpus=instance_shape_config_details.ocpus,
-            memory_in_gbs=instance_shape_config_details.memory_in_gbs
+            ocpus=(
+                instance_shape_config_details.ocpus
+                if instance_shape_config_details else None
+            ),
+            memory_in_gbs=(
+                instance_shape_config_details.memory_in_gbs
+                if instance_shape_config_details else None
+            )
         ) 
