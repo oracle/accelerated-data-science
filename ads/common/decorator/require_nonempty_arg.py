@@ -5,7 +5,7 @@
 
 import inspect
 from functools import wraps
-from typing import Any, Callable, Union, List
+from typing import Any, Callable, List, Union
 
 from ads.common.decorator.utils import _get_original_func
 

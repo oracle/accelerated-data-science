@@ -8,10 +8,12 @@ from ads.common.extended_enum import ExtendedEnumMeta
 
 
 class Status(str, metaclass=ExtendedEnumMeta):
-    """Enumeration for the status of various entities like records, sessions, etc."""
+    """Enumeration for the status of various entities like records, sessions, messages, etc."""
 
     ACTIVE = "active"
     ARCHIVED = "archived"
+    PENDING = "pending"
+    FAILED = "failed"
 
 
 class MessageRate(str, metaclass=ExtendedEnumMeta):

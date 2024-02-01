@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, print_function
@@ -33,29 +33,25 @@ import fsspec
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-from ads.common import logger
-from ads.common.decorator.deprecate import deprecated
-from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import TqdmProgressBar
 from cycler import cycler
+from oci import object_storage
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 
+from ads import config
 from ads.common import logger
 from ads.common.decorator.deprecate import deprecated
 from ads.common.decorator.runtime_dependency import (
     OptionalDependency,
     runtime_dependency,
 )
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
-from ads import config
 from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
 
 from . import auth as authutil
-from oci import object_storage
-from ads.common.oci_client import OCIClientFactory
-from ads.common.object_storage_details import ObjectStorageDetails
 
 # For Model / Model Artifact libraries
 lib_translator = {"sklearn": "scikit-learn"}
@@ -1552,7 +1548,7 @@ def batch_convert_case(spec: dict, to_fmt: str) -> Dict:
     else:
         converter = camel_to_snake
     for k, v in spec.items():
-        if k == "spec":
+        if k == "spec" or isinstance(v, dict):
             converted[converter(k)] = batch_convert_case(v, to_fmt)
         else:
             converted[converter(k)] = v
