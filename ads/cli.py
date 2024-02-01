@@ -57,6 +57,20 @@ click_cli.add_command(ads.opctl.operator.cli.commands)
 click_cli.add_command(aqua_cli, name="aqua")
 
 
+# fix for fire issue with --help
+# https://github.com/google/python-fire/issues/258
+def _SeparateFlagArgs(args):
+    try:
+        index = args.index("--help")
+        args = args[:index]
+        return args, ["--help"]
+    except ValueError:
+        return args, []
+
+
+fire.core.parser.SeparateFlagArgs = _SeparateFlagArgs
+
+
 def cli():
     if len(sys.argv) > 1 and sys.argv[1] == "aqua":
         fire.Fire(AquaCommand, command=sys.argv[2:], name="ads aqua")
