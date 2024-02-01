@@ -86,7 +86,7 @@ class AquaModelApp(AquaApp):
             The instance of the Aqua model.
         """
         try:
-            oci_model = self.client.get_model(model_id).data
+            oci_model = self.ds_client.get_model(model_id).data
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
         except ClientError as ce:
@@ -136,14 +136,14 @@ class AquaModelApp(AquaApp):
         compartment_id = compartment_id or COMPARTMENT_OCID
         kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
 
-        models = self.list_resource(self.client.list_models, **kwargs)
+        models = self.list_resource(self.ds_client.list_models, **kwargs)
 
         aqua_models = []
         for model in models:  # ModelSummary
             if self._if_show(model):
                 # TODO: need to update after model by reference release
                 try:
-                    custom_metadata_list = self.client.get_model(
+                    custom_metadata_list = self.ds_client.get_model(
                         model.id
                     ).data.custom_metadata_list
                 except Exception as e:
