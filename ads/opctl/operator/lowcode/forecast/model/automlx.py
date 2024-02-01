@@ -10,14 +10,18 @@ import numpy as np
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from ads.opctl.operator.lowcode.forecast.const import (
     AUTOMLX_METRIC_MAP,
-    ForecastOutputColumns, SupportedModels,
+    ForecastOutputColumns,
+    SupportedModels,
 )
 from ads.opctl import logger
 
-from .. import utils
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ads.opctl.operator.lowcode.common.utils import (
+    seconds_to_datetime,
+    datetime_to_seconds,
+)
 
 AUTOMLX_N_ALGOS_TUNED = 4
 AUTOMLX_DEFAULT_SCORE_METRIC = "neg_sym_mean_abs_percent_error"
@@ -30,7 +34,25 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         super().__init__(config, datasets)
         self.global_explanation = {}
         self.local_explanation = {}
-        self.train_metrics = True
+
+    def set_kwargs(self):
+        model_kwargs_cleaned = self.spec.model_kwargs
+        model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
+            "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
+        )
+        model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
+            self.spec.metric,
+            model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
+        )
+        model_kwargs_cleaned.pop("task", None)
+        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
+        model_kwargs_cleaned[
+            "preprocessing"
+        ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
+        return model_kwargs_cleaned
+
+    def preprocess(self, data, series_id=None):
+        return data.set_index(self.spec.datetime_column.name)
 
     @runtime_dependency(
         module="automl",
@@ -45,7 +67,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         ),
     )
     def _build_model(self) -> pd.DataFrame:
-
         from automl import init
         from sktime.forecasting.model_selection import temporal_train_test_split
 
@@ -53,118 +74,82 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             engine="local",
             engine_opts={"n_jobs": -1, "model_n_jobs": -1},
             check_deprecation_warnings=False,
+            logger=50,
         )
 
-        full_data_dict = self.datasets.full_data_dict
+        full_data_dict = self.datasets.get_data_by_series()
 
-        models = dict()
-        outputs = dict()
-        outputs_legacy = dict()
+        self.models = dict()
         date_column = self.spec.datetime_column.name
         horizon = self.spec.horizon
-        self.datasets.datetime_col = date_column
         self.spec.confidence_interval_width = self.spec.confidence_interval_width or 0.8
         self.forecast_output = ForecastOutput(
-            confidence_interval_width=self.spec.confidence_interval_width
+            confidence_interval_width=self.spec.confidence_interval_width,
+            horizon=self.spec.horizon,
+            target_column=self.original_target_column,
+            dt_column=self.spec.datetime_column.name,
         )
-        self.errors_dict = dict()
 
         # Clean up kwargs for pass through
-        model_kwargs_cleaned = None
+        model_kwargs_cleaned = self.set_kwargs()
+        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
+        print(f"found time_budget: {time_budget}")
 
-        if self.loaded_models is None:
-            model_kwargs_cleaned = self.spec.model_kwargs.copy()
-            model_kwargs_cleaned["n_algos_tuned"] = model_kwargs_cleaned.get(
-                "n_algos_tuned", AUTOMLX_N_ALGOS_TUNED
-            )
-            model_kwargs_cleaned["score_metric"] = AUTOMLX_METRIC_MAP.get(
-                self.spec.metric,
-                model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
-            )
-            model_kwargs_cleaned.pop("task", None)
-            time_budget = model_kwargs_cleaned.pop("time_budget", 0)
-            model_kwargs_cleaned[
-                "preprocessing"
-            ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
-
-        for i, (target, df) in enumerate(full_data_dict.items()):
+        for i, (s_id, df) in enumerate(full_data_dict.items()):
             try:
-                logger.debug("Running automl for {} at position {}".format(target, i))
-                series_values = df[df[target].notna()]
-                # drop NaNs for the time period where data wasn't recorded
-                series_values.dropna(inplace=True)
-                df[date_column] = pd.to_datetime(
-                    df[date_column], format=self.spec.datetime_column.format
+                logger.debug(f"Running automl on series {s_id}")
+                model_kwargs = model_kwargs_cleaned.copy()
+                target = self.original_target_column
+                self.forecast_output.init_series_output(
+                    series_id=s_id, data_at_series=df
                 )
-                df = df.set_index(date_column)
-                # if len(df.columns) > 1:
-                # when additional columns are present
-                y_train, y_test = temporal_train_test_split(df, test_size=horizon)
-                forecast_x = y_test.drop(target, axis=1)
-                # else:
-                #     y_train = df
-                #     forecast_x = None
-                logger.debug(
-                    "Time Index is" + ""
-                    if y_train.index.is_monotonic
-                    else "NOT" + "monotonic."
-                )
-                model = self.loaded_models[target] if self.loaded_models is not None else None
+                data = self.preprocess(df)
+                data_i = self.drop_horizon(data)
+                X_pred = self.get_horizon(data).drop(target, axis=1)
 
-                if model is None:
+                logger.debug(f"Time Index Monotonic: {data_i.index.is_monotonic}")
+
+                if self.loaded_models is not None:
+                    model = self.loaded_models[s_id]
+                else:
                     model = automl.Pipeline(
                         task="forecasting",
-                        **model_kwargs_cleaned,
+                        **model_kwargs,
                     )
                     model.fit(
-                        X=y_train.drop(target, axis=1),
-                        y=pd.DataFrame(y_train[target]),
+                        X=data_i.drop(target, axis=1),
+                        y=data_i[[target]],
                         time_budget=time_budget,
                     )
-                logger.debug("Selected model: {}".format(model.selected_model_))
-                logger.debug(
-                    "Selected model params: {}".format(model.selected_model_params_)
-                )
+                logger.debug(f"Selected model: {model.selected_model_}")
+                logger.debug(f"Selected model params: {model.selected_model_params_}")
                 summary_frame = model.forecast(
-                    X=forecast_x,
+                    X=X_pred,
                     periods=horizon,
                     alpha=1 - (self.spec.confidence_interval_width / 100),
                 )
-                input_values = pd.Series(
-                    y_train[target].values,
-                    name="input_value",
-                    index=y_train.index,
-                )
-                fitted_values_raw = model.predict(y_train.drop(target, axis=1))
-                fitted_values = pd.Series(
-                    fitted_values_raw[target].values,
-                    name="fitted_value",
-                    index=y_train.index,
-                )
 
-                summary_frame = pd.concat(
-                    [input_values, fitted_values, summary_frame], axis=1
-                )
+                fitted_values = model.predict(data_i.drop(target, axis=1))[
+                    target
+                ].values
 
-                # Collect Outputs
-                if self.loaded_models is None:
-                    models[target] = model
-                summary_frame = summary_frame.rename_axis("ds").reset_index()
-                summary_frame = summary_frame.rename(
-                    columns={
-                        f"{target}_ci_upper": "yhat_upper",
-                        f"{target}_ci_lower": "yhat_lower",
-                        f"{target}": "yhat",
-                    }
-                )
+                self.models[s_id] = model
+
                 # In case of Naive model, model.forecast function call does not return confidence intervals.
-                if "yhat_upper" not in summary_frame:
-                    summary_frame["yhat_upper"] = np.NAN
-                    summary_frame["yhat_lower"] = np.NAN
-                outputs[target] = summary_frame
-                # outputs_legacy[target] = summary_frame
+                if f"{target}_ci_upper" not in summary_frame:
+                    summary_frame[f"{target}_ci_upper"] = np.NAN
+                if f"{target}_ci_lower" not in summary_frame:
+                    summary_frame[f"{target}_ci_lower"] = np.NAN
 
-                self.model_parameters[utils.convert_target(target, self.original_target_column)] = {
+                self.forecast_output.populate_series_output(
+                    series_id=s_id,
+                    fit_val=fitted_values,
+                    forecast_val=summary_frame[target],
+                    upper_bound=summary_frame[f"{target}_ci_upper"],
+                    lower_bound=summary_frame[f"{target}_ci_lower"],
+                )
+
+                self.model_parameters[s_id] = {
                     "framework": SupportedModels.AutoMLX,
                     "score_metric": model.score_metric,
                     "random_state": model.random_state,
@@ -182,37 +167,15 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "selected_model_params": model.selected_model_params_,
                 }
             except Exception as e:
-                self.errors_dict[target] = {"model_name": self.spec.model, "error": str(e)}
+                self.errors_dict[s_id] = {
+                    "model_name": self.spec.model,
+                    "error": str(e),
+                }
+                raise
 
         logger.debug("===========Forecast Generated===========")
-        outputs_merged = pd.DataFrame()
 
-        # Merge the outputs from each model into 1 df with all outputs by target and category
-        col = self.original_target_column
-        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
-        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
-        for cat in self.categories:  # Note: add [:2] to restrict
-            output_i = pd.DataFrame()
-            output_i["Date"] = outputs[f"{col}_{cat}"]["ds"]
-            output_i["Series"] = cat
-            output_i["input_value"] = outputs[f"{col}_{cat}"]["input_value"]
-            output_i[f"fitted_value"] = outputs[f"{col}_{cat}"]["fitted_value"]
-            output_i[f"forecast_value"] = outputs[f"{col}_{cat}"]["yhat"]
-            output_i[yhat_upper_name] = outputs[f"{col}_{cat}"]["yhat_upper"]
-            output_i[yhat_lower_name] = outputs[f"{col}_{cat}"]["yhat_lower"]
-            outputs_merged = pd.concat([outputs_merged, output_i])
-            outputs_legacy[f"{col}_{cat}"] = output_i
-            self.forecast_output.add_category(
-                category=cat, target_category_column=f"{col}_{cat}", forecast=output_i
-            )
-
-        # output_col = output_col.sort_values(self.spec.datetime_column.name).reset_index(drop=True)
-        # output_col = output_col.reset_index(drop=True)
-        # outputs_merged = pd.concat([outputs_merged, output_col], axis=1)
-
-        self.models = models if self.loaded_models is None else self.loaded_models
-
-        return outputs_merged
+        return self.forecast_output.get_forecast_long()
 
     @runtime_dependency(
         module="datapane",
@@ -248,11 +211,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
         selected_models = dict()
         models = self.models
-        for i, (target, df) in enumerate(self.full_data_dict.items()):
-            selected_models[target] = {
-                "series_id": utils.convert_target(target, self.original_target_column),
-                "selected_model": models[target].selected_model_,
-                "model_params": models[target].selected_model_params_,
+        for i, (s_id, df) in enumerate(self.full_data_dict.items()):
+            selected_models[s_id] = {
+                "series_id": s_id,
+                "selected_model": models[s_id].selected_model_,
+                "model_params": models[s_id].selected_model_params_,
             }
         selected_models_df = pd.DataFrame(
             selected_models.items(), columns=["series_id", "best_selected_model"]
@@ -265,63 +228,60 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         all_sections = [selected_models_text, selected_models_section]
 
         if self.spec.generate_explanations:
-            try:
-                # If the key is present, call the "explain_model" method
-                self.explain_model(
-                    datetime_col_name=self.spec.datetime_column.name,
-                    explain_predict_fn=self._custom_predict_automlx,
+            # try:
+            # If the key is present, call the "explain_model" method
+            self.explain_model()
+
+            # Create a markdown text block for the global explanation section
+            global_explanation_text = dp.Text(
+                f"## Global Explanation of Models \n "
+                "The following tables provide the feature attribution for the global explainability."
+            )
+
+            # Convert the global explanation data to a DataFrame
+            global_explanation_df = pd.DataFrame(self.global_explanation)
+
+            self.formatted_global_explanation = (
+                global_explanation_df / global_explanation_df.sum(axis=0) * 100
+            )
+
+            # Create a markdown section for the global explainability
+            global_explanation_section = dp.Blocks(
+                "### Global Explainability ",
+                dp.DataTable(self.formatted_global_explanation),
+            )
+
+            aggregate_local_explanations = pd.DataFrame()
+            for s_id, local_ex_df in self.local_explanation.items():
+                local_ex_df_copy = local_ex_df.copy()
+                local_ex_df_copy["Series"] = s_id
+                aggregate_local_explanations = pd.concat(
+                    [aggregate_local_explanations, local_ex_df_copy], axis=0
                 )
+            self.formatted_local_explanation = aggregate_local_explanations
 
-                # Create a markdown text block for the global explanation section
-                global_explanation_text = dp.Text(
-                    f"## Global Explanation of Models \n "
-                    "The following tables provide the feature attribution for the global explainability."
+            local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
+            blocks = [
+                dp.DataTable(
+                    local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
+                    label=s_id,
                 )
+                for s_id, local_ex_df in self.local_explanation.items()
+            ]
+            local_explanation_section = (
+                dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
+            )
 
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation)
-
-                self.formatted_global_explanation = (
-                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-
-                # Create a markdown section for the global explainability
-                global_explanation_section = dp.Blocks(
-                    "### Global Explainability ",
-                    dp.DataTable(self.formatted_global_explanation),
-                )
-
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
-                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
-                blocks = [
-                    dp.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=utils.convert_target(s_id, self.original_target_column),
-                        )
-                    for s_id, local_ex_df in self.local_explanation.items()
-                ]
-                local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-                )
-
-                # Append the global explanation text and section to the "all_sections" list
-                all_sections = all_sections + [
-                    global_explanation_text,
-                    global_explanation_section,
-                    local_explanation_text,
-                    local_explanation_section,
-                ]
-            except Exception as e:
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
-                logger.debug(f"Full Traceback: {traceback.format_exc()}")
+            # Append the global explanation text and section to the "all_sections" list
+            all_sections = all_sections + [
+                global_explanation_text,
+                global_explanation_section,
+                local_explanation_text,
+                local_explanation_section,
+            ]
+            # except Exception as e:
+            #     logger.warn(f"Failed to generate Explanations with error: {e}.")
+            #     logger.debug(f"Full Traceback: {traceback.format_exc()}")
 
         model_description = dp.Text(
             "The AutoMLx model automatically preprocesses, selects and engineers "
@@ -333,6 +293,48 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             model_description,
             other_sections,
         )
+
+    def get_explain_predict_fn(self, series_id):
+        selected_model = self.models[series_id]
+
+        # If training date, use method below. If future date, use forecast!
+        def _custom_predict_fn(
+            data,
+            model=selected_model,
+            dt_column_name=self.datasets._datetime_column_name,
+            target_col=self.original_target_column,
+            last_train_date=self.datasets.historical_data.get_max_time(),
+            horizon_data=self.datasets.get_horizon_at_series(series_id),
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data = data.drop(target_col, axis=1)
+            data[dt_column_name] = seconds_to_datetime(
+                data[dt_column_name], dt_format=self.spec.datetime_column.format
+            )
+            data = self.preprocess(data)
+            horizon_data = horizon_data.drop(target_col, axis=1)
+            horizon_data[dt_column_name] = seconds_to_datetime(
+                horizon_data[dt_column_name], dt_format=self.spec.datetime_column.format
+            )
+            horizon_data = self.preprocess(horizon_data)
+
+            rows = []
+            for i in range(data.shape[0]):
+                row = data.iloc[i : i + 1]
+                if row.index[0] > last_train_date:
+                    X_new = horizon_data.copy()
+                    X_new.loc[row.index[0]] = row.iloc[0]
+                    row_i = model.forecast(X=X_new, periods=self.spec.horizon)[
+                        [target_col]
+                    ].loc[row.index[0]]
+                else:
+                    row_i = model.predict(X=row)
+                rows.append(row_i)
+            return pd.concat(rows)[target_col].reset_index(drop=True)
+
+        return _custom_predict_fn
 
     def _custom_predict_automlx(self, data):
         """

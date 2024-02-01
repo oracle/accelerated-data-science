@@ -5,6 +5,7 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.common.extended_enum import ExtendedEnumMeta
+from ads.opctl.operator.lowcode.common.const import DataColumns
 
 
 class SupportedModels(str, metaclass=ExtendedEnumMeta):
@@ -44,6 +45,7 @@ TODS_MODEL_MAP = {
     TODSSubModels.KNN: "KNNSKI",
 }
 
+
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     UNSUPERVISED_UNIFY95 = "unsupervised_unify95"
     UNSUPERVISED_UNIFY95_LOG_LOSS = "unsupervised_unify95_log_loss"
@@ -75,9 +77,11 @@ class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     MEDIAN_MCC = "Median MCC"
     ELAPSED_TIME = "Elapsed Time"
 
+
 class OutputColumns(str, metaclass=ExtendedEnumMeta):
     ANOMALY_COL = "anomaly"
     SCORE_COL = "score"
+    Series = DataColumns.Series
 
 
 TODS_DEFAULT_MODEL = "ocsvm"

@@ -5,6 +5,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ads.common.extended_enum import ExtendedEnumMeta
+from ads.opctl.operator.lowcode.common.const import DataColumns
+
 
 class SupportedModels(str, metaclass=ExtendedEnumMeta):
     """Supported forecast models."""
@@ -21,13 +23,15 @@ class SpeedAccuracyMode(str, metaclass=ExtendedEnumMeta):
     """
     Enum representing different modes based on time taken and accuracy for explainability.
     """
+
     HIGH_ACCURACY = "HIGH_ACCURACY"
     BALANCED = "BALANCED"
     FAST_APPROXIMATE = "FAST_APPROXIMATE"
     ratio = dict()
     ratio[HIGH_ACCURACY] = 1  # 100 % data used for generating explanations
     ratio[BALANCED] = 0.5  # 50 % data used for generating explanations
-    ratio[FAST_APPROXIMATE] = 0   # constant
+    ratio[FAST_APPROXIMATE] = 0  # constant
+
 
 class SupportedMetrics(str, metaclass=ExtendedEnumMeta):
     """Supported forecast metrics."""
@@ -60,7 +64,7 @@ class ForecastOutputColumns(str, metaclass=ExtendedEnumMeta):
     """The column names for the forecast.csv output file"""
 
     DATE = "Date"
-    SERIES = "Series"
+    SERIES = DataColumns.Series
     INPUT_VALUE = "input_value"
     FITTED_VALUE = "fitted_value"
     FORECAST_VALUE = "forecast_value"

@@ -4,15 +4,113 @@
 # Copyright (c) 2023 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import pandas as pd
-from ..operator_config import ForecastOperatorConfig
-from .. import utils
-from .transformations import Transformations
-from ads.opctl import logger
-import pandas as pd
-from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
-from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
 import time
+import pandas as pd
+from pandas.api.types import is_datetime64_any_dtype, is_string_dtype, is_numeric_dtype
+
+from ..operator_config import ForecastOperatorConfig
+from ads.opctl import logger
+from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
+from ads.common.object_storage_details import ObjectStorageDetails
+from ads.opctl.operator.lowcode.common.utils import (
+    load_data,
+    get_frequency_in_seconds,
+    get_frequency_of_datetime,
+)
+from ads.opctl.operator.lowcode.common.data import AbstractData
+from ads.opctl.operator.lowcode.forecast.utils import (
+    default_signer,
+)
+from ads.opctl.operator.lowcode.common.errors import (
+    InputDataError,
+    InvalidParameterError,
+    PermissionsError,
+    DataMismatchError,
+)
+from ..const import SupportedModels
+from abc import ABC, abstractmethod
+
+
+class HistoricalData(AbstractData):
+    def __init__(self, spec: dict):
+        super().__init__(spec=spec, name="historical_data")
+
+    def _ingest_data(self, spec):
+        try:
+            self.freq = get_frequency_of_datetime(self.data.index.get_level_values(0))
+        except TypeError as e:
+            logger.warn(
+                f"Error determining frequency: {e.args}. Setting Frequency to None"
+            )
+            logger.debug(f"Full traceback: {e}")
+            self.freq = None
+        self._verify_dt_col(spec)
+        super()._ingest_data(spec)
+
+    def _verify_dt_col(self, spec):
+        # Check frequency is compatible with model type
+        self.freq_in_secs = get_frequency_in_seconds(
+            self.data.index.get_level_values(0)
+        )
+        if spec.model == SupportedModels.AutoMLX:
+            if abs(self.freq_in_secs) < 3600:
+                message = (
+                    "{} requires data with a frequency of at least one hour. Please try using a different model,"
+                    " or select the 'auto' option.".format(SupportedModels.AutoMLX)
+                )
+                raise InvalidParameterError(message)
+
+
+class AdditionalData(AbstractData):
+    def __init__(self, spec, historical_data):
+        if spec.additional_data is not None:
+            super().__init__(spec=spec, name="additional_data")
+        else:
+            self.name = "additional_data"
+            self.data = None
+            self._data_dict = dict()
+            self.create_horizon(spec, historical_data)
+
+    def create_horizon(self, spec, historical_data):
+        logger.debug(f"No additional data provided. Constructing horizon.")
+        future_dates = pd.Series(
+            pd.date_range(
+                start=historical_data.get_max_time(),
+                periods=spec.horizon + 1,
+                freq=historical_data.freq,
+            ),
+            name=spec.datetime_column.name,
+        )
+        add_dfs = []
+        for s_id in historical_data.list_series_ids():
+            df_i = historical_data.get_data_for_series(s_id)[spec.datetime_column.name]
+            df_i = pd.DataFrame(pd.concat([df_i, future_dates[1:]]))
+            df_i[ForecastOutputColumns.SERIES] = s_id
+            df_i = df_i.set_index(
+                [spec.datetime_column.name, ForecastOutputColumns.SERIES]
+            )
+            add_dfs.append(df_i)
+        data = pd.concat(add_dfs, axis=1)
+        self.data = data.sort_values(
+            [spec.datetime_column.name, ForecastOutputColumns.SERIES], ascending=True
+        )
+        self.additional_regressors = []
+
+    def _ingest_data(self, spec):
+        self.additional_regressors = list(self.data.columns)
+        if not self.additional_regressors:
+            logger.warn(
+                f"No additional variables found in the additional_data. Only columns found: {self.data.columns}. Skipping for now."
+            )
+        # Check that datetime column matches historical datetime column
+
+
+class TestData(AbstractData):
+    def __init__(self, spec):
+        super().__init__(spec=spec, name="test_data")
+        self.dt_column_name = spec.datetime_column.name
+        self.target_name = spec.target_column
+
 
 class ForecastDatasets:
     def __init__(self, config: ForecastOperatorConfig):
@@ -23,131 +121,18 @@ class ForecastDatasets:
         config: ForecastOperatorConfig
             The forecast operator configuration.
         """
-        self.original_user_data = None
-        self.original_total_data = None
-        self.original_additional_data = None
-        self.full_data_dict = None
-        self.target_columns = None
-        self.categories = None
-        self.datetime_col = PROPHET_INTERNAL_DATE_COL
-        self.datetime_format = config.spec.datetime_column.format
+        self.historical_data: HistoricalData = None
+        self.additional_data: AdditionalData = None
+
+        self._horizon = config.spec.horizon
+        self._datetime_column_name = config.spec.datetime_column.name
         self._load_data(config.spec)
 
     def _load_data(self, spec):
         """Loads forecasting input data."""
+        self.historical_data = HistoricalData(spec)
+        self.additional_data = AdditionalData(spec, self.historical_data)
 
-        loading_start_time = time.time()
-        raw_data = utils._load_data(
-            filename=spec.historical_data.url,
-            format=spec.historical_data.format,
-            columns=spec.historical_data.columns,
-        )
-        loading_end_time = time.time()
-        logger.info("Loading the data completed in %s seconds", loading_end_time - loading_start_time)
-        self.original_user_data = raw_data.copy()
-        data_transformer = Transformations(raw_data, spec)
-        data = data_transformer.run()
-        transformation_end_time = time.time()
-        logger.info("Transformations are completed in %s seconds", transformation_end_time - loading_end_time)
-        try:
-            spec.freq = utils.get_frequency_of_datetime(data, spec)
-        except TypeError as e:
-            logger.warn(
-                f"Error determining frequency: {e.args}. Setting Frequency to None"
-            )
-            logger.debug(f"Full traceback: {e}")
-            spec.freq = None
-
-        self.original_total_data = data
-        additional_data = None
-
-        try:
-            data[spec.datetime_column.name] = pd.to_datetime(
-                data[spec.datetime_column.name], format=self.datetime_format
-            )
-        except:
-            raise ValueError(
-                f"Unable to determine the datetime type for column: {spec.datetime_column.name}. Please specify the format explicitly."
-            )
-
-        if spec.additional_data is not None:
-            additional_data = utils._load_data(
-                filename=spec.additional_data.url,
-                format=spec.additional_data.format,
-                columns=spec.additional_data.columns,
-            )
-            additional_data = data_transformer._sort_by_datetime_col(additional_data)
-            try:
-                additional_data[spec.datetime_column.name] = pd.to_datetime(
-                    additional_data[spec.datetime_column.name],
-                    format=self.datetime_format,
-                )
-            except:
-                raise ValueError(
-                    f"Unable to determine the datetime type for column: {spec.datetime_column.name}. Please specify the format explicitly."
-                )
-
-            self.original_additional_data = additional_data.copy()
-            self.original_total_data = pd.concat([data, additional_data], axis=1)
-        else:
-            # Need to add the horizon to the data for compatibility
-            additional_data_small = data[
-                [spec.datetime_column.name] + spec.target_category_columns
-            ].set_index(spec.datetime_column.name)
-            if is_datetime64_any_dtype(additional_data_small.index):
-                horizon_index = pd.date_range(
-                    start=additional_data_small.index.values[-1],
-                    freq=spec.freq,
-                    periods=spec.horizon + 1,
-                )[1:]
-            elif is_numeric_dtype(additional_data_small.index):
-                # If datetime column is just ints
-                assert (
-                    len(additional_data_small.index.values) > 1
-                ), "Dataset is too small to infer frequency. Please pass in the horizon explicitly through the additional data."
-                start = additional_data_small.index.values[-1]
-                step = (
-                    additional_data_small.index.values[-1]
-                    - additional_data_small.index.values[-2]
-                )
-                horizon_index = pd.RangeIndex(
-                    start, start + step * (spec.horizon + 1), step=step
-                )[1:]
-            else:
-                raise ValueError(
-                    f"Unable to determine the datetime type for column: {spec.datetime_column.name}. Please specify the format explicitly."
-                )
-
-            additional_data = pd.DataFrame()
-
-            for cat_col in spec.target_category_columns:
-                for cat in additional_data_small[cat_col].unique():
-                    add_data_i = additional_data_small[
-                        additional_data_small[cat_col] == cat
-                    ]
-                    horizon_df_i = pd.DataFrame([], index=horizon_index)
-                    horizon_df_i[cat_col] = cat
-                    additional_data = pd.concat(
-                        [additional_data, add_data_i, horizon_df_i]
-                    )
-            additional_data = additional_data.reset_index().rename(
-                {"index": spec.datetime_column.name}, axis=1
-            )
-
-            self.original_total_data = pd.concat([data, additional_data], axis=1)
-
-        (
-            self.full_data_dict,
-            self.target_columns,
-            self.categories,
-        ) = utils._build_indexed_datasets(
-            data=data,
-            target_column=spec.target_column,
-            datetime_column=spec.datetime_column.name,
-            horizon=spec.horizon,
-            target_category_columns=spec.target_category_columns,
-            additional_data=additional_data,
-        )
         if spec.generate_explanations:
             if spec.additional_data is None:
                 logger.warn(
@@ -155,96 +140,240 @@ class ForecastDatasets:
                 )
                 spec.generate_explanations = False
 
+    def get_all_data_long(self, include_horizon=True):
+        how = "outer" if include_horizon else "left"
+        return pd.merge(
+            self.historical_data.data,
+            self.additional_data.data,
+            how=how,
+            on=[self._datetime_column_name, ForecastOutputColumns.SERIES],
+        ).reset_index()
+
+    def get_data_multi_indexed(self):
+        return pd.concat(
+            [
+                self.historical_data.data,
+                self.additional_data.data,
+            ],
+            axis=1,
+        )
+
+    def get_data_by_series(self, include_horizon=True):
+        total_dict = dict()
+        hist_data = self.historical_data.get_dict_by_series()
+        add_data = self.additional_data.get_dict_by_series()
+        how = "outer" if include_horizon else "left"
+        for s_id in self.list_series_ids():
+            # Note: ensure no duplicate column names
+            total_dict[s_id] = pd.merge(
+                hist_data[s_id],
+                add_data[s_id],
+                how=how,
+                on=[self._datetime_column_name],
+            )
+        return total_dict
+
+    def get_data_at_series(self, s_id, include_horizon=True):
+        all_data = self.get_data_by_series(include_horizon=include_horizon)
+        try:
+            return all_data[s_id]
+        except:
+            raise InvalidParameterError(
+                f"Unable to retrieve series id: {s_id} from data. Available series ids are: {self.list_series_ids()}"
+            )
+
+    def get_horizon_at_series(self, s_id):
+        return self.get_data_at_series(s_id)[-self._horizon :]
+
+    def has_artificial_series(self):
+        return self.historical_data._data_transformer.has_artificial_series
+
+    def get_earliest_timestamp(self):
+        return self.historical_data.get_min_time()
+
+    def get_latest_timestamp(self):
+        return self.historical_data.get_max_time()
+
+    def get_additional_data_column_names(self):
+        return self.additional_data.additional_regressors
+
+    def get_datetime_frequency(self):
+        return self.historical_data.freq
+
+    def get_datetime_frequency_in_seconds(self):
+        return self.historical_data.freq_in_secs
+
+    def get_num_rows(self):
+        return self.historical_data.get_num_rows()
+
+    def list_series_ids(self, sorted=True):
+        series_ids = self.historical_data.list_series_ids()
+        if sorted:
+            try:
+                series_ids.sort()
+            except:
+                pass
+        return series_ids
+
     def format_wide(self):
         data_merged = pd.concat(
             [
-                v[v[k].notna()].set_index(self.datetime_col)
-                for k, v in self.full_data_dict.items()
+                v[v[k].notna()].set_index(self._datetime_column_name)
+                for k, v in self.get_data_by_series().items()
             ],
             axis=1,
         ).reset_index()
         return data_merged
 
     def get_longest_datetime_column(self):
-        return pd.to_datetime(
-            self.format_wide()[self.datetime_col], format=self.datetime_format
-        )
+        return self.format_wide()[self._datetime_column_name]
 
 
 class ForecastOutput:
-    def __init__(self, confidence_interval_width: float):
+    def __init__(
+        self,
+        confidence_interval_width: float,
+        horizon: int,
+        target_column: str,
+        dt_column: str,
+    ):
         """Forecast Output contains all of the details required to generate the forecast.csv output file.
 
-        Methods
-        ----------
-
+        init
+        -------
+        confidence_interval_width: float  value from OperatorSpec
+        horizon: int  length of horizon
+        target_column: str the name of the original target column
+        dt_column: the name of the original datetime column
         """
-        self.category_map = dict()
-        self.category_to_target = dict()
-        self.confidence_interval_width = confidence_interval_width
-        self.upper_bound_name = None
-        self.lower_bound_name = None
+        self.series_id_map = dict()
+        self._set_ci_column_names(confidence_interval_width)
+        self.horizon = horizon
+        self.target_column_name = target_column
+        self.dt_column_name = dt_column
 
-    def add_category(
+    def add_series_id(
         self,
-        category: str,
-        target_category_column: str,
+        series_id: str,
         forecast: pd.DataFrame,
         overwrite: bool = False,
     ):
-        if not overwrite and category in self.category_map.keys():
+        if not overwrite and series_id in self.series_id_map.keys():
             raise ValueError(
-                f"Attempting to update ForecastOutput for category {category} when this already exists. Set overwrite to True."
+                f"Attempting to update ForecastOutput for series_id {series_id} when this already exists. Set overwrite to True."
             )
         forecast = self._check_forecast_format(forecast)
-        forecast = self._set_ci_column_names(forecast)
-        self.category_map[category] = forecast
-        self.category_to_target[category] = target_category_column
+        self.series_id_map[series_id] = forecast
 
-    def get_category(self, category):  # change to by_category ?
-        return self.category_map[category]
+    def init_series_output(self, series_id, data_at_series):
+        output_i = pd.DataFrame()
 
-    def get_target_category(self, target_category_column):
-        target_category_columns = self.list_target_category_columns()
-        category = self.list_categories()[
-            list(self.category_to_target.values()).index(target_category_column)
-        ]
-        return self.category_map[category]
+        output_i["Date"] = data_at_series[self.dt_column_name]
+        output_i["Series"] = series_id
+        output_i["input_value"] = data_at_series[self.target_column_name]
 
-    def list_categories(self):
-        return list(self.category_map.keys())
+        output_i["fitted_value"] = float("nan")
+        output_i["forecast_value"] = float("nan")
+        output_i[self.lower_bound_name] = float("nan")
+        output_i[self.upper_bound_name] = float("nan")
+        self.series_id_map[series_id] = output_i
 
-    def list_target_category_columns(self):
-        return list(self.category_to_target.values())
+    def populate_series_output(
+        self, series_id, fit_val, forecast_val, upper_bound, lower_bound
+    ):
+        """
+        This method should be run after init_series_output has been run on this series_id
 
-    def format_long(self):
-        return pd.concat(list(self.category_map.values()))
+        Parameters:
+        -----------
+        series_id: [str, int] the series being forecasted
+        fit_val: numpy.array of length input_value - horizon
+        forecast_val: numpy.array of length horizon containing the forecasted values
+        upper_bound: numpy.array of length horizon containing the upper_bound values
+        lower_bound: numpy.array of length horizon containing the lower_bound values
 
-    def _set_ci_column_names(self, forecast_i):
-        yhat_lower_percentage = (100 - self.confidence_interval_width * 100) // 2
+        Returns:
+        --------
+        None
+        """
+        try:
+            output_i = self.series_id_map[series_id]
+        except KeyError:
+            raise ValueError(
+                f"Attempting to update output for series: {series_id}, however no series output has been initialized."
+            )
+
+        if (output_i.shape[0] - self.horizon) == len(fit_val):
+            output_i["fitted_value"].iloc[
+                : -self.horizon
+            ] = fit_val  # Note: may need to do len(output_i) - (len(fit_val) + horizon) : -horizon
+        elif (output_i.shape[0] - self.horizon) > len(fit_val):
+            logger.debug(
+                f"Fitted Values were only generated on a subset ({len(fit_val)}/{(output_i.shape[0] - self.horizon)}) of the data for Series: {series_id}."
+            )
+            start_idx = output_i.shape[0] - self.horizon - len(fit_val)
+            output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val
+        else:
+            output_i["fitted_value"].iloc[start_idx : -self.horizon] = fit_val[
+                -(output_i.shape[0] - self.horizon) :
+            ]
+
+        if len(forecast_val) != self.horizon:
+            raise ValueError(
+                f"Attempting to set forecast along horizon ({self.horizon}) for series: {series_id}, however forecast is only length {len(forecast_val)}"
+            )
+        output_i["forecast_value"].iloc[-self.horizon :] = forecast_val
+
+        if len(upper_bound) != self.horizon:
+            raise ValueError(
+                f"Attempting to set upper_bound along horizon ({self.horizon}) for series: {series_id}, however upper_bound is only length {len(upper_bound)}"
+            )
+        output_i[self.upper_bound_name].iloc[-self.horizon :] = upper_bound
+
+        if len(lower_bound) != self.horizon:
+            raise ValueError(
+                f"Attempting to set lower_bound along horizon ({self.horizon}) for series: {series_id}, however lower_bound is only length {len(lower_bound)}"
+            )
+        output_i[self.lower_bound_name].iloc[-self.horizon :] = lower_bound
+
+        self.series_id_map[series_id] = output_i
+        self.verify_series_output(series_id)
+
+    def verify_series_output(self, series_id):
+        forecast = self.series_id_map[series_id]
+        self._check_forecast_format(forecast)
+
+    def get_horizon_by_series(self, series_id):
+        return self.series_id_map[series_id][-self.horizon :]
+
+    def get_horizon_long(self):
+        df = pd.DataFrame()
+        for s_id in self.list_series_ids():
+            df = pd.concat([df, self.get_horizon_by_series(s_id)])
+        return df.reset_index(drop=True)
+
+    def get_forecast(self, series_id):
+        try:
+            return self.series_id_map[series_id]
+        except KeyError as ke:
+            logger.debug(
+                f"No Forecast found for series_id: {series_id}. Returning empty DataFrame."
+            )
+            return pd.DataFrame()
+
+    def list_series_ids(self, sorted=True):
+        series_ids = list(self.series_id_map.keys())
+        if sorted:
+            try:
+                series_ids.sort()
+            except:
+                pass
+        return series_ids
+
+    def _set_ci_column_names(self, confidence_interval_width):
+        yhat_lower_percentage = (100 - confidence_interval_width * 100) // 2
         self.upper_bound_name = "p" + str(int(100 - yhat_lower_percentage))
         self.lower_bound_name = "p" + str(int(yhat_lower_percentage))
-        return forecast_i.rename(
-            {
-                ForecastOutputColumns.UPPER_BOUND: self.upper_bound_name,
-                ForecastOutputColumns.LOWER_BOUND: self.lower_bound_name,
-            },
-            axis=1,
-        )
-
-    def format_wide(self):
-        dataset_time_indexed = {
-            k: v.set_index(ForecastOutputColumns.DATE)
-            for k, v in self.category_map.items()
-        }
-        datasets_category_appended = [
-            v.rename(lambda x: str(x) + f"_{k}", axis=1)
-            for k, v in dataset_time_indexed.items()
-        ]
-        return pd.concat(datasets_category_appended, axis=1)
-
-    def get_longest_datetime_column(self):
-        return self.format_wide().index
 
     def _check_forecast_format(self, forecast):
         assert isinstance(forecast, pd.DataFrame)
@@ -256,8 +385,8 @@ class ForecastOutput:
         assert ForecastOutputColumns.INPUT_VALUE in forecast.columns
         assert ForecastOutputColumns.FITTED_VALUE in forecast.columns
         assert ForecastOutputColumns.FORECAST_VALUE in forecast.columns
-        assert ForecastOutputColumns.UPPER_BOUND in forecast.columns
-        assert ForecastOutputColumns.LOWER_BOUND in forecast.columns
+        assert self.upper_bound_name in forecast.columns
+        assert self.lower_bound_name in forecast.columns
         assert not forecast.empty
         # forecast.columns = pd.Index([
         #     ForecastOutputColumns.DATE,
@@ -269,3 +398,9 @@ class ForecastOutput:
         #     ForecastOutputColumns.LOWER_BOUND,
         # ])
         return forecast
+
+    def get_forecast_long(self):
+        output = pd.DataFrame()
+        for df in self.series_id_map.values():
+            output = pd.concat([output, df])
+        return output.reset_index(drop=True)

@@ -11,12 +11,17 @@ import numpy as np
 import yaml
 
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.forecast import utils
+from ads.opctl.operator.lowcode.common.utils import (
+    disable_print,
+    enable_print,
+    seconds_to_datetime,
+)
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets, ForecastOutput
 from ..const import ForecastOutputColumns, SupportedModels
+from ads.opctl.operator.lowcode.forecast.utils import _select_plot_list
 
 AUTOTS_MAX_GENERATION = 10
 AUTOTS_MODELS_TO_VALIDATE = 0.15
@@ -44,21 +49,23 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         # Import necessary libraries
         from autots import AutoTS, create_regressor
 
+        self.outputs = None
         models = dict()
-        outputs = dict()
-        outputs_legacy = []
         # Get the name of the datetime column
-        date_column = self.spec.datetime_column.name
-        self.datasets.datetime_col = date_column
         self.forecast_output = ForecastOutput(
-            confidence_interval_width=self.spec.confidence_interval_width
+            confidence_interval_width=self.spec.confidence_interval_width,
+            horizon=self.spec.horizon,
+            target_column=self.original_target_column,
+            dt_column=self.spec.datetime_column.name,
         )
         model = self.loaded_models if self.loaded_models is not None else None
         if model is None:
             # Initialize the AutoTS model with specified parameters
             model = AutoTS(
                 forecast_length=self.spec.horizon,
-                frequency=self.spec.model_kwargs.get("frequency", "infer"),
+                frequency=self.spec.model_kwargs.get(
+                    "frequency", "infer"
+                ),  # TODO: Use datasets.get_datetime_frequency ?
                 prediction_interval=self.spec.confidence_interval_width,
                 max_generations=self.spec.model_kwargs.get(
                     "max_generations", AUTOTS_MAX_GENERATION
@@ -88,7 +95,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 models_to_validate=self.spec.model_kwargs.get(
                     "models_to_validate", AUTOTS_MODELS_TO_VALIDATE
                 ),
-                max_per_model_class=self.spec.model_kwargs.get("max_per_model_class", None),
+                max_per_model_class=self.spec.model_kwargs.get(
+                    "max_per_model_class", None
+                ),
                 validation_method=self.spec.model_kwargs.get(
                     "validation_method", "backwards"
                 ),
@@ -102,80 +111,46 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
                 introduce_na=self.spec.model_kwargs.get("introduce_na", None),
                 preclean=self.spec.model_kwargs.get("preclean", None),
                 model_interrupt=self.spec.model_kwargs.get("model_interrupt", True),
-                generation_timeout=self.spec.model_kwargs.get("generation_timeout", None),
-                current_model_file=self.spec.model_kwargs.get("current_model_file", None),
-                verbose=self.spec.model_kwargs.get("verbose", 1),
+                generation_timeout=self.spec.model_kwargs.get(
+                    "generation_timeout", None
+                ),
+                current_model_file=self.spec.model_kwargs.get(
+                    "current_model_file", None
+                ),
+                verbose=-1 if logger.level > 40 else 1,
                 n_jobs=self.spec.model_kwargs.get("n_jobs", -1),
             )
 
-        # Prepare the data for model training
-        full_data_dict = self.datasets.full_data_dict
-        temp_list = [full_data_dict[i] for i in full_data_dict.keys()]
-        melt_temp = [
-            temp_list[i].melt(
-                temp_list[i].columns.difference(self.target_columns),
-                var_name="series_id",
-                value_name=self.original_target_column,
-            )
-            for i in range(len(self.target_columns))
+        full_data_indexed = self.datasets.get_data_multi_indexed()
+
+        dates = full_data_indexed.index.get_level_values(0).unique().tolist()
+        horizon_idx = dates[-self.spec.horizon :]
+        train_idx = dates[: -self.spec.horizon]
+
+        regr_fcst = full_data_indexed[
+            full_data_indexed.index.get_level_values(0).isin(horizon_idx)
+        ].reset_index()
+        regr_train = full_data_indexed[
+            full_data_indexed.index.get_level_values(0).isin(train_idx)
         ]
-
-        self.full_data_long = pd.concat(melt_temp)
-
-        if self.spec.additional_data:
-            df_temp = (
-                self.full_data_long.set_index([self.spec.target_column])
-                .reset_index(drop=True)
-                .copy()
-            )
-            df_temp[self.spec.datetime_column.name] = pd.to_datetime(
-                df_temp[self.spec.datetime_column.name]
-            )
-            r_tr, _ = create_regressor(
-                df_temp.pivot(
-                    [self.spec.datetime_column.name],
-                    columns="series_id",
-                    values=list(
-                        self.original_additional_data.set_index(
-                            self.spec.target_category_columns + [self.spec.datetime_column.name]
-                        ).columns
-                    ),
-                ),
-                forecast_length=self.spec.horizon,
-            )
-
-            self.future_regressor_train = r_tr.copy()
+        self.future_regressor_train = regr_train.copy()
 
         if self.loaded_models is None:
-            # Fit the model to the training data
             model = model.fit(
-                self.full_data_long.groupby("series_id")
-                .head(-self.spec.horizon)
-                .reset_index(drop=True),
+                full_data_indexed.reset_index(),
+                future_regressor=regr_train.reset_index(),
                 date_col=self.spec.datetime_column.name,
                 value_col=self.original_target_column,
-                future_regressor=r_tr.head(-self.spec.horizon)
-                if self.spec.additional_data
-                else None,
-                id_col="series_id",
-                )
-
+                id_col=ForecastOutputColumns.SERIES,
+            )
             # Store the trained model and generate forecasts
             self.models = copy.deepcopy(model)
         else:
             self.models = self.loaded_models
+
+        self.outputs = model.predict(future_regressor=regr_fcst)
         logger.debug("===========Forecast Generated===========")
-        self.prediction = model.predict(
-            future_regressor=r_tr.tail(self.spec.horizon)
-            if self.spec.additional_data
-            else None
-        )
 
-        outputs = dict()
-
-        output_col = pd.DataFrame()
-        yhat_upper_name = ForecastOutputColumns.UPPER_BOUND
-        yhat_lower_name = ForecastOutputColumns.LOWER_BOUND
         hist_df = model.back_forecast().forecast
 
         params = vars(model).copy()
@@ -194,44 +169,27 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             if param in params:
                 params.pop(param)
 
-        for cat in self.categories:
-            output_i = pd.DataFrame()
-            cat_target = f"{self.original_target_column}_{cat}"
-            input_data_i = full_data_dict[cat_target]
-
-            output_i["Date"] = pd.to_datetime(
-                input_data_i[self.spec.datetime_column.name],
-                format=self.spec.datetime_column.format,
-            )
-            output_i["Series"] = cat
-            output_i["input_value"] = input_data_i[cat_target]
-            output_i["fitted_value"] = float("nan")
-            output_i = output_i.set_index("Date")
-
-            output_i["forecast_value"] = self.prediction.forecast[[cat_target]]
-            output_i[yhat_upper_name] = self.prediction.upper_forecast[[cat_target]]
-            output_i[yhat_lower_name] = self.prediction.lower_forecast[[cat_target]]
-            output_i.iloc[
-            -hist_df.shape[0] - self.spec.horizon : -self.spec.horizon,
-            output_i.columns.get_loc(f"fitted_value"),
-            ] = hist_df[cat_target]
-
-            output_i = output_i.reset_index()
-            output_col = pd.concat([output_col, output_i])
-            self.forecast_output.add_category(
-                category=cat, target_category_column=cat_target, forecast=output_i
+        for s_id in self.datasets.list_series_ids():
+            self.forecast_output.init_series_output(
+                series_id=s_id, data_at_series=self.datasets.get_data_at_series(s_id)
             )
 
-            self.model_parameters[utils.convert_target(cat_target, self.original_target_column)] = {
+            self.forecast_output.populate_series_output(
+                series_id=s_id,
+                fit_val=hist_df[s_id].values,
+                forecast_val=self.outputs.forecast[s_id].values,
+                upper_bound=self.outputs.upper_forecast[s_id].values,
+                lower_bound=self.outputs.lower_forecast[s_id].values,
+            )
+
+            self.model_parameters[s_id] = {
                 "framework": SupportedModels.AutoTS,
                 **params,
             }
 
-        output_col = output_col.reset_index(drop=True)
-
         logger.debug("===========Done===========")
 
-        return output_col
+        return self.forecast_output.get_forecast_long()
 
     def _generate_report(self) -> tuple:
         """
@@ -254,28 +212,9 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             "## Forecast Overview \n"
             "These plots show your forecast in the context of historical data."
         )
-
-        # Default title generated by autots has target_col in it. Modified function to get rid of it.
-        def get_title(idx, target):
-            from autots.models.base import extract_single_series_from_horz
-            title_prelim = extract_single_series_from_horz(
-                self.models.df_wide_numeric.columns[idx],
-                model_name=self.prediction.model_name,
-                model_parameters=self.prediction.model_parameters,
-            )[0:80]
-            return f"{utils.convert_target(target, self.original_target_column)} with model {title_prelim}"
-
-        sec_1 = utils._select_plot_list(
-            lambda idx, target, *args: self.prediction.plot(
-                self.models.df_wide_numeric,
-                series=self.models.df_wide_numeric.columns[idx],
-                start_date=self.models.df_wide_numeric.reset_index()[
-                    self.spec.datetime_column.name
-                ].min(),
-                title=get_title(idx, target)
-            ),
-            target_columns=self.target_columns,
-            original_target_column=self.original_target_column
+        sec_1 = _select_plot_list(
+            lambda s_id: self.outputs.plot(self.models.df_wide_numeric, series=s_id),
+            self.datasets.list_series_ids(),
         )
 
         # Section 2: AutoTS Model Parameters
@@ -292,65 +231,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         all_sections = [sec1_text, sec_1, sec2_text, sec2]
 
         if self.spec.generate_explanations:
-            # If the key is present, call the "explain_model" method
-            try:
-                self.explain_model(
-                    datetime_col_name=self.spec.datetime_column.name,
-                    explain_predict_fn=self._custom_predict_autots,
-                )
-
-                # Create a markdown text block for the global explanation section
-                global_explanation_text = dp.Text(
-                    f"## Global Explanation of Models \n "
-                    "The following tables provide the feature attribution for the global explainability."
-                )
-
-                # Convert the global explanation data to a DataFrame
-                global_explanation_df = pd.DataFrame(self.global_explanation).drop(
-                    index=["series_id", self.spec.target_column]
-                )
-
-                self.formatted_global_explanation = (
-                        global_explanation_df / global_explanation_df.sum(axis=0) * 100
-                )
-
-                # Create a markdown section for the global explainability
-                global_explanation_section = dp.Blocks(
-                    "### Global Explainability ",
-                    dp.DataTable(self.formatted_global_explanation),
-                )
-
-                aggregate_local_explanations = pd.DataFrame()
-                for s_id, local_ex_df in self.local_explanation.items():
-                    local_ex_df_copy = local_ex_df.copy()
-                    local_ex_df_copy["Series"] = s_id
-                    aggregate_local_explanations = pd.concat(
-                        [aggregate_local_explanations, local_ex_df_copy], axis=0
-                    )
-                self.formatted_local_explanation = aggregate_local_explanations
-
-                local_explanation_text = dp.Text(f"## Local Explanation of Models \n ")
-                blocks = [
-                    dp.DataTable(
-                        local_ex_df.div(local_ex_df.abs().sum(axis=1), axis=0) * 100,
-                        label=utils.convert_target(s_id, self.original_target_column),
-                    )
-                    for s_id, local_ex_df in self.local_explanation.items()
-                ]
-                local_explanation_section = (
-                    dp.Select(blocks=blocks) if len(blocks) > 1 else blocks[0]
-                )
-
-                # Append the global explanation text and section to the "all_sections" list
-                all_sections = all_sections + [
-                    global_explanation_text,
-                    global_explanation_section,
-                    local_explanation_text,
-                    local_explanation_section,
-                ]
-            except Exception as e:
-                logger.warn(f"Failed to generate Explanations with error: {e}.")
-                logger.debug(f"Full Traceback: {traceback.format_exc()}")
+            logger.warn(f"Explanations not yet supported for the AutoTS Module")
 
         # Model Description
         model_description = dp.Text(
@@ -366,10 +247,7 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             other_sections,
         )
 
-    def _custom_predict_autots(self, data):
-        raise NotImplementedError("Autots does not yet support explanations.")
-
-    def _generate_train_metrics(self) -> pd.DataFrame:
+    def generate_train_metrics(self) -> pd.DataFrame:
         """
         Generate Training Metrics when fitted data is not available.
         The method that needs to be implemented on the particular model level.
@@ -386,6 +264,4 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
             self.models.best_model_per_series_score(), columns=["AutoTS Score"]
         ).T
         df = pd.concat([mapes, scores])
-        new_column_names = {old_name: utils.convert_target(old_name, self.original_target_column)
-                            for old_name in df.columns}
-        return df.rename(columns=new_column_names)
+        return df
