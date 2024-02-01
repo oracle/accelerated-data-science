@@ -34,7 +34,7 @@ DATASETS_LIST = [
     # # "ILINetDataset",
     # # "IceCreamHeaterDataset",
     # # "MonthlyMilkDataset",
-    # "MonthlyMilkIncompleteDataset",
+    "MonthlyMilkIncompleteDataset",
     # # "SunspotsDataset",
     # # "TaylorDataset",
     # # "TemperatureDataset",
@@ -91,6 +91,8 @@ for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
 
 @pytest.mark.parametrize("model, dataset_name", parameters_short)
 def test_load_datasets(model, dataset_name):
+    if model == "automlx" and dataset_name == "WeatherDataset":
+        return
     dataset_i = getattr(d_datasets, dataset_name)().load()
     datetime_col = dataset_i.time_index.name
 

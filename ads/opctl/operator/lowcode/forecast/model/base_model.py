@@ -83,6 +83,9 @@ class ForecastOperatorBaseModel(ABC):
         self.errors_dict = dict()
         self.le = dict()
 
+        self.formatted_global_explanation = None
+        self.formatted_local_explanation = None
+
         self.forecast_col_name = "yhat"
         self.perform_tuning = self.spec.tuning != None
 

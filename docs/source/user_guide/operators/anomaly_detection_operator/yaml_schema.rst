@@ -1,6 +1,6 @@
-===================
-Configure Forecast
-===================
+===========
+YAML Schema
+===========
 
 Let's explore each line of the forecast.yaml so we can better understand options for extending and customizing the operator to our use case.
 

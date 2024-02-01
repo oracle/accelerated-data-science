@@ -348,7 +348,7 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug(f"Failed to plot with exception: {e.args}")
 
         sec5_text = dp.Text(f"## Neural Prophet Model Parameters")
-        model_states = [pd.Series()]
+        model_states = []
         for i, (s_id, m) in enumerate(self.models.items()):
             model_states.append(
                 pd.Series(
