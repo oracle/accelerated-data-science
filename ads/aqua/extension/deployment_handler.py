@@ -8,6 +8,7 @@ from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.config import PROJECT_OCID
 from ads.aqua.model import AquaModelApp
+from urllib.parse import urlparse
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -32,10 +33,18 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
     def get(self, id=""):
         """Handle GET request."""
-        # todo: handle list, read and logs for model deployment
-        if not id:
-            return self.list()
-        return self.read(id)
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        if paths.startswith("aqua/deployments/logging"):
+            if not id:
+                return self.list_log_groups()
+            return self.list_logs(id)
+        elif paths.startswith("aqua/deployments/compartments"):
+            return self.list_compartments()
+        else:
+            if not id:
+                return self.list()
+            return self.read(id)
 
     def post(self, *args, **kwargs):
         """
@@ -112,7 +121,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 AquaDeploymentApp().create(
                     compartment_id=compartment_id,
                     project_id=project_id,
-                    # todo: replace model_id with aqua_model.id
+                    # todo: replace model_id with aqua_model.id, use current model for deploy
+                    #  but replace with model by reference is implemented
                     model_id=model_id,
                     aqua_service_model=aqua_service_model,
                     display_name=display_name,
@@ -158,5 +168,35 @@ class AquaDeploymentHandler(AquaAPIhandler):
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
+    def list_log_groups(self, **kwargs):
+        compartment_id = self.get_argument("compartment_id")
+        try:
+            return self.finish(
+                AquaDeploymentApp().list_log_groups(
+                    compartment_id=compartment_id, **kwargs
+                )
+            )
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
 
-__handlers__ = [("deployments/?([^/]*)", AquaDeploymentHandler)]
+    def list_logs(self, log_group_id, **kwargs):
+        try:
+            return self.finish(
+                AquaDeploymentApp().list_logs(log_group_id=log_group_id, **kwargs)
+            )
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
+
+    def list_compartments(self, **kwargs):
+        try:
+            return self.finish(AquaDeploymentApp().list_compartments(**kwargs))
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
+
+
+# todo: combine regex or have separate handlers
+__handlers__ = [
+    ("deployments/logging/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/compartments/?([^/]*)", AquaDeploymentHandler),
+    ("deployments/?([^/]*)", AquaDeploymentHandler),
+]
