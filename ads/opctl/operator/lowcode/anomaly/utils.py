@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import fsspec
 from .operator_config import AnomalyOperatorSpec
-from .const import SupportedMetrics
+from .const import SupportedMetrics, SupportedModels
 from ads.opctl import logger
 
 
@@ -76,3 +76,6 @@ def default_signer(**kwargs):
     from ads.common.auth import default_signer
 
     return default_signer(**kwargs)
+
+def select_auto_model(datasets, operator_config):
+    return SupportedModels.AutoMLX
