@@ -2,11 +2,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+import os
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
 import fsspec
+import oci
 from oci.exceptions import ClientError, ServiceError
 
 from ads.aqua import logger
@@ -15,7 +17,7 @@ from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.aqua.utils import create_word_icon
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
-from ads.config import COMPARTMENT_OCID
+from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
 
 ICON_FILE_NAME = "icon.txt"
 README = "README.md"
@@ -128,43 +130,25 @@ class AquaModelApp(AquaApp):
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
         kwargs
-            Additional keyword arguments for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
-
+            Additional keyword arguments.
         Returns
         -------
         List[AquaModelSummary]:
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
         compartment_id = compartment_id or COMPARTMENT_OCID
-        kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
 
-        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
-        condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
-        # not support filtered by project_id
-        query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
-        logger.info(query)
-        try:
-            models = OCIResource.search(
-                query,
-                type=SEARCH_TYPE.STRUCTURED,
-            )
-        except Exception as se:
-            # TODO: adjust error raising
-            logger.error(
-                f"Failed to retreive model from the given compartment {compartment_id}"
-            )
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        service_model = self.list_resource(
+            self.client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
+        )
+        fine_tuned_models = self._rqs(compartment_id)
+        models = fine_tuned_models + service_model
 
         if not models:
-            error_message = (
-                f"No model found in compartment_id={compartment_id}, project_id={project_id}."
-                if project_id
-                else f"No model found in compartment_id={compartment_id}."
-            )
-            logger.error(error_message)
+            logger.error(f"No model found in compartment_id={compartment_id}.")
 
         aqua_models = []
-        # TODO: build index.json locally as caching if needed.
+        # TODO: build index.json for service model as caching if needed.
 
         def process_model(model):
             icon = self._load_icon(model.display_name)
@@ -172,14 +156,19 @@ class AquaModelApp(AquaApp):
             tags.update(model.defined_tags)
             tags.update(model.freeform_tags)
 
+            model_id = (
+                model.id
+                if isinstance(model, oci.data_science.models.ModelSummary)
+                else model.identifier
+            )
             return AquaModelSummary(
                 compartment_id=model.compartment_id,
                 icon=icon,
-                id=model.identifier,
+                id=model_id,
                 license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
                 name=model.display_name,
                 organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-                project_id=project_id or "",
+                project_id=project_id or UNKNOWN,
                 task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
                 time_created=model.time_created,
                 is_fine_tuned_model=True
@@ -188,7 +177,7 @@ class AquaModelApp(AquaApp):
                 tags=tags,
             )
 
-        for model in models:  # ResourceSummary
+        for model in models:
             aqua_models.append(process_model(model))
 
         return aqua_models
@@ -244,3 +233,24 @@ class AquaModelApp(AquaApp):
         except Exception as e:
             logger.error(f"Failed to load icon for the model={model_name}.")
             return None
+
+    def _rqs(self, compartment_id):
+        """Use RQS to fetch models in the user tenancy."""
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
+        condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
+        # not support filtered by project_id
+        query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
+        logger.info(query)
+
+        try:
+            return OCIResource.search(
+                query,
+                type=SEARCH_TYPE.STRUCTURED,
+                tenant_id=TENANCY_OCID,
+            )
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(
+                f"Failed to retreive model from the given compartment {compartment_id}"
+            )
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
