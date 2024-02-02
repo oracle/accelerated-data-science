@@ -192,10 +192,23 @@ class AquaModelApp(AquaApp):
 
         for model in models:
             # TODO: remove the check after policy issue resolved
-            if self._if_show(model):
+            if self._temp_check(model, compartment_id):
                 aqua_models.append(process_model(model))
 
         return aqua_models
+
+    def _temp_check(self, model, compartment_id=None):
+        # TODO: will remove it later
+        TARGET_TAGS = model.freeform_tags.keys()
+        if not Tags.AQUA_TAG.value in TARGET_TAGS:
+            return False
+
+        if compartment_id:
+            return (
+                True if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS else False
+            )
+
+        return True if Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS else False
 
     def _if_show(self, model: "ModelSummary") -> bool:
         """Determine if the given model should be return by `list`."""
@@ -255,7 +268,7 @@ class AquaModelApp(AquaApp):
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
-
+        logger.info(f"tenant_id={TENANCY_OCID}")
         try:
             return OCIResource.search(
                 query,
