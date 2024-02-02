@@ -47,7 +47,6 @@ RESOURCE_OCID = (
 NO_CONTAINER = os.environ.get("NO_CONTAINER")
 TMPDIR = os.environ.get("TMPDIR")
 
-# Aqua config
 ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
 
 

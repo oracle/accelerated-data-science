@@ -2,19 +2,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
-
-from typing import List
-
-import logging
 import oci
 from ads.common.auth import default_signer
 from ads.aqua.exception import AquaServiceError, AquaClientError
 from oci.exceptions import ServiceError, ClientError
 from ads.common import oci_client as oc
 from ads.common.utils import extract_region
-
-logger = logging.getLogger(__name__)
 
 
 class AquaApp:
@@ -31,7 +24,7 @@ class AquaApp:
         self,
         list_func_ref,
         **kwargs,
-    ) -> List[dict]:
+    ) -> list:
         """Generic method to list OCI Data Science resources.
 
         Parameters
