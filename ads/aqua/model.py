@@ -13,7 +13,7 @@ from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.aqua.utils import create_word_icon
-from ads.common.oci_resource import OCIResource
+from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.config import COMPARTMENT_OCID
 
@@ -146,7 +146,7 @@ class AquaModelApp(AquaApp):
         try:
             models = OCIResource.search(
                 query,
-                type="Structured",
+                type=SEARCH_TYPE.STRUCTURED,
             )
         except Exception as se:
             # TODO: adjust error raising
