@@ -6,6 +6,7 @@
 
 from datetime import datetime
 from typing import List
+import uuid
 
 from sqlalchemy import JSON, TIMESTAMP, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -21,19 +22,20 @@ class SessionModel(Base):
 
 
     Attributes:
-        id (Mapped[int]): The primary key, an auto-incrementing integer.
-        notebook_session_id (Mapped[str]): The ID of the notebook session.
+        id (Mapped[str]): The primary key, the UUID.
         model_id (Mapped[str]): The id of the model.
         model_name: (Mapped[str]): The name of the model.
         model_endpoint: (Mapped[str]): The model endpoint.
-        created (Mapped[datetime]): The timestamp of the session.
+        created (Mapped[datetime]): The creating timestamp of the session.
+        updated (Mapped[datetime]): The updating timestamp of the session.
         status (Mapped[str]): The status of the session.
     """
 
     __tablename__ = "playground_session"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    # notebook_session_id: Mapped[str] = mapped_column(String)
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
     model_id: Mapped[str] = mapped_column(String, unique=True)
     model_name: Mapped[str] = mapped_column(String)
     model_endpoint: Mapped[str] = mapped_column(String)
@@ -54,8 +56,8 @@ class SessionSettingsModel(Base):
     Represents a session configuration table in the database.
 
     Attributes:
-        id (Mapped[int]): The primary key, an auto-incrementing integer.
-        playground_session_id (Mapped[int]): Foreign key linking to the SessionModel table.
+        id (Mapped[str]): The primary key, the UUID.
+        playground_session_id (Mapped[str]): Foreign key linking to the SessionModel table.
         model_params: (Mapped[Dict]): The model related parameters stored as JSON.
             - max_tokens: int
             - temperature: float
@@ -65,9 +67,11 @@ class SessionSettingsModel(Base):
 
     __tablename__ = "playground_session_settings"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    playground_session_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("playground_session.id"), unique=True
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    playground_session_id: Mapped[str] = mapped_column(
+        String, ForeignKey("playground_session.id"), unique=True
     )
     model_params: Mapped[dict] = mapped_column(JSON)
 
@@ -82,18 +86,21 @@ class ThreadModel(Base):
 
 
     Attributes:
-        id (Mapped[int]): The primary key, an auto-incrementing integer.
-        playground_session_id (Mapped[int]): Foreign key linking to the SessionModel table.
+        id (Mapped[str]): The primary key, the UUID.
+        playground_session_id (Mapped[str]): Foreign key linking to the SessionModel table.
         name (Mapped[str]): The name of the thread.
-        created (Mapped[datetime]): The timestamp of the thread.
+        created (Mapped[datetime]): The creating timestamp of the thread.
+        updated (Mapped[datetime]): The updating timestamp of the thread.
         status (Mapped[str]): The status of the thread.
     """
 
     __tablename__ = "playground_thread"
 
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    playground_session_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("playground_session.id")
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    playground_session_id: Mapped[str] = mapped_column(
+        String, ForeignKey("playground_session.id")
     )
     name: Mapped[str] = mapped_column(String)
     created: Mapped[datetime] = mapped_column(TIMESTAMP)
@@ -113,23 +120,26 @@ class MessageModel(Base):
     Represents a message table in the database.
 
     Attributes:
-        id (Mapped[int]): The primary key, an auto-incrementing integer.
-        parent_id (Mapped[int]): The parent message.
-        playground_thread_id (Mapped [int]): Foreign key linking to the ThreadModel table.
+        id (Mapped[str]): The primary key, the UUID.
+        parent_id (Mapped[str]): The parent message.
+        playground_thread_id (Mapped [str]): Foreign key linking to the ThreadModel table.
         content (Mapped[str]): The message text.
         payload (Mapped[dict]): The payload info.
         model_params (Mapped[dict]): The model parameters.
         created (Mapped[datetime]): The timestamp of the request.
+        updated (Mapped[datetime]): The timestamp of the request.
         status (Mapped[str]): The status of the request.
         rate (Mapped[int]): The rate of the response. [-1, 0, 1].
         role (Mapped[str]): The role of the message. [system, user]
     """
 
     __tablename__ = "playground_message"
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    parent_id: Mapped[int] = mapped_column(Integer, nullable=True)
-    playground_thread_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("playground_thread.id")
+    id: Mapped[str] = mapped_column(
+        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
+    )
+    parent_id: Mapped[str] = mapped_column(String, nullable=True)
+    playground_thread_id: Mapped[str] = mapped_column(
+        String, ForeignKey("playground_thread.id")
     )
     content: Mapped[str] = mapped_column(Text)
     payload: Mapped[dict] = mapped_column(JSON)

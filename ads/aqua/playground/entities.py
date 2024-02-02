@@ -5,11 +5,12 @@
 
 
 import datetime
+import uuid
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional
 
-from ads.aqua.playground.const import MessageRate, Status
+from ads.aqua.playground.const import MessageRate, Status, MessageRole
 from ads.aqua.playground.db_models import MessageModel, SessionModel, ThreadModel
 from ads.common.serializer import DataClassSerializable
 
@@ -21,7 +22,7 @@ class SearchId:
     """
 
     model_id: str = None
-    record_id: int = None
+    record_id: str = None
 
     @classmethod
     def parse(cls, id: str) -> "SearchId":
@@ -34,18 +35,18 @@ class SearchId:
         id: str
             Input ID to parse.
         """
-        id = str(id)
         result = cls()
-        if "ocid" in id:
+
+        if not id:
+            raise ValueError(
+                "Incorrect id was provided. "
+                "It should either be a model ID or a record ID."
+            )
+
+        if "ocid" in (id or ""):
             result.model_id = id
         else:
-            try:
-                result.record_id = int(id)
-            except:
-                raise ValueError(
-                    "Incorrect id was provided. "
-                    "It should either be a model ID or a record ID."
-                )
+            result.record_id = id
 
         return result
 
@@ -97,7 +98,7 @@ class VLLModelParams(DataClassSerializable):
     top_p: Optional[float] = 1.0
     frequency_penalty: Optional[float] = 0.0
     presence_penalty: Optional[float] = 0.0
-    top_k: Optional[int] = 0
+    top_k: Optional[int] = 1
     echo: Optional[bool] = False
     logprobs: Optional[int] = None
     use_beam_search: Optional[bool] = False
@@ -122,7 +123,7 @@ class Message(DataClassSerializable):
 
     Attributes
     ----------
-    id: int
+    id: str
         Unique identifier of the message.
     parent_id: int
         Identifier of the parent message.
@@ -141,15 +142,17 @@ class Message(DataClassSerializable):
     role: str
         Role of the message, based on the MessageRole enum.
     created: datetime.datetime
-        Creation timestamp of the thread.
+        Creation timestamp of the message.
+    updated: datetime.datetime
+        Updating timestamp of the message.
     answers: List[Message]
         List of system messages for the user message.
     """
 
-    message_id: int = None
-    parent_message_id: int = None
-    session_id: int = None
-    thread_id: int = None
+    message_id: str = None
+    parent_message_id: str = None
+    session_id: str = None
+    thread_id: str = None
     content: str = None
     payload: Dict = None
     model_params: VLLModelParams = field(default_factory=VLLModelParams)
@@ -157,7 +160,18 @@ class Message(DataClassSerializable):
     rate: int = MessageRate.DEFAULT
     role: str = None
     created: datetime.datetime = None
+    updated: datetime.datetime = None
     answers: List["Message"] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.message_id:
+            self.message_id = str(uuid.uuid4())
+        if not self.status:
+            self.status = Status.ACTIVE
+        if not self.rate:
+            self.rate = MessageRate.DEFAULT
+        if not self.role:
+            self.role = MessageRole.USER
 
     @classmethod
     def from_db_model(cls, data: MessageModel) -> "Message":
@@ -182,6 +196,7 @@ class Message(DataClassSerializable):
             thread_id=data.playground_thread_id,
             session_id=data.thread.playground_session_id,
             created=data.created,
+            updated=data.updated,
             status=data.status,
             rate=data.rate,
             role=data.role,
@@ -197,26 +212,35 @@ class Thread(DataClassSerializable):
 
     Attributes
     ----------
-    id: int
+    id: str
         Unique identifier of the thread.
     name: str
         Name of the thread.
-    session_id: int
+    session_id: str
         Identifier of the session to which the thread belongs.
     created: datetime.datetime
         Creation timestamp of the thread.
+    updated: datetime.datetime
+        Updating timestamp of the thread.
     status: str
         Status of the message. Can be `active` or `archived`.
     messages: List[Message]
         List of messages in the thread.
     """
 
-    id: int = None
+    id: str = None
     name: str = None
-    session_id: int = None
+    session_id: str = None
     created: datetime.datetime = None
+    updated: datetime.datetime = None
     status: str = Status.ACTIVE
     messages: List[Message] = field(default_factory=list)
+
+    def __post_init__(self):
+        if not self.id:
+            self.id = str(uuid.uuid4())
+        if not self.status:
+            self.status = Status.ACTIVE
 
     @classmethod
     def from_db_model(
@@ -242,6 +266,7 @@ class Thread(DataClassSerializable):
             name=data.name,
             session_id=data.playground_session_id,
             created=data.created,
+            updated=data.updated,
             status=data.status,
         )
 
@@ -297,10 +322,12 @@ class Session(DataClassSerializable):
 
     Attributes
     ----------
-    id: int
+    id: str
         Unique identifier of the session.
     created: datetime.datetime
         Creation timestamp of the session.
+    updated: datetime.datetime
+        Updating timestamp of the session.
     status: str
         Status of the message. Can be `active` or `archived`.
     threads: List[Thread]
@@ -309,11 +336,18 @@ class Session(DataClassSerializable):
         Model deployment details.
     """
 
-    session_id: int = None
+    session_id: str = None
     created: datetime.datetime = None
+    updated: datetime.datetime = None
     status: str = Status.ACTIVE
     threads: List[Thread] = field(default_factory=list)
     model: ModelInfo = field(default_factory=ModelInfo)
+
+    def __post_init__(self):
+        if not self.session_id:
+            self.session_id = str(uuid.uuid4())
+        if not self.status:
+            self.status = Status.ACTIVE
 
     @classmethod
     def from_db_model(
@@ -338,6 +372,7 @@ class Session(DataClassSerializable):
         obj = cls(
             session_id=data.id,
             created=data.created,
+            updated=data.updated,
             status=data.status,
             model=ModelInfo(
                 id=data.model_id, name=data.model_name, endpoint=data.model_endpoint

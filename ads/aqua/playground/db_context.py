@@ -93,7 +93,7 @@ class DBContext:
 
     def get_session(
         self,
-        session_id: int = None,
+        session_id: str = None,
         model_id: str = None,
         include_threads: bool = False,
     ) -> Optional[Session]:
@@ -102,7 +102,7 @@ class DBContext:
 
         Parameters
         ----------
-        session_id: (int, optional)
+        session_id: (str, optional)
             The unique session identifier for the playground db_session.
         model_id: (str, optional)
             The unique model identifier for the playground db_session.
@@ -142,6 +142,7 @@ class DBContext:
         model_id: str,
         model_name: str,
         model_endpoint: str,
+        session_id: str = None,
         status: str = Status.ACTIVE,
     ) -> Session:
         """
@@ -152,7 +153,8 @@ class DBContext:
         model_id (str): The unique model identifier for the new db_session.
         model_name (str): The name of the model.
         model_endpoint (str): The model endpoint.
-        status (str): The status of the db_session.
+        session_id (str, optional): The ID of the session.
+        status (str, optional): The status of the db_session.
 
         Returns
         -------
@@ -161,6 +163,7 @@ class DBContext:
         """
         with self.DBSession() as db_session:
             new_session = SessionModel(
+                id=session_id,
                 model_id=model_id,
                 model_name=model_name,
                 model_endpoint=model_endpoint,
@@ -175,7 +178,7 @@ class DBContext:
 
     def get_session_threads(
         self,
-        session_id: int,
+        session_id: str,
         only_active: bool = True,
     ) -> List[Thread]:
         """
@@ -183,7 +186,7 @@ class DBContext:
 
         Parameters
         ----------
-        session_id: (int)
+        session_id: (str)
             The ID of the session for which to retrieve threads.
         only_active: (bool, optional). Defaults to True.
             Whether to load all or only active sessions.
@@ -205,7 +208,7 @@ class DBContext:
 
     def get_thread(
         self,
-        thread_id: int = None,
+        thread_id: str = None,
         include_messages: bool = False,
     ) -> Optional[Thread]:
         """
@@ -213,7 +216,7 @@ class DBContext:
 
         Parameters
         ----------
-        thread_id: int
+        thread_id: str
             The unique thread identifier.
         include_messages: (bool, optional). Defaults to False.
             Whether to include the associated messages or not.
@@ -237,15 +240,20 @@ class DBContext:
             return Thread.from_db_model(thread_model, include_messages=include_messages)
 
     def add_thread(
-        self, session_id: int, name: str, status: str = Status.ACTIVE
+        self,
+        session_id: str,
+        name: str,
+        thread_id: str = None,
+        status: str = Status.ACTIVE,
     ) -> Thread:
         """
         Adds a new thread to an existing playground db_session.
 
         Parameters
         ----------
-        session_id (int): The ID of the session to which the thread belongs.
+        session_id (str): The ID of the session to which the thread belongs.
         name (str): The name of the thread.
+        thread_id (str, optional): The thread ID.
         status (str, optional): The status of the thread. Defaults to active.
 
         Returns
@@ -255,6 +263,7 @@ class DBContext:
         """
         with self.DBSession() as db_session:
             new_thread = ThreadModel(
+                id=thread_id,
                 playground_session_id=session_id,
                 name=name,
                 created=datetime.now(),
@@ -266,15 +275,49 @@ class DBContext:
 
             return Thread.from_db_model(new_thread)
 
+    def update_thread(
+        self, thread_id: str, name: str = None, status: str = None
+    ) -> Optional[Thread]:
+        """
+        Updates a playground thread by its ID.
+
+        Parameters
+        ----------
+        thread_id: str
+            The unique thread identifier.
+
+        Returns
+        -------
+        Optional[Message]
+            Updated thread or None.
+
+        Raises
+        ------
+        ThreadNotFoundError
+            If message with provided ID doesn't exist.
+        """
+        with self.DBSession() as db_session:
+            thread_model = db_session.query(ThreadModel).filter_by(id=thread_id).first()
+
+            if not thread_model:
+                raise ThreadNotFoundError(thread_id=thread_id)
+
+            thread_model.name = name or thread_model.name
+            thread_model.status = status or thread_model.status
+            thread_model.updated = datetime.now()
+
+            db_session.commit()
+            return Thread.from_db_model(thread_model)
+
     def get_thread_messages(
-        self, thread_id: int, only_active: bool = True
+        self, thread_id: str, only_active: bool = True
     ) -> List[Message]:
         """
         Retrieves all messages in a specific playground thread.
 
         Parameters
         ----------
-        thread_id (int): The ID of the thread for which to retrieve messages.
+        thread_id (str): The ID of the thread for which to retrieve messages.
         only_active: (bool, optional). Defaults to True.
             Whether to load all or only active messages.
 
@@ -297,9 +340,10 @@ class DBContext:
 
     def add_message_to_thread(
         self,
-        thread_id: int,
+        thread_id: str,
         content: str,
-        parent_message_id: int = None,
+        message_id: str = None,
+        parent_message_id: str = None,
         role: str = MessageRole.USER,
         rate: int = MessageRate.DEFAULT,
         payload: Dict = None,
@@ -311,9 +355,10 @@ class DBContext:
 
         Parameters
         ----------
-        thread_id (int): The ID of the thread to which the message will be added.
+        thread_id (str): The ID of the thread to which the message will be added.
         content (str): The text content of the message.
-        parent_message_id (int, optional): The parent message.
+        message_id (str, optional): The message ID.
+        parent_message_id (str, optional): The parent message.
         payload (Dict, optional): The model payload.
         model_params (Dict, optional): The model parameters.
         status (str): The status of the message.
@@ -326,6 +371,7 @@ class DBContext:
         """
         with self.DBSession() as db_session:
             new_message = MessageModel(
+                id=message_id,
                 playground_thread_id=thread_id,
                 parent_id=parent_message_id,
                 content=content or "",
@@ -343,14 +389,14 @@ class DBContext:
 
     def get_message(
         self,
-        message_id: int = None,
+        message_id: str = None,
     ) -> Optional[Message]:
         """
         Retrieves a playground message by its ID.
 
         Parameters
         ----------
-        message_id: int
+        message_id: str
             The unique message identifier.
 
         Returns
@@ -381,7 +427,7 @@ class DBContext:
 
         Parameters
         ----------
-        message_id: int
+        message_id: str
             The unique message identifier.
 
         Returns
@@ -400,7 +446,7 @@ class DBContext:
             )
 
             if not message_model:
-                raise MessageNotFoundError(message_id == message_id)
+                raise MessageNotFoundError(message_id=message_id)
 
             message_model.content = content or message_model.content
             message_model.status = status or message_model.status
@@ -408,16 +454,16 @@ class DBContext:
             message_model.updated = datetime.now()
 
             db_session.commit()
-            return message_model
+            return Message.from_db_model(message_model)
 
-    def update_status(self, object_type: str, object_id: int, status: str):
+    def update_status(self, object_type: str, object_id: str, status: str):
         """
         Update the status of a session, thread, or message.
 
         Parameters
         ----------
         object_type (str): The type of object to update ('session', 'thread', or 'message').
-        object_id (int): The ID of the object to update.
+        object_id (str): The ID of the object to update.
         status (str): The new status to set for the object.
         """
         with self.DBSession() as db_session:
@@ -427,14 +473,14 @@ class DBContext:
                 ).update({"status": status, "updated": datetime.now()})
                 db_session.commit()
 
-    def delete_object(self, object_type: str, object_id: int):
+    def delete_object(self, object_type: str, object_id: str):
         """
         Delete a session, thread, or message from the database.
 
         Parameters
         ----------
         object_type (str): The type of object to delete ('session', 'thread', or 'message').
-        object_id (int): The ID of the object to delete.
+        object_id (str): The ID of the object to delete.
         """
         with self.DBSession() as db_session:
             if object_type in OBJECT_MODEL_MAP:

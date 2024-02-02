@@ -4,13 +4,20 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from dataclasses import dataclass
+import json
+from dataclasses import dataclass, field
+from typing import Dict
 
 from tornado.web import HTTPError
+import tornado
+import random
 
+from ads.aqua import logger
 from ads.aqua.extension.base_handler import AquaAPIhandler
-from ads.aqua.playground.entities import Message
-from ads.aqua.playground.playground import SessionApp, ThreadApp
+from ads.aqua.playground.entities import Message, Session, Thread
+from ads.aqua.playground.model_invoker import ModelInvoker
+from ads.aqua.playground.playground import MessageApp, SessionApp, ThreadApp
+from ads.common.extended_enum import ExtendedEnumMeta
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import batch_convert_case
 
@@ -26,6 +33,40 @@ class NewSessionRequest(DataClassSerializable):
     """Dataclass representing the request on creating a new session."""
 
     model_id: str = None
+
+
+@dataclass
+class PostMessageRequest(DataClassSerializable):
+    """Dataclass representing the request on posting a new message."""
+
+    session: Session = field(default_factory=Session)
+    thread: Thread = field(default_factory=Thread)
+    message: Message = field(default_factory=Message)
+    answer: Message = field(default_factory=Message)
+
+
+class ChunkResponseStatus(str, metaclass=ExtendedEnumMeta):
+    SUCCESS = "success"
+    ERROR = "error"
+
+
+@dataclass(repr=False)
+class ChunkResponse(DataClassSerializable):
+    """Class representing server response.
+
+    Attributes
+    ----------
+    status: str
+        Response status.
+    message: (str, optional). Defaults to "".
+        The response message.
+    payload: (Dict, optional). Defaults  to None.
+        The payload of the response.
+    """
+
+    status: str = None
+    message: str = None
+    payload: Dict = None
 
 
 class AquaPlaygroundSessionHandler(AquaAPIhandler):
@@ -176,39 +217,129 @@ class AquaPlaygroundThreadHandler(AquaAPIhandler):
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
-    def post(self, *args, **kwargs):
+    async def post(self, *args, **kwargs):
         """
-        Creates a new Playground thread.
-        The thread data is extracted from the JSON body of the request.
-
-        Raises
-        ------
-        HTTPError
-            If the input data is invalid or missing, or if an error occurs during thread creation.
+        Adds a new message into the Playground thread.
+        If the thread doesn't exist yet, then it will be created.
         """
-        try:
-            input_data = self.get_json_body()
-        except Exception as ex:
-            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
-
-        if not input_data:
-            raise HTTPError(400, Errors.NO_INPUT_DATA)
+        self.set_header("Content-Type", "application/json")
+        self.set_header("Transfer-Encoding", "chunked")
 
         try:
-            message_obj = Message.from_dict(
-                batch_convert_case(input_data, to_fmt="snake")
+            request_data: PostMessageRequest = PostMessageRequest.from_dict(
+                batch_convert_case(self.get_json_body(), to_fmt="snake")
             )
-
-            thread_obj = ThreadApp().post_message(
-                message=message_obj.content,
-                thread_id=message_obj.thread_id,
-                session_id=message_obj.session_id,
-                model_params=message_obj.model_params.to_dict(),
-            )
-
-            self.finish(ThreadApp().get(thread_id=thread_obj.id, include_messages=True))
         except Exception as ex:
-            raise HTTPError(500, str(ex))
+            logger.debug(ex)
+            error_msg = ChunkResponse(
+                status=ChunkResponseStatus.ERROR,
+                message=Errors.INVALID_INPUT_DATA_FORMAT,
+            ).to_json()
+            self.write(f"{len(error_msg):X}\r\n{error_msg}\r\n0\r\n\r\n")
+            await self.flush()
+            return
+
+        thread_app = ThreadApp()
+        message_app = MessageApp()
+        # Register all entities in the DB
+        try:
+            # Add thread into DB if it not exists
+            new_thread = thread_app.create(
+                request_data.session.session_id,
+                name=request_data.thread.name,
+                thread_id=request_data.thread.id,
+            )
+
+            # Add user message into DB
+            new_user_message = message_app.create(
+                thread_id=new_thread.id,
+                content=request_data.message.content,
+                message_id=request_data.message.message_id,
+                parent_message_id=request_data.message.parent_message_id,
+                role=request_data.message.role,
+                rate=request_data.message.rate,
+                payload=request_data.message.payload,
+                model_params=request_data.message.model_params.to_dict(),
+            )
+
+            # Add system answer into DB
+            new_system_message = message_app.create(
+                thread_id=new_thread.id,
+                content=request_data.answer.content,
+                message_id=request_data.answer.message_id,
+                parent_message_id=request_data.answer.parent_message_id,
+                role=request_data.answer.role,
+                rate=request_data.answer.rate,
+                payload=request_data.answer.payload,
+                model_params=request_data.answer.model_params.to_dict(),
+            )
+
+            # Send initial OK status to the client
+            initial_response = ChunkResponse(
+                status=ChunkResponseStatus.SUCCESS, message=""
+            ).to_json()
+
+            self.write(f"{len(initial_response):X}\r\n{initial_response}\r\n")
+            await self.flush()
+        except Exception as ex:
+            logger.debug(ex)
+            error_msg = ChunkResponse(
+                status=ChunkResponseStatus.ERROR, message=str(ex)
+            ).to_json()
+            self.write(f"{len(error_msg):X}\r\n{error_msg}\r\n0\r\n\r\n")
+            await self.flush()
+            return
+
+        try:
+            model_response_text = ""
+            model_invoker = ModelInvoker(
+                endpoint=f"{request_data.session.model.endpoint.rstrip('/')}/predict",
+                prompt=request_data.message.content,
+                params=request_data.message.model_params.to_dict(),
+            )
+            for item in model_invoker.invoke():
+                if item.startswith("data"):
+                    if "[DONE]" in item:
+                        continue
+                    item_json = json.loads(item[6:])
+                else:
+                    item_json = json.loads(item)
+
+                if item_json.get("object") == "error":
+                    # {"object":"error","message":"top_k must be -1 (disable), or at least 1, got 0.","type":"invalid_request_error","param":null,"code":null}
+                    raise HTTPError(400, item_json.get("message"))
+                else:
+                    chunk = ChunkResponse(
+                        status=ChunkResponseStatus.SUCCESS,
+                        message="",
+                        payload=item_json["choices"][0]["text"],
+                    ).to_json()
+
+                    model_response_text += item_json["choices"][0]["text"]
+
+                    # update system message in DB
+                    message_app.update(
+                        message_id=new_system_message.message_id,
+                        content=model_response_text,
+                        rate=new_system_message.rate,
+                        status=new_system_message.status,
+                    )
+
+                    self.write(f"{len(chunk):X}\r\n{chunk}\r\n")
+                    await self.flush()
+                    await tornado.gen.sleep(random.random() * 0.01 + 0.05)
+
+            # Indicate the end of the response
+            self.write("0\r\n\r\n")
+            await self.flush()
+        except Exception as ex:
+            logger.debug(ex)
+            # Handle unexpected errors
+            error_msg = ChunkResponse(
+                status=ChunkResponseStatus.ERROR, message=str(ex)
+            ).to_json()
+            self.write(f"{len(error_msg):X}\r\n{error_msg}\r\n0\r\n\r\n")
+            await self.flush()
 
     def delete(self, *args, **kwargs):
         """
