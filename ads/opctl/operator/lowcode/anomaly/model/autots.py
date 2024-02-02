@@ -20,7 +20,7 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         module="autots",
         err_msg=(
             "Please run `pip3 install autots` to "
-            "install the required dependencies for TODS."
+            "install the required dependencies for AutoTS."
         ),
     )
     def _build_model(self) -> AnomalyOutput:

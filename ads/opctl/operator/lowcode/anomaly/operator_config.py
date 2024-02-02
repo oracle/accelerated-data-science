@@ -59,10 +59,8 @@ class OutputDirectory(DataClassSerializable):
 class AnomalyOperatorSpec(DataClassSerializable):
     """Class representing operator specification."""
 
-    name: str = None
     input_data: InputData = field(default_factory=InputData)
     datetime_column: DateTimeColumn = field(default_factory=DateTimeColumn)
-    test_data: TestData = field(default_factory=TestData)
     validation_data: TestData = field(default_factory=TestData)
     output_directory: OutputDirectory = field(default_factory=OutputDirectory)
     report_file_name: str = None
@@ -91,12 +89,12 @@ class AnomalyOperatorSpec(DataClassSerializable):
         self.report_theme = self.report_theme or "light"
         self.inliers_filename = self.inliers_filename or "inliers.csv"
         self.outliers_filename = self.outliers_filename or "outliers.csv"
-        self.validation_metrics_filename = self.validation_metrics_filename or "validation_metrics.csv"
+        self.validation_metrics_filename = (
+            self.validation_metrics_filename or "validation_metrics.csv"
+        )
 
         self.generate_inliers = (
-            self.generate_inliers
-            if self.generate_inliers is not None
-            else False
+            self.generate_inliers if self.generate_inliers is not None else False
         )
         self.model_kwargs = self.model_kwargs or dict()
 

@@ -24,8 +24,6 @@ def operate(operator_config: AnomalyOperatorConfig) -> None:
     from .model.factory import AnomalyOperatorModelFactory
 
     datasets = AnomalyDatasets(operator_config.spec)
-    datasets2 = AnomalyData(operator_config.spec)
-    print(f"d1: {datasets.data}\n\n d2: {datasets2.data}")
     AnomalyOperatorModelFactory.get_model(operator_config, datasets).generate_report()
 
 

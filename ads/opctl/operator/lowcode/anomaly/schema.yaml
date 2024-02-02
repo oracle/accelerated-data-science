@@ -74,45 +74,6 @@ spec:
           type: string
           required: false
 
-    test_data:
-      required: false
-      meta:
-        description: "Optional, only if evaluation is needed."
-      schema:
-        connect_args:
-          nullable: true
-          required: false
-          type: dict
-        format:
-          required: false
-          type: string
-          allowed:
-            - csv
-            - json
-            - clipboard
-            - excel
-            - hdf
-            - sql
-        columns:
-          required: false
-          type: list
-          schema:
-            type: string
-        url:
-          required: true
-          type: string
-          default: test.csv
-          meta:
-            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
-        name:
-          required: false
-          type: string
-        options:
-          nullable: true
-          required: false
-          type: dict
-      type: dict
-
     validation_data:
       required: false
       meta:
