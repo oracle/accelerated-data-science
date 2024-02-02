@@ -204,7 +204,7 @@ class AquaModelApp(AquaApp):
 
     def _read_file(self, file_path: str) -> str:
         try:
-            with fsspec.open(file_path, "rb", **self._auth) as f:
+            with fsspec.open(file_path, "r", **self._auth) as f:
                 return f.read()
         except Exception as e:
             logger.error(f"Failed to retreive model icon. {e}")

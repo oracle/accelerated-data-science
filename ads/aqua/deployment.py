@@ -25,6 +25,13 @@ AQUA_SERVICE_MODEL = "aqua_service_model"
 logger = logging.getLogger(__name__)
 
 
+@dataclass
+class ShapeInfo:
+    instance_shape: str
+    ocpus: float
+    memory_in_gbs: float
+
+
 @dataclass(repr=False)
 class AquaDeployment(DataClassSerializable):
     """Represents an Aqua Model Deployment"""
@@ -37,10 +44,8 @@ class AquaDeployment(DataClassSerializable):
     created_on: str
     created_by: str
     endpoint: str
-    instance_shape: str
-    ocpus: float
-    memory_in_gbs: float
     console_link: str
+    shape_info: ShapeInfo
 
 
 class AquaDeploymentApp(AquaApp):
@@ -287,17 +292,7 @@ class AquaDeploymentApp(AquaApp):
         instance_shape_config_details = (
             instance_configuration.model_deployment_instance_shape_config_details
         )
-        return AquaDeployment(
-            id=oci_model_deployment.id,
-            display_name=oci_model_deployment.display_name,
-            aqua_service_model=oci_model_deployment.freeform_tags.get(
-                AQUA_SERVICE_MODEL
-            ),
-            state=oci_model_deployment.lifecycle_state,
-            description=oci_model_deployment.description,
-            created_on=str(oci_model_deployment.time_created),
-            created_by=oci_model_deployment.created_by,
-            endpoint=oci_model_deployment.model_deployment_url,
+        shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
             ocpus=(
                 instance_shape_config_details.ocpus
@@ -309,6 +304,19 @@ class AquaDeploymentApp(AquaApp):
                 if instance_shape_config_details
                 else None
             ),
+        )
+        return AquaDeployment(
+            id=oci_model_deployment.id,
+            display_name=oci_model_deployment.display_name,
+            aqua_service_model=oci_model_deployment.freeform_tags.get(
+                AQUA_SERVICE_MODEL
+            ),
+            shape_info=shape_info,
+            state=oci_model_deployment.lifecycle_state,
+            description=oci_model_deployment.description,
+            created_on=str(oci_model_deployment.time_created),
+            created_by=oci_model_deployment.created_by,
+            endpoint=oci_model_deployment.model_deployment_url,
             console_link=get_console_link(
                 resource="model-deployments",
                 ocid=oci_model_deployment.id,
