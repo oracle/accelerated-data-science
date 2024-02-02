@@ -10,29 +10,12 @@ from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDirectory
+from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDirectory, InputData
 
 
 @dataclass(repr=True)
-class InputData(DataClassSerializable):
+class ValidationData(InputData):
     """Class representing operator specification input data details."""
-
-    format: str = None
-    columns: List[str] = None
-    url: str = None
-    options: Dict = None
-    limit: int = None
-
-
-@dataclass(repr=True)
-class ValidationData(DataClassSerializable):
-    """Class representing operator specification input data details."""
-
-    format: str = None
-    columns: List[str] = None
-    url: str = None
-    options: Dict = None
-    limit: int = None
 
 
 @dataclass(repr=True)
@@ -44,15 +27,8 @@ class DateTimeColumn(DataClassSerializable):
 
 
 @dataclass(repr=True)
-class TestData(DataClassSerializable):
+class TestData(InputData):
     """Class representing operator specification test data details."""
-
-    connect_args: Dict = None
-    format: str = None
-    columns: List[str] = None
-    url: str = None
-    name: str = None
-    options: Dict = None
 
 
 @dataclass(repr=True)
