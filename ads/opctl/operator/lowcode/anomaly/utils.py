@@ -69,3 +69,10 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: AnomalyOperatorS
     )
     freq = pd.DatetimeIndex(datetimes).inferred_freq
     return freq
+
+
+def default_signer(**kwargs):
+    os.environ["EXTRA_USER_AGENT_INFO"] = "Anomaly-Detection-Operator"
+    from ads.common.auth import default_signer
+
+    return default_signer(**kwargs)
