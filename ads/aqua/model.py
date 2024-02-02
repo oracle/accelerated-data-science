@@ -19,7 +19,7 @@ from ads.config import COMPARTMENT_OCID
 
 ICON_FILE_NAME = "icon.txt"
 README = "README.md"
-UNKNOWN = "Unknown"
+UNKNOWN = ""
 
 
 class Tags(Enum):
@@ -179,7 +179,7 @@ class AquaModelApp(AquaApp):
                 license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
                 name=model.display_name,
                 organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-                project_id=project_id,
+                project_id=project_id or "",
                 task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
                 time_created=model.time_created,
                 is_fine_tuned_model=True
