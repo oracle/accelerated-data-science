@@ -109,9 +109,11 @@ class AquaModelApp(AquaApp):
             task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
             license=oci_model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
             organization=oci_model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-            is_fine_tuned_model=True
-            if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-            else False,
+            is_fine_tuned_model=(
+                True
+                if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                else False
+            ),
             model_card=str(self._read_file(f"{artifact_path}/{README}")),
         )
 
@@ -133,16 +135,28 @@ class AquaModelApp(AquaApp):
         List[AquaModelSummary]:
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
-        compartment_id = compartment_id or COMPARTMENT_OCID
-
-        service_model = self.list_resource(
-            self.client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
-        )
-        fine_tuned_models = self._rqs(compartment_id)
-        models = fine_tuned_models + service_model
+        models = []
+        if compartment_id:
+            logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
+            models = self._rqs(compartment_id)
+        else:
+            # TODO: remove project_id after policy for service-model compartment has been set.
+            project_id = os.environ.get("TEST_PROJECT_ID")
+            logger.info(
+                f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}, project_id={project_id}"
+            )
+            models = self.list_resource(
+                self.client.list_models,
+                compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                project_id=project_id,
+            )
 
         if not models:
-            logger.error(f"No model found in compartment_id={compartment_id}.")
+            logger.error(
+                f"No model found in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
+            )
+
+        logger.info(f"Successuly fetch {len(models)} models.")
 
         aqua_models = []
         # TODO: build index.json for service model as caching if needed.
@@ -168,16 +182,33 @@ class AquaModelApp(AquaApp):
                 project_id=project_id or UNKNOWN,
                 task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
                 time_created=model.time_created,
-                is_fine_tuned_model=True
-                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                else False,
+                is_fine_tuned_model=(
+                    True
+                    if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                    else False
+                ),
                 tags=tags,
             )
 
         for model in models:
-            aqua_models.append(process_model(model))
+            # TODO: remove the check after policy issue resolved
+            if self._temp_check(model, compartment_id):
+                aqua_models.append(process_model(model))
 
         return aqua_models
+
+    def _temp_check(self, model, compartment_id=None):
+        # TODO: will remove it later
+        TARGET_TAGS = model.freeform_tags.keys()
+        if not Tags.AQUA_TAG.value in TARGET_TAGS:
+            return False
+
+        if compartment_id:
+            return (
+                True if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS else False
+            )
+
+        return True if Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS else False
 
     def _if_show(self, model: "ModelSummary") -> bool:
         """Determine if the given model should be return by `list`."""
@@ -235,10 +266,9 @@ class AquaModelApp(AquaApp):
         """Use RQS to fetch models in the user tenancy."""
         condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
-        # not support filtered by project_id
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
-
+        logger.info(f"tenant_id={TENANCY_OCID}")
         try:
             return OCIResource.search(
                 query,
