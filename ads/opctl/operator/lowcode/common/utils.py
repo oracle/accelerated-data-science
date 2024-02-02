@@ -13,6 +13,7 @@ from string import Template
 from typing import Any, Dict, List, Tuple
 import pandas as pd
 from ads.opctl import logger
+import oracledb
 
 import fsspec
 import yaml
@@ -40,28 +41,53 @@ def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
-def load_data(filename, format, storage_options=None, columns=None, **kwargs):
-    if filename is None:
-        raise InvalidParameterError(
-            f"The provided url was blank. Please include a reference to the data."
-        )
-    if not format:
-        _, format = os.path.splitext(filename)
-        format = format[1:]
-    if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
-        read_fn = getattr(pd, f"read_{format}")
-        data = call_pandas_fsspec(read_fn, filename, storage_options=storage_options)
-    elif format in ["tsv"]:
-        data = call_pandas_fsspec(
-            pd.read_csv, filename, storage_options=storage_options, sep="\t"
-        )
+def load_data(
+    filename=None,
+    format=None,
+    storage_options=None,
+    columns=None,
+    connect_args=None,
+    sql=None,
+    table_name=None,
+    limit=None,
+    **kwargs,
+):
+    if filename is not None:
+        if not format:
+            _, format = os.path.splitext(filename)
+            format = format[1:]
+        if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
+            read_fn = getattr(pd, f"read_{format}")
+            data = call_pandas_fsspec(
+                read_fn, filename, storage_options=storage_options
+            )
+        elif format in ["tsv"]:
+            data = call_pandas_fsspec(
+                pd.read_csv, filename, storage_options=storage_options, sep="\t"
+            )
+        else:
+            raise InvalidParameterError(
+                f"The format {format} is not currently supported for reading data. Please reformat the data source: {filename} ."
+            )
+    elif connect_args is not None:
+        con = oracledb.connect(**connect_args)
+        if table_name is not None:
+            data = pd.read_sql_table(table_name, con)
+        elif sql is not None:
+            data = pd.read_sql(sql, con)
+        else:
+            raise InvalidParameterError(
+                f"Database `connect_args` provided without sql query or table name. Please specify either `sql` or `table_name`."
+            )
     else:
         raise InvalidParameterError(
-            f"The format {format} is not currently supported for reading data. Please reformat the data source: {filename} ."
+            f"No filename/url provided, and no connect_args provided. Please specify one of these if you want to read data from a file or a database respectively."
         )
     if columns:
         # keep only these columns, done after load because only CSV supports stream filtering
         data = data[columns]
+    if limit:
+        data = data[:limit]
     return data
 
 
