@@ -18,7 +18,7 @@ from ads.opctl import logger
 
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 from .anomaly_dataset import AnomalyDatasets, AnomalyOutput
-from ..const import OutputColumns, SupportedMetrics
+from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics
 from ..const import SupportedModels
 from ads.opctl.operator.lowcode.common.utils import (
     human_time_friendly,
@@ -29,9 +29,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     merge_category_columns,
     default_signer,
 )
-from ads.opctl.operator.lowcode.anomaly.utils import (
-    _build_metrics_df,
-)  # , default_signer
+from ads.opctl.operator.lowcode.anomaly.utils import _build_metrics_df
 from ads.common.object_storage_details import ObjectStorageDetails
 
 
@@ -62,15 +60,12 @@ class AnomalyOperatorBaseModel(ABC):
 
         summary_metrics = None
         total_metrics = None
-        validation_data = None
+        test_data = None
 
-        if self.spec.validation_data:
-            (
-                total_metrics,
-                summary_metrics,
-                validation_data,
-            ) = self._validation_data_evaluate_metrics(
-                anomaly_output, self.spec.validation_data.url, elapsed_time
+        if self.spec.test_data:
+            test_data = TestData(self.spec.test_data)
+            total_metrics, summary_metrics = self._test_data_evaluate_metrics(
+                anomaly_output, test_data, elapsed_time
             )
         table_blocks = [
             dp.DataTable(df, label=col)
@@ -129,23 +124,23 @@ class AnomalyOperatorBaseModel(ABC):
         sec = dp.DataTable(self._evaluation_metrics(anomaly_output))
         evaluation_metrics_sec = [sec_text, sec]
 
-        validation_metrics_sections = []
+        test_metrics_sections = []
         if total_metrics is not None and not total_metrics.empty:
-            sec_text = dp.Text(f"## Validation Data Evaluation Metrics")
+            sec_text = dp.Text(f"## Test Data Evaluation Metrics")
             sec = dp.DataTable(total_metrics)
-            validation_metrics_sections = validation_metrics_sections + [sec_text, sec]
+            test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         if summary_metrics is not None and not summary_metrics.empty:
-            sec_text = dp.Text(f"## Validation Data Summary Metrics")
+            sec_text = dp.Text(f"## Test Data Summary Metrics")
             sec = dp.DataTable(summary_metrics)
-            validation_metrics_sections = validation_metrics_sections + [sec_text, sec]
+            test_metrics_sections = test_metrics_sections + [sec_text, sec]
 
         report_sections = (
             [title_text, summary]
             + [plots]
             + [data_table]
             + evaluation_metrics_sec
-            + validation_metrics_sections
+            + test_metrics_sections
             + [yaml_appendix_title, yaml_appendix]
         )
 
@@ -153,12 +148,12 @@ class AnomalyOperatorBaseModel(ABC):
         self._save_report(
             report_sections=report_sections,
             anomaly_output=anomaly_output,
-            validation_metrics=total_metrics,
+            test_metrics=total_metrics,
         )
 
     def _evaluation_metrics(self, anomaly_output):
         total_metrics = pd.DataFrame()
-        for cat in anomaly_output.category_map:
+        for cat in anomaly_output.list_categories():
             num_anomalies = anomaly_output.get_num_anomalies_by_cat(cat)
             metrics_df = pd.DataFrame.from_dict(
                 {"Num of Anomalies": num_anomalies}, orient="index", columns=[cat]
@@ -166,42 +161,22 @@ class AnomalyOperatorBaseModel(ABC):
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         return total_metrics
 
-    def _validation_data_evaluate_metrics(self, anomaly_output, filename, elapsed_time):
+    def _test_data_evaluate_metrics(self, anomaly_output, test_data, elapsed_time):
         total_metrics = pd.DataFrame()
         summary_metrics = pd.DataFrame()
-        data = None
-        try:
-            data = load_data(
-                filename=filename,
-                format=self.spec.validation_data.format,
-                columns=self.spec.validation_data.columns,
-            )
-        except pd.errors.EmptyDataError:
-            logger.warn("The provided test data file was empty. Skipping test data.")
-            return total_metrics, summary_metrics, None
-        except InvalidParameterError as e:
-            e.args = e.args + ("Invalid Parameter: test_data",)
-            logger.warn(
-                f"The provided test data file was Invalid. Skipping test data. Full error message: {e.args}"
-            )
+        if test_data.empty:
             return total_metrics, summary_metrics, None
 
-        if data.empty:
-            return total_metrics, summary_metrics, None
-        data["__Series__"] = merge_category_columns(
-            data, self.spec.target_category_columns
-        )
-        for cat in anomaly_output.category_map:
+        for cat in anomaly_output.list_categories():
             output = anomaly_output.category_map[cat][0]
             date_col = self.spec.datetime_column.name
 
-            val_data = data[data["__Series__"] == cat]
-            val_data[date_col] = pd.to_datetime(val_data[date_col])
+            test_data_i = test_data.get_data_for_series(cat)
 
-            dates = output[output[date_col].isin(val_data[date_col])][date_col]
+            dates = output[output[date_col].isin(test_data_i[date_col])][date_col]
 
             metrics_df = _build_metrics_df(
-                val_data[val_data[date_col].isin(dates)][
+                test_data_i[test_data_i[date_col].isin(dates)][
                     OutputColumns.ANOMALY_COL
                 ].values,
                 output[output[date_col].isin(dates)][OutputColumns.ANOMALY_COL].values,
@@ -255,26 +230,18 @@ class AnomalyOperatorBaseModel(ABC):
             index=["All Targets"],
         )
 
-        return total_metrics, summary_metrics, data
+        return total_metrics, summary_metrics
 
     def _save_report(
         self,
         report_sections: Tuple,
         anomaly_output: AnomalyOutput,
-        validation_metrics: pd.DataFrame,
+        test_metrics: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
-        if self.spec.output_directory:
-            output_dir = self.spec.output_directory.url
-        else:
-            output_dir = "tmp_operator_result"
-            logger.warn(
-                "Since the output directory was not specified, the output will be saved to {} directory.".format(
-                    output_dir
-                )
-            )
+        output_dir = find_output_dirname(self.spec.output_directory)
 
         if ObjectStorageDetails.is_oci_path(output_dir):
             storage_options = default_signer()
@@ -284,12 +251,14 @@ class AnomalyOperatorBaseModel(ABC):
         # datapane html report
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
+            disable_print()
             dp.save_report(report_sections, report_local_path)
+            enable_print()
             with open(report_local_path) as f1:
                 with fsspec.open(
                     os.path.join(output_dir, self.spec.report_file_name),
                     "w",
-                    **default_signer(),
+                    **storage_options(),
                 ) as f2:
                     f2.write(f1.read())
 
@@ -310,12 +279,10 @@ class AnomalyOperatorBaseModel(ABC):
             storage_options=storage_options,
         )
 
-        if validation_metrics is not None and not validation_metrics.empty:
+        if test_metrics is not None and not test_metrics.empty:
             write_data(
-                data=validation_metrics.rename_axis("metrics").reset_index(),
-                filename=os.path.join(
-                    output_dir, self.spec.validation_metrics_filename
-                ),
+                data=test_metrics.rename_axis("metrics").reset_index(),
+                filename=os.path.join(output_dir, self.spec.test_metrics_filename),
                 format="csv",
                 storage_options=storage_options,
             )

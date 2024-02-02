@@ -23,6 +23,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     PermissionsError,
     DataMismatchError,
 )
+from ads.opctl.operator.common.operator_config import OutputDirectory
 
 
 def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
@@ -178,6 +179,25 @@ def human_time_friendly(seconds):
             )
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
+
+
+def find_output_dirname(output_dir: OutputDirectory):
+    if output_dir:
+        return output_dir.url
+    output_dir = "results"
+
+    # If the directory exists, find the next unique directory name by appending an incrementing suffix
+    counter = 1
+    unique_output_dir = f"{output_dir}"
+    while os.path.exists(unique_output_dir):
+        unique_output_dir = f"{output_dir}_{counter}"
+        counter += 1
+    logger.warn(
+        "Since the output directory was not specified, the output will be saved to {} directory.".format(
+            unique_output_dir
+        )
+    )
+    return unique_output_dir
 
 
 def set_log_level(pkg_name: str, level: int):

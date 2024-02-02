@@ -37,6 +37,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     merged_category_column_name,
     datetime_to_seconds,
     seconds_to_datetime,
+    find_output_dirname,
 )
 from ..const import (
     SUMMARY_METRICS_HORIZON_LIMIT,
@@ -408,24 +409,7 @@ class ForecastOperatorBaseModel(ABC):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
-        if self.spec.output_directory:
-            output_dir = self.spec.output_directory.url
-            # set the unique directory path as the requested path by the user
-            unique_output_dir = output_dir
-        else:
-            output_dir = "results"
-
-            # If the directory exists, find the next unique directory name by appending an incrementing suffix
-            counter = 1
-            unique_output_dir = f"{output_dir}"
-            while os.path.exists(unique_output_dir):
-                unique_output_dir = f"{output_dir}_{counter}"
-                counter += 1
-            logger.warn(
-                "Since the output directory was not specified, the output will be saved to {} directory.".format(
-                    unique_output_dir
-                )
-            )
+        unique_output_dir = find_output_dirname(self.spec.output_directory)
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()

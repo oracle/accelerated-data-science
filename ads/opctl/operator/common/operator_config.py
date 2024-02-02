@@ -17,6 +17,17 @@ from ads.opctl.operator.common.errors import InvalidParameterError
 
 
 @dataclass(repr=True)
+class OutputDirectory(DataClassSerializable):
+    """Class representing operator specification output directory details."""
+
+    connect_args: Dict = None
+    format: str = None
+    url: str = None
+    name: str = None
+    options: Dict = None
+
+
+@dataclass(repr=True)
 class OperatorConfig(DataClassSerializable):
     """Base class representing operator config.
 

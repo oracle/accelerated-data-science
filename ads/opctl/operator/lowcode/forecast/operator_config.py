@@ -10,7 +10,7 @@ from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.common.operator_config import OperatorConfig
+from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDirectory
 
 from .const import SupportedMetrics, SpeedAccuracyMode
 from .const import SupportedModels
@@ -34,17 +34,6 @@ class TestData(DataClassSerializable):
     connect_args: Dict = None
     format: str = None
     columns: List[str] = None
-    url: str = None
-    name: str = None
-    options: Dict = None
-
-
-@dataclass(repr=True)
-class OutputDirectory(DataClassSerializable):
-    """Class representing operator specification output directory details."""
-
-    connect_args: Dict = None
-    format: str = None
     url: str = None
     name: str = None
     options: Dict = None

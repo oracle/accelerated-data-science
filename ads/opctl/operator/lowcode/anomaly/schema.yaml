@@ -74,7 +74,7 @@ spec:
           type: string
           required: false
 
-    validation_data:
+    test_data:
       required: false
       meta:
         description: "Optional, only if evaluation is needed."
@@ -167,12 +167,12 @@ spec:
       default: metrics.csv
       meta:
         description: "Placed into output_directory location. Defaults to metrics.csv"
-    validation_metrics_filename:
+    test_metrics_filename:
       required: false
       type: string
-      default: validation_metrics.csv
+      default: metrics.csv
       meta:
-        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+        description: "Placed into output_directory location. Defaults to metrics.csv"
     global_explanation_filename:
       required: false
       type: string

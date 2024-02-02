@@ -39,8 +39,6 @@ class AnomalyDatasets:
         """
         self._data = AnomalyData(spec)
         self.data = self._data.get_data_long()
-        # self.test_data = None
-        # self.target_columns = None
         self.full_data_dict = self._data.get_dict_by_series()
 
 
@@ -48,6 +46,9 @@ class AnomalyOutput:
     def __init__(self, date_column):
         self.category_map = dict()
         self.date_column = date_column
+
+    def list_categories(self):
+        return list(self.category_map.keys()).sort()
 
     def add_output(self, category: str, anomalies: pd.DataFrame, scores: pd.DataFrame):
         self.category_map[category] = (anomalies, scores)
@@ -79,7 +80,7 @@ class AnomalyOutput:
     def get_inliers(self, data):
         inliers = pd.DataFrame()
 
-        for category in self.category_map.keys():
+        for category in self.list_categories():
             inliers = pd.concat(
                 [
                     inliers,
@@ -98,7 +99,7 @@ class AnomalyOutput:
     def get_outliers(self, data):
         outliers = pd.DataFrame()
 
-        for category in self.category_map.keys():
+        for category in self.list_categories():
             outliers = pd.concat(
                 [
                     outliers,
@@ -116,10 +117,10 @@ class AnomalyOutput:
 
     def get_scores(self, target_category_columns):
         if target_category_columns is None:
-            return self.get_scores_by_cat(list(self.category_map.keys())[0])
+            return self.get_scores_by_cat(self.list_categories()[0])
 
         scores = pd.DataFrame()
-        for category in self.category_map.keys():
+        for category in self.list_categories():
             score = self.get_scores_by_cat(category)
             score[target_category_columns[0]] = category
             scores = pd.concat([scores, score], axis=0, ignore_index=True)
