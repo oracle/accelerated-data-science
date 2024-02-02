@@ -9,7 +9,7 @@ from typing import List
 
 import fsspec
 import oci
-from oci.exceptions import ClientError, ServiceError
+from oci.data_science.models import ModelSummary
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
@@ -156,11 +156,7 @@ class AquaModelApp(AquaApp):
             tags.update(model.defined_tags)
             tags.update(model.freeform_tags)
 
-            model_id = (
-                model.id
-                if isinstance(model, oci.data_science.models.ModelSummary)
-                else model.identifier
-            )
+            model_id = model.id if isinstance(model, ModelSummary) else model.identifier
             return AquaModelSummary(
                 compartment_id=model.compartment_id,
                 icon=icon,
