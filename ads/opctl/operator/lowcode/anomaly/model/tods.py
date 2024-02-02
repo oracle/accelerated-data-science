@@ -97,16 +97,17 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         return anomaly_output
 
     def _generate_report(self):
-        import datapane as dp
+        # import datapane as dp
+        import report_creator as rc
 
         """The method that needs to be implemented on the particular model level."""
-        selected_models_text = dp.Text(
+        selected_models_text = rc.Text(
             f"## Selected Models Overview \n "
             "The following tables provide information regarding the chosen model."
         )
         all_sections = [selected_models_text]
 
-        model_description = dp.Text(
+        model_description = rc.Text(
             "The tods model is a full-stack automated machine learning system for outlier detection "
             "on univariate / multivariate time-series data. It provides exhaustive modules for building "
             "machine learning-based outlier detection systems and wide range of algorithms."

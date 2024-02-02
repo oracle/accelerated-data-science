@@ -5,14 +5,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from ..operator_config import AnomalyOperatorSpec
-from ads.opctl.operator.lowcode.common.utils import (
-    default_signer,
-    load_data,
-    merge_category_columns,
-)
 from ads.opctl.operator.lowcode.common.data import AbstractData
-from ads.opctl.operator.lowcode.common.data import AbstractData
-from ads.opctl.operator.lowcode.anomaly.utils import get_frequency_of_datetime
+from ads.opctl.operator.lowcode.anomaly.utils import default_signer
 from ads.opctl import logger
 import pandas as pd
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
