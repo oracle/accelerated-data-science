@@ -108,9 +108,11 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
             # Parse the Feature Store and get the required Details
             feature_store = FeatureStore.from_id(feature_store_id)
             offline_config = feature_store.offline_config
-            fs_online_config = self.__get_feature_store_online_config(
-                feature_store.online_config
-            )
+
+            if feature_store.online_config:
+                fs_online_config = self.__get_feature_store_online_config(
+                    feature_store.online_config
+                )
             metastore_id = offline_config["metastoreId"]
 
             if not developer_enabled() and metastore_id:

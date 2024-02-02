@@ -927,6 +927,17 @@ class Dataset(Builder):
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
 
         if self.is_online_enabled:
+            from ads.feature_store.feature_store import FeatureStore
+
+            # Check if feature store is configured for online feature store
+            feature_store = FeatureStore.from_id(self.feature_store_id)
+
+            if not feature_store.online_config:
+                raise ValueError(
+                    "Dataset cannot be enabled for online use, without providing the online configuration in feature store resource."
+                )
+
+            # Check for primary keys
             if (
                 self.primary_keys is None
                 or self.primary_keys.get("items") is None

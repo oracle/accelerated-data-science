@@ -771,6 +771,17 @@ class FeatureGroup(Builder):
         self.compartment_id = OCIModelMixin.check_compartment_id(self.compartment_id)
 
         if self.is_online_enabled:
+            from ads.feature_store.feature_store import FeatureStore
+
+            # Check if feature store is configured for online feature store
+            feature_store = FeatureStore.from_id(self.feature_store_id)
+
+            if not feature_store.online_config:
+                raise ValueError(
+                    "FeatureGroup cannot be enabled for online use, without providing the online configuration in feature store resource."
+                )
+
+            # Check for primary keys
             if (
                 self.primary_keys is None
                 or self.primary_keys.get("items") is None
@@ -1012,7 +1023,7 @@ class FeatureGroup(Builder):
     ):
         """Ingest a Spark Structured Streaming Dataframe to the feature store.
 
-        This method creates a long running Spark Streaming Query, you can control the
+        This method creates a long-running Spark Streaming Query, you can control the
         termination of the query through the arguments.
 
         It is possible to stop the returned query with the `.stop()` and check its
