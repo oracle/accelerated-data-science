@@ -8,7 +8,6 @@ from enum import Enum
 from typing import List
 
 import fsspec
-import oci
 from oci.data_science.models import ModelSummary
 
 from ads.aqua import logger
@@ -91,10 +90,9 @@ class AquaModelApp(AquaApp):
         """
         # add error handler
         oci_model = self.ds_client.get_model(model_id).data
-
         # add error handler
-        # if not self._if_show(oci_model):
-        #     raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+        if not self._if_show(oci_model):
+            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
 
         custom_metadata_list = oci_model.custom_metadata_list
         artifact_path = self._get_artifact_path(custom_metadata_list)
@@ -113,6 +111,8 @@ class AquaModelApp(AquaApp):
             if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
             else False,
             model_card=str(self._read_file(f"{artifact_path}/{README}")),
+            # todo: add proper tags
+            tags={},
         )
 
     def list(
@@ -135,7 +135,6 @@ class AquaModelApp(AquaApp):
         """
         compartment_id = compartment_id or COMPARTMENT_OCID
 
-        # todo : added project id for testing
         service_model = self.list_resource(
             self.ds_client.list_models,
             compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
