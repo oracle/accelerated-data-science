@@ -172,5 +172,3 @@ def open(
         # Saving config if it necessary
         if mode == Mode.WRITE:
             config.save(force_overwrite=True)
-            config.save(force_overwrite=True)
-            config.save(force_overwrite=True)
