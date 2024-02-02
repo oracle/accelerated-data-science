@@ -16,11 +16,8 @@ from ads.model.deployment import (
 )
 from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
-from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID
-from oci.exceptions import ServiceError, ClientError
-from oci.logging.models import LogGroupSummary, LogSummary
-from oci.identity.models import Compartment
+from ads.config import COMPARTMENT_OCID
+
 
 # todo: move this to constants or have separate functions
 AQUA_SERVICE_MODEL = "aqua_service_model"
@@ -318,83 +315,3 @@ class AquaDeploymentApp(AquaApp):
                 region=region,
             ),
         )
-
-    def list_log_groups(self, **kwargs) -> List["LogGroupSummary"]:
-        """Lists all log groups for the specified compartment or tenancy. This is a pass through the OCI list_log_groups
-        API.
-
-        Parameters
-        ----------
-        kwargs
-            Keyword arguments, such as compartment_id,
-            for `list_log_groups <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/logging/client/oci.logging.LoggingManagementClient.html#oci.logging.LoggingManagementClient.list_log_groups>`_
-
-        Returns
-        -------
-        List[LogGroupSummary]:
-            A Response object with data of type list of LogGroupSummary
-        """
-
-        compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
-
-        try:
-            return self.logging_client.list_log_groups(
-                compartment_id=compartment_id, **kwargs
-            ).data.__repr__()
-        # todo : update this once exception handling is set up
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-
-    def list_logs(self, **kwargs) -> List[LogSummary]:
-        """Lists the specified log group's log objects. This is a pass through the OCI list_log_groups
-        API.
-
-        Parameters
-        ----------
-        kwargs
-            Keyword arguments, such as log_group_id, log_type
-            for `list_logs <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/logging/client/oci.logging.LoggingManagementClient.html#oci.logging.LoggingManagementClient.list_logs>`_
-
-        Returns
-        -------
-        List[LogSummary]:
-            A Response object with data of type list of LogSummary
-        """
-        log_group_id = kwargs.pop("log_group_id")
-
-        try:
-            return self.logging_client.list_logs(
-                log_group_id=log_group_id, **kwargs
-            ).data.__repr__()
-        # todo : update this once exception handling is set up
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-
-    def list_compartments(self, **kwargs) -> List[Compartment]:
-        """Lists the compartments in a specified compartment. This is a pass through the OCI list_compartments
-        API.
-
-        Parameters
-        ----------
-        kwargs
-            Keyword arguments, such as compartment_id,
-            for `list_compartments <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/logging/client/oci.identity.IdentityClient.html#oci.identity.IdentityClient.list_compartments>`_
-
-        Returns
-        -------
-        List[Compartments]:
-            oci.identity.models.Compartment
-        """
-        try:
-            if not ODSC_MODEL_COMPARTMENT_OCID:
-                raise AquaClientError(
-                    f"ODSC_MODEL_COMPARTMENT_OCID must be available in environment"
-                    " variables to list the sub compartments."
-                )
-
-            return self.identity_client.list_compartments(
-                compartment_id=ODSC_MODEL_COMPARTMENT_OCID, **kwargs
-            ).data.__repr__()
-        # todo : update this once exception handling is set up
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
