@@ -3,6 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import logging
+import tempfile
 import fsspec
 from dataclasses import dataclass
 from typing import List
@@ -10,6 +11,7 @@ from enum import Enum
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
 from ads.common.serializer import DataClassSerializable
+from ads.model.datascience_model import DataScienceModel
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,51 @@ class AquaModelApp(AquaApp):
     """
 
     def create(self, **kwargs) -> "AquaModel":
-        pass
+        service_model_id = kwargs.get("service_model_id", None)
+        if not service_model_id:
+            pass
+
+        project_id = kwargs.get("project_id", None)
+        if not project_id:
+            pass
+
+        compartment_id = kwargs.get("compartment_id", COMPARTMENT_OCID)
+
+        service_model = DataScienceModel.from_id(service_model_id)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            service_model.download_artifact(target_dir=temp_dir)
+            custom_model = (
+                DataScienceModel()
+                .with_compartment_id(compartment_id)
+                .with_project_id(project_id)
+                .with_artifact(temp_dir)
+                .with_display_name(service_model.display_name)
+                .with_description(service_model.description)
+                .with_freeform_tags(**(service_model.freeform_tags or {}))
+                .with_defined_tags(**(service_model.defined_tags or {}))
+                .with_model_version_set_id(service_model.model_version_set_id)
+                .with_version_label(service_model.version_label)
+                .with_custom_metadata_list(service_model.custom_metadata_list)
+                .with_defined_metadata_list(service_model.defined_metadata_list)
+                .with_provenance_metadata(service_model.provenance_metadata)
+                .create(**kwargs)
+            )
+
+            return AquaModel(
+                compartment_id=custom_model.compartment_id,
+                project_id=custom_model.project_id,
+                name=custom_model.display_name,
+                id=custom_model.id,
+                time_created=str(custom_model.dsc_model.time_created),
+                icon="",
+                task=custom_model.freeform_tags.get(Tags.TASK.value),
+                license=custom_model.freeform_tags.get(Tags.LICENSE.value),
+                organization=custom_model.freeform_tags.get(Tags.ORGANIZATION.value),
+                is_fine_tuned_model=True
+                if custom_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                else False,
+                model_card=str(self._read_file(f"{temp_dir}/{README}")),
+            )
 
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model.
