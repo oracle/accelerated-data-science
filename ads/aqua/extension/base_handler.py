@@ -5,12 +5,13 @@
 
 
 import json
+import traceback
 from dataclasses import asdict, is_dataclass
+from http.client import responses
 from typing import Any
+
 from notebook.base.handlers import APIHandler
 from tornado.web import HTTPError
-from http.client import responses
-import traceback
 
 
 class AquaAPIhandler(APIHandler):
@@ -36,7 +37,7 @@ class AquaAPIhandler(APIHandler):
         Calling finish() with more than one arguments will cause error.
         """
         if payload is None:
-            payload = {}
+            return super().finish()
         # If the payload is a list, put into a dictionary with key=data
         if isinstance(payload, list):
             payload = {"data": payload}
@@ -71,3 +72,10 @@ class AquaAPIhandler(APIHandler):
                 reply["traceback"] = "".join(traceback.format_exception(*exc_info))
         self.log.warning(reply["message"])
         self.finish(json.dumps(reply))
+
+
+# todo: remove after error handler is implemented
+class Errors(str):
+    INVALID_INPUT_DATA_FORMAT = "Invalid format of input data."
+    NO_INPUT_DATA = "No input data provided."
+    MISSING_REQUIRED_PARAMETER = "Missing required parameter: '{}'"

@@ -24,8 +24,8 @@ class SessionModel(Base):
         id (Mapped[int]): The primary key, an auto-incrementing integer.
         notebook_session_id (Mapped[str]): The ID of the notebook session.
         model_id (Mapped[str]): The id of the model.
-        name: (Mapped[str]): The name of the model.
-        url: (Mapped[str]): The url of the model.
+        model_name: (Mapped[str]): The name of the model.
+        model_endpoint: (Mapped[str]): The model endpoint.
         created (Mapped[datetime]): The timestamp of the session.
         status (Mapped[str]): The status of the session.
     """
@@ -34,10 +34,11 @@ class SessionModel(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     # notebook_session_id: Mapped[str] = mapped_column(String)
-    name: Mapped[str] = mapped_column(String)
-    url: Mapped[str] = mapped_column(String)
     model_id: Mapped[str] = mapped_column(String, unique=True)
+    model_name: Mapped[str] = mapped_column(String)
+    model_endpoint: Mapped[str] = mapped_column(String)
     created: Mapped[datetime] = mapped_column(TIMESTAMP)
+    updated: Mapped[datetime] = mapped_column(TIMESTAMP)
     status: Mapped[str] = mapped_column(String)
 
     threads: Mapped[List["ThreadModel"]] = relationship(
@@ -96,6 +97,7 @@ class ThreadModel(Base):
     )
     name: Mapped[str] = mapped_column(String)
     created: Mapped[datetime] = mapped_column(TIMESTAMP)
+    updated: Mapped[datetime] = mapped_column(TIMESTAMP)
     status: Mapped[str] = mapped_column(String)
 
     session: Mapped["SessionModel"] = relationship(
@@ -133,6 +135,7 @@ class MessageModel(Base):
     payload: Mapped[dict] = mapped_column(JSON)
     model_params: Mapped[dict] = mapped_column(JSON)
     created: Mapped[datetime] = mapped_column(TIMESTAMP)
+    updated: Mapped[datetime] = mapped_column(TIMESTAMP)
     status: Mapped[str] = mapped_column(String)
     rate: Mapped[int] = mapped_column(Integer)
     role: Mapped[str] = mapped_column(String)
