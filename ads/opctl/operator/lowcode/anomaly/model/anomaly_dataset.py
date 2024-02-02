@@ -28,6 +28,18 @@ class TestData(AbstractData):
         super().__init__(spec=spec, name="test_data")
 
 
+class ValidationData(AbstractData):
+    def __init__(self, spec: AnomalyOperatorSpec):
+        super().__init__(spec=spec, name="validation_data")
+
+    def _ingest_data(self, spec):
+        self.X_valid_dict = dict()
+        self.y_valid_dict = dict()
+        for s_id, df in self.get_dict_by_series().items():
+            self.X_valid_dict[s_id] = df.drop(spec.target_column, axis=1)
+            self.y_valid_dict[s_id] = df[spec.target_column]
+
+
 class AnomalyDatasets:
     def __init__(self, spec: AnomalyOperatorSpec):
         """Instantiates the DataIO instance.
@@ -40,6 +52,10 @@ class AnomalyDatasets:
         self._data = AnomalyData(spec)
         self.data = self._data.get_data_long()
         self.full_data_dict = self._data.get_dict_by_series()
+        if spec.validation_data is not None:
+            self.valid_data = ValidationData(spec)
+            self.X_valid_dict = self.valid_data.X_valid_dict
+            self.y_valid_dict = self.valid_data.y_valid_dict
 
 
 class AnomalyOutput:

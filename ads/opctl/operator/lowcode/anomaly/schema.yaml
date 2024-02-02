@@ -62,6 +62,42 @@ spec:
           required: false
           type: integer
 
+    validation_data:
+      required: false
+      type: dict
+      meta:
+        description: "The input data."
+      schema:
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - hdf
+            - feather
+            - load_files
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        url:
+          required: true
+          type: string
+          default: data.csv
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+
     datetime_column:
       type: dict
       required: true
@@ -161,37 +197,57 @@ spec:
       allowed:
         - light
         - dark
+
     metrics_filename:
       required: false
       type: string
       default: metrics.csv
       meta:
         description: "Placed into output_directory location. Defaults to metrics.csv"
+
     test_metrics_filename:
       required: false
       type: string
-      default: metrics.csv
+      default: test_metrics.csv
       meta:
-        description: "Placed into output_directory location. Defaults to metrics.csv"
-    global_explanation_filename:
-      required: false
-      type: string
-      default: global_explanations.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to global_explanations.csv"
-    local_explanation_filename:
-      required: false
-      type: string
-      default: local_explanations.csv
-      meta:
-        description: "Placed into output_directory location. Defaults to local_explanations.csv"
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
 
-    generate_explanations:
+    inliers_filename:
+      required: false
+      type: string
+      default: inliers.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to inliers.csv"
+
+    outliers_filename:
+      required: false
+      type: string
+      default: outliers.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to outliers.csv"
+
+    target_column:
+      type: string
+      required: true
+      default: target
+      meta:
+        description: "Identifier column for the series in the dataset"
+
+    target_category_columns:
+      type: list
+      required: false
+      schema:
+        type: string
+      default: ["Series ID"]
+      meta:
+        description: "When provided, target_category_columns [list] indexes the data into multiple related datasets for anomaly detection"
+
+    preprocessing:
       type: boolean
       required: false
-      default: false
+      default: true
       meta:
-        description: "Explainability, both local and global, can be disabled using this flag. Defaults to false."
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
     generate_report:
       type: boolean
@@ -214,30 +270,12 @@ spec:
       meta:
         description: "Generates inliers.csv"
 
-
-    target_column:
-      type: string
-      required: true
-      default: target
-      meta:
-        description: "Identifier column for the series in the dataset"
-
-    target_category_columns:
-      type: list
-      required: true
-      schema:
-        type: string
-      default: ["Column1"]
-      meta:
-        description: "Column [list] to be used to model for anomaly detection"
-
     model:
       type: string
-      required: true
+      required: false
       default: automlx
       allowed:
         - automlx
-        - tods
         - autots
         - auto
       meta:
@@ -253,12 +291,5 @@ spec:
     model_kwargs:
       type: dict
       required: false
-
-    preprocessing:
-      type: boolean
-      required: false
-      default: true
-      meta:
-        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
 
   type: dict

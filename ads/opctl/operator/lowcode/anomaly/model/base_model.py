@@ -48,6 +48,9 @@ class AnomalyOperatorBaseModel(ABC):
         self.config: AnomalyOperatorConfig = config
         self.spec: AnomalyOperatorSpec = config.spec
         self.datasets = datasets
+        if self.spec.validation_data is not None:
+            self.X_valid_dict = self.datasets.valid_data.X_valid_dict
+            self.y_valid_dict = self.datasets.valid_data.y_valid_dict
 
     def generate_report(self):
         """Generates the report."""
