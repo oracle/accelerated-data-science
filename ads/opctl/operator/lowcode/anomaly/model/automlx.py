@@ -33,8 +33,8 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
             est = automl.Pipeline(task="anomaly_detection", **self.spec.model_kwargs)
             est.fit(
                 X=df,
-                X_valid=self.X_valid_dict[target],
-                y_valid=self.y_valid_dict[target],
+                X_valid=self.X_valid_dict[target] if self.X_valid_dict is not None else None,
+                y_valid=self.y_valid_dict[target] if self.y_valid_dict is not None else None,
                 time_budget=time_budget,
                 contamination=self.spec.contamination,
             )

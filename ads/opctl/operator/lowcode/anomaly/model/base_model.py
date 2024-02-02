@@ -51,6 +51,9 @@ class AnomalyOperatorBaseModel(ABC):
         if self.spec.validation_data is not None:
             self.X_valid_dict = self.datasets.valid_data.X_valid_dict
             self.y_valid_dict = self.datasets.valid_data.y_valid_dict
+        else:
+            self.X_valid_dict = None
+            self.y_valid_dict = None
 
     def generate_report(self):
         """Generates the report."""
