@@ -12,6 +12,7 @@ import time
 from string import Template
 from typing import Any, Dict, List, Tuple
 import pandas as pd
+from ads.opctl import logger
 
 import fsspec
 import yaml
