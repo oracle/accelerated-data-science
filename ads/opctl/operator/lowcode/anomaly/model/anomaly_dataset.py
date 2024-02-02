@@ -48,7 +48,8 @@ class AnomalyOutput:
         self.date_column = date_column
 
     def list_categories(self):
-        return list(self.category_map.keys()).sort()
+        categories = list(self.category_map.keys()).sort()
+        return categories
 
     def add_output(self, category: str, anomalies: pd.DataFrame, scores: pd.DataFrame):
         self.category_map[category] = (anomalies, scores)
