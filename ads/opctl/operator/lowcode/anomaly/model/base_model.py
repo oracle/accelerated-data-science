@@ -258,7 +258,7 @@ class AnomalyOperatorBaseModel(ABC):
                 with fsspec.open(
                     os.path.join(output_dir, self.spec.report_file_name),
                     "w",
-                    **storage_options(),
+                    **storage_options,
                 ) as f2:
                     f2.write(f1.read())
 
