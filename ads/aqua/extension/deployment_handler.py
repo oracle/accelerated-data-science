@@ -159,7 +159,4 @@ class AquaDeploymentHandler(AquaAPIhandler):
             raise HTTPError(500, str(ex))
 
 
-# todo: combine regex or have separate handlers
-__handlers__ = [
-    ("deployments/?([^/]*)", AquaDeploymentHandler),
-]
+__handlers__ = [("deployments/?([^/]*)", AquaDeploymentHandler)]
