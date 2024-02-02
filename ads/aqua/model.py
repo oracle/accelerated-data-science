@@ -89,15 +89,12 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of the Aqua model.
         """
-        try:
-            oci_model = self.client.get_model(model_id).data
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
-        except ClientError as ce:
-            raise AquaClientError(str(ce))
+        # add error handler
+        oci_model = self.client.get_model(model_id).data
 
-        if not self._if_show(oci_model):
-            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+        # add error handler
+        # if not self._if_show(oci_model):
+        #     raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
 
         custom_metadata_list = oci_model.custom_metadata_list
         artifact_path = self._get_artifact_path(custom_metadata_list)
