@@ -228,7 +228,6 @@ class AquaDeploymentApp(AquaApp):
         ----------
         model_deployment_id: str
             The OCID of the Aqua model deployment.
-
         kwargs
             Keyword arguments, for `get_model_deployment
             <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.get_model_deployment>`_
@@ -237,24 +236,25 @@ class AquaDeploymentApp(AquaApp):
         -------
         AquaDeployment:
             The instance of the Aqua model deployment.
-        """
-        # add error handler
-        # if not kwargs.get("model_deployment_id", None):
-        #     raise AquaClientError("Aqua model deployment ocid must be provided to fetch the deployment.")
-        
-        # add error handler
-        model_deployment = self.client.get_model_deployment(
-            model_deployment_id=model_deployment_id, **kwargs
-        ).data
+        """        
+        try:
+            model_deployment = self.client.get_model_deployment(
+                model_deployment_id=model_deployment_id, **kwargs
+            ).data
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(
+                f"Failed to retreive model deployment from the given id {model_deployment_id}"
+            )
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
         
         aqua_service_model=(
             model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None) 
             if model_deployment.freeform_tags else None
         )
 
-        # add error handler
-        # if not aqua_service_model:
-        #     raise AquaClientError(f"Target deployment {model_deployment.id} is not Aqua deployment.")
+        if not aqua_service_model:
+            raise AquaClientError(f"Target deployment {model_deployment_id} is not Aqua deployment.")
 
         return AquaDeploymentApp.from_oci_model_deployment(
             model_deployment, self.region
