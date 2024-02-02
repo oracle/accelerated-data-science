@@ -5,19 +5,30 @@
 import logging
 import tempfile
 import fsspec
+import os
 from dataclasses import dataclass
-from typing import List
 from enum import Enum
 from ads.config import COMPARTMENT_OCID
 from ads.aqua.base import AquaApp
 from ads.common.serializer import DataClassSerializable
 from ads.model.datascience_model import DataScienceModel
+from typing import List
 
-logger = logging.getLogger(__name__)
+import fsspec
+import oci
+from oci.exceptions import ClientError, ServiceError
+
+from ads.aqua import logger
+from ads.aqua.base import AquaApp
+from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.aqua.utils import create_word_icon
+from ads.common.oci_resource import SEARCH_TYPE, OCIResource
+from ads.common.serializer import DataClassSerializable
+from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
 
 ICON_FILE_NAME = "icon.txt"
 README = "README.md"
-UNKNOWN = "Unknown"
+UNKNOWN = ""
 
 
 class Tags(Enum):
@@ -33,16 +44,17 @@ class Tags(Enum):
 class AquaModelSummary(DataClassSerializable):
     """Represents a summary of Aqua model."""
 
-    name: str
-    id: str
     compartment_id: str
-    project_id: str
-    time_created: str
     icon: str
-    task: str
-    license: str
-    organization: str
+    id: str
     is_fine_tuned_model: bool
+    license: str
+    name: str
+    organization: str
+    project_id: str
+    tags: dict
+    task: str
+    time_created: str
 
 
 @dataclass(repr=False)
@@ -64,9 +76,8 @@ class AquaModelApp(AquaApp):
         Creates an instance of Aqua model.
     get(..., **kwargs)
         Gets the information of an Aqua model.
-    list(self, ..., **kwargs) -> List["AquaModel"]
-        List Aqua models in a given compartment and under certain project
-
+    list(...) -> List["AquaModelSummary"]
+        List existing models created via Aqua.
     """
 
     def create(self, **kwargs) -> "AquaModel":
@@ -131,11 +142,11 @@ class AquaModelApp(AquaApp):
         """
         # add error handler
         oci_model = self.client.get_model(model_id).data
-        
+
         # add error handler
         # if not self._if_show(oci_model):
         #     raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
-        
+
         custom_metadata_list = oci_model.custom_metadata_list
         artifact_path = self._get_artifact_path(custom_metadata_list)
 
@@ -167,51 +178,56 @@ class AquaModelApp(AquaApp):
         project_id: (str, optional). Defaults to `None`.
             The project OCID.
         kwargs
-            Additional keyword arguments for `list_call_get_all_results <https://docs.oracle.com/en-us/iaas/tools/python/2.118.1/api/pagination.html#oci.pagination.list_call_get_all_results>`_
-
+            Additional keyword arguments.
         Returns
         -------
-        List[dict]:
-            The list of the Aqua models.
+        List[AquaModelSummary]:
+            The list of the `ads.aqua.model.AquaModelSummary`.
         """
         compartment_id = compartment_id or COMPARTMENT_OCID
-        kwargs.update({"compartment_id": compartment_id, "project_id": project_id})
 
-        models = self.list_resource(self.client.list_models, **kwargs)
+        service_model = self.list_resource(
+            self.client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
+        )
+        fine_tuned_models = self._rqs(compartment_id)
+        models = fine_tuned_models + service_model
+
+        if not models:
+            logger.error(f"No model found in compartment_id={compartment_id}.")
 
         aqua_models = []
-        for model in models:  # ModelSummary
-            if self._if_show(model):
-                # TODO: need to update after model by reference release
-                try:
-                    custom_metadata_list = self.client.get_model(
-                        model.id
-                    ).data.custom_metadata_list
-                except Exception as e:
-                    # show opc-request-id and status code
-                    logger.error(f"Failing to retreive model information. {e}")
-                    return []
+        # TODO: build index.json for service model as caching if needed.
 
-                artifact_path = self._get_artifact_path(custom_metadata_list)
+        def process_model(model):
+            icon = self._load_icon(model.display_name)
+            tags = {}
+            tags.update(model.defined_tags)
+            tags.update(model.freeform_tags)
 
-                aqua_models.append(
-                    AquaModelSummary(
-                        name=model.display_name,
-                        id=model.id,
-                        compartment_id=model.compartment_id,
-                        project_id=model.project_id,
-                        time_created=str(model.time_created),
-                        icon=str(self._read_file(f"{artifact_path}/{ICON_FILE_NAME}")),
-                        task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-                        license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
-                        organization=model.freeform_tags.get(
-                            Tags.ORGANIZATION.value, UNKNOWN
-                        ),
-                        is_fine_tuned_model=True
-                        if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                        else False,
-                    )
-                )
+            model_id = (
+                model.id
+                if isinstance(model, oci.data_science.models.ModelSummary)
+                else model.identifier
+            )
+            return AquaModelSummary(
+                compartment_id=model.compartment_id,
+                icon=icon,
+                id=model_id,
+                license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+                name=model.display_name,
+                organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
+                project_id=project_id or UNKNOWN,
+                task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+                time_created=model.time_created,
+                is_fine_tuned_model=True
+                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                else False,
+                tags=tags,
+            )
+
+        for model in models:
+            aqua_models.append(process_model(model))
+
         return aqua_models
 
     def _if_show(self, model: "ModelSummary") -> bool:
@@ -250,8 +266,39 @@ class AquaModelApp(AquaApp):
 
     def _read_file(self, file_path: str) -> str:
         try:
-            with fsspec.open(file_path, "rb", **self._auth) as f:
+            with fsspec.open(file_path, "r", **self._auth) as f:
                 return f.read()
         except Exception as e:
             logger.error(f"Failed to retreive model icon. {e}")
             return None
+
+    def _load_icon(self, model_name) -> str:
+        """Loads icon."""
+
+        # TODO: switch to the official logo
+        try:
+            return create_word_icon(model_name, return_as_datauri=True)
+        except Exception as e:
+            logger.error(f"Failed to load icon for the model={model_name}.")
+            return None
+
+    def _rqs(self, compartment_id):
+        """Use RQS to fetch models in the user tenancy."""
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
+        condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
+        # not support filtered by project_id
+        query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
+        logger.info(query)
+
+        try:
+            return OCIResource.search(
+                query,
+                type=SEARCH_TYPE.STRUCTURED,
+                tenant_id=TENANCY_OCID,
+            )
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(
+                f"Failed to retreive model from the given compartment {compartment_id}"
+            )
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
