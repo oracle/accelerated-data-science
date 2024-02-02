@@ -17,7 +17,7 @@ import numpy as np
 from ads.opctl import logger
 
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
-from .anomaly_dataset import AnomalyDatasets, AnomalyOutput
+from .anomaly_dataset import AnomalyDatasets, AnomalyOutput, TestData
 from ads.opctl.operator.lowcode.anomaly.const import OutputColumns, SupportedMetrics
 from ..const import SupportedModels
 from ads.opctl.operator.lowcode.common.utils import (
@@ -69,7 +69,7 @@ class AnomalyOperatorBaseModel(ABC):
         test_data = None
 
         if self.spec.test_data:
-            test_data = TestData(self.spec.test_data)
+            test_data = TestData(self.spec)
             total_metrics, summary_metrics = self._test_data_evaluate_metrics(
                 anomaly_output, test_data, elapsed_time
             )
@@ -170,8 +170,6 @@ class AnomalyOperatorBaseModel(ABC):
     def _test_data_evaluate_metrics(self, anomaly_output, test_data, elapsed_time):
         total_metrics = pd.DataFrame()
         summary_metrics = pd.DataFrame()
-        if test_data.empty:
-            return total_metrics, summary_metrics, None
 
         for cat in anomaly_output.list_categories():
             output = anomaly_output.category_map[cat][0]
@@ -191,7 +189,7 @@ class AnomalyOperatorBaseModel(ABC):
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
         if total_metrics.empty:
-            return total_metrics, summary_metrics, data
+            return total_metrics, summary_metrics
 
         summary_metrics = pd.DataFrame(
             {

@@ -173,6 +173,7 @@ def test_validation(model):
 
         yaml_i = deepcopy(TEMPLATE_YAML)
         yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["target_column"] = "val_1"
         yaml_i["spec"]["input_data"]["url"] = input_data
         yaml_i["spec"]["validation_data"] = {"url": valid_data}
         yaml_i["spec"]["test_data"] = {"url": test_data}
