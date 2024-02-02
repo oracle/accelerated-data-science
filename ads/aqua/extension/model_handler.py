@@ -32,7 +32,7 @@ class AquaModelHandler(AquaAPIhandler):
     @exception_handler
     def list(self):
         """List Aqua models."""
-        compartment_id = self.get_argument("compartment_id")
+        compartment_id = self.get_argument("compartment_id", default=None)
         # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaModelApp().list(compartment_id, project_id))
