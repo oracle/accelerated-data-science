@@ -140,15 +140,12 @@ class AquaModelApp(AquaApp):
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             models = self._rqs(compartment_id)
         else:
-            # TODO: remove project_id after policy for service-model compartment has been set.
-            project_id = os.environ.get("TEST_PROJECT_ID")
             logger.info(
-                f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}, project_id={project_id}"
+                f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
             models = self.list_resource(
                 self.client.list_models,
                 compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
-                project_id=project_id,
             )
 
         if not models:
@@ -191,24 +188,9 @@ class AquaModelApp(AquaApp):
             )
 
         for model in models:
-            # TODO: remove the check after policy issue resolved
-            if self._temp_check(model, compartment_id):
-                aqua_models.append(process_model(model))
+            aqua_models.append(process_model(model))
 
         return aqua_models
-
-    def _temp_check(self, model, compartment_id=None):
-        # TODO: will remove it later
-        TARGET_TAGS = model.freeform_tags.keys()
-        if not Tags.AQUA_TAG.value in TARGET_TAGS:
-            return False
-
-        if compartment_id:
-            return (
-                True if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS else False
-            )
-
-        return True if Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS else False
 
     def _if_show(self, model: "ModelSummary") -> bool:
         """Determine if the given model should be return by `list`."""
