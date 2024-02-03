@@ -6,13 +6,16 @@
 import logging
 from typing import List, Dict
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from ads.aqua.base import AquaApp
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentInfrastructure,
     ModelDeploymentContainerRuntime,
     ModelDeploymentMode,
+)
+from ads.model.service.oci_datascience_model_deployment import (
+    OCIDataScienceModelDeployment,
 )
 from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
@@ -22,30 +25,89 @@ from ads.config import COMPARTMENT_OCID
 # todo: move this to constants or have separate functions
 AQUA_SERVICE_MODEL = "aqua_service_model"
 
-logger = logging.getLogger(__name__)
-
 
 @dataclass
 class ShapeInfo:
-    instance_shape: str
-    ocpus: float
-    memory_in_gbs: float
+    instance_shape: str = None
+    instance_count: int = None
+    ocpus: float = None
+    memory_in_gbs: float = None
 
 
 @dataclass(repr=False)
 class AquaDeployment(DataClassSerializable):
     """Represents an Aqua Model Deployment"""
 
-    id: str
-    display_name: str
-    aqua_service_model: str
-    state: str
-    description: str
-    created_on: str
-    created_by: str
-    endpoint: str
-    console_link: str
-    shape_info: ShapeInfo
+    id: str = None
+    display_name: str = None
+    aqua_service_model: str = None
+    state: str = None
+    description: str = None
+    created_on: str = None
+    created_by: str = None
+    endpoint: str = None
+    console_link: str = None
+    shape_info: field(default_factory=ShapeInfo) = None
+
+    @classmethod
+    def from_oci_model_deployment(
+        cls, oci_model_deployment: OCIDataScienceModelDeployment, region
+    ) -> "AquaDeployment":
+        """Converts oci model deployment response to AquaDeployment instance.
+
+        Parameters
+        ----------
+        oci_model_deployment: oci.data_science.models.ModelDeployment
+            The oci.data_science.models.ModelDeployment instance.
+        region: str
+            The region of this model deployment.
+
+        Returns
+        -------
+        AquaDeployment:
+            The instance of the Aqua model deployment.
+        """
+        instance_configuration = (
+            oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
+        )
+        instance_shape_config_details = (
+            instance_configuration.model_deployment_instance_shape_config_details
+        )
+        instance_count = (
+            oci_model_deployment.model_configuration_details.scaling_policy.instance_count
+        )
+        shape_info = ShapeInfo(
+            instance_shape=instance_configuration.instance_shape_name,
+            instance_count=instance_count,
+            ocpus=(
+                instance_shape_config_details.ocpus
+                if instance_shape_config_details
+                else None
+            ),
+            memory_in_gbs=(
+                instance_shape_config_details.memory_in_gbs
+                if instance_shape_config_details
+                else None
+            ),
+        )
+        return AquaDeployment(
+            id=oci_model_deployment.id,
+            display_name=oci_model_deployment.display_name,
+            aqua_service_model=oci_model_deployment.freeform_tags.get(
+                AQUA_SERVICE_MODEL
+            ),
+            shape_info=shape_info,
+            state=oci_model_deployment.lifecycle_state,
+            description=oci_model_deployment.description,
+            created_on=str(oci_model_deployment.time_created),
+            created_by=oci_model_deployment.created_by,
+            endpoint=oci_model_deployment.model_deployment_url,
+            console_link=get_console_link(
+                resource="model-deployments",
+                ocid=oci_model_deployment.id,
+                region=region,
+            ),
+        )
 
 
 class AquaDeploymentApp(AquaApp):
@@ -186,7 +248,7 @@ class AquaDeploymentApp(AquaApp):
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
 
-        return AquaDeploymentApp.from_oci_model_deployment(
+        return AquaDeployment.from_oci_model_deployment(
             deployment.dsc_model_deployment, self.region
         )
 
@@ -221,7 +283,7 @@ class AquaDeploymentApp(AquaApp):
             )
             if aqua_service_model:
                 results.append(
-                    AquaDeploymentApp.from_oci_model_deployment(
+                    AquaDeployment.from_oci_model_deployment(
                         model_deployment, self.region
                     )
                 )
@@ -264,62 +326,4 @@ class AquaDeploymentApp(AquaApp):
         # if not aqua_service_model:
         #     raise AquaClientError(f"Target deployment {model_deployment.id} is not Aqua deployment.")
 
-        return AquaDeploymentApp.from_oci_model_deployment(
-            model_deployment, self.region
-        )
-
-    @classmethod
-    def from_oci_model_deployment(
-        cls, oci_model_deployment, region
-    ) -> "AquaDeployment":
-        """Converts oci model deployment response to AquaDeployment instance.
-
-        Parameters
-        ----------
-        oci_model_deployment: oci.data_science.models.ModelDeployment
-            The oci.data_science.models.ModelDeployment instance.
-        region: str
-            The region of this model deployment.
-
-        Returns
-        -------
-        AquaDeployment:
-            The instance of the Aqua model deployment.
-        """
-        instance_configuration = (
-            oci_model_deployment.model_deployment_configuration_details.model_configuration_details.instance_configuration
-        )
-        instance_shape_config_details = (
-            instance_configuration.model_deployment_instance_shape_config_details
-        )
-        shape_info = ShapeInfo(
-            instance_shape=instance_configuration.instance_shape_name,
-            ocpus=(
-                instance_shape_config_details.ocpus
-                if instance_shape_config_details
-                else None
-            ),
-            memory_in_gbs=(
-                instance_shape_config_details.memory_in_gbs
-                if instance_shape_config_details
-                else None
-            ),
-        )
-        return AquaDeployment(
-            id=oci_model_deployment.id,
-            display_name=oci_model_deployment.display_name,
-            aqua_service_model=oci_model_deployment.freeform_tags.get(
-                AQUA_SERVICE_MODEL
-            ),
-            shape_info=shape_info,
-            state=oci_model_deployment.lifecycle_state,
-            description=oci_model_deployment.description,
-            created_on=str(oci_model_deployment.time_created),
-            created_by=oci_model_deployment.created_by,
-            endpoint=oci_model_deployment.model_deployment_url,
-            console_link=get_console_link(
-                resource="model-deployments",
-                ocid=oci_model_deployment.id,
-                region=region,
-            ),
-        )
+        return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)

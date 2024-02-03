@@ -1736,7 +1736,7 @@ def get_console_link(
     console_link_url: str
         a valid link to the console for the given resource
     """
-    console_link_url = "https://cloud.oracle.com/data-science/{}/{}?region={}".format(
-        resource, ocid, region
+    console_link_url = (
+        f"https://cloud.oracle.com/data-science/{resource}/{ocid}?region={region}"
     )
     return console_link_url

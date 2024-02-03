@@ -3,10 +3,8 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List
+from typing import List, Dict
 from ads.aqua.base import AquaApp
-from oci.logging.models import LogGroupSummary, LogSummary
-from oci.identity.models import Compartment
 from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID
 from oci.exceptions import ServiceError
 from ads.aqua.exception import AquaServiceError, AquaClientError
@@ -20,16 +18,16 @@ class AquaUIApp(AquaApp):
 
     Methods
     -------
-    list_log_groups(self, **kwargs) -> List["LogGroupSummary"]
+    list_log_groups(self, **kwargs) -> List[Dict]
         Lists all log groups for the specified compartment or tenancy.
-    list_logs(self, **kwargs) -> List[LogSummary]
+    list_logs(self, **kwargs) -> List[Dict]
         Lists the specified log group's log objects.
-    list_compartments(self, **kwargs) -> List[Compartment]
+    list_compartments(self, **kwargs) -> List[Dict]
         Lists the compartments in a specified compartment.
 
     """
 
-    def list_log_groups(self, **kwargs) -> List["LogGroupSummary"]:
+    def list_log_groups(self, **kwargs) -> List[Dict]:
         """Lists all log groups for the specified compartment or tenancy. This is a pass through the OCI list_log_groups
         API.
 
@@ -41,8 +39,8 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-        List[LogGroupSummary]:
-            A Response object with data of type list of LogGroupSummary
+        List[Dict]:
+            Dict has json representation of oci.logging.models.log_group.LogGroup
         """
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
@@ -55,7 +53,7 @@ class AquaUIApp(AquaApp):
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-    def list_logs(self, **kwargs) -> List[LogSummary]:
+    def list_logs(self, **kwargs) -> List[Dict]:
         """Lists the specified log group's log objects. This is a pass through the OCI list_log_groups
         API.
 
@@ -67,8 +65,8 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-        List[LogSummary]:
-            A Response object with data of type list of LogSummary
+        List[Dict]:
+            Dict has json representation of oci.logging.models.log_summary.LogSummary
         """
         log_group_id = kwargs.pop("log_group_id")
 
@@ -80,7 +78,7 @@ class AquaUIApp(AquaApp):
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-    def list_compartments(self, **kwargs) -> List[Compartment]:
+    def list_compartments(self, **kwargs) -> List[Dict]:
         """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable. This is a pass through the OCI list_compartments
         API.
 
@@ -92,8 +90,8 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-        List[Compartments]:
-            oci.identity.models.Compartment
+        List[Dict]:
+            Dict has json representation of oci.identity.models.Compartment
         """
         try:
             if not ODSC_MODEL_COMPARTMENT_OCID:
