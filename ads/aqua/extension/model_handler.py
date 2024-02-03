@@ -32,12 +32,8 @@ class AquaModelHandler(AquaAPIhandler):
     @exception_handler
     def list(self):
         """List Aqua models."""
-        # If default is not specified,
-        # jupyterlab will raise 400 error when argument is not provided by the HTTP request.
-        compartment_id = self.get_argument(
-            "compartment_id", default=os.environ.get(AQUA_MODEL_COMPARTMENT)
-        )
-        # project_id is optional.
+        compartment_id = self.get_argument("compartment_id", default=None)
+        # project_id is no needed.
         project_id = self.get_argument("project_id", default=None)
         return self.finish(AquaModelApp().list(compartment_id, project_id))
 
