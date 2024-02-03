@@ -93,7 +93,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         if not instance_count:
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
 
-        project_id = input_data.get("project_id")
+        project_id = input_data.get("project_id", PROJECT_OCID)
         description = input_data.get("description")
         bandwidth_mbps = input_data.get("bandwidth_mbps", 10)
 
