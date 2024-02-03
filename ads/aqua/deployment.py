@@ -74,7 +74,7 @@ class AquaDeployment(DataClassSerializable):
             instance_configuration.model_deployment_instance_shape_config_details
         )
         instance_count = (
-            oci_model_deployment.model_configuration_details.scaling_policy.instance_count
+            oci_model_deployment.model_deployment_configuration_details.model_configuration_details.scaling_policy.instance_count
         )
         shape_info = ShapeInfo(
             instance_shape=instance_configuration.instance_shape_name,
