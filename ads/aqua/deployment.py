@@ -8,6 +8,7 @@ from typing import List, Dict
 
 from dataclasses import dataclass, field
 from ads.aqua.base import AquaApp
+from ads.aqua.model import AquaModelApp, Tags
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentInfrastructure,
@@ -19,11 +20,8 @@ from ads.model.service.oci_datascience_model_deployment import (
 )
 from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
-from ads.config import COMPARTMENT_OCID
-
-
-# todo: move this to constants or have separate functions
-AQUA_SERVICE_MODEL = "aqua_service_model"
+from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
 
 
 @dataclass
@@ -40,7 +38,7 @@ class AquaDeployment(DataClassSerializable):
 
     id: str = None
     display_name: str = None
-    aqua_service_model: str = None
+    aqua_service_model: bool = None
     state: str = None
     description: str = None
     created_on: str = None
@@ -48,10 +46,13 @@ class AquaDeployment(DataClassSerializable):
     endpoint: str = None
     console_link: str = None
     shape_info: field(default_factory=ShapeInfo) = None
+    tags: dict = None
 
     @classmethod
     def from_oci_model_deployment(
-        cls, oci_model_deployment: OCIDataScienceModelDeployment, region
+        cls,
+        oci_model_deployment: OCIDataScienceModelDeployment,
+        region: str,
     ) -> "AquaDeployment":
         """Converts oci model deployment response to AquaDeployment instance.
 
@@ -90,12 +91,14 @@ class AquaDeployment(DataClassSerializable):
                 else None
             ),
         )
+
         return AquaDeployment(
             id=oci_model_deployment.id,
             display_name=oci_model_deployment.display_name,
             aqua_service_model=oci_model_deployment.freeform_tags.get(
-                AQUA_SERVICE_MODEL
-            ),
+                Tags.AQUA_SERVICE_MODEL_TAG.value
+            )
+            is not None,
             shape_info=shape_info,
             state=oci_model_deployment.lifecycle_state,
             description=oci_model_deployment.description,
@@ -107,6 +110,7 @@ class AquaDeployment(DataClassSerializable):
                 ocid=oci_model_deployment.id,
                 region=region,
             ),
+            tags=oci_model_deployment.freeform_tags,
         )
 
 
@@ -128,16 +132,12 @@ class AquaDeploymentApp(AquaApp):
         self,
         model_id: str,
         compartment_id: str,
-        aqua_service_model: str,
         instance_count: int,
         instance_shape: str,
         log_group_id: str,
         access_log_id: str,
         predict_log_id: str,
-        deployment_image: str,
-        entrypoint: List[str],
         project_id: str = None,
-        region: str = None,
         display_name: str = None,
         description: str = None,
         bandwidth_mbps: int = None,
@@ -158,12 +158,6 @@ class AquaDeploymentApp(AquaApp):
             The compartment OCID
         project_id: str
             Target project to list deployments from.
-        region: str (None)
-            The Region Identifier that the client should connect to.
-            Regions can be found here:
-            https://docs.oracle.com/en-us/iaas/Content/General/Concepts/regions.htm
-        aqua_service_model: str
-            The aqua tag that gets passed from the model that identifies the type of model
         display_name: str
             The name of model deployment.
         description: str
@@ -182,12 +176,8 @@ class AquaDeploymentApp(AquaApp):
             The bandwidth limit on the load balancer in Mbps.
         web_concurrency: str
             The number of worker processes/threads to handle incoming requests
-        deployment_image: (str).
-            The OCIR path of docker container image. Required for deploying model on container runtime.
         with_bucket_uri(bucket_uri)
             Sets the bucket uri when uploading large size model.
-        entrypoint: (List). Defaults to empty.
-            The entrypoint for running docker container image.
         server_port: (int). Defaults to 8080.
             The server port for docker container image.
         health_check_port: (int). Defaults to 8080.
@@ -200,7 +190,34 @@ class AquaDeploymentApp(AquaApp):
             An Aqua deployment instance
 
         """
-        # todo: create a model catalog entry with model path pointing to service bucket
+        # todo: revisit error handling
+        if not AQUA_MODEL_DEPLOYMENT_IMAGE:
+            raise AquaClientError(
+                f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
+                f"continue with Aqua model deployment."
+            )
+
+        # Create a model catalog entry in the user compartment
+        aqua_model = AquaModelApp().create(
+            model_id=model_id, comparment_id=compartment_id, project_id=project_id
+        )
+        logging.debug(
+            f"Aqua Model {aqua_model.id} created with the service model {model_id}"
+        )
+        logging.debug(aqua_model)
+
+        # todo: remove entrypoint, this will go in the image. For now, added for testing
+        #  the image iad.ocir.io/ociodscdev/aqua_deploy:1.0.0
+        entrypoint = ["python", "/opt/api/api.py"]
+
+        tags = {}
+        for tag in [
+            Tags.AQUA_SERVICE_MODEL_TAG.value,
+            Tags.AQUA_FINE_TUNED_MODEL_TAG.value,
+            Tags.AQUA_TAG.value,
+        ]:
+            if tag in aqua_model.tags:
+                tags[tag] = aqua_model.tags[tag]
 
         # Start model deployment
         # configure model deployment infrastructure
@@ -226,7 +243,7 @@ class AquaDeploymentApp(AquaApp):
         # todo : any other runtime params needed?
         container_runtime = (
             ModelDeploymentContainerRuntime()
-            .with_image(deployment_image)
+            .with_image(AQUA_MODEL_DEPLOYMENT_IMAGE)
             .with_entrypoint(entrypoint)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
@@ -234,8 +251,8 @@ class AquaDeploymentApp(AquaApp):
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
             .with_model_uri(model_id)
             .with_region(self.region)
-            .with_overwrite_existing_artifact(False)
-            .with_remove_existing_artifact(False)
+            .with_overwrite_existing_artifact(True)
+            .with_remove_existing_artifact(True)
         )
         # configure model deployment and deploy model on container runtime
         # todo : any other deployment params needed?
@@ -243,7 +260,7 @@ class AquaDeploymentApp(AquaApp):
             ModelDeployment()
             .with_display_name(display_name)
             .with_description(description)
-            .with_freeform_tags(aqua_service_model=aqua_service_model)
+            .with_freeform_tags(**tags)
             .with_infrastructure(infrastructure)
             .with_runtime(container_runtime)
         ).deploy(wait_for_completion=False)
@@ -277,7 +294,9 @@ class AquaDeploymentApp(AquaApp):
         results = []
         for model_deployment in model_deployments:
             aqua_service_model = (
-                model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None)
+                model_deployment.freeform_tags.get(
+                    Tags.AQUA_SERVICE_MODEL_TAG.value, None
+                )
                 if model_deployment.freeform_tags
                 else None
             )
@@ -297,7 +316,6 @@ class AquaDeploymentApp(AquaApp):
         ----------
         model_deployment_id: str
             The OCID of the Aqua model deployment.
-
         kwargs
             Keyword arguments, for `get_model_deployment
             <https://docs.oracle.com/en-us/iaas/tools/python/2.119.1/api/data_science/client/oci.data_science.DataScienceClient.html#oci.data_science.DataScienceClient.get_model_deployment>`_
@@ -307,23 +325,26 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        # add error handler
-        # if not kwargs.get("model_deployment_id", None):
-        #     raise AquaClientError("Aqua model deployment ocid must be provided to fetch the deployment.")
-
-        # add error handler
-        model_deployment = self.ds_client.get_model_deployment(
-            model_deployment_id=model_deployment_id, **kwargs
-        ).data
+        try:
+            model_deployment = self.ds_client.get_model_deployment(
+                model_deployment_id=model_deployment_id, **kwargs
+            ).data
+        except Exception as se:
+            # TODO: adjust error raising
+            logging.error(
+                f"Failed to retreive model deployment from the given id {model_deployment_id}"
+            )
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
         aqua_service_model = (
-            model_deployment.freeform_tags.get(AQUA_SERVICE_MODEL, None)
+            model_deployment.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG.value, None)
             if model_deployment.freeform_tags
             else None
         )
 
-        # add error handler
-        # if not aqua_service_model:
-        #     raise AquaClientError(f"Target deployment {model_deployment.id} is not Aqua deployment.")
+        if not aqua_service_model:
+            raise AquaClientError(
+                f"Target deployment {model_deployment_id} is not Aqua deployment."
+            )
 
         return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
