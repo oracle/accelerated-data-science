@@ -8,8 +8,7 @@ from enum import Enum
 from typing import List
 
 import fsspec
-import oci
-from oci.exceptions import ClientError, ServiceError
+from oci.data_science.models import ModelSummary
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
@@ -90,11 +89,10 @@ class AquaModelApp(AquaApp):
             The instance of the Aqua model.
         """
         # add error handler
-        oci_model = self.client.get_model(model_id).data
-
+        oci_model = self.ds_client.get_model(model_id).data
         # add error handler
-        # if not self._if_show(oci_model):
-        #     raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+        if not self._if_show(oci_model):
+            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
 
         custom_metadata_list = oci_model.custom_metadata_list
         artifact_path = self._get_artifact_path(custom_metadata_list)
@@ -115,6 +113,8 @@ class AquaModelApp(AquaApp):
                 else False
             ),
             model_card=str(self._read_file(f"{artifact_path}/{README}")),
+            # todo: add proper tags
+            tags={},
         )
 
     def list(
@@ -146,7 +146,7 @@ class AquaModelApp(AquaApp):
                 f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}, project_id={project_id}"
             )
             models = self.list_resource(
-                self.client.list_models,
+                self.ds_client.list_models,
                 compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
                 project_id=project_id,
             )
@@ -156,7 +156,7 @@ class AquaModelApp(AquaApp):
                 f"No model found in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
             )
 
-        logger.info(f"Successuly fetch {len(models)} models.")
+        logger.info(f"Successfully fetch {len(models)} models.")
 
         aqua_models = []
         # TODO: build index.json for service model as caching if needed.
@@ -167,11 +167,7 @@ class AquaModelApp(AquaApp):
             tags.update(model.defined_tags)
             tags.update(model.freeform_tags)
 
-            model_id = (
-                model.id
-                if isinstance(model, oci.data_science.models.ModelSummary)
-                else model.identifier
-            )
+            model_id = model.id if isinstance(model, ModelSummary) else model.identifier
             return AquaModelSummary(
                 compartment_id=model.compartment_id,
                 icon=icon,
@@ -246,7 +242,7 @@ class AquaModelApp(AquaApp):
 
     def _read_file(self, file_path: str) -> str:
         try:
-            with fsspec.open(file_path, "rb", **self._auth) as f:
+            with fsspec.open(file_path, "r", **self._auth) as f:
                 return f.read()
         except Exception as e:
             logger.error(f"Failed to retreive model icon. {e}")

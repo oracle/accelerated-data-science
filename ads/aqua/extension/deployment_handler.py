@@ -32,7 +32,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
     def get(self, id=""):
         """Handle GET request."""
-        # todo: handle list, read and logs for model deployment
         if not id:
             return self.list()
         return self.read(id)
@@ -112,7 +111,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
                 AquaDeploymentApp().create(
                     compartment_id=compartment_id,
                     project_id=project_id,
-                    # todo: replace model_id with aqua_model.id
+                    # todo: replace model_id with aqua_model.id, use current model for deploy
+                    #  but replace with model by reference is implemented
                     model_id=model_id,
                     aqua_service_model=aqua_service_model,
                     display_name=display_name,
