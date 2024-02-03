@@ -2,19 +2,15 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import tempfile
+import os
 import fsspec
+import tempfile
 from dataclasses import dataclass
 from enum import Enum
-from ads.config import COMPARTMENT_OCID
-from ads.aqua.base import AquaApp
-from ads.common.serializer import DataClassSerializable
-from ads.model.datascience_model import DataScienceModel
 from typing import List
 
-import fsspec
 import oci
-
+from ads.model.datascience_model import DataScienceModel
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
@@ -77,11 +73,7 @@ class AquaModelApp(AquaApp):
     """
 
     def create(
-        self, 
-        model_id: str, 
-        project_id: str, 
-        comparment_id: str=None, 
-        **kwargs
+        self, model_id: str, project_id: str, comparment_id: str = None, **kwargs
     ) -> "AquaModel":
         """Creates custom aqua model from service model.
 
@@ -94,7 +86,7 @@ class AquaModelApp(AquaApp):
         comparment_id: str
             The compartment id for custom model. Defaults to None.
             If not provided, compartment id will be fetched from environment variables.
-        
+
         Returns
         -------
         AquaModel:
@@ -123,12 +115,14 @@ class AquaModelApp(AquaApp):
                 )
             except Exception as se:
                 # TODO: adjust error raising
-                logger.error(
-                    f"Failed to create model from the given id {model_id}."
+                logger.error(f"Failed to create model from the given id {model_id}.")
+                raise AquaServiceError(
+                    opc_request_id=se.request_id, status_code=se.code
                 )
-                raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-            artifact_path = self._get_artifact_path(custom_model.dsc_model.custom_metadata_list)
+            artifact_path = self._get_artifact_path(
+                custom_model.dsc_model.custom_metadata_list
+            )
             return AquaModel(
                 **AquaModelApp.process_model(custom_model.dsc_model),
                 project_id=custom_model.project_id,
@@ -149,12 +143,10 @@ class AquaModelApp(AquaApp):
             The instance of AquaModel.
         """
         try:
-            oci_model = self.client.get_model(model_id).data
+            oci_model = self.ds_client.get_model(model_id).data
         except Exception as se:
             # TODO: adjust error raising
-            logger.error(
-                f"Failed to retreive model from the given id {model_id}"
-            )
+            logger.error(f"Failed to retreive model from the given id {model_id}")
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
         if not self._if_show(oci_model):
@@ -186,30 +178,44 @@ class AquaModelApp(AquaApp):
         List[AquaModelSummary]:
             The list of the `ads.aqua.model.AquaModelSummary`.
         """
-        compartment_id = compartment_id or COMPARTMENT_OCID
-
-        service_model = self.list_resource(
-            self.client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
-        )
-        fine_tuned_models = self._rqs(compartment_id)
-        models = fine_tuned_models + service_model
+        models = []
+        if compartment_id:
+            logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
+            models = self._rqs(compartment_id)
+        else:
+            # TODO: remove project_id after policy for service-model compartment has been set.
+            project_id = os.environ.get("TEST_PROJECT_ID")
+            logger.info(
+                f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}, project_id={project_id}"
+            )
+            models = self.list_resource(
+                self.ds_client.list_models,
+                compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                project_id=project_id,
+            )
 
         if not models:
-            logger.error(f"No model found in compartment_id={compartment_id}.")
+            logger.error(
+                f"No model found in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
+            )
+
+        logger.info(f"Successfully fetch {len(models)} models.")
 
         aqua_models = []
         # TODO: build index.json for service model as caching if needed.
 
         for model in models:
-            aqua_models.append(
-                AquaModelSummary(
-                    **AquaModelApp.process_model(model=model),
-                    project_id=project_id or UNKNOWN
+            # TODO: remove the check after policy issue resolved
+            if self._temp_check(model, compartment_id):
+                aqua_models.append(
+                    AquaModelSummary(
+                        **AquaModelApp.process_model(model=model),
+                        project_id=project_id or UNKNOWN,
+                    )
                 )
-            )
 
         return aqua_models
-    
+
     @classmethod
     def process_model(cls, model) -> dict:
         icon = cls()._load_icon(model.display_name)
@@ -220,7 +226,7 @@ class AquaModelApp(AquaApp):
         model_id = (
             model.id
             if (
-                isinstance(model, oci.data_science.models.ModelSummary) 
+                isinstance(model, oci.data_science.models.ModelSummary)
                 or isinstance(model, oci.data_science.models.model.Model)
             )
             else model.identifier
@@ -235,11 +241,26 @@ class AquaModelApp(AquaApp):
             organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
             task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
             time_created=model.time_created,
-            is_fine_tuned_model=True
-            if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-            else False,
+            is_fine_tuned_model=(
+                True
+                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                else False
+            ),
             tags=tags,
         )
+
+    def _temp_check(self, model, compartment_id=None):
+        # TODO: will remove it later
+        TARGET_TAGS = model.freeform_tags.keys()
+        if not Tags.AQUA_TAG.value in TARGET_TAGS:
+            return False
+
+        if compartment_id:
+            return (
+                True if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS else False
+            )
+
+        return True if Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS else False
 
     def _if_show(self, model: "AquaModel") -> bool:
         """Determine if the given model should be return by `list`."""
@@ -297,10 +318,9 @@ class AquaModelApp(AquaApp):
         """Use RQS to fetch models in the user tenancy."""
         condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
-        # not support filtered by project_id
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
-
+        logger.info(f"tenant_id={TENANCY_OCID}")
         try:
             return OCIResource.search(
                 query,

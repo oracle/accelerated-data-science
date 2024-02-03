@@ -48,6 +48,7 @@ NO_CONTAINER = os.environ.get("NO_CONTAINER")
 TMPDIR = os.environ.get("TMPDIR")
 
 ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
+AQUA_MODEL_DEPLOYMENT_IMAGE = os.environ.get("AQUA_MODEL_DEPLOYMENT_IMAGE")
 
 
 def export(
