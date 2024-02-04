@@ -78,17 +78,17 @@ class AnomalyDatasets:
         else:
             # Merge target category columns into a single column __Series__
 
-    #         self.data[OutputColumns.Series] = merge_category_columns(
-    #             self.data, spec.target_category_columns
-    #         )
-    #         unique_categories = self.data[OutputColumns.Series].unique()
-    #         self.full_data_dict = dict()
+            self.data[OutputColumns.Series] = merge_category_columns(
+                self.data, spec.target_category_columns
+            )
+            unique_categories = self.data[OutputColumns.Series].unique()
+            self.full_data_dict = dict()
 
-    #         for cat in unique_categories:
-    #             data_by_cat = self.data[self.data[OutputColumns.Series] == cat].drop(
-    #                 spec.target_category_columns + [OutputColumns.Series], axis=1
-    #             )
-    #             self.full_data_dict[cat] = data_by_cat
+            for cat in unique_categories:
+                data_by_cat = self.data[self.data[OutputColumns.Series] == cat].drop(
+                    spec.target_category_columns + [OutputColumns.Series], axis=1
+                )
+                self.full_data_dict[cat] = data_by_cat
 
 
 class AnomalyOutput:
