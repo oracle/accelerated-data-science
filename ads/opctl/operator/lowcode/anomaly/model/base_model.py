@@ -336,18 +336,16 @@ class AnomalyOperatorBaseModel(ABC):
         date_column = self.spec.datetime_column.name
         dataset = self.datasets
 
-        full_data_dict = dataset.full_data_dict
-
         anomaly_output = AnomalyOutput(date_column=date_column)
 
         # map the output as per anomaly dataset class, 1: outlier, 0: inlier
-        outlier_map = {1: 0, -1: 1}
+        self.outlier_map = {1: 0, -1: 1}
 
         # Iterate over the full_data_dict items
-        for target, df in full_data_dict.items():
+        for target, df in self.datasets.full_data_dict.items():
             est = linear_model.SGDOneClassSVM(random_state=42)
             est.fit(df[target].values.reshape(-1, 1))
-            y_pred = np.vectorize(outlier_map.get)(est.predict(df[target].values.reshape(-1, 1)))
+            y_pred = np.vectorize(self.outlier_map.get)(est.predict(df[target].values.reshape(-1, 1)))
             scores = est.score_samples(df[target].values.reshape(-1, 1))
 
             anomaly = pd.DataFrame({
@@ -356,7 +354,7 @@ class AnomalyOperatorBaseModel(ABC):
             }).reset_index(drop=True)
             score = pd.DataFrame({
                 date_column: df[date_column],
-                OutputColumns.SCORE_COL: [item for item in scores]
+                OutputColumns.SCORE_COL: scores
             }).reset_index(drop=True)
             anomaly_output.add_output(target, anomaly, score)
 
