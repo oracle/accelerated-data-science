@@ -41,12 +41,10 @@ This documentation will explore these concepts in greater depth, demonstrating h
 .. toctree::
   :maxdepth: 1
 
+  ./quickstart
   ./use_cases
   ./install
-  ./getting_started
-  ./forecast
-  ./interpret_results
-  ./examples
+  ./productionize
   ./advanced_use_cases
   ./yaml_schema
   ./faq

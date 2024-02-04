@@ -11,9 +11,20 @@ from .operator_config import AnomalyOperatorSpec
 from .const import SupportedMetrics
 from ads.opctl import logger
 
+
 def _build_metrics_df(y_true, y_pred, column_name):
-    from sklearn.metrics import recall_score, precision_score, accuracy_score, f1_score, confusion_matrix, \
-        roc_auc_score, precision_recall_curve, auc, matthews_corrcoef
+    from sklearn.metrics import (
+        recall_score,
+        precision_score,
+        accuracy_score,
+        f1_score,
+        confusion_matrix,
+        roc_auc_score,
+        precision_recall_curve,
+        auc,
+        matthews_corrcoef,
+    )
+
     metrics = dict()
     metrics[SupportedMetrics.RECALL] = recall_score(y_true, y_pred)
     metrics[SupportedMetrics.PRECISION] = precision_score(y_true, y_pred)

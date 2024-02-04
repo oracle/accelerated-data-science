@@ -44,14 +44,10 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
         model = AnomalyDetector(**self.spec.model_kwargs)
 
         date_column = self.spec.datetime_column.name
-        dataset = self.datasets
-
-        full_data_dict = dataset.full_data_dict
 
         anomaly_output = AnomalyOutput(date_column=date_column)
 
-        # Iterate over the full_data_dict items
-        for target, df in full_data_dict.items():
+        for target, df in self.datasets.full_data_dict.items():
             data = df.set_index(date_column)
 
             (anomaly, score) = model.detect(data)

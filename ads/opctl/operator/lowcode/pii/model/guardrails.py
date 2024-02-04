@@ -19,11 +19,10 @@ from ads.opctl.operator.lowcode.pii.model.report import (
 )
 from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
 from ads.opctl.operator.lowcode.pii.utils import (
-    _load_data,
-    _write_data,
     default_signer,
     get_output_name,
 )
+from ads.opctl.operator.lowcode.common.utils import load_data, write_data
 
 
 class PIIGuardrail:
@@ -73,10 +72,15 @@ class PIIGuardrail:
         input_data_uri = uri or self.spec.input_data.url
         logger.info(f"Loading input data from `{input_data_uri}` ...")
 
-        self.datasets = _load_data(
-            filename=input_data_uri,
-            storage_options=storage_options or self.storage_options,
-        )
+        try:
+            self.datasets = load_data(
+                filename=input_data_uri,
+                storage_options=storage_options or self.storage_options,
+            )
+        except InvalidParameterError as e:
+            e.args = e.args + ("Invalid Parameter: input_data",)
+            raise e
+
         return self
 
     def process(self, **kwargs):
@@ -94,10 +98,8 @@ class PIIGuardrail:
             try:
                 self.load_data()
                 data = self.datasets
-            except Exception as e:
-                logger.warning(
-                    f"Failed to load data from `{self.spec.input_data.url}`."
-                )
+            except InvalidParameterError as e:
+                e.args = e.args + ("Invalid Parameter: input_data",)
                 raise e
 
         # process user data
@@ -111,7 +113,7 @@ class PIIGuardrail:
         if dst_uri:
             logger.info(f"Saving data into `{dst_uri}` ...")
 
-            _write_data(
+            write_data(
                 data=data.loc[:, data.columns != self.spec.target_column],
                 filename=dst_uri,
                 storage_options=kwargs.pop("storage_options", None)

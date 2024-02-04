@@ -16,12 +16,28 @@ import fsspec
 import numpy as np
 import pandas as pd
 
-from ads.opctl.operator.lowcode.forecast.utils import default_signer
+from ads.opctl.operator.lowcode.forecast.utils import (
+    default_signer,
+    evaluate_train_metrics,
+    get_forecast_plots,
+    _build_metrics_df,
+    _build_metrics_per_horizon,
+    load_pkl,
+    write_pkl,
+    _label_encode_dataframe,
+)
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl import logger
 
-from .. import utils
-from ads.opctl.operator.common.utils import human_time_friendly
+from ads.opctl.operator.lowcode.common.utils import (
+    human_time_friendly,
+    enable_print,
+    disable_print,
+    write_data,
+    merged_category_column_name,
+    datetime_to_seconds,
+    seconds_to_datetime,
+)
 from ..const import (
     SUMMARY_METRICS_HORIZON_LIMIT,
     SupportedMetrics,
@@ -31,6 +47,7 @@ from ..const import (
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets, ForecastOutput
+from ads.opctl.operator.lowcode.forecast.model.forecast_datasets import TestData
 
 
 class ForecastOperatorBaseModel(ABC):
@@ -48,15 +65,11 @@ class ForecastOperatorBaseModel(ABC):
         self.spec: ForecastOperatorSpec = config.spec
         self.datasets: ForecastDatasets = datasets
 
-        self.original_user_data = datasets.original_user_data
-        self.original_total_data = datasets.original_total_data
-        self.original_additional_data = datasets.original_additional_data
-        self.full_data_dict = datasets.full_data_dict
-        self.target_columns = datasets.target_columns
-        self.categories = datasets.categories
+        self.full_data_dict = datasets.get_data_by_series()
 
         self.test_eval_metrics = None
         self.original_target_column = self.spec.target_column
+        self.dt_column_name = self.spec.datetime_column.name
 
         self.model_parameters = dict()
         self.loaded_models = None
@@ -68,8 +81,11 @@ class ForecastOperatorBaseModel(ABC):
         self.outputs = None
         self.forecast_output = None
         self.errors_dict = dict()
+        self.le = dict()
 
-        self.train_metrics = False
+        self.formatted_global_explanation = None
+        self.formatted_local_explanation = None
+
         self.forecast_col_name = "yhat"
         self.perform_tuning = self.spec.tuning != None
 
@@ -100,22 +116,7 @@ class ForecastOperatorBaseModel(ABC):
             self.eval_metrics = None
 
             if self.spec.generate_report or self.spec.generate_metrics:
-                if self.train_metrics:
-                    self.eval_metrics = utils.evaluate_train_metrics(
-                        self.target_columns,
-                        self.datasets,
-                        self.forecast_output,
-                        self.spec.datetime_column.name,
-                        self.original_target_column,
-                        target_col=self.forecast_col_name,
-                    )
-                else:
-                    try:
-                        self.eval_metrics = self._generate_train_metrics()
-                    except NotImplementedError:
-                        logger.warn(
-                            f"Training Metrics are not available for model type {self.spec.model}"
-                        )
+                self.eval_metrics = self.generate_train_metrics()
 
                 if self.spec.test_data:
                     try:
@@ -124,16 +125,12 @@ class ForecastOperatorBaseModel(ABC):
                             summary_metrics,
                             test_data,
                         ) = self._test_evaluate_metrics(
-                            target_columns=self.target_columns,
-                            test_filename=self.spec.test_data.url,
-                            output=self.forecast_output,
-                            original_target_column=self.original_target_column,
-                            target_col=self.forecast_col_name,
                             elapsed_time=elapsed_time,
                         )
                     except Exception as e:
                         logger.warn("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
+                        raise e  # TODO remove
             report_sections = []
 
             if self.spec.generate_report:
@@ -143,101 +140,112 @@ class ForecastOperatorBaseModel(ABC):
                     other_sections,
                 ) = self._generate_report()
 
-                ds_column_series = self.datasets.get_longest_datetime_column()
-
                 title_text = dp.Text("# Forecast Report")
 
-                md_columns = " * ".join([f"{utils.convert_target(x,self.original_target_column)} \n"
-                                         for x in self.target_columns])
+                md_columns = " * ".join(
+                    [f"{s_id} \n" for s_id in self.datasets.list_series_ids()]
+                )
+
+                header_section = [
+                    dp.Text(f"You selected the **`{self.spec.model}`** model."),
+                    model_description,
+                    dp.Text(
+                        "Based on your dataset, you could have also selected "
+                        f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
+                    ),
+                    dp.Group(
+                        dp.BigNumber(
+                            heading="Analysis was completed in ",
+                            value=human_time_friendly(elapsed_time),
+                        ),
+                        dp.BigNumber(
+                            heading="Starting time index",
+                            value=self.datasets.get_earliest_timestamp().strftime(
+                                "%B %d, %Y"
+                            ),
+                        ),
+                        dp.BigNumber(
+                            heading="Ending time index",
+                            value=self.datasets.get_latest_timestamp().strftime(
+                                "%B %d, %Y"
+                            ),
+                        ),
+                        dp.BigNumber(
+                            heading="Num series",
+                            value=len(self.datasets.list_series_ids()),
+                        ),
+                        columns=4,
+                    ),
+                ]
+
                 first_10_rows_blocks = [
                     dp.DataTable(
-                        df.head(10).rename({col: self.spec.target_column}, axis=1),
+                        df.head(10),
                         caption="Start",
-                        label=utils.convert_target(col, self.original_target_column),
+                        label=s_id,
                     )
-                    for col, df in self.full_data_dict.items()
+                    for s_id, df in self.full_data_dict.items()
                 ]
 
                 last_10_rows_blocks = [
                     dp.DataTable(
-                        df.tail(10).rename({col: self.spec.target_column}, axis=1),
+                        df.tail(10),
                         caption="End",
-                        label=utils.convert_target(col, self.original_target_column),
+                        label=s_id,
                     )
-                    for col, df in self.full_data_dict.items()
+                    for s_id, df in self.full_data_dict.items()
                 ]
 
                 data_summary_blocks = [
                     dp.DataTable(
-                        df.rename({col: self.spec.target_column}, axis=1).describe(),
+                        df.describe(),
                         caption="Summary Statistics",
-                        label=utils.convert_target(col, self.original_target_column),
+                        label=s_id,
                     )
-                    for col, df in self.full_data_dict.items()
+                    for s_id, df in self.full_data_dict.items()
                 ]
+
+                series_name = merged_category_column_name(
+                    self.spec.target_category_columns
+                )
+                series_subtext = dp.Text(f"Indexed by {series_name}")
+                first_10_title = dp.Text("### First 10 Rows of Data")
+                last_10_title = dp.Text("### Last 10 Rows of Data")
+                summary_title = dp.Text("### Data Summary Statistics")
+
+                if series_name is not None:
+                    first_10_section = [
+                        first_10_title,
+                        series_subtext,
+                        dp.Select(blocks=first_10_rows_blocks),
+                    ]
+                    last_10_section = [
+                        last_10_title,
+                        series_subtext,
+                        dp.Select(blocks=last_10_rows_blocks),
+                    ]
+                    summary_section = [
+                        summary_title,
+                        series_subtext,
+                        dp.Select(blocks=data_summary_blocks),
+                    ]
+                else:
+                    first_10_section = [first_10_title, first_10_rows_blocks[0]]
+                    last_10_section = [last_10_title, last_10_rows_blocks[0]]
+                    summary_section = [summary_title, data_summary_blocks[0]]
+
                 summary = dp.Blocks(
-                    dp.Select(
-                        blocks=[
-                            dp.Group(
-                                dp.Text(
-                                    f"You selected the **`{self.spec.model}`** model."
-                                ),
-                                model_description,
-                                dp.Text(
-                                    "Based on your dataset, you could have also selected "
-                                    f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                                ),
-                                dp.Group(
-                                    dp.BigNumber(
-                                        heading="Analysis was completed in ",
-                                        value=human_time_friendly(elapsed_time),
-                                    ),
-                                    dp.BigNumber(
-                                        heading="Starting time index",
-                                        value=ds_column_series.min().strftime(
-                                            "%B %d, %Y"
-                                        ),
-                                    ),
-                                    dp.BigNumber(
-                                        heading="Ending time index",
-                                        value=ds_column_series.max().strftime(
-                                            "%B %d, %Y"
-                                        ),
-                                    ),
-                                    dp.BigNumber(
-                                        heading="Num series",
-                                        value=len(self.target_columns),
-                                    ),
-                                    columns=4,
-                                ),
-                                dp.Text("### First 10 Rows of Data"),
-                                dp.Select(blocks=first_10_rows_blocks)
-                                if len(first_10_rows_blocks) > 1
-                                else first_10_rows_blocks[0],
-                                dp.Text("----"),
-                                dp.Text("### Last 10 Rows of Data"),
-                                dp.Select(blocks=last_10_rows_blocks)
-                                if len(last_10_rows_blocks) > 1
-                                else last_10_rows_blocks[0],
-                                dp.Text("### Data Summary Statistics"),
-                                dp.Select(blocks=data_summary_blocks)
-                                if len(data_summary_blocks) > 1
-                                else data_summary_blocks[0],
-                                label="Summary",
-                            ),
-                            dp.Text(
-                                "The following report compares a variety of metrics and plots "
-                                f"for your target columns: \n * {md_columns}.\n",
-                                label="Target Columns",
-                            ),
-                        ]
-                    ),
+                    blocks=header_section
+                    + first_10_section
+                    + last_10_section
+                    + summary_section
+                    + [dp.Text("----")]
                 )
 
                 test_metrics_sections = []
                 if (
-                        self.test_eval_metrics is not None
-                        and not self.test_eval_metrics.empty
+                    self.test_eval_metrics is not None
+                    and not self.test_eval_metrics.empty
                 ):
                     sec7_text = dp.Text(f"## Test Data Evaluation Metrics")
                     sec7 = dp.DataTable(self.test_eval_metrics)
@@ -255,25 +263,23 @@ class ForecastOperatorBaseModel(ABC):
                     train_metrics_sections = [sec9_text, sec9]
 
                 forecast_text = dp.Text(f"## Forecasted Data Overlaying Historical")
-                forecast_sec = utils.get_forecast_plots(
+                forecast_sec = get_forecast_plots(
                     self.forecast_output,
-                    self.target_columns,
-                    self.original_target_column,
                     horizon=self.spec.horizon,
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
                 )
-                forecast_plots = [forecast_text, forecast_sec]
+                forecast_plots = [forecast_text, series_subtext, forecast_sec]
 
                 yaml_appendix_title = dp.Text(f"## Reference: YAML File")
                 yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
                 report_sections = (
-                        [title_text, summary]
-                        + forecast_plots
-                        + other_sections
-                        + test_metrics_sections
-                        + train_metrics_sections
-                        + [yaml_appendix_title, yaml_appendix]
+                    [title_text, summary]
+                    + forecast_plots
+                    + other_sections
+                    + test_metrics_sections
+                    + train_metrics_sections
+                    + [yaml_appendix_title, yaml_appendix]
                 )
 
             # save the report and result CSV
@@ -284,69 +290,44 @@ class ForecastOperatorBaseModel(ABC):
                 test_metrics_df=self.test_eval_metrics,
             )
 
-    def _test_evaluate_metrics(
-            self, target_columns, test_filename, output, original_target_column, target_col="yhat", elapsed_time=0
-    ):
+    def _test_evaluate_metrics(self, elapsed_time=0):
         total_metrics = pd.DataFrame()
         summary_metrics = pd.DataFrame()
-        data = None
-        try:
-            storage_options = (
-                default_signer()
-                if ObjectStorageDetails.is_oci_path(test_filename)
-                else {}
-            )
-            data = utils._load_data(
-                filename=test_filename,
-                format=self.spec.test_data.format,
-                storage_options=storage_options,
-                columns=self.spec.test_data.columns,
-            )
-        except pd.errors.EmptyDataError:
-            logger.warn("Empty testdata file")
-            return total_metrics, summary_metrics, None
+        data = TestData(self.spec)
 
-        if data.empty:
-            return total_metrics, summary_metrics, None
-
-        data = self._preprocess(
-            data, self.spec.datetime_column.name, self.spec.datetime_column.format
-        )
-        data, confirm_targ_columns = utils._clean_data(
-            data=data,
-            target_column=self.original_target_column,
-            target_category_columns=self.spec.target_category_columns,
-            datetime_column="ds",
-        )
-
-        # Calculating Test Metrics
-        for cat in self.forecast_output.list_categories():
-            target_column_i = self.forecast_output.category_to_target[cat]
-            output_forecast_i = self.forecast_output.get_category(cat)
-            # Only columns present in test file will be used to generate test error
-            if target_column_i in data:
-                # Assuming that predictions have all forecast values
-                dates = output_forecast_i["Date"]
-                # Filling zeros for any date missing in test data to maintain consistency in metric calculation as in all other missing values cases it comes as 0
-                y_true = [
-                    data.loc[data["ds"] == date, target_column_i].values[0]
-                    if date in data["ds"].values
-                    else 0
-                    for date in dates
+        # Generate y_pred and y_true for each series
+        for s_id in self.forecast_output.list_series_ids():
+            try:
+                y_true = data.get_data_for_series(s_id)[data.target_name].values[
+                    -self.spec.horizon :
                 ]
-                y_pred_i = output_forecast_i["forecast_value"].values
-                y_pred = np.asarray(y_pred_i[-len(y_true):])
-
-                metrics_df = utils._build_metrics_df(
-                    y_true=y_true[-self.spec.horizon:],
-                    y_pred=y_pred[-self.spec.horizon:],
-                    column_name=utils.convert_target(target_column_i, original_target_column),
-                )
-                total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
-            else:
+            except KeyError as ke:
                 logger.warn(
-                    f"Error Generating Metrics: Unable to find {target_column_i} in the test data."
+                    f"Error Generating Metrics: Unable to find {s_id} in the test data. Error: {ke.args}"
                 )
+            y_pred = self.forecast_output.get_forecast(s_id)["forecast_value"].values[
+                -self.spec.horizon :
+            ]
+
+            drop_na_mask = ~np.isnan(y_true) & ~np.isnan(y_pred)
+            if not drop_na_mask.all():  # There is a missing value
+                if drop_na_mask.any():  # All values are missing
+                    logger.debug(
+                        f"No values in the test data for series: {s_id}. This will affect the test metrics."
+                    )
+                    continue
+                logger.debug(
+                    f"Missing values in the test data for series: {s_id}. This will affect the test metrics."
+                )
+                y_true = y_true[drop_na_mask]
+                y_pred = y_pred[drop_na_mask]
+
+            metrics_df = _build_metrics_df(
+                y_true=y_true,
+                y_pred=y_pred,
+                series_id=s_id,
+            )
+            total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
         if total_metrics.empty:
             return total_metrics, summary_metrics, data
@@ -390,20 +371,10 @@ class ForecastOperatorBaseModel(ABC):
 
         """Calculates Mean sMAPE, Median sMAPE, Mean MAPE, Median MAPE, Mean wMAPE, Median wMAPE values for each horizon
         if horizon <= 10."""
-        target_columns_in_output = set(target_columns).intersection(data.columns)
         if self.spec.horizon <= SUMMARY_METRICS_HORIZON_LIMIT:
-            if set(self.forecast_output.list_target_category_columns()) != set(
-                    target_columns_in_output
-            ):
-                logger.warn(
-                    f"Column Mismatch between Forecast Output and Target Columns"
-                )
-            metrics_per_horizon = utils._build_metrics_per_horizon(
-                data=data,
+            metrics_per_horizon = _build_metrics_per_horizon(
+                test_data=data,
                 output=self.forecast_output,
-                target_columns=target_columns,
-                target_col=target_col,
-                horizon_periods=self.spec.horizon,
             )
             if not metrics_per_horizon.empty:
                 summary_metrics = pd.concat([summary_metrics, metrics_per_horizon])
@@ -428,11 +399,11 @@ class ForecastOperatorBaseModel(ABC):
         return total_metrics, summary_metrics, data
 
     def _save_report(
-            self,
-            report_sections: Tuple,
-            result_df: pd.DataFrame,
-            metrics_df: pd.DataFrame,
-            test_metrics_df: pd.DataFrame,
+        self,
+        report_sections: Tuple,
+        result_df: pd.DataFrame,
+        metrics_df: pd.DataFrame,
+        test_metrics_df: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
         import datapane as dp
@@ -466,21 +437,21 @@ class ForecastOperatorBaseModel(ABC):
             # datapane html report
             with tempfile.TemporaryDirectory() as temp_dir:
                 report_local_path = os.path.join(temp_dir, "___report.html")
-                utils.block_print()
+                disable_print()
                 dp.save_report(report_sections, report_local_path)
-                utils.enable_print()
+                enable_print()
 
                 report_path = os.path.join(unique_output_dir, self.spec.report_filename)
                 with open(report_local_path) as f1:
                     with fsspec.open(
-                            report_path,
-                            "w",
-                            **storage_options,
+                        report_path,
+                        "w",
+                        **storage_options,
                     ) as f2:
                         f2.write(f1.read())
 
         # forecast csv report
-        utils._write_data(
+        write_data(
             data=result_df,
             filename=os.path.join(unique_output_dir, self.spec.forecast_filename),
             format="csv",
@@ -489,10 +460,19 @@ class ForecastOperatorBaseModel(ABC):
 
         # metrics csv report
         if self.spec.generate_metrics:
+            metrics_col_name = (
+                self.original_target_column
+                if self.datasets.has_artificial_series()
+                else "Series 1"
+            )
             if metrics_df is not None:
-                utils._write_data(
-                    data=metrics_df.rename_axis("metrics").reset_index(),
-                    filename=os.path.join(unique_output_dir, self.spec.metrics_filename),
+                write_data(
+                    data=metrics_df.reset_index().rename(
+                        {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                    ),
+                    filename=os.path.join(
+                        unique_output_dir, self.spec.metrics_filename
+                    ),
                     format="csv",
                     storage_options=storage_options,
                     index=False,
@@ -505,8 +485,10 @@ class ForecastOperatorBaseModel(ABC):
             # test_metrics csv report
             if self.spec.test_data is not None:
                 if test_metrics_df is not None:
-                    utils._write_data(
-                        data=test_metrics_df.rename_axis("metrics").reset_index(),
+                    write_data(
+                        data=test_metrics_df.reset_index().rename(
+                            {"index": "metrics", "Series 1": metrics_col_name}, axis=1
+                        ),
                         filename=os.path.join(
                             unique_output_dir, self.spec.test_metrics_filename
                         ),
@@ -522,7 +504,7 @@ class ForecastOperatorBaseModel(ABC):
         if self.spec.generate_explanations:
             try:
                 if self.formatted_global_explanation is not None:
-                    utils._write_data(
+                    write_data(
                         data=self.formatted_global_explanation,
                         filename=os.path.join(
                             unique_output_dir, self.spec.global_explanation_filename
@@ -537,7 +519,7 @@ class ForecastOperatorBaseModel(ABC):
                     )
 
                 if self.formatted_local_explanation is not None:
-                    utils._write_data(
+                    write_data(
                         data=self.formatted_local_explanation,
                         filename=os.path.join(
                             unique_output_dir, self.spec.local_explanation_filename
@@ -554,10 +536,11 @@ class ForecastOperatorBaseModel(ABC):
                 logger.warn(
                     "Unable to generate explanations for this model type or for this dataset."
                 )
+                raise
 
         if self.spec.generate_model_parameters:
             # model params
-            utils._write_data(
+            write_data(
                 data=pd.DataFrame.from_dict(self.model_parameters),
                 filename=os.path.join(unique_output_dir, "model_params.json"),
                 format="json",
@@ -574,8 +557,11 @@ class ForecastOperatorBaseModel(ABC):
             f"The outputs have been successfully "
             f"generated and placed into the directory: {unique_output_dir}."
         )
+        print(
+            f"The outputs have been successfully generated and placed into the directory: {unique_output_dir}."
+        )
         if self.errors_dict:
-            utils._write_data(
+            write_data(
                 data=pd.DataFrame(self.errors_dict.items(), columns=["model", "error"]),
                 filename=os.path.join(
                     unique_output_dir, self.spec.errors_dict_filename
@@ -585,16 +571,17 @@ class ForecastOperatorBaseModel(ABC):
                 index=True,
             )
         else:
-            logger.info(
-                f"No model failures found for the selected forecasting model"
-            )
+            logger.info(f"All modeling completed successfully.")
 
-    def _preprocess(self, data, ds_column, datetime_format):
+    def preprocess(self, df, series_id):
         """The method that needs to be implemented on the particular model level."""
-        data["ds"] = pd.to_datetime(data[ds_column], format=datetime_format)
-        if ds_column != "ds":
-            data.drop([ds_column], axis=1, inplace=True)
-        return data
+        data = df.rename(
+            {self.dt_column_name: "ds", self.original_target_column: "y"}, axis=1
+        )
+        self.le[series_id], df_encoded = _label_encode_dataframe(
+            data, no_encode={"ds", "y"}
+        )
+        return df_encoded
 
     @abstractmethod
     def _generate_report(self):
@@ -610,36 +597,40 @@ class ForecastOperatorBaseModel(ABC):
         The method that needs to be implemented on the particular model level.
         """
 
-    def _generate_train_metrics(self) -> pd.DataFrame:
+    def drop_horizon(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df.iloc[: -self.spec.horizon]
+
+    def get_horizon(self, df: pd.DataFrame) -> pd.DataFrame:
+        return df.iloc[-self.spec.horizon :]
+
+    def generate_train_metrics(self) -> pd.DataFrame:
         """
         Generate Training Metrics when fitted data is not available.
         The method that needs to be implemented on the particular model level.
         """
-        raise NotImplementedError
+        return evaluate_train_metrics(self.forecast_output)
 
     def _load_model(self):
         try:
-            self.loaded_models = utils.load_pkl(self.spec.previous_output_dir + "/model.pkl")
+            self.loaded_models = load_pkl(self.spec.previous_output_dir + "/model.pkl")
         except:
             logger.info("model.pkl is not present")
 
     def _save_model(self, output_dir, storage_options):
-        utils.write_pkl(
+        write_pkl(
             obj=self.models,
             filename="model.pkl",
             output_dir=output_dir,
             storage_options=storage_options,
         )
 
-
-
     @runtime_dependency(
         module="shap",
         err_msg=(
-                "Please run `pip3 install shap` to install the required dependencies for model explanation."
+            "Please run `python3 -m pip install shap` to install the required dependencies for model explanation."
         ),
     )
-    def explain_model(self, datetime_col_name, explain_predict_fn) -> dict:
+    def explain_model(self):
         """
         Generates an explanation for the model by using the SHAP (Shapley Additive exPlanations) library.
         This function calculates the SHAP values for each feature in the dataset and stores the results in the `global_explanation` dictionary.
@@ -651,37 +642,31 @@ class ForecastOperatorBaseModel(ABC):
         """
         from shap import PermutationExplainer
 
+        datetime_col_name = self.datasets._datetime_column_name
+
         exp_start_time = time.time()
         global_ex_time = 0
         local_ex_time = 0
         logger.info(
             f"Calculating explanations using {self.spec.explanations_accuracy_mode} mode"
         )
-        for series_id in self.target_columns:
-            self.series_id = series_id
-            self.dataset_cols = (
-                self.full_data_dict.get(series_id)
-                .set_index(datetime_col_name)
-                .drop(series_id, axis=1)
-                .columns
-            )
+        ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
 
-            self.bg_data = self.full_data_dict.get(series_id).set_index(
-                datetime_col_name
+        for s_id, data_i in self.datasets.get_data_by_series(
+            include_horizon=False
+        ).items():
+            explain_predict_fn = self.get_explain_predict_fn(series_id=s_id)
+
+            data_trimmed = data_i.tail(max(int(len(data_i) * ratio), 5)).reset_index(
+                drop=True
             )
-            data = self.bg_data[list(self.dataset_cols)][: -self.spec.horizon][
-                list(self.dataset_cols)
-            ]
-            ratio = SpeedAccuracyMode.ratio[self.spec.explanations_accuracy_mode]
-            data_trimmed = data.tail(max(int(len(data) * ratio), 100)).reset_index()
             data_trimmed[datetime_col_name] = data_trimmed[datetime_col_name].apply(
                 lambda x: x.timestamp()
             )
-            kernel_explnr = PermutationExplainer(
-                model=explain_predict_fn,
-                masker=data_trimmed
-            )
 
+            kernel_explnr = PermutationExplainer(
+                model=explain_predict_fn, masker=data_trimmed
+            )
             kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed)
 
             if not len(kernel_explnr_vals):
@@ -689,7 +674,7 @@ class ForecastOperatorBaseModel(ABC):
                     f"No explanations generated. Ensure that additional data has been provided."
                 )
             else:
-                self.global_explanation[utils.convert_target(series_id, self.original_target_column)] = dict(
+                self.global_explanation[s_id] = dict(
                     zip(
                         data_trimmed.columns[1:],
                         np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
@@ -699,7 +684,7 @@ class ForecastOperatorBaseModel(ABC):
             global_ex_time = global_ex_time + exp_end_time - exp_start_time
 
             self.local_explainer(
-                kernel_explnr, series_id=series_id, datetime_col_name=datetime_col_name
+                kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
             )
             local_ex_time = local_ex_time + time.time() - exp_end_time
         logger.info(
@@ -717,25 +702,34 @@ class ForecastOperatorBaseModel(ABC):
         ----------
             kernel_explainer: The kernel explainer object to use for generating explanations.
         """
-        # Get the data for the series ID and select the relevant columns
-        # data = self.full_data_dict.get(series_id).set_index(datetime_col_name)
-        data_horizon = self.bg_data[-self.spec.horizon :][list(self.dataset_cols)]
-        data = data_horizon.reset_index()
-        data[datetime_col_name] = data[datetime_col_name].apply(lambda x: x.timestamp())
+        data = self.datasets.get_horizon_at_series(s_id=series_id)
+
+        data[datetime_col_name] = datetime_to_seconds(data[datetime_col_name])
+        data = data.reset_index(drop=True)
         # Generate local SHAP values using the kernel explainer
         local_kernel_explnr_vals = kernel_explainer.shap_values(data)
 
         # Convert the SHAP values into a DataFrame
         local_kernel_explnr_df = pd.DataFrame(
-            local_kernel_explnr_vals[:, 1:], columns=data.columns[1:]
+            local_kernel_explnr_vals, columns=data.columns
         )
+        self.local_explanation[series_id] = local_kernel_explnr_df
 
-        # set the index of the DataFrame to the datetime column
-        local_kernel_explnr_df.index = data_horizon.index
-
-        if self.spec.model == SupportedModels.AutoTS:
-            local_kernel_explnr_df.drop(
-                ["series_id", self.spec.target_column], axis=1, inplace=True
+    def get_explain_predict_fn(self, series_id, fcst_col_name="yhat"):
+        def _custom_predict(
+            data,
+            model=self.models[series_id],
+            dt_column_name=self.datasets._datetime_column_name,
+        ):
+            """
+            data: ForecastDatasets.get_data_at_series(s_id)
+            """
+            data[dt_column_name] = seconds_to_datetime(
+                data[dt_column_name], dt_format=self.spec.datetime_column.format
             )
+            data = self.preprocess(df=data, series_id=series_id)
+            data[self.original_target_column] = None
+            fcst = model.predict(data)[fcst_col_name]
+            return fcst
 
-        self.local_explanation[utils.convert_target(series_id, self.original_target_column)] = local_kernel_explnr_df
+        return _custom_predict

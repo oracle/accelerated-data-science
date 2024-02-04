@@ -58,7 +58,6 @@ class TODSOperatorModel(AnomalyOperatorBaseModel):
         prediction_score_train = {}
         predictions_test = {}
         prediction_score_test = {}
-        dataset = self.datasets
         date_column = self.spec.datetime_column.name
         anomaly_output = AnomalyOutput(date_column=date_column)
 

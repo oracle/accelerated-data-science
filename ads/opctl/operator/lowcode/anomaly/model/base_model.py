@@ -14,15 +14,24 @@ import fsspec
 import pandas as pd
 import numpy as np
 
-from ads.common.auth import default_signer
 from ads.opctl import logger
 
-from .. import utils
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 from .anomaly_dataset import AnomalyDatasets, AnomalyOutput
 from ..const import OutputColumns, SupportedMetrics
 from ..const import SupportedModels
-from ads.opctl.operator.common.utils import human_time_friendly
+from ads.opctl.operator.lowcode.common.utils import (
+    human_time_friendly,
+    load_data,
+    enable_print,
+    disable_print,
+    write_data,
+    merge_category_columns,
+    default_signer,
+)
+from ads.opctl.operator.lowcode.anomaly.utils import (
+    _build_metrics_df,
+)  # , default_signer
 from ads.common.object_storage_details import ObjectStorageDetails
 
 
@@ -56,8 +65,13 @@ class AnomalyOperatorBaseModel(ABC):
         validation_data = None
 
         if self.spec.validation_data:
-            total_metrics, summary_metrics, validation_data = \
-                self._validation_data_evaluate_metrics(anomaly_output, self.spec.validation_data.url, elapsed_time)
+            (
+                total_metrics,
+                summary_metrics,
+                validation_data,
+            ) = self._validation_data_evaluate_metrics(
+                anomaly_output, self.spec.validation_data.url, elapsed_time
+            )
         table_blocks = [
             dp.DataTable(df, label=col)
             for col, df in self.datasets.full_data_dict.items()
@@ -127,19 +141,19 @@ class AnomalyOperatorBaseModel(ABC):
             validation_metrics_sections = validation_metrics_sections + [sec_text, sec]
 
         report_sections = (
-                [title_text, summary]
-                + [plots]
-                + [data_table]
-                + evaluation_metrics_sec
-                + validation_metrics_sections
-                + [yaml_appendix_title, yaml_appendix]
+            [title_text, summary]
+            + [plots]
+            + [data_table]
+            + evaluation_metrics_sec
+            + validation_metrics_sections
+            + [yaml_appendix_title, yaml_appendix]
         )
 
         # save the report and result CSV
         self._save_report(
             report_sections=report_sections,
             anomaly_output=anomaly_output,
-            validation_metrics=total_metrics
+            validation_metrics=total_metrics,
         )
 
     def _evaluation_metrics(self, anomaly_output):
@@ -147,11 +161,8 @@ class AnomalyOperatorBaseModel(ABC):
         for cat in anomaly_output.category_map:
             num_anomalies = anomaly_output.get_num_anomalies_by_cat(cat)
             metrics_df = pd.DataFrame.from_dict(
-                {
-                    'Num of Anomalies': num_anomalies
-                },
-                orient="index",
-                columns=[cat])
+                {"Num of Anomalies": num_anomalies}, orient="index", columns=[cat]
+            )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
         return total_metrics
 
@@ -160,19 +171,19 @@ class AnomalyOperatorBaseModel(ABC):
         summary_metrics = pd.DataFrame()
         data = None
         try:
-            storage_options = (
-                default_signer()
-                if ObjectStorageDetails.is_oci_path(filename)
-                else {}
-            )
-            data = utils._load_data(
+            data = load_data(
                 filename=filename,
                 format=self.spec.validation_data.format,
-                storage_options=storage_options,
                 columns=self.spec.validation_data.columns,
             )
         except pd.errors.EmptyDataError:
-            logger.warn("Empty testdata file")
+            logger.warn("The provided test data file was empty. Skipping test data.")
+            return total_metrics, summary_metrics, None
+        except InvalidParameterError as e:
+            e.args = e.args + ("Invalid Parameter: test_data",)
+            logger.warn(
+                f"The provided test data file was Invalid. Skipping test data. Full error message: {e.args}"
+            )
             return total_metrics, summary_metrics, None
 
         if data.empty:
@@ -190,10 +201,12 @@ class AnomalyOperatorBaseModel(ABC):
 
             dates = output[output[date_col].isin(val_data[date_col])][date_col]
 
-            metrics_df = utils._build_metrics_df(
-                val_data[val_data[date_col].isin(dates)][OutputColumns.ANOMALY_COL].values,
+            metrics_df = _build_metrics_df(
+                val_data[val_data[date_col].isin(dates)][
+                    OutputColumns.ANOMALY_COL
+                ].values,
                 output[output[date_col].isin(dates)][OutputColumns.ANOMALY_COL].values,
-                cat
+                cat,
             )
             total_metrics = pd.concat([total_metrics, metrics_df], axis=1)
 
@@ -245,21 +258,11 @@ class AnomalyOperatorBaseModel(ABC):
 
         return total_metrics, summary_metrics, data
 
-    def _load_data(self):
-        """Loads input data."""
-
-        return utils._load_data(
-            filename=self.spec.input_data.url,
-            format=self.spec.input_data.format,
-            storage_options=default_signer(),
-            columns=self.spec.input_data.columns,
-        )
-
     def _save_report(
-            self,
-            report_sections: Tuple,
-            anomaly_output: AnomalyOutput,
-            validation_metrics: pd.DataFrame
+        self,
+        report_sections: Tuple,
+        anomaly_output: AnomalyOutput,
+        validation_metrics: pd.DataFrame,
     ):
         """Saves resulting reports to the given folder."""
         import datapane as dp
@@ -285,23 +288,23 @@ class AnomalyOperatorBaseModel(ABC):
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                        os.path.join(output_dir, self.spec.report_file_name),
-                        "w",
-                        **default_signer(),
+                    os.path.join(output_dir, self.spec.report_file_name),
+                    "w",
+                    **default_signer(),
                 ) as f2:
                     f2.write(f1.read())
 
         if self.spec.generate_inliers:
             inliers = anomaly_output.get_inliers(self.datasets.data)
-            utils._write_data(
+            write_data(
                 data=inliers,
                 filename=os.path.join(output_dir, self.spec.inliers_filename),
                 format="csv",
                 storage_options=storage_options,
             )
 
-        outliers=anomaly_output.get_outliers(self.datasets.data)
-        utils._write_data(
+        outliers = anomaly_output.get_outliers(self.datasets.data)
+        write_data(
             data=outliers,
             filename=os.path.join(output_dir, self.spec.outliers_filename),
             format="csv",
@@ -309,9 +312,11 @@ class AnomalyOperatorBaseModel(ABC):
         )
 
         if validation_metrics is not None and not validation_metrics.empty:
-            utils._write_data(
+            write_data(
                 data=validation_metrics.rename_axis("metrics").reset_index(),
-                filename=os.path.join(output_dir, self.spec.validation_metrics_filename),
+                filename=os.path.join(
+                    output_dir, self.spec.validation_metrics_filename
+                ),
                 format="csv",
                 storage_options=storage_options,
             )

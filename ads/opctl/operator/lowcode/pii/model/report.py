@@ -22,6 +22,11 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.common.serializer import DataClassSerializable
 from ads.opctl import logger
+from ads.opctl.operator.lowcode.common.utils import (
+    disable_print,
+    enable_print,
+    human_time_friendly,
+)
 from ads.opctl.operator.lowcode.pii.constant import (
     DEFAULT_COLOR,
     DEFAULT_SHOW_ROWS,
@@ -31,12 +36,7 @@ from ads.opctl.operator.lowcode.pii.constant import (
     PII_REPORT_DESCRIPTION,
 )
 from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
-from ads.opctl.operator.lowcode.pii.utils import (
-    block_print,
-    compute_rate,
-    enable_print,
-    human_time_friendly,
-)
+from ads.opctl.operator.lowcode.pii.utils import compute_rate
 
 try:
     import datapane as dp
@@ -321,7 +321,7 @@ class PIIOperatorReport:
     def save_report(self, report_sections=None, report_uri=None, storage_options={}):
         with tempfile.TemporaryDirectory() as temp_dir:
             report_local_path = os.path.join(temp_dir, "___report.html")
-            block_print()
+            disable_print()
             dp.save_report(
                 report_sections or self.report_sections,
                 path=report_local_path,
