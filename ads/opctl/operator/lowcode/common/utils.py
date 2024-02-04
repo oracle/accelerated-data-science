@@ -81,11 +81,14 @@ def write_data(data, filename, format, storage_options, index=False, **kwargs):
 def get_unique_report_dir(output_dir: str) -> str:
     """
     Generate a unique directory path for the report output.
-    Args:
-    - output_dir (str): The requested output directory path.
-    - report_name (str): The name of the report.
-    Returns:
-    - str: The unique directory path for the report output.
+
+    Parameters
+    ------------
+    output_dir: str
+                The requested output directory path.
+    Returns
+    --------
+    str: The unique directory path for the report output.
     """
 
     if output_dir:
