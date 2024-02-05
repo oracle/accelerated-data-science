@@ -28,6 +28,7 @@ from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
 
 DEPLOYMENT_CONFIG = "deployment_config.json"
 DEPLOYMENT_SHAPE = "shape"
+UNKNOWN_JSON_STR = "{}"
 
 
 @dataclass
@@ -372,19 +373,27 @@ class AquaDeploymentApp(AquaApp):
             oci_model = self.ds_client.get_model(
                 model_id
             ).data
-
-            artifact_path = utils.get_artifact_path(
-                oci_model.custom_metadata_list
-            )
-
-            shape_config = json.loads(
-                utils.read_file(
-                    file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}",
-                    auth=self._auth
-                )
-            )
-            return shape_config[DEPLOYMENT_SHAPE]
         except Exception as se:
             # TODO: adjust error raising
-            logger.error(f"Failed to retreive shape config from the given id {model_id}")
+            logger.error(f"Failed to retreive model from the given id {model_id}")
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        
+        artifact_path = utils.get_artifact_path(
+            oci_model.custom_metadata_list
+        )
+
+        shape_config = json.loads(
+            utils.read_file(
+                file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}",
+                auth=self._auth
+            ) or UNKNOWN_JSON_STR
+        )
+
+        if (
+            not shape_config or DEPLOYMENT_SHAPE not in shape_config
+            or not shape_config[DEPLOYMENT_SHAPE]
+        ):
+            raise AquaClientError(
+                f"Failed to retrieve shape config from given id {model_id}."
+            )
+        return shape_config[DEPLOYMENT_SHAPE]

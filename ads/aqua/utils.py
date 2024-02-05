@@ -18,6 +18,8 @@ import fsspec
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
+UNKNOWN = ""
+
 
 def get_logger():
     return logger
@@ -94,7 +96,7 @@ def get_artifact_path(custom_metadata_list: List) -> str:
         if custom_metadata.key == "Object Storage Path":
             return custom_metadata.value
     logger.debug("Failed to get artifact path from custom metadata.")
-    return None
+    return UNKNOWN
 
 def read_file(file_path: str, **kwargs) -> str:
     try:
@@ -104,4 +106,4 @@ def read_file(file_path: str, **kwargs) -> str:
             return f.read()
     except Exception as e:
         logger.error(f"Failed to read file. {e}")
-        return None
+        return UNKNOWN
