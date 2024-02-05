@@ -191,12 +191,9 @@ class AquaModelApp(AquaApp):
                 self.ds_client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
             )
 
-        if not models:
-            logger.error(
-                f"No model found in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
-            )
-
-        logger.info(f"Successfully fetch {len(models)} models.")
+        logger.info(
+            f"Fetch {len(models)} model in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
+        )
 
         aqua_models = []
         # TODO: build index.json for service model as caching if needed.
