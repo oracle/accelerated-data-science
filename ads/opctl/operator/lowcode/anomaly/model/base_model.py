@@ -13,6 +13,7 @@ from typing import Tuple
 import fsspec
 import pandas as pd
 import numpy as np
+from sklearn import linear_model
 
 from ads.opctl import logger
 
@@ -61,7 +62,12 @@ class AnomalyOperatorBaseModel(ABC):
         import matplotlib.pyplot as plt
 
         start_time = time.time()
-        anomaly_output = self._build_model()
+        # fallback using sklearn oneclasssvm when the sub model _build_model fails
+        try:
+            anomaly_output = self._build_model()
+        except Exception as e:
+            anomaly_output = self._fallback_build_model()
+
         elapsed_time = time.time() - start_time
 
         summary_metrics = None
@@ -297,6 +303,42 @@ class AnomalyOperatorBaseModel(ABC):
             f"The report has been successfully "
             f"generated and placed to the: {unique_output_dir}."
         )
+
+    def _fallback_build_model(self):
+        """
+        Fallback method for the sub model _build_model method.
+        """
+        logger.warn(
+            "The build_model method has failed for the model: {}. "
+            "A fallback model will be built.".format(self.spec.model)
+        )
+
+        date_column = self.spec.datetime_column.name
+        dataset = self.datasets
+
+        anomaly_output = AnomalyOutput(date_column=date_column)
+
+        # map the output as per anomaly dataset class, 1: outlier, 0: inlier
+        self.outlier_map = {1: 0, -1: 1}
+
+        # Iterate over the full_data_dict items
+        for target, df in self.datasets.full_data_dict.items():
+            est = linear_model.SGDOneClassSVM(random_state=42)
+            est.fit(df[target].values.reshape(-1, 1))
+            y_pred = np.vectorize(self.outlier_map.get)(est.predict(df[target].values.reshape(-1, 1)))
+            scores = est.score_samples(df[target].values.reshape(-1, 1))
+
+            anomaly = pd.DataFrame({
+                date_column: df[date_column],
+                OutputColumns.ANOMALY_COL: y_pred
+            }).reset_index(drop=True)
+            score = pd.DataFrame({
+                date_column: df[date_column],
+                OutputColumns.SCORE_COL: scores
+            }).reset_index(drop=True)
+            anomaly_output.add_output(target, anomaly, score)
+
+        return anomaly_output
 
     @abstractmethod
     def _generate_report(self):
