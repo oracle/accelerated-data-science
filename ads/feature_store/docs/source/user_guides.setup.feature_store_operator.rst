@@ -1,5 +1,5 @@
 ======================================================
-Deployment Using Feature Store Operator (Recommended)
+Deployment Using Feature Store Operator (Recommended for deploying in existing cluster)
 ======================================================
 
 The Feature Store marketplace operator uses your current infrastructure to set up a Feature Store. It helps in setting up the Feature Store API server in your exisiting OKE cluster and MySQL database.
