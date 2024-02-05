@@ -26,6 +26,12 @@ Feature Store
 
 .. toctree::
     :maxdepth: 2
+    :caption: Release notes:
+
+    release_notes
+
+.. toctree::
+    :maxdepth: 2
     :caption: Getting started:
 
     overview
@@ -60,13 +66,6 @@ Feature Store
 
     demo
     notebook
-
-
-.. toctree::
-    :maxdepth: 2
-    :caption: Release notes:
-
-    release_notes
 
 .. toctree::
     :hidden:
