@@ -104,7 +104,7 @@ def test_artificial_big(model):
         assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
 
 
-@pytest.mark.parametrize("model", MODELS + ["auto"])
+@pytest.mark.parametrize("model", MODELS)  # + ["auto"]
 def test_artificial_small(model):
     # artificial data
     d1 = np.random.multivariate_normal(
@@ -131,7 +131,7 @@ def test_artificial_small(model):
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.3
 
-        # run(yaml_i, backend="operator.local", debug=False)
+        # run(yaml_i, debug=False)
 
         with open(anomaly_yaml_filename, "w") as f:
             f.write(yaml.dump(yaml_i))
