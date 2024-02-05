@@ -14,6 +14,11 @@ _____________________________________________________________________
 
 We can manually export images to OCIR using Marketplace UI and then deploy the obtained Helm Chart. Optionally, we can also setup `Feature Store API Gateway stack <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ for authentication and authorization.
 
+
+:doc:`Deployment using Container Service <./user_guides.setup.container>`
+_________________________________________________________________________
+This is the quickest way to get hands on with feature store. We can manually export images to OCIR using Marketplace UI and then deploy the obtained images using the container service stack.
+
 .. _Database configuration:
 
 Database configuration
@@ -35,7 +40,6 @@ Here ``feature-store-dynamic-group`` is the dynamic group corresponding to the i
 
 .. seealso::
     `Dynamic groups <https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm#:~:text=Dynamic%20groups%20allow%20you%20to,against%20Oracle%20Cloud%20Infrastructure%20services.>`_
-
 
 .. _Policies:
 Policies
@@ -77,3 +81,4 @@ Known Issues
 
   ./user_guides.setup.feature_store_operator
   ./user_guides.setup.helm_chart
+  ./user_guides.setup.container
