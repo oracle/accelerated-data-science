@@ -249,7 +249,7 @@ class AquaDeploymentApp(AquaApp):
             .with_health_check_port(health_check_port)
             .with_env(env_var)
             .with_deployment_mode(ModelDeploymentMode.HTTPS)
-            .with_model_uri(model_id)
+            .with_model_uri(aqua_model.id)
             .with_region(self.region)
             .with_overwrite_existing_artifact(True)
             .with_remove_existing_artifact(True)
