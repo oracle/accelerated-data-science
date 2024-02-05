@@ -162,7 +162,7 @@ def test_load_datasets(model, dataset_name):
         #     f"ads operator run -f {forecast_yaml_filename} --debug", shell=True  #  --debug
         # )
         # sleep(0.1)
-        run(yaml_i, backend="local", debug=False)
+        run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
         if yaml_i["spec"]["generate_explanations"] and model != "autots":
             glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")

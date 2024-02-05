@@ -147,37 +147,39 @@ class ForecastOperatorBaseModel(ABC):
                     [f"{s_id} \n" for s_id in self.datasets.list_series_ids()]
                 )
 
-                header_section = [
-                    dp.Text(f"You selected the **`{self.spec.model}`** model."),
-                    model_description,
-                    dp.Text(
-                        "Based on your dataset, you could have also selected "
-                        f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
-                    ),
-                    dp.Group(
-                        dp.BigNumber(
-                            heading="Analysis was completed in ",
-                            value=human_time_friendly(elapsed_time),
+                header_section = dp.Blocks(
+                    blocks=[
+                        dp.Text(f"You selected the **`{self.spec.model}`** model."),
+                        model_description,
+                        dp.Text(
+                            "Based on your dataset, you could have also selected "
+                            f"any of the models: `{'`, `'.join(SupportedModels.keys())}`."
                         ),
-                        dp.BigNumber(
-                            heading="Starting time index",
-                            value=self.datasets.get_earliest_timestamp().strftime(
-                                "%B %d, %Y"
+                        dp.Group(
+                            dp.BigNumber(
+                                heading="Analysis was completed in ",
+                                value=human_time_friendly(elapsed_time),
                             ),
-                        ),
-                        dp.BigNumber(
-                            heading="Ending time index",
-                            value=self.datasets.get_latest_timestamp().strftime(
-                                "%B %d, %Y"
+                            dp.BigNumber(
+                                heading="Starting time index",
+                                value=self.datasets.get_earliest_timestamp().strftime(
+                                    "%B %d, %Y"
+                                ),
                             ),
+                            dp.BigNumber(
+                                heading="Ending time index",
+                                value=self.datasets.get_latest_timestamp().strftime(
+                                    "%B %d, %Y"
+                                ),
+                            ),
+                            dp.BigNumber(
+                                heading="Num series",
+                                value=len(self.datasets.list_series_ids()),
+                            ),
+                            columns=4,
                         ),
-                        dp.BigNumber(
-                            heading="Num series",
-                            value=len(self.datasets.list_series_ids()),
-                        ),
-                        columns=4,
-                    ),
-                ]
+                    ]
+                )
 
                 first_10_rows_blocks = [
                     dp.DataTable(
@@ -214,33 +216,39 @@ class ForecastOperatorBaseModel(ABC):
                 last_10_title = dp.Text("### Last 10 Rows of Data")
                 summary_title = dp.Text("### Data Summary Statistics")
 
-                if series_name is not None:
-                    first_10_section = [
-                        first_10_title,
-                        series_subtext,
-                        dp.Select(blocks=first_10_rows_blocks),
-                    ]
-                    last_10_section = [
-                        last_10_title,
-                        series_subtext,
-                        dp.Select(blocks=last_10_rows_blocks),
-                    ]
-                    summary_section = [
-                        summary_title,
-                        series_subtext,
-                        dp.Select(blocks=data_summary_blocks),
-                    ]
+                if series_name is not None and len(self.datasets.list_series_ids()) > 1:
+                    data_summary_sec = dp.Blocks(
+                        blocks=[
+                            first_10_title,
+                            series_subtext,
+                            dp.Select(blocks=first_10_rows_blocks),
+                            last_10_title,
+                            series_subtext,
+                            dp.Select(blocks=last_10_rows_blocks),
+                            summary_title,
+                            series_subtext,
+                            dp.Select(blocks=data_summary_blocks),
+                            dp.Text("----"),
+                        ]
+                    )
                 else:
-                    first_10_section = [first_10_title, first_10_rows_blocks[0]]
-                    last_10_section = [last_10_title, last_10_rows_blocks[0]]
-                    summary_section = [summary_title, data_summary_blocks[0]]
+                    data_summary_sec = dp.Blocks(
+                        blocks=[
+                            first_10_title,
+                            first_10_rows_blocks[0],
+                            last_10_title,
+                            last_10_rows_blocks[0],
+                            summary_title,
+                            data_summary_blocks[0],
+                            dp.Text("----"),
+                        ]
+                    )
 
-                summary = dp.Blocks(
-                    blocks=header_section
-                    + first_10_section
-                    + last_10_section
-                    + summary_section
-                    + [dp.Text("----")]
+                summary = dp.Group(
+                    blocks=[
+                        header_section,
+                        data_summary_sec,
+                    ]
                 )
 
                 test_metrics_sections = []
@@ -275,7 +283,8 @@ class ForecastOperatorBaseModel(ABC):
                 yaml_appendix_title = dp.Text(f"## Reference: YAML File")
                 yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
                 report_sections = (
-                    [title_text, summary]
+                    [title_text]
+                    + [summary]
                     + forecast_plots
                     + other_sections
                     + test_metrics_sections

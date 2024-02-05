@@ -169,7 +169,7 @@ def operator_setup():
 
 
 def run_yaml(tmpdirname, yaml_i, output_data_path):
-    run(yaml_i, backend="local", debug=True)
+    run(yaml_i, backend="operator.local", debug=True)
     subprocess.run(f"ls -a {output_data_path}", shell=True)
 
     test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")

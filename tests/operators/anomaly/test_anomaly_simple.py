@@ -91,7 +91,7 @@ def test_artificial_big(model):
         yaml_i["spec"]["target_category_columns"] = [TARGET_CATEGORY_COLUMN]
         yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COLUMN
 
-        run(yaml_i, backend="local", debug=False)
+        run(yaml_i, backend="operator.local", debug=False)
 
         # with open(anomaly_yaml_filename, "w") as f:
         #     f.write(yaml.dump(yaml_i))
@@ -131,7 +131,7 @@ def test_artificial_small(model):
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.3
 
-        run(yaml_i, backend="local", debug=False)
+        run(yaml_i, backend="operator.local", debug=False)
 
         # with open(anomaly_yaml_filename, "w") as f:
         #     f.write(yaml.dump(yaml_i))
@@ -185,7 +185,7 @@ def test_validation(model):
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.05
 
-        run(yaml_i, backend="local", debug=False)
+        run(yaml_i, backend="operator.local", debug=False)
         # with open(anomaly_yaml_filename, "w") as f:
         #     f.write(yaml.dump(yaml_i))
         # sleep(0.1)
@@ -209,7 +209,7 @@ def test_load_datasets(model, data_dict):
         yaml_i["spec"]["datetime_column"]["name"] = data_dict["dt_col"]
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
 
-        run(yaml_i, backend="local", debug=False)
+        run(yaml_i, backend="operator.local", debug=False)
 
         # with open(f"{tmpdirname}/anomaly.yaml", "w") as f:
         #     f.write(yaml.dump(yaml_i))
