@@ -111,6 +111,13 @@ class AquaUIApp(AquaApp):
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
     def get_default_compartment(self):
+        """Returns user compartment OCID fetched from environment variables.
+
+        Returns
+        -------
+        str:
+            The compartment ocid.
+        """
         if not COMPARTMENT_OCID:
             logger.error("No compartment id found from environment variables.")
         return COMPARTMENT_OCID
