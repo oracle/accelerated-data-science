@@ -8,7 +8,9 @@ from ..const import SupportedModels
 from ..operator_config import AnomalyOperatorConfig
 from .automlx import AutoMLXOperatorModel
 from .autots import AutoTSOperatorModel
-from .tods import TODSOperatorModel
+from ads.opctl.operator.lowcode.anomaly.utils import select_auto_model
+
+# from .tods import TODSOperatorModel
 from .base_model import AnomalyOperatorBaseModel
 from .anomaly_dataset import AnomalyDatasets
 
@@ -28,7 +30,7 @@ class AnomalyOperatorModelFactory:
 
     _MAP = {
         SupportedModels.AutoMLX: AutoMLXOperatorModel,
-        SupportedModels.TODS: TODSOperatorModel,
+        # SupportedModels.TODS: TODSOperatorModel,
         SupportedModels.AutoTS: AutoTSOperatorModel,
     }
 
@@ -58,6 +60,8 @@ class AnomalyOperatorModelFactory:
             In case of not supported model.
         """
         model_type = operator_config.spec.model
+        if model_type == "auto":
+            model_type = select_auto_model(datasets, operator_config)
         if model_type not in cls._MAP:
             raise UnSupportedModelError(model_type)
         return cls._MAP[model_type](config=operator_config, datasets=datasets)

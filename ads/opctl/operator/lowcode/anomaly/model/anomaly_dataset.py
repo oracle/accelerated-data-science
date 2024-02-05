@@ -28,6 +28,18 @@ class TestData(AbstractData):
         super().__init__(spec=spec, name="test_data")
 
 
+class ValidationData(AbstractData):
+    def __init__(self, spec: AnomalyOperatorSpec):
+        super().__init__(spec=spec, name="validation_data")
+
+    def _ingest_data(self, spec):
+        self.X_valid_dict = dict()
+        self.y_valid_dict = dict()
+        for s_id, df in self.get_dict_by_series().items():
+            self.X_valid_dict[s_id] = df.drop([OutputColumns.ANOMALY_COL], axis=1)
+            self.y_valid_dict[s_id] = df[OutputColumns.ANOMALY_COL]
+
+
 class AnomalyDatasets:
     def __init__(self, spec: AnomalyOperatorSpec):
         """Instantiates the DataIO instance.
@@ -39,62 +51,22 @@ class AnomalyDatasets:
         """
         self._data = AnomalyData(spec)
         self.data = self._data.get_data_long()
-        # self.test_data = None
-        # self.target_columns = None
         self.full_data_dict = self._data.get_dict_by_series()
-        # self._load_data(spec)
-
-    # def _load_data(self, spec):
-    #     """Loads anomaly input data."""
-    #     try:
-    #         self.data = load_data(
-    #             filename=spec.input_data.url,
-    #             format=spec.input_data.format,
-    #             columns=spec.input_data.columns,
-    #         )
-    #     except InvalidParameterError as e:
-    #         e.args = e.args + ("Invalid Parameter: input_data",)
-    #         raise e
-    #     date_col = spec.datetime_column.name
-    #     self.data[date_col] = pd.to_datetime(self.data[date_col])
-    #     try:
-    #         spec.freq = get_frequency_of_datetime(self.data, spec)
-    #     except TypeError as e:
-    #         logger.warn(
-    #             f"Error determining frequency: {e.args}. Setting Frequency to None"
-    #         )
-    #         logger.debug(f"Full traceback: {e}")
-    #         spec.freq = None
-
-    #     if spec.target_category_columns is None:
-    #         if spec.target_column is None:
-    #             target_col = [
-    #                 col
-    #                 for col in self.data.columns
-    #                 if col not in [spec.datetime_column.name]
-    #             ]
-    #             spec.target_column = target_col[0]
-    #         self.full_data_dict = {spec.target_column: self.data}
-    #     else:
-    #         # Merge target category columns
-
-    #         self.data[OutputColumns.Series] = merge_category_columns(
-    #             self.data, spec.target_category_columns
-    #         )
-    #         unique_categories = self.data[OutputColumns.Series].unique()
-    #         self.full_data_dict = dict()
-
-    #         for cat in unique_categories:
-    #             data_by_cat = self.data[self.data[OutputColumns.Series] == cat].drop(
-    #                 spec.target_category_columns + [OutputColumns.Series], axis=1
-    #             )
-    #             self.full_data_dict[cat] = data_by_cat
+        if spec.validation_data is not None:
+            self.valid_data = ValidationData(spec)
+            self.X_valid_dict = self.valid_data.X_valid_dict
+            self.y_valid_dict = self.valid_data.y_valid_dict
 
 
 class AnomalyOutput:
     def __init__(self, date_column):
         self.category_map = dict()
         self.date_column = date_column
+
+    def list_categories(self):
+        categories = list(self.category_map.keys())
+        categories.sort()
+        return categories
 
     def add_output(self, category: str, anomalies: pd.DataFrame, scores: pd.DataFrame):
         self.category_map[category] = (anomalies, scores)
@@ -126,7 +98,7 @@ class AnomalyOutput:
     def get_inliers(self, data):
         inliers = pd.DataFrame()
 
-        for category in self.category_map.keys():
+        for category in self.list_categories():
             inliers = pd.concat(
                 [
                     inliers,
@@ -145,7 +117,7 @@ class AnomalyOutput:
     def get_outliers(self, data):
         outliers = pd.DataFrame()
 
-        for category in self.category_map.keys():
+        for category in self.list_categories():
             outliers = pd.concat(
                 [
                     outliers,
@@ -163,10 +135,10 @@ class AnomalyOutput:
 
     def get_scores(self, target_category_columns):
         if target_category_columns is None:
-            return self.get_scores_by_cat(list(self.category_map.keys())[0])
+            return self.get_scores_by_cat(self.list_categories()[0])
 
         scores = pd.DataFrame()
-        for category in self.category_map.keys():
+        for category in self.list_categories():
             score = self.get_scores_by_cat(category)
             score[target_category_columns[0]] = category
             scores = pd.concat([scores, score], axis=0, ignore_index=True)

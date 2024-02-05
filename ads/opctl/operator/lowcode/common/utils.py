@@ -12,6 +12,8 @@ import time
 from string import Template
 from typing import Any, Dict, List, Tuple
 import pandas as pd
+from ads.opctl import logger
+import oracledb
 
 import fsspec
 import yaml
@@ -24,6 +26,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     PermissionsError,
     DataMismatchError,
 )
+from ads.opctl.operator.common.operator_config import OutputDirectory
 
 
 def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
@@ -39,28 +42,53 @@ def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
-def load_data(filename, format, storage_options=None, columns=None, **kwargs):
-    if filename is None:
-        raise InvalidParameterError(
-            f"The provided url was blank. Please include a reference to the data."
-        )
-    if not format:
-        _, format = os.path.splitext(filename)
-        format = format[1:]
-    if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
-        read_fn = getattr(pd, f"read_{format}")
-        data = call_pandas_fsspec(read_fn, filename, storage_options=storage_options)
-    elif format in ["tsv"]:
-        data = call_pandas_fsspec(
-            pd.read_csv, filename, storage_options=storage_options, sep="\t"
-        )
+def load_data(
+    filename=None,
+    format=None,
+    storage_options=None,
+    columns=None,
+    connect_args=None,
+    sql=None,
+    table_name=None,
+    limit=None,
+    **kwargs,
+):
+    if filename is not None:
+        if not format:
+            _, format = os.path.splitext(filename)
+            format = format[1:]
+        if format in ["json", "clipboard", "excel", "csv", "feather", "hdf"]:
+            read_fn = getattr(pd, f"read_{format}")
+            data = call_pandas_fsspec(
+                read_fn, filename, storage_options=storage_options
+            )
+        elif format in ["tsv"]:
+            data = call_pandas_fsspec(
+                pd.read_csv, filename, storage_options=storage_options, sep="\t"
+            )
+        else:
+            raise InvalidParameterError(
+                f"The format {format} is not currently supported for reading data. Please reformat the data source: {filename} ."
+            )
+    elif connect_args is not None:
+        con = oracledb.connect(**connect_args)
+        if table_name is not None:
+            data = pd.read_sql_table(table_name, con)
+        elif sql is not None:
+            data = pd.read_sql(sql, con)
+        else:
+            raise InvalidParameterError(
+                f"Database `connect_args` provided without sql query or table name. Please specify either `sql` or `table_name`."
+            )
     else:
         raise InvalidParameterError(
-            f"The format {format} is not currently supported for reading data. Please reformat the data source: {filename} ."
+            f"No filename/url provided, and no connect_args provided. Please specify one of these if you want to read data from a file or a database respectively."
         )
     if columns:
         # keep only these columns, done after load because only CSV supports stream filtering
         data = data[columns]
+    if limit:
+        data = data[:limit]
     return data
 
 
@@ -76,40 +104,6 @@ def write_data(data, filename, format, storage_options, index=False, **kwargs):
     raise OperatorYamlContentError(
         f"The format {format} is not currently supported for writing data. Please change the format parameter for the data output: {filename} ."
     )
-
-
-def get_unique_report_dir(output_dir: str) -> str:
-    """
-    Generate a unique directory path for the report output.
-
-    Parameters
-    ------------
-    output_dir: str
-                The requested output directory path.
-    Returns
-    --------
-    str: The unique directory path for the report output.
-    """
-
-    if output_dir:
-            output_dir = output_dir.url
-            # set the unique directory path as the requested path by the user
-            unique_output_dir = output_dir
-    else:
-        output_dir = "results"
-
-        # If the directory exists, find the next unique directory name by appending an incrementing suffix
-        counter = 1
-        unique_output_dir = f"{output_dir}"
-        while os.path.exists(unique_output_dir):
-            unique_output_dir = f"{output_dir}_{counter}"
-            counter += 1
-        logger.warn(
-            "Since the output directory was not specified, the output will be saved to {} directory.".format(
-                unique_output_dir
-            )
-        )
-    return unique_output_dir
 
 
 def merge_category_columns(data, target_category_columns):
@@ -213,6 +207,25 @@ def human_time_friendly(seconds):
             )
     accumulator.append("{} secs".format(round(seconds, 2)))
     return ", ".join(accumulator)
+
+
+def find_output_dirname(output_dir: OutputDirectory):
+    if output_dir:
+        return output_dir.url
+    output_dir = "results"
+
+    # If the directory exists, find the next unique directory name by appending an incrementing suffix
+    counter = 1
+    unique_output_dir = f"{output_dir}"
+    while os.path.exists(unique_output_dir):
+        unique_output_dir = f"{output_dir}_{counter}"
+        counter += 1
+    logger.warn(
+        "Since the output directory was not specified, the output will be saved to {} directory.".format(
+            unique_output_dir
+        )
+    )
+    return unique_output_dir
 
 
 def set_log_level(pkg_name: str, level: int):

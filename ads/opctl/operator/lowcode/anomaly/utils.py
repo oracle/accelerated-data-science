@@ -8,7 +8,7 @@ import os
 import pandas as pd
 import fsspec
 from .operator_config import AnomalyOperatorSpec
-from .const import SupportedMetrics
+from .const import SupportedMetrics, SupportedModels
 from ads.opctl import logger
 
 
@@ -69,3 +69,13 @@ def get_frequency_of_datetime(data: pd.DataFrame, dataset_info: AnomalyOperatorS
     )
     freq = pd.DatetimeIndex(datetimes).inferred_freq
     return freq
+
+
+def default_signer(**kwargs):
+    os.environ["EXTRA_USER_AGENT_INFO"] = "Anomaly-Detection-Operator"
+    from ads.common.auth import default_signer
+
+    return default_signer(**kwargs)
+
+def select_auto_model(datasets, operator_config):
+    return SupportedModels.AutoMLX

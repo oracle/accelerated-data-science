@@ -37,6 +37,7 @@ from ads.opctl.operator.lowcode.common.utils import (
     merged_category_column_name,
     datetime_to_seconds,
     seconds_to_datetime,
+    find_output_dirname,
 )
 from ..const import (
     SUMMARY_METRICS_HORIZON_LIMIT,
@@ -44,7 +45,6 @@ from ..const import (
     SupportedModels,
     SpeedAccuracyMode,
 )
-from ...common.utils import get_unique_report_dir
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -409,7 +409,7 @@ class ForecastOperatorBaseModel(ABC):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
-        unique_output_dir = get_unique_report_dir(self.spec.output_directory)
+        unique_output_dir = find_output_dirname(self.spec.output_directory)
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
