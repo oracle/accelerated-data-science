@@ -4,6 +4,28 @@
 Release Notes
 =============
 
+1.1.1
+-----
+.. note::
+
+    .. list-table::
+      :header-rows: 1
+
+      * - Package Name
+        - Latest Version
+        - Notes
+      * - Conda pack
+        - `fs_pyspark32_p38_cpu_v3`
+        -
+      * - ADS_VERSION
+        - oracle-ads==2.10.0
+        - `https://github.com/oracle/accelerated-data-science/releases/tag/v2.10.0`
+
+Release notes: February 10, 2024
+
+* [FEATURE] Addition of one click deployment using `container service <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/feature_store/container_terraform>`_
+
+
 1.1.0
 -----
 .. note::
