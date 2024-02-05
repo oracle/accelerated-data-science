@@ -19,6 +19,7 @@ import fsspec
 import yaml
 from typing import Union
 
+from ads.opctl import logger
 from ads.opctl.operator.lowcode.common.errors import (
     InputDataError,
     InvalidParameterError,
@@ -103,6 +104,40 @@ def write_data(data, filename, format, storage_options, index=False, **kwargs):
     raise OperatorYamlContentError(
         f"The format {format} is not currently supported for writing data. Please change the format parameter for the data output: {filename} ."
     )
+
+
+def get_unique_report_dir(output_dir: str) -> str:
+    """
+    Generate a unique directory path for the report output.
+
+    Parameters
+    ------------
+    output_dir: str
+                The requested output directory path.
+    Returns
+    --------
+    str: The unique directory path for the report output.
+    """
+
+    if output_dir:
+            output_dir = output_dir.url
+            # set the unique directory path as the requested path by the user
+            unique_output_dir = output_dir
+    else:
+        output_dir = "results"
+
+        # If the directory exists, find the next unique directory name by appending an incrementing suffix
+        counter = 1
+        unique_output_dir = f"{output_dir}"
+        while os.path.exists(unique_output_dir):
+            unique_output_dir = f"{output_dir}_{counter}"
+            counter += 1
+        logger.warn(
+            "Since the output directory was not specified, the output will be saved to {} directory.".format(
+                unique_output_dir
+            )
+        )
+    return unique_output_dir
 
 
 def merge_category_columns(data, target_category_columns):
