@@ -3,11 +3,14 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import logging
 from typing import List, Dict
 
 from dataclasses import dataclass, field
+
 from ads.aqua.base import AquaApp
+from ads.aqua import logger, utils
 from ads.aqua.model import AquaModelApp, Tags
 from ads.model.deployment import (
     ModelDeployment,
@@ -22,6 +25,9 @@ from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
+
+DEPLOYMENT_CONFIG = "deployment_config.json"
+DEPLOYMENT_SHAPE = "shape"
 
 
 @dataclass
@@ -348,3 +354,37 @@ class AquaDeploymentApp(AquaApp):
             )
 
         return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
+    
+    def get_shape_config(self, model_id: str) -> List[str]:
+        """Gets the shape config of given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+    
+        Returns
+        -------
+        List:
+            A list of allowed instance shapes.
+        """
+        try:
+            oci_model = self.ds_client.get_model(
+                model_id
+            ).data
+
+            artifact_path = utils.get_artifact_path(
+                oci_model.custom_metadata_list
+            )
+
+            shape_config = json.loads(
+                utils.read_file(
+                    file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}",
+                    auth=self._auth
+                )
+            )
+            return shape_config[DEPLOYMENT_SHAPE]
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(f"Failed to retreive shape config from the given id {model_id}")
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)

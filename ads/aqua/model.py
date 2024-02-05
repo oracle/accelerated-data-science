@@ -3,7 +3,6 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
-import fsspec
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
@@ -11,7 +10,7 @@ from typing import List
 
 import oci
 from ads.model.datascience_model import DataScienceModel
-from ads.aqua import logger
+from ads.aqua import logger, utils
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.aqua.utils import create_word_icon
@@ -120,13 +119,18 @@ class AquaModelApp(AquaApp):
                     opc_request_id=se.request_id, status_code=se.code
                 )
 
-            artifact_path = self._get_artifact_path(
+            artifact_path = utils.get_artifact_path(
                 custom_model.dsc_model.custom_metadata_list
             )
             return AquaModel(
                 **AquaModelApp.process_model(custom_model.dsc_model),
                 project_id=custom_model.project_id,
-                model_card=str(self._read_file(f"{artifact_path}/{README}")),
+                model_card=str(
+                    utils.read_file(
+                        file_path=f"{artifact_path}/{README}",
+                        auth=self._auth
+                    )
+                ),
             )
 
     def get(self, model_id) -> "AquaModel":
@@ -152,12 +156,17 @@ class AquaModelApp(AquaApp):
         if not self._if_show(oci_model):
             raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
 
-        artifact_path = self._get_artifact_path(oci_model.custom_metadata_list)
+        artifact_path = utils.get_artifact_path(oci_model.custom_metadata_list)
 
         return AquaModel(
             **AquaModelApp.process_model(oci_model),
             project_id=oci_model.project_id,
-            model_card=str(self._read_file(f"{artifact_path}/{README}")),
+            model_card=str(
+                utils.read_file(
+                    file_path=f"{artifact_path}/{README}",
+                    auth=self._auth
+                )
+            ),
         )
 
     def list(
@@ -265,44 +274,7 @@ class AquaModelApp(AquaApp):
     def _if_show(self, model: "AquaModel") -> bool:
         """Determine if the given model should be return by `list`."""
         TARGET_TAGS = model.freeform_tags.keys()
-        if not Tags.AQUA_TAG.value in TARGET_TAGS:
-            return False
-
-        return (
-            True
-            if (
-                Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS
-                or Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS
-            )
-            else False
-        )
-
-    def _get_artifact_path(self, custom_metadata_list: List) -> str:
-        """Get the artifact path from the custom metadata list of model.
-
-        Parameters
-        ----------
-        custom_metadata_list: List
-            A list of custom metadata of model.
-
-        Returns
-        -------
-        str:
-            The artifact path from model.
-        """
-        for custom_metadata in custom_metadata_list:
-            if custom_metadata.key == "Object Storage Path":
-                return custom_metadata.value
-        logger.debug("Failed to get artifact path from custom metadata.")
-        return None
-
-    def _read_file(self, file_path: str) -> str:
-        try:
-            with fsspec.open(file_path, "r", **self._auth) as f:
-                return f.read()
-        except Exception as e:
-            logger.error(f"Failed to read file. {e}")
-            return None
+        return Tags.AQUA_TAG.value in TARGET_TAGS
 
     def _load_icon(self, model_name) -> str:
         """Loads icon."""
