@@ -10,11 +10,7 @@ from oci.exceptions import ServiceError
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.config import (
-    COMPARTMENT_OCID,
-    ODSC_MODEL_COMPARTMENT_OCID,
-    PROJECT_COMPARTMENT_OCID,
-)
+from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID
 
 
 class AquaUIApp(AquaApp):
@@ -122,6 +118,6 @@ class AquaUIApp(AquaApp):
         str:
             The compartment ocid.
         """
-        if not PROJECT_COMPARTMENT_OCID:
+        if not COMPARTMENT_OCID:
             logger.error("No compartment id found from environment variables.")
-        return PROJECT_COMPARTMENT_OCID
+        return COMPARTMENT_OCID
