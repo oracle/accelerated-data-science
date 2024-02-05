@@ -1763,8 +1763,8 @@ class ModelDeployment(Builder):
         logs = {}
         if (
             self.infrastructure.access_log and 
-            self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_GROUP_ID)
-            and self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_ID)
+            self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_GROUP_ID, None)
+            and self.infrastructure.access_log.get(self.infrastructure.CONST_LOG_ID, None)
         ):
             logs[self.infrastructure.CONST_ACCESS] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.access_log.get(
@@ -1776,8 +1776,8 @@ class ModelDeployment(Builder):
             }
         if (
             self.infrastructure.predict_log and 
-            self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_GROUP_ID)
-            and self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_ID)
+            self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_GROUP_ID, None)
+            and self.infrastructure.predict_log.get(self.infrastructure.CONST_LOG_ID, None)
         ):
             logs[self.infrastructure.CONST_PREDICT] = {
                 self.infrastructure.CONST_LOG_GROUP_ID: self.infrastructure.predict_log.get(
