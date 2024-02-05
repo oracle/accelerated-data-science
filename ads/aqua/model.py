@@ -244,17 +244,7 @@ class AquaModelApp(AquaApp):
     def _if_show(self, model: "AquaModel") -> bool:
         """Determine if the given model should be return by `list`."""
         TARGET_TAGS = model.freeform_tags.keys()
-        if not Tags.AQUA_TAG.value in TARGET_TAGS:
-            return False
-
-        return (
-            True
-            if (
-                Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS
-                or Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS
-            )
-            else False
-        )
+        return Tags.AQUA_TAG.value in TARGET_TAGS
 
     def _get_artifact_path(self, custom_metadata_list: List) -> str:
         """Get the artifact path from the custom metadata list of model.
