@@ -3,8 +3,10 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from tornado.web import HTTPError
 from urllib.parse import urlparse
+
+from tornado.web import HTTPError
+
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
 
@@ -37,6 +39,8 @@ class AquaUIHandler(AquaAPIhandler):
             if not id:
                 return self.list_log_groups()
             return self.list_logs(id)
+        elif paths.startswith("aqua/compartments/default"):
+            return self.get_default_compartment()
         elif paths.startswith("aqua/compartments"):
             return self.list_compartments()
         else:
@@ -65,6 +69,13 @@ class AquaUIHandler(AquaAPIhandler):
         """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable."""
         try:
             return self.finish(AquaUIApp().list_compartments(**kwargs))
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
+
+    def get_default_compartment(self):
+        """Returns user compartment ocid."""
+        try:
+            return self.finish(AquaUIApp().get_default_compartment())
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
