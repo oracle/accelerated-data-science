@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -17,6 +17,7 @@ from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
+from oci.logging import LoggingManagementClient
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,7 @@ class OCIClientFactory:
             "data_labeling_cp": DataLabelingManagementClient,
             "resource_search": ResourceSearchClient,
             "data_catalog": DataCatalogClient,
+            "logging_management": LoggingManagementClient,
         }
         try:
             from oci.feature_store import FeatureStoreClient
@@ -150,3 +152,7 @@ class OCIClientFactory:
     @property
     def data_catalog(self):
         return self.create_client("data_catalog")
+
+    @property
+    def logging_management(self):
+        return self.create_client("logging_management")

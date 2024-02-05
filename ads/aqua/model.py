@@ -3,13 +3,13 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 import os
+import tempfile
 from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
 import fsspec
 import oci
-from oci.exceptions import ClientError, ServiceError
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
@@ -18,8 +18,8 @@ from ads.aqua.utils import create_word_icon
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
+from ads.model.datascience_model import DataScienceModel
 
-ICON_FILE_NAME = "icon.txt"
 README = "README.md"
 UNKNOWN = ""
 
@@ -73,8 +73,62 @@ class AquaModelApp(AquaApp):
         List existing models created via Aqua.
     """
 
-    def create(self, **kwargs) -> "AquaModel":
-        pass
+    def create(
+        self, model_id: str, project_id: str, comparment_id: str = None, **kwargs
+    ) -> "AquaModel":
+        """Creates custom aqua model from service model.
+
+        Parameters
+        ----------
+        model_id: str
+            The service model id.
+        project_id: str
+            The project id for custom model.
+        comparment_id: str
+            The compartment id for custom model. Defaults to None.
+            If not provided, compartment id will be fetched from environment variables.
+
+        Returns
+        -------
+        AquaModel:
+            The instance of AquaModel.
+        """
+        with tempfile.TemporaryDirectory() as temp_dir:
+            try:
+                service_model = DataScienceModel.from_id(model_id)
+                service_model.download_artifact(target_dir=temp_dir)
+                custom_model = (
+                    DataScienceModel()
+                    .with_compartment_id(comparment_id or COMPARTMENT_OCID)
+                    .with_project_id(project_id)
+                    .with_artifact(temp_dir)
+                    .with_display_name(service_model.display_name)
+                    .with_description(service_model.description)
+                    .with_freeform_tags(**(service_model.freeform_tags or {}))
+                    .with_defined_tags(**(service_model.defined_tags or {}))
+                    .with_model_version_set_id(service_model.model_version_set_id)
+                    .with_version_label(service_model.version_label)
+                    .with_custom_metadata_list(service_model.custom_metadata_list)
+                    .with_defined_metadata_list(service_model.defined_metadata_list)
+                    .with_provenance_metadata(service_model.provenance_metadata)
+                    # TODO: decide what kwargs will be needed.
+                    .create(**kwargs)
+                )
+            except Exception as se:
+                # TODO: adjust error raising
+                logger.error(f"Failed to create model from the given id {model_id}.")
+                raise AquaServiceError(
+                    opc_request_id=se.request_id, status_code=se.code
+                )
+
+            artifact_path = self._get_artifact_path(
+                custom_model.dsc_model.custom_metadata_list
+            )
+            return AquaModel(
+                **AquaModelApp.process_model(custom_model.dsc_model),
+                project_id=custom_model.project_id,
+                model_card=str(self._read_file(f"{artifact_path}/{README}")),
+            )
 
     def get(self, model_id) -> "AquaModel":
         """Gets the information of an Aqua model.
@@ -87,33 +141,23 @@ class AquaModelApp(AquaApp):
         Returns
         -------
         AquaModel:
-            The instance of the Aqua model.
+            The instance of AquaModel.
         """
-        # add error handler
-        oci_model = self.client.get_model(model_id).data
+        try:
+            oci_model = self.ds_client.get_model(model_id).data
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(f"Failed to retreive model from the given id {model_id}")
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-        # add error handler
-        # if not self._if_show(oci_model):
-        #     raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+        if not self._if_show(oci_model):
+            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
 
-        custom_metadata_list = oci_model.custom_metadata_list
-        artifact_path = self._get_artifact_path(custom_metadata_list)
+        artifact_path = self._get_artifact_path(oci_model.custom_metadata_list)
 
         return AquaModel(
-            compartment_id=oci_model.compartment_id,
+            **AquaModelApp.process_model(oci_model),
             project_id=oci_model.project_id,
-            name=oci_model.display_name,
-            id=oci_model.id,
-            time_created=oci_model.time_created,
-            icon=str(self._read_file(f"{artifact_path}/{ICON_FILE_NAME}")),
-            task=oci_model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-            license=oci_model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
-            organization=oci_model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-            is_fine_tuned_model=(
-                True
-                if oci_model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                else False
-            ),
             model_card=str(self._read_file(f"{artifact_path}/{README}")),
         )
 
@@ -228,10 +272,10 @@ class AquaModelApp(AquaApp):
 
     def _read_file(self, file_path: str) -> str:
         try:
-            with fsspec.open(file_path, "rb", **self._auth) as f:
+            with fsspec.open(file_path, "r", **self._auth) as f:
                 return f.read()
         except Exception as e:
-            logger.error(f"Failed to retreive model icon. {e}")
+            logger.error(f"Failed to read file. {e}")
             return None
 
     def _load_icon(self, model_name) -> str:
