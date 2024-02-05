@@ -36,9 +36,8 @@ class ValidationData(AbstractData):
         self.X_valid_dict = dict()
         self.y_valid_dict = dict()
         for s_id, df in self.get_dict_by_series().items():
-            print(df, spec.target_column)
-            self.X_valid_dict[s_id] = df.drop([spec.target_column], axis=1)
-            self.y_valid_dict[s_id] = df[spec.target_column]
+            self.X_valid_dict[s_id] = df.drop([OutputColumns.ANOMALY_COL], axis=1)
+            self.y_valid_dict[s_id] = df[OutputColumns.ANOMALY_COL]
 
 
 class AnomalyDatasets:

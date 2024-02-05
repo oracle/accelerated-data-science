@@ -92,8 +92,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
 
         # Clean up kwargs for pass through
         model_kwargs_cleaned = self.set_kwargs()
-        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
-        print(f"found time_budget: {time_budget}")
+        time_budget = model_kwargs_cleaned.pop("time_budget", -1)
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):
             try:
