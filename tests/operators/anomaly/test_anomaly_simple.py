@@ -12,6 +12,7 @@ from copy import deepcopy
 import tempfile
 import os
 import numpy as np
+from ads.opctl.operator.cmd import run
 
 
 MODELS = ["automlx", "autots"]
@@ -90,12 +91,14 @@ def test_artificial_big(model):
         yaml_i["spec"]["target_category_columns"] = [TARGET_CATEGORY_COLUMN]
         yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COLUMN
 
-        with open(anomaly_yaml_filename, "w") as f:
-            f.write(yaml.dump(yaml_i))
-        sleep(0.1)
-        subprocess.run(
-            f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
-        )
+        run(yaml_i, backend="local", debug=False)
+
+        # with open(anomaly_yaml_filename, "w") as f:
+        #     f.write(yaml.dump(yaml_i))
+        # sleep(0.1)
+        # subprocess.run(
+        #     f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
+        # )
         sleep(0.1)
         subprocess.run(f"ls -a {output_dirname}/", shell=True)
         assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
@@ -128,13 +131,15 @@ def test_artificial_small(model):
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.3
 
-        with open(anomaly_yaml_filename, "w") as f:
-            f.write(yaml.dump(yaml_i))
-        sleep(0.1)
-        subprocess.run(
-            f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
-        )
-        sleep(0.1)
+        run(yaml_i, backend="local", debug=False)
+
+        # with open(anomaly_yaml_filename, "w") as f:
+        #     f.write(yaml.dump(yaml_i))
+        # sleep(0.1)
+        # subprocess.run(
+        #     f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
+        # )
+        # sleep(0.1)
         subprocess.run(f"ls -a {output_dirname}/", shell=True)
         assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
 
@@ -180,13 +185,14 @@ def test_validation(model):
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.05
 
-        with open(anomaly_yaml_filename, "w") as f:
-            f.write(yaml.dump(yaml_i))
-        sleep(0.1)
-        subprocess.run(
-            f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
-        )
-        sleep(0.1)
+        run(yaml_i, backend="local", debug=False)
+        # with open(anomaly_yaml_filename, "w") as f:
+        #     f.write(yaml.dump(yaml_i))
+        # sleep(0.1)
+        # subprocess.run(
+        #     f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
+        # )
+        # sleep(0.1)
         subprocess.run(f"ls -a {output_dirname}/", shell=True)
         assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
 
@@ -203,13 +209,15 @@ def test_load_datasets(model, data_dict):
         yaml_i["spec"]["datetime_column"]["name"] = data_dict["dt_col"]
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
 
-        with open(f"{tmpdirname}/anomaly.yaml", "w") as f:
-            f.write(yaml.dump(yaml_i))
-        sleep(0.5)
-        subprocess.run(
-            f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
-        )
-        sleep(0.1)
+        run(yaml_i, backend="local", debug=False)
+
+        # with open(f"{tmpdirname}/anomaly.yaml", "w") as f:
+        #     f.write(yaml.dump(yaml_i))
+        # sleep(0.5)
+        # subprocess.run(
+        #     f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
+        # )
+        # sleep(0.1)
         subprocess.run(f"ls -a {output_dirname}/", shell=True)
 
         # train_metrics = pd.read_csv(f"{output_dirname}/metrics.csv")

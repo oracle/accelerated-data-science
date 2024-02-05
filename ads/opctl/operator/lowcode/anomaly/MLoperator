@@ -6,7 +6,7 @@ gpu: no
 keywords:
   - Anomaly Detection
 backends:
-  - job
+  - job, local
 description: |
   Anomaly Detection is the identification of rare items, events, or observations in data that
   differ significantly from the expectation. This can be used for several scenarios like asset

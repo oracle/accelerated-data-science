@@ -76,6 +76,16 @@ class BackendFactory:
                 RUNTIME_TYPE.CONTAINER.value.lower(),
             ),
         },
+        BACKEND_NAME.LOCAL.value.lower(): {
+            RUNTIME_TYPE.PYTHON.value.lower(): (
+                BACKEND_NAME.LOCAL.value.lower(),
+                RUNTIME_TYPE.PYTHON.value.lower(),
+            ),
+            RUNTIME_TYPE.CONTAINER.value.lower(): (
+                BACKEND_NAME.LOCAL.value.lower(),
+                RUNTIME_TYPE.CONTAINER.value.lower(),
+            ),
+        },
     }
 
     BACKEND_MAP = {
