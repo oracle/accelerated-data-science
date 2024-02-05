@@ -245,7 +245,7 @@ class AnomalyOperatorBaseModel(ABC):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
-        output_dir = find_output_dirname(self.spec.output_directory)
+        unique_output_dir = find_output_dirname(self.spec.output_directory)
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
@@ -286,7 +286,9 @@ class AnomalyOperatorBaseModel(ABC):
         if test_metrics is not None and not test_metrics.empty:
             write_data(
                 data=test_metrics.rename_axis("metrics").reset_index(),
-                filename=os.path.join(output_dir, self.spec.test_metrics_filename),
+                filename=os.path.join(
+                    unique_output_dir, self.spec.test_metrics_filename
+                ),
                 format="csv",
                 storage_options=storage_options,
             )
