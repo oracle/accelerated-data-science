@@ -16,6 +16,7 @@ import numpy as np
 
 from ads.opctl import logger
 
+from ...common.utils import get_unique_report_dir
 from ..operator_config import AnomalyOperatorConfig, AnomalyOperatorSpec
 from .anomaly_dataset import AnomalyDatasets, AnomalyOutput
 from ..const import OutputColumns, SupportedMetrics
@@ -266,17 +267,9 @@ class AnomalyOperatorBaseModel(ABC):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
-        if self.spec.output_directory:
-            output_dir = self.spec.output_directory.url
-        else:
-            output_dir = "tmp_operator_result"
-            logger.warn(
-                "Since the output directory was not specified, the output will be saved to {} directory.".format(
-                    output_dir
-                )
-            )
+        unique_output_dir = get_unique_report_dir(self.spec.output_directory)
 
-        if ObjectStorageDetails.is_oci_path(output_dir):
+        if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
         else:
             storage_options = dict()
@@ -287,7 +280,7 @@ class AnomalyOperatorBaseModel(ABC):
             dp.save_report(report_sections, report_local_path)
             with open(report_local_path) as f1:
                 with fsspec.open(
-                    os.path.join(output_dir, self.spec.report_file_name),
+                    os.path.join(unique_output_dir, self.spec.report_file_name),
                     "w",
                     **default_signer(),
                 ) as f2:
@@ -297,7 +290,7 @@ class AnomalyOperatorBaseModel(ABC):
             inliers = anomaly_output.get_inliers(self.datasets.data)
             write_data(
                 data=inliers,
-                filename=os.path.join(output_dir, self.spec.inliers_filename),
+                filename=os.path.join(unique_output_dir, self.spec.inliers_filename),
                 format="csv",
                 storage_options=storage_options,
             )
@@ -305,7 +298,7 @@ class AnomalyOperatorBaseModel(ABC):
         outliers = anomaly_output.get_outliers(self.datasets.data)
         write_data(
             data=outliers,
-            filename=os.path.join(output_dir, self.spec.outliers_filename),
+            filename=os.path.join(unique_output_dir, self.spec.outliers_filename),
             format="csv",
             storage_options=storage_options,
         )
@@ -314,7 +307,7 @@ class AnomalyOperatorBaseModel(ABC):
             write_data(
                 data=validation_metrics.rename_axis("metrics").reset_index(),
                 filename=os.path.join(
-                    output_dir, self.spec.validation_metrics_filename
+                    unique_output_dir, self.spec.validation_metrics_filename
                 ),
                 format="csv",
                 storage_options=storage_options,
@@ -322,7 +315,7 @@ class AnomalyOperatorBaseModel(ABC):
 
         logger.warn(
             f"The report has been successfully "
-            f"generated and placed to the: {output_dir}."
+            f"generated and placed to the: {unique_output_dir}."
         )
 
     @abstractmethod

@@ -44,6 +44,7 @@ from ..const import (
     SupportedModels,
     SpeedAccuracyMode,
 )
+from ...common.utils import get_unique_report_dir
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -408,24 +409,7 @@ class ForecastOperatorBaseModel(ABC):
         """Saves resulting reports to the given folder."""
         import datapane as dp
 
-        if self.spec.output_directory:
-            output_dir = self.spec.output_directory.url
-            # set the unique directory path as the requested path by the user
-            unique_output_dir = output_dir
-        else:
-            output_dir = "results"
-
-            # If the directory exists, find the next unique directory name by appending an incrementing suffix
-            counter = 1
-            unique_output_dir = f"{output_dir}"
-            while os.path.exists(unique_output_dir):
-                unique_output_dir = f"{output_dir}_{counter}"
-                counter += 1
-            logger.warn(
-                "Since the output directory was not specified, the output will be saved to {} directory.".format(
-                    unique_output_dir
-                )
-            )
+        unique_output_dir = get_unique_report_dir(self.spec.output_directory)
 
         if ObjectStorageDetails.is_oci_path(unique_output_dir):
             storage_options = default_signer()
