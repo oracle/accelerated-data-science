@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
+import fsspec
 import oci
 from ads.model.datascience_model import DataScienceModel
 from ads.aqua import logger, utils
@@ -17,6 +18,7 @@ from ads.aqua.utils import create_word_icon
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
+from ads.model.datascience_model import DataScienceModel
 
 README = "README.md"
 UNKNOWN = ""
@@ -192,36 +194,27 @@ class AquaModelApp(AquaApp):
             logger.info(f"Fetching custom models from compartment_id={compartment_id}.")
             models = self._rqs(compartment_id)
         else:
-            # TODO: remove project_id after policy for service-model compartment has been set.
-            project_id = os.environ.get("TEST_PROJECT_ID")
             logger.info(
-                f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}, project_id={project_id}"
+                f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
             models = self.list_resource(
-                self.ds_client.list_models,
-                compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
-                project_id=project_id,
+                self.ds_client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
             )
 
-        if not models:
-            logger.error(
-                f"No model found in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
-            )
-
-        logger.info(f"Successfully fetch {len(models)} models.")
+        logger.info(
+            f"Fetch {len(models)} model in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
+        )
 
         aqua_models = []
         # TODO: build index.json for service model as caching if needed.
 
         for model in models:
-            # TODO: remove the check after policy issue resolved
-            if self._temp_check(model, compartment_id):
-                aqua_models.append(
-                    AquaModelSummary(
-                        **AquaModelApp.process_model(model=model),
-                        project_id=project_id or UNKNOWN,
-                    )
+            aqua_models.append(
+                AquaModelSummary(
+                    **AquaModelApp.process_model(model=model),
+                    project_id=project_id or UNKNOWN,
                 )
+            )
 
         return aqua_models
 
@@ -257,19 +250,6 @@ class AquaModelApp(AquaApp):
             ),
             tags=tags,
         )
-
-    def _temp_check(self, model, compartment_id=None):
-        # TODO: will remove it later
-        TARGET_TAGS = model.freeform_tags.keys()
-        if not Tags.AQUA_TAG.value in TARGET_TAGS:
-            return False
-
-        if compartment_id:
-            return (
-                True if Tags.AQUA_FINE_TUNED_MODEL_TAG.value in TARGET_TAGS else False
-            )
-
-        return True if Tags.AQUA_SERVICE_MODEL_TAG.value in TARGET_TAGS else False
 
     def _if_show(self, model: "AquaModel") -> bool:
         """Determine if the given model should be return by `list`."""
