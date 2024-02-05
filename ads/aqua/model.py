@@ -188,8 +188,7 @@ class AquaModelApp(AquaApp):
                 f"Fetching service model from compartment_id={ODSC_MODEL_COMPARTMENT_OCID}"
             )
             models = self.list_resource(
-                self.client.list_models,
-                compartment_id=ODSC_MODEL_COMPARTMENT_OCID,
+                self.ds_client.list_models, compartment_id=ODSC_MODEL_COMPARTMENT_OCID
             )
 
         if not models:
@@ -197,46 +196,55 @@ class AquaModelApp(AquaApp):
                 f"No model found in compartment_id={compartment_id or ODSC_MODEL_COMPARTMENT_OCID}."
             )
 
-        logger.info(f"Successuly fetch {len(models)} models.")
+        logger.info(f"Successfully fetch {len(models)} models.")
 
         aqua_models = []
         # TODO: build index.json for service model as caching if needed.
 
-        def process_model(model):
-            icon = self._load_icon(model.display_name)
-            tags = {}
-            tags.update(model.defined_tags)
-            tags.update(model.freeform_tags)
-
-            model_id = (
-                model.id
-                if isinstance(model, oci.data_science.models.ModelSummary)
-                else model.identifier
-            )
-            return AquaModelSummary(
-                compartment_id=model.compartment_id,
-                icon=icon,
-                id=model_id,
-                license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
-                name=model.display_name,
-                organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
-                project_id=project_id or UNKNOWN,
-                task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
-                time_created=model.time_created,
-                is_fine_tuned_model=(
-                    True
-                    if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
-                    else False
-                ),
-                tags=tags,
-            )
-
         for model in models:
-            aqua_models.append(process_model(model))
+            aqua_models.append(
+                AquaModelSummary(
+                    **AquaModelApp.process_model(model=model),
+                    project_id=project_id or UNKNOWN,
+                )
+            )
 
         return aqua_models
 
-    def _if_show(self, model: "ModelSummary") -> bool:
+    @classmethod
+    def process_model(cls, model) -> dict:
+        icon = cls()._load_icon(model.display_name)
+        tags = {}
+        tags.update(model.defined_tags or {})
+        tags.update(model.freeform_tags or {})
+
+        model_id = (
+            model.id
+            if (
+                isinstance(model, oci.data_science.models.ModelSummary)
+                or isinstance(model, oci.data_science.models.model.Model)
+            )
+            else model.identifier
+        )
+
+        return dict(
+            compartment_id=model.compartment_id,
+            icon=icon,
+            id=model_id,
+            license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
+            name=model.display_name,
+            organization=model.freeform_tags.get(Tags.ORGANIZATION.value, UNKNOWN),
+            task=model.freeform_tags.get(Tags.TASK.value, UNKNOWN),
+            time_created=model.time_created,
+            is_fine_tuned_model=(
+                True
+                if model.freeform_tags.get(Tags.AQUA_FINE_TUNED_MODEL_TAG.value)
+                else False
+            ),
+            tags=tags,
+        )
+
+    def _if_show(self, model: "AquaModel") -> bool:
         """Determine if the given model should be return by `list`."""
         TARGET_TAGS = model.freeform_tags.keys()
         if not Tags.AQUA_TAG.value in TARGET_TAGS:
