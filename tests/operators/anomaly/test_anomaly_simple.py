@@ -12,6 +12,7 @@ from copy import deepcopy
 import tempfile
 import os
 import numpy as np
+from datetime import datetime
 from ads.opctl.operator.cmd import run
 
 
@@ -79,7 +80,7 @@ def test_artificial_big(model):
     with tempfile.TemporaryDirectory() as tmpdirname:
         anomaly_yaml_filename = f"{tmpdirname}/anomaly.yaml"
         input_data = f"{tmpdirname}/data.csv"
-        output_dirname = f"{tmpdirname}/results"
+        output_dirname = f"{tmpdirname}/results_{datetime.now()}"
 
         d.to_csv(input_data, index=False)
 
@@ -121,7 +122,7 @@ def test_artificial_small(model):
     with tempfile.TemporaryDirectory() as tmpdirname:
         anomaly_yaml_filename = f"{tmpdirname}/anomaly.yaml"
         input_data = f"{tmpdirname}/data.csv"
-        output_dirname = f"{tmpdirname}/results"
+        output_dirname = f"{tmpdirname}/results_{datetime.now()}"
 
         d.to_csv(input_data, index=False)
 
@@ -170,7 +171,7 @@ def test_validation(model):
         input_data = f"{tmpdirname}/data.csv"
         valid_data = f"{tmpdirname}/valid_data.csv"
         test_data = f"{tmpdirname}/test_data.csv"
-        output_dirname = f"{tmpdirname}/results"
+        output_dirname = f"{tmpdirname}/results_{datetime.now()}"
 
         d.to_csv(input_data, index=False)
         v.to_csv(valid_data, index=False)
@@ -201,7 +202,7 @@ def test_validation(model):
 def test_load_datasets(model, data_dict):
     with tempfile.TemporaryDirectory() as tmpdirname:
         anomaly_yaml_filename = f"{tmpdirname}/anomaly.yaml"
-        output_dirname = f"{tmpdirname}/results"
+        output_dirname = f"{tmpdirname}/results_{datetime.now()}"
 
         yaml_i = deepcopy(TEMPLATE_YAML)
         yaml_i["spec"]["model"] = model
@@ -225,9 +226,3 @@ def test_load_datasets(model, data_dict):
         # oultiers = pd.read_csv(f"{output_dirname}/anomaly.csv")
         # print(oultiers)
         assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
-
-    # if TEMPLATE_YAML["spec"]["generate_explanations"]:
-    # glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")
-    # print(glb_expl)
-    # loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")
-    # print(loc_expl)

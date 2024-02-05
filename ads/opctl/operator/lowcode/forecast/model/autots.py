@@ -11,11 +11,7 @@ import numpy as np
 import yaml
 
 from ads.opctl import logger
-from ads.opctl.operator.lowcode.common.utils import (
-    disable_print,
-    enable_print,
-    seconds_to_datetime,
-)
+from ads.opctl.operator.lowcode.common.utils import seconds_to_datetime
 from .base_model import ForecastOperatorBaseModel
 from ..operator_config import ForecastOperatorConfig
 from ads.common.decorator.runtime_dependency import runtime_dependency
@@ -124,21 +120,29 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         full_data_indexed = self.datasets.get_data_multi_indexed()
 
         dates = full_data_indexed.index.get_level_values(0).unique().tolist()
-        horizon_idx = dates[-self.spec.horizon :]
         train_idx = dates[: -self.spec.horizon]
 
-        regr_fcst = full_data_indexed[
-            full_data_indexed.index.get_level_values(0).isin(horizon_idx)
-        ].reset_index()
-        regr_train = full_data_indexed[
+        df_train = full_data_indexed[
             full_data_indexed.index.get_level_values(0).isin(train_idx)
-        ]
-        self.future_regressor_train = regr_train.copy()
+        ][[self.original_target_column]].reset_index()
+
+        # Future regressors need to be in wide format - (num_unique_dates x (num_unique_series x num_unique_cols))
+        additional_regressors = list(
+            set(full_data_indexed.columns) - {self.original_target_column}
+        )
+        future_regressor = full_data_indexed.reset_index().pivot(
+            index=self.spec.datetime_column.name,
+            columns=ForecastOutputColumns.SERIES,
+            values=additional_regressors,
+        )
+
+        future_reg = future_regressor[: -self.spec.horizon]
+        regr_fcst = future_regressor[-self.spec.horizon :]
 
         if self.loaded_models is None:
             model = model.fit(
-                full_data_indexed.reset_index(),
-                future_regressor=regr_train.reset_index(),
+                df_train,
+                future_regressor=future_reg,
                 date_col=self.spec.datetime_column.name,
                 value_col=self.original_target_column,
                 id_col=ForecastOutputColumns.SERIES,
