@@ -2,41 +2,37 @@
 Anomaly Detection Operator
 ==========================
 
-The Anomaly Detection Operator leverages historical time series data to generate accurate forecasts for future trends. This operator aims to simplify and expedite the data science process by automating the selection of appropriate models and hyperparameters, as well as identifying relevant features for a given prediction task.
+The Anomaly Detection Operator is a low code tool for integrating Anomaly Detection into any enterprise applicaiton. Specifically, it leverages timeseries constructive anomaly detection in order to flag anomolous moments in your data, by time and by ID.
 
 
 Overview
 --------
 
-**Introduction to Anomaly Detection with the Python Library Module**
+**Input Data**
 
-Anomaly Detection is a crucial component of decision-making in various fields. The Operators framework is OCI's most extensible, low-code, managed ecosystem for building and deploying anomaly detection models.
+The Anomaly Detection Operator accepts a dataset with:
+# A datetime column 
+# A target column
+# (Optionally) 1 or more seires columns (such that the target is indexed by datetime and series)
+# (Optionall) An arbitrary number of additional variables
 
-This technical documentation introduces ``ads opctl`` for anomaly detection tasks. This module is engineered with the principles of low-code development in mind, making it accessible to users with varying degrees of technical expertise. It operates on managed infrastructure, ensuring reliability and scalability, while its configurability through YAML allows users to tailor forecasts to their specific needs.
+Besides this input data, the user can also specify validation data, if available. Validation data should have all the columns of the input data plus a binary column titled "anomaly". The "anomaly" column should be -1 for anomalies and 1 for normal rows.
+
+Finally the user can provide "test_data" in order to recieve test metrics and evaluate the Operator's performance more easily. Test data should indexed by date and (optionally) series. Test data should have a -1 for anomalous rows and 1 for normal rows.
 
 **Multivariate vs. Univariate Anomaly Detection**
 
-One of the fundamental decisions in anomaly detection is whether to employ multivariate or univariate models. Univariate anomaly detection involves predicting a single variable, typically based on its historical values, making it suitable for straightforward time series analysis. In contrast, multivariate anomaly detection takes into account multiple interrelated variables, allowing for a more comprehensive understanding of complex systems.
-
-**Global vs. Local Models for Multivariate Forecasts**
-
-When dealing with multivariate forecasts, the choice between global and local models is pivotal. Global models assume that the relationships between variables are uniform across all data points, providing a consolidated forecast for the entire dataset. In contrast, local models consider localized relationships, allowing forecasts to adapt to variations within the dataset.
-
-**Strengths and Weaknesses of Global and Local Models**
-
-Global models are advantageous when relationships between variables remain relatively stable over time. They offer simplicity and ease of interpretation, making them suitable for a wide range of applications. However, they may struggle to capture nuances in the data when relationships are not consistent throughout the dataset.
-
-Local models, on the other hand, excel in capturing localized patterns and relationships, making them well-suited for datasets with varying dynamics. They can provide more accurate forecasts in cases where global models fall short.
+If you have additional variables that you think might be related, then you should use "multivariate" AD. All additional columns given in the input data will be used in determining if the target column is anomalous.
 
 **Auto Model Selection**
 
-Some users know which modeling frameworks (this can be a specific model, such as ARIMA and Prophet or it can be an automl library like Oracle's AutoMLX) they want to use right already, the anomaly detection operator allows these more advanced users to configure this through the ``model`` parameter. For those newer users who don't know, or want to explore multiple, the anomaly detection operator sets the ``model`` parameter to  "auto" by default. "auto" will select the framework that looks most appropriate given the dataset.
+Operators users don't need to know anything about the underlying models in order to use them. By default we set ``model: auto``. However, some users want more control over the modeling parameters. These users can set the ``model`` parameter to either ``autots`` or ``automlx`` and then pass parameters directly into ``model_kwargs``. See :doc:`Advanced Examples <./advanced_use_cases>`
 
 **Anomaly Detection Documentation**
 
-This documentation will explore these concepts in greater depth, demonstrating how to leverage the flexibility and configurability of the Python library module to implement both multivariate and univariate anomaly detection models, as well as global and local approaches. By the end of this guide, users will have the knowledge and tools needed to make informed decisions when designing anomaly detection solutions tailored to their specific requirements.
+This documentation will explore these concepts in greater depth, demonstrating how to leverage the flexibility and configurability of the Python library module to implement both multivariate and univariate anomaly detection models. By the end of this guide, users will have the knowledge and tools needed to make informed decisions when designing anomaly detection solutions tailored to their specific requirements.
 
-.. versionadded:: 2.9.0
+.. versionadded:: 2.10.1
 
 .. toctree::
   :maxdepth: 1

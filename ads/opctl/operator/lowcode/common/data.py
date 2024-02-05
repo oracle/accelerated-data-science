@@ -56,6 +56,10 @@ class AbstractData(ABC):
                 filename=data_spec.url,
                 format=data_spec.format,
                 columns=data_spec.columns,
+                connect_args=data_spec.connect_args,
+                sql=data_spec.sql,
+                table_name=data_spec.table_name,
+                limit=data_spec.limit,
             )
         except InvalidParameterError as e:
             e.args = e.args + (f"Invalid Parameter: {self.name}",)

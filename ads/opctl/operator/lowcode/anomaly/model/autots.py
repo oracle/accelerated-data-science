@@ -14,23 +14,24 @@ from ads.opctl.operator.lowcode.anomaly.const import OutputColumns
 
 
 class AutoTSOperatorModel(AnomalyOperatorBaseModel):
-    """Class representing TODS Anomaly Detection operator model."""
+    """Class representing AutoTS Anomaly Detection operator model."""
 
     @runtime_dependency(
         module="autots",
         err_msg=(
             "Please run `pip3 install autots` to "
-            "install the required dependencies for TODS."
+            "install the required dependencies for AutoTS."
         ),
     )
     def _build_model(self) -> AnomalyOutput:
         from autots.evaluator.anomaly_detector import AnomalyDetector
 
         method = self.spec.model_kwargs.get("method")
+        transform_dict = self.spec.model_kwargs.get("transform_dict", {})
 
         if method == "random" or method == "deep" or method == "fast":
             new_params = AnomalyDetector.get_new_params(method=method)
-            new_params.pop("transform_dict")
+            transform_dict = new_params.pop("transform_dict")
 
             for key, value in new_params.items():
                 self.spec.model_kwargs[key] = value
@@ -39,7 +40,12 @@ class AutoTSOperatorModel(AnomalyOperatorBaseModel):
             self.spec.model_kwargs["output"] = "univariate"
 
         if "transform_dict" not in self.spec.model_kwargs:
-            self.spec.model_kwargs["transform_dict"] = {}
+            self.spec.model_kwargs["transform_dict"] = transform_dict
+
+        if self.spec.contamination != 0.1:  # TODO: remove hard-coding
+            self.spec.model_kwargs.get("method_params", {})[
+                "contamination"
+            ] = self.spec.contamination
 
         model = AnomalyDetector(**self.spec.model_kwargs)
 

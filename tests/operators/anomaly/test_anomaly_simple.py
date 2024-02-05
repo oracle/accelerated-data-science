@@ -12,9 +12,10 @@ from copy import deepcopy
 import tempfile
 import os
 import numpy as np
+from ads.opctl.operator.cmd import run
 
 
-MODELS = ["automlx", "autots"]  # , "auto", "tods",
+MODELS = ["automlx", "autots"]
 
 # Mandatory YAML parameters
 TEMPLATE_YAML = {
@@ -90,6 +91,8 @@ def test_artificial_big(model):
         yaml_i["spec"]["target_category_columns"] = [TARGET_CATEGORY_COLUMN]
         yaml_i["spec"]["datetime_column"]["name"] = DATETIME_COLUMN
 
+        # run(yaml_i, backend="operator.local", debug=False)
+
         with open(anomaly_yaml_filename, "w") as f:
             f.write(yaml.dump(yaml_i))
         sleep(0.1)
@@ -101,7 +104,7 @@ def test_artificial_big(model):
         assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
 
 
-@pytest.mark.parametrize("model", MODELS)
+@pytest.mark.parametrize("model", MODELS + ["auto"])
 def test_artificial_small(model):
     # artificial data
     d1 = np.random.multivariate_normal(
@@ -128,6 +131,61 @@ def test_artificial_small(model):
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
         yaml_i["spec"]["contamination"] = 0.3
 
+        # run(yaml_i, backend="operator.local", debug=False)
+
+        with open(anomaly_yaml_filename, "w") as f:
+            f.write(yaml.dump(yaml_i))
+        sleep(0.1)
+        subprocess.run(
+            f"ads operator run -f {anomaly_yaml_filename} --debug", shell=True
+        )
+        sleep(0.1)
+        subprocess.run(f"ls -a {output_dirname}/", shell=True)
+        assert os.path.exists(f"{output_dirname}/report.html"), "Report not generated."
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_validation(model):
+    # artificial data
+    d1 = np.random.multivariate_normal(
+        mean=np.array([-0.5, 0]), cov=np.array([[1, 0], [0, 1]]), size=100
+    )
+    d2 = np.random.multivariate_normal(
+        mean=np.array([15, 10]), cov=np.array([[1, 0.3], [0.3, 1]]), size=100
+    )
+    outliers = np.array([[0, 10], [0, 9.5]])
+    d = pd.DataFrame(
+        np.concatenate([d1, outliers, d2], axis=0), columns=["val_1", "val_2"]
+    )
+    anomaly_col = pd.DataFrame(
+        np.concatenate([np.zeros(100), np.ones(2), np.zeros(100)], axis=0),
+        columns=["anomaly"],
+    )
+    d = d.reset_index().rename({"index": "ds"}, axis=1)
+    anomaly_col["ds"] = d["ds"]
+    v = d.copy()
+    v["anomaly"] = anomaly_col["anomaly"]
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        anomaly_yaml_filename = f"{tmpdirname}/anomaly.yaml"
+        input_data = f"{tmpdirname}/data.csv"
+        valid_data = f"{tmpdirname}/valid_data.csv"
+        test_data = f"{tmpdirname}/test_data.csv"
+        output_dirname = f"{tmpdirname}/results"
+
+        d.to_csv(input_data, index=False)
+        v.to_csv(valid_data, index=False)
+        anomaly_col.to_csv(test_data, index=False)
+
+        yaml_i = deepcopy(TEMPLATE_YAML)
+        yaml_i["spec"]["model"] = model
+        yaml_i["spec"]["target_column"] = "val_1"
+        yaml_i["spec"]["input_data"]["url"] = input_data
+        yaml_i["spec"]["validation_data"] = {"url": valid_data}
+        yaml_i["spec"]["test_data"] = {"url": test_data}
+        yaml_i["spec"]["output_directory"]["url"] = output_dirname
+        yaml_i["spec"]["contamination"] = 0.05
+
+        # run(yaml_i, backend="operator.local", debug=False)
         with open(anomaly_yaml_filename, "w") as f:
             f.write(yaml.dump(yaml_i))
         sleep(0.1)
@@ -150,6 +208,8 @@ def test_load_datasets(model, data_dict):
         yaml_i["spec"]["input_data"]["url"] = data_dict["url"]
         yaml_i["spec"]["datetime_column"]["name"] = data_dict["dt_col"]
         yaml_i["spec"]["output_directory"]["url"] = output_dirname
+
+        # run(yaml_i, backend="operator.local", debug=False)
 
         with open(f"{tmpdirname}/anomaly.yaml", "w") as f:
             f.write(yaml.dump(yaml_i))
