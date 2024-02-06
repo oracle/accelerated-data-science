@@ -141,6 +141,10 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         - dict: Result of the nearest neighbors search.
         """
 
+        raise NotImplementedError(
+            "The method get_embedding_vector is not supported for OpenSearch."
+        )
+
         res = self.online_engine_config.get_client(http_auth=http_auth).search(
             index=f"{feature_group.entity_id}_{feature_group.name}".lower(),
             body={
