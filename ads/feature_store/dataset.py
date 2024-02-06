@@ -59,7 +59,7 @@ from ads.feature_store.feature_lineage.graphviz_service import (
 )
 from ads.feature_store.validation_output import ValidationOutput
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 logger = logging.getLogger(__name__)

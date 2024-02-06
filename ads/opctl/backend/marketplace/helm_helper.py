@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 import subprocess
 from enum import Enum
 from typing import List
@@ -127,7 +133,7 @@ def check_helm_pull(helm_chart_url: str, version: str) -> HelmPullStatus:
         logger.debug(stderr)
         return HelmPullStatus.AUTHENTICATION_FAILURE
     else:
-        print(stderr)
+        logger.error(stderr)
         return HelmPullStatus.UNKNOWN_FAILURE
 
 
@@ -144,7 +150,7 @@ def run_helm_login(ocir_repo: str, token: str):
     if result.returncode == 0:
         pass
     else:
-        print(result.stderr)
+        logger.error(result.stderr)
         # TODO: Throw proper exception
         raise Exception()
 

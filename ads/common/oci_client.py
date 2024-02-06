@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
@@ -53,7 +53,9 @@ class OCIClientFactory:
     oc.OCIClientFactory(**auth).object_storage # Creates Object storage client using instance principal authentication
     """
 
-    def __init__(self, config=(), signer=None, client_kwargs=None):
+    def __init__(self, config=None, signer=None, client_kwargs=None):
+        if not config:
+            config = {}
         self.config = config
         self.signer = signer
         self.client_kwargs = client_kwargs

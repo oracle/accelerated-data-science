@@ -48,3 +48,23 @@ Deploying Feature Store Stack using Terraform
     - `Deploy Feature Store stack using terraform BYODB MySQL instance <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/feature-store-byodb-mysql.mp4>`__
     - **Demo Description**:
         Lastly, it details the deployment process utilizing terraform stacks and integrating a MySQL instance to facilitate Feature Store functionalities.
+
+Deploying Feature Store API server to an existing OKE cluster
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- **Demo Links**:
+    - `Deploy Feature Store stack using operator <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/operator_demo.mp4>`__
+    - **Demo Description**:
+        This demonstration illustrates the step-by-step process of setting up the Feature Store utilizing feature store marketplace operator.
+
+- **Demo Links**:
+    - `Deploy Feature Store stack using Helm Charts <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/helm_charts_demo.mp4>`__
+    - **Demo Description**:
+         This demonstration illustrates the step-by-step process of setting up the Feature Store utilizing helm charts from the feature store marketplace listing
+
+- **Demo Links**:
+    - `Adding AuthN/Z to API server deployed in existing cluster <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/api_gateway_demo.mp4>`__
+    - **Demo Description**:
+         This demonstration illustrates the step-by-step process of setting up AuthN/Z for feature store API server deployment to an OKE cluster
+
+

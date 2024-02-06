@@ -1,3 +1,9 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+
+# Copyright (c) 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/from oci.decorators import init_model_state_from_kwargs
+
 from oci.decorators import init_model_state_from_kwargs
 from oci.util import formatted_flat_dict
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import argparse
@@ -159,11 +159,14 @@ def default_signer(**kwargs):
     from ads.common.auth import default_signer
 
     return default_signer(**kwargs)
+
+
 def remove_prefix(text: str, prefix: str):
     if text.startswith(prefix):
         return text[len(prefix) :]
     else:
         return text
+
 
 def print_traceback():
     if logger.level == logging.DEBUG:

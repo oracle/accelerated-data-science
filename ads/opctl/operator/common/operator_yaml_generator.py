@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
-from ads.opctl.operator.common.utils import remove_prefix
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-
+from ads.opctl.operator.common.utils import remove_prefix
 from dataclasses import dataclass
 from typing import Any, Dict, Optional, List
 
