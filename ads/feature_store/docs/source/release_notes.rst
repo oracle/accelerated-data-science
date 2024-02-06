@@ -23,7 +23,7 @@ Release Notes
 
 Release notes: February 10, 2024
 
-* [FEATURE] Addition of one click deployment using `container service <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/feature_store/container_terraform>`_
+* [FEATURE] Addition of one click deployment using `container service <https://github.com/najiyacl/oci-data-science-ai-samples/tree/main/feature_store/container_terraform>`_
 
 
 1.1.0
