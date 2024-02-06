@@ -3,11 +3,11 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+from urllib.parse import urlparse
 from tornado.web import HTTPError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.config import PROJECT_OCID
-from ads.aqua.model import AquaModelApp
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -24,6 +24,8 @@ class AquaDeploymentHandler(AquaAPIhandler):
         Reads the AQUA deployment information.
     list(self)
         Lists all the AQUA deployments.
+    get_deployment_config(self, model_id)
+        Gets the deployment config for Aqua model.
 
     Raises
     ------
@@ -32,9 +34,20 @@ class AquaDeploymentHandler(AquaAPIhandler):
 
     def get(self, id=""):
         """Handle GET request."""
-        if not id:
-            return self.list()
-        return self.read(id)
+        url_parse = urlparse(self.request.path)
+        paths = url_parse.path.strip("/")
+        if paths.startswith("aqua/deployments/config"):
+            if not id:
+                raise HTTPError(
+                    400, f"The request {self.request.path} requires model id."
+                )
+            return self.get_deployment_config(id)
+        elif paths.startswith("aqua/deployments"):
+            if not id:
+                return self.list()
+            return self.read(id)
+        else:
+            raise HTTPError(400, f"The request {self.request.path} is invalid.")
 
     def post(self, *args, **kwargs):
         """
@@ -144,5 +157,16 @@ class AquaDeploymentHandler(AquaAPIhandler):
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
+    def get_deployment_config(self, model_id):
+        """Gets the deployment config for Aqua model."""
+        try:
+            return self.finish(
+                AquaDeploymentApp().get_deployment_config(model_id=model_id)
+            )
+        except Exception as ex:
+            raise HTTPError(500, str(ex))
 
-__handlers__ = [("deployments/?([^/]*)", AquaDeploymentHandler)]
+__handlers__ = [
+    ("deployments/?([^/]*)", AquaDeploymentHandler)
+    ("deployments/config/?([^/]*)", AquaDeploymentHandler)
+]

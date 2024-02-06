@@ -19,7 +19,10 @@ logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
 
 UNKNOWN = ""
-
+README = "README.md"
+DEPLOYMENT_CONFIG = "deployment_config.json"
+DEPLOYMENT_SHAPE = "shape"
+UNKNOWN_JSON_STR = "{}"
 
 def get_logger():
     return logger
@@ -105,5 +108,5 @@ def read_file(file_path: str, **kwargs) -> str:
         ) as f:
             return f.read()
     except Exception as e:
-        logger.error(f"Failed to read file. {e}")
+        logger.error(f"Failed to read file {file_path}. {e}")
         return UNKNOWN

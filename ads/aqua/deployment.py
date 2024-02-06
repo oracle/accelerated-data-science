@@ -10,8 +10,15 @@ from typing import List, Dict
 from dataclasses import dataclass, field
 
 from ads.aqua.base import AquaApp
-from ads.aqua import logger, utils
+from ads.aqua import logger
 from ads.aqua.model import AquaModelApp, Tags
+from ads.aqua.utils import (
+    DEPLOYMENT_CONFIG, 
+    DEPLOYMENT_SHAPE, 
+    UNKNOWN_JSON_STR, 
+    get_artifact_path, 
+    read_file
+)
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentInfrastructure,
@@ -25,10 +32,6 @@ from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
-
-DEPLOYMENT_CONFIG = "deployment_config.json"
-DEPLOYMENT_SHAPE = "shape"
-UNKNOWN_JSON_STR = "{}"
 
 
 @dataclass
@@ -356,8 +359,8 @@ class AquaDeploymentApp(AquaApp):
 
         return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
     
-    def get_shape_config(self, model_id: str) -> List[str]:
-        """Gets the shape config of given Aqua model.
+    def get_deployment_config(self, model_id: str) -> List[str]:
+        """Gets the deployment config of given Aqua model.
 
         Parameters
         ----------
@@ -378,12 +381,20 @@ class AquaDeploymentApp(AquaApp):
             logger.error(f"Failed to retreive model from the given id {model_id}")
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
         
-        artifact_path = utils.get_artifact_path(
+        if (
+            Tags.AQUA_TAG.value not in oci_model.freeform_tags
+            and Tags.AQUA_TAG.value.lower() not in oci_model.freeform_tags
+        ):
+            raise AquaClientError(
+                f"Target model {oci_model.id} is not Aqua model."
+            )
+
+        artifact_path = get_artifact_path(
             oci_model.custom_metadata_list
         )
 
         shape_config = json.loads(
-            utils.read_file(
+            read_file(
                 file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}",
                 auth=self._auth
             ) or UNKNOWN_JSON_STR
@@ -393,7 +404,7 @@ class AquaDeploymentApp(AquaApp):
             not shape_config or DEPLOYMENT_SHAPE not in shape_config
             or not shape_config[DEPLOYMENT_SHAPE]
         ):
-            raise AquaClientError(
-                f"Failed to retrieve shape config from given id {model_id}."
-            )
+            # TODO: adjust the error raising
+            raise AquaServiceError(opc_request_id=None, status_code=500)
+
         return shape_config[DEPLOYMENT_SHAPE]
