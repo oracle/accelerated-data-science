@@ -70,5 +70,5 @@ After the ``feature_store_marketplace.yaml`` is written using the init step abov
 AuthN/AuthZ Setup (Optional)
 _____________________________
 
-We can also setup `Feature Store API Gateway stack <https://github.com/najiyacl/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ to enable authentication and authorization for Feature Store. This will allow us to access the feature store securely from a public endpoint using OCI IAM.
+We can also setup `Feature Store API Gateway stack <https://github.com/oracle-samples/oci-data-science-ai-samples/blob/main/feature_store/README.md>`_ to enable authentication and authorization for Feature Store. This will allow us to access the feature store securely from a public endpoint using OCI IAM.
 

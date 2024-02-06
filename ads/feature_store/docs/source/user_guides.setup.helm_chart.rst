@@ -37,7 +37,7 @@ ________________________________
 .. code-block:: bash
 
    helm upgrade <app-name> oci://<helm-chart-image-path> --namespace <kubernetes-namespace> --values <path-to-values-yaml> --timeout 300s --wait -i --version <marketplace-version>
-- (Optional) `Setup Feature Store API Gateway <https://github.com/najiyacl/oci-data-science-ai-samples/tree/main/feature_store/apigw_terraform>`_
+- (Optional) `Setup Feature Store API Gateway <https://github.com/oracle-samples/oci-data-science-ai-samples/tree/main/feature_store/apigw_terraform>`_
 
 
 Appendix
