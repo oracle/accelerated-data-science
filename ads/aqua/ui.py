@@ -115,9 +115,9 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-        str:
+        dict:
             The compartment ocid.
         """
         if not COMPARTMENT_OCID:
             logger.error("No compartment id found from environment variables.")
-        return COMPARTMENT_OCID
+        return dict(compartment_id=COMPARTMENT_OCID)
