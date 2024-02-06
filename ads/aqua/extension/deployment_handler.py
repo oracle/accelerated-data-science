@@ -142,6 +142,6 @@ class AquaDeploymentHandler(AquaAPIhandler):
             raise HTTPError(500, str(ex))
 
 __handlers__ = [
-    ("deployments/?([^/]*)", AquaDeploymentHandler)
+    ("deployments/?([^/]*)", AquaDeploymentHandler),
     ("deployments/config/?([^/]*)", AquaDeploymentHandler)
 ]
