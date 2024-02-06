@@ -11,10 +11,11 @@ Overview
 **Input Data**
 
 The Anomaly Detection Operator accepts a dataset with:
-# A datetime column 
-# A target column
-# (Optionally) 1 or more seires columns (such that the target is indexed by datetime and series)
-# (Optionall) An arbitrary number of additional variables
+
+* A datetime column 
+* A target column
+* (Optionally) 1 or more seires columns (such that the target is indexed by datetime and series)
+* (Optionall) An arbitrary number of additional variables
 
 Besides this input data, the user can also specify validation data, if available. Validation data should have all the columns of the input data plus a binary column titled "anomaly". The "anomaly" column should be -1 for anomalies and 1 for normal rows.
 

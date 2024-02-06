@@ -22,8 +22,7 @@ As a low-code extensible framework, operators enable a wide range of use cases. 
 
 * The datetime input column must have a consistent interval throughout the historical and additional datasets. Inconsistent diffs will cause failure on automlx and may affect performance on other frameworks.
 * It is recommended that the datetime column is passed in sorted from earliest to latest, if not, the operator will sort on your behalf.
-* It is recommended that you pass in the format of your datetime string into the ``format`` option of the ``datetime_column`` parameter. The operator uses the python datetime string format outlined here: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes
-    * For example "31/02/2024" would be "%m/%d/%Y". "July 24" would be "%B %y". 
+* It is recommended that you pass in the format of your datetime string into the ``format`` option of the ``datetime_column`` parameter. The operator uses the python datetime string format outlined here: https://docs.python.org/3/library/datetime.html#strftime-and-strptime-format-codes (For example "31/02/2024" would be "%m/%d/%Y". "July 24" would be "%B %y".)
 
 
 **Validation Data**
