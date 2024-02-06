@@ -2,7 +2,6 @@
 Advanced Use Cases
 ==================
 
-
 The Science of Forecasting
 --------------------------
 

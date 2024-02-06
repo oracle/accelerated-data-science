@@ -2,8 +2,6 @@
 Advanced Use Cases
 ==================
 
-**Documentation: Anomaly Detection Science and Model Parameterization**
-
 The Science of Anomaly Detection
 --------------------------------
 
@@ -11,7 +9,7 @@ Anomaly Detection comes in many forms. We will go through some of these and give
 
 * Constructive v Destructive v Pre-Processing: This Operator focuses on the Constructive and Pre-Processing use cases. Destructive can work, but more specific parameters may be required.
 * Supervised v Semi-Supervised v Unsupervised: All 3 of these approaches are supported by AutoMLX. AutoTS supports only Unsupervised at this time.
-* Time Series. This Operator is focused on just time-series data.
+* Time Series. This Operator requires time-series data.
 
 
 Data Parameterization
@@ -54,6 +52,9 @@ Data Parameterization
             name: ds
         target_column: y
 
+
+Model Parameterization
+----------------------
 
 **Specify Model Type**
 

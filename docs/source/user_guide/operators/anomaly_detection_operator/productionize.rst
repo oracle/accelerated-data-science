@@ -72,9 +72,8 @@ The report.html file is designed differently for each model type. Generally, it 
 The metrics file includes relevant metrics calculated on the training set.
 
 
-========
 Examples
-========
+--------
 
 **Simple Example**
 

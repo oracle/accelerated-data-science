@@ -110,7 +110,7 @@ While local explanations offer granular insights, they may not provide a compreh
 
 
 Examples
-========
+--------
 
 **Simple Example**
 

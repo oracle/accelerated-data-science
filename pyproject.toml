@@ -179,7 +179,7 @@ forecast = [
   "oracledb",
 ]
 anomaly  = [
-  "tods @ git+https://github.com/datamllab/tods.git",
+  "oracle_ads[opctl]",
   "autots",
   "oracle-automlx[anomaly]==23.2.3",
   "oracledb",

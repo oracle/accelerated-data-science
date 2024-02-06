@@ -1,6 +1,6 @@
-==========================
-Anomaly Detection Operator
-==========================
+=================
+Anomaly Detection
+=================
 
 The Anomaly Detection Operator is a low code tool for integrating Anomaly Detection into any enterprise applicaiton. Specifically, it leverages timeseries constructive anomaly detection in order to flag anomolous moments in your data, by time and by ID.
 
