@@ -6,8 +6,7 @@
 from tornado.web import HTTPError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
 from ads.aqua.deployment import AquaDeploymentApp
-from ads.config import PROJECT_OCID
-from ads.aqua.model import AquaModelApp
+from ads.config import PROJECT_OCID, COMPARTMENT_OCID
 
 
 class AquaDeploymentHandler(AquaAPIhandler):
@@ -67,14 +66,14 @@ class AquaDeploymentHandler(AquaAPIhandler):
         if not model_id:
             raise HTTPError(400, Errors.MISSING_REQUIRED_PARAMETER.format("model_id"))
 
-        compartment_id = input_data.get("compartment_id")
+        compartment_id = input_data.get("compartment_id", COMPARTMENT_OCID)
         project_id = input_data.get("project_id", PROJECT_OCID)
         log_group_id = input_data.get("log_group_id")
         access_log_id = input_data.get("access_log_id")
         predict_log_id = input_data.get("predict_log_id")
         description = input_data.get("description")
-        instance_count = input_data.get("instance_count", 1)
-        bandwidth_mbps = input_data.get("bandwidth_mbps", 10)
+        instance_count = input_data.get("instance_count")
+        bandwidth_mbps = input_data.get("bandwidth_mbps")
 
         try:
             self.finish(
@@ -106,11 +105,7 @@ class AquaDeploymentHandler(AquaAPIhandler):
         """List Aqua models."""
         # If default is not specified,
         # jupyterlab will raise 400 error when argument is not provided by the HTTP request.
-        compartment_id = self.get_argument("compartment_id")
-        if not compartment_id:
-            raise HTTPError(
-                400, Errors.MISSING_REQUIRED_PARAMETER.format("compartment_id")
-            )
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         # project_id is optional.
         project_id = self.get_argument("project_id", default=PROJECT_OCID)
         try:

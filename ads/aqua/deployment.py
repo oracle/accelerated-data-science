@@ -178,9 +178,9 @@ class AquaDeploymentApp(AquaApp):
             The number of worker processes/threads to handle incoming requests
         with_bucket_uri(bucket_uri)
             Sets the bucket uri when uploading large size model.
-        server_port: (int). Defaults to 8080.
+        server_port: (int). Defaults to 5000.
             The server port for docker container image.
-        health_check_port: (int). Defaults to 8080.
+        health_check_port: (int). Defaults to 5000.
             The health check port for docker container image.
         env_var : dict, optional
             Environment variable for the deployment, by default None.
@@ -203,8 +203,13 @@ class AquaDeploymentApp(AquaApp):
             model_id=model_id, comparment_id=compartment_id, project_id=project_id
         )
         logging.debug(
-            f"Aqua Model {aqua_model.id} created with the service model {model_id}. \n {aqua_model}"
+            f"Aqua Model {aqua_model.id} created with the service model {model_id}"
         )
+        logging.debug(aqua_model)
+
+        # todo: remove entrypoint, this will go in the image. For now, added for testing
+        #  the image iad.ocir.io/ociodscdev/aqua_deploy:1.0.0
+        entrypoint = ["python", "/opt/api/api.py"]
 
         tags = {}
         for tag in [
@@ -240,6 +245,7 @@ class AquaDeploymentApp(AquaApp):
         container_runtime = (
             ModelDeploymentContainerRuntime()
             .with_image(AQUA_MODEL_DEPLOYMENT_IMAGE)
+            .with_entrypoint(entrypoint)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
