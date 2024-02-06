@@ -18,7 +18,7 @@ Initialize your anomaly detection job through the ads cli command:
 
 .. code-block:: bash
 
-   ads opctl init -t anomaly --output anomaly
+   ads operator init -t anomaly
 
 
 Input Data 
@@ -41,7 +41,6 @@ Within the ``anomaly`` folder created above there will be a ``anomaly.yaml`` fil
             name: ds
         input_data:
             url: https://raw.githubusercontent.com/facebook/prophet/main/examples/example_yosemite_temps.csv
-        horizon: 3
         model: automlx
         target_column: y
 

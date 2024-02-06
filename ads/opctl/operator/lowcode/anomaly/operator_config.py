@@ -10,7 +10,12 @@ from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDirectory, InputData
+from ads.opctl.operator.common.operator_config import (
+    OperatorConfig,
+    OutputDirectory,
+    InputData,
+)
+from .const import SupportedModels
 
 
 @dataclass(repr=True)
@@ -64,7 +69,7 @@ class AnomalyOperatorSpec(DataClassSerializable):
         self.inliers_filename = self.inliers_filename or "inliers.csv"
         self.outliers_filename = self.outliers_filename or "outliers.csv"
         self.test_metrics_filename = self.test_metrics_filename or "metrics.csv"
-
+        self.model = self.model or SupportedModels.Auto
         self.generate_inliers = (
             self.generate_inliers if self.generate_inliers is not None else False
         )

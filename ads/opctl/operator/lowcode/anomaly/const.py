@@ -13,7 +13,8 @@ class SupportedModels(str, metaclass=ExtendedEnumMeta):
 
     AutoMLX = "automlx"
     AutoTS = "autots"
-    TODS = "tods"
+    Auto = "auto"
+    # TODS = "tods"
 
 
 class TODSSubModels(str, metaclass=ExtendedEnumMeta):

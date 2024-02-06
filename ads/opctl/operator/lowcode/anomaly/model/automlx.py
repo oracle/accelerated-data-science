@@ -27,7 +27,7 @@ class AutoMLXOperatorModel(AnomalyOperatorBaseModel):
         date_column = self.spec.datetime_column.name
         anomaly_output = AnomalyOutput(date_column=date_column)
 
-        time_budget = self.spec.model_kwargs.pop("time_budget", -1)
+        time_budget = self.spec.model_kwargs.pop("time_budget", None)
         # Iterate over the full_data_dict items
         for target, df in self.datasets.full_data_dict.items():
             est = automl.Pipeline(task="anomaly_detection", **self.spec.model_kwargs)

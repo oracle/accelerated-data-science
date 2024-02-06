@@ -18,7 +18,7 @@ Initialize your forecast through the ads cli command:
 
 .. code-block:: bash
 
-   ads opctl init -t forecast --output my-forecast
+   ads operator init -t forecast --output my-forecast
 
 
 Input Data 

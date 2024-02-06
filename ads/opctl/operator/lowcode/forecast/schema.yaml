@@ -29,6 +29,7 @@ spec:
     historical_data:
       required: true
       type: dict
+      default: {"url": "data.csv"}
       meta:
         description: "This should be indexed by date and target category (optionally). It should include all targets and endogeneous data."
       schema:
@@ -335,10 +336,10 @@ spec:
 
     target_category_columns:
       type: list
-      required: true
+      required: false
       schema:
         type: string
-      default: ["Column1"]
+      default: ["Series ID"]
 
     horizon:
       required: true

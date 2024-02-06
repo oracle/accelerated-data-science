@@ -28,9 +28,9 @@ In order to run on a job, you will need to create and publish a conda pack with 
 .. code-block:: bash
 
     odsc conda create -n forecast -e
-    conda activate /home/datascience/conda/forecast_v1_0
+    conda activate /home/datascience/conda/forecast_v1_1
     python3 -m pip install "oracle-ads[forecast]"
-    odsc conda publish -s /home/datascience/conda/forecast_v1_0
+    odsc conda publish -s /home/datascience/conda/forecast_v1_1
 
 Ensure that you have properly configured your conda pack namespace and bucket in the Launcher -> Settings -> Object Storage Settings. For more details, see :doc:`ADS Conda Set Up <../../cli/opctl/configure>`
 
@@ -50,7 +50,7 @@ To install:
 
 .. code-block:: bash
 
-    conda activate /home/datascience/conda/forecast_py38_v1
+    conda activate /home/datascience/conda/forecast_py38_v1_1
 
 
 That's it. Your Operator is ready to go!

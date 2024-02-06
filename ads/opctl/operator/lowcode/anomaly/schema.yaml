@@ -29,8 +29,9 @@ spec:
     input_data:
       required: true
       type: dict
+      default: {"url": "data.csv"}
       meta:
-        description: "The input data."
+        description: "The payload that the detector should evaluate."
       schema:
         connect_args:
           nullable: true
@@ -82,7 +83,7 @@ spec:
       required: false
       type: dict
       meta:
-        description: "The input data."
+        description: "Data that has already been labeled as anomalous or not."
       schema:
         connect_args:
           nullable: true
