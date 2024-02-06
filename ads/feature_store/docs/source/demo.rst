@@ -43,6 +43,14 @@ Deploying Feature Store API server to an existing OKE cluster
          This demonstration illustrates the step-by-step process of setting up the Feature Store utilizing helm charts from the feature store marketplace listing
 
 - **Demo Links**:
-    - `Adding AuthN/Z to API server deployed in existing cluster <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/api_gateway_demo.mp4>`__
+    - `Adding AuthN/Z to API server deployed in existing cluster <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/container-service-deployment-demo.mp4>`__
     - **Demo Description**:
          This demonstration illustrates the step-by-step process of setting up AuthN/Z for feature store API server deployment to an OKE cluster
+
+Deploying Feature Store API server to OCI Container Service
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+- **Demo Links**:
+    - `Deploy Feature Store on OCI Container Service using terraform stack <https://objectstorage.us-ashburn-1.oraclecloud.com/p/hh2NOgFJbVSg4amcLM3G3hkTuHyBD-8aE_iCsuZKEvIav1Wlld-3zfCawG4ycQGN/n/ociodscdev/b/oci-feature-store/o/beta/demos/container-service-deployment-demo.mp4>`__
+    - **Demo Description**:
+         This demonstration illustrates the step-by-step process of setting up feature store environment on OCI Container Service using terraform stack
