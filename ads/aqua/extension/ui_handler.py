@@ -4,11 +4,10 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from urllib.parse import urlparse
-
 from tornado.web import HTTPError
-
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.ui import AquaUIApp
+from ads.config import COMPARTMENT_OCID
 
 
 class AquaUIHandler(AquaAPIhandler):
@@ -48,7 +47,7 @@ class AquaUIHandler(AquaAPIhandler):
 
     def list_log_groups(self, **kwargs):
         """Lists all log groups for the specified compartment or tenancy."""
-        compartment_id = self.get_argument("compartment_id")
+        compartment_id = self.get_argument("compartment_id", default=COMPARTMENT_OCID)
         try:
             return self.finish(
                 AquaUIApp().list_log_groups(compartment_id=compartment_id, **kwargs)
