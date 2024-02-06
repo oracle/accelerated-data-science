@@ -190,25 +190,21 @@ class AquaDeploymentApp(AquaApp):
             An Aqua deployment instance
 
         """
-        # todo: revisit error handling
+        # todo: revisit error handling and pull deployment image info from config
         if not AQUA_MODEL_DEPLOYMENT_IMAGE:
             raise AquaClientError(
                 f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
                 f"continue with Aqua model deployment."
             )
 
+        # todo: for fine tuned models, skip model creation.
         # Create a model catalog entry in the user compartment
         aqua_model = AquaModelApp().create(
             model_id=model_id, comparment_id=compartment_id, project_id=project_id
         )
         logging.debug(
-            f"Aqua Model {aqua_model.id} created with the service model {model_id}"
+            f"Aqua Model {aqua_model.id} created with the service model {model_id}. \n {aqua_model}"
         )
-        logging.debug(aqua_model)
-
-        # todo: remove entrypoint, this will go in the image. For now, added for testing
-        #  the image iad.ocir.io/ociodscdev/aqua_deploy:1.0.0
-        entrypoint = ["python", "/opt/api/api.py"]
 
         tags = {}
         for tag in [
@@ -244,7 +240,6 @@ class AquaDeploymentApp(AquaApp):
         container_runtime = (
             ModelDeploymentContainerRuntime()
             .with_image(AQUA_MODEL_DEPLOYMENT_IMAGE)
-            .with_entrypoint(entrypoint)
             .with_server_port(server_port)
             .with_health_check_port(health_check_port)
             .with_env(env_var)
