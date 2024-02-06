@@ -59,9 +59,15 @@ class Transformations(ABC):
         clean_df = self._set_multi_index(clean_df)
 
         if self.name == "historical_data":
-            clean_df = self._missing_value_imputation_hist(clean_df)
+            try:
+                clean_df = self._missing_value_imputation_hist(clean_df)
+            except Exception as e:
+                logger.debug(f"Missing value imputation failed with {e.args}")
             if self.preprocessing:
-                clean_df = self._outlier_treatment(clean_df)
+                try:
+                    clean_df = self._outlier_treatment(clean_df)
+                except Exception as e:
+                    logger.debug(f"Outlier Treatment failed with {e.args}")
             else:
                 logger.debug("Skipping outlier treatment as preprocessing is disabled")
         elif self.name == "additional_data":
@@ -89,7 +95,7 @@ class Transformations(ABC):
             )
         except:
             raise InvalidParameterError(
-                f"Unable to determine the datetime type for column: {self.dt_column_name} in dataset: {self.name}. Please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file. For reference, here is the first datetime given: {df[self.dt_column_name].values[0]}"
+                f"Unable to determine the datetime type for column: {self.dt_column_name} in dataset: {self.name}. Please specify the format explicitly. (For example adding 'format: %d/%m/%Y' underneath 'name: {self.dt_column_name}' in the datetime_column section of the yaml file if you haven't already. For reference, here is the first datetime given: {df[self.dt_column_name].values[0]}"
             )
         return df
 

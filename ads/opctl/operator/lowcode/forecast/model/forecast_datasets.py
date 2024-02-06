@@ -65,6 +65,16 @@ class AdditionalData(AbstractData):
     def __init__(self, spec, historical_data):
         if spec.additional_data is not None:
             super().__init__(spec=spec, name="additional_data")
+            add_dates = self.data.index.get_level_values(0).unique().tolist()
+            add_dates.sort()
+            if historical_data.get_max_time() > add_dates[-spec.horizon]:
+                raise DataMismatchError(
+                    f"The Historical Data ends on {historical_data.get_max_time()}. The additional data horizon starts on {add_dates[-spec.horizon]}. The horizon should have exactly {spec.horizon} dates after the Hisotrical at a frequency of {historical_data.freq}"
+                )
+            elif historical_data.get_max_time() != add_dates[-(spec.horizon + 1)]:
+                raise DataMismatchError(
+                    f"The Additional Data must be present for all historical data and the entire horizon. The Historical Data ends on {historical_data.get_max_time()}. The additonal data horizon starts after {add_dates[-(spec.horizon+1)]}. These should be the same date."
+                )
         else:
             self.name = "additional_data"
             self.data = None

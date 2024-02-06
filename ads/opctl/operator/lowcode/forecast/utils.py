@@ -250,7 +250,6 @@ def evaluate_train_metrics(output, metrics_col_name=None):
                 f"Failed to generate training metrics for target_series: {s_id}"
             )
             logger.debug(f"Recieved Error Statement: {e}")
-            raise
     return total_metrics
 
 

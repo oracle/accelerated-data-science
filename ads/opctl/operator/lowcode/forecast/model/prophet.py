@@ -131,7 +131,6 @@ class ProphetOperatorModel(ForecastOperatorBaseModel):
                 "model_name": self.spec.model,
                 "error": str(e),
             }
-            raise
 
     def _build_model(self) -> pd.DataFrame:
         from prophet import Prophet

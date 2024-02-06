@@ -209,7 +209,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
             logger.debug("===========Done===========")
         except Exception as e:
             self.errors_dict[s_id] = {"model_name": self.spec.model, "error": str(e)}
-            raise e
 
     def _build_model(self) -> pd.DataFrame:
         full_data_dict = self.datasets.get_data_by_series()
@@ -402,7 +401,6 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
                 # Do not fail the whole run due to explanations failure
                 logger.warn(f"Failed to generate Explanations with error: {e}.")
                 logger.debug(f"Full Traceback: {traceback.format_exc()}")
-                raise
 
         model_description = dp.Text(
             "NeuralProphet is an easy to learn framework for interpretable time "

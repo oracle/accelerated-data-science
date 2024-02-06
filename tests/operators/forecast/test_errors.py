@@ -196,7 +196,8 @@ def populate_yaml(
 
     yaml_i["spec"]["additional_data"] = {"url": additional_data_path}
     yaml_i["spec"]["historical_data"]["url"] = historical_data_path
-    yaml_i["spec"]["test_data"] = {"url": test_data_path}
+    if test_data_path is not None:
+        yaml_i["spec"]["test_data"] = {"url": test_data_path}
     yaml_i["spec"]["output_directory"]["url"] = output_data_path
     yaml_i["spec"]["model"] = model
     yaml_i["spec"]["target_column"] = "Sales"
@@ -337,16 +338,6 @@ def test_historical_data(operator_setup, model):
         )
 
 
-# def test_data_mismatch(operator_setup):
-#     tmpdirname = operator_setup
-#     historical_data_path, additional_data_path, _ = setup_artificial_data(tmpdirname)
-#     yaml_i, output_data_path = populate_yaml(
-#         tmpdirname=tmpdirname,
-#         historical_data_path=historical_data_path,
-#         additional_data_path=additional_data_path,
-#     )
-
-
 @pytest.mark.parametrize("model", MODELS)
 def test_0_series(operator_setup, model):
     tmpdirname = operator_setup
@@ -399,6 +390,49 @@ def test_0_series(operator_setup, model):
     test_data = yaml_i["spec"].pop("test_data")
     run_yaml(tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path)
     # Todo test horizon mismatch with add data and/or test data
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_add_data_mismatch(operator_setup, model):
+    tmpdirname = operator_setup
+    historical_data_path, additional_data_path, _ = setup_artificial_data(tmpdirname)
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    with pytest.raises(DataMismatchError):
+        yaml_i["spec"]["horizon"] = HORIZON - 1
+        run_yaml(
+            tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
+        )
+    with pytest.raises(DataMismatchError):
+        yaml_i["spec"]["horizon"] = HORIZON + 1
+        run_yaml(
+            tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
+        )
+
+
+@pytest.mark.parametrize("model", MODELS)
+def test_invalid_dates(operator_setup, model):
+    tmpdirname = operator_setup
+    hist_data = HISTORICAL_DATA[:100]
+    hist_data = pd.concat([hist_data, hist_data])
+    add_data = ADDITIONAL_DATA[:100]
+    add_data = pd.concat([add_data, add_data])
+
+    historical_data_path, additional_data_path, _ = setup_artificial_data(
+        tmpdirname, hist_data=hist_data, add_data=add_data
+    )
+    yaml_i, output_data_path = populate_yaml(
+        tmpdirname=tmpdirname,
+        historical_data_path=historical_data_path,
+        additional_data_path=additional_data_path,
+    )
+    with pytest.raises(DataMismatchError):
+        run_yaml(
+            tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
+        )
 
 
 @pytest.mark.parametrize("model", MODELS)

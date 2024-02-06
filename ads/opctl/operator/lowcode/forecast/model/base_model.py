@@ -131,7 +131,6 @@ class ForecastOperatorBaseModel(ABC):
                     except Exception as e:
                         logger.warn("Unable to generate Test Metrics.")
                         logger.debug(f"Full Traceback: {traceback.format_exc()}")
-                        raise e  # TODO remove
             report_sections = []
 
             if self.spec.generate_report:
@@ -278,7 +277,10 @@ class ForecastOperatorBaseModel(ABC):
                     test_data=test_data,
                     ci_interval_width=self.spec.confidence_interval_width,
                 )
-                forecast_plots = [forecast_text, series_subtext, forecast_sec]
+                if series_name is not None and len(self.datasets.list_series_ids()) > 1:
+                    forecast_plots = [forecast_text, series_subtext, forecast_sec]
+                else:
+                    forecast_plots = [forecast_text, forecast_sec]
 
                 yaml_appendix_title = dp.Text(f"## Reference: YAML File")
                 yaml_appendix = dp.Code(code=self.config.to_yaml(), language="yaml")
@@ -529,7 +531,7 @@ class ForecastOperatorBaseModel(ABC):
                 logger.warn(
                     "Unable to generate explanations for this model type or for this dataset."
                 )
-                raise
+                logger.debug(f"Got error: {e.args}")
 
         if self.spec.generate_model_parameters:
             # model params
@@ -662,6 +664,14 @@ class ForecastOperatorBaseModel(ABC):
             )
             kernel_explnr_vals = kernel_explnr.shap_values(data_trimmed)
 
+            exp_end_time = time.time()
+            global_ex_time = global_ex_time + exp_end_time - exp_start_time
+
+            self.local_explainer(
+                kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
+            )
+            local_ex_time = local_ex_time + time.time() - exp_end_time
+
             if not len(kernel_explnr_vals):
                 logger.warn(
                     f"No explanations generated. Ensure that additional data has been provided."
@@ -673,13 +683,7 @@ class ForecastOperatorBaseModel(ABC):
                         np.average(np.absolute(kernel_explnr_vals[:, 1:]), axis=0),
                     )
                 )
-            exp_end_time = time.time()
-            global_ex_time = global_ex_time + exp_end_time - exp_start_time
 
-            self.local_explainer(
-                kernel_explnr, series_id=s_id, datetime_col_name=datetime_col_name
-            )
-            local_ex_time = local_ex_time + time.time() - exp_end_time
         logger.info(
             "Global explanations generation completed in %s seconds", global_ex_time
         )

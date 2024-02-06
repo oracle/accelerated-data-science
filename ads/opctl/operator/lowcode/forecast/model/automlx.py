@@ -45,11 +45,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             model_kwargs_cleaned.get("score_metric", AUTOMLX_DEFAULT_SCORE_METRIC),
         )
         model_kwargs_cleaned.pop("task", None)
-        time_budget = model_kwargs_cleaned.pop("time_budget", 0)
+        time_budget = model_kwargs_cleaned.pop("time_budget", None)
         model_kwargs_cleaned[
             "preprocessing"
         ] = self.spec.preprocessing or model_kwargs_cleaned.get("preprocessing", True)
-        return model_kwargs_cleaned
+        return model_kwargs_cleaned, time_budget
 
     def preprocess(self, data, series_id=None):
         return data.set_index(self.spec.datetime_column.name)
@@ -91,8 +91,7 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
         )
 
         # Clean up kwargs for pass through
-        model_kwargs_cleaned = self.set_kwargs()
-        time_budget = model_kwargs_cleaned.pop("time_budget", -1)
+        model_kwargs_cleaned, time_budget = self.set_kwargs()
 
         for i, (s_id, df) in enumerate(full_data_dict.items()):
             try:
@@ -170,7 +169,6 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                     "model_name": self.spec.model,
                     "error": str(e),
                 }
-                raise
 
         logger.debug("===========Forecast Generated===========")
 
@@ -325,13 +323,16 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
                 if row.index[0] > last_train_date:
                     X_new = horizon_data.copy()
                     X_new.loc[row.index[0]] = row.iloc[0]
-                    row_i = model.forecast(X=X_new, periods=self.spec.horizon)[
-                        [target_col]
-                    ].loc[row.index[0]]
+                    row_i = (
+                        model.forecast(X=X_new, periods=self.spec.horizon)[[target_col]]
+                        .loc[row.index[0]]
+                        .values[0]
+                    )
                 else:
-                    row_i = model.predict(X=row)
+                    row_i = model.predict(X=row).values[0][0]
                 rows.append(row_i)
-            return pd.concat(rows)[target_col].reset_index(drop=True)
+            ret = np.asarray(rows).flatten()
+            return ret
 
         return _custom_predict_fn
 
