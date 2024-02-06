@@ -15,6 +15,7 @@ from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.aqua.utils import create_word_icon
+from ads.common.utils import get_console_link
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
@@ -48,6 +49,7 @@ class AquaModelSummary(DataClassSerializable):
     tags: dict
     task: str
     time_created: str
+    console_link: str
 
 
 @dataclass(repr=False)
@@ -128,6 +130,11 @@ class AquaModelApp(AquaApp):
                 **AquaModelApp.process_model(custom_model.dsc_model),
                 project_id=custom_model.project_id,
                 model_card=str(self._read_file(f"{artifact_path}/{README}")),
+                console_link=get_console_link(
+                    resource="models",
+                    ocid=custom_model.id,
+                    region=self.region,
+                ),
             )
 
     def get(self, model_id) -> "AquaModel":
@@ -159,6 +166,11 @@ class AquaModelApp(AquaApp):
             **AquaModelApp.process_model(oci_model),
             project_id=oci_model.project_id,
             model_card=str(self._read_file(f"{artifact_path}/{README}")),
+            console_link=get_console_link(
+                resource="models",
+                ocid=model_id,
+                region=self.region,
+            ),
         )
 
     def list(
