@@ -8,9 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
-import fsspec
 import oci
-from ads.model.datascience_model import DataScienceModel
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
