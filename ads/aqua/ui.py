@@ -3,11 +3,14 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List, Dict
-from ads.aqua.base import AquaApp
-from ads.config import COMPARTMENT_OCID, TENANCY_OCID
+from typing import Dict, List
+
 from oci.exceptions import ServiceError
-from ads.aqua.exception import AquaServiceError, AquaClientError
+
+from ads.aqua import logger
+from ads.aqua.base import AquaApp
+from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 
 
 class AquaUIApp(AquaApp):
@@ -106,3 +109,15 @@ class AquaUIApp(AquaApp):
         # todo : update this once exception handling is set up
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+
+    def get_default_compartment(self):
+        """Returns user compartment OCID fetched from environment variables.
+
+        Returns
+        -------
+        str:
+            The compartment ocid.
+        """
+        if not COMPARTMENT_OCID:
+            logger.error("No compartment id found from environment variables.")
+        return COMPARTMENT_OCID
