@@ -43,14 +43,14 @@ DATASETS_LIST = [
     # "UberTLCDataset",
     #     "WeatherDataset",
     #     "WineDataset",
-    #     "WoolyDataset",
+    "WoolyDataset",
 ]
 
 MODELS = [
-    # "arima",
-    # "automlx",
-    # "prophet",
-    # "neuralprophet",
+    "arima",
+    "automlx",
+    "prophet",
+    "neuralprophet",
     "autots",
     # "auto",
 ]

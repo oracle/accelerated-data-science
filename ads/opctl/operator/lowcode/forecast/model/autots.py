@@ -130,14 +130,17 @@ class AutoTSOperatorModel(ForecastOperatorBaseModel):
         additional_regressors = list(
             set(full_data_indexed.columns) - {self.original_target_column}
         )
-        future_regressor = full_data_indexed.reset_index().pivot(
-            index=self.spec.datetime_column.name,
-            columns=ForecastOutputColumns.SERIES,
-            values=additional_regressors,
-        )
-
-        future_reg = future_regressor[: -self.spec.horizon]
-        regr_fcst = future_regressor[-self.spec.horizon :]
+        if len(additional_regressors) > 1:
+            future_regressor = full_data_indexed.reset_index().pivot(
+                index=self.spec.datetime_column.name,
+                columns=ForecastOutputColumns.SERIES,
+                values=additional_regressors,
+            )
+            future_reg = future_regressor[: -self.spec.horizon]
+            regr_fcst = future_regressor[-self.spec.horizon :]
+        else:
+            future_reg = None
+            regr_fcst = None
 
         if self.loaded_models is None:
             model = model.fit(
