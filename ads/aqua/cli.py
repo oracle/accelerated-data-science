@@ -7,7 +7,6 @@
 from ads.aqua.deployment import AquaDeploymentApp
 from ads.aqua.job import AquaFineTuningApp
 from ads.aqua.model import AquaModelApp
-from ads.aqua.playground.playground import PlaygroundApp
 
 
 class AquaCommand:
@@ -16,4 +15,3 @@ class AquaCommand:
     model = AquaModelApp
     fine_tuning = AquaFineTuningApp
     deployment = AquaDeploymentApp
-    playground = PlaygroundApp
