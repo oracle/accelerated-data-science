@@ -188,9 +188,9 @@ class AquaDeploymentApp(AquaApp):
             The number of worker processes/threads to handle incoming requests
         with_bucket_uri(bucket_uri)
             Sets the bucket uri when uploading large size model.
-        server_port: (int). Defaults to 8080.
+        server_port: (int). Defaults to 5000.
             The server port for docker container image.
-        health_check_port: (int). Defaults to 8080.
+        health_check_port: (int). Defaults to 5000.
             The health check port for docker container image.
         env_var : dict, optional
             Environment variable for the deployment, by default None.
@@ -200,13 +200,14 @@ class AquaDeploymentApp(AquaApp):
             An Aqua deployment instance
 
         """
-        # todo: revisit error handling
+        # todo: revisit error handling and pull deployment image info from config
         if not AQUA_MODEL_DEPLOYMENT_IMAGE:
             raise AquaClientError(
                 f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
                 f"continue with Aqua model deployment."
             )
 
+        # todo: for fine tuned models, skip model creation.
         # Create a model catalog entry in the user compartment
         aqua_model = AquaModelApp().create(
             model_id=model_id, comparment_id=compartment_id, project_id=project_id

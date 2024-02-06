@@ -3,11 +3,14 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from typing import List, Dict
-from ads.aqua.base import AquaApp
-from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID
+from typing import Dict, List
+
 from oci.exceptions import ServiceError
-from ads.aqua.exception import AquaServiceError, AquaClientError
+
+from ads.aqua import logger
+from ads.aqua.base import AquaApp
+from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 
 
 class AquaUIApp(AquaApp):
@@ -79,7 +82,7 @@ class AquaUIApp(AquaApp):
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
     def list_compartments(self, **kwargs) -> List[Dict]:
-        """Lists the compartments in a compartment specified by ODSC_MODEL_COMPARTMENT_OCID env variable. This is a pass through the OCI list_compartments
+        """Lists the compartments in a compartment specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
         API.
 
         Parameters
@@ -94,15 +97,27 @@ class AquaUIApp(AquaApp):
             Dict has json representation of oci.identity.models.Compartment
         """
         try:
-            if not ODSC_MODEL_COMPARTMENT_OCID:
+            if not TENANCY_OCID:
                 raise AquaClientError(
-                    f"ODSC_MODEL_COMPARTMENT_OCID must be available in environment"
+                    f"TENANCY_OCID must be available in environment"
                     " variables to list the sub compartments."
                 )
 
             return self.identity_client.list_compartments(
-                compartment_id=ODSC_MODEL_COMPARTMENT_OCID, **kwargs
+                compartment_id=TENANCY_OCID, **kwargs
             ).data.__repr__()
         # todo : update this once exception handling is set up
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+
+    def get_default_compartment(self):
+        """Returns user compartment OCID fetched from environment variables.
+
+        Returns
+        -------
+        dict:
+            The compartment ocid.
+        """
+        if not COMPARTMENT_OCID:
+            logger.error("No compartment id found from environment variables.")
+        return dict(compartment_id=COMPARTMENT_OCID)
