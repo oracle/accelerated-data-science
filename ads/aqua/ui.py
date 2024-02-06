@@ -106,12 +106,12 @@ class AquaUIApp(AquaApp):
             # User may not have permissions to list compartment.
             try:
                 compartments.extend(
-                    oci.pagination.list_call_get_all_results(
-                        self.identity_client.list_compartments,
+                    self.list_resource(
+                        list_func_ref=self.identity_client.list_compartments,
                         compartment_id=TENANCY_OCID,
                         compartment_id_in_subtree=True,
                         access_level="ANY",
-                    ).data
+                    )
                 )
             except ServiceError as se:
                 logger.error(
@@ -119,10 +119,10 @@ class AquaUIApp(AquaApp):
                 )
                 try:
                     compartments.append(
-                        oci.pagination.list_call_get_all_results(
-                            self.identity_client.list_compartments,
+                        self.list_resource(
+                            list_func_ref=self.identity_client.list_compartments,
                             compartment_id=TENANCY_OCID,
-                        ).data
+                        )
                     )
                 except ServiceError as se:
                     logger.error(
