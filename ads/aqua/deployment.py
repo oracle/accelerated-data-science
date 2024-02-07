@@ -5,7 +5,12 @@
 
 import json
 import logging
-from typing import List, Dict
+from typing import List, Dict, Union
+
+from oci.data_science.models import (
+    ModelDeployment,
+    ModelDeploymentSummary
+)
 
 from dataclasses import dataclass, field
 
@@ -13,7 +18,8 @@ from ads.aqua.base import AquaApp
 from ads.aqua import logger
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
-    DEPLOYMENT_CONFIG, 
+    DEPLOYMENT_CONFIG,
+    UNKNOWN, 
     UNKNOWN_JSON_STR, 
     get_artifact_path, 
     read_file
@@ -23,9 +29,6 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentContainerRuntime,
     ModelDeploymentMode,
-)
-from ads.model.service.oci_datascience_model_deployment import (
-    OCIDataScienceModelDeployment,
 )
 from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
@@ -54,21 +57,23 @@ class AquaDeployment(DataClassSerializable):
     created_by: str = None
     endpoint: str = None
     console_link: str = None
+    lifecycle_details: str = None
     shape_info: field(default_factory=ShapeInfo) = None
     tags: dict = None
 
     @classmethod
     def from_oci_model_deployment(
         cls,
-        oci_model_deployment: OCIDataScienceModelDeployment,
+        oci_model_deployment: Union[ModelDeploymentSummary, ModelDeployment],
         region: str,
     ) -> "AquaDeployment":
         """Converts oci model deployment response to AquaDeployment instance.
 
         Parameters
         ----------
-        oci_model_deployment: oci.data_science.models.ModelDeployment
-            The oci.data_science.models.ModelDeployment instance.
+        oci_model_deployment: Union[ModelDeploymentSummary, ModelDeployment]
+            The instance of either oci.data_science.models.ModelDeployment or
+            oci.data_science.models.ModelDeploymentSummary class.
         region: str
             The region of this model deployment.
 
@@ -110,6 +115,7 @@ class AquaDeployment(DataClassSerializable):
             is not None,
             shape_info=shape_info,
             state=oci_model_deployment.lifecycle_state,
+            lifecycle_details=getattr(oci_model_deployment, "lifecycle_details", UNKNOWN),
             description=oci_model_deployment.description,
             created_on=str(oci_model_deployment.time_created),
             created_by=oci_model_deployment.created_by,
@@ -303,14 +309,12 @@ class AquaDeploymentApp(AquaApp):
 
         results = []
         for model_deployment in model_deployments:
-            aqua_service_model = (
-                model_deployment.freeform_tags.get(
-                    Tags.AQUA_SERVICE_MODEL_TAG.value, None
-                )
-                if model_deployment.freeform_tags
-                else None
-            )
-            if aqua_service_model:
+            oci_aqua = (
+                Tags.AQUA_TAG.value in model_deployment.freeform_tags 
+                or Tags.AQUA_TAG.value.lower() in model_deployment.freeform_tags
+            ) if model_deployment.freeform_tags else False
+
+            if oci_aqua:
                 results.append(
                     AquaDeployment.from_oci_model_deployment(
                         model_deployment, self.region
@@ -346,13 +350,12 @@ class AquaDeploymentApp(AquaApp):
             )
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-        aqua_service_model = (
-            model_deployment.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG.value, None)
-            if model_deployment.freeform_tags
-            else None
-        )
+        oci_aqua = (
+            Tags.AQUA_TAG.value in model_deployment.freeform_tags 
+            or Tags.AQUA_TAG.value.lower() in model_deployment.freeform_tags
+        ) if model_deployment.freeform_tags else False
 
-        if not aqua_service_model:
+        if not oci_aqua:
             raise AquaClientError(
                 f"Target deployment {model_deployment_id} is not Aqua deployment."
             )
@@ -381,10 +384,12 @@ class AquaDeploymentApp(AquaApp):
             logger.error(f"Failed to retreive model from the given id {model_id}")
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
         
-        if (
-            Tags.AQUA_TAG.value not in oci_model.freeform_tags
-            and Tags.AQUA_TAG.value.lower() not in oci_model.freeform_tags
-        ):
+        oci_aqua = (
+            Tags.AQUA_TAG.value in oci_model.freeform_tags 
+            or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
+        ) if oci_model.freeform_tags else False
+        
+        if not oci_aqua:
             raise AquaClientError(
                 f"Target model {oci_model.id} is not Aqua model."
             )
