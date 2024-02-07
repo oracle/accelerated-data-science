@@ -19,8 +19,8 @@ from ads.opctl.operator.cmd import run
 
 
 DATASETS_LIST = [
-    # "AirPassengersDataset",
-    # "AusBeerDataset",
+    "AirPassengersDataset",
+    "AusBeerDataset",
     "AustralianTourismDataset",
     # # "ETTh1Dataset",
     # # "ETTh2Dataset",
@@ -34,7 +34,7 @@ DATASETS_LIST = [
     # # "ILINetDataset",
     # # "IceCreamHeaterDataset",
     # # "MonthlyMilkDataset",
-    # "MonthlyMilkIncompleteDataset",
+    "MonthlyMilkIncompleteDataset",
     # # "SunspotsDataset",
     # # "TaylorDataset",
     # # "TemperatureDataset",
@@ -43,7 +43,7 @@ DATASETS_LIST = [
     # "UberTLCDataset",
     #     "WeatherDataset",
     #     "WineDataset",
-    # "WoolyDataset",
+    "WoolyDataset",
 ]
 
 MODELS = [
@@ -93,7 +93,7 @@ def verify_explanations(global_fn, local_fn, yaml_i, additional_cols):
     glb_expl = pd.read_csv(global_fn, index_col=0)
     loc_expl = pd.read_csv(local_fn)
     assert loc_expl.shape[0] == PERIODS
-    for x in ["Date", "Series"]:
+    for x in [yaml_i["spec"]["datetime_column"]["name"], "Series"]:
         assert x in set(loc_expl.columns)
     for x in additional_cols:
         assert x in set(loc_expl.columns)
