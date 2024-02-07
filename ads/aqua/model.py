@@ -128,15 +128,10 @@ class AquaModelApp(AquaApp):
                 custom_model.dsc_model.custom_metadata_list
             )
             return AquaModel(
-                **AquaModelApp.process_model(custom_model.dsc_model),
+                **AquaModelApp.process_model(custom_model.dsc_model, self.region),
                 project_id=custom_model.project_id,
                 model_card=str(
                     read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-                ),
-                console_link=get_console_link(
-                    resource="models",
-                    ocid=custom_model.id,
-                    region=self.region,
                 ),
             )
 
@@ -166,15 +161,10 @@ class AquaModelApp(AquaApp):
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
         return AquaModel(
-            **AquaModelApp.process_model(oci_model),
+            **AquaModelApp.process_model(oci_model, self.region),
             project_id=oci_model.project_id,
             model_card=str(
                 read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
-            ),
-            console_link=get_console_link(
-                resource="models",
-                ocid=model_id,
-                region=self.region,
             ),
         )
 
@@ -218,20 +208,15 @@ class AquaModelApp(AquaApp):
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
-                    **AquaModelApp.process_model(model=model),
+                    **AquaModelApp.process_model(model=model, region=self.region),
                     project_id=project_id or UNKNOWN,
-                    console_link=get_console_link(
-                        resource="models",
-                        ocid=model.id,
-                        region=self.region,
-                    ),
                 )
             )
 
         return aqua_models
 
     @classmethod
-    def process_model(cls, model) -> dict:
+    def process_model(cls, model, region) -> dict:
         icon = cls()._load_icon(model.display_name)
         tags = {}
         tags.update(model.defined_tags or {})
@@ -244,6 +229,13 @@ class AquaModelApp(AquaApp):
                 or isinstance(model, oci.data_science.models.model.Model)
             )
             else model.identifier
+        )
+        console_link = (
+            get_console_link(
+                resource="models",
+                ocid=model_id,
+                region=region,
+            ),
         )
 
         return dict(
@@ -261,6 +253,7 @@ class AquaModelApp(AquaApp):
                 else False
             ),
             tags=tags,
+            console_link=console_link,
         )
 
     def _if_show(self, model: "AquaModel") -> bool:
