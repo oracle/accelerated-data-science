@@ -10,43 +10,15 @@ from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
-from ads.opctl.operator.common.operator_config import OperatorConfig
+from ads.opctl.operator.common.operator_config import OperatorConfig, OutputDirectory, InputData
 
-from .const import SupportedMetrics
+from .const import SupportedMetrics, SpeedAccuracyMode
 from .const import SupportedModels
 
-@dataclass(repr=True)
-class InputData(DataClassSerializable):
-    """Class representing operator specification input data details."""
-
-    format: str = None
-    columns: List[str] = None
-    url: str = None
-    options: Dict = None
-    limit: int = None
-
 
 @dataclass(repr=True)
-class TestData(DataClassSerializable):
+class TestData(InputData):
     """Class representing operator specification test data details."""
-
-    connect_args: Dict = None
-    format: str = None
-    columns: List[str] = None
-    url: str = None
-    name: str = None
-    options: Dict = None
-
-
-@dataclass(repr=True)
-class OutputDirectory(DataClassSerializable):
-    """Class representing operator specification output directory details."""
-
-    connect_args: Dict = None
-    format: str = None
-    url: str = None
-    name: str = None
-    options: Dict = None
 
 
 @dataclass(repr=True)
@@ -88,10 +60,14 @@ class ForecastOperatorSpec(DataClassSerializable):
     generate_report: bool = None
     generate_metrics: bool = None
     generate_explanations: bool = None
+    explanations_accuracy_mode: str = None
     horizon: int = None
-    freq: str = None
     model: str = None
     model_kwargs: Dict = field(default_factory=dict)
+    model_parameters: str = None
+    previous_output_dir: str = None
+    generate_model_parameters: bool = None
+    generate_model_pickle: bool = None
     confidence_interval_width: float = None
     metric: str = None
     tuning: Tuning = field(default_factory=Tuning)
@@ -99,7 +75,7 @@ class ForecastOperatorSpec(DataClassSerializable):
     def __post_init__(self):
         """Adjusts the specification details."""
         self.metric = (self.metric or "").lower() or SupportedMetrics.SMAPE.lower()
-        self.model = (self.model or SupportedModels.Auto)
+        self.model = self.model or SupportedModels.Auto
         self.confidence_interval_width = self.confidence_interval_width or 0.80
         self.report_filename = self.report_filename or "report.html"
         self.preprocessing = (
@@ -119,6 +95,20 @@ class ForecastOperatorSpec(DataClassSerializable):
             if self.generate_explanations is not None
             else False
         )
+        self.explanations_accuracy_mode = (
+            self.explanations_accuracy_mode or SpeedAccuracyMode.FAST_APPROXIMATE
+        )
+
+        self.generate_model_parameters = (
+            self.generate_model_parameters
+            if self.generate_model_parameters is not None
+            else False
+        )
+        self.generate_model_pickle = (
+            self.generate_model_pickle
+            if self.generate_model_pickle is not None
+            else False
+        )
         self.report_theme = self.report_theme or "light"
         self.metrics_filename = self.metrics_filename or "metrics.csv"
         self.test_metrics_filename = self.test_metrics_filename or "test_metrics.csv"
@@ -130,6 +120,7 @@ class ForecastOperatorSpec(DataClassSerializable):
             self.local_explanation_filename or "local_explanation.csv"
         )
         self.target_column = self.target_column or "Sales"
+        self.errors_dict_filename = "errors.json"
         self.model_kwargs = self.model_kwargs or dict()
 
 

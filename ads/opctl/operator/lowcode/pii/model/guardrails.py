@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import os
@@ -19,11 +19,11 @@ from ads.opctl.operator.lowcode.pii.model.report import (
 )
 from ads.opctl.operator.lowcode.pii.operator_config import PiiOperatorConfig
 from ads.opctl.operator.lowcode.pii.utils import (
-    _load_data,
-    _write_data,
     default_signer,
     get_output_name,
 )
+from ads.opctl.operator.lowcode.common.utils import load_data, write_data
+from ads.opctl.operator.lowcode.common.errors import InvalidParameterError
 
 
 class PIIGuardrail:
@@ -68,15 +68,20 @@ class PIIGuardrail:
         )
         self.datasets = None
 
-    def load_data(self, uri=None, storage_options=None):
+    def _load_data(self, uri=None, storage_options=None):
         """Loads input data."""
         input_data_uri = uri or self.spec.input_data.url
         logger.info(f"Loading input data from `{input_data_uri}` ...")
 
-        self.datasets = _load_data(
-            filename=input_data_uri,
-            storage_options=storage_options or self.storage_options,
-        )
+        try:
+            self.datasets = load_data(
+                data_spec=self.spec.input_data,
+                storage_options=storage_options or self.storage_options,
+            )
+        except InvalidParameterError as e:
+            e.args = e.args + ("Invalid Parameter: input_data",)
+            raise e
+
         return self
 
     def process(self, **kwargs):
@@ -92,12 +97,10 @@ class PIIGuardrail:
 
         if not data:
             try:
-                self.load_data()
+                self._load_data()
                 data = self.datasets
-            except Exception as e:
-                logger.warning(
-                    f"Failed to load data from `{self.spec.input_data.url}`."
-                )
+            except InvalidParameterError as e:
+                e.args = e.args + ("Invalid Parameter: input_data",)
                 raise e
 
         # process user data
@@ -110,10 +113,10 @@ class PIIGuardrail:
         # save output data
         if dst_uri:
             logger.info(f"Saving data into `{dst_uri}` ...")
-
-            _write_data(
+            write_data(
                 data=data.loc[:, data.columns != self.spec.target_column],
                 filename=dst_uri,
+                format=None,
                 storage_options=kwargs.pop("storage_options", None)
                 or self.storage_options,
             )

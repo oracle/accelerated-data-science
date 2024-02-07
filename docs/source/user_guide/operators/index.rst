@@ -2,7 +2,7 @@
 What Are Operators
 ==================
 
-Operators are a suite of pre-packaged solutions designed to address a wide range of data science needs. They offer a user-friendly, low-code interface, making data science tasks accessible to users with varying levels of expertise. Even if you're not a domain expert, you can leverage operators as they encapsulate all the necessary domain-specific knowledge. However, these operators also cater to experts who value the convenience of low-code tools and wish to fine-tune their behavior. This customization is achieved through configuration parameters exposed by different operators, providing the best of both worlds.
+Operators are a suite of pre-packaged solutions designed to address a wide range of data science needs. They offer a user-friendly, low-code interface, making data science tasks accessible to users with varying levels of expertise. Domain experts can leverage and extend operators to encapsulate their domain-specific knowledge. Data Scientists and AI Engineers can focus on customizing the data and modeling parameters, and allow the Operator to handle the more mundane tasks: ETL, data cleaning, OCI AI Platform integration, report generation, explainability, and more.
 
 Key Characteristics of Operators
 ---------------------------------
@@ -17,4 +17,4 @@ Key Characteristics of Operators
 
 - **CLI Tool for Easy Deployment**: To simplify the deployment process across different environments, we provide a user-friendly CLI (Command Line Interface) tool. This tool streamlines the setup and execution of operators, making it easier for you to harness their power regardless of where you choose to run them.
 
-Whether you're working in the cloud or locally, our operators, along with the accompanying CLI tool, offer a seamless and customizable solution for your data science needs.
+Whether working in the cloud or locally, operators offer a performant and customizable solution for software engineers, data scientists, and domain experts alike.
