@@ -19,7 +19,7 @@ build-backend = "flit_core.buildapi"
 
 # Required
 name = "oracle_ads"  # the install (PyPI) name; name for local build in [tool.flit.module] section below
-version = "2.9.1"
+version = "2.10.0"
 
 # Optional
 description = "Oracle Accelerated Data Science SDK"
@@ -147,7 +147,7 @@ torch = [
   "torchvision",
 ]
 viz = [
-  "bokeh>=2.3.0, <=2.4.3",
+  "bokeh>=3.0.0, <3.2.0",  # starting 3.2.0 bokeh not supporting python3.8; relax after ADS will drop py3.8 support
   "folium>=0.12.1",
   "graphviz<0.17",
   "scipy>=1.5.4",
@@ -177,6 +177,10 @@ forecast = [
   "statsmodels",
   "plotly",
 ]
+feature-store-marketplace = [
+    "oracle-ads[opctl]",
+    "kubernetes"
+]
 pii = [
   "aiohttp",
   "datapane",
@@ -193,6 +197,7 @@ llm = [
   "langchain>=0.0.295",
   "evaluate>=0.4.0",
 ]
+
 
 [project.urls]
 "Github" = "https://github.com/oracle/accelerated-data-science"

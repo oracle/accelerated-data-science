@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import pytest
@@ -47,7 +47,7 @@ class TestFeatureGroupDelta(FeatureStoreTestCase):
 
         assert feature_store.oci_fs.id
         assert feature_store.oci_fs.lifecycle_state == "ACTIVE"
-        assert feature_store.oci_fs.display_name == self.get_name("FeatureStore1")
+        assert feature_store.oci_fs.name == self.get_name("FeatureStore1")
 
         assert entity.oci_fs_entity.id
         assert entity.oci_fs_entity.lifecycle_state == "ACTIVE"

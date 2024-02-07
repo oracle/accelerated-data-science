@@ -1,16 +1,20 @@
 Transformation
 **************
 
-Transformations in a feature store refers to the operations and processes applied to raw data to create, modify or derive new features that can be used as inputs for ML Models. These transformations are crucial for improving the quality, relevance and usefulness of features which in turn can enhance the performance of ml models. It is an object that represents a transformation applied on the feature group and can be a pandas transformation or spark sql transformation.
+Transformations in a Feature Store refer to the operations and processes applied to raw data to create, modify, or derive new features that can be used as inputs for ML Models. These transformations are crucial for improving the quality, relevance, and usefulness of features which in turn can enhance the performance of ML models. It is an object that represents a transformation applied on the feature group and can be a pandas transformation or Spark SQL transformation.
 
-* ``TransformationMode.PANDAS``: Pandas Transformation allows users to do the transformation using native pandas functionality.
-* ``TransformationMode.SQL``: Spark SQL brings native support for SQL to Spark. Users generally can give the spark transformation that they wish to do using spark SQL.
-* ``TransformationMode.SPARK``: Spark Transformation allows users to do the transformation using native spark functionality.
+.. image:: figures/transformation.png
+
+* ``TransformationMode.PANDAS``: Pandas Transformation lets users to do the transformation using native pandas functionality. The interface expects ``PANDAS`` dataframe as input and ``PANDAS`` dataframe as output.
+* ``TransformationMode.SQL``: Spark SQL brings native support for SQL to Spark. Users generally can give the spark transformation that they wish to do using spark SQL. The interface expects ``SPARK`` dataframe as input and ``SQL STRING`` as output.
+* ``TransformationMode.SPARK``: Spark Transformation lets users to do the transformation using native spark functionality. The interface expects ``SPARK`` dataframe as input and ``SPARK`` dataframe as output.
 
 .. tabs::
 
   .. code-tab:: Python3
     :caption: TransformationMode.SQL
+
+    from ads.feature_store.transformation import Transformation,TransformationMode
 
     def transactions_df(transactions_batch):
         sql_query = f"select id, cc_num, amount from {transactions_batch}"
@@ -20,7 +24,7 @@ Transformations in a feature store refers to the operations and processes applie
         Transformation()
          .with_description("Feature store description")
          .with_compartment_id(os.environ["PROJECT_COMPARTMENT_OCID"])
-         .with_display_name("FeatureStore")
+         .with_name("transformation_name")
          .with_feature_store_id(feature_store.id)
          .with_transformation_mode(TransformationMode.SQL)
          .with_source_code_function(transactions_df)
@@ -73,7 +77,7 @@ Transformations in a feature store refers to the operations and processes applie
 
     transformation = (
         Transformation()
-        .with_display_name("chained_transformation")
+        .with_name("chained_transformation")
         .with_feature_store_id(feature_store.id)
         .with_source_code_function(chained_transformation)
         .with_transformation_mode(TransformationMode.PANDAS)
@@ -104,7 +108,7 @@ Transformations in a feature store refers to the operations and processes applie
 
     transformation = (
         Transformation()
-        .with_display_name("spark_transformation")
+        .with_name("spark_transformation")
         .with_feature_store_id(feature_store.id)
         .with_source_code_function(credit_score_transformation)
         .with_transformation_mode(TransformationMode.SPARK)
@@ -118,11 +122,11 @@ Transformations in a feature store refers to the operations and processes applie
 Define
 ======
 
-In an ADS feature store module, you can either use the Python API or YAML to define a transformation.
+In an ADS Feature Store module, you can use the Python API or YAML file to define a transformation.
 
 
-With the specified way below, you can define a transformation and give it a name.
-A ``Transformation`` instance will be created.
+With the following way specified, you can define a transformation and give it a name.
+A ``Transformation`` instance is created.
 
 .. tabs::
 
@@ -164,7 +168,7 @@ A ``Transformation`` instance will be created.
 Create
 ======
 
-You can call the ``create()`` method of the ``Transformation`` instance to create an transformation.
+You can call the ``create()`` method of the ``Transformation`` instance to create a transformation.
 
 .. code-block:: python3
 
@@ -188,7 +192,7 @@ Delete
 
 Use the ``.delete()`` method on the ``Transformation`` instance to delete a transformation.
 
-A transformation can only be deleted when its associated entities are all deleted,
+A transformation can only be deleted when its associated entities are all deleted.
 
 .. code-block:: python3
 

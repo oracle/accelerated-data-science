@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import argparse
+import logging
 import os
+import sys
 import time
+import traceback
 from string import Template
 from typing import Any, Dict, List, Tuple
 
@@ -145,7 +148,7 @@ def _load_yaml_from_string(doc: str, **kwargs) -> Dict:
     )
 
 
-def _load_yaml_from_uri(uri: str, **kwargs) -> str:
+def _load_yaml_from_uri(uri: str, **kwargs) -> dict:
     """Loads YAML from the URI path. Can be Object Storage path."""
     with fsspec.open(uri) as f:
         return _load_yaml_from_string(str(f.read(), "UTF-8"), **kwargs)
@@ -156,3 +159,16 @@ def default_signer(**kwargs):
     from ads.common.auth import default_signer
 
     return default_signer(**kwargs)
+
+
+def remove_prefix(text: str, prefix: str):
+    if text.startswith(prefix):
+        return text[len(prefix) :]
+    else:
+        return text
+
+
+def print_traceback():
+    if logger.level == logging.DEBUG:
+        ex_type, ex, tb = sys.exc_info()
+        traceback.print_tb(tb)

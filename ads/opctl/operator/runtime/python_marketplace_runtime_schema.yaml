@@ -1,0 +1,21 @@
+kind:
+  allowed:
+    - marketplace.local
+  required: true
+  type: string
+  meta:
+    description: "The operator marketplace local runtime. Kind should always be `operator.local` when using an operator with local python runtime."
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  meta:
+    description: "Operator local runtime may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+type:
+  allowed:
+    - python
+  required: true
+  type: string
+  meta:
+    description: "Type should always be `python` when using an operator with local python runtime."
