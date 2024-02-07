@@ -21,7 +21,6 @@ logger = logging.getLogger("ODSC_AQUA")
 UNKNOWN = ""
 README = "README.md"
 DEPLOYMENT_CONFIG = "deployment_config.json"
-DEPLOYMENT_SHAPE = "shape"
 UNKNOWN_JSON_STR = "{}"
 
 def get_logger():

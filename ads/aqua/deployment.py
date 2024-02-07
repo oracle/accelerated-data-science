@@ -14,7 +14,6 @@ from ads.aqua import logger
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     DEPLOYMENT_CONFIG, 
-    DEPLOYMENT_SHAPE, 
     UNKNOWN_JSON_STR, 
     get_artifact_path, 
     read_file
@@ -360,7 +359,7 @@ class AquaDeploymentApp(AquaApp):
 
         return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
     
-    def get_deployment_config(self, model_id: str) -> List[str]:
+    def get_deployment_config(self, model_id: str) -> Dict:
         """Gets the deployment config of given Aqua model.
 
         Parameters
@@ -370,8 +369,8 @@ class AquaDeploymentApp(AquaApp):
     
         Returns
         -------
-        List:
-            A list of allowed instance shapes.
+        Dict:
+            A dict of allowed deployment configs.
         """
         try:
             oci_model = self.ds_client.get_model(
@@ -401,11 +400,8 @@ class AquaDeploymentApp(AquaApp):
             ) or UNKNOWN_JSON_STR
         )
 
-        if (
-            not shape_config or DEPLOYMENT_SHAPE not in shape_config
-            or not shape_config[DEPLOYMENT_SHAPE]
-        ):
+        if not shape_config:
             # TODO: adjust the error raising
             raise AquaServiceError(opc_request_id=None, status_code=500)
 
-        return shape_config[DEPLOYMENT_SHAPE]
+        return shape_config
