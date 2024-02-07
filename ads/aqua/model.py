@@ -9,10 +9,10 @@ from enum import Enum
 from typing import List
 
 import oci
+
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.common.utils import get_console_link
 from ads.aqua.utils import (
     README,
     UNKNOWN,
@@ -22,6 +22,7 @@ from ads.aqua.utils import (
 )
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
+from ads.common.utils import get_console_link
 from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
 from ads.model.datascience_model import DataScienceModel
 
@@ -276,7 +277,7 @@ class AquaModelApp(AquaApp):
 
     def _rqs(self, compartment_id):
         """Use RQS to fetch models in the user tenancy."""
-        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
