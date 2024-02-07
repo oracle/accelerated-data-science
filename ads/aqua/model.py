@@ -215,6 +215,11 @@ class AquaModelApp(AquaApp):
                 AquaModelSummary(
                     **AquaModelApp.process_model(model=model),
                     project_id=project_id or UNKNOWN,
+                    console_link=get_console_link(
+                        resource="models",
+                        ocid=model.id,
+                        region=self.region,
+                    ),
                 )
             )
 
