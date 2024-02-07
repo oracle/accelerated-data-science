@@ -241,6 +241,11 @@ class AutoMLXOperatorModel(ForecastOperatorBaseModel):
             self.formatted_global_explanation = (
                 global_explanation_df / global_explanation_df.sum(axis=0) * 100
             )
+            self.formatted_global_explanation = (
+                self.formatted_global_explanation.rename(
+                    {self.spec.datetime_column.name: ForecastOutputColumns.DATE}, axis=1
+                )
+            )
 
             # Create a markdown section for the global explainability
             global_explanation_section = dp.Blocks(

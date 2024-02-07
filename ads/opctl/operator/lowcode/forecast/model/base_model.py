@@ -45,6 +45,7 @@ from ..const import (
     SupportedModels,
     SpeedAccuracyMode,
 )
+from ..const import ForecastOutputColumns
 from ..operator_config import ForecastOperatorConfig, ForecastOperatorSpec
 from ads.common.decorator.runtime_dependency import runtime_dependency
 from .forecast_datasets import ForecastDatasets, ForecastOutput
@@ -709,6 +710,9 @@ class ForecastOperatorBaseModel(ABC):
         # Convert the SHAP values into a DataFrame
         local_kernel_explnr_df = pd.DataFrame(
             local_kernel_explnr_vals, columns=data.columns
+        )
+        local_kernel_explnr_df = local_kernel_explnr_df.rename(
+            {datetime_col_name: ForecastOutputColumns.DATE}, axis=0
         )
         self.local_explanation[series_id] = local_kernel_explnr_df
 
