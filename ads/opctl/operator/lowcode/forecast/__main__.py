@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2023 Oracle and/or its affiliates.
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -29,13 +29,18 @@ def operate(operator_config: ForecastOperatorConfig) -> None:
             operator_config, datasets
         ).generate_report()
     except Exception as e:
-        logger.debug(
-            f"Failed to forecast with error {e.args}. Trying again with model `prophet`."
-        )
-        operator_config.spec.model = "prophet"
-        ForecastOperatorModelFactory.get_model(
-            operator_config, datasets
-        ).generate_report()
+        if operator_config.spec.model == "auto":
+            logger.debug(
+                f"Failed to forecast with error {e.args}. Trying again with model `prophet`."
+            )
+            operator_config.spec.model = "prophet"
+            operator_config.spec.model_kwargs = dict()
+            datasets = ForecastDatasets(operator_config)
+            ForecastOperatorModelFactory.get_model(
+                operator_config, datasets
+            ).generate_report()
+        else:
+            raise
 
 
 def verify(spec: Dict, **kwargs: Dict) -> bool:
