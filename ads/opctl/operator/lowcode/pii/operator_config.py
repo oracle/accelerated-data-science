@@ -9,20 +9,13 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.common.serializer import DataClassSerializable
-from ads.opctl.operator.common.operator_config import OperatorConfig
+from ads.opctl.operator.common.operator_config import OperatorConfig, InputData
 from ads.opctl.operator.common.utils import _load_yaml_from_uri
 from ads.opctl.operator.lowcode.pii.constant import (
     DEFAULT_SHOW_ROWS,
     DEFAULT_REPORT_FILENAME,
     DEFAULT_TARGET_COLUMN,
 )
-
-
-@dataclass(repr=True)
-class InputData(DataClassSerializable):
-    """Class representing operator specification input data details."""
-
-    url: str = None
 
 
 @dataclass(repr=True)
