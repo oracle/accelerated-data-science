@@ -3,14 +3,9 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-import os
-
 from ads.aqua.exception import exception_handler
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
-
-# TODO: move all the environment variable keys (or constants) into one common place
-AQUA_MODEL_COMPARTMENT = "AQUA_MODEL_COMPARTMENT"
 
 
 class AquaModelHandler(AquaAPIhandler):

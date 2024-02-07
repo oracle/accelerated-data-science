@@ -290,15 +290,8 @@ class AquaModelApp(AquaApp):
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)
         logger.info(f"tenant_id={TENANCY_OCID}")
-        try:
-            return OCIResource.search(
-                query,
-                type=SEARCH_TYPE.STRUCTURED,
-                tenant_id=TENANCY_OCID,
-            )
-        except Exception as se:
-            # TODO: adjust error raising
-            logger.error(
-                f"Failed to retreive model from the given compartment {compartment_id}"
-            )
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        return OCIResource.search(
+            query,
+            type=SEARCH_TYPE.STRUCTURED,
+            tenant_id=TENANCY_OCID,
+        )
