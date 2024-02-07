@@ -8,21 +8,22 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
-import fsspec
 import oci
-
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.aqua.utils import create_word_icon
 from ads.common.utils import get_console_link
+from ads.aqua.utils import (
+    README,
+    UNKNOWN,
+    create_word_icon,
+    get_artifact_path,
+    read_file,
+)
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
 from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
 from ads.model.datascience_model import DataScienceModel
-
-README = "README.md"
-UNKNOWN = ""
 
 
 class Tags(Enum):
@@ -123,13 +124,13 @@ class AquaModelApp(AquaApp):
                     opc_request_id=se.request_id, status_code=se.code
                 )
 
-            artifact_path = self._get_artifact_path(
+            artifact_path = get_artifact_path(
                 custom_model.dsc_model.custom_metadata_list
             )
             return AquaModel(
                 **AquaModelApp.process_model(custom_model.dsc_model),
                 project_id=custom_model.project_id,
-                model_card=str(self._read_file(f"{artifact_path}/{README}")),
+                model_card=str(read_file(f"{artifact_path}/{README}")),
                 console_link=get_console_link(
                     resource="models",
                     ocid=custom_model.id,
@@ -160,12 +161,12 @@ class AquaModelApp(AquaApp):
         if not self._if_show(oci_model):
             raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
 
-        artifact_path = self._get_artifact_path(oci_model.custom_metadata_list)
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
         return AquaModel(
             **AquaModelApp.process_model(oci_model),
             project_id=oci_model.project_id,
-            model_card=str(self._read_file(f"{artifact_path}/{README}")),
+            model_card=str(read_file(f"{artifact_path}/{README}")),
             console_link=get_console_link(
                 resource="models",
                 ocid=model_id,
@@ -261,34 +262,10 @@ class AquaModelApp(AquaApp):
     def _if_show(self, model: "AquaModel") -> bool:
         """Determine if the given model should be return by `list`."""
         TARGET_TAGS = model.freeform_tags.keys()
-        return Tags.AQUA_TAG.value in TARGET_TAGS
-
-    def _get_artifact_path(self, custom_metadata_list: List) -> str:
-        """Get the artifact path from the custom metadata list of model.
-
-        Parameters
-        ----------
-        custom_metadata_list: List
-            A list of custom metadata of model.
-
-        Returns
-        -------
-        str:
-            The artifact path from model.
-        """
-        for custom_metadata in custom_metadata_list:
-            if custom_metadata.key == "Object Storage Path":
-                return custom_metadata.value
-        logger.debug("Failed to get artifact path from custom metadata.")
-        return None
-
-    def _read_file(self, file_path: str) -> str:
-        try:
-            with fsspec.open(file_path, "r", **self._auth) as f:
-                return f.read()
-        except Exception as e:
-            logger.error(f"Failed to read file. {e}")
-            return None
+        return (
+            Tags.AQUA_TAG.value in TARGET_TAGS
+            or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
+        )
 
     def _load_icon(self, model_name) -> str:
         """Loads icon."""

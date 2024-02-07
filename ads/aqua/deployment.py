@@ -3,12 +3,21 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import logging
 from typing import List, Dict
 
 from dataclasses import dataclass, field
+
 from ads.aqua.base import AquaApp
+from ads.aqua import logger
 from ads.aqua.model import AquaModelApp, Tags
+from ads.aqua.utils import (
+    DEPLOYMENT_CONFIG, 
+    UNKNOWN_JSON_STR, 
+    get_artifact_path, 
+    read_file
+)
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentInfrastructure,
@@ -349,3 +358,50 @@ class AquaDeploymentApp(AquaApp):
             )
 
         return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
+    
+    def get_deployment_config(self, model_id: str) -> Dict:
+        """Gets the deployment config of given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+    
+        Returns
+        -------
+        Dict:
+            A dict of allowed deployment configs.
+        """
+        try:
+            oci_model = self.ds_client.get_model(
+                model_id
+            ).data
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(f"Failed to retreive model from the given id {model_id}")
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        
+        if (
+            Tags.AQUA_TAG.value not in oci_model.freeform_tags
+            and Tags.AQUA_TAG.value.lower() not in oci_model.freeform_tags
+        ):
+            raise AquaClientError(
+                f"Target model {oci_model.id} is not Aqua model."
+            )
+
+        artifact_path = get_artifact_path(
+            oci_model.custom_metadata_list
+        )
+
+        shape_config = json.loads(
+            read_file(
+                file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}",
+                auth=self._auth
+            ) or UNKNOWN_JSON_STR
+        )
+
+        if not shape_config:
+            # TODO: adjust the error raising
+            raise AquaServiceError(opc_request_id=None, status_code=500)
+
+        return shape_config
