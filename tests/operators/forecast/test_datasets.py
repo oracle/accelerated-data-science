@@ -89,6 +89,18 @@ for dataset_i in DATASETS_LIST:  #  + [DATASETS_LIST[-2]]
         parameters_short.append((model, dataset_i))
 
 
+def verify_explanations(global_fn, local_fn, yaml_i, additional_cols):
+    glb_expl = pd.read_csv(global_fn, index_col=0)
+    loc_expl = pd.read_csv(local_fn)
+    assert loc_expl.shape[0] == PERIODS
+    for x in [yaml_i["spec"]["datetime_column"]["name"], "Series"]:
+        assert x in set(loc_expl.columns)
+    for x in additional_cols:
+        assert x in set(loc_expl.columns)
+        assert x in set(glb_expl.index)
+    assert "Series 1" in set(glb_expl.columns)
+
+
 @pytest.mark.parametrize("model, dataset_name", parameters_short)
 def test_load_datasets(model, dataset_name):
     if model == "automlx" and dataset_name == "WeatherDataset":
@@ -97,6 +109,7 @@ def test_load_datasets(model, dataset_name):
     datetime_col = dataset_i.time_index.name
 
     columns = dataset_i.components
+    additional_cols = []
     target = dataset_i[columns[0]][:-PERIODS]
     test = dataset_i[columns[0]][-PERIODS:]
 
@@ -145,7 +158,7 @@ def test_load_datasets(model, dataset_name):
         yaml_i["spec"]["target_column"] = columns[0]
         yaml_i["spec"]["datetime_column"]["name"] = datetime_col
         yaml_i["spec"]["horizon"] = PERIODS
-        if yaml_i["spec"].get("additional_data") is not None and model != "automlx":
+        if yaml_i["spec"].get("additional_data") is not None and model != "autots":
             yaml_i["spec"]["generate_explanations"] = True
         if generate_train_metrics:
             yaml_i["spec"]["generate_metrics"] = generate_train_metrics
@@ -164,11 +177,13 @@ def test_load_datasets(model, dataset_name):
         # sleep(0.1)
         run(yaml_i, backend="operator.local", debug=False)
         subprocess.run(f"ls -a {output_data_path}", shell=True)
-        if yaml_i["spec"]["generate_explanations"] and model != "autots":
-            glb_expl = pd.read_csv(f"{tmpdirname}/results/global_explanation.csv")
-            print(glb_expl)
-            loc_expl = pd.read_csv(f"{tmpdirname}/results/local_explanation.csv")
-            print(loc_expl)
+        if yaml_i["spec"]["generate_explanations"]:
+            verify_explanations(
+                global_fn=f"{tmpdirname}/results/global_explanation.csv",
+                local_fn=f"{tmpdirname}/results/local_explanation.csv",
+                yaml_i=yaml_i,
+                additional_cols=additional_cols,
+            )
 
         test_metrics = pd.read_csv(f"{tmpdirname}/results/test_metrics.csv")
         print(test_metrics)

@@ -7,7 +7,6 @@
 from ..operator_config import AnomalyOperatorSpec
 from ads.opctl.operator.lowcode.common.utils import (
     default_signer,
-    load_data,
     merge_category_columns,
 )
 from ads.opctl.operator.lowcode.common.data import AbstractData

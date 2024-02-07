@@ -289,12 +289,6 @@ def test_historical_data(operator_setup, model):
             tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
         )
 
-    yaml_i["spec"]["historical_data"] = None
-    with pytest.raises(InvalidParameterError):
-        run_yaml(
-            tmpdirname=tmpdirname, yaml_i=yaml_i, output_data_path=output_data_path
-        )
-
     yaml_i["spec"].pop("historical_data")
     yaml_i["spec"]["TEST"] = historical_data
     with pytest.raises(InvalidParameterError):

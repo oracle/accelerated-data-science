@@ -13,7 +13,6 @@ from ads.opctl import logger
 from ..const import ForecastOutputColumns, PROPHET_INTERNAL_DATE_COL
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl.operator.lowcode.common.utils import (
-    load_data,
     get_frequency_in_seconds,
     get_frequency_of_datetime,
 )

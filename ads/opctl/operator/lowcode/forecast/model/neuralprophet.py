@@ -440,15 +440,17 @@ class NeuralProphetOperatorModel(ForecastOperatorBaseModel):
         for s_id, expl_df in self.explanations_info.items():
             expl_df = expl_df.rename(rename_cols, axis=1)
             # Local Expl
-            self.local_explanation[s_id] = self.get_horizon(expl_df)
+            self.local_explanation[s_id] = self.get_horizon(expl_df).drop(
+                ["future_regressors_additive"], axis=1
+            )
             self.local_explanation[s_id]["Series"] = s_id
-
+            self.local_explanation[s_id].index.rename(self.dt_column_name, inplace=True)
             # Global Expl
             g_expl = self.drop_horizon(expl_df).mean()
             g_expl.name = s_id
             global_expl.append(g_expl)
         self.global_explanation = pd.concat(global_expl, axis=1)
-        self.formatted_global_explanation = self.global_explanation.drop(
+        self.global_explanation = self.global_explanation.drop(
             index=["future_regressors_additive"], axis=0
         )
         self.formatted_global_explanation = (

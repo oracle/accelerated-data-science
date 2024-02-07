@@ -27,6 +27,7 @@ from ads.opctl.operator.lowcode.common.errors import (
     DataMismatchError,
 )
 from ads.opctl.operator.common.operator_config import OutputDirectory
+from ads.common.object_storage_details import ObjectStorageDetails
 
 
 def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
@@ -42,17 +43,21 @@ def call_pandas_fsspec(pd_fn, filename, storage_options, **kwargs):
     return pd_fn(filename, storage_options=storage_options, **kwargs)
 
 
-def load_data(
-    filename=None,
-    format=None,
-    storage_options=None,
-    columns=None,
-    connect_args=None,
-    sql=None,
-    table_name=None,
-    limit=None,
-    **kwargs,
-):
+def load_data(data_spec, storage_options=None, **kwargs):
+    if data_spec is None:
+        raise InvalidParameterError(f"No details provided for this data source.")
+    filename = data_spec.url
+    format = data_spec.format
+    columns = data_spec.columns
+    connect_args = data_spec.connect_args
+    sql = data_spec.sql
+    table_name = data_spec.table_name
+    limit = data_spec.limit
+
+    storage_options = storage_options or (
+        default_signer() if ObjectStorageDetails.is_oci_path(filename) else {}
+    )
+
     if filename is not None:
         if not format:
             _, format = os.path.splitext(filename)
