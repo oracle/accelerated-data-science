@@ -12,12 +12,13 @@ import oci
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.common.utils import get_console_link
 from ads.aqua.utils import (
-    README, 
-    UNKNOWN, 
-    create_word_icon, 
-    get_artifact_path, 
-    read_file
+    README,
+    UNKNOWN,
+    create_word_icon,
+    get_artifact_path,
+    read_file,
 )
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
@@ -49,6 +50,7 @@ class AquaModelSummary(DataClassSerializable):
     tags: dict
     task: str
     time_created: str
+    console_link: str
 
 
 @dataclass(repr=False)
@@ -129,10 +131,12 @@ class AquaModelApp(AquaApp):
                 **AquaModelApp.process_model(custom_model.dsc_model),
                 project_id=custom_model.project_id,
                 model_card=str(
-                    read_file(
-                        file_path=f"{artifact_path}/{README}",
-                        auth=self._auth
-                    )
+                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                ),
+                console_link=get_console_link(
+                    resource="models",
+                    ocid=custom_model.id,
+                    region=self.region,
                 ),
             )
 
@@ -165,10 +169,12 @@ class AquaModelApp(AquaApp):
             **AquaModelApp.process_model(oci_model),
             project_id=oci_model.project_id,
             model_card=str(
-                read_file(
-                    file_path=f"{artifact_path}/{README}",
-                    auth=self._auth
-                )
+                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+            ),
+            console_link=get_console_link(
+                resource="models",
+                ocid=model_id,
+                region=self.region,
             ),
         )
 
@@ -214,6 +220,11 @@ class AquaModelApp(AquaApp):
                 AquaModelSummary(
                     **AquaModelApp.process_model(model=model),
                     project_id=project_id or UNKNOWN,
+                    console_link=get_console_link(
+                        resource="models",
+                        ocid=model.id,
+                        region=self.region,
+                    ),
                 )
             )
 
@@ -256,7 +267,7 @@ class AquaModelApp(AquaApp):
         """Determine if the given model should be return by `list`."""
         TARGET_TAGS = model.freeform_tags.keys()
         return (
-            Tags.AQUA_TAG.value in TARGET_TAGS 
+            Tags.AQUA_TAG.value in TARGET_TAGS
             or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
         )
 

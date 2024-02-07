@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-
+import json
 from typing import Dict, List
 
+import oci.util
 from oci.exceptions import ServiceError
-
+from oci.identity.models import Compartment
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaClientError, AquaServiceError
@@ -30,7 +31,7 @@ class AquaUIApp(AquaApp):
 
     """
 
-    def list_log_groups(self, **kwargs) -> List[Dict]:
+    def list_log_groups(self, **kwargs) -> str:
         """Lists all log groups for the specified compartment or tenancy. This is a pass through the OCI list_log_groups
         API.
 
@@ -42,8 +43,7 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-        List[Dict]:
-            Dict has json representation of oci.logging.models.log_group.LogGroup
+            str has json representation of oci.logging.models.log_group.LogGroup
         """
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
@@ -56,7 +56,7 @@ class AquaUIApp(AquaApp):
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-    def list_logs(self, **kwargs) -> List[Dict]:
+    def list_logs(self, **kwargs) -> str:
         """Lists the specified log group's log objects. This is a pass through the OCI list_log_groups
         API.
 
@@ -68,8 +68,8 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-        List[Dict]:
-            Dict has json representation of oci.logging.models.log_summary.LogSummary
+        str:
+            str has json representation of oci.logging.models.log_summary.LogSummary
         """
         log_group_id = kwargs.pop("log_group_id")
 
@@ -81,7 +81,7 @@ class AquaUIApp(AquaApp):
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-    def list_compartments(self, **kwargs) -> List[Dict]:
+    def list_compartments(self, **kwargs) -> str:
         """Lists the compartments in a compartment specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
         API.
 
@@ -93,8 +93,8 @@ class AquaUIApp(AquaApp):
 
         Returns
         -------
-        List[Dict]:
-            Dict has json representation of oci.identity.models.Compartment
+        str:
+            str has json representation of oci.identity.models.Compartment
         """
         try:
             if not TENANCY_OCID:
@@ -102,15 +102,52 @@ class AquaUIApp(AquaApp):
                     f"TENANCY_OCID must be available in environment"
                     " variables to list the sub compartments."
                 )
+            compartments = []
+            # User may not have permissions to list compartment.
+            try:
+                compartments.extend(
+                    self.list_resource(
+                        list_func_ref=self.identity_client.list_compartments,
+                        compartment_id=TENANCY_OCID,
+                        compartment_id_in_subtree=True,
+                        access_level="ANY",
+                    )
+                )
+            except ServiceError as se:
+                logger.error(
+                    f"ERROR: Unable to list all sub compartment in tenancy {TENANCY_OCID}."
+                )
+                try:
+                    compartments.append(
+                        self.list_resource(
+                            list_func_ref=self.identity_client.list_compartments,
+                            compartment_id=TENANCY_OCID,
+                        )
+                    )
+                except ServiceError as se:
+                    logger.error(
+                        f"ERROR: Unable to list all child compartment in tenancy {TENANCY_OCID}."
+                    )
+            try:
+                root_compartment = self.identity_client.get_compartment(
+                    TENANCY_OCID
+                ).data
+                compartments.insert(0, root_compartment)
+            except ServiceError as se:
+                logger.error(
+                    f"ERROR: Unable to get details of the root compartment {TENANCY_OCID}."
+                )
+                compartments.insert(
+                    0,
+                    Compartment(id=TENANCY_OCID, name=" ** Root - Name N/A **"),
+                )
+            return compartments.__repr__()
 
-            return self.identity_client.list_compartments(
-                compartment_id=TENANCY_OCID, **kwargs
-            ).data.__repr__()
         # todo : update this once exception handling is set up
         except ServiceError as se:
             raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
 
-    def get_default_compartment(self):
+    def get_default_compartment(self) -> dict:
         """Returns user compartment OCID fetched from environment variables.
 
         Returns
