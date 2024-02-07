@@ -130,7 +130,9 @@ class AquaModelApp(AquaApp):
             return AquaModel(
                 **AquaModelApp.process_model(custom_model.dsc_model),
                 project_id=custom_model.project_id,
-                model_card=str(read_file(f"{artifact_path}/{README}")),
+                model_card=str(
+                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                ),
                 console_link=get_console_link(
                     resource="models",
                     ocid=custom_model.id,
@@ -166,7 +168,9 @@ class AquaModelApp(AquaApp):
         return AquaModel(
             **AquaModelApp.process_model(oci_model),
             project_id=oci_model.project_id,
-            model_card=str(read_file(f"{artifact_path}/{README}")),
+            model_card=str(
+                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+            ),
             console_link=get_console_link(
                 resource="models",
                 ocid=model_id,
