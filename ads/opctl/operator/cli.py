@@ -9,12 +9,14 @@ from typing import Any, Dict
 import click
 import fsspec
 import yaml
+import logging
 from ads.opctl.operator.common.utils import default_signer
 from ads.common.auth import AuthType
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.opctl.constants import BACKEND_NAME, RUNTIME_TYPE
 from ads.opctl.decorator.common import click_options, with_auth, with_click_unknown_args
 from ads.opctl.utils import suppress_traceback
+from ads.opctl import logger
 
 from .__init__ import __operators__
 from .cmd import run as cmd_run
@@ -311,10 +313,14 @@ def publish_conda(debug: bool, **kwargs: Dict[str, Any]) -> None:
 @click.pass_context
 @with_click_unknown_args
 @with_auth
-def run(ctx: click.core.Context, debug: bool, **kwargs: Dict[str, Any]) -> None:
+def run(ctx: click.core.Context, debug: bool = False, **kwargs: Dict[str, Any]) -> None:
     """
     Runs the operator with the given specification on the targeted backend.
     """
+    if debug:
+        logger.setLevel(logging.DEBUG)
+    else:
+        logger.setLevel(logging.CRITICAL)
     operator_spec = {}
     backend = kwargs.pop("backend")
 

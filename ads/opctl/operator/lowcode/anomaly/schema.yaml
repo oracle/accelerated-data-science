@@ -1,0 +1,359 @@
+kind:
+  allowed:
+    - operator
+  required: true
+  type: string
+  default: operator
+  meta:
+    description: "Which service are you trying to use? Common kinds: `operator`, `job`"
+
+version:
+  allowed:
+    - "v1"
+  required: true
+  type: string
+  default: v1
+  meta:
+    description: "Operators may change yaml file schemas from version to version, as well as implementation details. Double check the version to ensure compatibility."
+
+type:
+  required: true
+  type: string
+  default: anomaly
+  meta:
+    description: "Type should always be `anomaly` when using a anomaly detection operator"
+
+spec:
+  required: true
+  schema:
+    input_data:
+      required: true
+      type: dict
+      default: {"url": "data.csv"}
+      meta:
+        description: "The payload that the detector should evaluate."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+
+    validation_data:
+      required: false
+      type: dict
+      meta:
+        description: "Data that has already been labeled as anomalous or not."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+
+    datetime_column:
+      type: dict
+      required: true
+      schema:
+        name:
+          type: string
+          required: true
+          default: Date
+        format:
+          type: string
+          required: false
+
+    test_data:
+      required: false
+      meta:
+        description: "Optional, only if evaluation is needed."
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+      type: dict
+
+    output_directory:
+      required: false
+      schema:
+        connect_args:
+          nullable: true
+          required: false
+          type: dict
+        format:
+          allowed:
+            - csv
+            - json
+            - clipboard
+            - excel
+            - feather
+            - sql_table
+            - sql_query
+            - hdf
+            - tsv
+          required: false
+          type: string
+        columns:
+          required: false
+          type: list
+          schema:
+            type: string
+        filters:
+          required: false
+          type: list
+          schema:
+            type: string
+        options:
+          nullable: true
+          required: false
+          type: dict
+        sql:
+          required: false
+          type: string
+        table_name:
+          required: false
+          type: string
+        url:
+          required: false
+          type: string
+          meta:
+            description: "The url can be local, or remote. For example: `oci://<bucket>@<namespace>/data.csv`"
+        limit:
+          required: false
+          type: integer
+      type: dict
+
+    report_filename:
+      required: false
+      type: string
+      default: report.html
+      meta:
+        description: "Placed into output_directory location. Defaults to report.html"
+    report_title:
+      required: false
+      type: string
+    report_theme:
+      required: false
+      type: string
+      default: light
+      allowed:
+        - light
+        - dark
+
+    metrics_filename:
+      required: false
+      type: string
+      default: metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to metrics.csv"
+
+    test_metrics_filename:
+      required: false
+      type: string
+      default: test_metrics.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to test_metrics.csv"
+
+    inliers_filename:
+      required: false
+      type: string
+      default: inliers.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to inliers.csv"
+
+    outliers_filename:
+      required: false
+      type: string
+      default: outliers.csv
+      meta:
+        description: "Placed into output_directory location. Defaults to outliers.csv"
+
+    target_column:
+      type: string
+      required: true
+      default: target
+      meta:
+        description: "Identifier column for the series in the dataset"
+
+    target_category_columns:
+      type: list
+      required: false
+      schema:
+        type: string
+      default: ["Series ID"]
+      meta:
+        description: "When provided, target_category_columns [list] indexes the data into multiple related datasets for anomaly detection"
+
+    preprocessing:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "preprocessing and feature engineering can be disabled using this flag, Defaults to true"
+
+    generate_report:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Report file generation can be enabled using this flag. Defaults to true."
+
+    generate_metrics:
+      type: boolean
+      required: false
+      default: true
+      meta:
+        description: "Metrics files generation can be enabled using this flag. Defaults to true."
+
+    generate_inliers:
+      type: boolean
+      required: false
+      default: false
+      meta:
+        description: "Generates inliers.csv"
+
+    model:
+      type: string
+      required: false
+      default: automlx
+      allowed:
+        - automlx
+        - autots
+        - auto
+      meta:
+        description: "The model to be used for anomaly detection"
+
+    contamination:
+      required: false
+      default: 0.1
+      type: float
+      meta:
+        description: "Fraction of training dataset corresponding to anomalies (between 0.0 and 0.5)"
+
+    model_kwargs:
+      type: dict
+      required: false
+
+  type: dict

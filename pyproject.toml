@@ -176,6 +176,14 @@ forecast = [
   "sktime",
   "statsmodels",
   "plotly",
+  "oracledb",
+]
+anomaly  = [
+  "oracle_ads[opctl]",
+  "autots",
+  "oracle-automlx[anomaly]==23.2.3",
+  "oracledb",
+  "datapane",
 ]
 feature-store-marketplace = [
     "oracle-ads[opctl]",

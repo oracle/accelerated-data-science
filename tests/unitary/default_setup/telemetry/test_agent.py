@@ -8,7 +8,6 @@ import oci
 from unittest.mock import patch
 
 import pytest
-
 import ads
 from ads.telemetry.telemetry import (
     EXTRA_USER_AGENT_INFO,

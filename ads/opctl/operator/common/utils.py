@@ -29,6 +29,22 @@ class OperatorValidator(Validator):
     pass
 
 
+def create_output_folder(name):
+    output_folder = name
+    protocol = fsspec.utils.get_protocol(output_folder)
+    storage_options = {}
+    if protocol != "file":
+        storage_options = auth or default_signer()
+
+    fs = fsspec.filesystem(protocol, **storage_options)
+    name_suffix = 1
+    while fs.exists(output_folder):
+        name_suffix = name_suffix + 1
+        output_folder = f"{name}_{name_suffix}"
+    fs.mkdirs(output_folder)
+    return output_folder
+
+
 def _build_image(
     dockerfile: str,
     image_name: str,
