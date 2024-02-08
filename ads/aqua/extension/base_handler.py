@@ -55,7 +55,7 @@ class AquaAPIhandler(APIHandler):
         reply = {
             "status": status_code,
             "message": message,
-            "service_payload": kwargs.get("service_payload"),
+            "service_payload": kwargs.get("service_payload", {}),
             "reason": kwargs.get("reason"),
         }
         exc_info = kwargs.get("exc_info")

@@ -3,7 +3,7 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
-from ads.aqua.exception import exception_handler
+from ads.aqua.decorator import exception_handler
 from ads.aqua.extension.base_handler import AquaAPIhandler
 from ads.aqua.model import AquaModelApp
 

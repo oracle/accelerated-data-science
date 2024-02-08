@@ -13,7 +13,7 @@ import oci
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.aqua.exception import AquaRuntimeError
 from ads.aqua.utils import create_word_icon
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
@@ -114,12 +114,10 @@ class AquaModelApp(AquaApp):
                     # TODO: decide what kwargs will be needed.
                     .create(**kwargs)
                 )
-            except Exception as se:
+            except Exception as e:
                 # TODO: adjust error raising
                 logger.error(f"Failed to create model from the given id {model_id}.")
-                raise AquaServiceError(
-                    opc_request_id=se.request_id, status_code=se.code
-                )
+                raise e
 
             artifact_path = self._get_artifact_path(
                 custom_model.dsc_model.custom_metadata_list
@@ -146,7 +144,7 @@ class AquaModelApp(AquaApp):
         oci_model = self.ds_client.get_model(model_id).data
 
         if not self._if_show(oci_model):
-            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         artifact_path = self._get_artifact_path(oci_model.custom_metadata_list)
 
@@ -221,7 +219,7 @@ class AquaModelApp(AquaApp):
 
         return dict(
             compartment_id=model.compartment_id,
-            icon=icon,
+            icon=icon or UNKNOWN,
             id=model_id,
             license=model.freeform_tags.get(Tags.LICENSE.value, UNKNOWN),
             name=model.display_name,
@@ -275,7 +273,7 @@ class AquaModelApp(AquaApp):
         try:
             return create_word_icon(model_name, return_as_datauri=True)
         except Exception as e:
-            logger.error(f"Failed to load icon for the model={model_name}.")
+            logger.debug(f"Failed to load icon for the model={model_name}.")
             return None
 
     def _rqs(self, compartment_id):

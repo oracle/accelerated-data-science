@@ -5,11 +5,9 @@
 
 from typing import Dict, List
 
-from oci.exceptions import ServiceError
-
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.aqua.exception import AquaValueError
 from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 
 
@@ -89,7 +87,7 @@ class AquaUIApp(AquaApp):
             Dict has json representation of oci.identity.models.Compartment
         """
         if not TENANCY_OCID:
-            raise AquaClientError(
+            raise AquaValueError(
                 f"TENANCY_OCID must be available in environment"
                 " variables to list the sub compartments."
             )

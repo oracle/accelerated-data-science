@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List
 
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
@@ -192,7 +192,7 @@ class AquaDeploymentApp(AquaApp):
         """
         # todo: revisit error handling and pull deployment image info from config
         if not AQUA_MODEL_DEPLOYMENT_IMAGE:
-            raise AquaClientError(
+            raise AquaValueError(
                 f"AQUA_MODEL_DEPLOYMENT_IMAGE must be available in environment variables to "
                 f"continue with Aqua model deployment."
             )
@@ -337,7 +337,7 @@ class AquaDeploymentApp(AquaApp):
         )
 
         if not aqua_service_model:
-            raise AquaClientError(
+            raise AquaRuntimeError(
                 f"Target deployment {model_deployment_id} is not Aqua deployment."
             )
 
