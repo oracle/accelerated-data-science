@@ -4,12 +4,8 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 
-from typing import List
-
 import oci
-from oci.exceptions import ClientError, ServiceError
 
-from ads.aqua.exception import AquaClientError, AquaServiceError, oci_exception_handler
 from ads.common import oci_client as oc
 from ads.common.auth import default_signer
 from ads.common.utils import extract_region
@@ -25,7 +21,6 @@ class AquaApp:
         self.identity_client = oc.OCIClientFactory(**self._auth).identity
         self.region = extract_region(self._auth)
 
-    @oci_exception_handler
     def list_resource(
         self,
         list_func_ref,

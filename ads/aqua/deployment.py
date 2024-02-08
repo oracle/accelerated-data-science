@@ -4,24 +4,24 @@
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import logging
-from typing import List, Dict
-
 from dataclasses import dataclass, field
+from typing import Dict, List
+
 from ads.aqua.base import AquaApp
+from ads.aqua.exception import AquaClientError, AquaServiceError
 from ads.aqua.model import AquaModelApp, Tags
+from ads.common.serializer import DataClassSerializable
+from ads.common.utils import get_console_link
+from ads.config import AQUA_MODEL_DEPLOYMENT_IMAGE, COMPARTMENT_OCID
 from ads.model.deployment import (
     ModelDeployment,
-    ModelDeploymentInfrastructure,
     ModelDeploymentContainerRuntime,
+    ModelDeploymentInfrastructure,
     ModelDeploymentMode,
 )
 from ads.model.service.oci_datascience_model_deployment import (
     OCIDataScienceModelDeployment,
 )
-from ads.common.utils import get_console_link
-from ads.common.serializer import DataClassSerializable
-from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
 
 
 @dataclass
@@ -326,16 +326,9 @@ class AquaDeploymentApp(AquaApp):
         AquaDeployment:
             The instance of the Aqua model deployment.
         """
-        try:
-            model_deployment = self.ds_client.get_model_deployment(
-                model_deployment_id=model_deployment_id, **kwargs
-            ).data
-        except Exception as se:
-            # TODO: adjust error raising
-            logging.error(
-                f"Failed to retreive model deployment from the given id {model_deployment_id}"
-            )
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        model_deployment = self.ds_client.get_model_deployment(
+            model_deployment_id=model_deployment_id, **kwargs
+        ).data
 
         aqua_service_model = (
             model_deployment.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG.value, None)

@@ -143,12 +143,7 @@ class AquaModelApp(AquaApp):
         AquaModel:
             The instance of AquaModel.
         """
-        try:
-            oci_model = self.ds_client.get_model(model_id).data
-        except Exception as se:
-            # TODO: adjust error raising
-            logger.error(f"Failed to retreive model from the given id {model_id}")
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        oci_model = self.ds_client.get_model(model_id).data
 
         if not self._if_show(oci_model):
             raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
