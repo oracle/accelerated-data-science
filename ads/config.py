@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import contextlib
@@ -33,8 +33,10 @@ CONDA_BUCKET_NS = os.environ.get("CONDA_BUCKET_NS", "id19sfcrra6z")
 OCI_RESOURCE_PRINCIPAL_RPT_ENDPOINT = os.environ.get(
     "OCI_RESOURCE_PRINCIPAL_RPT_ENDPOINT"
 )
+PROJECT_COMPARTMENT_OCID = os.environ.get("PROJECT_COMPARTMENT_OCID")
 COMPARTMENT_OCID = (
     NB_SESSION_COMPARTMENT_OCID
+    or PROJECT_COMPARTMENT_OCID
     or JOB_RUN_COMPARTMENT_OCID
     or PIPELINE_RUN_COMPARTMENT_OCID
 )
@@ -46,6 +48,9 @@ RESOURCE_OCID = (
 )
 NO_CONTAINER = os.environ.get("NO_CONTAINER")
 TMPDIR = os.environ.get("TMPDIR")
+
+ODSC_MODEL_COMPARTMENT_OCID = os.environ.get("ODSC_MODEL_COMPARTMENT_OCID")
+AQUA_MODEL_DEPLOYMENT_IMAGE = os.environ.get("AQUA_MODEL_DEPLOYMENT_IMAGE")
 
 
 def export(

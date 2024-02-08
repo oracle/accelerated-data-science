@@ -20,6 +20,7 @@ from oci.object_storage import ObjectStorageClient
 from oci.resource_search import ResourceSearchClient
 from oci.secrets import SecretsClient
 from oci.vault import VaultsClient
+from oci.logging import LoggingManagementClient
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,7 @@ class OCIClientFactory:
             "data_catalog": DataCatalogClient,
             "marketplace": MarketplaceClient,
             "artifacts": ArtifactsClient,
+            "logging_management": LoggingManagementClient,
         }
 
         assert (
@@ -156,3 +158,7 @@ class OCIClientFactory:
     @property
     def artifacts(self) -> oci.artifacts.ArtifactsClient:
         return self.create_client("artifacts")
+
+    def logging_management(self):
+        return self.create_client("logging_management")
+
