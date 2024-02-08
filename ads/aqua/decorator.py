@@ -21,8 +21,6 @@ from oci.exceptions import (
 from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
 
-NULL = ""
-
 
 def exception_handler(func):
     """Writes errors raised during call to JSON."""
