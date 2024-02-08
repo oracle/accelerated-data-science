@@ -41,9 +41,7 @@ class AquaApp:
         list
             A list of OCI Data Science resources.
         """
-        items = oci.pagination.list_call_get_all_results(
+        return oci.pagination.list_call_get_all_results(
             list_func_ref,
             **kwargs,
         ).data
-
-        return items
