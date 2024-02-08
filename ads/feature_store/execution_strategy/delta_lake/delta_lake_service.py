@@ -69,8 +69,8 @@ class DeltaLakeService:
                 source_table_columns = raw_schema.names
                 target_table_columns = [
                     column_details.get("name")
-                    for column_details in self.spark_engine.get_columns_from_table(
-                        target_table_name
+                    for column_details in self.spark_engine.get_output_columns_from_table_or_dataframe(
+                        table_name=target_table_name
                     )
                 ]
 

@@ -475,12 +475,14 @@ class SparkExecutionEngine(Strategy):
                     )
 
             if dataset.is_offline_enabled:
-                self.delta_lake_service.save_delta_dataframe(
+                self.delta_lake_service.write_dataframe_to_delta_lake(
                     dataset_dataframe,
-                    dataset_job.ingestion_mode,
                     target_table,
-                    dataset_job.feature_option_details,
+                    dataset.primary_keys,
                     dataset.partition_keys,
+                    dataset_job.ingestion_mode,
+                    dataset_dataframe.schema,
+                    dataset_job.feature_option_details,
                 )
 
             # Get the output features

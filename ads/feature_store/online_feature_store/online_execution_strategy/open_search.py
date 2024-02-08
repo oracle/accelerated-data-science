@@ -8,6 +8,7 @@ from typing import OrderedDict, Any, Tuple
 
 from pyspark.sql.functions import concat
 
+from ads.feature_store.common.enums import BatchIngestionMode
 from ads.feature_store.online_feature_store.online_execution_strategy.online_engine_config.open_search_client_config import (
     OpenSearchClientConfig,
 )
@@ -75,10 +76,17 @@ class OnlineOpenSearchEngine(OnlineFeatureStoreStrategy):
         if composite_key is not None:
             es_write_config["opensearch.mapping.id"] = composite_key
 
+        ingestion_mode = (
+            BatchIngestionMode.APPEND.value
+            if feature_group_job.ingestion_mode
+            in [BatchIngestionMode.APPEND.value, BatchIngestionMode.UPSERT.value]
+            else BatchIngestionMode.OVERWRITE.value
+        )
+
         # Write DataFrame to Elasticsearch
         dataframe.write.format("org.opensearch.spark.sql").options(
             **es_write_config
-        ).mode(feature_group_job.ingestion_mode).save()
+        ).mode(ingestion_mode).save()
 
     def read(
         self,
