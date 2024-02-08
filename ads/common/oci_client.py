@@ -161,4 +161,3 @@ class OCIClientFactory:
 
     def logging_management(self):
         return self.create_client("logging_management")
-

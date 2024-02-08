@@ -1761,4 +1761,3 @@ def get_console_link(
         f"https://cloud.oracle.com/data-science/{resource}/{ocid}?region={region}"
     )
     return console_link_url
-
