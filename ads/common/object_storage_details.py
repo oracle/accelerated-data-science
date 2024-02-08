@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*--
 
-# Copyright (c) 2021, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2021, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import json
@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from typing import Dict
 from urllib.parse import urlparse
 
+import oci
 from ads.common import auth as authutil
 from ads.common import oci_client
 
@@ -138,3 +139,64 @@ class ObjectStorageDetails:
         if not uri:
             return False
         return uri.lower().startswith("oci://")
+
+    def is_bucket_versioned(self) -> bool:
+        """Check if the given bucket is versioned.
+        Returns
+        -------
+        bool: return True if the bucket is versioned.
+
+        """
+        os_client = oci_client.OCIClientFactory(**self.auth).object_storage
+        res = os_client.get_bucket(
+            namespace_name=self.namespace, bucket_name=self.bucket
+        ).data
+        return res.versioning == "Enabled"
+
+    def list_objects(self, **kwargs):
+        """Lists objects in a given oss path
+        Returns
+        -------
+            Object of type oci.object_storage.models.ListObjects
+        """
+        fields = kwargs.pop(
+            "fields",
+            "name,etag,size,timeCreated,md5,timeModified,storageTier,archivalState",
+        )
+
+        os_client = oci_client.OCIClientFactory(**self.auth).object_storage
+        objects = oci.pagination.list_call_get_all_results(
+            os_client.list_objects,
+            namespace_name=self.namespace,
+            bucket_name=self.bucket,
+            prefix=self.filepath,
+            fields=fields,
+            **kwargs,
+        ).data
+        return objects
+
+    def list_object_versions(
+        self,
+        **kwargs,
+    ):
+        """Lists object versions in a given oss path
+
+        Returns
+        -------
+            Object of type oci.object_storage.models.ObjectVersionCollection
+        """
+        fields = kwargs.pop(
+            "fields",
+            "name,etag,size,timeCreated,md5,timeModified,storageTier,archivalState",
+        )
+
+        os_client = oci_client.OCIClientFactory(**self.auth).object_storage
+        objects = oci.pagination.list_call_get_all_results(
+            os_client.list_object_versions,
+            namespace_name=self.namespace,
+            bucket_name=self.bucket,
+            prefix=self.filepath,
+            fields=fields,
+            **kwargs,
+        ).data
+        return objects

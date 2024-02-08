@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
 
-# Copyright (c) 2020, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2020, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 from __future__ import absolute_import, print_function
@@ -23,7 +23,6 @@ import tempfile
 from datetime import datetime
 from enum import Enum
 from io import DEFAULT_BUFFER_SIZE
-from pathlib import Path
 from textwrap import fill
 from typing import Dict, Optional, Union
 from urllib import request
@@ -33,10 +32,6 @@ import fsspec
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
-from ads.common import logger
-from ads.common.decorator.deprecate import deprecated
-from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import TqdmProgressBar
 from cycler import cycler
 from pandas.core.dtypes.common import is_datetime64_dtype, is_numeric_dtype
 from sklearn.model_selection import train_test_split
@@ -50,7 +45,7 @@ from ads.common.decorator.runtime_dependency import (
 )
 from ads.common.word_lists import adjectives, animals
 from ads import config
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from ads.dataset.progress import TqdmProgressBar
 
 from . import auth as authutil
 from oci import object_storage
@@ -1717,3 +1712,24 @@ def upload_to_os(
         )
 
     return response
+
+
+def read_from_file(uri: str, **kwargs) -> str:
+    """Returns contents from a file specified by URI
+
+    Parameters
+    ----------
+    uri : str
+        The URI of the file.
+
+    Returns
+    -------
+    str
+        The content of the file as a string.
+    """
+    # Add default signer if the uri is an object storage uri, and
+    # the user does not specify config or signer.
+    if uri.startswith("oci://") and "config" not in kwargs and "signer" not in kwargs:
+        kwargs.update(authutil.default_signer())
+    with fsspec.open(uri, "r", **kwargs) as f:
+        return f.read()
