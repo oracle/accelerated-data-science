@@ -103,8 +103,16 @@ def _check_kubernetes_secret_(listing_details: HelmMarketplaceListingDetails):
             and metadata.name == listing_details.docker_registry_secret
         ):
             annotations: dict = metadata.annotations
-            # Check expiry date with 3 minutes buffer to accommodate for pull time
-            if int(annotations.get("expiry")) > (time.time() + 60 * 3):
+            # Check expiry date with 3 minutes buffer to accommodate for pull time\
+            try:
+                expiry = annotations.get("expiry")
+            except AttributeError:
+                logger.debug(
+                    "Not an operator created secret. Continuing without expiry validation"
+                )
+                return
+
+            if int(expiry) > (time.time() + 60 * 3):
                 print(
                     f"Secret {get_highlighted_text(listing_details.docker_registry_secret)} exists in namespace {get_highlighted_text(listing_details.namespace)} {StatusIcons.CHECK}"
                 )
