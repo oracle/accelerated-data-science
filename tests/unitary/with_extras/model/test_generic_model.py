@@ -37,7 +37,6 @@ from ads.model.deployment import (
     ModelDeploymentInfrastructure,
     ModelDeploymentProperties,
 )
-from ads.model.model_metadata import ModelCustomMetadata
 from ads.model.deployment.common.utils import State as ModelDeploymentState
 from ads.model.generic_model import (
     _ATTRIBUTES_TO_SHOW_,
@@ -162,35 +161,6 @@ OCI_MODEL_PROVENANCE_PAYLOAD = {
     "script_dir": "test_script_dir",
     "training_id": None,
     "training_script": None,
-}
-
-CUSTOM_METADATA_FOR_MODEL_BY_REFERENCE = {
-    "data": [
-        {
-            "key": "modelArtifactSourceType",
-            "value": "OSS",
-            "description": "model by reference storage type",
-            "category": "Other",
-        },
-        {
-            "key": "objectStorageNamespace",
-            "value": "my-namespace",
-            "description": "oss bucket namespace",
-            "category": "Other",
-        },
-        {
-            "key": "objectStorageBucket",
-            "value": "my-bucket",
-            "description": "oss bucket location",
-            "category": "Other",
-        },
-        {
-            "key": "prefix",
-            "value": "my-artifact-path",
-            "description": "prefix value",
-            "category": "Other",
-        },
-    ]
 }
 
 INFERENCE_CONDA_ENV = "oci://bucket@namespace/<path_to_service_pack>"
@@ -403,28 +373,11 @@ class TestGenericModel:
         """test the reload."""
         pass
 
-    @pytest.mark.parametrize(
-        "test_args",
-        [
-            {
-                "ignore_introspection": True,
-                "model_by_reference": False,
-            },
-            {
-                "ignore_introspection": True,
-                "model_by_reference": True,
-            },
-        ],
-    )
     @patch.object(GenericModel, "_random_display_name", return_value="test_name")
     @patch.object(DataScienceModel, "create")
     @patch("ads.model.runtime.env_info.get_service_packs")
     def test_save(
-        self,
-        mock_get_service_packs,
-        mock_dsc_model_create,
-        mock__random_display_name,
-        test_args,
+        self, mock_get_service_packs, mock_dsc_model_create, mock__random_display_name
     ):
         """test saving a model to artifact."""
         inference_conda_env = "oci://service-conda-packs@ociodscdev/service_pack/cpu/Data_Exploration_and_Manipulation_for_CPU_Python_3.7/3.0/dataexpl_p37_cpu_v3"
@@ -446,7 +399,7 @@ class TestGenericModel:
             force_overwrite=True,
             training_id=None,
         )
-        self.generic_model.save(**test_args)
+        self.generic_model.save(ignore_introspection=True)
         assert self.generic_model.model_id is not None and isinstance(
             self.generic_model.model_id, str
         )
@@ -455,7 +408,6 @@ class TestGenericModel:
             overwrite_existing_artifact=True,
             remove_existing_artifact=True,
             parallel_process_count=utils.DEFAULT_PARALLEL_PROCESS_COUNT,
-            model_by_reference=test_args.get("model_by_reference"),
         )
 
     @patch("ads.model.runtime.env_info.get_service_packs")
@@ -1467,100 +1419,6 @@ class TestGenericModel:
             "not available locally.",
         ):
             self.generic_model.save()
-
-    @patch.object(GenericModel, "from_model_artifact")
-    @patch("ads.model.generic_model.GenericModel.__init__")
-    @patch("ads.model.datascience_model.DataScienceModel.download_artifact")
-    @patch.object(DataScienceModel, "from_id")
-    def test_from_model_catalog_by_reference(
-        self,
-        mock_dsc_model_from_id,
-        mock_download_artifact,
-        mock_genericmodel_init,
-        mock_from_model_artifact,
-    ):
-        """Tests loading model from model catalog created using pass by reference."""
-        DSC_MODEL_PAYLOAD["customMetadataList"]["data"].extend(
-            CUSTOM_METADATA_FOR_MODEL_BY_REFERENCE["data"]
-        )
-        self.mock_dsc_model = DataScienceModel(**DSC_MODEL_PAYLOAD)
-
-        mock_genericmodel_init.return_value = None
-        mock_dsc_model_from_id.return_value = self.mock_dsc_model
-        mock_from_model_artifact.return_value = self.generic_model
-
-        test_result = GenericModel.from_model_catalog(
-            model_id="test_model_id",
-            model_file_name="test_model_file_name",
-            artifact_dir="/test_artifact_dir",
-            bucket_uri="test_bucket_uri",
-            remove_existing_artifact=False,
-            ignore_conda_error=True,
-        )
-        mock_download_artifact.assert_not_called()
-        assert test_result is not None
-
-    @patch.object(ModelArtifact, "from_uri")
-    @patch.object(DataScienceModel, "from_id")
-    @patch.object(GenericModel, "reload_runtime_info")
-    @patch("ads.model.datascience_model.DataScienceModel.download_artifact")
-    def test_download_artifact_by_reference(
-        self,
-        mock_download_artifact,
-        mock_reload_runtime_info,
-        mock_dsc_model_from_id,
-        mock_from_uri,
-    ):
-        """Test to check if model artifacts are updated after download_artifact is called for model created by reference"""
-        # Prepare DataScienceModel
-        OCI_MODEL_PAYLOAD["custom_metadata_list"].extend(
-            CUSTOM_METADATA_FOR_MODEL_BY_REFERENCE["data"]
-        )
-        DSC_MODEL_PAYLOAD["customMetadataList"]["data"].extend(
-            CUSTOM_METADATA_FOR_MODEL_BY_REFERENCE["data"]
-        )
-
-        mock_oci_dsc_model = OCIDataScienceModel(**OCI_MODEL_PAYLOAD)
-        mock_oci_dsc_model.id = "model_id"
-        self.mock_dsc_model = DataScienceModel(**DSC_MODEL_PAYLOAD)
-        self.mock_dsc_model.dsc_model = mock_oci_dsc_model
-
-        # Prepare GenericModel
-        self.mock_dsc_model._spec["id"] = "model_id"
-        self.generic_model.dsc_model = self.mock_dsc_model
-
-        artifact_dir = "test_dir"
-        self.generic_model.model_artifact = None
-        self.generic_model.artifact_dir = artifact_dir
-
-        mock_dsc_model_from_id.return_value = self.mock_dsc_model
-        mock_artifact_instance = MagicMock(model="test_model")
-        mock_from_uri.return_value = mock_artifact_instance
-
-        assert self.generic_model.model_artifact is None
-
-        self.generic_model.download_artifact(
-            artifact_dir=artifact_dir,
-            auth={"config": {}},
-            force_overwrite=True,
-            bucket_uri="bucket_uri",
-            remove_existing_artifact=True,
-        )
-
-        mock_download_artifact.assert_not_called()
-        mock_reload_runtime_info.assert_called()
-        assert self.generic_model.model_artifact is not None
-
-    def test_get_model_artifact_by_reference_uri(self):
-        """Test to verify the artifact uri generated after parsing the custom metadata"""
-        custom_metadata_list = ModelCustomMetadata.from_dict(
-            CUSTOM_METADATA_FOR_MODEL_BY_REFERENCE
-        )
-        artifact_uri = GenericModel.get_model_artifact_by_reference_uri(
-            custom_metadata_list
-        )
-
-        assert artifact_uri == "oci://my-bucket@my-namespace/my-artifact-path"
 
     @patch.object(ModelDeployment, "activate")
     @patch.object(ModelDeployment, "deactivate")

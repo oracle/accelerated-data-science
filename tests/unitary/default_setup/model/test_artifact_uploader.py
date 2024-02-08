@@ -26,7 +26,7 @@ class TestArtifactUploader:
         cls.mock_artifact_path = os.path.join(
             cls.curr_dir, "test_files/model_artifacts/"
         )
-        cls.mock_artifact_zip_path = os.path.join(
+        cls.mock_artifact_file_path = os.path.join(
             cls.curr_dir, "test_files/model_artifacts.zip"
         )
         cls.mock_oci_artifact_path = "oci://bucket-name@namespace/model_artifacts.zip"
@@ -59,7 +59,7 @@ class TestArtifactUploader:
             )
             assert sm_artifact_uploader.dsc_model == self.mock_dsc_model
             assert sm_artifact_uploader.artifact_path == "existing_path"
-            assert sm_artifact_uploader.artifact_zip_path == None
+            assert sm_artifact_uploader.artifact_file_path == None
             assert sm_artifact_uploader.progress == None
 
         # Ensures the LargeArtifactUploader can be successfully initialized
@@ -112,7 +112,7 @@ class TestArtifactUploader:
             )
             assert lg_artifact_uploader.dsc_model == self.mock_dsc_model
             assert lg_artifact_uploader.artifact_path == "existing_path"
-            assert lg_artifact_uploader.artifact_zip_path == None
+            assert lg_artifact_uploader.artifact_file_path == None
             assert lg_artifact_uploader.progress == None
             assert lg_artifact_uploader.auth == auth
             assert lg_artifact_uploader.region == self.mock_region
@@ -133,7 +133,7 @@ class TestArtifactUploader:
                 )
                 assert uploader.artifact_path == self.mock_oci_artifact_path
                 assert uploader.bucket_uri == self.mock_oci_artifact_path
-                assert uploader.artifact_zip_path == None
+                assert uploader.artifact_file_path == None
 
     def test_prepare_artifact_tmp_zip(self):
         # Tests case when a folder provided as artifacts location
@@ -142,7 +142,7 @@ class TestArtifactUploader:
             artifact_uploader = SmallArtifactUploader(
                 dsc_model=self.mock_dsc_model, artifact_path=self.mock_artifact_path
             )
-            test_result = artifact_uploader._prepare_artifact_tmp_zip()
+            test_result = artifact_uploader._prepare_artifact_tmp_file()
             assert test_result == "test_artifact.zip"
 
         # Tests case when a zip file provided as artifacts location
@@ -152,7 +152,7 @@ class TestArtifactUploader:
                     dsc_model=self.mock_dsc_model,
                     artifact_path=self.mock_artifact_path + ".zip",
                 )
-                test_result = artifact_uploader._prepare_artifact_tmp_zip()
+                test_result = artifact_uploader._prepare_artifact_tmp_file()
                 assert test_result == self.mock_artifact_path + ".zip"
 
         # Tests case when a zip file provided as object storage path
@@ -161,7 +161,7 @@ class TestArtifactUploader:
                 dsc_model=self.mock_dsc_model,
                 artifact_path=self.mock_oci_artifact_path,
             )
-            test_result = artifact_uploader._prepare_artifact_tmp_zip()
+            test_result = artifact_uploader._prepare_artifact_tmp_file()
             assert test_result == self.mock_oci_artifact_path
 
     def test_remove_artifact_tmp_zip(self):
@@ -170,8 +170,8 @@ class TestArtifactUploader:
         )
         with patch("shutil.rmtree") as mock_rmtree:
             # Tests case when tmp artifact needs to be removed
-            artifact_uploader.artifact_zip_path = "artifacts.zip"
-            artifact_uploader._remove_artifact_tmp_zip()
+            artifact_uploader.artifact_file_path = "artifacts.zip"
+            artifact_uploader._prepare_artifact_tmp_file()
             mock_rmtree.assert_called_with("artifacts.zip", ignore_errors=True)
 
         with patch("os.path.exists", return_value=True):
@@ -180,9 +180,9 @@ class TestArtifactUploader:
             )
             with patch("shutil.rmtree") as mock_rmtree:
                 # Tests case when tmp artifact shouldn't be removed
-                artifact_uploader.artifact_zip_path = "artifacts.zip"
+                artifact_uploader.artifact_file_path = "artifacts.zip"
                 artifact_uploader.artifact_path = "artifacts.zip"
-                artifact_uploader._remove_artifact_tmp_zip()
+                artifact_uploader._prepare_artifact_tmp_file()
                 mock_rmtree.assert_not_called()
 
     @patch.object(SmallArtifactUploader, "_upload")
@@ -203,11 +203,11 @@ class TestArtifactUploader:
         mock__upload.assert_called()
 
     def test_upload_small_artifact(self):
-        with open(self.mock_artifact_zip_path, "rb") as file_data:
+        with open(self.mock_artifact_file_path, "rb") as file_data:
             with patch.object(
                 SmallArtifactUploader,
                 "_prepare_artifact_tmp_zip",
-                return_value=self.mock_artifact_zip_path,
+                return_value=self.mock_artifact_file_path,
             ) as mock_prepare_artifact_tmp_zip:
                 with patch.object(
                     SmallArtifactUploader, "_remove_artifact_tmp_zip"
@@ -216,7 +216,7 @@ class TestArtifactUploader:
                         dsc_model=self.mock_dsc_model,
                         artifact_path=self.mock_artifact_path,
                     )
-                    artifact_uploader.artifact_zip_path = self.mock_artifact_zip_path
+                    artifact_uploader.artifact_file_path = self.mock_artifact_file_path
                     artifact_uploader.upload()
                     mock_prepare_artifact_tmp_zip.assert_called()
                     mock_remove_artifact_tmp_zip.assert_called()
@@ -232,7 +232,7 @@ class TestArtifactUploader:
         auth = default_signer()
         artifact_uploader = LargeArtifactUploader(
             dsc_model=self.mock_dsc_model,
-            artifact_path=self.mock_artifact_zip_path,
+            artifact_path=self.mock_artifact_file_path,
             bucket_uri=dest_path + "/",
             auth=auth,
             region=self.mock_region,
@@ -241,7 +241,7 @@ class TestArtifactUploader:
         )
         artifact_uploader.upload()
         mock_upload.assert_called_with(
-            src_uri=self.mock_artifact_zip_path,
+            src_uri=self.mock_artifact_file_path,
             dst_uri=test_bucket_file_name,
             auth=auth,
             parallel_process_count=DEFAULT_PARALLEL_PROCESS_COUNT,
@@ -256,7 +256,7 @@ class TestArtifactUploader:
         with pytest.raises(FileExistsError):
             artifact_uploader = LargeArtifactUploader(
                 dsc_model=self.mock_dsc_model,
-                artifact_path=self.mock_artifact_zip_path,
+                artifact_path=self.mock_artifact_file_path,
                 bucket_uri=dest_path + "/",
                 auth=default_signer(),
                 region=self.mock_region,
@@ -303,23 +303,3 @@ class TestArtifactUploader:
             assert sorted(test_files) == sorted(expected_files)
 
         shutil.rmtree(test_result, ignore_errors=True)
-
-    @patch("ads.common.utils.is_path_exists", return_value=True)
-    @patch(
-        "ads.model.service.oci_datascience_model.OCIDataScienceModel.export_model_artifact"
-    )
-    def test_skip_export_model_artifact_for_model_by_reference(
-        self, mock_export_model_artifact, mock_is_path_exists
-    ):
-        """Tests case when model artifact location is passed by reference"""
-        artifact_uploader = LargeArtifactUploader(
-            dsc_model=self.mock_dsc_model,
-            artifact_path=self.mock_oci_artifact_path,
-            auth=default_signer(),
-            region=self.mock_region,
-            overwrite_existing_artifact=False,
-            remove_existing_artifact=False,
-            model_by_reference=True,
-        )
-        artifact_uploader.upload()
-        mock_export_model_artifact.assert_not_called()
