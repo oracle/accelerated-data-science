@@ -12,7 +12,7 @@ from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaRuntimeError, AquaValueError
+from ads.aqua.exception import AquaError, AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     DEPLOYMENT_CONFIG,
@@ -376,10 +376,10 @@ class AquaDeploymentApp(AquaApp):
         """
         try:
             oci_model = self.ds_client.get_model(model_id).data
-        except Exception as se:
+        except Exception as ex:
             # TODO: adjust error raising
             logger.error(f"Failed to retreive model from the given id {model_id}")
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+            raise ex
 
         oci_aqua = (
             (
@@ -391,7 +391,7 @@ class AquaDeploymentApp(AquaApp):
         )
 
         if not oci_aqua:
-            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+            raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
         artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
@@ -402,6 +402,6 @@ class AquaDeploymentApp(AquaApp):
 
         if not shape_config:
             # TODO: adjust the error raising
-            raise AquaServiceError(opc_request_id=None, status_code=500)
+            raise AquaError(f"Missing shape_config.", 500)
 
         return shape_config

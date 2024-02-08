@@ -135,7 +135,7 @@ class AquaUIApp(AquaApp):
 
         # todo : update this once exception handling is set up
         except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+            raise se
 
     def get_default_compartment(self) -> dict:
         """Returns user compartment OCID fetched from environment variables.
