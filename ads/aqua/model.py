@@ -8,20 +8,23 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import List
 
-import fsspec
 import oci
 
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaRuntimeError
-from ads.aqua.utils import create_word_icon
+from ads.aqua.utils import (
+    README,
+    UNKNOWN,
+    create_word_icon,
+    get_artifact_path,
+    read_file,
+)
 from ads.common.oci_resource import SEARCH_TYPE, OCIResource
 from ads.common.serializer import DataClassSerializable
+from ads.common.utils import get_console_link
 from ads.config import COMPARTMENT_OCID, ODSC_MODEL_COMPARTMENT_OCID, TENANCY_OCID
 from ads.model.datascience_model import DataScienceModel
-
-README = "README.md"
-UNKNOWN = ""
 
 
 class Tags(Enum):
@@ -48,6 +51,7 @@ class AquaModelSummary(DataClassSerializable):
     tags: dict
     task: str
     time_created: str
+    console_link: str
 
 
 @dataclass(repr=False)
@@ -119,13 +123,15 @@ class AquaModelApp(AquaApp):
                 logger.error(f"Failed to create model from the given id {model_id}.")
                 raise e
 
-            artifact_path = self._get_artifact_path(
+            artifact_path = get_artifact_path(
                 custom_model.dsc_model.custom_metadata_list
             )
             return AquaModel(
-                **AquaModelApp.process_model(custom_model.dsc_model),
+                **AquaModelApp.process_model(custom_model.dsc_model, self.region),
                 project_id=custom_model.project_id,
-                model_card=str(self._read_file(f"{artifact_path}/{README}")),
+                model_card=str(
+                    read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+                ),
             )
 
     def get(self, model_id) -> "AquaModel":
@@ -146,12 +152,14 @@ class AquaModelApp(AquaApp):
         if not self._if_show(oci_model):
             raise AquaRuntimeError(f"Target model {oci_model.id} is not Aqua model.")
 
-        artifact_path = self._get_artifact_path(oci_model.custom_metadata_list)
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
 
         return AquaModel(
-            **AquaModelApp.process_model(oci_model),
+            **AquaModelApp.process_model(oci_model, self.region),
             project_id=oci_model.project_id,
-            model_card=str(self._read_file(f"{artifact_path}/{README}")),
+            model_card=str(
+                read_file(file_path=f"{artifact_path}/{README}", auth=self._auth)
+            ),
         )
 
     def list(
@@ -194,7 +202,7 @@ class AquaModelApp(AquaApp):
         for model in models:
             aqua_models.append(
                 AquaModelSummary(
-                    **AquaModelApp.process_model(model=model),
+                    **AquaModelApp.process_model(model=model, region=self.region),
                     project_id=project_id or UNKNOWN,
                 )
             )
@@ -202,7 +210,7 @@ class AquaModelApp(AquaApp):
         return aqua_models
 
     @classmethod
-    def process_model(cls, model) -> dict:
+    def process_model(cls, model, region) -> dict:
         icon = cls()._load_icon(model.display_name)
         tags = {}
         tags.update(model.defined_tags or {})
@@ -215,6 +223,13 @@ class AquaModelApp(AquaApp):
                 or isinstance(model, oci.data_science.models.model.Model)
             )
             else model.identifier
+        )
+        console_link = (
+            get_console_link(
+                resource="models",
+                ocid=model_id,
+                region=region,
+            ),
         )
 
         return dict(
@@ -232,39 +247,16 @@ class AquaModelApp(AquaApp):
                 else False
             ),
             tags=tags,
+            console_link=console_link,
         )
 
     def _if_show(self, model: "AquaModel") -> bool:
         """Determine if the given model should be return by `list`."""
         TARGET_TAGS = model.freeform_tags.keys()
-        return Tags.AQUA_TAG.value in TARGET_TAGS
-
-    def _get_artifact_path(self, custom_metadata_list: List) -> str:
-        """Get the artifact path from the custom metadata list of model.
-
-        Parameters
-        ----------
-        custom_metadata_list: List
-            A list of custom metadata of model.
-
-        Returns
-        -------
-        str:
-            The artifact path from model.
-        """
-        for custom_metadata in custom_metadata_list:
-            if custom_metadata.key == "Object Storage Path":
-                return custom_metadata.value
-        logger.debug("Failed to get artifact path from custom metadata.")
-        return None
-
-    def _read_file(self, file_path: str) -> str:
-        try:
-            with fsspec.open(file_path, "r", **self._auth) as f:
-                return f.read()
-        except Exception as e:
-            logger.error(f"Failed to read file. {e}")
-            return None
+        return (
+            Tags.AQUA_TAG.value in TARGET_TAGS
+            or Tags.AQUA_TAG.value.lower() in TARGET_TAGS
+        )
 
     def _load_icon(self, model_name) -> str:
         """Loads icon."""
@@ -278,7 +270,7 @@ class AquaModelApp(AquaApp):
 
     def _rqs(self, compartment_id):
         """Use RQS to fetch models in the user tenancy."""
-        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_SERVICE_MODEL_TAG.value}' || freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
+        condition_tags = f"&& (freeformTags.key = '{Tags.AQUA_TAG.value}' && freeformTags.key = '{Tags.AQUA_FINE_TUNED_MODEL_TAG.value}')"
         condition_lifecycle = "&& lifecycleState = 'ACTIVE'"
         query = f"query datasciencemodel resources where (compartmentId = '{compartment_id}' {condition_lifecycle} {condition_tags})"
         logger.info(query)

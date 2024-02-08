@@ -3,13 +3,24 @@
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
+import json
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List
+from typing import Dict, List, Union
 
+from oci.data_science.models import ModelDeployment, ModelDeploymentSummary
+
+from ads.aqua import logger
 from ads.aqua.base import AquaApp
 from ads.aqua.exception import AquaRuntimeError, AquaValueError
 from ads.aqua.model import AquaModelApp, Tags
+from ads.aqua.utils import (
+    DEPLOYMENT_CONFIG,
+    UNKNOWN,
+    UNKNOWN_JSON_STR,
+    get_artifact_path,
+    read_file,
+)
 from ads.common.serializer import DataClassSerializable
 from ads.common.utils import get_console_link
 from ads.config import AQUA_MODEL_DEPLOYMENT_IMAGE, COMPARTMENT_OCID
@@ -18,9 +29,6 @@ from ads.model.deployment import (
     ModelDeploymentContainerRuntime,
     ModelDeploymentInfrastructure,
     ModelDeploymentMode,
-)
-from ads.model.service.oci_datascience_model_deployment import (
-    OCIDataScienceModelDeployment,
 )
 
 
@@ -45,21 +53,23 @@ class AquaDeployment(DataClassSerializable):
     created_by: str = None
     endpoint: str = None
     console_link: str = None
+    lifecycle_details: str = None
     shape_info: field(default_factory=ShapeInfo) = None
     tags: dict = None
 
     @classmethod
     def from_oci_model_deployment(
         cls,
-        oci_model_deployment: OCIDataScienceModelDeployment,
+        oci_model_deployment: Union[ModelDeploymentSummary, ModelDeployment],
         region: str,
     ) -> "AquaDeployment":
         """Converts oci model deployment response to AquaDeployment instance.
 
         Parameters
         ----------
-        oci_model_deployment: oci.data_science.models.ModelDeployment
-            The oci.data_science.models.ModelDeployment instance.
+        oci_model_deployment: Union[ModelDeploymentSummary, ModelDeployment]
+            The instance of either oci.data_science.models.ModelDeployment or
+            oci.data_science.models.ModelDeploymentSummary class.
         region: str
             The region of this model deployment.
 
@@ -101,6 +111,9 @@ class AquaDeployment(DataClassSerializable):
             is not None,
             shape_info=shape_info,
             state=oci_model_deployment.lifecycle_state,
+            lifecycle_details=getattr(
+                oci_model_deployment, "lifecycle_details", UNKNOWN
+            ),
             description=oci_model_deployment.description,
             created_on=str(oci_model_deployment.time_created),
             created_by=oci_model_deployment.created_by,
@@ -294,14 +307,16 @@ class AquaDeploymentApp(AquaApp):
 
         results = []
         for model_deployment in model_deployments:
-            aqua_service_model = (
-                model_deployment.freeform_tags.get(
-                    Tags.AQUA_SERVICE_MODEL_TAG.value, None
+            oci_aqua = (
+                (
+                    Tags.AQUA_TAG.value in model_deployment.freeform_tags
+                    or Tags.AQUA_TAG.value.lower() in model_deployment.freeform_tags
                 )
                 if model_deployment.freeform_tags
-                else None
+                else False
             )
-            if aqua_service_model:
+
+            if oci_aqua:
                 results.append(
                     AquaDeployment.from_oci_model_deployment(
                         model_deployment, self.region
@@ -330,15 +345,63 @@ class AquaDeploymentApp(AquaApp):
             model_deployment_id=model_deployment_id, **kwargs
         ).data
 
-        aqua_service_model = (
-            model_deployment.freeform_tags.get(Tags.AQUA_SERVICE_MODEL_TAG.value, None)
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG.value in model_deployment.freeform_tags
+                or Tags.AQUA_TAG.value.lower() in model_deployment.freeform_tags
+            )
             if model_deployment.freeform_tags
-            else None
+            else False
         )
 
-        if not aqua_service_model:
+        if not oci_aqua:
             raise AquaRuntimeError(
                 f"Target deployment {model_deployment_id} is not Aqua deployment."
             )
 
         return AquaDeployment.from_oci_model_deployment(model_deployment, self.region)
+
+    def get_deployment_config(self, model_id: str) -> Dict:
+        """Gets the deployment config of given Aqua model.
+
+        Parameters
+        ----------
+        model_id: str
+            The OCID of the Aqua model.
+
+        Returns
+        -------
+        Dict:
+            A dict of allowed deployment configs.
+        """
+        try:
+            oci_model = self.ds_client.get_model(model_id).data
+        except Exception as se:
+            # TODO: adjust error raising
+            logger.error(f"Failed to retreive model from the given id {model_id}")
+            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+
+        oci_aqua = (
+            (
+                Tags.AQUA_TAG.value in oci_model.freeform_tags
+                or Tags.AQUA_TAG.value.lower() in oci_model.freeform_tags
+            )
+            if oci_model.freeform_tags
+            else False
+        )
+
+        if not oci_aqua:
+            raise AquaClientError(f"Target model {oci_model.id} is not Aqua model.")
+
+        artifact_path = get_artifact_path(oci_model.custom_metadata_list)
+
+        shape_config = json.loads(
+            read_file(file_path=f"{artifact_path}/{DEPLOYMENT_CONFIG}", auth=self._auth)
+            or UNKNOWN_JSON_STR
+        )
+
+        if not shape_config:
+            # TODO: adjust the error raising
+            raise AquaServiceError(opc_request_id=None, status_code=500)
+
+        return shape_config

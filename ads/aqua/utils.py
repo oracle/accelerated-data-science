@@ -9,9 +9,17 @@ import random
 import re
 import sys
 from string import Template
+from typing import List
+
+import fsspec
 
 logging.basicConfig(stream=sys.stdout, level=logging.INFO)
 logger = logging.getLogger("ODSC_AQUA")
+
+UNKNOWN = ""
+README = "README.md"
+DEPLOYMENT_CONFIG = "deployment_config.json"
+UNKNOWN_JSON_STR = "{}"
 
 
 def get_logger():
@@ -71,3 +79,32 @@ def create_word_icon(label: str, width: int = 150, return_as_datauri=True):
         return svg_to_base64_datauri(icon_svg)
     else:
         return icon_svg
+
+
+def get_artifact_path(custom_metadata_list: List) -> str:
+    """Get the artifact path from the custom metadata list of model.
+
+    Parameters
+    ----------
+    custom_metadata_list: List
+        A list of custom metadata of model.
+
+    Returns
+    -------
+    str:
+        The artifact path from model.
+    """
+    for custom_metadata in custom_metadata_list:
+        if custom_metadata.key == "Object Storage Path":
+            return custom_metadata.value
+    logger.debug("Failed to get artifact path from custom metadata.")
+    return UNKNOWN
+
+
+def read_file(file_path: str, **kwargs) -> str:
+    try:
+        with fsspec.open(file_path, "r", **kwargs.get("auth", {})) as f:
+            return f.read()
+    except Exception as e:
+        logger.error(f"Failed to read file {file_path}. {e}")
+        return UNKNOWN
