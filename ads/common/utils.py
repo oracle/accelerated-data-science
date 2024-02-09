@@ -1740,3 +1740,22 @@ def get_console_link(
         f"https://cloud.oracle.com/data-science/{resource}/{ocid}?region={region}"
     )
     return console_link_url
+
+
+def read_from_file(uri: str, **kwargs) -> str:
+    """Returns contents from a file specified by URI
+    Parameters
+    ----------
+    uri : str
+        The URI of the file.
+    Returns
+    -------
+    str
+        The content of the file as a string.
+    """
+    # Add default signer if the uri is an object storage uri, and
+    # the user does not specify config or signer.
+    if uri.startswith("oci://") and "config" not in kwargs and "signer" not in kwargs:
+        kwargs.update(authutil.default_signer())
+    with fsspec.open(uri, "r", **kwargs) as f:
+        return f.read()

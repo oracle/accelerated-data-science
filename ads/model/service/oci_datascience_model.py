@@ -304,18 +304,22 @@ class OCIDataScienceModel(
     @check_for_model_id(
         msg="Model needs to be saved to the Model Catalog before the artifact can be created."
     )
-    def create_model_artifact(self, bytes_content: BytesIO) -> None:
+    def create_model_artifact(
+        self, bytes_content: BytesIO, extension: str = ".zip"
+    ) -> None:
         """Creates model artifact for specified model.
 
         Parameters
         ----------
         bytes_content: BytesIO
             Model artifacts to upload.
+        extension: str
+            File extension, defaults to zip
         """
         self.client.create_model_artifact(
             self.id,
             bytes_content,
-            content_disposition=f'attachment; filename="{self.id}.zip"',
+            content_disposition=f'attachment; filename="{self.id}{extension}"',
         )
 
     @check_for_model_id(
