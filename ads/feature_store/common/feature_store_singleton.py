@@ -92,10 +92,6 @@ class FeatureStoreSingleton(metaclass=SingletonMeta):
                 "spark.sql.catalog.spark_catalog",
                 "org.apache.spark.sql.delta.catalog.DeltaCatalog",
             )
-            .config(
-                "spark.jars.packages",
-                "org.opensearch.client:opensearch-spark-30_2.12:1.0.1,com.redislabs:spark-redis_2.12:3.0.0",
-            )
             .enableHiveSupport()
         )
         _managed_table_location = None
