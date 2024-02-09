@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; -*-
+import logging
 
 # Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
@@ -14,6 +15,7 @@ from zipfile import ZipFile
 from ads.common import utils
 from ads.common.utils import extract_region
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
+from ads.model.datascience_model import ModelFileDescriptionError
 
 MODEL_BY_REFERENCE_DESC = "modelDescription"
 
@@ -125,6 +127,7 @@ class LargeArtifactDownloader(ArtifactDownloader):
         bucket_uri: Optional[str] = None,
         overwrite_existing_artifact: Optional[bool] = True,
         remove_existing_artifact: Optional[bool] = True,
+        model_file_description: Optional[dict] = None,
     ):
         """Initializes `LargeArtifactDownloader` instance.
 
@@ -161,6 +164,7 @@ class LargeArtifactDownloader(ArtifactDownloader):
         self.bucket_uri = bucket_uri
         self.overwrite_existing_artifact = overwrite_existing_artifact
         self.remove_existing_artifact = remove_existing_artifact
+        self.model_file_description = model_file_description
 
     def _download(self):
         """Downloads model artifacts."""
@@ -168,17 +172,10 @@ class LargeArtifactDownloader(ArtifactDownloader):
 
         bucket_uri = self.bucket_uri
 
-        # todo: fsspec get_file does not take in version_id, replace this with
-        #  object_storage_client.get_object(..., version_id="")
-        if self._is_model_by_reference():
-            message = f"Copying model artifacts by reference from the bucket {bucket_uri} to {self.target_dir}"
+        if self._is_model_by_reference() and self.model_file_description:
+            message = f"Copying model artifacts by reference from {bucket_uri} to {self.target_dir}"
             self.progress.update(message)
-            utils.copy_from_uri(
-                uri=bucket_uri,
-                to_path=self.target_dir,
-                force_overwrite=True,
-                auth=self.auth,
-            )
+            self._download_from_model_file_description()
             return
 
         if not os.path.basename(bucket_uri):
@@ -209,7 +206,7 @@ class LargeArtifactDownloader(ArtifactDownloader):
             self.progress.update()
 
     def _is_model_by_reference(self):
-        """
+        """Checks model
         Returns
         -------
 
@@ -223,3 +220,41 @@ class LargeArtifactDownloader(ArtifactDownloader):
                 ):
                     return True
         return False
+
+    def _download_from_model_file_description(self):
+        model_file_desc_dict = dict()
+
+        models = self.model_file_description["models"]
+        total_size = 0
+        bucket_uri = None
+        for model in models:
+            namespace = model["namespace"]
+            bucket_name = model["bucketName"]
+            prefix = model["prefix"]
+            bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
+            objects = model["objects"]
+            for obj in objects:
+                name = obj["name"]
+                version = obj["version"]
+                size = obj["sizeInBytes"]
+                if size == 0:
+                    continue
+                total_size += size
+                object_uri = f"oci://{bucket_name}@{namespace}/{name}"
+                model_file_desc_dict[object_uri] = version
+
+        if total_size == 0:
+            raise ModelFileDescriptionError("")
+
+        try:
+            utils.download_object_versions(
+                paths=model_file_desc_dict,
+                target_dir=self.target_dir,
+                auth=self.auth,
+                progress_bar=self.progress,
+            )
+        except Exception as ex:
+            raise RuntimeError(
+                f"Failed to download model artifact by reference from the given Object Storage path `{bucket_uri}`."
+                f"See Exception: {ex}"
+            )

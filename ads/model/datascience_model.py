@@ -55,6 +55,11 @@ class ModelArtifactSizeError(Exception):  # pragma: no cover
         )
 
 
+class ModelFileDescriptionError(Exception):  # pragma: no cover
+    def __init__(self, msg="Model File Description file is not set up."):
+        super().__init__(msg)
+
+
 class DataScienceModel(Builder):
     """Represents a Data Science Model.
 
@@ -180,7 +185,7 @@ class DataScienceModel(Builder):
     CONST_ARTIFACT = "artifact"
     CONST_MODEL_VERSION_SET_ID = "modelVersionSetId"
     CONST_MODEL_VERSION_LABEL = "versionLabel"
-    CONST_MODEL_BY_REFERENCE_DESC = "modelDescription"
+    CONST_MODEL_FILE_DESCRIPTION = "modelDescription"
 
     attribute_map = {
         CONST_ID: "id",
@@ -198,7 +203,7 @@ class DataScienceModel(Builder):
         CONST_ARTIFACT: "artifact",
         CONST_MODEL_VERSION_SET_ID: "model_version_set_id",
         CONST_MODEL_VERSION_LABEL: "version_label",
-        CONST_MODEL_BY_REFERENCE_DESC: "model_file_description",
+        CONST_MODEL_FILE_DESCRIPTION: "model_file_description",
     }
 
     def __init__(self, spec: Dict = None, **kwargs) -> None:
@@ -547,7 +552,7 @@ class DataScienceModel(Builder):
 
     @property
     def model_file_description(self) -> dict:
-        return self.get_spec(self.CONST_MODEL_BY_REFERENCE_DESC)
+        return self.get_spec(self.CONST_MODEL_FILE_DESCRIPTION)
 
     def with_model_file_description(
         self, json_dict: dict = None, json_string: str = None, json_uri: str = None
@@ -588,10 +593,14 @@ class DataScienceModel(Builder):
         try:
             validate(json_data, schema)
         except ValidationError as ve:
-            logging.error(f"model_file_description_schema.json validation failed. {ve}")
-            raise
+            message = (
+                f"model_file_description_schema.json validation failed. "
+                f"See Exception: {ve}"
+            )
+            logging.error(message)
+            raise ModelFileDescriptionError(message)
 
-        return self.set_spec(self.CONST_MODEL_BY_REFERENCE_DESC, json_data)
+        return self.set_spec(self.CONST_MODEL_FILE_DESCRIPTION, json_data)
 
     def create(self, **kwargs) -> "DataScienceModel":
         """Creates datascience model.
@@ -658,7 +667,7 @@ class DataScienceModel(Builder):
             # Update custom metadata
             logger.info("Update custom metadata field with model by reference flag.")
             metadata_item = ModelCustomMetadataItem(
-                key=self.CONST_MODEL_BY_REFERENCE_DESC,
+                key=self.CONST_MODEL_FILE_DESCRIPTION,
                 value="true",
                 description="model by reference flag",
                 category=MetadataCustomCategory.OTHER,
@@ -864,12 +873,14 @@ class DataScienceModel(Builder):
             }
 
         model_by_reference = (
-            self.custom_metadata_list.contains(self.CONST_MODEL_BY_REFERENCE_DESC)
-            and self.custom_metadata_list.get(self.CONST_MODEL_BY_REFERENCE_DESC).value
+            self.custom_metadata_list.contains(self.CONST_MODEL_FILE_DESCRIPTION)
+            and self.custom_metadata_list.get(self.CONST_MODEL_FILE_DESCRIPTION).value
         )
-
         if model_by_reference:
             bucket_uri, artifact_size = self._download_file_description_artifact()
+            logging.warning(
+                f"Model {self.dsc_model.id} was created by reference, artifacts will be downloaded from the bucket {bucket_uri}"
+            )
         else:
             artifact_info = self.dsc_model.get_artifact_info()
             artifact_size = int(artifact_info.get("content-length"))
@@ -887,6 +898,7 @@ class DataScienceModel(Builder):
                 bucket_uri=bucket_uri,
                 overwrite_existing_artifact=overwrite_existing_artifact,
                 remove_existing_artifact=remove_existing_artifact,
+                model_file_description=self.model_file_description,
             )
         else:
             artifact_downloader = SmallArtifactDownloader(
@@ -1286,13 +1298,20 @@ class DataScienceModel(Builder):
         return schema
 
     def _download_file_description_artifact(self):
-        """
+        """Loads the json file from model artifact, updates the
+        model file description property, and returns the bucket uri and artifact size details.
 
         Returns
         -------
+        bucket_uri: str
+            Location of bucket where model artifacts are present
+        artifact_size: int
+            estimated size of the model files in bytes
 
         """
         if not self.model_file_description:
+            # get model file description from model artifact json
+
             self.local_copy_dir = tempfile.mkdtemp()
             artifact_downloader = SmallArtifactDownloader(
                 dsc_model=self.dsc_model,
@@ -1307,29 +1326,15 @@ class DataScienceModel(Builder):
             self.with_model_file_description(json_uri=json_file_path)
             self._remove_file_description_artifact()
 
-        #  build bucket uri and total artifact size
-        return self._build_model_file_description_uri()
+        model_file_desc_dict = self.model_file_description
+        # currently only supports downloading from the first model item
+        model = model_file_desc_dict["models"][0]
+        namespace = model["namespace"]
+        bucket_name = model["bucketName"]
+        prefix = model["prefix"]
+        objects = model["objects"]
 
-    def _build_model_file_description_uri(self):
-        """
-
-        Returns
-        -------
-
-        """
-        try:
-            model_file_desc_dict = self.model_file_description
-            # currently only supports downloading from the first model item
-            model = model_file_desc_dict["models"][0]
-            namespace = model["namespace"]
-            bucket_name = model["bucketName"]
-            prefix = model["prefix"]
-            objects = model["objects"]
-
-            bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
-            artifact_size = sum([obj["sizeInBytes"] for obj in objects])
-
-        except Exception as e:
-            raise Exception(f"model_file_description property is invalid. {e}")
+        bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
+        artifact_size = sum([obj["sizeInBytes"] for obj in objects])
 
         return bucket_uri, artifact_size
