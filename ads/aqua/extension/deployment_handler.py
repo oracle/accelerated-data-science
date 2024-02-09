@@ -141,7 +141,38 @@ class AquaDeploymentHandler(AquaAPIhandler):
         except Exception as ex:
             raise HTTPError(500, str(ex))
 
+
+class AquaDeploymentInferenceHandler(AquaAPIhandler):
+    def post(self, *args, **kwargs):
+        """
+        Handles inference request for the Active Model Deployments
+        Raises
+        ------
+        HTTPError
+            Raises HTTPError if inputs are missing or are invalid
+        """
+        try:
+            input_data = self.get_json_body()
+        except Exception:
+            raise HTTPError(400, Errors.INVALID_INPUT_DATA_FORMAT)
+
+        if not input_data:
+            raise HTTPError(400, Errors.NO_INPUT_DATA)
+
+        # required input parameters
+        endpoint = input_data.get("endpoint")
+        prompt = input_data.get("prompt")
+        model_params = input_data.get("model_params")
+        try:
+            return self.finish(
+                AquaDeploymentApp().get_model_deployment_inference(endpoint, prompt, model_params)
+            )
+        except Exception as e:
+            raise HTTPError(500, str(e))
+
+
 __handlers__ = [
     ("deployments/?([^/]*)", AquaDeploymentHandler),
-    ("deployments/config/?([^/]*)", AquaDeploymentHandler)
+    ("deployments/config/?([^/]*)", AquaDeploymentHandler),
+    ("inference", AquaDeploymentInferenceHandler)
 ]

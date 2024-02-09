@@ -6,7 +6,7 @@
 import json
 import logging
 from typing import List, Dict, Union
-
+import requests
 from oci.data_science.models import (
     ModelDeployment,
     ModelDeploymentSummary
@@ -19,11 +19,12 @@ from ads.aqua import logger
 from ads.aqua.model import AquaModelApp, Tags
 from ads.aqua.utils import (
     DEPLOYMENT_CONFIG,
-    UNKNOWN, 
-    UNKNOWN_JSON_STR, 
-    get_artifact_path, 
+    UNKNOWN,
+    UNKNOWN_JSON_STR,
+    get_artifact_path,
     read_file
 )
+from ads.common.auth import default_signer
 from ads.model.deployment import (
     ModelDeployment,
     ModelDeploymentInfrastructure,
@@ -410,3 +411,36 @@ class AquaDeploymentApp(AquaApp):
             raise AquaServiceError(opc_request_id=None, status_code=500)
 
         return shape_config
+
+    @staticmethod
+    def get_model_deployment_inference(endpoint, prompt, model_params: Dict):
+        """
+        Returns MD inference response
+
+        Parameters
+        ----------
+        endpoint: str
+            MD predict url
+        prompt: str
+            User prompt.
+
+        model_params: (Dict, optional)
+            Model parameters to be associated with the message.
+            Currently supported VLLM+OpenAI parameters.
+
+            --model-params '{
+                "max_tokens":500,
+                "temperature": 0.5,
+                "top_k": 10,
+                "top_p": 0.5,
+                "model": "/opt/ds/model/deployed_model",
+                ...}'
+
+        Returns
+        -------
+        model_response_content
+        """
+
+        response = requests.post(endpoint, auth=default_signer()["signer"],
+                                 headers={"Content-Type": "application/json"}, json={"prompt": prompt, **model_params})
+        return response.content
