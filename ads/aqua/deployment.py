@@ -444,4 +444,4 @@ class AquaDeploymentApp(AquaApp):
         request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
         signer = default_signer()["signer"]
         response = requests.post(endpoint, auth=signer,**request_kwargs)
-        return response.content
+        return json.loads(response.content)
