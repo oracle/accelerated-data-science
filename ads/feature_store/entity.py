@@ -289,6 +289,7 @@ class Entity(Builder):
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
         transformation_id: str = None,
+        on_demand_transformation_id: str = None,
         name: str = None,
         description: str = None,
         compartment_id: str = None,
@@ -308,6 +309,7 @@ class Entity(Builder):
             .with_is_offline_enabled(is_offline_enabled)
             .with_entity_id(self.id)
             .with_transformation_id(transformation_id)
+            .with_on_demand_transformation_id(on_demand_transformation_id)
             .with_partition_keys(partition_keys)
             .with_transformation_kwargs(transformation_kwargs)
             .with_primary_keys(primary_keys)
@@ -333,6 +335,7 @@ class Entity(Builder):
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
         transformation_id: str = None,
+        on_demand_transformation_id: str = None,
         name: str = None,
         description: str = None,
         compartment_id: str = None,
@@ -358,6 +361,8 @@ class Entity(Builder):
             Type of the expectation.
         transformation_id: str = None
             Transformation Mode.
+        on_demand_transformation_id: str = None
+            on_demand_transformation_id for Transformation.
         name: str = None
             Name for the resource.
         description: str = None
@@ -399,6 +404,7 @@ class Entity(Builder):
             expectation_type,
             statistics_config,
             transformation_id,
+            on_demand_transformation_id,
             name,
             description,
             compartment_id,
@@ -472,6 +478,7 @@ class Entity(Builder):
         primary_keys: List[str] = None,
         description: str = None,
         compartment_id: str = None,
+        on_demand_transformation_id: str = None,
         is_online_enabled: bool = False,
         is_offline_enabled: bool = True,
         expectation_suite: ExpectationSuite = None,
@@ -494,6 +501,7 @@ class Entity(Builder):
             .with_statistics_config(statistics_config)
             .with_partition_keys(partition_keys)
             .with_primary_keys(primary_keys)
+            .with_on_demand_transformation_id(on_demand_transformation_id)
         )
 
         if expectation_suite:
@@ -513,6 +521,7 @@ class Entity(Builder):
         name: str = None,
         description: str = None,
         compartment_id: str = None,
+        on_demand_transformation_id: str = None,
         expectation_suite: ExpectationSuite = None,
         expectation_type: ExpectationType = ExpectationType.NO_EXPECTATION,
         statistics_config: Union[StatisticsConfig, bool] = True,
@@ -530,6 +539,8 @@ class Entity(Builder):
             Description about the Resource.
         compartment_id: str = None
             compartment_id
+        on_demand_transformation_id: str = None
+            on_demand_transformation_id for Transformation.
         expectation_suite: ExpectationSuite = None
             Expectation details for the validation.
         expectation_type: ExpectationType
@@ -555,6 +566,7 @@ class Entity(Builder):
             primary_keys,
             description,
             compartment_id,
+            on_demand_transformation_id,
             is_online_enabled,
             is_offline_enabled,
             expectation_suite,
