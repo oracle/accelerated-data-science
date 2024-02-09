@@ -802,8 +802,8 @@ class DataScienceModel(Builder):
     def _remove_file_description_artifact(self):
         """Removes temporary model file description artifact for model by reference."""
         # delete if local copy directory was created
-        if self.json_file_path:
-            shutil.rmtree(self.json_file_path, ignore_errors=True)
+        if self.local_copy_dir:
+            shutil.rmtree(self.local_copy_dir, ignore_errors=True)
 
     def download_artifact(
         self,
@@ -1195,15 +1195,14 @@ class DataScienceModel(Builder):
             json_data = self._prepare_file_description_artifact()
             self.with_model_file_description(json_dict=json_data)
 
-        self.json_file_path = tempfile.NamedTemporaryFile(
-            prefix=MODEL_BY_REFERENCE_JSON_FILE_NAME, suffix=".json", delete=False
+        self.local_copy_dir = tempfile.mkdtemp()
+        # create temp directory for model description file
+        json_file_path = os.path.join(
+            self.local_copy_dir, MODEL_BY_REFERENCE_JSON_FILE_NAME
         )
-        # Close the file since NamedTemporaryFile() opens the file by default.
-        self.json_file_path.close()
-
-        with open(self.json_file_path, "w") as outfile:
+        with open(json_file_path, "w") as outfile:
             json.dump(self.model_file_description, outfile, indent=2)
-        self.with_artifact(self.json_file_path)
+        self.with_artifact(json_file_path)
 
     def _prepare_file_description_artifact(self) -> dict:
         """Prepares yaml file config if model is passed by reference and uploaded to catalog.
