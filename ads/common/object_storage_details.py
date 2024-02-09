@@ -8,11 +8,11 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from typing import Dict, Optional
+from typing import Dict, List
 from urllib.parse import urlparse
 
+
 import oci
-from fsspec.callbacks import Callback, NoOpCallback
 from ads.common import auth as authutil
 from ads.common import oci_client
 
@@ -88,7 +88,7 @@ class ObjectStorageDetails:
             url_parse = urlparse(env_path)
             bucket_name = url_parse.username
             namespace = url_parse.hostname
-            object_name = url_parse.path.strip("/")
+            object_name = url_parse.path.lstrip("/")
             return cls(bucket=bucket_name, namespace=namespace, filepath=object_name)
         except:
             raise Exception(
