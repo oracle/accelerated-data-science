@@ -440,7 +440,8 @@ class AquaDeploymentApp(AquaApp):
         -------
         model_response_content
         """
-
-        response = requests.post(endpoint, auth=default_signer()["signer"],
-                                 headers={"Content-Type": "application/json"}, json={"prompt": prompt, **model_params})
+        body = {"prompt": prompt, **model_params}
+        request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
+        signer = default_signer()["signer"]
+        response = requests.post(endpoint, auth=signer,**request_kwargs)
         return response.content
