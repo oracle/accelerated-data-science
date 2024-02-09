@@ -8,10 +8,11 @@ import json
 import os
 import re
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional
 from urllib.parse import urlparse
 
 import oci
+from fsspec.callbacks import Callback, NoOpCallback
 from ads.common import auth as authutil
 from ads.common import oci_client
 

@@ -863,8 +863,17 @@ class DataScienceModel(Builder):
                 "timeout": timeout,
             }
 
-        artifact_info = self.dsc_model.get_artifact_info()
-        artifact_size = int(artifact_info.get("content-length"))
+        model_by_reference = (
+            self.custom_metadata_list.contains(self.CONST_MODEL_BY_REFERENCE_DESC)
+            and self.custom_metadata_list.get(self.CONST_MODEL_BY_REFERENCE_DESC).value
+        )
+
+        if model_by_reference:
+            bucket_uri, artifact_size = self._download_file_description_artifact()
+        else:
+            artifact_info = self.dsc_model.get_artifact_info()
+            artifact_size = int(artifact_info.get("content-length"))
+
         if not bucket_uri and artifact_size > _MAX_ARTIFACT_SIZE_IN_BYTES:
             raise ModelArtifactSizeError(utils.human_size(_MAX_ARTIFACT_SIZE_IN_BYTES))
 
@@ -1238,6 +1247,7 @@ class DataScienceModel(Builder):
 
         # add version id based on etag for each object
         objects = oss_details.list_objects(fields="name,etag,size").objects
+        # todo: if objects is empty, return with an error
         object_list = []
         for obj in objects:
             object_list.append(
@@ -1275,7 +1285,38 @@ class DataScienceModel(Builder):
             )
         return schema
 
+    def _download_file_description_artifact(self):
+        """
+
+        Returns
+        -------
+
+        """
+        if not self.model_file_description:
+            self.local_copy_dir = tempfile.mkdtemp()
+            artifact_downloader = SmallArtifactDownloader(
+                dsc_model=self.dsc_model,
+                target_dir=self.local_copy_dir,
+            )
+            artifact_downloader.download()
+
+            # create temp directory for model description file
+            json_file_path = os.path.join(
+                self.local_copy_dir, MODEL_BY_REFERENCE_JSON_FILE_NAME
+            )
+            self.with_model_file_description(json_uri=json_file_path)
+            self._remove_file_description_artifact()
+
+        #  build bucket uri and total artifact size
+        return self._build_model_file_description_uri()
+
     def _build_model_file_description_uri(self):
+        """
+
+        Returns
+        -------
+
+        """
         try:
             model_file_desc_dict = self.model_file_description
             # currently only supports downloading from the first model item

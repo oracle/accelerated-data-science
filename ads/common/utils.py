@@ -30,6 +30,7 @@ from urllib import request
 from urllib.parse import urlparse
 
 import fsspec
+from fsspec.callbacks import Callback, NoOpCallback
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
@@ -1216,6 +1217,7 @@ def copy_from_uri(
     unpack: Optional[bool] = False,
     force_overwrite: Optional[bool] = False,
     auth: Optional[Dict] = None,
+    callback: Callback = NoOpCallback(),
 ) -> None:
     """Copies file(s) to local path. Can be a folder, archived folder or a separate file.
     The source files can be located in a local folder or in OCI Object Storage.
@@ -1237,6 +1239,8 @@ def copy_from_uri(
         The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
+    callback:
+        used directly for monitoring file transfers, use custom callback or fsspec.callbacks.TqdmCallback
 
     Returns
     -------
@@ -1271,7 +1275,12 @@ def copy_from_uri(
         if not (uri.endswith("/") or fs.isdir(uri)) and os.path.isdir(to_path):
             to_path = os.path.join(to_path, os.path.basename(str(uri).rstrip("/")))
 
-        fs.get(uri, to_path, recursive=True)
+        fs.get(
+            uri,
+            to_path,
+            recursive=True,
+            callback=callback,
+        )
 
         if unpack_path:
             shutil.unpack_archive(to_path, unpack_path)
