@@ -1259,7 +1259,12 @@ class DataScienceModel(Builder):
 
         # add version id based on etag for each object
         objects = oss_details.list_objects(fields="name,etag,size").objects
-        # todo: if objects is empty, return with an error
+
+        if len(objects) == 0:
+            raise ModelFileDescriptionError(
+                f"No objects were found in the {oss_details.path} path. "
+            )
+
         object_list = []
         for obj in objects:
             object_list.append(

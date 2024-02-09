@@ -1271,11 +1271,7 @@ def copy_from_uri(
         if not (uri.endswith("/") or fs.isdir(uri)) and os.path.isdir(to_path):
             to_path = os.path.join(to_path, os.path.basename(str(uri).rstrip("/")))
 
-        fs.get(
-            uri,
-            to_path,
-            recursive=True,
-        )
+        fs.get(uri, to_path, recursive=True)
 
         if unpack_path:
             shutil.unpack_archive(to_path, unpack_path)
@@ -1771,7 +1767,7 @@ def download_object_versions(
     auth: dict = None,
     progress_bar: TqdmProgressBar = None,
 ):
-    """Downloads
+    """Downloads the files with object versions set in the paths dict.
 
     Parameters
     ----------
@@ -1783,8 +1779,6 @@ def download_object_versions(
         Local directory to save the files
     auth: (Dict, optional) Defaults to None.
         default_signer()
-    size:
-        Optional, if set, is used to show progressbar for file download. Needs file size
     progress_bar:
         an instance of the TqdmProgressBar, can update description in the calling progress bar
 

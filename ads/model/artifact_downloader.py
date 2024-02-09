@@ -211,9 +211,8 @@ class LargeArtifactDownloader(ArtifactDownloader):
         -------
 
         """
-        metadata_list = self.dsc_model.custom_metadata_list
-        if metadata_list:
-            for metadata in metadata_list:
+        if self.dsc_model.custom_metadata_list:
+            for metadata in self.dsc_model.custom_metadata_list:
                 if (
                     metadata.key == MODEL_BY_REFERENCE_DESC
                     and metadata.value.lower() == "true"
@@ -222,6 +221,7 @@ class LargeArtifactDownloader(ArtifactDownloader):
         return False
 
     def _download_from_model_file_description(self):
+        """Helper function to download the objects using model file description content to the target directory."""
         model_file_desc_dict = dict()
 
         models = self.model_file_description["models"]
@@ -244,7 +244,10 @@ class LargeArtifactDownloader(ArtifactDownloader):
                 model_file_desc_dict[object_uri] = version
 
         if total_size == 0:
-            raise ModelFileDescriptionError("")
+            raise ModelFileDescriptionError(
+                "File contents size in the model_file_description property is zero. "
+                "Download will not continue."
+            )
 
         try:
             utils.download_object_versions(

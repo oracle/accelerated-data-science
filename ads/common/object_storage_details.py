@@ -156,6 +156,13 @@ class ObjectStorageDetails:
 
     def list_objects(self, **kwargs):
         """Lists objects in a given oss path
+
+        Parameters
+        -------
+        **kwargs:
+            namespace, bucket, filepath are set by the class. By default, fields gets all values. For other supported
+            parameters, check https://docs.oracle.com/iaas/api/#/en/objectstorage/20160918/Object/ListObjects
+
         Returns
         -------
             Object of type oci.object_storage.models.ListObjects
@@ -181,6 +188,12 @@ class ObjectStorageDetails:
         **kwargs,
     ):
         """Lists object versions in a given oss path
+
+        Parameters
+        -------
+        **kwargs:
+            namespace, bucket, filepath are set by the class. By default, fields gets all values. For other supported
+            parameters, check https://docs.oracle.com/iaas/api/#/en/objectstorage/20160918/Object/ListObjectVersions
 
         Returns
         -------
