@@ -30,7 +30,6 @@ from urllib import request
 from urllib.parse import urlparse
 
 import fsspec
-from fsspec.callbacks import Callback, NoOpCallback
 import matplotlib as mpl
 import numpy as np
 import pandas as pd
@@ -50,7 +49,7 @@ from ads.common.decorator.runtime_dependency import (
 from ads.common.object_storage_details import ObjectStorageDetails
 from ads.common.oci_client import OCIClientFactory
 from ads.common.word_lists import adjectives, animals
-from ads.dataset.progress import DummyProgressBar, TqdmProgressBar
+from ads.dataset.progress import TqdmProgressBar
 
 from . import auth as authutil
 
@@ -1217,7 +1216,6 @@ def copy_from_uri(
     unpack: Optional[bool] = False,
     force_overwrite: Optional[bool] = False,
     auth: Optional[Dict] = None,
-    callback: Callback = NoOpCallback(),
 ) -> None:
     """Copies file(s) to local path. Can be a folder, archived folder or a separate file.
     The source files can be located in a local folder or in OCI Object Storage.
@@ -1239,8 +1237,6 @@ def copy_from_uri(
         The default authentication is set using `ads.set_auth` API. If you need to override the
         default, use the `ads.common.auth.api_keys` or `ads.common.auth.resource_principal` to create appropriate
         authentication signer and kwargs required to instantiate IdentityClient object.
-    callback:
-        used directly for monitoring file transfers, use custom callback or fsspec.callbacks.TqdmCallback
 
     Returns
     -------
@@ -1279,7 +1275,6 @@ def copy_from_uri(
             uri,
             to_path,
             recursive=True,
-            callback=callback,
         )
 
         if unpack_path:
@@ -1768,3 +1763,56 @@ def read_from_file(uri: str, **kwargs) -> str:
         kwargs.update(authutil.default_signer())
     with fsspec.open(uri, "r", **kwargs) as f:
         return f.read()
+
+
+def download_object_versions(
+    paths: dict,
+    target_dir: str,
+    auth: dict = None,
+    progress_bar: TqdmProgressBar = None,
+):
+    """Downloads
+
+    Parameters
+    ----------
+    paths:
+        Contains a list of OSS paths along with a value of file version id.
+        If version_id is not available, download the latest version.
+        Example: {"oci://bucket@namespace/filepath": 'version_id',}
+    target_dir
+        Local directory to save the files
+    auth: (Dict, optional) Defaults to None.
+        default_signer()
+    size:
+        Optional, if set, is used to show progressbar for file download. Needs file size
+    progress_bar:
+        an instance of the TqdmProgressBar, can update description in the calling progress bar
+
+    Returns
+    -------
+        None
+    """
+    auth = auth or authutil.default_signer()
+    os_client = OCIClientFactory(**auth).object_storage
+
+    for path, version in paths.items():
+        path_details = ObjectStorageDetails.from_path(path)
+        if version.strip() == "":
+            version = None
+        if progress_bar:
+            progress_bar.update(
+                f"Copying model artifacts by reference from {path_details} to {target_dir}"
+            )
+        res = os_client.get_object(
+            namespace_name=path_details.namespace,
+            bucket_name=path_details.bucket,
+            object_name=path_details.filepath,
+            version_id=version,
+        )
+
+        local_filepath = os.path.join(target_dir, path_details.filepath)
+        os.makedirs(os.path.dirname(local_filepath), exist_ok=True)
+
+        with open(local_filepath, "wb") as _file:
+            for chunk in res.data.iter_content(chunk_size=4096):
+                _file.write(chunk)
