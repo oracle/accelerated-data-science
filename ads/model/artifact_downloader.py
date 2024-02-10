@@ -15,7 +15,6 @@ from zipfile import ZipFile
 from ads.common import utils
 from ads.common.utils import extract_region
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
-from ads.model.datascience_model import ModelFileDescriptionError
 
 MODEL_BY_REFERENCE_DESC = "modelDescription"
 
@@ -242,12 +241,6 @@ class LargeArtifactDownloader(ArtifactDownloader):
                 total_size += size
                 object_uri = f"oci://{bucket_name}@{namespace}/{name}"
                 model_file_desc_dict[object_uri] = version
-
-        if total_size == 0:
-            raise ModelFileDescriptionError(
-                "File contents size in the model_file_description property is zero. "
-                "Download will not continue."
-            )
 
         try:
             utils.download_object_versions(
