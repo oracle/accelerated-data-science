@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import datetime
@@ -214,6 +214,7 @@ class TestDataScienceModel:
     @patch.object(DataScienceModel, "_load_default_properties", return_value={})
     def test__init__(self, mock_load_default_properties):
         dsc_model = DataScienceModel(**self.payload)
+        print(dsc_model.to_dict()["spec"])
         assert self.prepare_dict(dsc_model.to_dict()["spec"]) == self.prepare_dict(
             self.payload
         )
@@ -381,6 +382,7 @@ class TestDataScienceModel:
             auth=None,
             timeout=None,
             parallel_process_count=3,
+            model_by_reference=False,
         )
         mock_sync.assert_called()
         assert self.prepare_dict(result.to_dict()["spec"]) == self.prepare_dict(

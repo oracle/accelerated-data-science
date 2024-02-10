@@ -237,6 +237,7 @@ class DataScienceModel(Builder):
         self._init_complex_attributes()
         # Specify oci datascience model instance
         self.dsc_model = self._to_oci_dsc_model()
+        self.local_copy_dir = None
 
     @property
     def id(self) -> Optional[str]:

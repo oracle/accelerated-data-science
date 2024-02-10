@@ -1548,7 +1548,7 @@ def batch_convert_case(spec: dict, to_fmt: str) -> Dict:
     else:
         converter = camel_to_snake
     for k, v in spec.items():
-        if k == "spec" or isinstance(v, dict):
+        if k == "spec":
             converted[converter(k)] = batch_convert_case(v, to_fmt)
         else:
             converted[converter(k)] = v
