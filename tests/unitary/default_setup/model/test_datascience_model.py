@@ -688,6 +688,7 @@ class TestDataScienceModel:
                     bucket_uri="test_bucket_uri",
                     overwrite_existing_artifact=False,
                     remove_existing_artifact=False,
+                    model_file_description=None,
                 )
                 mock_download.assert_called()
 
