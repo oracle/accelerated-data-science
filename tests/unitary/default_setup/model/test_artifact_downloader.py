@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-# Copyright (c) 2022, 2023 Oracle and/or its affiliates.
+# Copyright (c) 2022, 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
 
 import glob
@@ -24,7 +24,7 @@ class TestArtifactDownloader:
         cls.mock_artifact_path = os.path.join(
             cls.curr_dir, "test_files/model_artifacts/"
         )
-        cls.mock_artifact_zip_path = os.path.join(
+        cls.mock_artifact_file_path = os.path.join(
             cls.curr_dir, "test_files/model_artifacts.zip"
         )
 
@@ -35,6 +35,7 @@ class TestArtifactDownloader:
 
     def setup_method(self):
         self.mock_dsc_model = MagicMock(
+            get_artifact_info=MagicMock(),
             get_model_artifact_content=MagicMock(),
             import_model_artifact=MagicMock(),
             id=MODEL_OCID,
@@ -94,8 +95,12 @@ class TestArtifactDownloader:
             mock_download.assert_called()
 
     def test_downaload_small_artifact(self):
-        with open(self.mock_artifact_zip_path, "rb") as file_data:
+        with open(self.mock_artifact_file_path, "rb") as file_data:
             expected_artifact_bytes_content = file_data.read()
+
+        self.mock_dsc_model.get_artifact_info.return_value = {
+            "Content-Disposition": "attachment; filename=artifact.zip",
+        }
         self.mock_dsc_model.get_model_artifact_content.return_value = (
             expected_artifact_bytes_content
         )
@@ -108,9 +113,7 @@ class TestArtifactDownloader:
 
             self.mock_dsc_model.get_model_artifact_content.assert_called()
 
-            test_files = list(
-                glob.iglob(os.path.join(tmp_dir, "**"), recursive=True)
-            )
+            test_files = list(glob.iglob(os.path.join(tmp_dir, "**"), recursive=True))
             expected_files = [
                 os.path.join(tmp_dir, file_name)
                 for file_name in ["", "runtime.yaml", "score.py"]
@@ -121,7 +124,7 @@ class TestArtifactDownloader:
         with tempfile.TemporaryDirectory() as tmp_dir:
             target_dir = os.path.join(tmp_dir, "model_artifacts/")
             bucket_uri = os.path.join(tmp_dir, "model_artifacts.zip")
-            shutil.copyfile(self.mock_artifact_zip_path, bucket_uri)
+            shutil.copyfile(self.mock_artifact_file_path, bucket_uri)
 
             LargeArtifactDownloader(
                 dsc_model=self.mock_dsc_model,

@@ -88,8 +88,8 @@ class SmallArtifactDownloader(ArtifactDownloader):
         """Downloads model artifacts."""
         self.progress.update("Importing model artifacts from catalog")
 
-        artifact_content = self.dsc_model.get_artifact_info()
-        artifact_name = artifact_content["Content-Disposition"].replace(
+        artifact_info = self.dsc_model.get_artifact_info()
+        artifact_name = artifact_info["Content-Disposition"].replace(
             "attachment; filename=", ""
         )
         _, file_extension = os.path.splitext(artifact_name)
