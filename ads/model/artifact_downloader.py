@@ -14,6 +14,7 @@ from zipfile import ZipFile
 from ads.common import utils
 from ads.common.utils import extract_region
 from ads.model.service.oci_datascience_model import OCIDataScienceModel
+from ads.common.object_storage_details import ObjectStorageDetails
 
 MODEL_BY_REFERENCE_DESC = "modelDescription"
 
@@ -92,6 +93,7 @@ class SmallArtifactDownloader(ArtifactDownloader):
             "attachment; filename=", ""
         )
         _, file_extension = os.path.splitext(artifact_name)
+        file_extension = file_extension.lower() if file_extension else ".zip"
 
         file_content = self.dsc_model.get_model_artifact_content()
         self.progress.update("Copying model artifacts to the artifact directory")
@@ -153,6 +155,9 @@ class LargeArtifactDownloader(ArtifactDownloader):
             Overwrite target bucket artifact if exists.
         remove_existing_artifact: (bool, optional). Defaults to `True`.
             Wether artifacts uploaded to object storage bucket need to be removed or not.
+        model_file_description: (dict, optional). Defaults to None.
+            Contains object path details for models created by reference.
+
         """
         super().__init__(
             dsc_model=dsc_model, target_dir=target_dir, force_overwrite=force_overwrite
@@ -174,6 +179,7 @@ class LargeArtifactDownloader(ArtifactDownloader):
             message = f"Copying model artifacts by reference from {bucket_uri} to {self.target_dir}"
             self.progress.update(message)
             self._download_from_model_file_description()
+            self.progress.update()
             return
 
         if not os.path.basename(bucket_uri):
@@ -220,36 +226,42 @@ class LargeArtifactDownloader(ArtifactDownloader):
 
     def _download_from_model_file_description(self):
         """Helper function to download the objects using model file description content to the target directory."""
-        model_file_desc_dict = dict()
 
         models = self.model_file_description["models"]
         total_size = 0
-        bucket_uri = None
+
         for model in models:
-            namespace = model["namespace"]
-            bucket_name = model["bucketName"]
-            prefix = model["prefix"]
+            namespace, bucket_name, prefix = (
+                model["namespace"],
+                model["bucketName"],
+                model["prefix"],
+            )
             bucket_uri = f"oci://{bucket_name}@{namespace}/{prefix}"
             objects = model["objects"]
+            os_details_list = list()
+
             for obj in objects:
                 name = obj["name"]
-                version = obj["version"]
+                version = None if obj["version"] == "" else obj["version"]
                 size = obj["sizeInBytes"]
                 if size == 0:
                     continue
                 total_size += size
                 object_uri = f"oci://{bucket_name}@{namespace}/{name}"
-                model_file_desc_dict[object_uri] = version
 
-        try:
-            utils.download_object_versions(
-                paths=model_file_desc_dict,
-                target_dir=self.target_dir,
-                auth=self.auth,
-                progress_bar=self.progress,
-            )
-        except Exception as ex:
-            raise RuntimeError(
-                f"Failed to download model artifact by reference from the given Object Storage path `{bucket_uri}`."
-                f"See Exception: {ex}"
-            )
+                os_details = ObjectStorageDetails.from_path(object_uri)
+                os_details.version = version
+                os_details_list.append(os_details)
+            try:
+                ObjectStorageDetails.from_path(
+                    bucket_uri
+                ).bulk_download_from_object_storage(
+                    paths=os_details_list,
+                    target_dir=self.target_dir,
+                    progress_bar=self.progress,
+                )
+            except Exception as ex:
+                raise RuntimeError(
+                    f"Failed to download model artifact by reference from the given Object Storage path `{bucket_uri}`."
+                    f"See Exception: {ex}"
+                )

@@ -98,6 +98,8 @@ class DataScienceModel(Builder):
         Model version set ID
     version_label: str
         Model version label
+    model_file_description: dict
+        Contains object path details for models created by reference.
 
     Methods
     -------
@@ -149,6 +151,9 @@ class DataScienceModel(Builder):
         Sets the model version set ID.
     with_version_label(self, version_label: str):
         Sets the model version label.
+    with_model_file_description: dict
+        Sets path details for models created by reference. Input can be either a dict, string or json file and
+        the schema is dictated by model_file_description_schema.json
 
 
     Examples
@@ -872,11 +877,16 @@ class DataScienceModel(Builder):
                 **(self.dsc_model.__class__.kwargs or {}),
                 "timeout": timeout,
             }
+        try:
+            model_by_reference = self.custom_metadata_list.get(
+                self.CONST_MODEL_FILE_DESCRIPTION
+            ).value
+            logging.info(
+                f"modelDescription tag found in custom metadata list with value {model_by_reference}"
+            )
+        except ValueError:
+            model_by_reference = False
 
-        model_by_reference = (
-            self.custom_metadata_list.contains(self.CONST_MODEL_FILE_DESCRIPTION)
-            and self.custom_metadata_list.get(self.CONST_MODEL_FILE_DESCRIPTION).value
-        )
         if model_by_reference:
             bucket_uri, artifact_size = self._download_file_description_artifact()
             logging.warning(

@@ -305,7 +305,9 @@ class OCIDataScienceModel(
         msg="Model needs to be saved to the Model Catalog before the artifact can be created."
     )
     def create_model_artifact(
-        self, bytes_content: BytesIO, extension: str = ".zip"
+        self,
+        bytes_content: BytesIO,
+        extension: str = ".zip",
     ) -> None:
         """Creates model artifact for specified model.
 

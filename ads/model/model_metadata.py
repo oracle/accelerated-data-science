@@ -983,29 +983,6 @@ class ModelMetadata(ABC):
         """
         pass
 
-    def contains(self, key: str) -> bool:
-        """Checks if the provided key exists in the model metadata.
-
-        Parameters
-        ----------
-        key: str
-            The key of model metadata item.
-        Returns
-        -------
-        bool
-            True if key exists in the metadata, False otherwise.
-        Raises
-        ------
-        ValueError
-            If provided key is empty.
-        """
-        if key is None or not isinstance(key, str) or key == "":
-            raise ValueError("The key must not be an empty string.")
-        for item in self._items:
-            if item.key.lower() == key.lower():
-                return True
-        return False
-
 
 class ModelCustomMetadata(ModelMetadata):
     """Class that represents Model Custom Metadata.
