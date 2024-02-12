@@ -34,7 +34,7 @@ Storing the password in Vault:
 1. (Optional) Create a new Vault.
 2. (Required) Create a secret of plain-text type containing the db password.
 3. (Required) Additional policies for the Feature Store API dynamic group to allow reading the secret from Vault:
-    - ``Allow dynamic-group <feature-store-dynamic-group> to use secret-family in tenancy``
+    - ``Allow dynamic-group <feature-store-dynamic-group> to read secret-bundles in tenancy where target.secret.id='ocid1.xxx'``
 
 Here ``feature-store-dynamic-group`` is the dynamic group corresponding to the instances of the OKE nodepool where the server is deployed.
 
@@ -62,11 +62,14 @@ The policies required by the Feature Store API server are:
 .. code-block:: text
 
     allow dynamic-group <feature-store-dynamic-group> to read compartments in tenancy
-    allow dynamic-group <feature-store-dynamic-group> to manage data-catalog-family in tenancy
+    allow dynamic-group <feature-store-dynamic-group> to read data-catalog-metastores in tenancy
     allow dynamic-group <feature-store-dynamic-group> to inspect data-science-models in tenancy
 
 
 Here ``feature-store-dynamic-group`` is the dynamic group corresponding to the instances of the OKE nodepool where the server is deployed. `Dynamic groups <https://docs.oracle.com/en-us/iaas/Content/Identity/Tasks/callingservicesfrominstances.htm#:~:text=Dynamic%20groups%20allow%20you%20to,against%20Oracle%20Cloud%20Infrastructure%20services.>`_
+
+Appendix
+___________
 
 .. _Known Issues:
 
@@ -74,6 +77,32 @@ Known Issues
 -------------
 
 1. Deployment doesn't work in Virtual Nodepool as the Feature Store API server relies on Instance Principal authentication.
+
+Environment Variables
+---------------------
+
+The following environment variables are used by the API server:
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Variable
+     - Description
+   * - **MYSQL_USER**
+     - (Required) The username for the MySQL Database
+   * - **MYSQL_AUTH_TYPE**
+     - (Required) The authentication type for the MySQL Database. It can be either `BASIC` or `VAULT`.
+   * - **MYSQL_PASSWORD**
+     - (Optional) The password for the MySQL Database. Required only if `MYSQL_AUTH_TYPE` is `BASIC`.
+   * - **MYSQL_VAULT_SECRET_NAME**
+     - (Optional) The name of the secret in the OCI Vault. Required only if `MYSQL_AUTH_TYPE` is `VAULT`.
+   * - **MYSQL_VAULT_OCID**
+     - (Optional) The OCID of the Vault. Required only if `MYSQL_AUTH_TYPE` is `VAULT`.
+   * - **MYSQL_DB_URL**
+     - (Required) The JDBC URL to the MySQL Database
+
+
 
 
 .. toctree::
