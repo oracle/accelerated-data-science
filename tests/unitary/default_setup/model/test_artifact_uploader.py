@@ -303,3 +303,7 @@ class TestArtifactUploader:
             assert sorted(test_files) == sorted(expected_files)
 
         shutil.rmtree(test_result, ignore_errors=True)
+
+    def test_upload_small_artifact_model_by_ref(self):
+        # todo: write new or update test_upload_small_artifact test to upload json file for model by reference.
+        pass

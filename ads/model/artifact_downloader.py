@@ -210,9 +210,10 @@ class LargeArtifactDownloader(ArtifactDownloader):
             self.progress.update()
 
     def _is_model_by_reference(self):
-        """Checks model
+        """Checks if model is created by reference
         Returns
         -------
+            bool flag denoting whether model was created by reference.
 
         """
         if self.dsc_model.custom_metadata_list:

@@ -149,3 +149,18 @@ class TestArtifactDownloader:
                 for file_name in ["", "runtime.yaml", "score.py"]
             ]
             assert sorted(test_files) == sorted(expected_files)
+
+    def test_download_small_artifact_json(self):
+        # todo: call Small Artifact downloader, save json to target directory
+        #  check if the file has been written to directory
+        pass
+
+    def test_check_if_model_by_passed_by_reference(self):
+        # todo: check if dsc model custom metadata is empty or not
+        #  assert True if _is_model_by_reference else False
+        pass
+
+    def test_download_from_model_file_description(self):
+        # todo: load model_file_description and parse it and test if
+        #  bulk_download_from_object_storage is appropriately called.
+        pass

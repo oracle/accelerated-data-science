@@ -237,7 +237,7 @@ class ObjectStorageDetails:
         Parameters
         ----------
         path:
-            Contains a list of OSS paths along with a value of file version id.
+            OSS path along with a value of file version id.
             If version_id is not available, download the latest version.
         target_dir:
             Local directory to save the files
@@ -272,6 +272,22 @@ class ObjectStorageDetails:
         target_dir: str,
         progress_bar: TqdmProgressBar = None,
     ):
+        """Downloads the files with object versions set in the paths dict parallely.
+
+        Parameters
+        ----------
+        paths:
+            Contains a list of OSS paths along with a value of file version id.
+            If version_id is not available, download the latest version.
+        target_dir:
+            Local directory to save the files
+        progress_bar:
+            an instance of the TqdmProgressBar, can update description in the calling progress bar
+
+        Returns
+        -------
+            None
+        """
         with ThreadPoolExecutor(max_workers=THREAD_POOL_MAX_WORKERS) as pool:
             futures = {
                 pool.submit(
