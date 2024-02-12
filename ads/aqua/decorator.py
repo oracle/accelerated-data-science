@@ -43,19 +43,19 @@ def exception_handler(func):
         ) as error:
             self.write_error(
                 status_code=400,
-                reason=str(error),
+                reason=f"{type(ex).__name__}: {str(error)}",
                 exc_info=sys.exc_info(),
             )
         except ConnectTimeout as error:
             self.write_error(
                 status_code=408,
-                reason=str(error),
+                reason=f"{type(ex).__name__}: {str(error)}",
                 exc_info=sys.exc_info(),
             )
         except (MultipartUploadError, CompositeOperationError) as error:
             self.write_error(
                 status_code=500,
-                reason=str(error),
+                reason=f"{type(ex).__name__}: {str(error)}",
                 exc_info=sys.exc_info(),
             )
         except AquaError as error:
