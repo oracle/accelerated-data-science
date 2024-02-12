@@ -44,21 +44,18 @@ def exception_handler(func):
             self.write_error(
                 status_code=400,
                 reason=str(error),
-                service_payload={"args": error.args},
                 exc_info=sys.exc_info(),
             )
         except ConnectTimeout as error:
             self.write_error(
                 status_code=408,
                 reason=str(error),
-                service_payload={"args": error.args},
                 exc_info=sys.exc_info(),
             )
         except (MultipartUploadError, CompositeOperationError) as error:
             self.write_error(
                 status_code=500,
                 reason=str(error),
-                service_payload={"args": error.args},
                 exc_info=sys.exc_info(),
             )
         except AquaError as error:
