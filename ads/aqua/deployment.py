@@ -5,7 +5,7 @@
 
 import json
 import logging
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Any
 import requests
 from oci.data_science.models import (
     ModelDeployment,
@@ -412,36 +412,55 @@ class AquaDeploymentApp(AquaApp):
 
         return shape_config
 
-    @staticmethod
-    def get_model_deployment_inference(endpoint, prompt, model_params: Dict):
-        """
-        Returns MD inference response
+class AquaDeploymentInferenceRequest(AquaApp):
+        """Contains APIs for Aqua Model deployments Inference.
 
-        Parameters
+        Attributes
         ----------
-        endpoint: str
-            MD predict url
-        prompt: str
-            User prompt.
 
-        model_params: (Dict, optional)
-            Model parameters to be associated with the message.
-            Currently supported VLLM+OpenAI parameters.
+        model_params: Dict
+        prompt: string
 
-            --model-params '{
-                "max_tokens":500,
-                "temperature": 0.5,
-                "top_k": 10,
-                "top_p": 0.5,
-                "model": "/opt/ds/model/deployed_model",
-                ...}'
-
-        Returns
+        Methods
         -------
-        model_response_content
+        get_model_deployment_response(self, **kwargs) -> "String"
+            Creates an instance of model deployment via Aqua
         """
-        body = {"prompt": prompt, **model_params}
-        request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
-        signer = default_signer()["signer"]
-        response = requests.post(endpoint, auth=signer,**request_kwargs)
-        return json.loads(response.content)
+
+        def __init__(self, prompt, model_params):
+            super().__init__()
+            self.prompt = prompt
+            self.model_params = model_params
+
+        def get_model_deployment_response(self,endpoint):
+            """
+            Returns MD inference response
+
+            Parameters
+            ----------
+            endpoint: str
+                MD predict url
+            prompt: str
+                User prompt.
+
+            model_params: (Dict, optional)
+                Model parameters to be associated with the message.
+                Currently supported VLLM+OpenAI parameters.
+
+                --model-params '{
+                    "max_tokens":500,
+                    "temperature": 0.5,
+                    "top_k": 10,
+                    "top_p": 0.5,
+                    "model": "/opt/ds/model/deployed_model",
+                    ...}'
+
+            Returns
+            -------
+            model_response_content
+            """
+            body = {"prompt": self.prompt, **self.model_params}
+            request_kwargs = {"json": body, "headers": {"Content-Type": "application/json"}}
+            response = requests.post(endpoint, auth=self._auth["signer"], **request_kwargs)
+            return json.loads(response.content)
+

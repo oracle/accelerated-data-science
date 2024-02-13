@@ -6,7 +6,7 @@
 from urllib.parse import urlparse
 from tornado.web import HTTPError
 from ads.aqua.extension.base_handler import AquaAPIhandler, Errors
-from ads.aqua.deployment import AquaDeploymentApp
+from ads.aqua.deployment import AquaDeploymentApp, AquaDeploymentInferenceRequest
 from ads.config import PROJECT_OCID, COMPARTMENT_OCID
 from urllib.parse import urlparse
 
@@ -188,7 +188,7 @@ class AquaDeploymentInferenceHandler(AquaAPIhandler):
         model_params = input_data.get("model_params") if input_data.get("model_params") else {}
         try:
             return self.finish(
-                AquaDeploymentApp().get_model_deployment_inference(endpoint, prompt, model_params)
+                AquaDeploymentInferenceRequest(prompt,model_params).get_model_deployment_response(endpoint)
             )
         except Exception as e:
             raise HTTPError(500, str(e))
