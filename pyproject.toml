@@ -181,7 +181,7 @@ forecast = [
 anomaly  = [
   "oracle_ads[opctl]",
   "autots",
-  "oracle-automlx[anomaly]==23.2.3",
+  "oracle-automlx[forecasting]==23.2.3",
   "oracledb",
   "datapane",
 ]
