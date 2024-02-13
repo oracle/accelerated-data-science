@@ -55,7 +55,7 @@ class AquaAPIhandler(APIHandler):
         message = responses.get(status_code, "Unknown HTTP Error")
         reply = {
             "status": status_code,
-            "message": kwargs.get("reason", message),
+            "message": message,
             "service_payload": kwargs.get("service_payload", {}),
             "reason": kwargs.get("reason"),
         }
