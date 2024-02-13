@@ -33,7 +33,7 @@ from ads.model.deployment import (
 from ads.common.utils import get_console_link
 from ads.common.serializer import DataClassSerializable
 from ads.aqua.exception import AquaClientError, AquaServiceError
-from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE
+from ads.config import COMPARTMENT_OCID, AQUA_MODEL_DEPLOYMENT_IMAGE, PROJECT_OCID
 
 
 @dataclass
@@ -217,10 +217,6 @@ class AquaDeploymentApp(AquaApp):
         aqua_model = AquaModelApp().create(
             model_id=model_id, comparment_id=compartment_id, project_id=project_id
         )
-        logging.debug(
-            f"Aqua Model {aqua_model.id} created with the service model {model_id}"
-        )
-        logging.debug(aqua_model)
 
         # todo: remove entrypoint, this will go in the image. For now, added for testing
         #  the image iad.ocir.io/ociodscdev/aqua_deploy:1.0.0
@@ -232,8 +228,8 @@ class AquaDeploymentApp(AquaApp):
             Tags.AQUA_FINE_TUNED_MODEL_TAG.value,
             Tags.AQUA_TAG.value,
         ]:
-            if tag in aqua_model.tags:
-                tags[tag] = aqua_model.tags[tag]
+            if tag in aqua_model.freeform_tags:
+                tags[tag] = aqua_model.freeform_tags[tag]
 
         # Start model deployment
         # configure model deployment infrastructure
