@@ -22,8 +22,34 @@ from ads.aqua.exception import AquaError
 from ads.aqua.extension.base_handler import AquaAPIhandler
 
 
-def exception_handler(func):
-    """Writes errors raised during call to JSON."""
+def handle_exceptions(func):
+    """Writes errors raised during call to JSON.
+
+    This decorator is designed to be used with methods in handler.py that
+    interact with external services or perform operations which might
+    fail. This decorator should be applied only to instance methods of
+    classes within handler.py, as it is tailored to handle exceptions
+    specific to the operations performed by these handlers.
+
+    Parameters
+    ----------
+    func (Callable): The function to be wrapped by the decorator.
+
+    Returns
+    -------
+    Callable: A wrapper function that catches exceptions thrown by `func`.
+
+    Examples
+    --------
+
+    >>> from ads.aqua.decorator import handle_exceptions
+
+    >>> @handle_exceptions
+    >>> def some_method(self, arg1, arg2):
+    ...     # Method implementation...
+    ...     pass
+
+    """
 
     @wraps(func)
     def inner_function(self: AquaAPIhandler, *args, **kwargs):

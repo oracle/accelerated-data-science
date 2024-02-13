@@ -6,6 +6,7 @@
 
 import json
 import traceback
+import uuid
 from dataclasses import asdict, is_dataclass
 from http.client import responses
 from typing import Any
@@ -54,7 +55,7 @@ class AquaAPIhandler(APIHandler):
         message = responses.get(status_code, "Unknown HTTP Error")
         reply = {
             "status": status_code,
-            "message": message,
+            "message": kwargs.get("reason", message),
             "service_payload": kwargs.get("service_payload", {}),
             "reason": kwargs.get("reason"),
         }
@@ -65,9 +66,10 @@ class AquaAPIhandler(APIHandler):
             if isinstance(e, HTTPError):
                 reply["message"] = e.log_message or message
                 reply["reason"] = e.reason
-                reply["traceback"] = "".join(traceback.format_exception(*exc_info))
+                reply["request_id"] = str(uuid.uuid4())
             else:
-                reply["traceback"] = "".join(traceback.format_exception(*exc_info))
+                reply["request_id"] = str(uuid.uuid4())
+
         logger.warning(reply["message"])
         self.finish(json.dumps(reply))
 
