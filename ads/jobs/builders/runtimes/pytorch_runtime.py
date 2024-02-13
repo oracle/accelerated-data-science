@@ -1,16 +1,20 @@
-import json
-import time
-import traceback
+#!/usr/bin/env python
+# -*- coding: utf-8; -*-
+
+# Copyright (c) 2023, 2024 Oracle and/or its affiliates.
+# Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
+
 from ads.jobs.builders.runtimes.artifact import PythonArtifact, GitPythonArtifact
+from ads.jobs.builders.runtimes.base import MultiNodeRuntime
 from ads.jobs.builders.runtimes.python_runtime import (
     PythonRuntime,
     GitPythonRuntime,
 )
 
 
-class PyTorchDistributedRuntime(PythonRuntime):
+class PyTorchDistributedRuntime(PythonRuntime, MultiNodeRuntime):
+    """Represents runtime supporting PyTorch Distributed training."""
     CONST_GIT = "git"
-    CONST_REPLICA = "replicas"
     CONST_INPUT = "inputs"
     CONST_DEP = "dependencies"
     CONST_PIP_REQ = "pipRequirements"
@@ -78,26 +82,6 @@ class PyTorchDistributedRuntime(PythonRuntime):
     def inputs(self) -> dict:
         """The input files to be copied into the job run."""
         return self.get_spec(self.CONST_INPUT)
-
-    def with_replica(self, count: int):
-        """Specifies the number of nodes (job runs) for the job.
-
-        Parameters
-        ----------
-        count : int
-            Number of nodes (job runs)
-
-        Returns
-        -------
-        self
-            The runtime instance.
-        """
-        return self.set_spec(self.CONST_REPLICA, count)
-
-    @property
-    def replica(self) -> int:
-        """The number of nodes (job runs)."""
-        return self.get_spec(self.CONST_REPLICA)
 
     def with_dependency(self, pip_req=None, pip_pkg=None):
         """Specifies additional dependencies to be installed using pip.
@@ -185,50 +169,13 @@ class PyTorchDistributedRuntime(PythonRuntime):
     def command(self):
         """The command for launching the workload."""
         return self.get_spec(self.CONST_COMMAND)
-
+    
     @property
     def use_deepspeed(self):
         """Indicate whether whether to configure deepspeed for multi-node workload"""
         if self.get_spec(self.CONST_DEEPSPEED):
             return True
         return False
-
-    def run(self, dsc_job, **kwargs):
-        """Starts the job runs"""
-        replicas = self.replica if self.replica else 1
-        main_run = None
-        job_runs = []
-        try:
-            for i in range(replicas):
-                replica_kwargs = kwargs.copy()
-                envs = replica_kwargs.get("environment_variables")
-                if not envs:
-                    envs = {}
-                # Huggingface accelerate requires machine rank
-                # Here we use NODE_RANK to store the machine rank
-                envs["NODE_RANK"] = str(i)
-                envs["WORLD_SIZE"] = str(replicas)
-                if main_run:
-                    envs["MAIN_JOB_RUN_OCID"] = main_run.id
-                name = replica_kwargs.get("display_name")
-                if not name:
-                    name = dsc_job.display_name
-
-                replica_kwargs["display_name"] = f"{name}-{str(i)}"
-                replica_kwargs["environment_variables"] = envs
-                run = dsc_job.run(**replica_kwargs)
-                job_runs.append(run)
-                if i == 0:
-                    main_run = run
-        except Exception:
-            traceback.print_exc()
-            # Wait a few second to avoid the job run being in a transient state.
-            time.sleep(2)
-            # If there is any error when creating the job runs
-            # cancel all the job runs.
-            for run in job_runs:
-                run.cancel()
-        return main_run
 
 
 class PyTorchDistributedArtifact(PythonArtifact):
