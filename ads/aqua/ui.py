@@ -2,15 +2,13 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import json
-from typing import Dict, List
 
-import oci.util
 from oci.exceptions import ServiceError
 from oci.identity.models import Compartment
+
 from ads.aqua import logger
 from ads.aqua.base import AquaApp
-from ads.aqua.exception import AquaClientError, AquaServiceError
+from ads.aqua.exception import AquaValueError
 from ads.config import COMPARTMENT_OCID, TENANCY_OCID
 
 
@@ -48,13 +46,9 @@ class AquaUIApp(AquaApp):
 
         compartment_id = kwargs.pop("compartment_id", COMPARTMENT_OCID)
 
-        try:
-            return self.logging_client.list_log_groups(
-                compartment_id=compartment_id, **kwargs
-            ).data.__repr__()
-        # todo : update this once exception handling is set up
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        return self.logging_client.list_log_groups(
+            compartment_id=compartment_id, **kwargs
+        ).data.__repr__()
 
     def list_logs(self, **kwargs) -> str:
         """Lists the specified log group's log objects. This is a pass through the OCI list_log_groups
@@ -73,13 +67,9 @@ class AquaUIApp(AquaApp):
         """
         log_group_id = kwargs.pop("log_group_id")
 
-        try:
-            return self.logging_client.list_logs(
-                log_group_id=log_group_id, **kwargs
-            ).data.__repr__()
-        # todo : update this once exception handling is set up
-        except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+        return self.logging_client.list_logs(
+            log_group_id=log_group_id, **kwargs
+        ).data.__repr__()
 
     def list_compartments(self, **kwargs) -> str:
         """Lists the compartments in a compartment specified by TENANCY_OCID env variable. This is a pass through the OCI list_compartments
@@ -98,7 +88,7 @@ class AquaUIApp(AquaApp):
         """
         try:
             if not TENANCY_OCID:
-                raise AquaClientError(
+                raise AquaValueError(
                     f"TENANCY_OCID must be available in environment"
                     " variables to list the sub compartments."
                 )
@@ -145,7 +135,7 @@ class AquaUIApp(AquaApp):
 
         # todo : update this once exception handling is set up
         except ServiceError as se:
-            raise AquaServiceError(opc_request_id=se.request_id, status_code=se.code)
+            raise se
 
     def get_default_compartment(self) -> dict:
         """Returns user compartment OCID fetched from environment variables.
