@@ -1260,7 +1260,7 @@ class DataScienceModel(Builder):
         # create json content
         content = dict()
         content["version"] = MODEL_BY_REFERENCE_VERSION
-        content["type"] = "modelReferenceDescription"
+        content["type"] = "modelOSSReferenceDescription"
 
         # first retrieve the etag and version id
         object_versions = oss_details.list_object_versions(fields="etag")
