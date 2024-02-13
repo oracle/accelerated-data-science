@@ -304,7 +304,8 @@ class Evaluator(object):
 
         assert isinstance(models, List), "The `models` parameter must be of type list."
         if self.is_classifier:
-            self._le = LabelEncoder().fit(self.y)
+            y_values = pd.concat([self.y] + y_preds)
+            self._le = LabelEncoder().fit(y_values)
         for i, m in enumerate(models):
             m_name = self._get_model_name(m)
 
