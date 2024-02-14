@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 # Copyright (c) 2024 Oracle and/or its affiliates.
 # Licensed under the Universal Permissive License v 1.0 as shown at https://oss.oracle.com/licenses/upl/
-import os
 import tempfile
 from dataclasses import dataclass
 from enum import Enum
@@ -10,7 +9,6 @@ from typing import List
 from datetime import datetime, timedelta
 from threading import Lock
 
-import cachetools
 from cachetools import TTLCache
 from cachetools import cached
 from cachetools.keys import hashkey
